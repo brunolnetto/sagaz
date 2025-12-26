@@ -1489,7 +1489,7 @@ wheels = [
 
 [[package]]
 name = "sagaz"
-version = "1.0.2"
+version = "1.0.3"
 source = { editable = "." }
 dependencies = [
     { name = "python-statemachine" },
