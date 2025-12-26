@@ -193,9 +193,7 @@ class OutboxStateMachine:
                 f"Event {event.event_id} has exceeded max retries "
                 f"({event.retry_count}/{self.max_retries})"
             )
-            raise ValueError(
-                msg
-            )
+            raise ValueError(msg)
 
         event = self._transition(event, OutboxStatus.PENDING)
         event.worker_id = None

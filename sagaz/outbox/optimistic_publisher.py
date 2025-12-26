@@ -34,8 +34,10 @@ except ImportError:
 
     def Counter(*args, **kwargs):
         return _NoOpMetric()
+
     def Histogram(*args, **kwargs):
         return _NoOpMetric()
+
 
 from .types import OutboxEvent
 

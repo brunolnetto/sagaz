@@ -2,7 +2,6 @@
 Tests for the compensation graph module.
 """
 
-
 import pytest
 
 from sagaz.compensation_graph import (

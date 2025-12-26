@@ -790,9 +790,7 @@ class TestRedisStorage:
             # Cleanup sagas older than now
             from datetime import datetime
 
-            deleted_count = await storage.cleanup_completed_sagas(
-                older_than=datetime.now(UTC)
-            )
+            deleted_count = await storage.cleanup_completed_sagas(older_than=datetime.now(UTC))
 
             # At least our test saga should be deleted
             assert deleted_count >= 1

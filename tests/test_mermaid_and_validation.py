@@ -263,7 +263,6 @@ class TestMermaidGeneration:
         assert "comp_work_a -.-> comp_setup" in mermaid
         assert "comp_work_b -.-> comp_setup" in mermaid
 
-
     @pytest.mark.asyncio
     async def test_classic_saga_to_mermaid_sequential(self):
         """Test Mermaid generation for classic saga."""
@@ -295,6 +294,263 @@ class TestMermaidGeneration:
         assert "setup --> work_b" in mermaid
         assert "work_a --> done" in mermaid
         assert "work_b --> done" in mermaid
+
+    @pytest.mark.asyncio
+    async def test_classic_saga_state_markers(self):
+        """Test that state markers (START/SUCCESS/ROLLED_BACK) are generated."""
+        saga = ClassicSaga(name="state_markers")
+
+        async def action(ctx):
+            return "done"
+
+        async def comp(ctx):
+            pass
+
+        await saga.add_step("step_a", action, comp, dependencies=set())
+        await saga.add_step("step_b", action, comp, dependencies={"step_a"})
+
+        mermaid = saga.to_mermaid()
+
+        # State markers present
+        assert "START((●))" in mermaid
+        assert "SUCCESS((◎))" in mermaid
+        assert "ROLLED_BACK((◎))" in mermaid
+        # START connects to root
+        assert "START --> step_a" in mermaid
+        # Leaf connects to SUCCESS
+        assert "step_b --> SUCCESS" in mermaid
+        # Root compensation connects to ROLLED_BACK
+        assert "comp_step_a -.-> ROLLED_BACK" in mermaid
+        # Styling class applied
+        assert "class START,SUCCESS,ROLLED_BACK startEnd" in mermaid
+
+    @pytest.mark.asyncio
+    async def test_classic_saga_hide_state_markers(self):
+        """Test show_state_markers=False hides state nodes."""
+        saga = ClassicSaga(name="no_state")
+
+        await saga.add_step("step_a", lambda ctx: "a")
+
+        mermaid = saga.to_mermaid(show_state_markers=False)
+
+        assert "START" not in mermaid
+        assert "SUCCESS" not in mermaid
+        assert "●" not in mermaid
+        assert "◎" not in mermaid
+
+    @pytest.mark.asyncio
+    async def test_classic_saga_highlight_trail(self):
+        """Test highlight_trail parameter colors executed steps."""
+        saga = ClassicSaga(name="highlight")
+
+        async def action(ctx):
+            return "done"
+
+        async def comp(ctx):
+            pass
+
+        await saga.add_step("step_a", action, comp, dependencies=set())
+        await saga.add_step("step_b", action, comp, dependencies={"step_a"})
+        await saga.add_step("step_c", action, comp, dependencies={"step_b"})
+
+        # Simulate: step_a and step_b completed, step_c failed, step_b compensated
+        mermaid = saga.to_mermaid(
+            highlight_trail={
+                "completed_steps": ["step_a", "step_b"],
+                "failed_step": "step_c",
+                "compensated_steps": ["step_b", "step_a"],
+            }
+        )
+
+        # Non-executed nodes are dimmed first
+        assert "classDef dimmed fill:#e9ecef" in mermaid
+        # Completed steps have success class and highlighted
+        assert "class step_a,step_b success" in mermaid
+        assert "class step_a,step_b highlighted" in mermaid
+        # Failed step marked as failure
+        assert "class step_c failure" in mermaid
+        assert "class step_c highlighted" in mermaid
+        # Compensated steps have compensation class and highlighted (order is alphabetical)
+        assert "class comp_step_a,comp_step_b compensation" in mermaid
+        assert "class comp_step_a,comp_step_b highlighted" in mermaid
+
+    @pytest.mark.asyncio
+    async def test_classic_saga_to_mermaid_with_execution_no_state(self):
+        """Test to_mermaid_with_execution returns basic diagram when no state found."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        saga = ClassicSaga(name="exec_test")
+        await saga.add_step("step_a", lambda ctx: "a")
+
+        # Mock storage that returns None
+        mock_storage = MagicMock()
+        mock_storage.get_saga_state = AsyncMock(return_value=None)
+
+        mermaid = await saga.to_mermaid_with_execution("nonexistent-id", mock_storage)
+
+        # Should still generate valid diagram without trail-specific highlighting
+        assert "flowchart TB" in mermaid
+        assert "step_a" in mermaid
+        # The classDef highlighted exists, but no steps should be assigned this class
+        assert "class step_a highlighted" not in mermaid
+
+    @pytest.mark.asyncio
+    async def test_classic_saga_to_mermaid_with_execution_with_state(self):
+        """Test to_mermaid_with_execution highlights actual execution."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        saga = ClassicSaga(name="exec_state")
+
+        async def action(ctx):
+            return "done"
+
+        async def comp(ctx):
+            pass
+
+        await saga.add_step("step_a", action, comp, dependencies=set())
+        await saga.add_step("step_b", action, comp, dependencies={"step_a"})
+
+        # Mock saga state
+        mock_state = MagicMock()
+        mock_state.completed_steps = {"step_a"}
+        mock_state.failed_step = "step_b"
+        mock_state.compensated_steps = {"step_a"}
+
+        mock_storage = MagicMock()
+        mock_storage.get_saga_state = AsyncMock(return_value=mock_state)
+
+        mermaid = await saga.to_mermaid_with_execution("test-saga-id", mock_storage)
+
+        # Should highlight based on state
+        assert "class step_a highlighted" in mermaid
+        assert "class step_b failure" in mermaid
+        assert "class comp_step_a highlighted" in mermaid
+
+    @pytest.mark.asyncio
+    async def test_classic_saga_to_mermaid_markdown(self):
+        """Test to_mermaid_markdown wraps in code fence."""
+        saga = ClassicSaga(name="markdown")
+        await saga.add_step("step_a", lambda ctx: "a")
+
+        markdown = saga.to_mermaid_markdown()
+
+        assert markdown.startswith("```mermaid\n")
+        assert markdown.endswith("\n```")
+        assert "flowchart TB" in markdown
+
+    def test_declarative_saga_state_markers(self):
+        """Test state markers with declarative saga."""
+
+        class StateSaga(Saga):
+            saga_name = "state"
+
+            @action("reserve")
+            async def reserve(self, ctx):
+                return {}
+
+            @compensate("reserve")
+            async def release(self, ctx):
+                pass
+
+            @action("charge", depends_on=["reserve"])
+            async def charge(self, ctx):
+                return {}
+
+            @compensate("charge")
+            async def refund(self, ctx):
+                pass
+
+        saga = StateSaga()
+        mermaid = saga.to_mermaid()
+
+        assert "START((●))" in mermaid
+        assert "SUCCESS((◎))" in mermaid
+        assert "ROLLED_BACK((◎))" in mermaid
+        assert "START --> reserve" in mermaid
+        assert "charge --> SUCCESS" in mermaid
+        assert "comp_reserve -.-> ROLLED_BACK" in mermaid
+
+    def test_declarative_saga_hide_state_markers(self):
+        """Test show_state_markers=False with declarative saga."""
+
+        class NoMarkerSaga(Saga):
+            saga_name = "no_markers"
+
+            @action("step")
+            async def step(self, ctx):
+                return {}
+
+        saga = NoMarkerSaga()
+        mermaid = saga.to_mermaid(show_state_markers=False)
+
+        assert "START" not in mermaid
+        assert "SUCCESS" not in mermaid
+
+    def test_declarative_saga_highlight_trail(self):
+        """Test highlight_trail with declarative saga."""
+
+        class HighlightSaga(Saga):
+            saga_name = "highlight"
+
+            @action("a")
+            async def a(self, ctx):
+                return {}
+
+            @compensate("a")
+            async def undo_a(self, ctx):
+                pass
+
+            @action("b", depends_on=["a"])
+            async def b(self, ctx):
+                return {}
+
+            @compensate("b")
+            async def undo_b(self, ctx):
+                pass
+
+        saga = HighlightSaga()
+        mermaid = saga.to_mermaid(
+            highlight_trail={
+                "completed_steps": ["a"],
+                "failed_step": "b",
+                "compensated_steps": ["a"],
+            }
+        )
+
+        assert "class a highlighted" in mermaid
+        assert "class b failure" in mermaid
+        assert "class comp_a highlighted" in mermaid
+
+    @pytest.mark.asyncio
+    async def test_declarative_saga_to_mermaid_with_execution(self):
+        """Test to_mermaid_with_execution with declarative saga."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        class ExecSaga(Saga):
+            saga_name = "exec"
+
+            @action("step")
+            async def step(self, ctx):
+                return {}
+
+            @compensate("step")
+            async def undo(self, ctx):
+                pass
+
+        saga = ExecSaga()
+
+        # Mock saga state
+        mock_state = MagicMock()
+        mock_state.completed_steps = {"step"}
+        mock_state.failed_step = None
+        mock_state.compensated_steps = set()
+
+        mock_storage = MagicMock()
+        mock_storage.get_saga_state = AsyncMock(return_value=mock_state)
+
+        mermaid = await saga.to_mermaid_with_execution("saga-id", mock_storage)
+
+        assert "class step highlighted" in mermaid
 
 
 class TestConnectedGraphValidation:

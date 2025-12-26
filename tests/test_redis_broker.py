@@ -353,12 +353,13 @@ class TestRedisBrokerFromEnv:
 
         with (
             patch.dict(
-            os.environ,
-            {
-                "REDIS_URL": "redis://test:6379/0",
-                "REDIS_STREAM_NAME": "test-stream",
-            },
-        ), patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True),
+                os.environ,
+                {
+                    "REDIS_URL": "redis://test:6379/0",
+                    "REDIS_STREAM_NAME": "test-stream",
+                },
+            ),
+            patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True),
             patch("sagaz.outbox.brokers.redis.redis"),
         ):
             broker = RedisBroker.from_env()
