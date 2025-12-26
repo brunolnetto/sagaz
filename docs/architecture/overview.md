@@ -38,6 +38,7 @@ The central orchestrator that manages saga execution and compensation.
 |-----------|---------|----------|
 | `Saga` | Declarative saga builder | `sagaz/decorators.py` |
 | `ClassicSaga` | Imperative saga builder | `sagaz/core.py` |
+| `SagaConfig` | Unified configuration for storage/broker/observability | `sagaz/config.py` |
 | `SagaStep` | Individual step with action + compensation | `sagaz/core.py` |
 | `SagaContext` | Shared state across steps | `sagaz/core.py` |
 | `SagaOrchestrator` | Executes sagas with retry/timeout | `sagaz/orchestrator.py` |

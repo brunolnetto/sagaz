@@ -1,6 +1,6 @@
 #sagaz Roadmap
 
-Active development roadmap for thesagaz saga pattern library.
+Active development roadmap for the sagaz saga pattern library.
 
 ## Current Version: 1.0.x
 
@@ -18,6 +18,11 @@ Active development roadmap for thesagaz saga pattern library.
 | Consumer Inbox (Idempotency) | 1.0.0 | ✅ Done |
 | Compensation Graph | 1.0.0 | ✅ Done |
 | Prometheus Metrics | 1.0.0 | ✅ Done |
+| **Unified SagaConfig** | 1.0.3 | ✅ Done |
+| **Environment Variable Config** | 1.0.3 | ✅ Done |
+| **Mermaid Diagram Generation** | 1.0.3 | ✅ Done |
+| **Connected Graph Validation** | 1.0.3 | ✅ Done |
+| **Grafana Dashboard Templates** | 1.0.3 | ✅ Done |
 
 ---
 
@@ -27,22 +32,22 @@ Active development roadmap for thesagaz saga pattern library.
 
 | Feature | Priority | Status | ADR |
 |---------|----------|--------|-----|
-| Batch status updates | High | 📋 Planned | - |
-| OpenTelemetry tracing | Medium | ✅ Done | - |
-| Grafana dashboard templates | Medium | 📋 Planned | - |
+| Batch saga status updates | Low | 📋 Planned | - |
 
-### v1.2.0 - Storage Options
+> ℹ️ **OpenTelemetry tracing** was completed in v1.0.0 (`TracingSagaListener`)
 
-| Feature | Priority | Status | ADR |
-|---------|----------|--------|-----|
-| MySQL storage backend | Medium | 📋 Planned | - |
-| CockroachDB compatibility | Low | 📋 Planned | - |
+### v1.2.0 - Storage Options (Postponed)
+
+| Feature | Priority | Status | Notes |
+|---------|----------|--------|-------|
+| MySQL storage backend | Low | ⏸️ Postponed | PostgreSQL/Redis covers most use cases |
+| CockroachDB compatibility | Low | ⏸️ Postponed | Niche requirement |
 
 ### v2.0.0 - CDC (Change Data Capture)
 
 | Feature | Priority | Status | ADR |
 |---------|----------|--------|-----|
-| **CDC Support (Debezium)** | High | 📋 Planned | [ADR-011](architecture/adr-011-cdc-support.md) |
+| **CDC Support (Debezium)** | High | 📋 Planned | [ADR-011](architecture/adr/adr-011-cdc-support.md) |
 | CDC Worker implementation | High | 📋 Planned | ADR-011 |
 | Native pg_logical support | Medium | 📋 Planned | ADR-011 |
 | CDC Prometheus metrics | High | 📋 Planned | ADR-011 |
@@ -67,7 +72,7 @@ Active development roadmap for thesagaz saga pattern library.
 - Grafana dashboard panels
 - Migration guide from polling to CDC
 
-**Design**: See [ADR-011: CDC Support](architecture/adr-011-cdc-support.md)
+**Design**: See [ADR-011: CDC Support](architecture/adr/adr-011-cdc-support.md)
 
 **Dependencies**:
 - Kafka infrastructure
@@ -78,15 +83,16 @@ Active development roadmap for thesagaz saga pattern library.
 
 ---
 
-## Future Considerations
+## Future Considerations (Community Interest)
 
-| Feature | Notes |
-|---------|-------|
-| Event sourcing integration | Store saga state as events |
-| Saga choreography mode | Event-driven sagas (vs orchestration) |
-| Multi-region support | Cross-region saga coordination |
-| Cloud-native CDC | AWS DMS, GCP Datastream, Azure |
-| Schema registry | Avro/Protobuf event schemas |
+| Feature | Notes | Status |
+|---------|-------|--------|
+| Event sourcing integration | Store saga state as events | 💡 Ideas |
+| Saga choreography mode | Event-driven sagas (vs orchestration) | 💡 Ideas |
+| Multi-region support | Cross-region saga coordination | 💡 Ideas |
+| Cloud-native CDC | AWS DMS, GCP Datastream, Azure | 💡 Ideas |
+| Schema registry | Avro/Protobuf event schemas | 💡 Ideas |
+| Saga visualization UI | Dashboard for saga monitoring | 💡 Ideas |
 
 ---
 
@@ -103,5 +109,7 @@ To propose a new feature:
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 1.0.3 | 2024-12 | Unified SagaConfig, env var config, test perf |
+| 1.0.2 | 2024-12 | CI improvements, Codecov, code quality fixes |
 | 1.0.1 | 2024-12 | Redis broker, documentation reorg |
 | 1.0.0 | 2024-11 | Initial release |

@@ -7,6 +7,7 @@
 | I want to... | Go to |
 |-------------|-------|
 | **Get started quickly** | [Quickstart Guide](quickstart.md) |
+| **Configure storage/broker/observability** | [Configuration Guide](guides/configuration.md) |
 | **Understand the architecture** | [Architecture Overview](architecture/overview.md) |
 | **See how data flows** | [Dataflow & Events](architecture/dataflow.md) |
 | **Deploy to Kubernetes** | [Kubernetes Guide](guides/kubernetes.md) |
@@ -26,13 +27,11 @@ docs/
 │   ├── dataflow.md            # Event flow & state machines
 │   └── decisions.md           # Architecture Decision Records
 ├── guides/                    # How-to guides
-│   ├── saga-pattern.md        # Using the Saga pattern
-│   ├── outbox-pattern.md      # Transactional outbox
+│   ├── configuration.md       # SagaConfig unified setup 🆕
 │   ├── kubernetes.md          # K8s deployment
 │   └── benchmarking.md        # Performance testing
 ├── reference/                 # Technical reference
-│   ├── api.md                 # API documentation
-│   └── configuration.md       # Configuration options
+│   └── api.md                 # API documentation
 └── archive/                   # Historical documentation
 ```
 
