@@ -1,0 +1,134 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: outbox-worker
+  namespace: sagaz
+  labels:
+    app: outbox-worker
+    prometheus: kube-prometheus
+spec:
+  selector:
+    matchLabels:
+      app: outbox-worker
+  endpoints:
+    - port: metrics
+      interval: 30s
+      path: /metrics
+      scheme: http
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: outbox-worker-alerts
+  namespace: sagaz
+  labels:
+    app: outbox-worker
+    prometheus: kube-prometheus
+spec:
+  groups:
+    - name: outbox_alerts
+      interval: 30s
+      rules:
+        # Critical: Outbox lag exceeds SLA
+        - alert: OutboxHighLag
+          expr: outbox_pending_events_total > 5000
+          for: 10m
+          labels:
+            severity: critical
+            component: outbox-worker
+          annotations:
+            summary: "Outbox has {{ $value }} pending events"
+            description: "Outbox pending count exceeds threshold, may indicate worker issues or high traffic"
+            runbook_url: "https://github.com/yourorg/sage/blob/main/docs/runbooks/stuck-messages.md"
+        
+        # Critical: No workers running
+        - alert: OutboxWorkerDown
+          expr: up{job="outbox-worker"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            component: outbox-worker
+          annotations:
+            summary: "No outbox workers are running"
+            description: "All outbox worker pods are down, messages will not be processed"
+            runbook_url: "https://github.com/yourorg/sage/blob/main/docs/runbooks/worker-down.md"
+        
+        # Warning: High publish failure rate
+        - alert: OutboxHighErrorRate
+          expr: |
+            rate(outbox_failed_events_total[5m]) / 
+            rate(outbox_published_events_total[5m]) > 0.01
+          for: 10m
+          labels:
+            severity: warning
+            component: outbox-worker
+          annotations:
+            summary: "Outbox publish failure rate is {{ $value | humanizePercentage }}"
+            description: "More than 1% of events are failing to publish"
+            runbook_url: "https://github.com/yourorg/sage/blob/main/docs/runbooks/high-error-rate.md"
+        
+        # Critical: Events moving to dead letter queue
+        - alert: OutboxDeadLetterQueue
+          expr: increase(outbox_dead_letter_events_total[10m]) > 10
+          labels:
+            severity: critical
+            component: outbox-worker
+          annotations:
+            summary: "{{ $value }} events moved to DLQ in last 10 minutes"
+            description: "Events exhausted retries, manual intervention required"
+            runbook_url: "https://github.com/yourorg/sage/blob/main/docs/runbooks/dead-letter-queue.md"
+        
+        # Warning: High publish latency
+        - alert: OutboxHighLatency
+          expr: |
+            histogram_quantile(0.99, 
+              rate(outbox_publish_duration_seconds_bucket[5m])
+            ) > 0.5
+          for: 10m
+          labels:
+            severity: warning
+            component: outbox-worker
+          annotations:
+            summary: "Outbox p99 publish latency is {{ $value }}s"
+            description: "99th percentile latency exceeds 500ms, may indicate broker issues"
+        
+        # Warning: Worker unhealthy
+        - alert: OutboxWorkerUnhealthy
+          expr: |
+            sum(up{job="outbox-worker"}) / 
+            sum(kube_deployment_spec_replicas{deployment="outbox-worker"}) < 0.75
+          for: 5m
+          labels:
+            severity: warning
+            component: outbox-worker
+          annotations:
+            summary: "Less than 75% of outbox workers are healthy"
+            description: "{{ $value | humanizePercentage }} of workers are running, may affect throughput"
+        
+        # Info: No events published recently (might be expected)
+        - alert: OutboxWorkerIdle
+          expr: |
+            rate(outbox_published_events_total[5m]) == 0 
+            AND outbox_pending_events_total > 0
+          for: 15m
+          labels:
+            severity: info
+            component: outbox-worker
+          annotations:
+            summary: "Outbox worker appears idle"
+            description: "No events published but pending queue is not empty, investigate worker logs"
+        
+        # Warning: Optimistic send failure rate high
+        - alert: OptimisticSendHighFailureRate
+          expr: |
+            rate(outbox_optimistic_send_failures_total[5m]) /
+            rate(outbox_optimistic_send_attempts_total[5m]) > 0.1
+          for: 10m
+          labels:
+            severity: warning
+            component: outbox-worker
+          annotations:
+            summary: "Optimistic send failure rate is {{ $value | humanizePercentage }}"
+            description: "More than 10% of optimistic sends are failing, broker may be slow"

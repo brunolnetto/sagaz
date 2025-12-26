@@ -1,0 +1,240 @@
+---
+# Kubernetes Job to run high-throughput benchmark INSIDE the cluster
+# This bypasses the port-forward bottleneck for accurate performance testing
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: outbox-benchmark
+  namespace: sagaz
+spec:
+  ttlSecondsAfterFinished: 3600  # Clean up after 1 hour
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        app: outbox-benchmark
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: benchmark
+          image: python:3.12-slim
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              set -e
+              
+              echo "=== Installing dependencies ==="
+              pip install --quiet asyncpg rich
+              
+              echo "=== Creating benchmark script ==="
+              cat > /tmp/benchmark.py << 'SCRIPT'
+              import asyncio
+              import json
+              import os
+              import sys
+              import time
+              import uuid
+              from datetime import datetime, timezone
+              
+              import asyncpg
+              
+              DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://saga_user:saga_password@postgresql:5432/saga_db")
+              NUM_EVENTS = int(os.environ.get("NUM_EVENTS", "100000"))
+              NUM_WORKERS = int(os.environ.get("NUM_WORKERS", "20"))
+              BATCH_SIZE = int(os.environ.get("BATCH_SIZE", "1000"))
+              
+              class Benchmark:
+                  def __init__(self):
+                      self.pool = None
+                      self.events_processed = 0
+                      self._lock = asyncio.Lock()
+                      self._stop = False
+              
+                  async def connect(self):
+                      # Use smaller pool to avoid overwhelming PostgreSQL
+                      pool_size = min(NUM_WORKERS + 2, 15)
+                      self.pool = await asyncpg.create_pool(
+                          DATABASE_URL,
+                          min_size=2,
+                          max_size=pool_size,
+                          command_timeout=120,
+                      )
+                      print(f"Connected to PostgreSQL (pool size: {pool_size})")
+              
+                  async def close(self):
+                      if self.pool:
+                          await self.pool.close()
+              
+                  async def clear_and_insert(self, num_events: int) -> float:
+                      """Clear and insert events using COPY."""
+                      async with self.pool.acquire() as conn:
+                          await conn.execute("DELETE FROM saga_outbox")
+                          print(f"Cleared outbox table")
+                      
+                      start = time.time()
+                      batch_size = 5000
+                      
+                      async with self.pool.acquire() as conn:
+                          for batch_start in range(0, num_events, batch_size):
+                              batch_count = min(batch_size, num_events - batch_start)
+                              
+                              records = []
+                              for i in range(batch_count):
+                                  records.append((
+                                      uuid.uuid4(),
+                                      str(uuid.uuid4()),
+                                      "benchmark",
+                                      str(uuid.uuid4()),
+                                      "BenchmarkEvent",
+                                      json.dumps({"index": batch_start + i}),
+                                      json.dumps({}),
+                                      "pending",
+                                      datetime.now(timezone.utc),
+                                      0,
+                                  ))
+                              
+                              await conn.copy_records_to_table(
+                                  "saga_outbox",
+                                  records=records,
+                                  columns=[
+                                      "event_id", "saga_id", "aggregate_type", "aggregate_id",
+                                      "event_type", "payload", "headers", "status", "created_at",
+                                      "retry_count"
+                                  ],
+                              )
+                              
+                              elapsed = time.time() - start
+                              rate = (batch_start + batch_count) / elapsed
+                              print(f"  Inserted: {batch_start + batch_count:,} | Rate: {rate:,.0f}/sec")
+                      
+                      return time.time() - start
+              
+                  async def worker(self, worker_id: int):
+                      """Process events - claim, 'publish' (in-memory), mark sent."""
+                      while not self._stop:
+                          try:
+                              async with self.pool.acquire() as conn:
+                                  events = await conn.fetch('''
+                                      UPDATE saga_outbox
+                                      SET status = 'claimed', worker_id = $1, claimed_at = NOW()
+                                      WHERE event_id IN (
+                                          SELECT event_id FROM saga_outbox
+                                          WHERE status = 'pending'
+                                          LIMIT $2
+                                          FOR UPDATE SKIP LOCKED
+                                      )
+                                      RETURNING event_id
+                                  ''', f"worker-{worker_id}", BATCH_SIZE)
+                                  
+                                  if not events:
+                                      await asyncio.sleep(0.01)
+                                      continue
+                                  
+                                  event_ids = [e["event_id"] for e in events]
+                                  
+                                  # In-memory "publish" - instant
+                                  
+                                  await conn.execute('''
+                                      UPDATE saga_outbox
+                                      SET status = 'sent', sent_at = NOW()
+                                      WHERE event_id = ANY($1::uuid[])
+                                  ''', event_ids)
+                                  
+                                  async with self._lock:
+                                      self.events_processed += len(event_ids)
+                          except Exception as e:
+                              print(f"Worker {worker_id} error: {e}")
+                              await asyncio.sleep(0.1)
+              
+                  async def run_workers(self, num_events: int) -> float:
+                      """Run parallel workers."""
+                      self.events_processed = 0
+                      self._stop = False
+                      start = time.time()
+                      
+                      workers = [asyncio.create_task(self.worker(i)) for i in range(NUM_WORKERS)]
+                      
+                      last_count = 0
+                      while self.events_processed < num_events:
+                          await asyncio.sleep(1)
+                          elapsed = time.time() - start
+                          rate = self.events_processed / elapsed if elapsed > 0 else 0
+                          print(f"  Processed: {self.events_processed:,}/{num_events:,} | Rate: {rate:,.0f}/sec")
+                          
+                          if self.events_processed == last_count and elapsed > 30:
+                              print("Warning: Processing stalled")
+                              break
+                          last_count = self.events_processed
+                      
+                      self._stop = True
+                      for w in workers:
+                          w.cancel()
+                      
+                      return time.time() - start
+              
+              async def main():
+                  print(f"\n{'='*60}")
+                  print(f"HIGH-THROUGHPUT OUTBOX BENCHMARK (In-Cluster)")
+                  print(f"Events: {NUM_EVENTS:,} | Workers: {NUM_WORKERS} | Batch: {BATCH_SIZE}")
+                  print(f"{'='*60}\n")
+                  
+                  bench = Benchmark()
+                  await bench.connect()
+                  
+                  try:
+                      # Phase 1: Insert
+                      print("\n--- Phase 1: Bulk Insert (COPY) ---")
+                      insert_time = await bench.clear_and_insert(NUM_EVENTS)
+                      insert_rate = NUM_EVENTS / insert_time
+                      print(f"\n✓ Insert complete: {insert_time:.2f}s ({insert_rate:,.0f}/sec)")
+                      
+                      # Phase 2: Process
+                      print("\n--- Phase 2: Process Events ---")
+                      process_time = await bench.run_workers(NUM_EVENTS)
+                      process_rate = NUM_EVENTS / process_time
+                      print(f"\n✓ Process complete: {process_time:.2f}s ({process_rate:,.0f}/sec)")
+                      
+                      # Results
+                      total_time = insert_time + process_time
+                      print(f"\n{'='*60}")
+                      print(f"RESULTS")
+                      print(f"{'='*60}")
+                      print(f"Events:       {NUM_EVENTS:,}")
+                      print(f"Insert Time:  {insert_time:.2f}s ({insert_rate:,.0f}/sec)")
+                      print(f"Process Time: {process_time:.2f}s ({process_rate:,.0f}/sec)")
+                      print(f"Total Time:   {total_time:.2f}s")
+                      print(f"")
+                      print(f">>> THROUGHPUT: {process_rate:,.0f} events/sec <<<")
+                      print(f">>> Time to 1M: {1_000_000/process_rate:.1f}s ({1_000_000/process_rate/60:.1f} min) <<<")
+                      print(f"{'='*60}")
+                      
+                  finally:
+                      await bench.close()
+              
+              if __name__ == "__main__":
+                  asyncio.run(main())
+              SCRIPT
+              
+              echo "=== Running benchmark ==="
+              python /tmp/benchmark.py
+              
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: sagaz-db-credentials
+                  key: connection-string
+            - name: NUM_EVENTS
+              value: "50000"
+            - name: NUM_WORKERS  
+              value: "10"
+            - name: BATCH_SIZE
+              value: "500"
+          
+          resources:
+            requests:
+              cpu: "1000m"
+              memory: "512Mi"
+            limits:
+              cpu: "2000m"
+              memory: "1Gi"

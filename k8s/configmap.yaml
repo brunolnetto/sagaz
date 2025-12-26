@@ -1,0 +1,50 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sagaz
+  labels:
+    name: sagaz
+    app: saga-pattern
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: outbox-worker-config
+  namespace: sagaz
+data:
+  # Worker configuration
+  WORKER_BATCH_SIZE: "100"
+  WORKER_POLL_INTERVAL_SECONDS: "1.0"
+  WORKER_TIMEOUT_SECONDS: "30.0"
+  
+  # Retry configuration
+  MAX_RETRY_ATTEMPTS: "10"
+  INITIAL_RETRY_DELAY_SECONDS: "2"
+  MAX_RETRY_DELAY_SECONDS: "3600"
+  
+  # Stuck claim timeout
+  STUCK_CLAIM_TIMEOUT_SECONDS: "300"
+  
+  # Optimistic sending
+  ENABLE_OPTIMISTIC_SEND: "true"
+  OPTIMISTIC_SEND_TIMEOUT_SECONDS: "0.5"
+  
+  # Logging
+  LOG_LEVEL: "INFO"
+  LOG_FORMAT: "json"
+  
+  # Metrics
+  METRICS_PORT: "8000"
+  METRICS_PATH: "/metrics"
+  
+  # Health checks
+  HEALTH_PORT: "8000"
+  HEALTH_LIVE_PATH: "/health/live"
+  HEALTH_READY_PATH: "/health/ready"
+  
+  # OpenTelemetry (optional)
+  OTEL_ENABLED: "true"
+  OTEL_SERVICE_NAME: "sage-outbox-worker"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger-collector.observability.svc:4318"

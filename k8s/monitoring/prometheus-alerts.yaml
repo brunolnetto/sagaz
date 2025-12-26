@@ -1,0 +1,330 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-alerts
+  namespace: sagaz
+  labels:
+    app: prometheus
+data:
+  saga-alerts.yaml: |
+    groups:
+      - name: saga_critical_alerts
+        interval: 30s
+        rules:
+          # Critical: Saga execution failure spike
+          - alert: SagaHighFailureRate
+            expr: |
+              (sum(rate(saga_executions_total{status="failed"}[5m])) /
+               sum(rate(saga_executions_total[5m]))) > 0.05
+            for: 5m
+            labels:
+              severity: critical
+              component: saga
+              team: platform
+            annotations:
+              summary: "Saga failure rate exceeds 5%"
+              description: "Current failure rate: {{ $value | humanizePercentage }}. Investigate saga execution logs."
+              runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#saga-high-failure-rate"
+              dashboard: "https://grafana/d/saga-orchestration"
+
+          # Critical: Saga stuck in running state
+          - alert: SagaStuckInRunning
+            expr: |
+              sum(saga_status_gauge{status="running"}) by (saga_id, saga_name) > 0
+              AND
+              time() - saga_last_updated_timestamp > 3600
+            for: 10m
+            labels:
+              severity: critical
+              component: saga
+              team: platform
+            annotations:
+              summary: "Saga {{ $labels.saga_name }} ({{ $labels.saga_id }}) stuck in running state"
+              description: "Saga has been running for over 1 hour without completion. May indicate timeout or deadlock."
+              runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#saga-stuck"
+
+          # Critical: Compensation execution failures
+          - alert: CompensationFailures
+            expr: |
+              rate(saga_compensations_total{status="failed"}[10m]) > 0
+            for: 5m
+            labels:
+              severity: critical
+              component: saga
+              team: platform
+            annotations:
+              summary: "Compensation failures detected for {{ $labels.saga_name }}"
+              description: "Compensations are failing, manual intervention required. Check logs for saga {{ $labels.saga_name }}."
+              runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#compensation-failure"
+
+      - name: saga_warning_alerts
+        interval: 1m
+        rules:
+          # Warning: High saga execution latency
+          - alert: SagaHighLatency
+            expr: |
+              histogram_quantile(0.95,
+                sum(rate(saga_duration_seconds_bucket[5m])) by (le, saga_name)
+              ) > 30
+            for: 10m
+            labels:
+              severity: warning
+              component: saga
+              team: platform
+            annotations:
+              summary: "High saga execution latency for {{ $labels.saga_name }}"
+              description: "P95 latency is {{ $value }}s, exceeds 30s threshold. Check step performance."
+              runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#saga-high-latency"
+
+          # Warning: Increasing rollback rate
+          - alert: SagaHighRollbackRate
+            expr: |
+              (sum(rate(saga_executions_total{status="rolled_back"}[10m])) /
+               sum(rate(saga_executions_total[10m]))) > 0.10
+            for: 10m
+            labels:
+              severity: warning
+              component: saga
+              team: platform
+            annotations:
+              summary: "Saga rollback rate exceeds 10%"
+              description: "Current rollback rate: {{ $value | humanizePercentage }}. Investigate downstream service health."
+              runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#high-rollback-rate"
+
+          # Warning: Step execution failures
+          - alert: SagaStepHighFailureRate
+            expr: |
+              (sum(rate(saga_step_executions_total{status="failed"}[5m])) by (step_name) /
+               sum(rate(saga_step_executions_total[5m])) by (step_name)) > 0.05
+            for: 5m
+            labels:
+              severity: warning
+              component: saga
+              team: platform
+            annotations:
+              summary: "Step {{ $labels.step_name }} failure rate exceeds 5%"
+              description: "Step {{ $labels.step_name }} failing at {{ $value | humanizePercentage }}. Check service health."
+              runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#step-failure"
+
+      - name: saga_capacity_alerts
+        interval: 1m
+        rules:
+          # Warning: High active saga count
+          - alert: SagaHighActiveConcurrency
+            expr: |
+              sum(saga_status_gauge{status="running"}) > 1000
+            for: 5m
+            labels:
+              severity: warning
+              component: saga
+              team: platform
+            annotations:
+              summary: "High number of active sagas: {{ $value }}"
+              description: "May indicate capacity issues or slow downstream services."
+              runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#high-concurrency"
+
+          # Warning: Storage connection issues
+          - alert: SagaStorageErrors
+            expr: |
+              rate(saga_storage_errors_total[5m]) > 1
+            for: 5m
+            labels:
+              severity: warning
+              component: saga
+              team: platform
+            annotations:
+              summary: "Storage errors detected: {{ $value }}/sec"
+              description: "Saga storage experiencing errors. Check database health and connectivity."
+              runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#storage-errors"
+
+  outbox-alerts.yaml: |
+    groups:
+      - name: outbox_critical_alerts
+        interval: 30s
+        rules:
+          # Critical: Outbox worker down
+          - alert: OutboxWorkerDown
+            expr: |
+              sum(up{job="outbox-worker"}) == 0
+            for: 2m
+            labels:
+              severity: critical
+              component: outbox-worker
+              team: platform
+              pager: "true"
+            annotations:
+              summary: "All outbox workers are down"
+              description: "No outbox workers are running. Events will not be published to message broker."
+              runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#worker-down"
+              action: "Check pod status and logs: kubectl -nsagaz get pods -l app=outbox-worker"
+
+          # Critical: High outbox lag
+          - alert: OutboxHighLag
+            expr: |
+              outbox_pending_events_total > 10000
+            for: 10m
+            labels:
+              severity: critical
+              component: outbox-worker
+              team: platform
+            annotations:
+              summary: "Outbox has {{ $value }} pending events"
+              description: "Pending event count exceeds 10k. Check worker capacity and broker health."
+              runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#high-lag"
+              action: "Scale workers or investigate broker issues"
+
+          # Critical: Dead letter queue activity
+          - alert: OutboxDeadLetterQueue
+            expr: |
+              increase(outbox_dead_letter_events_total[10m]) > 5
+            for: 1m
+            labels:
+              severity: critical
+              component: outbox-worker
+              team: platform
+            annotations:
+              summary: "{{ $value }} events moved to DLQ in last 10 minutes"
+              description: "Events exhausted retry attempts. Manual intervention required."
+              runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#dead-letter-queue"
+              action: "Inspect DLQ table and determine root cause"
+
+          # Critical: Publish failure spike
+          - alert: OutboxPublishFailureSpike
+            expr: |
+              (rate(outbox_failed_events_total[5m]) /
+               (rate(outbox_published_events_total[5m]) + rate(outbox_failed_events_total[5m]))) > 0.10
+            for: 5m
+            labels:
+              severity: critical
+              component: outbox-worker
+              team: platform
+            annotations:
+              summary: "Outbox publish failure rate: {{ $value | humanizePercentage }}"
+              description: "More than 10% of publish attempts are failing. Check broker connectivity."
+              runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#publish-failures"
+
+      - name: outbox_warning_alerts
+        interval: 1m
+        rules:
+          # Warning: Elevated outbox lag
+          - alert: OutboxElevatedLag
+            expr: |
+              outbox_pending_events_total > 5000
+            for: 10m
+            labels:
+              severity: warning
+              component: outbox-worker
+              team: platform
+            annotations:
+              summary: "Outbox has {{ $value }} pending events"
+              description: "Pending count elevated but not critical. Monitor trend."
+              runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#elevated-lag"
+
+          # Warning: High publish latency
+          - alert: OutboxHighLatency
+            expr: |
+              histogram_quantile(0.95,
+                rate(outbox_publish_duration_seconds_bucket[5m])
+              ) > 1.0
+            for: 10m
+            labels:
+              severity: warning
+              component: outbox-worker
+              team: platform
+            annotations:
+              summary: "Outbox P95 publish latency is {{ $value }}s"
+              description: "Publish latency exceeds 1 second. Check broker performance."
+              runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#high-latency"
+
+          # Warning: Worker pod count below desired
+          - alert: OutboxWorkerUnderReplicated
+            expr: |
+              (sum(up{job="outbox-worker"}) /
+               sum(kube_deployment_spec_replicas{deployment="outbox-worker"})) < 0.75
+            for: 5m
+            labels:
+              severity: warning
+              component: outbox-worker
+              team: platform
+            annotations:
+              summary: "Only {{ $value | humanizePercentage }} of desired workers are running"
+              description: "Some worker pods are down. Check pod status and recent restarts."
+              runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#under-replicated"
+
+          # Warning: High retry rate
+          - alert: OutboxHighRetryRate
+            expr: |
+              sum(rate(outbox_retry_attempts_total[5m])) /
+              sum(rate(outbox_published_events_total[5m])) > 0.20
+            for: 10m
+            labels:
+              severity: warning
+              component: outbox-worker
+              team: platform
+            annotations:
+              summary: "{{ $value | humanizePercentage }} of events require retries"
+              description: "High retry rate may indicate transient broker issues."
+              runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#high-retry-rate"
+
+          # Warning: Worker idle with pending events
+          - alert: OutboxWorkerIdle
+            expr: |
+              rate(outbox_published_events_total[5m]) == 0
+              AND outbox_pending_events_total > 0
+            for: 15m
+            labels:
+              severity: warning
+              component: outbox-worker
+              team: platform
+            annotations:
+              summary: "Worker idle but {{ $value }} events pending"
+              description: "Worker may be stuck. Check logs and consider restart."
+              runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#worker-idle"
+
+          # Warning: Optimistic send failures
+          - alert: OptimisticSendHighFailureRate
+            expr: |
+              (rate(outbox_optimistic_send_failures_total[5m]) /
+               rate(outbox_optimistic_send_attempts_total[5m])) > 0.10
+            for: 10m
+            labels:
+              severity: warning
+              component: outbox-worker
+              team: platform
+            annotations:
+              summary: "Optimistic send failure rate: {{ $value | humanizePercentage }}"
+              description: "High optimistic send failure rate. Broker may be slow or unavailable."
+              runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#optimistic-send-failures"
+
+      - name: outbox_capacity_alerts
+        interval: 1m
+        rules:
+          # Warning: High worker CPU
+          - alert: OutboxWorkerHighCPU
+            expr: |
+              rate(container_cpu_usage_seconds_total{pod=~"outbox-worker.*"}[5m]) > 0.8
+            for: 10m
+            labels:
+              severity: warning
+              component: outbox-worker
+              team: platform
+            annotations:
+              summary: "Worker {{ $labels.pod }} CPU usage: {{ $value | humanizePercentage }}"
+              description: "Consider scaling workers or investigating performance issues."
+              runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#high-cpu"
+
+          # Warning: High worker memory
+          - alert: OutboxWorkerHighMemory
+            expr: |
+              (container_memory_working_set_bytes{pod=~"outbox-worker.*"} /
+               container_spec_memory_limit_bytes{pod=~"outbox-worker.*"}) > 0.85
+            for: 10m
+            labels:
+              severity: warning
+              component: outbox-worker
+              team: platform
+            annotations:
+              summary: "Worker {{ $labels.pod }} memory usage: {{ $value | humanizePercentage }}"
+              description: "Memory usage high. Check for memory leaks or increase limits."
+              runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#high-memory"

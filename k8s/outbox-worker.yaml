@@ -1,0 +1,247 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: outbox-worker
+  namespace: sagaz
+  labels:
+    app: outbox-worker
+    component: messaging
+    version: v1
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0  # Zero-downtime deployments
+  selector:
+    matchLabels:
+      app: outbox-worker
+  template:
+    metadata:
+      labels:
+        app: outbox-worker
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: outbox-worker
+      
+      # Anti-affinity: spread workers across nodes
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: outbox-worker
+                topologyKey: kubernetes.io/hostname
+      
+      # Security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      
+      containers:
+        - name: worker
+          image: sagaz-outbox-worker:latest  # Local image
+          imagePullPolicy: Never  # Use local image
+          
+          # Environment variables from ConfigMap
+          envFrom:
+            - configMapRef:
+                name: outbox-worker-config
+          
+          # Secrets
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: sagaz-db-credentials
+                  key: connection-string
+            
+            - name: BROKER_TYPE
+              value: "rabbitmq"  # Using RabbitMQ for local dev
+            
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              valueFrom:
+                secretKeyRef:
+                  name: sagaz-broker-credentials
+                  key: bootstrap-servers
+                  optional: true
+            
+            - name: RABBITMQ_URL
+              valueFrom:
+                secretKeyRef:
+                  name: sagaz-broker-credentials
+                  key: rabbitmq-url
+                  optional: true
+            
+            - name: WORKER_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          
+          # Resource limits
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          
+          # Health checks - exec-based since worker doesn't expose HTTP
+          livenessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - "import sagaz; print('alive')"
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          
+          readinessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - "import sagaz; print('ready')"
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
+          
+          # Graceful shutdown
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 15"]
+          
+          # Ports
+          ports:
+            - name: metrics
+              containerPort: 8000
+              protocol: TCP
+          
+          # Security
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop:
+                - ALL
+          
+          # Temp directory (needed for read-only filesystem)
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      
+      # Graceful termination
+      terminationGracePeriodSeconds: 30
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: outbox-worker-metrics
+  namespace: sagaz
+  labels:
+    app: outbox-worker
+spec:
+  type: ClusterIP
+  ports:
+    - name: metrics
+      port: 8000
+      targetPort: metrics
+      protocol: TCP
+  selector:
+    app: outbox-worker
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: outbox-worker
+  namespace: sagaz
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: outbox-worker-pdb
+  namespace: sagaz
+spec:
+  minAvailable: 2  # Always keep at least 2 workers running
+  selector:
+    matchLabels:
+      app: outbox-worker
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: outbox-worker-hpa
+  namespace: sagaz
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: outbox-worker
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    # Scale based on pending events metric
+    - type: Pods
+      pods:
+        metric:
+          name: outbox_pending_events_total
+        target:
+          type: AverageValue
+          averageValue: "1000"  # Scale when >1000 pending per pod
+    
+    # Also scale on CPU as fallback
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300  # Wait 5 minutes before scaling down
+      policies:
+        - type: Percent
+          value: 50  # Scale down max 50% at a time
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0  # Scale up immediately
+      policies:
+        - type: Percent
+          value: 100  # Can double capacity
+          periodSeconds: 15
+        - type: Pods
+          value: 4  # Or add 4 pods
+          periodSeconds: 15
+      selectPolicy: Max  # Use the most aggressive policy

@@ -1,0 +1,160 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: sagaz-migration
+  namespace: sagaz
+  labels:
+    app: sagaz-migration
+    component: database
+spec:
+  ttlSecondsAfterFinished: 86400  # Clean up after 24 hours
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: sagaz-migration
+    spec:
+      restartPolicy: OnFailure
+      
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      
+      containers:
+        - name: migration
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              echo "Starting database migration..."
+              
+              # Wait for PostgreSQL to be ready
+              until psql "$DATABASE_URL" -c '\l'; do
+                echo "Waiting for PostgreSQL..."
+                sleep 2
+              done
+              
+              echo "PostgreSQL is ready, applying migrations..."
+              
+              # Apply migrations
+              psql "$DATABASE_URL" <<'EOF'
+              -- Create UUID extension
+              CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+              
+              -- Create outbox table
+              CREATE TABLE IF NOT EXISTS saga_outbox (
+                  event_id        UUID PRIMARY KEY,
+                  saga_id         VARCHAR(255) NOT NULL,
+                  aggregate_type  VARCHAR(255) NOT NULL DEFAULT 'saga',
+                  aggregate_id    VARCHAR(255) NOT NULL,
+                  event_type      VARCHAR(255) NOT NULL,
+                  payload         JSONB NOT NULL,
+                  headers         JSONB NOT NULL DEFAULT '{}',
+                  status          VARCHAR(50) NOT NULL DEFAULT 'pending',
+                  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                  claimed_at      TIMESTAMPTZ,
+                  sent_at         TIMESTAMPTZ,
+                  retry_count     INTEGER NOT NULL DEFAULT 0,
+                  last_error      TEXT,
+                  worker_id       VARCHAR(255),
+                  
+                  CONSTRAINT valid_status CHECK (
+                      status IN ('pending', 'claimed', 'sent', 'failed', 'dead_letter')
+                  )
+              );
+              
+              -- Indexes for outbox
+              CREATE INDEX IF NOT EXISTS idx_outbox_pending 
+                  ON saga_outbox (created_at) 
+                  WHERE status = 'pending';
+              
+              CREATE INDEX IF NOT EXISTS idx_outbox_claimed_at 
+                  ON saga_outbox (claimed_at) 
+                  WHERE status = 'claimed';
+              
+              CREATE INDEX IF NOT EXISTS idx_outbox_saga_id 
+                  ON saga_outbox (saga_id);
+              
+              -- Archive table
+              CREATE TABLE IF NOT EXISTS saga_outbox_archive (
+                  LIKE saga_outbox INCLUDING ALL
+              );
+              
+              -- Consumer inbox table for idempotency
+              CREATE TABLE IF NOT EXISTS consumer_inbox (
+                  event_id            UUID PRIMARY KEY,
+                  consumer_name       VARCHAR(255) NOT NULL,
+                  source_topic        VARCHAR(255) NOT NULL,
+                  event_type          VARCHAR(255) NOT NULL,
+                  payload             JSONB NOT NULL,
+                  consumed_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                  processing_duration_ms INTEGER
+              );
+              
+              CREATE INDEX IF NOT EXISTS idx_consumer_inbox_cleanup
+                  ON consumer_inbox (consumer_name, consumed_at);
+              
+              -- Saga instance table (optional - depends on your saga storage)
+              CREATE TABLE IF NOT EXISTS saga_instance (
+                  id              UUID PRIMARY KEY,
+                  saga_type       VARCHAR(255) NOT NULL,
+                  status          VARCHAR(50) NOT NULL,
+                  state           JSONB NOT NULL DEFAULT '{}',
+                  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                  completed_at    TIMESTAMPTZ,
+                  
+                  CONSTRAINT valid_saga_status CHECK (
+                      status IN ('running', 'completed', 'failed', 'compensating')
+                  )
+              );
+              
+              CREATE INDEX IF NOT EXISTS idx_saga_status 
+                  ON saga_instance (status, created_at);
+              
+              CREATE INDEX IF NOT EXISTS idx_saga_type 
+                  ON saga_instance (saga_type, created_at);
+              
+              EOF
+              
+              echo "Migration completed successfully!"
+              
+              # Verify tables were created
+              psql "$DATABASE_URL" -c "\dt"
+          
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: sagaz-db-credentials
+                  key: connection-string
+          
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop:
+                - ALL
+          
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      
+      volumes:
+        - name: tmp
+          emptyDir: {}

@@ -1,0 +1,279 @@
+[project]
+name = "sagaz"
+version = "1.0.1"
+description = "Production-ready Saga pattern with DAG support"
+readme = "README.md"
+dependencies = [
+    "python-statemachine>=2.1.0"
+]
+requires-python = ">=3.11"
+
+[dependency-groups]
+dev = [
+    # Testing
+    "pytest==8.4.2",
+    "pytest-asyncio==0.23.8",
+    "pytest-cov==4.1.0",
+    "pytest-xdist>=3.8.0",
+    "pytest-watch>=4.2.0",
+    # Code Quality
+    "ruff>=0.1.6",
+    "mypy==1.7.1",
+    "ipython==8.18.1",
+    # Git Hooks (Rust-based pre-commit alternative - faster and more efficient)
+    "prek>=0.2.13",
+    # Security
+    "bandit[toml]>=1.7.5",
+    "pip-audit>=2.6.1",
+    "radon>=6.0.1",
+    "testcontainers>=4.13.3",
+    "pytest-timeout>=2.4.0",
+    # OpenTelemetry (for tracing tests)
+    "opentelemetry-api>=1.20.0",
+    "opentelemetry-sdk>=1.20.0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
+]
+
+storage = [
+    # Storage backends (optional - install as needed)
+    "asyncpg>=0.30.0",  # PostgreSQL storage
+    "redis>=7.0.0",      # Redis storage  
+]
+
+integration-tests = [
+    # Integration testing with real databases (requires Docker)
+    "testcontainers[kafka,postgres,rabbitmq,redis]>=4.13.0",
+]
+redis = [
+    "redis>=7.1.0",
+]
+postgres = [
+    "asyncpg>=0.31.0",
+]
+kafka = [
+    "aiokafka>=0.12.0",
+]
+rabbitmq = [
+    "aio-pika>=9.0.0",
+]
+tracing = [
+    "opentelemetry-api>=1.39.1",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.39.1",
+    "opentelemetry-sdk>=1.39.1",
+]
+prometheus = [
+    "prometheus-client>=0.23.1",
+]
+
+
+# ============================================================================
+# Build System Configuration
+# ============================================================================
+
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+# Explicitly configure package discovery to avoid flat-layout ambiguity
+packages = ["sagaz"]
+
+[tool.setuptools.package-data]
+app = ["py.typed"]
+
+[dependencies]
+python = "^3.11"
+
+# ============================================================================
+# Tool Configurations
+# ============================================================================
+
+[tool.ruff]
+# Same as Black
+line-length = 100
+indent-width = 4
+
+# Python 3.11
+target-version = "py311"
+
+# Exclude patterns
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "*.egg-info",
+    "alembic/versions/*.py",
+]
+
+[tool.ruff.lint]
+# Enable pycodestyle (E), Pyflakes (F), isort (I), and more
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "T10", # flake8-debugger
+    "EM",  # flake8-errmsg
+    "ISC", # flake8-implicit-str-concat
+    "ICN", # flake8-import-conventions
+    "PIE", # flake8-pie
+    "T20", # flake8-print
+    "PT",  # flake8-pytest-style
+    "Q",   # flake8-quotes
+    "RSE", # flake8-raise
+    "RET", # flake8-return
+    "SIM", # flake8-simplify
+    "TID", # flake8-tidy-imports
+    "PTH", # flake8-use-pathlib
+    "ERA", # eradicate
+    "RUF", # Ruff-specific rules
+]
+
+ignore = [
+    "E501",    # Line too long (handled by formatter)
+    "B008",    # Do not perform function calls in argument defaults (FastAPI Depends)
+    "ARG002",  # Unused method argument (common in interfaces)
+    "ARG001",  # Unused function argument (common in callbacks)
+    "PLR0913", # Too many arguments
+    "PLR2004", # Magic value used in comparison
+    "PLC0415", # Import outside top-level (used for circular import prevention)
+    "DTZ005",  # datetime.now() without timezone (we use timezone aware in production)
+    "G004",    # Logging f-string (more readable than %)
+    "B904",    # Raise without from inside except (sometimes intentional)
+    "PT011",   # pytest.raises too broad (sometimes necessary)
+    "PT001",   # pytest.fixture() vs pytest.fixture (formatter adds parens back)
+    "PT023",   # pytest.mark decorators (formatter adds parens back)
+    "ISC001",  # Implicit string concatenation (conflicts with formatter)
+    "ERA001",  # Commented out code (useful during development)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
+
+[tool.ruff.lint.per-file-ignores]
+# Allow print statements in CLI scripts
+"scripts/*" = ["T20"]
+# Allow unused imports in __init__.py
+"__init__.py" = ["F401"]
+# Tests can have magic values, print statements, test-specific patterns
+"tests/*" = [
+    "PLR2004",  # Magic values in tests
+    "T20",      # Print statements for debugging
+    "ARG",      # Unused arguments in fixtures
+    "PT012",    # Multi-statement pytest.raises blocks (common test pattern)
+    "B017",     # Blind except for testing immutability/errors
+    "B015",     # Pointless comparison for testing operators
+    "SIM102",   # Nested ifs for clarity
+    "SIM105",   # Try-except-pass for optional operations
+    "RUF",      # Ruff-specific rules in tests (regex patterns, etc.)
+]
+
+[tool.ruff.format]
+# Use double quotes for strings
+quote-style = "double"
+
+# Indent with spaces
+indent-style = "space"
+
+# Respect magic trailing commas
+skip-magic-trailing-comma = false
+
+# Auto-detect line endings
+line-ending = "auto"
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+strict_equality = true
+ignore_missing_imports = true
+explicit_package_bases = true
+namespace_packages = true
+
+# Exclude patterns
+exclude = [
+    "alembic/",
+    "tests/",
+    ".venv/",
+]
+
+# ============================================================================
+# Pytest Configuration
+# ============================================================================
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+# Register custom markers
+markers = [
+    "integration: marks tests as integration tests (require Docker/external services)",
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
+
+# Filter warnings from external libraries
+filterwarnings = [
+    "error",  # Treat warnings as errors by default
+    # Ignore deprecation warnings from testcontainers
+    "ignore:The @wait_container_is_ready decorator is deprecated:DeprecationWarning:testcontainers",
+    # Ignore RuntimeWarning from statemachine library
+    "ignore:coroutine 'sleep' was never awaited:RuntimeWarning:statemachine",
+    # Ignore RuntimeWarning from stdlib (caused by statemachine)
+    "ignore:coroutine 'sleep' was never awaited:RuntimeWarning",
+    # Ignore unawaited AsyncMock coroutines from our tests
+    "ignore:coroutine 'AsyncMockMixin._execute_mock_call' was never awaited:RuntimeWarning",
+    # Ignore unknown mark warning during collection (marker is registered but order matters)
+    "ignore::pytest.PytestUnknownMarkWarning",
+    "ignore::pytest.PytestUnraisableExceptionWarning",
+]
+
+# ============================================================================
+# Coverage Configuration
+# ============================================================================
+
+[tool.coverage.run]
+source = ["sagaz"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+omit = [
+    "*/tests/*",
+    "*/examples/*",
+    "*/__init__.py",
+    "sagaz/__init__.py",
+    "sagaz/*/__init__.py",
+    "examples/*",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
