@@ -1,0 +1,209 @@
+{
+  "dashboard": {
+    "title": "Sage - Saga Orchestration",
+    "tags": ["sage", "saga", "orchestration"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "30s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "title": "Saga Execution Rate",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(saga_executions_total[5m])",
+            "legendFormat": "{{ saga_name }}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Executions/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "title": "Saga Success Rate",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(rate(saga_executions_total{status=\"completed\"}[5m])) / sum(rate(saga_executions_total[5m])) * 100",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 95, "color": "yellow"},
+                {"value": 99, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Active Sagas",
+        "type": "stat",
+        "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(saga_status_gauge{status=\"running\"})",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 100, "color": "yellow"},
+                {"value": 500, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Saga Status Distribution",
+        "type": "piechart",
+        "gridPos": {"x": 12, "y": 4, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum by (status) (saga_executions_total)",
+            "legendFormat": "{{ status }}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "title": "Saga Execution Duration (p50, p95, p99)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(saga_duration_seconds_bucket[5m])) by (le, saga_name))",
+            "legendFormat": "p50 - {{ saga_name }}",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(saga_duration_seconds_bucket[5m])) by (le, saga_name))",
+            "legendFormat": "p95 - {{ saga_name }}",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(saga_duration_seconds_bucket[5m])) by (le, saga_name))",
+            "legendFormat": "p99 - {{ saga_name }}",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Duration"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "title": "Step Execution Success Rate by Type",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum by (step_name) (rate(saga_step_executions_total{status=\"success\"}[5m])) / sum by (step_name) (rate(saga_step_executions_total[5m])) * 100",
+            "legendFormat": "{{ step_name }}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "Success Rate", "min": 0, "max": 100},
+          {"format": "short"}
+        ]
+      },
+      {
+        "title": "Compensation Executions",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(saga_compensations_total[5m])",
+            "legendFormat": "{{ saga_name }} - {{ step_name }}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Compensations/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "title": "Failed Steps (Top 10)",
+        "type": "table",
+        "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "topk(10, sum by (saga_name, step_name) (increase(saga_step_executions_total{status=\"failed\"}[1h])))",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {"Time": true},
+              "indexByName": {},
+              "renameByName": {
+                "saga_name": "Saga",
+                "step_name": "Step",
+                "Value": "Failures (1h)"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "title": "Saga Rollback Rate",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 24, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(saga_executions_total{status=\"rolled_back\"}[5m])",
+            "legendFormat": "{{ saga_name }}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Rollbacks/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "title": "Step Execution Duration by Step",
+        "type": "heatmap",
+        "gridPos": {"x": 12, "y": 24, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(saga_step_duration_seconds_bucket[5m])) by (le)",
+            "format": "heatmap",
+            "legendFormat": "{{le}}",
+            "refId": "A"
+          }
+        ],
+        "dataFormat": "tsbuckets",
+        "yAxis": {"format": "s"}
+      }
+    ]
+  }
+}

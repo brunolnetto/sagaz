@@ -1,0 +1,41 @@
+name: Lint
+on: [push, pull_request]
+
+env:
+  CI: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 4
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v5
+      
+      - name: Set up python
+        id: setup-python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.5"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      
+      - name: Install dependencies
+        run: uv sync --group dev
+      
+      - name: Run ruff linter
+        run: uv run ruff check sagaz/ tests/
+      
+      - name: Run ruff formatter check
+        run: uv run ruff format --check sagaz/ tests/
+      
+      - name: Run mypy type checker
+        run: uv run mypy sagaz/
