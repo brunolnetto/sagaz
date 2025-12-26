@@ -155,6 +155,64 @@ class OrderSaga(Saga):
 
 ---
 
+## Global Configuration with SagaConfig 🆕
+
+Configure storage, broker, and observability in one place:
+
+```python
+from sagaz import SagaConfig, Saga, configure, action
+from sagaz.storage import PostgreSQLSagaStorage
+from sagaz.outbox.brokers import KafkaBroker
+
+# 1. Create unified configuration
+config = SagaConfig(
+    storage=PostgreSQLSagaStorage("postgresql://localhost/db"),
+    broker=KafkaBroker(bootstrap_servers="localhost:9092"),
+    metrics=True,      # Enable Prometheus metrics
+    tracing=True,      # Enable OpenTelemetry tracing
+    logging=True,      # Enable structured logging
+)
+
+# 2. Apply globally - all sagas inherit this config
+configure(config)
+
+# 3. Sagas automatically get storage and listeners!
+class OrderSaga(Saga):
+    saga_name = "order-processing"
+    
+    @action("create_order")
+    async def create_order(self, ctx):
+        return {"order_id": "ORD-123"}
+```
+
+### From Environment Variables (12-Factor App)
+
+```python
+# Set environment variables:
+# SAGAZ_STORAGE_URL=postgresql://localhost/db
+# SAGAZ_BROKER_URL=kafka://localhost:9092
+# SAGAZ_METRICS=true
+# SAGAZ_TRACING=true
+
+config = SagaConfig.from_env()
+configure(config)
+```
+
+### Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `storage` | `SagaStorage` | `InMemorySagaStorage()` | Saga state persistence |
+| `broker` | `BaseBroker` | `None` | Message broker for outbox |
+| `outbox_storage` | `OutboxStorage` | Auto-derived | Outbox event storage |
+| `metrics` | `bool` | `True` | Enable metrics collection |
+| `tracing` | `bool` | `False` | Enable distributed tracing |
+| `logging` | `bool` | `True` | Enable structured logging |
+| `default_timeout` | `float` | `60.0` | Default step timeout (seconds) |
+| `default_max_retries` | `int` | `3` | Default retry count |
+
+---
+
 ## With Transactional Outbox
 
 For reliable event delivery:
@@ -238,6 +296,7 @@ kubectl get pods -n sagaz
 
 | Topic | Link |
 |-------|------|
+| Configuration Guide | [Configuration](guides/configuration.md) |
 | Architecture | [Overview](architecture/overview.md) |
 | Full API Reference | [API Docs](reference/api.md) |
 | Kubernetes Deployment | [K8s Guide](guides/kubernetes.md) |

@@ -5,11 +5,143 @@ All notable changes to the Sagaz Saga Pattern library will be documented in this
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] - 2024-12-26
+
+### 🆕 Unified Configuration System
+
+This release introduces `SagaConfig` - a unified, type-safe configuration system for the entire library.
+
+### Added
+
+#### ⚙️ SagaConfig - Unified Configuration
+- **NEW:** `sagaz.config.SagaConfig` - Single configuration object for all components
+  - Type-safe storage and broker configuration (actual instances, not strings)
+  - Automatic outbox storage derivation from saga storage
+  - Built-in observability configuration (metrics, tracing, logging)
+  - Environment variable support via `SagaConfig.from_env()`
+  - Immutable updates with `config.with_storage()` and `config.with_broker()`
+
+```python
+from sagaz import SagaConfig, configure
+config = SagaConfig(
+    storage=PostgreSQLSagaStorage("..."),
+    broker=KafkaBroker(...),
+    metrics=True, tracing=True, logging=True,
+)
+configure(config)  # All sagas now inherit this config!
+```
+
+- **NEW:** Global configuration via `configure()` and `get_config()`
+- **NEW:** Per-saga configuration via `Saga(config=my_config)`
+- **NEW:** Environment variable configuration:
+  - `SAGAZ_STORAGE_URL` - Storage connection string
+  - `SAGAZ_BROKER_URL` - Broker connection string
+  - `SAGAZ_METRICS`, `SAGAZ_TRACING`, `SAGAZ_LOGGING` - Observability flags
+
+#### 📊 Mermaid Diagram Generation
+- **NEW:** `saga.to_mermaid()` - Generate Mermaid flowchart diagrams of saga structure
+- **NEW:** `saga.to_mermaid_markdown()` - Generate markdown-wrapped diagrams
+- Supports both declarative (`Saga`) and classic (`ClassicSaga`) APIs
+- Visual distinction for root steps (stadium), compensable steps (rectangle), and non-compensable (parallelogram)
+
+```python
+>>> print(saga.to_mermaid())
+flowchart TB
+    reserve_inventory([reserve_inventory])
+    charge_payment[charge_payment]
+    reserve_inventory --> charge_payment
+```
+
+#### 🔗 Connected Graph Validation
+- **NEW:** Validation that all saga steps form a connected component
+- Prevents confusing disconnected step groups in DAG sagas
+- Clear error message showing which groups are disconnected
+- Recommendation to split into separate sagas or add connecting dependencies
+
+#### 📈 Grafana Dashboard Templates
+- **NEW:** `grafana/sagaz-dashboard.json` - Production-ready monitoring dashboard
+  - Saga execution stats (completed, failed, success rate)
+  - Step duration percentiles (p50, p95, p99)
+  - Outbox pattern metrics (pending, throughput, optimistic send)
+  - Consumer inbox metrics (processed, duplicates, duration)
+- **NEW:** `grafana/README.md` - Installation and customization guide
+
+#### 📚 Documentation
+- **NEW:** `docs/guides/configuration.md` - Comprehensive configuration guide
+- **UPDATED:** `README.md` - Added SagaConfig feature section and examples
+- **UPDATED:** `docs/quickstart.md` - Added configuration section
+- **UPDATED:** `docs/architecture/overview.md` - Added SagaConfig to components
+
+### Enhanced
+
+#### 🧪 Test Performance
+- **OPTIMIZED:** Reduced test execution time by ~20 seconds
+  - Timeout tests now use 1.0s sleep instead of 5.0s
+  - Strategy tests optimized for faster execution
+- **SEPARATED:** Integration tests into separate CI job
+  - Unit tests run fast (~1-2 min)
+  - Integration tests with Docker run separately
+
+#### 🔧 CI Workflow
+- **IMPROVED:** Separated unit and integration tests in GitHub Actions
+- **ADDED:** Integration test dependency group for testcontainers
+- **ADDED:** Docker-in-Docker service for integration tests
+- **ENHANCED:** Verbose output for integration test debugging
+
+### Testing
+- **ADDED:** 30 new tests for SagaConfig functionality
+- **TOTAL:** 823 tests (all passing)
+- **COVERAGE:** 95%
+
+### Breaking Changes
+- None - All changes are backward compatible
+
+---
+
+## [1.0.2] - 2024-12-26
+
+### Enhanced
+
+#### 🧹 Code Quality
+- **FIXED:** Duplicate `set_failure_strategy` method in `core.py`
+- **FIXED:** Useless if-else condition in `SagaResult` creation
+- **FIXED:** Forward reference issues in storage factory return types
+- **RESTORED:** `print_available_brokers()` and `print_available_backends()` functions
+  - These now correctly print broker/backend availability information
+
+#### 🔧 CI/CD Improvements
+- **ENHANCED:** `tests.yml` - Parallel execution, improved caching, Codecov upload
+- **ENHANCED:** `lint.yml` - Security checks (Bandit, Pip-Audit), SARIF output
+- **ENHANCED:** `code-quality.yml` - Radon complexity checks, CodeQL configuration
+- **ENHANCED:** `release.yml` - Automated PyPI trusted publishing
+- **ADDED:** Pull request template
+
+#### 📊 Code Coverage
+- **CONFIGURED:** Codecov integration with badge
+- **ADDED:** Coverage upload in CI pipeline
+
+### Testing
+- **TOTAL:** 793 tests
+- **COVERAGE:** 96%
+
+---
+
+## [1.0.1] - 2024-12-25
+
+### Enhanced
+
+#### 📚 Documentation Consistency
+- **UPDATED:** `README.md` with accurate test counts and broker list
+- **FIXED:** API usage examples (using `@action` instead of `@Saga.step`)
+- **FIXED:** All "sage" → "sagaz" naming inconsistencies
+- **UPDATED:** `docs/ROADMAP.md`, `docs/archive/FINAL_STATUS.md`
+
+### Fixed
+- **FIXED:** Import path corrections in documentation examples
+
+---
+
 ## [1.0.0] - 2024-12-23
-
-### 🎉 Major Release - Production Ready
-
-This release brings the library to production-ready status with enterprise-grade features, exactly-once semantics, and Kubernetes deployment support.
 
 ### Added
 
@@ -185,10 +317,15 @@ See Git history for versions prior to 0.9.0.
 
 ## Roadmap
 
+### ✅ Completed
+- [x] Chaos engineering tests (12 resilience tests - v1.0.0)
+- [x] Unified SagaConfig configuration system (v1.0.3)
+- [x] Environment variable configuration (v1.0.3)
+- [x] Separated integration tests in CI (v1.0.3)
+
 ### Short Term (Q1 2025)
 - [ ] Grafana dashboard JSON exports
 - [ ] Operational runbooks
-- [ ] Chaos engineering tests
 - [ ] Performance benchmarking suite
 
 ### Medium Term (Q2 2025)
