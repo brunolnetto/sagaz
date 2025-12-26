@@ -1,6 +1,6 @@
 [project]
 name = "sagaz"
-version = "1.0.1"
+version = "1.0.2"
 description = "Production-ready Saga pattern with DAG support"
 readme = "README.md"
 dependencies = [
@@ -174,6 +174,9 @@ section-order = ["future", "standard-library", "third-party", "first-party", "lo
 "sagaz/*" = [
     "F401",     # Unused imports for availability checks
 ]
+# Factory files have intentional print_available_* functions
+"sagaz/*/factory.py" = ["T20"]
+"sagaz/*/*/factory.py" = ["T20"]
 # Tests can have magic values, print statements, test-specific patterns
 "tests/*" = [
     "PLR2004",  # Magic values in tests

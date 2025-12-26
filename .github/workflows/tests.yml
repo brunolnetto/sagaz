@@ -77,6 +77,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: unit-tests  # Run after unit tests pass
     
+    services:
+      # Docker-in-Docker for testcontainers
+      docker:
+        image: docker:dind
+        options: --privileged
+    
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -93,8 +99,8 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
-      - name: Install dependencies
-        run: uv sync --group dev
+      - name: Install dependencies (with integration test deps)
+        run: uv sync --group dev --group integration-tests
 
       - name: Run integration tests
         run: |
@@ -105,7 +111,7 @@ jobs:
             -o junit_family=legacy \
             -m "integration" \
             --tb=short \
-            -q
+            -v
 
       - name: Upload integration coverage to Codecov
         if: ${{ !cancelled() }}
