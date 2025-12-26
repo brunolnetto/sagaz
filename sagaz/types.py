@@ -13,6 +13,7 @@ from typing import Any
 
 class SagaStatus(Enum):
     """Overall saga status"""
+
     PENDING = "pending"
     EXECUTING = "executing"
     COMPLETED = "completed"
@@ -23,6 +24,7 @@ class SagaStatus(Enum):
 
 class SagaStepStatus(Enum):
     """Status of individual saga step"""
+
     PENDING = "pending"
     EXECUTING = "executing"
     COMPLETED = "completed"
@@ -33,6 +35,7 @@ class SagaStepStatus(Enum):
 
 class ParallelFailureStrategy(Enum):
     """Strategy for handling parallel step failures"""
+
     FAIL_FAST = "fail_fast"
     WAIT_ALL = "wait_all"
     FAIL_FAST_WITH_GRACE = "fail_fast_grace"
@@ -41,6 +44,7 @@ class ParallelFailureStrategy(Enum):
 @dataclass
 class SagaResult:
     """Result of saga execution"""
+
     success: bool
     saga_name: str
     status: SagaStatus

@@ -7,20 +7,20 @@ easier to maintain.
 
 Quick Start:
     >>> from sagaz import Saga, step, compensate
-    >>> 
+    >>>
     >>> class OrderSaga(Saga):
     ...     @step(name="create_order")
     ...     async def create_order(self, ctx):
     ...         return await OrderService.create(ctx["order_data"])
-    ...     
-    ...     @compensate("create_order") 
+    ...
+    ...     @compensate("create_order")
     ...     async def cancel_order(self, ctx):
     ...         await OrderService.delete(ctx["order_id"])
-    ...     
+    ...
     ...     @step(name="charge_payment", depends_on=["create_order"])
     ...     async def charge(self, ctx):
     ...         return await PaymentService.charge(ctx["amount"])
-    ...     
+    ...
     ...     @compensate("charge_payment", depends_on=["create_order"])
     ...     async def refund(self, ctx):
     ...         await PaymentService.refund(ctx["charge_id"])
@@ -50,6 +50,7 @@ OnCompensateHook = Callable[[dict[str, Any], str], Awaitable[None] | None]
 @dataclass
 class StepMetadata:
     """Metadata attached to step functions via decorator."""
+
     name: str
     depends_on: list[str] = field(default_factory=list)
     aggregate_type: str | None = None
@@ -66,6 +67,7 @@ class StepMetadata:
 @dataclass
 class CompensationMetadata:
     """Metadata attached to compensation functions via decorator."""
+
     for_step: str
     depends_on: list[str] = field(default_factory=list)
     compensation_type: CompensationType = CompensationType.MECHANICAL
@@ -90,7 +92,7 @@ def step(
 ) -> Callable[[F], F]:
     """
     Decorator to mark a method as a saga step.
-    
+
     Args:
         name: Unique identifier for this step
         depends_on: List of step names that must complete before this step
@@ -102,7 +104,7 @@ def step(
         on_enter: Hook called before step execution (ctx, step_name) -> None
         on_success: Hook called after success (ctx, step_name, result) -> None
         on_failure: Hook called on failure (ctx, step_name, error) -> None
-    
+
     Example:
         >>> class OrderSaga(Saga):
         ...     @step(name="create_order", on_success=publish_order_created)
@@ -110,6 +112,7 @@ def step(
         ...         order = await OrderService.create(ctx["order_data"])
         ...         return {"order_id": order.id}
     """
+
     def decorator(func: F) -> F:
         # Store metadata on the function
         func._saga_step_meta = StepMetadata(
@@ -125,6 +128,7 @@ def step(
             on_failure=on_failure,
         )
         return func
+
     return decorator
 
 
@@ -139,10 +143,10 @@ def compensate(
 ) -> Callable[[F], F]:
     """
     Decorator to mark a method as compensation for a step.
-    
+
     Compensation functions are called when a saga fails and needs to
     undo previously completed steps.
-    
+
     Args:
         for_step: Name of the step this compensates
         depends_on: Steps whose compensations must complete BEFORE this one
@@ -151,12 +155,13 @@ def compensate(
         max_retries: Maximum retry attempts (default: 3)
         description: Human-readable description
         on_compensate: Hook called when compensation runs (ctx, step_name) -> None
-    
+
     Example:
         >>> @compensate("charge_payment", on_compensate=publish_refund_event)
         ... async def refund(self, ctx):
         ...     await PaymentService.refund(ctx["charge_id"])
     """
+
     def decorator(func: F) -> F:
         func._saga_compensation_meta = CompensationMetadata(
             for_step=for_step,
@@ -168,6 +173,7 @@ def compensate(
             on_compensate=on_compensate,
         )
         return func
+
     return decorator
 
 
@@ -175,9 +181,10 @@ def compensate(
 class SagaStepDefinition:
     """
     Complete definition of a saga step with its compensation.
-    
+
     Used internally to track step and compensation pairs.
     """
+
     step_id: str
     forward_fn: Callable[[dict[str, Any]], Awaitable[dict[str, Any] | None]]
     compensation_fn: Callable[[dict[str, Any]], Awaitable[None]] | None = None
@@ -200,33 +207,33 @@ class SagaStepDefinition:
 class Saga:
     """
     Base class for declarative saga definitions.
-    
+
     Subclass this and use @step and @compensate decorators to define
     your saga's steps declaratively. The saga will automatically:
-    
+
     - Collect all decorated methods
     - Build the execution dependency graph
     - Build the compensation dependency graph
     - Execute steps in parallel where possible
     - Compensate in correct order on failure
     - Notify all listeners of lifecycle events
-    
+
     Class Attributes:
         saga_name: Optional name for the saga (used in events/metrics)
         listeners: List of SagaListener instances to notify
-    
+
     Example:
         >>> from sagaz.listeners import LoggingSagaListener, MetricsSagaListener
-        >>> 
+        >>>
         >>> class OrderSaga(Saga):
         ...     saga_name = "order-processing"
         ...     listeners = [LoggingSagaListener(), MetricsSagaListener()]
-        ...     
+        ...
         ...     @step(name="create_order")
         ...     async def create_order(self, ctx):
         ...         return {"order_id": "ORD-123"}
     """
-    
+
     # Class-level attributes (override in subclass)
     saga_name: str | None = None
     listeners: list = []  # List of SagaListener instances
@@ -305,10 +312,10 @@ class Saga:
     def get_execution_order(self) -> list[list[SagaStepDefinition]]:
         """
         Compute step execution order respecting dependencies.
-        
+
         Returns:
             List of levels, where steps in each level can run in parallel
-        
+
         Raises:
             ValueError: If circular dependencies detected
         """
@@ -322,10 +329,7 @@ class Saga:
         return self._topological_sort_steps(step_map, in_degree, remaining)
 
     def _topological_sort_steps(
-        self,
-        step_map: dict[str, SagaStepDefinition],
-        in_degree: dict[str, int],
-        remaining: set
+        self, step_map: dict[str, SagaStepDefinition], in_degree: dict[str, int], remaining: set
     ) -> list[list[SagaStepDefinition]]:
         """Perform topological sort on steps."""
         levels: list[list[SagaStepDefinition]] = []
@@ -333,7 +337,8 @@ class Saga:
         while remaining:
             current_level = [step_map[sid] for sid in remaining if in_degree[sid] == 0]
             if not current_level:
-                raise ValueError("Circular dependency detected in saga steps")
+                msg = "Circular dependency detected in saga steps"
+                raise ValueError(msg)
             levels.append(current_level)
             self._update_in_degrees(current_level, remaining, step_map, in_degree)
 
@@ -344,7 +349,7 @@ class Saga:
         current_level: list[SagaStepDefinition],
         remaining: set[str],
         step_map: dict[str, SagaStepDefinition],
-        in_degree: dict[str, int]
+        in_degree: dict[str, int],
     ) -> None:
         """Update in-degrees after processing a level."""
         for step in current_level:
@@ -354,20 +359,18 @@ class Saga:
                     in_degree[other_id] -= 1
 
     async def run(
-        self,
-        initial_context: dict[str, Any],
-        saga_id: str | None = None
+        self, initial_context: dict[str, Any], saga_id: str | None = None
     ) -> dict[str, Any]:
         """
         Execute this saga.
-        
+
         Args:
             initial_context: Initial data for the saga
             saga_id: Optional saga identifier for tracing
-        
+
         Returns:
             Final context with all step results merged
-        
+
         Raises:
             Exception: If saga fails (compensations will be attempted first)
         """
@@ -388,6 +391,7 @@ class Saga:
     def _initialize_run(self, initial_context: dict[str, Any], saga_id: str | None) -> None:
         """Initialize saga run state."""
         import uuid
+
         self._saga_id = saga_id or initial_context.get("saga_id") or str(uuid.uuid4())
         self._context = initial_context.copy()
         self._context["saga_id"] = self._saga_id
@@ -403,18 +407,18 @@ class Saga:
                     depends_on=step.compensation_depends_on,
                     compensation_type=step.compensation_type,
                     max_retries=step.max_retries,
-                    timeout_seconds=step.compensation_timeout_seconds
+                    timeout_seconds=step.compensation_timeout_seconds,
                 )
 
     async def _execute_all_levels(self) -> None:
         """Execute steps level by level."""
         for level in self.get_execution_order():
             await self._execute_level(level)
-    
+
     def _get_saga_name(self) -> str:
         """Get the saga name from class attribute or class name."""
         return self.saga_name or self.__class__.__name__
-    
+
     async def _notify_listeners(self, event_name: str, *args) -> None:
         """Notify all listeners of an event."""
         for listener in self.listeners:
@@ -432,10 +436,7 @@ class Saga:
         if not level:
             return
 
-        tasks = [
-            self._execute_step(step)
-            for step in level
-        ]
+        tasks = [self._execute_step(step) for step in level]
 
         # Execute in parallel
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -448,18 +449,17 @@ class Saga:
     async def _execute_step(self, step: SagaStepDefinition) -> None:
         """Execute a single step with lifecycle hooks and listeners."""
         saga_name = self._get_saga_name()
-        
+
         # Notify listeners: step entering
         await self._notify_listeners("on_step_enter", saga_name, step.step_id, self._context)
-        
+
         # Call on_enter hook
         await self._call_hook(step.on_enter, self._context, step.step_id)
-        
+
         try:
             # Apply timeout
             result = await asyncio.wait_for(
-                step.forward_fn(self._context),
-                timeout=step.timeout_seconds
+                step.forward_fn(self._context), timeout=step.timeout_seconds
             )
 
             # Merge result into context
@@ -469,31 +469,38 @@ class Saga:
             # Mark step as executed for compensation tracking
             self._context[f"__{step.step_id}_completed"] = True
             self._compensation_graph.mark_step_executed(step.step_id)
-            
+
             # Call on_success hook
             await self._call_hook(step.on_success, self._context, step.step_id, result)
-            
+
             # Notify listeners: step success
-            await self._notify_listeners("on_step_success", saga_name, step.step_id, self._context, result)
+            await self._notify_listeners(
+                "on_step_success", saga_name, step.step_id, self._context, result
+            )
 
         except TimeoutError as e:
             # Call on_failure hook
             await self._call_hook(step.on_failure, self._context, step.step_id, e)
             # Notify listeners: step failure
-            await self._notify_listeners("on_step_failure", saga_name, step.step_id, self._context, e)
-            raise TimeoutError(f"Step '{step.step_id}' timed out after {step.timeout_seconds}s")
+            await self._notify_listeners(
+                "on_step_failure", saga_name, step.step_id, self._context, e
+            )
+            msg = f"Step '{step.step_id}' timed out after {step.timeout_seconds}s"
+            raise TimeoutError(msg)
         except Exception as e:
             # Call on_failure hook
             await self._call_hook(step.on_failure, self._context, step.step_id, e)
             # Notify listeners: step failure
-            await self._notify_listeners("on_step_failure", saga_name, step.step_id, self._context, e)
+            await self._notify_listeners(
+                "on_step_failure", saga_name, step.step_id, self._context, e
+            )
             raise
-    
+
     async def _call_hook(self, hook: Callable | None, *args) -> None:
         """Call a hook function, handling both sync and async hooks."""
         if hook is None:
             return
-        
+
         try:
             result = hook(*args)
             # If it's a coroutine, await it
@@ -508,10 +515,7 @@ class Saga:
         comp_levels = self._compensation_graph.get_compensation_order()
 
         for level in comp_levels:
-            tasks = [
-                self._execute_compensation(step_id)
-                for step_id in level
-            ]
+            tasks = [self._execute_compensation(step_id) for step_id in level]
             # Execute compensations in parallel, don't fail on individual errors
             await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -520,9 +524,9 @@ class Saga:
         node = self._compensation_graph.get_compensation_info(step_id)
         if not node:
             return
-        
+
         saga_name = self._get_saga_name()
-        
+
         # Get the on_compensate hook from the step definition
         step = self._step_registry.get(step_id)
         on_compensate = step.on_compensate if step else None
@@ -530,18 +534,19 @@ class Saga:
         try:
             # Notify listeners: compensation starting
             await self._notify_listeners("on_compensation_start", saga_name, step_id, self._context)
-            
+
             # Call on_compensate hook before compensation
             await self._call_hook(on_compensate, self._context, step_id)
-            
+
             await asyncio.wait_for(
-                node.compensation_fn(self._context),
-                timeout=node.timeout_seconds
+                node.compensation_fn(self._context), timeout=node.timeout_seconds
             )
             self._context[f"__{step_id}_compensated"] = True
-            
+
             # Notify listeners: compensation complete
-            await self._notify_listeners("on_compensation_complete", saga_name, step_id, self._context)
+            await self._notify_listeners(
+                "on_compensation_complete", saga_name, step_id, self._context
+            )
         except Exception as e:
             # Log but don't fail - we want all compensations to attempt
             self._context[f"__{step_id}_compensation_error"] = str(e)

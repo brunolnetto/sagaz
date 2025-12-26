@@ -5,7 +5,7 @@ Uses redis-py for async Redis access with Streams support.
 
 Usage:
     >>> from sagaz.outbox.brokers import RedisBroker, RedisBrokerConfig
-    >>> 
+    >>>
     >>> config = RedisBrokerConfig(
     ...     url="redis://localhost:6379/0",
     ...     stream_name="saga-events",
@@ -32,6 +32,7 @@ from sagaz.outbox.brokers.base import (
 # Try to import redis
 try:
     import redis.asyncio as redis
+
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
@@ -82,9 +83,7 @@ class RedisBrokerConfig(BrokerConfig):
         return cls(
             url=os.environ.get("REDIS_URL", "redis://localhost:6379/0"),
             stream_name=os.environ.get("REDIS_STREAM_NAME", "sage.outbox"),
-            max_stream_length=int(
-                os.environ.get("REDIS_MAX_STREAM_LENGTH", "10000")
-            ),
+            max_stream_length=int(os.environ.get("REDIS_MAX_STREAM_LENGTH", "10000")),
             consumer_group=os.environ.get("REDIS_CONSUMER_GROUP", "sage-workers"),
             consumer_name=os.environ.get("REDIS_CONSUMER_NAME", "worker-1"),
             ssl=os.environ.get("REDIS_SSL", "false").lower() == "true",
@@ -106,9 +105,9 @@ class RedisBroker(BaseBroker):
         >>> config = RedisBrokerConfig(url="redis://localhost:6379/0")
         >>> broker = RedisBroker(config)
         >>> await broker.connect()
-        >>> 
+        >>>
         >>> await broker.publish("events", b'{"type": "order.created"}')
-        >>> 
+        >>>
         >>> await broker.close()
     """
 
@@ -123,10 +122,10 @@ class RedisBroker(BaseBroker):
             MissingDependencyError: If redis-py is not installed
         """
         if not REDIS_AVAILABLE:
+            msg = "redis"
             raise MissingDependencyError(
-                "redis",
-                "Redis broker requires redis-py. "
-                "Install with: pip install redis",
+                msg,
+                "Redis broker requires redis-py. Install with: pip install redis",
             )
 
         super().__init__(config or RedisBrokerConfig())
@@ -163,9 +162,8 @@ class RedisBroker(BaseBroker):
 
         except Exception as e:
             self._connected = False
-            raise BrokerConnectionError(
-                f"Failed to connect to Redis: {e}"
-            ) from e
+            msg = f"Failed to connect to Redis: {e}"
+            raise BrokerConnectionError(msg) from e
 
     async def publish(
         self,
@@ -190,7 +188,8 @@ class RedisBroker(BaseBroker):
             BrokerPublishError: If publishing fails
         """
         if not self._connected or self._client is None:
-            raise BrokerError("Not connected to Redis")
+            msg = "Not connected to Redis"
+            raise BrokerError(msg)
 
         try:
             fields = self._build_stream_fields(topic, message, headers, key)
@@ -200,18 +199,14 @@ class RedisBroker(BaseBroker):
                 maxlen=self.config.max_stream_length,
                 approximate=True,
             )
-            logger.debug(
-                f"Published message to stream {self.config.stream_name}: {message_id}"
-            )
+            logger.debug(f"Published message to stream {self.config.stream_name}: {message_id}")
 
         except Exception as e:
-            raise BrokerPublishError(
-                f"Failed to publish to Redis stream: {e}"
-            ) from e
+            msg = f"Failed to publish to Redis stream: {e}"
+            raise BrokerPublishError(msg) from e
 
     def _build_stream_fields(
-        self, topic: str, message: bytes,
-        headers: dict[str, str] | None, key: str | None
+        self, topic: str, message: bytes, headers: dict[str, str] | None, key: str | None
     ) -> dict[str, bytes]:
         """Build fields dict for Redis stream entry."""
         fields: dict[str, bytes] = {
@@ -276,7 +271,8 @@ class RedisBroker(BaseBroker):
         Safe to call multiple times.
         """
         if not self._client:
-            raise BrokerError("Not connected to Redis")
+            msg = "Not connected to Redis"
+            raise BrokerError(msg)
 
         try:
             await self._client.xgroup_create(
@@ -285,15 +281,11 @@ class RedisBroker(BaseBroker):
                 id="0",
                 mkstream=True,
             )
-            logger.info(
-                f"Created consumer group: {self.config.consumer_group}"
-            )
+            logger.info(f"Created consumer group: {self.config.consumer_group}")
         except redis.ResponseError as e:
             if "BUSYGROUP" in str(e):
                 # Group already exists, that's fine
-                logger.debug(
-                    f"Consumer group already exists: {self.config.consumer_group}"
-                )
+                logger.debug(f"Consumer group already exists: {self.config.consumer_group}")
             else:
                 raise
 
@@ -313,7 +305,8 @@ class RedisBroker(BaseBroker):
             List of (message_id, fields) tuples
         """
         if not self._client:
-            raise BrokerError("Not connected to Redis")
+            msg = "Not connected to Redis"
+            raise BrokerError(msg)
 
         block_ms = block_ms or self.config.block_timeout_ms
 
@@ -335,7 +328,8 @@ class RedisBroker(BaseBroker):
             message_id: The message ID to acknowledge
         """
         if not self._client:
-            raise BrokerError("Not connected to Redis")
+            msg = "Not connected to Redis"
+            raise BrokerError(msg)
 
         await self._client.xack(
             self.config.stream_name,
@@ -351,7 +345,8 @@ class RedisBroker(BaseBroker):
             Dict with stream length, groups, etc.
         """
         if not self._client:
-            raise BrokerError("Not connected to Redis")
+            msg = "Not connected to Redis"
+            raise BrokerError(msg)
 
         info = await self._client.xinfo_stream(self.config.stream_name)
         return {

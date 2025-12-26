@@ -16,7 +16,7 @@ from sagaz.types import SagaStatus, SagaStepStatus
 class InMemorySagaStorage(SagaStorage):
     """
     In-memory implementation of saga storage
-    
+
     Stores all saga state in memory using dictionaries.
     Provides fast access but no persistence across restarts.
     """
@@ -32,7 +32,7 @@ class InMemorySagaStorage(SagaStorage):
         status: SagaStatus,
         steps: list[dict[str, Any]],
         context: dict[str, Any],
-        metadata: dict[str, Any] | None = None
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """Save saga state to memory"""
 
@@ -72,7 +72,7 @@ class InMemorySagaStorage(SagaStorage):
         status: SagaStatus | None = None,
         saga_name: str | None = None,
         limit: int = 100,
-        offset: int = 0
+        offset: int = 0,
     ) -> list[dict[str, Any]]:
         """List sagas with filtering"""
         async with self._lock:
@@ -82,7 +82,7 @@ class InMemorySagaStorage(SagaStorage):
                 if self._matches_filters(saga_data, status, saga_name)
             ]
             results.sort(key=lambda x: x["created_at"], reverse=True)
-            return results[offset:offset + limit]
+            return results[offset : offset + limit]
 
     def _matches_filters(
         self, saga_data: dict, status: SagaStatus | None, saga_name: str | None
@@ -90,9 +90,7 @@ class InMemorySagaStorage(SagaStorage):
         """Check if saga matches the given filters."""
         if status and saga_data["status"] != status.value:
             return False
-        if saga_name and saga_name.lower() not in saga_data["saga_name"].lower():
-            return False
-        return True
+        return not (saga_name and saga_name.lower() not in saga_data["saga_name"].lower())
 
     def _create_saga_summary(self, saga_data: dict) -> dict[str, Any]:
         """Create a summary dict for a saga."""
@@ -104,7 +102,8 @@ class InMemorySagaStorage(SagaStorage):
             "updated_at": saga_data["updated_at"],
             "step_count": len(saga_data["steps"]),
             "completed_steps": sum(
-                1 for step in saga_data["steps"]
+                1
+                for step in saga_data["steps"]
                 if step.get("status") == SagaStepStatus.COMPLETED.value
             ),
         }
@@ -116,17 +115,19 @@ class InMemorySagaStorage(SagaStorage):
         status: SagaStepStatus,
         result: Any = None,
         error: str | None = None,
-        executed_at: datetime | None = None
+        executed_at: datetime | None = None,
     ) -> None:
         """Update individual step state"""
         async with self._lock:
             saga_data = self._sagas.get(saga_id)
             if not saga_data:
-                raise SagaStorageError(f"Saga {saga_id} not found")
+                msg = f"Saga {saga_id} not found"
+                raise SagaStorageError(msg)
 
             step = self._find_step(saga_data, step_name)
             if step is None:
-                raise SagaStorageError(f"Step {step_name} not found in saga {saga_id}")
+                msg = f"Step {step_name} not found in saga {saga_id}"
+                raise SagaStorageError(msg)
 
             self._apply_step_update(step, status, result, error, executed_at)
             saga_data["updated_at"] = datetime.now(UTC).isoformat()
@@ -139,8 +140,12 @@ class InMemorySagaStorage(SagaStorage):
         return None
 
     def _apply_step_update(
-        self, step: dict, status: SagaStepStatus,
-        result: Any, error: str | None, executed_at: datetime | None
+        self,
+        step: dict,
+        status: SagaStepStatus,
+        result: Any,
+        error: str | None,
+        executed_at: datetime | None,
     ) -> None:
         """Apply updates to a step."""
         step["status"] = status.value
@@ -167,9 +172,7 @@ class InMemorySagaStorage(SagaStorage):
             return stats
 
     async def cleanup_completed_sagas(
-        self,
-        older_than: datetime,
-        statuses: list[SagaStatus] | None = None
+        self, older_than: datetime, statuses: list[SagaStatus] | None = None
     ) -> int:
         """Clean up old completed sagas"""
         statuses = statuses or [SagaStatus.COMPLETED, SagaStatus.ROLLED_BACK]
@@ -180,12 +183,11 @@ class InMemorySagaStorage(SagaStorage):
             self._delete_sagas(to_delete)
             return len(to_delete)
 
-    def _find_sagas_to_cleanup(
-        self, status_values: list[str], older_than: datetime
-    ) -> list[str]:
+    def _find_sagas_to_cleanup(self, status_values: list[str], older_than: datetime) -> list[str]:
         """Find saga IDs that should be cleaned up."""
         return [
-            saga_id for saga_id, saga_data in self._sagas.items()
+            saga_id
+            for saga_id, saga_data in self._sagas.items()
             if self._should_cleanup(saga_data, status_values, older_than)
         ]
 
@@ -225,7 +227,7 @@ class InMemorySagaStorage(SagaStorage):
     def _estimate_memory_usage(self) -> int:
         """
         Rough estimate of memory usage
-        
+
         This is a very approximate calculation for monitoring purposes.
         """
         import sys
@@ -240,7 +242,7 @@ class InMemorySagaStorage(SagaStorage):
     async def clear_all(self) -> int:
         """
         Clear all saga data (for testing purposes)
-        
+
         Returns:
             Number of sagas deleted
         """

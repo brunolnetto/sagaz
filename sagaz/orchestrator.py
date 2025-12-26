@@ -9,6 +9,7 @@ from sagaz.types import SagaStatus
 # SAGA ORCHESTRATOR
 # ============================================
 
+
 class SagaOrchestrator:
     """
     Production-ready orchestrator for managing and tracking multiple sagas
@@ -79,6 +80,7 @@ class SagaOrchestrator:
     def _count_saga_statuses(self) -> dict[str, int]:
         """Count sagas by status."""
         from collections import Counter
+
         counts = Counter(saga.status for saga in self.sagas.values())
         return {
             "completed": counts.get(SagaStatus.COMPLETED, 0),

@@ -11,7 +11,7 @@ The outbox pattern ensures that:
 
 Quick Start:
     >>> from sagaz.outbox import OutboxEvent, OutboxStatus
-    >>> 
+    >>>
     >>> # Create an outbox event during saga execution
     >>> event = OutboxEvent(
     ...     saga_id="order-123",
@@ -30,7 +30,7 @@ from typing import Any
 class OutboxStatus(Enum):
     """
     Status of an outbox event in its lifecycle.
-    
+
     State transitions:
         PENDING → CLAIMED → SENT
                 ↓         ↓
@@ -57,10 +57,10 @@ class OutboxStatus(Enum):
 class OutboxEvent:
     """
     Represents a message in the transactional outbox.
-    
+
     Events are stored atomically with saga state changes and then
     published to the message broker by the outbox worker.
-    
+
     Attributes:
         event_id: Unique identifier for this event
         saga_id: ID of the saga that produced this event
@@ -76,7 +76,7 @@ class OutboxEvent:
         retry_count: Number of publish attempts
         last_error: Last error message on failure
         worker_id: ID of worker that claimed this event
-        
+
     Example:
         >>> event = OutboxEvent(
         ...     saga_id="order-123",
@@ -170,7 +170,7 @@ class OutboxEvent:
 class OutboxConfig:
     """
     Configuration for the outbox pattern.
-    
+
     Attributes:
         batch_size: Number of events to claim per batch
         poll_interval_seconds: Seconds between polling for events

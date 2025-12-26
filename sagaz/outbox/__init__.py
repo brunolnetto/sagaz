@@ -13,12 +13,12 @@ Quick Start:
     ...     InMemoryOutboxStorage,
     ...     create_broker,
     ... )
-    >>> 
+    >>>
     >>> # Create storage and broker
     >>> storage = InMemoryOutboxStorage()
     >>> broker = create_broker("memory")  # or "kafka", "rabbitmq"
     >>> await broker.connect()
-    >>> 
+    >>>
     >>> # Insert an event
     >>> event = OutboxEvent(
     ...     saga_id="order-123",
@@ -26,7 +26,7 @@ Quick Start:
     ...     payload={"order_id": "ORD-456"},
     ... )
     >>> await storage.insert(event)
-    >>> 
+    >>>
     >>> # Process with worker
     >>> worker = OutboxWorker(storage, broker)
     >>> await worker.process_batch()
@@ -35,18 +35,18 @@ Components:
     - OutboxEvent: Event payload and metadata
     - OutboxStatus: Event lifecycle states
     - OutboxConfig: Worker configuration
-    
+
 Storage (sagaz.outbox.storage):
     - OutboxStorage: Storage interface
     - InMemoryOutboxStorage: For testing
     - PostgreSQLOutboxStorage: Production (requires asyncpg)
-    
+
 Brokers (sagaz.outbox.brokers):
     - MessageBroker: Broker interface
     - InMemoryBroker: For testing
     - KafkaBroker: Apache Kafka (requires aiokafka)
     - RabbitMQBroker: RabbitMQ/AMQP (requires aio-pika)
-    
+
 Worker:
     - OutboxWorker: Background processor
     - OutboxStateMachine: Event state transitions
@@ -99,49 +99,41 @@ from sagaz.outbox.types import (
 from sagaz.outbox.worker import OutboxWorker
 
 __all__ = [
-    # Core types
-    "OutboxEvent",
-    "OutboxStatus",
-    "OutboxConfig",
-
-    # Storage
-    "OutboxStorage",
-    "InMemoryOutboxStorage",
-    "PostgreSQLOutboxStorage",
-    "OutboxStorageError",
-
-    # Broker interface
-    "MessageBroker",
     "BaseBroker",
-    "InMemoryBroker",
     "BrokerConfig",
-    "BrokerError",
     "BrokerConnectionError",
+    "BrokerError",
     "BrokerPublishError",
-
+    "ConsumerInbox",
+    "InMemoryBroker",
+    "InMemoryOutboxStorage",
+    "InvalidStateTransitionError",
     # Broker implementations
     "KafkaBroker",
+    # Broker interface
+    "MessageBroker",
+    # Optimistic sending & consumer inbox
+    "OptimisticPublisher",
+    "OutboxClaimError",
+    "OutboxConfig",
+    # Exceptions
+    "OutboxError",
+    # Core types
+    "OutboxEvent",
+    "OutboxPublishError",
+    # State machine
+    "OutboxStateMachine",
+    "OutboxStatus",
+    # Storage
+    "OutboxStorage",
+    "OutboxStorageError",
+    # Worker
+    "OutboxWorker",
+    "PostgreSQLOutboxStorage",
     "RabbitMQBroker",
-
     # Broker factory
     "create_broker",
     "create_broker_from_env",
     "get_available_brokers",
     "print_available_brokers",
-
-    # State machine
-    "OutboxStateMachine",
-    "InvalidStateTransitionError",
-
-    # Worker
-    "OutboxWorker",
-
-    # Optimistic sending & consumer inbox
-    "OptimisticPublisher",
-    "ConsumerInbox",
-
-    # Exceptions
-    "OutboxError",
-    "OutboxPublishError",
-    "OutboxClaimError",
 ]
