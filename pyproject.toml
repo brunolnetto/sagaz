@@ -1,6 +1,6 @@
 [project]
 name = "sagaz"
-version = "1.0.2"
+version = "1.0.3"
 description = "Production-ready Saga pattern with DAG support"
 readme = "README.md"
 dependencies = [
