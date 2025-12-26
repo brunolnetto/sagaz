@@ -14,23 +14,23 @@ from sagaz.strategies.base import ParallelExecutionStrategy
 class FailFastStrategy(ParallelExecutionStrategy):
     """
     Implements FAIL_FAST parallel failure strategy
-    
+
     When one parallel step fails:
     1. Immediately cancel all other parallel steps that haven't started
-    2. Cancel running parallel steps (best effort)  
+    2. Cancel running parallel steps (best effort)
     3. Raise the first exception encountered
     """
 
     async def execute_parallel_steps(self, steps: list[Any]) -> list[Any]:
         """
         Execute steps in parallel, failing fast on first error
-        
+
         Args:
             steps: List of steps to execute (each step should have an execute() method)
-            
+
         Returns:
             List of results from all successful steps
-            
+
         Raises:
             Exception: First exception encountered from any step
         """

@@ -3,6 +3,7 @@ Consumer-side deduplication using inbox pattern.
 
 Ensures exactly-once processing despite at-least-once delivery.
 """
+
 import logging
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
@@ -11,16 +12,26 @@ from typing import TypeVar
 # Optional prometheus metrics
 try:
     from prometheus_client import Counter, Histogram
+
     PROMETHEUS_AVAILABLE = True
 except ImportError:
     PROMETHEUS_AVAILABLE = False
+
     # No-op fallbacks
     class _NoOpMetric:
-        def inc(self, *args, **kwargs): pass
-        def observe(self, *args, **kwargs): pass
-        def labels(self, *args, **kwargs): return self
-    Counter = lambda *args, **kwargs: _NoOpMetric()
-    Histogram = lambda *args, **kwargs: _NoOpMetric()
+        def inc(self, *args, **kwargs):
+            pass
+
+        def observe(self, *args, **kwargs):
+            pass
+
+        def labels(self, *args, **kwargs):
+            return self
+
+    def Counter(*args, **kwargs):
+        return _NoOpMetric()
+    def Histogram(*args, **kwargs):
+        return _NoOpMetric()
 
 logger = logging.getLogger(__name__)
 
@@ -28,29 +39,27 @@ T = TypeVar("T")
 
 # Metrics (no-op if prometheus not installed)
 INBOX_PROCESSED = Counter(
-    "consumer_inbox_processed_total",
-    "Total events processed",
-    ["consumer_name", "event_type"]
+    "consumer_inbox_processed_total", "Total events processed", ["consumer_name", "event_type"]
 )
 INBOX_DUPLICATES = Counter(
     "consumer_inbox_duplicates_total",
     "Total duplicate events skipped",
-    ["consumer_name", "event_type"]
+    ["consumer_name", "event_type"],
 )
 INBOX_PROCESSING_DURATION = Histogram(
     "consumer_inbox_processing_duration_seconds",
     "Time to process event",
-    ["consumer_name", "event_type"]
+    ["consumer_name", "event_type"],
 )
 
 
 class ConsumerInbox:
     """
     Idempotent message consumer with inbox deduplication.
-    
+
     Usage:
         inbox = ConsumerInbox(storage, "order-service")
-        
+
         await inbox.process_idempotent(
             event_id="evt-123",
             source_topic="orders",
@@ -70,11 +79,11 @@ class ConsumerInbox:
         source_topic: str,
         event_type: str,
         payload: dict,
-        handler: Callable[[dict], Awaitable[T]]
+        handler: Callable[[dict], Awaitable[T]],
     ) -> T | None:
         """
         Process message idempotently.
-        
+
         Returns:
             Handler result if processed, None if duplicate
         """
@@ -86,15 +95,12 @@ class ConsumerInbox:
             consumer_name=self.consumer_name,
             source_topic=source_topic,
             event_type=event_type,
-            payload=payload
+            payload=payload,
         )
 
         if is_duplicate:
             # Already processed - skip
-            INBOX_DUPLICATES.labels(
-                consumer_name=self.consumer_name,
-                event_type=event_type
-            ).inc()
+            INBOX_DUPLICATES.labels(consumer_name=self.consumer_name, event_type=event_type).inc()
 
             logger.info(f"Duplicate message: {event_id}, skipping")
             return None
@@ -107,10 +113,7 @@ class ConsumerInbox:
             duration_ms = int((datetime.now(UTC) - start_time).total_seconds() * 1000)
             await self.storage.update_inbox_duration(event_id, duration_ms)
 
-            INBOX_PROCESSED.labels(
-                consumer_name=self.consumer_name,
-                event_type=event_type
-            ).inc()
+            INBOX_PROCESSED.labels(consumer_name=self.consumer_name, event_type=event_type).inc()
 
             logger.info(f"Processed event: {event_id} ({duration_ms}ms)")
             return result
@@ -122,8 +125,7 @@ class ConsumerInbox:
     async def cleanup_old_entries(self, older_than_days: int = 7) -> int:
         """Delete old inbox entries."""
         deleted = await self.storage.cleanup_inbox(
-            consumer_name=self.consumer_name,
-            older_than_days=older_than_days
+            consumer_name=self.consumer_name, older_than_days=older_than_days
         )
 
         logger.info(f"Cleaned up {deleted} old inbox entries")

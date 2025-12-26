@@ -5,7 +5,7 @@ Uses aiokafka for async Kafka producer with idempotent delivery.
 
 Usage:
     >>> from sagaz.outbox.brokers import KafkaBroker
-    >>> 
+    >>>
     >>> broker = KafkaBroker(bootstrap_servers="localhost:9092")
     >>> await broker.connect()
     >>> await broker.publish("orders", b'{"order_id": 1}')
@@ -26,6 +26,7 @@ from sagaz.outbox.brokers.base import (
 try:
     from aiokafka import AIOKafkaProducer
     from aiokafka.errors import KafkaError
+
     KAFKA_AVAILABLE = True
 except ImportError:
     KAFKA_AVAILABLE = False
@@ -39,7 +40,7 @@ logger = logging.getLogger(__name__)
 class KafkaBrokerConfig(BrokerConfig):
     """
     Kafka-specific broker configuration.
-    
+
     Attributes:
         bootstrap_servers: Kafka bootstrap servers (comma-separated)
         client_id: Client identifier
@@ -74,14 +75,14 @@ class KafkaBrokerConfig(BrokerConfig):
 class KafkaBroker(BaseBroker):
     """
     Kafka message broker using aiokafka.
-    
+
     Features:
         - Idempotent producer for exactly-once semantics
         - Automatic batching for throughput
         - Compression support
         - SASL/SSL authentication
         - Graceful shutdown
-    
+
     Usage:
         >>> config = KafkaBrokerConfig(
         ...     bootstrap_servers="localhost:9092",
@@ -89,29 +90,30 @@ class KafkaBroker(BaseBroker):
         ... )
         >>> broker = KafkaBroker(config)
         >>> await broker.connect()
-        >>> 
+        >>>
         >>> await broker.publish(
         ...     topic="orders",
         ...     message=b'{"order_id": "123"}',
         ...     key="order-123",
         ...     headers={"trace_id": "abc"},
         ... )
-        >>> 
+        >>>
         >>> await broker.close()
     """
 
     def __init__(self, config: KafkaBrokerConfig | None = None):
         """
         Initialize Kafka broker.
-        
+
         Args:
             config: Kafka configuration
-        
+
         Raises:
             MissingDependencyError: If aiokafka is not installed
         """
         if not KAFKA_AVAILABLE:
-            raise MissingDependencyError("aiokafka", "Kafka message broker")  # pragma: no cover
+            msg = "aiokafka"
+            raise MissingDependencyError(msg, "Kafka message broker")  # pragma: no cover
 
         self.config = config or KafkaBrokerConfig()
         self._producer: AIOKafkaProducer | None = None
@@ -165,7 +167,8 @@ class KafkaBroker(BaseBroker):
             logger.info(f"Connected to Kafka at {self.config.bootstrap_servers}")
 
         except KafkaError as e:  # pragma: no cover
-            raise BrokerConnectionError(f"Failed to connect to Kafka: {e}") from e
+            msg = f"Failed to connect to Kafka: {e}"
+            raise BrokerConnectionError(msg) from e
 
     async def publish(  # pragma: no cover
         self,
@@ -176,7 +179,8 @@ class KafkaBroker(BaseBroker):
     ) -> None:
         """Publish a message to Kafka."""
         if not self._connected or not self._producer:  # pragma: no cover
-            raise BrokerConnectionError("Kafka producer not connected")
+            msg = "Kafka producer not connected"
+            raise BrokerConnectionError(msg)
 
         try:
             await self._producer.send_and_wait(
@@ -188,17 +192,15 @@ class KafkaBroker(BaseBroker):
             logger.debug(f"Published message to Kafka topic {topic}")
 
         except KafkaError as e:  # pragma: no cover
-            raise BrokerPublishError(f"Failed to publish to Kafka: {e}") from e
+            msg = f"Failed to publish to Kafka: {e}"
+            raise BrokerPublishError(msg) from e
 
     @staticmethod
     def _convert_headers(headers: dict[str, str] | None) -> list | None:
         """Convert headers dict to Kafka format."""
         if not headers:
             return None
-        return [
-            (k, v.encode("utf-8") if isinstance(v, str) else v)
-            for k, v in headers.items()
-        ]
+        return [(k, v.encode("utf-8") if isinstance(v, str) else v) for k, v in headers.items()]
 
     @staticmethod
     def _encode_key(key: str | None) -> bytes | None:

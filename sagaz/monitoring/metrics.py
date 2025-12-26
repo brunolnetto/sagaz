@@ -44,12 +44,10 @@ class SagaMetrics:
 
     def _update_average_time(self, duration: float) -> None:
         """Update average execution time."""
-        total_time = self.metrics["average_execution_time"] * (
-            self.metrics["total_executed"] - 1
-        )
-        self.metrics["average_execution_time"] = (
-            total_time + duration
-        ) / self.metrics["total_executed"]
+        total_time = self.metrics["average_execution_time"] * (self.metrics["total_executed"] - 1)
+        self.metrics["average_execution_time"] = (total_time + duration) / self.metrics[
+            "total_executed"
+        ]
 
     def _update_saga_stats(self, saga_name: str, status: SagaStatus) -> None:
         """Update per-saga statistics."""

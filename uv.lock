@@ -1489,7 +1489,7 @@ wheels = [
 
 [[package]]
 name = "sagaz"
-version = "1.0.0"
+version = "1.0.1"
 source = { editable = "." }
 dependencies = [
     { name = "python-statemachine" },
@@ -1500,6 +1500,9 @@ dev = [
     { name = "bandit" },
     { name = "ipython" },
     { name = "mypy" },
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-exporter-otlp-proto-grpc" },
+    { name = "opentelemetry-sdk" },
     { name = "pip-audit" },
     { name = "prek" },
     { name = "pytest" },
@@ -1548,6 +1551,9 @@ dev = [
     { name = "bandit", extras = ["toml"], specifier = ">=1.7.5" },
     { name = "ipython", specifier = "==8.18.1" },
     { name = "mypy", specifier = "==1.7.1" },
+    { name = "opentelemetry-api", specifier = ">=1.20.0" },
+    { name = "opentelemetry-exporter-otlp-proto-grpc", specifier = ">=1.20.0" },
+    { name = "opentelemetry-sdk", specifier = ">=1.20.0" },
     { name = "pip-audit", specifier = ">=2.6.1" },
     { name = "prek", specifier = ">=0.2.13" },
     { name = "pytest", specifier = "==8.4.2" },

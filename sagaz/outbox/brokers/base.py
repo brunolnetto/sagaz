@@ -16,7 +16,7 @@ from sagaz.outbox.types import OutboxEvent
 class MessageBroker(Protocol):
     """
     Protocol for message broker implementations.
-    
+
     All broker implementations (Kafka, RabbitMQ, NATS, etc.) must
     implement this protocol to be usable with the outbox pattern.
     """
@@ -30,13 +30,13 @@ class MessageBroker(Protocol):
     ) -> None:
         """
         Publish a message to the broker.
-        
+
         Args:
             topic: Topic/queue/exchange to publish to
             message: Message payload as bytes
             headers: Optional message headers
             key: Optional message key for partitioning
-        
+
         Raises:
             BrokerError: If publishing fails
         """
@@ -49,7 +49,7 @@ class MessageBroker(Protocol):
     async def health_check(self) -> bool:
         """
         Check if the broker connection is healthy.
-        
+
         Returns:
             True if healthy, False otherwise
         """
@@ -72,7 +72,7 @@ class BrokerPublishError(BrokerError):
 class BrokerConfig:
     """
     Base configuration for message brokers.
-    
+
     Subclass for broker-specific config.
     """
 
@@ -86,7 +86,7 @@ class BrokerConfig:
 class BaseBroker(ABC):
     """
     Abstract base class for message broker implementations.
-    
+
     Provides common functionality and enforces the MessageBroker protocol.
     """
 
@@ -132,10 +132,10 @@ class BaseBroker(ABC):
     ) -> None:
         """
         Publish an outbox event to the broker.
-        
+
         This is a convenience method that serializes the event
         and publishes it with appropriate headers.
-        
+
         Args:
             event: The outbox event to publish
             topic: Optional topic override (defaults to event_type)

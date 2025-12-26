@@ -14,7 +14,7 @@ from sagaz.strategies.base import ParallelExecutionStrategy
 class WaitAllStrategy(ParallelExecutionStrategy):
     """
     Implements WAIT_ALL parallel failure strategy
-    
+
     When one or more parallel steps fail:
     1. Let all parallel steps run to completion
     2. Collect all results and exceptions
@@ -24,13 +24,13 @@ class WaitAllStrategy(ParallelExecutionStrategy):
     async def execute_parallel_steps(self, steps: list[Any]) -> list[Any]:
         """
         Execute steps in parallel, waiting for all to complete
-        
+
         Args:
             steps: List of steps to execute (each step should have an execute() method)
-            
+
         Returns:
             List of results from all successful steps
-            
+
         Raises:
             Exception: Any exception from failed steps (after all steps complete)
         """
