@@ -56,7 +56,7 @@ def get_available_brokers() -> list[str]:
 def print_available_brokers() -> None:
     """Print available brokers with installation instructions."""
     print("\n=== Available Message Brokers ===\n")
-    
+
     # Memory (always available)
     print("  ✓ memory     - In-memory (for testing)")
 
@@ -87,7 +87,7 @@ def print_available_brokers() -> None:
 
     for module_path, attr, name, desc, install in brokers:
         _print_broker_status(module_path, attr, name, desc, install)
-    
+
     print()
 
 
@@ -181,9 +181,7 @@ def create_broker(
     if broker_type not in _BROKER_REGISTRY:
         available = get_available_brokers()
         msg = f"Unknown broker type: '{broker_type}'\nAvailable brokers: {', '.join(available)}"
-        raise ValueError(
-            msg
-        )
+        raise ValueError(msg)
 
     factory, dependency = _BROKER_REGISTRY[broker_type]
 

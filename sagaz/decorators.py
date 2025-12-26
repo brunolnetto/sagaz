@@ -236,14 +236,35 @@ class Saga:
 
     # Class-level attributes (override in subclass)
     saga_name: str | None = None
-    listeners: list = []  # List of SagaListener instances
+    listeners: list | None = None  # List of SagaListener instances (None = use config)
 
-    def __init__(self):
+    def __init__(self, config=None):
+        """
+        Initialize the saga.
+
+        Args:
+            config: Optional SagaConfig. If not provided, uses global config.
+        """
         self._steps: list[SagaStepDefinition] = []
         self._step_registry: dict[str, SagaStepDefinition] = {}
         self._compensation_graph = SagaCompensationGraph()
         self._context: dict[str, Any] = {}
         self._saga_id: str = ""
+
+        # Use provided config or global config
+        if config is not None:
+            self._config = config
+        else:
+            from sagaz.config import get_config
+
+            self._config = get_config()
+
+        # If no class-level listeners defined, use config listeners
+        if self.listeners is None and self._config:
+            self._instance_listeners = self._config.listeners
+        else:
+            self._instance_listeners = self.listeners or []
+
         self._collect_steps()
 
     def _collect_steps(self) -> None:
@@ -421,7 +442,7 @@ class Saga:
 
     async def _notify_listeners(self, event_name: str, *args) -> None:
         """Notify all listeners of an event."""
-        for listener in self.listeners:
+        for listener in self._instance_listeners:
             try:
                 handler = getattr(listener, event_name, None)
                 if handler:

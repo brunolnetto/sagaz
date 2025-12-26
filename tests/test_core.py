@@ -562,7 +562,7 @@ class TestTimeouts:
         saga = SimpleSaga()
 
         async def slow_action(ctx):
-            await asyncio.sleep(5.0)
+            await asyncio.sleep(1.0)  # Longer than timeout (0.5s)
             return "done"
 
         await saga.add_step("slow", slow_action, timeout=0.5, max_retries=1)
@@ -581,7 +581,7 @@ class TestTimeouts:
             return "result"
 
         async def slow_comp(result, ctx):
-            await asyncio.sleep(5.0)
+            await asyncio.sleep(1.0)  # Longer than compensation_timeout (0.5s)
 
         async def failing_action(ctx):
             msg = "Fail"

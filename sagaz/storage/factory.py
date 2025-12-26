@@ -31,9 +31,7 @@ def _create_postgresql_storage(kwargs: dict) -> SagaStorage:
             "PostgreSQL backend requires a connection_string.\n"
             "Example: create_storage('postgresql', connection_string='postgresql://user:pass@localhost/db')"
         )
-        raise ValueError(
-            msg
-        )
+        raise ValueError(msg)
     from sagaz.storage.postgresql import PostgreSQLSagaStorage
 
     return PostgreSQLSagaStorage(
@@ -115,9 +113,7 @@ def create_storage(
             f"Unknown storage backend: '{backend}'\n"
             f"Available backends: {', '.join(available_backends)}"
         )
-        raise ValueError(
-            msg
-        )
+        raise ValueError(msg)
 
     # Build kwargs dict for factory
     factory_kwargs = {
