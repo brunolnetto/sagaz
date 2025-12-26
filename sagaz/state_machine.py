@@ -6,7 +6,7 @@ providing robust state management with proper async support using python-statema
 
 State Diagram:
     PENDING → EXECUTING → COMPLETED
-                     ↘ COMPENSATING → ROLLED_BACK  
+                     ↘ COMPENSATING → ROLLED_BACK
                      ↘ FAILED (unrecoverable)
 
 Step State Diagram:
@@ -16,11 +16,11 @@ Step State Diagram:
 
 Usage:
     >>> from sagaz.state_machine import SagaStateMachine
-    >>> 
+    >>>
     >>> class OrderSaga:
     ...     steps = [step1, step2]
     ...     completed_steps = []
-    >>> 
+    >>>
     >>> saga = OrderSaga()
     >>> sm = SagaStateMachine(saga)
     >>> await sm.activate_initial_state()
@@ -39,10 +39,10 @@ if TYPE_CHECKING:
 class SagaStateMachine(StateMachine):
     """
     State machine for managing saga lifecycle transitions.
-    
+
     Provides state management with guards and hooks for saga execution.
     Supports async callbacks via python-statemachine's native async support.
-    
+
     States:
         pending: Initial state, saga not yet started
         executing: Saga is running steps
@@ -50,7 +50,7 @@ class SagaStateMachine(StateMachine):
         compensating: Running compensation for failed steps
         rolled_back: All compensations completed (final)
         failed: Unrecoverable failure (final)
-    
+
     Events:
         start: Begin saga execution (pending -> executing)
         succeed: Saga completed successfully (executing -> completed)
@@ -58,17 +58,17 @@ class SagaStateMachine(StateMachine):
         fail_unrecoverable: Unrecoverable failure (executing -> failed)
         finish_compensation: Compensation completed (compensating -> rolled_back)
         compensation_failed: Compensation failed (compensating -> failed)
-    
+
     Usage:
         >>> sm = SagaStateMachine(saga_instance)
         >>> await sm.activate_initial_state()
-        >>> 
+        >>>
         >>> # Start execution
         >>> await sm.start()
-        >>> 
+        >>>
         >>> # On success
         >>> await sm.succeed()
-        >>> 
+        >>>
         >>> # On failure with compensation
         >>> await sm.fail()
         >>> await sm.finish_compensation()
@@ -94,7 +94,7 @@ class SagaStateMachine(StateMachine):
     def __init__(self, saga: Optional["Saga"] = None, **kwargs):
         """
         Initialize the saga state machine.
-        
+
         Args:
             saga: The saga instance to manage state for
             **kwargs: Additional kwargs passed to StateMachine
@@ -171,9 +171,9 @@ class SagaStateMachine(StateMachine):
 class SagaStepStateMachine(StateMachine):
     """
     State machine for individual saga step execution.
-    
+
     Manages the lifecycle of a single step within a saga.
-    
+
     States:
         pending: Step not yet started
         executing: Step is running
@@ -181,7 +181,7 @@ class SagaStepStateMachine(StateMachine):
         compensating: Running compensation for this step
         compensated: Compensation completed (final)
         failed: Step failed (final)
-    
+
     Events:
         start: Begin step execution
         succeed: Step completed successfully
@@ -210,7 +210,7 @@ class SagaStepStateMachine(StateMachine):
     def __init__(self, step_name: str = "", **kwargs):
         """
         Initialize the step state machine.
-        
+
         Args:
             step_name: Name of the step for logging
             **kwargs: Additional kwargs passed to StateMachine
@@ -243,11 +243,11 @@ class SagaStepStateMachine(StateMachine):
 def validate_state_transition(current_state: str, target_state: str) -> bool:
     """
     Validate if a state transition is allowed.
-    
+
     Args:
         current_state: Current state name
         target_state: Target state name
-        
+
     Returns:
         True if transition is valid, False otherwise
     """
@@ -266,10 +266,10 @@ def validate_state_transition(current_state: str, target_state: str) -> bool:
 def get_valid_next_states(current_state: str) -> list[str]:
     """
     Get list of valid next states from current state.
-    
+
     Args:
         current_state: Current state name
-        
+
     Returns:
         List of valid next state names
     """

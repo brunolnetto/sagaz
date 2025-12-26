@@ -8,7 +8,7 @@ Example:
     >>> graph = SagaCompensationGraph()
     >>> graph.register_compensation("create_order", cancel_order)
     >>> graph.register_compensation("charge_payment", refund_payment, depends_on=["create_order"])
-    >>> 
+    >>>
     >>> # When failure occurs, execute compensations in dependency order:
     >>> levels = graph.get_compensation_order()
     >>> for level in levels:
@@ -38,10 +38,10 @@ class CompensationType(Enum):
 class CompensationNode:
     """
     Node in compensation dependency graph.
-    
+
     Represents a single compensation action with its dependencies
     and metadata for execution.
-    
+
     Attributes:
         step_id: Unique identifier for this step
         compensation_fn: Async function to execute compensation
@@ -51,6 +51,7 @@ class CompensationNode:
         max_retries: Maximum retry attempts for this compensation
         timeout_seconds: Timeout for compensation execution
     """
+
     step_id: str
     compensation_fn: Callable[[dict[str, Any]], Awaitable[None]]
     depends_on: list[str] = field(default_factory=list)
@@ -84,28 +85,28 @@ class MissingDependencyError(CompensationGraphError):
 class SagaCompensationGraph:
     """
     Manages compensation dependencies and execution order.
-    
+
     The compensation graph allows defining complex compensation relationships
     where certain compensations must complete before others can begin.
-    
+
     Key Features:
         - Parallel execution of independent compensations
         - Dependency-based ordering (topological sort)
         - Supports different compensation types
         - Tracks executed steps for accurate compensation
-    
+
     Usage:
         >>> graph = SagaCompensationGraph()
-        >>> 
+        >>>
         >>> # Register compensations with dependencies
         >>> graph.register_compensation("step1", undo_step1)
         >>> graph.register_compensation("step2", undo_step2, depends_on=["step1"])
         >>> graph.register_compensation("step3", undo_step3, depends_on=["step1", "step2"])
-        >>> 
+        >>>
         >>> # Mark steps as executed during saga execution
         >>> graph.mark_step_executed("step1")
         >>> graph.mark_step_executed("step2")
-        >>> 
+        >>>
         >>> # Get compensation order (only executed steps)
         >>> levels = graph.get_compensation_order()
         >>> # Returns: [["step2"], ["step1"]]
@@ -125,11 +126,11 @@ class SagaCompensationGraph:
         compensation_type: CompensationType = CompensationType.MECHANICAL,
         description: str | None = None,
         max_retries: int = 3,
-        timeout_seconds: float = 30.0
+        timeout_seconds: float = 30.0,
     ) -> None:
         """
         Register a compensation action for a step.
-        
+
         Args:
             step_id: Unique identifier for this step
             compensation_fn: Async function(context) to execute on compensation
@@ -138,11 +139,11 @@ class SagaCompensationGraph:
             description: Optional description for logging
             max_retries: Max retry attempts (default: 3)
             timeout_seconds: Execution timeout (default: 30s)
-        
+
         Example:
             >>> async def refund_payment(ctx):
             ...     await PaymentService.refund(ctx["charge_id"])
-            >>> 
+            >>>
             >>> graph.register_compensation(
             ...     "charge_payment",
             ...     refund_payment,
@@ -158,16 +159,16 @@ class SagaCompensationGraph:
             compensation_type=compensation_type,
             description=description or f"Compensate {step_id}",
             max_retries=max_retries,
-            timeout_seconds=timeout_seconds
+            timeout_seconds=timeout_seconds,
         )
         self.nodes[step_id] = node
 
     def mark_step_executed(self, step_id: str) -> None:
         """
         Mark a step as successfully executed.
-        
+
         Only executed steps will be compensated on failure.
-        
+
         Args:
             step_id: The step identifier that was executed
         """
@@ -177,9 +178,9 @@ class SagaCompensationGraph:
     def unmark_step_executed(self, step_id: str) -> None:
         """
         Remove a step from the executed list.
-        
+
         Useful when a step is compensated or was rolled back.
-        
+
         Args:
             step_id: The step identifier to unmark
         """
@@ -189,7 +190,7 @@ class SagaCompensationGraph:
     def get_executed_steps(self) -> list[str]:
         """
         Get list of steps that were executed.
-        
+
         Returns:
             List of step IDs in execution order
         """
@@ -198,17 +199,17 @@ class SagaCompensationGraph:
     def get_compensation_order(self) -> list[list[str]]:
         """
         Compute compensation execution order respecting dependencies.
-        
+
         Returns a list of levels, where each level contains steps that
         can be compensated in parallel. Levels must be executed sequentially.
-        
+
         The order is the REVERSE of the dependency order because:
         - If step B depends on step A (A must run before B)
         - Then B's compensation must run BEFORE A's compensation
-        
+
         Returns:
             List of levels, each level is a list of step IDs
-        
+
         Raises:
             CircularDependencyError: If circular dependencies exist
         """
@@ -221,23 +222,21 @@ class SagaCompensationGraph:
 
     def _get_steps_to_compensate(self) -> list[str]:
         """Get executed steps that have compensation registered."""
-        return [
-            step_id for step_id in self.executed_steps
-            if step_id in self.nodes
-        ]
+        return [step_id for step_id in self.executed_steps if step_id in self.nodes]
 
     def _build_reverse_dependencies(self, steps: list[str]) -> dict[str, set[str]]:
         """Build reverse dependency graph for compensation ordering."""
         comp_deps: dict[str, set[str]] = {}
         for step_id in steps:
             dependents = [
-                other_id for other_id in steps
-                if step_id in self.nodes[other_id].depends_on
+                other_id for other_id in steps if step_id in self.nodes[other_id].depends_on
             ]
             comp_deps[step_id] = set(dependents)
         return comp_deps
 
-    def _topological_sort_levels(self, deps: dict[str, set[str]], remaining: set[str]) -> list[list[str]]:
+    def _topological_sort_levels(
+        self, deps: dict[str, set[str]], remaining: set[str]
+    ) -> list[list[str]]:
         """Perform topological sort returning levels for parallel execution."""
         levels: list[list[str]] = []
         in_degree = {step: len(d) for step, d in deps.items()}
@@ -252,12 +251,19 @@ class SagaCompensationGraph:
 
         return levels
 
-    def _get_zero_in_degree_nodes(self, remaining: set[str], in_degree: dict[str, int]) -> list[str]:
+    def _get_zero_in_degree_nodes(
+        self, remaining: set[str], in_degree: dict[str, int]
+    ) -> list[str]:
         """Get nodes with zero in-degree from remaining set."""
         return [s for s in remaining if in_degree.get(s, 0) == 0]
 
-    def _update_in_degrees(self, processed: list[str], remaining: set[str],
-                           deps: dict[str, set[str]], in_degree: dict[str, int]):
+    def _update_in_degrees(
+        self,
+        processed: list[str],
+        remaining: set[str],
+        deps: dict[str, set[str]],
+        in_degree: dict[str, int],
+    ):
         """Remove processed nodes and update in-degrees."""
         for step in processed:
             remaining.remove(step)
@@ -274,7 +280,7 @@ class SagaCompensationGraph:
         def dfs(node: str) -> list[str] | None:
             if node in path:
                 cycle_start = path.index(node)
-                return path[cycle_start:] + [node]
+                return [*path[cycle_start:], node]
             if node in visited:
                 return None
 
@@ -300,11 +306,11 @@ class SagaCompensationGraph:
     def validate(self) -> None:
         """
         Validate the compensation graph.
-        
+
         Checks for:
             - Circular dependencies
             - Missing dependency references
-        
+
         Raises:
             CircularDependencyError: If circular dependencies exist
             MissingDependencyError: If a step references non-existent dependency
@@ -322,8 +328,7 @@ class SagaCompensationGraph:
     def _validate_no_cycles(self):
         """Check for circular dependencies via topological sort."""
         deps: dict[str, set[str]] = {
-            step_id: set(node.depends_on)
-            for step_id, node in self.nodes.items()
+            step_id: set(node.depends_on) for step_id, node in self.nodes.items()
         }
         # Use shared topological sort (will raise if cycle found)
         self._topological_sort_levels(deps, set(self.nodes.keys()))
@@ -331,10 +336,10 @@ class SagaCompensationGraph:
     def get_compensation_info(self, step_id: str) -> CompensationNode | None:
         """
         Get compensation information for a step.
-        
+
         Args:
             step_id: The step identifier
-        
+
         Returns:
             CompensationNode if found, None otherwise
         """
@@ -353,7 +358,5 @@ class SagaCompensationGraph:
 
     def __repr__(self) -> str:
         return (
-            f"SagaCompensationGraph("
-            f"nodes={len(self.nodes)}, "
-            f"executed={len(self.executed_steps)})"
+            f"SagaCompensationGraph(nodes={len(self.nodes)}, executed={len(self.executed_steps)})"
         )

@@ -2,21 +2,20 @@
 In-Memory Message Broker - For testing and development.
 """
 
-
 from sagaz.outbox.brokers.base import BaseBroker, BrokerConfig, BrokerConnectionError
 
 
 class InMemoryBroker(BaseBroker):
     """
     In-memory message broker for testing and development.
-    
+
     Messages are stored in memory and can be inspected for testing.
-    
+
     Usage:
         >>> broker = InMemoryBroker()
         >>> await broker.connect()
         >>> await broker.publish("orders", b'{"id": 1}')
-        >>> 
+        >>>
         >>> # Inspect published messages
         >>> messages = broker.get_messages("orders")
         >>> assert len(messages) == 1
@@ -39,16 +38,19 @@ class InMemoryBroker(BaseBroker):
     ) -> None:
         """Publish message to in-memory storage."""
         if not self._connected:
-            raise BrokerConnectionError("Broker not connected")
+            msg = "Broker not connected"
+            raise BrokerConnectionError(msg)
 
         if topic not in self._messages:
             self._messages[topic] = []
 
-        self._messages[topic].append({
-            "message": message,
-            "headers": headers or {},
-            "key": key,
-        })
+        self._messages[topic].append(
+            {
+                "message": message,
+                "headers": headers or {},
+                "key": key,
+            }
+        )
 
     async def close(self) -> None:
         """Close connection."""

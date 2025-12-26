@@ -6,11 +6,11 @@ Handles retries, dead-letter queue, and graceful shutdown.
 
 Usage:
     >>> from sagaz.outbox import OutboxWorker, InMemoryOutboxStorage, InMemoryBroker
-    >>> 
+    >>>
     >>> storage = InMemoryOutboxStorage()
     >>> broker = InMemoryBroker()
     >>> await broker.connect()
-    >>> 
+    >>>
     >>> worker = OutboxWorker(storage, broker)
     >>> await worker.start()  # Runs until stopped
     >>> # or
@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 class OutboxWorker:
     """
     Background worker that processes outbox events.
-    
+
     Features:
         - Batch processing for efficiency
         - Parallel publish within batches
@@ -49,17 +49,17 @@ class OutboxWorker:
         - Graceful shutdown on SIGTERM/SIGINT
         - Stuck event recovery
         - Dead letter queue handling
-    
+
     Usage:
         >>> worker = OutboxWorker(storage, broker, config)
-        >>> 
+        >>>
         >>> # Run continuously
         >>> await worker.start()
-        >>> 
+        >>>
         >>> # Or process manually
         >>> processed = await worker.process_batch()
         >>> print(f"Processed {processed} events")
-    
+
     Lifecycle:
         1. Claim batch of PENDING events (with SKIP LOCKED)
         2. Publish each event to broker in parallel
@@ -80,7 +80,7 @@ class OutboxWorker:
     ):
         """
         Initialize the outbox worker.
-        
+
         Args:
             storage: Outbox storage implementation
             broker: Message broker implementation
@@ -109,7 +109,7 @@ class OutboxWorker:
     async def start(self) -> None:
         """
         Start the worker loop.
-        
+
         Runs continuously until stop() is called or shutdown signal received.
         """
         self._running = True
@@ -160,8 +160,7 @@ class OutboxWorker:
     async def _wait_for_next_poll(self) -> None:
         """Wait for shutdown or poll interval."""
         await asyncio.wait_for(
-            self._shutdown_event.wait(),
-            timeout=self.config.poll_interval_seconds
+            self._shutdown_event.wait(), timeout=self.config.poll_interval_seconds
         )
 
     async def stop(self) -> None:
@@ -173,12 +172,13 @@ class OutboxWorker:
     def _handle_shutdown(self) -> None:
         """Handle shutdown signal."""
         logger.info(f"Shutdown signal received for worker {self.worker_id}")
-        asyncio.create_task(self.stop())
+        # Store reference to prevent garbage collection
+        self._shutdown_task = asyncio.create_task(self.stop())
 
     async def process_batch(self) -> int:
         """
         Process a single batch of events.
-        
+
         Returns:
             Number of events processed
         """
@@ -199,7 +199,7 @@ class OutboxWorker:
 
         # Count successes and failures
         processed = 0
-        for event, result in zip(events, results):
+        for event, result in zip(events, results, strict=False):
             if isinstance(result, Exception):  # pragma: no cover
                 logger.error(f"Failed to process event {event.event_id}: {result}")
             else:
@@ -210,7 +210,7 @@ class OutboxWorker:
     async def _process_event(self, event: OutboxEvent) -> None:
         """
         Process a single event.
-        
+
         Args:
             event: The event to process
         """
@@ -243,7 +243,7 @@ class OutboxWorker:
     ) -> None:
         """
         Handle a publish failure.
-        
+
         Args:
             event: The event that failed
             error: The exception that occurred
@@ -280,7 +280,7 @@ class OutboxWorker:
     async def _move_to_dead_letter(self, event: OutboxEvent) -> None:
         """
         Move an event to the dead letter queue.
-        
+
         Args:
             event: The event to move
         """
@@ -300,10 +300,10 @@ class OutboxWorker:
     async def recover_stuck_events(self) -> int:
         """
         Recover events that appear stuck.
-        
+
         This should be called periodically to handle events
         claimed by crashed workers.
-        
+
         Returns:
             Number of events recovered
         """
@@ -319,7 +319,7 @@ class OutboxWorker:
     def get_stats(self) -> dict:
         """
         Get worker statistics.
-        
+
         Returns:
             Dictionary of stats
         """
@@ -332,7 +332,6 @@ class OutboxWorker:
         }
 
 
-
 def get_storage():
     """Create storage backend from environment."""
     database_url = os.getenv("DATABASE_URL")
@@ -342,6 +341,7 @@ def get_storage():
         sys.exit(1)
 
     from sagaz.outbox.storage.postgresql import PostgreSQLOutboxStorage
+
     return PostgreSQLOutboxStorage(connection_string=database_url)
 
 
@@ -355,6 +355,7 @@ def _get_broker_url(broker_type: str) -> str:
 def _create_kafka_broker(broker_url: str):
     """Create Kafka broker instance."""
     from sagaz.outbox.brokers.kafka import KafkaBroker, KafkaBrokerConfig
+
     config = KafkaBrokerConfig(bootstrap_servers=broker_url)
     return KafkaBroker(config=config)
 
@@ -362,6 +363,7 @@ def _create_kafka_broker(broker_url: str):
 def _create_rabbitmq_broker(broker_url: str):
     """Create RabbitMQ broker instance."""
     from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker, RabbitMQBrokerConfig
+
     config = RabbitMQBrokerConfig(
         url=broker_url,
         exchange_name=os.getenv("RABBITMQ_EXCHANGE", "saga-events"),
@@ -402,6 +404,7 @@ async def main():
 
     # Create worker config
     from sagaz.outbox.types import OutboxConfig
+
     config = OutboxConfig(
         batch_size=int(os.getenv("BATCH_SIZE", "100")),
         poll_interval_seconds=float(os.getenv("POLL_INTERVAL", "1.0")),
@@ -410,6 +413,7 @@ async def main():
 
     # Create worker
     from sagaz.outbox.worker import OutboxWorker
+
     worker = OutboxWorker(
         storage=storage,
         broker=broker,

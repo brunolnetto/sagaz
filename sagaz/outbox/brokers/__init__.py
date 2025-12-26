@@ -35,36 +35,37 @@ from sagaz.outbox.brokers.memory import InMemoryBroker
 def KafkaBroker(*args, **kwargs):
     """Kafka message broker (requires aiokafka)."""
     from sagaz.outbox.brokers.kafka import KafkaBroker as _Impl
+
     return _Impl(*args, **kwargs)
 
 
 def RabbitMQBroker(*args, **kwargs):
     """RabbitMQ message broker (requires aio-pika)."""
     from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker as _Impl
+
     return _Impl(*args, **kwargs)
 
 
 def RedisBroker(*args, **kwargs):
     """Redis Streams message broker (requires redis)."""
     from sagaz.outbox.brokers.redis import RedisBroker as _Impl
+
     return _Impl(*args, **kwargs)
 
 
 __all__ = [
-    # Base
-    "MessageBroker",
     "BaseBroker",
     "BrokerConfig",
-    "BrokerError",
     "BrokerConnectionError",
+    "BrokerError",
     "BrokerPublishError",
-
     # Implementations
     "InMemoryBroker",
     "KafkaBroker",
+    # Base
+    "MessageBroker",
     "RabbitMQBroker",
     "RedisBroker",
-
     # Factory
     "create_broker",
     "create_broker_from_env",

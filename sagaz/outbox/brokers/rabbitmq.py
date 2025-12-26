@@ -5,7 +5,7 @@ Uses aio-pika for async RabbitMQ access with publisher confirms.
 
 Usage:
     >>> from sagaz.outbox.brokers import RabbitMQBroker
-    >>> 
+    >>>
     >>> broker = RabbitMQBroker(url="amqp://guest:guest@localhost/")
     >>> await broker.connect()
     >>> await broker.publish("orders", b'{"order_id": 1}')
@@ -27,6 +27,7 @@ try:
     import aio_pika
     from aio_pika import DeliveryMode, ExchangeType, Message
     from aio_pika.abc import AbstractChannel, AbstractConnection, AbstractExchange
+
     RABBITMQ_AVAILABLE = True
 except ImportError:
     RABBITMQ_AVAILABLE = False
@@ -42,7 +43,7 @@ logger = logging.getLogger(__name__)
 class RabbitMQBrokerConfig(BrokerConfig):
     """
     RabbitMQ-specific broker configuration.
-    
+
     Attributes:
         url: AMQP URL (amqp://user:pass@host:port/vhost)
         exchange_name: Default exchange name
@@ -67,14 +68,14 @@ class RabbitMQBrokerConfig(BrokerConfig):
 class RabbitMQBroker(BaseBroker):
     """
     RabbitMQ message broker using aio-pika.
-    
+
     Features:
         - Publisher confirms for reliable delivery
         - Persistent messages (survive broker restart)
         - Automatic exchange declaration
         - Dead letter exchange support
         - Graceful connection recovery
-    
+
     Usage:
         >>> config = RabbitMQBrokerConfig(
         ...     url="amqp://guest:guest@localhost/",
@@ -82,29 +83,30 @@ class RabbitMQBroker(BaseBroker):
         ... )
         >>> broker = RabbitMQBroker(config)
         >>> await broker.connect()
-        >>> 
+        >>>
         >>> # Publish to a routing key (topic)
         >>> await broker.publish(
         ...     topic="orders.created",
         ...     message=b'{"order_id": "123"}',
         ...     headers={"trace_id": "abc"},
         ... )
-        >>> 
+        >>>
         >>> await broker.close()
     """
 
     def __init__(self, config: RabbitMQBrokerConfig | None = None):
         """
         Initialize RabbitMQ broker.
-        
+
         Args:
             config: RabbitMQ configuration
-        
+
         Raises:
             MissingDependencyError: If aio-pika is not installed
         """
         if not RABBITMQ_AVAILABLE:
-            raise MissingDependencyError("aio-pika", "RabbitMQ message broker")  # pragma: no cover
+            msg = "aio-pika"
+            raise MissingDependencyError(msg, "RabbitMQ message broker")  # pragma: no cover
 
         self.config = config or RabbitMQBrokerConfig()
         self._connection: AbstractConnection | None = None
@@ -154,7 +156,8 @@ class RabbitMQBroker(BaseBroker):
             logger.info(f"Connected to RabbitMQ at {self.config.url}")
 
         except Exception as e:  # pragma: no cover
-            raise BrokerConnectionError(f"Failed to connect to RabbitMQ: {e}") from e
+            msg = f"Failed to connect to RabbitMQ: {e}"
+            raise BrokerConnectionError(msg) from e
 
     async def publish(  # pragma: no cover
         self,
@@ -165,7 +168,7 @@ class RabbitMQBroker(BaseBroker):
     ) -> None:
         """
         Publish a message to RabbitMQ.
-        
+
         Args:
             topic: Routing key for the message
             message: Message body as bytes
@@ -173,7 +176,8 @@ class RabbitMQBroker(BaseBroker):
             key: Optional message key (ignored for RabbitMQ, use topic as routing key)
         """
         if not self._connected or not self._exchange:  # pragma: no cover
-            raise BrokerConnectionError("RabbitMQ broker not connected")
+            msg = "RabbitMQ broker not connected"
+            raise BrokerConnectionError(msg)
 
         try:
             # Create message with persistent delivery mode
@@ -193,7 +197,8 @@ class RabbitMQBroker(BaseBroker):
             logger.debug(f"Published message to RabbitMQ routing key {topic}")
 
         except Exception as e:  # pragma: no cover
-            raise BrokerPublishError(f"Failed to publish to RabbitMQ: {e}") from e
+            msg = f"Failed to publish to RabbitMQ: {e}"
+            raise BrokerPublishError(msg) from e
 
     async def close(self) -> None:  # pragma: no cover
         """Close the RabbitMQ connection."""
@@ -228,7 +233,7 @@ class RabbitMQBroker(BaseBroker):
     ) -> None:
         """
         Declare a queue and bind it to the exchange.
-        
+
         Args:
             queue_name: Name of the queue
             routing_key: Routing key pattern to bind
@@ -236,7 +241,8 @@ class RabbitMQBroker(BaseBroker):
             dead_letter_exchange: Optional DLX for rejected messages
         """
         if not self._channel or not self._exchange:  # pragma: no cover
-            raise BrokerConnectionError("RabbitMQ broker not connected")
+            msg = "RabbitMQ broker not connected"
+            raise BrokerConnectionError(msg)
 
         arguments = {}  # pragma: no cover
         if dead_letter_exchange:  # pragma: no cover

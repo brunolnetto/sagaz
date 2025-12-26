@@ -11,14 +11,15 @@ requires-python = ">=3.11"
 [dependency-groups]
 dev = [
     # Testing
-    "pytest==8.4.2",
-    "pytest-asyncio==0.23.8",
-    "pytest-cov==4.1.0",
+    "pytest==9.0.2",
+    "pytest-asyncio==1.3.0",
+    "pytest-cov==7.0.0",
     "pytest-xdist>=3.8.0",
     "pytest-watch>=4.2.0",
     # Code Quality
     "ruff>=0.1.6",
-    "mypy==1.7.1",
+
+    "mypy==1.19.1",
     "ipython==9.8.0",
     # Git Hooks (Rust-based pre-commit alternative - faster and more efficient)
     "prek>=0.2.13",
@@ -151,27 +152,49 @@ ignore = [
     "PT023",   # pytest.mark decorators (formatter adds parens back)
     "ISC001",  # Implicit string concatenation (conflicts with formatter)
     "ERA001",  # Commented out code (useful during development)
+    "N802",    # Function name should be lowercase (lazy import factory functions)
+    "B024",    # Abstract base class with no abstract methods (intentional for listeners)
+    "B027",    # Empty method in ABC without abstract decorator (default implementations)
+    "RUF012",  # Mutable class attributes without ClassVar (intentional for configs)
+    "B039",    # ContextVar mutable default (intentional pattern)
+    "SIM105",  # Use contextlib.suppress (explicit try-except more readable)
+    "SIM117",  # Nested with statements (clearer for async db transactions)
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["app"]
+known-first-party = ["sagaz"]
 section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
 
 [tool.ruff.lint.per-file-ignores]
 # Allow print statements in CLI scripts
 "scripts/*" = ["T20"]
-# Allow unused imports in __init__.py
-"__init__.py" = ["F401"]
+# Allow unused imports in __init__.py (re-exports)
+"__init__.py" = ["F401", "N802"]
+# Sagaz source - allow specific patterns
+"sagaz/*" = [
+    "F401",     # Unused imports for availability checks
+]
 # Tests can have magic values, print statements, test-specific patterns
 "tests/*" = [
     "PLR2004",  # Magic values in tests
     "T20",      # Print statements for debugging
     "ARG",      # Unused arguments in fixtures
     "PT012",    # Multi-statement pytest.raises blocks (common test pattern)
+    "PT017",    # Assertion on exception in except block
     "B017",     # Blind except for testing immutability/errors
     "B015",     # Pointless comparison for testing operators
+    "B018",     # Useless attribute access (for coverage)
+    "B023",     # Loop variable binding (common in dynamic test generation)
+    "E402",     # Module level import not at top (docstrings before imports)
+    "E722",     # Bare except (for cleanup in tests)
+    "E741",     # Ambiguous variable name (short names in comprehensions)
+    "N806",     # Variable should be lowercase (mock class names)
+    "F401",     # Unused imports for availability checks
+    "F811",     # Redefinition (test method overrides)
     "SIM102",   # Nested ifs for clarity
     "SIM105",   # Try-except-pass for optional operations
+    "SIM117",   # Nested with statements (more readable in tests)
+    "PTH123",   # open() vs Path.open() (simpler in tests)
     "RUF",      # Ruff-specific rules in tests (regex patterns, etc.)
 ]
 

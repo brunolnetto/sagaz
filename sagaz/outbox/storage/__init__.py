@@ -16,6 +16,7 @@ from sagaz.outbox.storage.memory import InMemoryOutboxStorage
 def PostgreSQLOutboxStorage(*args, **kwargs):
     """PostgreSQL outbox storage (requires asyncpg)."""
     from sagaz.outbox.storage.postgresql import PostgreSQLOutboxStorage as _Impl
+
     return _Impl(*args, **kwargs)
 
 

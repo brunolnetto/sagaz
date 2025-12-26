@@ -74,6 +74,7 @@ logger = logging.getLogger(__name__)
 
 class _StepExecutor:
     """Helper class to wrap SagaStep for strategy execution"""
+
     def __init__(self, step: "SagaStep", saga_context: "SagaContext"):
         self.step = step
         self.saga_context = saga_context
@@ -106,7 +107,7 @@ class _StepExecutor:
         return self.step.name
 
 
-class Saga(ABC):  # noqa: B024
+class Saga(ABC):
     """
     Production-ready base class for saga implementations with state machine
 
@@ -116,8 +117,6 @@ class Saga(ABC):  # noqa: B024
     3. Call execute() to run the saga
     4. Handle SagaResult appropriately
     """
-
-
 
     def __init__(
         self,
@@ -182,9 +181,7 @@ class Saga(ABC):  # noqa: B024
         execution_time = (
             (self.completed_at - self.started_at).total_seconds() if self.started_at else 0
         )
-        logger.info(
-            f"Saga {self.name} [{self.saga_id}] ROLLED_BACK after {execution_time:.2f}s"
-        )
+        logger.info(f"Saga {self.name} [{self.saga_id}] ROLLED_BACK after {execution_time:.2f}s")
 
     async def _on_enter_failed(self) -> None:
         """Callback: entering FAILED state (unrecoverable)"""
@@ -221,7 +218,9 @@ class Saga(ABC):  # noqa: B024
                          If empty set or specified: Parallel DAG execution
         """
         self._validate_can_add_step(name)
-        step = self._create_step(name, action, compensation, timeout, compensation_timeout, max_retries, idempotency_key)
+        step = self._create_step(
+            name, action, compensation, timeout, compensation_timeout, max_retries, idempotency_key
+        )
         self.steps.append(step)
         self._register_dependencies(name, dependencies)
         logger.debug(f"Added step '{name}' to saga {self.name}")
@@ -229,14 +228,21 @@ class Saga(ABC):  # noqa: B024
     def _validate_can_add_step(self, name: str) -> None:
         """Validate that a step can be added."""
         if self._executing:
-            raise SagaExecutionError("Cannot add steps while saga is executing")
+            msg = "Cannot add steps while saga is executing"
+            raise SagaExecutionError(msg)
         if any(s.name == name for s in self.steps):
-            raise ValueError(f"Step '{name}' already exists")
+            msg = f"Step '{name}' already exists"
+            raise ValueError(msg)
 
     def _create_step(
-        self, name: str, action: Callable, compensation: Callable | None,
-        timeout: float, compensation_timeout: float, max_retries: int,
-        idempotency_key: str | None
+        self,
+        name: str,
+        action: Callable,
+        compensation: Callable | None,
+        timeout: float,
+        compensation_timeout: float,
+        max_retries: int,
+        idempotency_key: str | None,
     ) -> "SagaStep":
         """Create a new SagaStep instance."""
         return SagaStep(
@@ -265,7 +271,7 @@ class Saga(ABC):  # noqa: B024
     def _build_execution_batches(self) -> list[set[str]]:
         """
         Build execution batches for DAG parallel execution
-        
+
         Returns list of sets, where each set contains steps that can run in parallel
         """
         if not self._has_dependencies:
@@ -291,10 +297,7 @@ class Saga(ABC):  # noqa: B024
 
     def _find_ready_steps(self, remaining: set[str], executed: set[str]) -> set[str]:
         """Find steps whose dependencies are satisfied."""
-        return {
-            name for name in remaining
-            if self.step_dependencies[name].issubset(executed)
-        }
+        return {name for name in remaining if self.step_dependencies[name].issubset(executed)}
 
     def _format_dependency_error(self, remaining: set[str], executed: set[str]) -> str:
         """Format error message for circular/missing dependencies."""
@@ -314,15 +317,12 @@ class Saga(ABC):  # noqa: B024
         try:
             # Execute each batch in sequence
             for batch_idx, batch in enumerate(self.execution_batches):
-                batch_error = await self._execute_batch(
-                    batch_idx, batch, step_map, strategy
-                )
+                batch_error = await self._execute_batch(batch_idx, batch, step_map, strategy)
 
                 if batch_error:
                     await self._compensate_all()
                     return self._build_dag_result(
-                        start_time, success=False,
-                        status=SagaStatus.ROLLED_BACK, error=batch_error
+                        start_time, success=False, status=SagaStatus.ROLLED_BACK, error=batch_error
                     )
 
             return self._build_dag_result(start_time, success=True, status=SagaStatus.COMPLETED)
@@ -345,14 +345,13 @@ class Saga(ABC):  # noqa: B024
             return WaitAllStrategy()
         return FailFastWithGraceStrategy()
 
-    async def _execute_batch(self, batch_idx: int, batch: set, step_map: dict, strategy) -> Exception | None:
+    async def _execute_batch(
+        self, batch_idx: int, batch: set, step_map: dict, strategy
+    ) -> Exception | None:
         """Execute a single batch. Returns exception if failed, None if success."""
         logger.info(f"Executing batch {batch_idx + 1}/{len(self.execution_batches)}: {batch}")
 
-        batch_executors = [
-            _StepExecutor(step_map[step_name], self.context)
-            for step_name in batch
-        ]
+        batch_executors = [_StepExecutor(step_map[step_name], self.context) for step_name in batch]
 
         try:
             await strategy.execute_parallel_steps(batch_executors)
@@ -381,7 +380,9 @@ class Saga(ABC):  # noqa: B024
                 self._executed_step_keys.add(step.idempotency_key)
                 logger.info(f"Step '{step.name}' completed before batch failure")
 
-    def _build_dag_result(self, start_time, success: bool, status: SagaStatus, error: Exception = None) -> SagaResult:
+    def _build_dag_result(
+        self, start_time, success: bool, status: SagaStatus, error: Exception | None = None
+    ) -> SagaResult:
         """Build a SagaResult for DAG execution."""
         execution_time = (datetime.now() - start_time).total_seconds()
         return SagaResult(
@@ -392,19 +393,16 @@ class Saga(ABC):  # noqa: B024
             total_steps=len(self.steps),
             error=error,
             execution_time=execution_time,
-            context=self.context if success else self.context,
+            context=self.context,
             compensation_errors=self.compensation_errors if not success else [],
         )
 
-    def set_failure_strategy(self, strategy: ParallelFailureStrategy) -> None:
-        """Set the failure strategy for parallel execution"""
-        self.failure_strategy = strategy
-        logger.info(f"Saga {self.name} failure strategy set to {strategy.value}")
+
 
     async def execute(self) -> SagaResult:
         """
         Execute the saga with full error handling and compensation
-        
+
         Automatically detects execution mode:
         - Sequential: When no dependencies specified (traditional saga)
         - Parallel DAG: When dependencies are specified
@@ -417,7 +415,8 @@ class Saga(ABC):  # noqa: B024
         """
         async with self._execution_lock:
             if self._executing:
-                raise SagaExecutionError("Saga is already executing")
+                msg = "Saga is already executing"
+                raise SagaExecutionError(msg)
 
             self._executing = True
             start_time = datetime.now()
@@ -449,7 +448,8 @@ class Saga(ABC):  # noqa: B024
         try:
             await self._state_machine.start()
         except TransitionNotAllowed as e:
-            raise SagaExecutionError(f"Cannot start saga: {e}")
+            msg = f"Cannot start saga: {e}"
+            raise SagaExecutionError(msg)
 
         # Execute based on mode
         if self._has_dependencies:
@@ -460,8 +460,11 @@ class Saga(ABC):  # noqa: B024
         """Result for saga with no steps."""
         logger.info(f"Saga {self.name} has no steps - completing immediately")
         return SagaResult(
-            success=True, saga_name=self.name, status=SagaStatus.COMPLETED,
-            completed_steps=0, total_steps=0,
+            success=True,
+            saga_name=self.name,
+            status=SagaStatus.COMPLETED,
+            completed_steps=0,
+            total_steps=0,
             execution_time=(datetime.now() - start_time).total_seconds(),
             context=self.context,
         )
@@ -480,8 +483,12 @@ class Saga(ABC):  # noqa: B024
     def _planning_failure_result(self, error, start_time) -> SagaResult:
         """Result for planning failure."""
         return SagaResult(
-            success=False, saga_name=self.name, status=SagaStatus.FAILED,
-            completed_steps=0, total_steps=len(self.steps), error=error,
+            success=False,
+            saga_name=self.name,
+            status=SagaStatus.FAILED,
+            completed_steps=0,
+            total_steps=len(self.steps),
+            error=error,
             execution_time=(datetime.now() - start_time).total_seconds(),
         )
 
@@ -521,8 +528,11 @@ class Saga(ABC):  # noqa: B024
         await self._state_machine.succeed()
 
         return SagaResult(
-            success=True, saga_name=self.name, status=SagaStatus.COMPLETED,
-            completed_steps=len(self.completed_steps), total_steps=len(self.steps),
+            success=True,
+            saga_name=self.name,
+            status=SagaStatus.COMPLETED,
+            completed_steps=len(self.completed_steps),
+            total_steps=len(self.steps),
             execution_time=(datetime.now() - start_time).total_seconds(),
             context=self.context,
         )
@@ -543,8 +553,12 @@ class Saga(ABC):  # noqa: B024
         """Result when no compensation needed."""
         self.status = SagaStatus.ROLLED_BACK
         return SagaResult(
-            success=False, saga_name=self.name, status=SagaStatus.ROLLED_BACK,
-            completed_steps=0, total_steps=len(self.steps), error=error,
+            success=False,
+            saga_name=self.name,
+            status=SagaStatus.ROLLED_BACK,
+            completed_steps=0,
+            total_steps=len(self.steps),
+            error=error,
             execution_time=(datetime.now() - start_time).total_seconds(),
             context=self.context,
         )
@@ -556,19 +570,28 @@ class Saga(ABC):  # noqa: B024
             await self._state_machine.finish_compensation()
 
             return SagaResult(
-                success=False, saga_name=self.name, status=SagaStatus.ROLLED_BACK,
-                completed_steps=len(self.completed_steps), total_steps=len(self.steps),
-                error=error, execution_time=(datetime.now() - start_time).total_seconds(),
-                context=self.context, compensation_errors=self.compensation_errors,
+                success=False,
+                saga_name=self.name,
+                status=SagaStatus.ROLLED_BACK,
+                completed_steps=len(self.completed_steps),
+                total_steps=len(self.steps),
+                error=error,
+                execution_time=(datetime.now() - start_time).total_seconds(),
+                context=self.context,
+                compensation_errors=self.compensation_errors,
             )
 
         except SagaCompensationError:
             await self._state_machine.compensation_failed()
 
             return SagaResult(
-                success=False, saga_name=self.name, status=SagaStatus.FAILED,
-                completed_steps=len(self.completed_steps), total_steps=len(self.steps),
-                error=error, execution_time=(datetime.now() - start_time).total_seconds(),
+                success=False,
+                saga_name=self.name,
+                status=SagaStatus.FAILED,
+                completed_steps=len(self.completed_steps),
+                total_steps=len(self.steps),
+                error=error,
+                execution_time=(datetime.now() - start_time).total_seconds(),
                 compensation_errors=self.compensation_errors,
             )
 
@@ -667,9 +690,8 @@ class Saga(ABC):  # noqa: B024
     def _raise_compensation_error(self, errors: list[SagaCompensationError]) -> None:
         """Raise aggregate compensation error."""
         error_summary = "; ".join(str(e) for e in errors)
-        raise SagaCompensationError(
-            f"Failed to compensate {len(errors)} steps: {error_summary}"
-        )
+        msg = f"Failed to compensate {len(errors)} steps: {error_summary}"
+        raise SagaCompensationError(msg)
 
     async def _compensate_step_with_retry(self, step: "SagaStep") -> None:
         """Compensate a step with retry logic"""
@@ -810,4 +832,3 @@ class SagaStep:
 
     def __hash__(self):
         return hash(self.idempotency_key)
-
