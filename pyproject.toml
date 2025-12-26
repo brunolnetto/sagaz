@@ -222,10 +222,15 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 
+# Parallel execution with pytest-xdist
+# Run tests with: pytest -n auto (auto-detect CPUs) or pytest -n 4 (4 workers)
+# addopts = "-n auto"  # Uncomment to enable by default
+
 # Register custom markers
 markers = [
     "integration: marks tests as integration tests (require Docker/external services)",
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "xdist_group(name): marks tests to run on same worker (for shared state)",
 ]
 
 # Filter warnings from external libraries

@@ -1,23 +1,23 @@
-name: Code quality analysis
+name: Code Quality Analysis
 
 on:
-  pull_request:
   push:
-    branches: [ main ]
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run weekly on Sundays at midnight
+    - cron: '0 0 * * 0'
 
 jobs:
-  analyze:
-    name: Analyze
+  codeql:
+    name: CodeQL Analysis
     runs-on: ubuntu-latest
-
+    
     permissions:
       security-events: write
       contents: read
-
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [ 'python' ]
+      actions: read
 
     steps:
       - name: Checkout repository
@@ -26,12 +26,69 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
-          languages: ${{ matrix.language }}
+          languages: python
           queries: security-and-quality
-
-      # Required ONLY for compiled languages
-      # - name: Autobuild
-      #   uses: github/codeql-action/autobuild@v3
+          # Improve analysis with Python-specific queries
+          config: |
+            paths:
+              - sagaz
+            paths-ignore:
+              - tests
+              - examples
+              - docs
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:python"
+
+  complexity:
+    name: Code Complexity
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "0.5.10"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Check cyclomatic complexity (fail on C or higher)
+        run: |
+          echo "### Cyclomatic Complexity Report ###"
+          echo ""
+          echo "Functions with B complexity or higher (ideally none):"
+          uv run radon cc --min B sagaz/ || true
+          echo ""
+          echo "Full complexity breakdown:"
+          uv run radon cc --show-complexity --average sagaz/
+          # Fail if any function has C or higher complexity
+          result=$(uv run radon cc --min C sagaz/ 2>&1)
+          if [ -n "$result" ]; then
+            echo "::error::Found functions with C-level or higher complexity:"
+            echo "$result"
+            exit 1
+          fi
+
+      - name: Check maintainability index
+        run: |
+          echo "### Maintainability Index Report ###"
+          uv run radon mi sagaz/ --show
+          # Check for any files with poor maintainability (C, D, F)
+          result=$(uv run radon mi sagaz/ --min C 2>&1)
+          if echo "$result" | grep -qE "^sagaz"; then
+            echo "::warning::Some files have low maintainability index"
+            echo "$result"
+          fi

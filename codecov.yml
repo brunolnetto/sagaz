@@ -1,0 +1,90 @@
+# Codecov Configuration
+# https://docs.codecov.com/docs/codecov-yaml
+
+codecov:
+  require_ci_to_pass: true
+  notify:
+    wait_for_ci: true
+
+coverage:
+  precision: 2
+  round: down
+  range: "85...100"
+  
+  status:
+    project:
+      default:
+        target: 95%  # Match current coverage level
+        threshold: 2%  # Allow 2% drop before failing
+        informational: false
+        
+    patch:
+      default:
+        target: 80%  # New code should have decent coverage
+        threshold: 5%
+        informational: false
+
+parsers:
+  gcov:
+    branch_detection:
+      conditional: true
+      loop: true
+      method: false
+      macro: false
+
+comment:
+  layout: "header, diff, flags, components"
+  behavior: default
+  require_changes: false
+  require_base: false
+  require_head: true
+
+flags:
+  unittests:
+    paths:
+      - sagaz/
+    carryforward: true
+    
+  integration:
+    paths:
+      - sagaz/
+    carryforward: true
+
+# Ignore certain files from coverage
+ignore:
+  - "tests/**/*"
+  - "examples/**/*"
+  - "docs/**/*"
+  - "**/__init__.py"
+  - "sagaz/monitoring/tracing.py"  # OpenTelemetry detection code
+
+# Component coverage - track coverage by module
+component_management:
+  default_rules:
+    statuses:
+      - type: project
+        target: auto
+  individual_components:
+    - component_id: core
+      name: Core Saga
+      paths:
+        - sagaz/core.py
+        - sagaz/decorators.py
+        - sagaz/types.py
+        - sagaz/exceptions.py
+    - component_id: storage
+      name: Storage Backends
+      paths:
+        - sagaz/storage/**
+    - component_id: outbox
+      name: Outbox Pattern
+      paths:
+        - sagaz/outbox/**
+    - component_id: monitoring
+      name: Monitoring
+      paths:
+        - sagaz/monitoring/**
+    - component_id: strategies
+      name: Parallel Strategies
+      paths:
+        - sagaz/strategies/**
