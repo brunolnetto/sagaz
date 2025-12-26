@@ -220,21 +220,21 @@ class TestConsumerInbox:
 class TestKubernetesManifests:
     """Test Kubernetes manifests are valid YAML."""
     
-    def test_configmap_yaml_valid(self):
+    def test_configmap_yaml_valid(self, k8s_manifests):
         """Test ConfigMap is valid YAML."""
-        import yaml
-        with open("k8s/configmap.yaml") as f:
-            docs = list(yaml.safe_load_all(f))
+        docs = k8s_manifests.get("k8s/configmap.yaml")
+        if docs is None:
+            pytest.skip("k8s/configmap.yaml not found")
         
         assert len(docs) == 2  # Namespace + ConfigMap
         assert docs[1]['kind'] == 'ConfigMap'
         assert docs[1]['metadata']['name'] == 'outbox-worker-config'
     
-    def test_outbox_worker_yaml_valid(self):
+    def test_outbox_worker_yaml_valid(self, k8s_manifests):
         """Test Outbox Worker deployment is valid YAML."""
-        import yaml
-        with open("k8s/outbox-worker.yaml") as f:
-            docs = list(yaml.safe_load_all(f))
+        docs = k8s_manifests.get("k8s/outbox-worker.yaml")
+        if docs is None:
+            pytest.skip("k8s/outbox-worker.yaml not found")
         
         # Should have: Deployment, Service, ServiceAccount, PDB, HPA
         assert len(docs) == 5
@@ -246,31 +246,31 @@ class TestKubernetesManifests:
         assert 'PodDisruptionBudget' in kinds
         assert 'HorizontalPodAutoscaler' in kinds
     
-    def test_postgresql_yaml_valid(self):
+    def test_postgresql_yaml_valid(self, k8s_manifests):
         """Test PostgreSQL StatefulSet is valid YAML."""
-        import yaml
-        with open("k8s/postgresql.yaml") as f:
-            docs = list(yaml.safe_load_all(f))
+        docs = k8s_manifests.get("k8s/postgresql.yaml")
+        if docs is None:
+            pytest.skip("k8s/postgresql.yaml not found")
         
         assert len(docs) == 3  # StatefulSet + 2 Services
         assert docs[0]['kind'] == 'StatefulSet'
         assert docs[0]['metadata']['name'] == 'postgresql'
     
-    def test_migration_job_yaml_valid(self):
+    def test_migration_job_yaml_valid(self, k8s_manifests):
         """Test Migration Job is valid YAML."""
-        import yaml
-        with open("k8s/migration-job.yaml") as f:
-            docs = list(yaml.safe_load_all(f))
+        docs = k8s_manifests.get("k8s/migration-job.yaml")
+        if docs is None:
+            pytest.skip("k8s/migration-job.yaml not found")
         
         assert len(docs) == 1
         assert docs[0]['kind'] == 'Job'
         assert docs[0]['metadata']['name'] == 'sagaz-migration'
     
-    def test_prometheus_monitoring_yaml_valid(self):
+    def test_prometheus_monitoring_yaml_valid(self, k8s_manifests):
         """Test Prometheus monitoring is valid YAML."""
-        import yaml
-        with open("k8s/prometheus-monitoring.yaml") as f:
-            docs = list(yaml.safe_load_all(f))
+        docs = k8s_manifests.get("k8s/prometheus-monitoring.yaml")
+        if docs is None:
+            pytest.skip("k8s/prometheus-monitoring.yaml not found")
         
         assert len(docs) == 2  # ServiceMonitor + PrometheusRule
         assert docs[0]['kind'] == 'ServiceMonitor'

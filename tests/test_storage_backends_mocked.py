@@ -9,10 +9,8 @@ import pytest
 import json
 from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
 from datetime import datetime, UTC, timedelta
-from contextlib import asynccontextmanager
 
 
-# Helper to create async context manager mock
 class AsyncContextManagerMock:
     """Helper class to create async context manager mocks."""
     def __init__(self, return_value=None):
@@ -36,7 +34,6 @@ class TestPostgreSQLSagaStorageMocked:
     def mock_pool(self):
         """Create a mock connection pool."""
         pool = MagicMock()
-        # Use MagicMock for conn, then set specific async methods
         conn = MagicMock()
         
         # Make execute, executemany, fetch, fetchrow, fetchval all async
@@ -356,7 +353,6 @@ class TestRedisSagaStorageMocked:
     @pytest.fixture
     def mock_redis(self):
         """Create a mock Redis client."""
-        # Use MagicMock for client, then set specific async methods
         client = MagicMock()
         
         # Setup async methods
@@ -375,7 +371,7 @@ class TestRedisSagaStorageMocked:
         client.ping = AsyncMock()
         client.aclose = AsyncMock()
         
-        # Setup pipeline as async context manager (sync method returning async ctx mgr)
+        # Setup pipeline as async context manager
         pipeline = MagicMock()
         pipeline.hset = AsyncMock()
         pipeline.sadd = AsyncMock()

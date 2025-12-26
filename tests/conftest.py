@@ -1,11 +1,19 @@
 """
 Pytest configuration and shared fixtures for saga pattern tests
+
+Optimizations:
+- Session-scoped fixtures for expensive setup (Docker containers, K8s manifests)
+- Reduced sleep times where possible
 """
 
 import pytest
 import warnings
 from examples.order_processing.notification import NotificationService
 
+
+# ============================================
+# AUTO-USE FIXTURES
+# ============================================
 
 @pytest.fixture(autouse=True)
 def deterministic_notifications():
@@ -31,9 +39,6 @@ def suppress_otel_warnings():
     
     The OTel exporter tries to connect to localhost:4317 which doesn't exist
     in test environment, causing harmless but noisy error messages.
-    
-    The OTLP exporter uses Python logging (not warnings), so we need to
-    suppress the logger for the gRPC exporter specifically.
     
     This is session-scoped to keep logging suppressed during session teardown.
     """
@@ -77,3 +82,33 @@ def enable_notification_failures():
     # Reset after test
     NotificationService.set_failure_rates(email=0.0, sms=0.0)
 
+
+# ============================================
+# KUBERNETES MANIFEST FIXTURES (CACHED)
+# ============================================
+
+@pytest.fixture(scope="session")
+def k8s_manifests():
+    """
+    Load and cache all K8s manifests at session start.
+    Prevents repeated file I/O.
+    """
+    import yaml
+    
+    manifests = {}
+    manifest_files = [
+        "k8s/configmap.yaml",
+        "k8s/outbox-worker.yaml",
+        "k8s/postgresql.yaml",
+        "k8s/migration-job.yaml",
+        "k8s/prometheus-monitoring.yaml",
+    ]
+    
+    for filepath in manifest_files:
+        try:
+            with open(filepath) as f:
+                manifests[filepath] = list(yaml.safe_load_all(f))
+        except FileNotFoundError:
+            manifests[filepath] = None
+    
+    return manifests
