@@ -8,10 +8,10 @@ Uses:
 
 Usage:
     >>> from sagaz.outbox.storage import PostgreSQLOutboxStorage
-    >>> 
+    >>>
     >>> storage = PostgreSQLOutboxStorage(connection_string="postgresql://...")
     >>> await storage.initialize()
-    >>> 
+    >>>
     >>> event = OutboxEvent(saga_id="123", event_type="Test", payload={})
     >>> await storage.insert(event)
 """
@@ -27,6 +27,7 @@ from sagaz.outbox.types import OutboxEvent, OutboxStatus
 # Check for asyncpg availability
 try:
     import asyncpg
+
     ASYNCPG_AVAILABLE = True
 except ImportError:  # pragma: no cover
     ASYNCPG_AVAILABLE = False
@@ -51,7 +52,7 @@ CREATE TABLE IF NOT EXISTS saga_outbox (
     retry_count     INTEGER NOT NULL DEFAULT 0,
     last_error      TEXT,
     worker_id       VARCHAR(255),
-    
+
     -- Indexes for common queries
     CONSTRAINT valid_status CHECK (
         status IN ('pending', 'claimed', 'sent', 'failed', 'dead_letter')
@@ -59,17 +60,17 @@ CREATE TABLE IF NOT EXISTS saga_outbox (
 );
 
 -- Index for claiming pending events efficiently
-CREATE INDEX IF NOT EXISTS idx_outbox_pending 
-    ON saga_outbox (created_at) 
+CREATE INDEX IF NOT EXISTS idx_outbox_pending
+    ON saga_outbox (created_at)
     WHERE status = 'pending';
 
 -- Index for finding stuck events
-CREATE INDEX IF NOT EXISTS idx_outbox_claimed_at 
-    ON saga_outbox (claimed_at) 
+CREATE INDEX IF NOT EXISTS idx_outbox_claimed_at
+    ON saga_outbox (claimed_at)
     WHERE status = 'claimed';
 
 -- Index for looking up events by saga
-CREATE INDEX IF NOT EXISTS idx_outbox_saga_id 
+CREATE INDEX IF NOT EXISTS idx_outbox_saga_id
     ON saga_outbox (saga_id);
 
 -- Archive table for sent events (optional partitioning)
@@ -97,13 +98,13 @@ CREATE INDEX IF NOT EXISTS idx_consumer_inbox_cleanup
 class PostgreSQLOutboxStorage(OutboxStorage):
     """
     PostgreSQL implementation of outbox storage.
-    
+
     Features:
         - Atomic inserts within transactions
         - FOR UPDATE SKIP LOCKED for concurrent claim safety
         - Automatic schema creation
         - Connection pooling via asyncpg
-    
+
     Usage:
         >>> storage = PostgreSQLOutboxStorage(
         ...     connection_string="postgresql://user:pass@localhost/db",
@@ -111,7 +112,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
         ...     pool_max_size=20,
         ... )
         >>> await storage.initialize()
-        >>> 
+        >>>
         >>> # Insert atomically with saga state
         >>> async with pool.acquire() as conn:
         ...     async with conn.transaction():
@@ -127,17 +128,18 @@ class PostgreSQLOutboxStorage(OutboxStorage):
     ):
         """
         Initialize PostgreSQL outbox storage.
-        
+
         Args:
             connection_string: PostgreSQL connection string
             pool_min_size: Minimum pool connections
             pool_max_size: Maximum pool connections
-        
+
         Raises:
             MissingDependencyError: If asyncpg is not installed
         """
         if not ASYNCPG_AVAILABLE:
-            raise MissingDependencyError("asyncpg", "PostgreSQL outbox storage")  # pragma: no cover
+            msg = "asyncpg"
+            raise MissingDependencyError(msg, "PostgreSQL outbox storage")  # pragma: no cover
 
         self.connection_string = connection_string
         self.pool_min_size = pool_min_size
@@ -167,7 +169,8 @@ class PostgreSQLOutboxStorage(OutboxStorage):
         if connection:
             return connection
         if not self._pool:
-            raise OutboxStorageError("Storage not initialized. Call initialize() first.")
+            msg = "Storage not initialized. Call initialize() first."
+            raise OutboxStorageError(msg)
         return self._pool
 
     async def insert(  # pragma: no cover
@@ -214,22 +217,23 @@ class PostgreSQLOutboxStorage(OutboxStorage):
     ) -> list[OutboxEvent]:
         """Claim a batch of pending events for processing."""
         if not self._pool:
-            raise OutboxStorageError("Storage not initialized")
+            msg = "Storage not initialized"
+            raise OutboxStorageError(msg)
 
         cutoff = datetime.now(UTC) - timedelta(seconds=older_than_seconds)
 
         # Use FOR UPDATE SKIP LOCKED for concurrency safety
         query = """
             WITH claimed AS (
-                SELECT event_id 
-                FROM saga_outbox 
-                WHERE status = 'pending' 
+                SELECT event_id
+                FROM saga_outbox
+                WHERE status = 'pending'
                   AND created_at <= $1
                 ORDER BY created_at
                 LIMIT $2
                 FOR UPDATE SKIP LOCKED
             )
-            UPDATE saga_outbox 
+            UPDATE saga_outbox
             SET status = 'claimed',
                 worker_id = $3,
                 claimed_at = NOW()
@@ -253,7 +257,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
 
         if status == OutboxStatus.SENT:
             query = """
-                UPDATE saga_outbox 
+                UPDATE saga_outbox
                 SET status = $2, sent_at = NOW()
                 WHERE event_id = $1
                 RETURNING *
@@ -261,8 +265,8 @@ class PostgreSQLOutboxStorage(OutboxStorage):
             params = (event_id, status.value)
         elif status == OutboxStatus.FAILED:
             query = """
-                UPDATE saga_outbox 
-                SET status = $2, 
+                UPDATE saga_outbox
+                SET status = $2,
                     retry_count = retry_count + 1,
                     last_error = $3
                 WHERE event_id = $1
@@ -271,8 +275,8 @@ class PostgreSQLOutboxStorage(OutboxStorage):
             params = (event_id, status.value, error_message)
         elif status == OutboxStatus.PENDING:
             query = """
-                UPDATE saga_outbox 
-                SET status = $2, 
+                UPDATE saga_outbox
+                SET status = $2,
                     worker_id = NULL,
                     claimed_at = NULL
                 WHERE event_id = $1
@@ -281,7 +285,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
             params = (event_id, status.value)
         else:
             query = """
-                UPDATE saga_outbox 
+                UPDATE saga_outbox
                 SET status = $2
                 WHERE event_id = $1
                 RETURNING *
@@ -291,7 +295,8 @@ class PostgreSQLOutboxStorage(OutboxStorage):
         async def _update(c):
             row = await c.fetchrow(query, *params)
             if not row:
-                raise OutboxStorageError(f"Event {event_id} not found")
+                msg = f"Event {event_id} not found"
+                raise OutboxStorageError(msg)
             return self._row_to_event(row)
 
         if hasattr(conn, "fetchrow"):
@@ -302,7 +307,8 @@ class PostgreSQLOutboxStorage(OutboxStorage):
     async def get_by_id(self, event_id: str) -> OutboxEvent | None:  # pragma: no cover
         """Get an event by its ID."""
         if not self._pool:
-            raise OutboxStorageError("Storage not initialized")
+            msg = "Storage not initialized"
+            raise OutboxStorageError(msg)
 
         query = "SELECT * FROM saga_outbox WHERE event_id = $1"
 
@@ -313,7 +319,8 @@ class PostgreSQLOutboxStorage(OutboxStorage):
     async def get_events_by_saga(self, saga_id: str) -> list[OutboxEvent]:  # pragma: no cover
         """Get all events for a saga."""
         if not self._pool:
-            raise OutboxStorageError("Storage not initialized")
+            msg = "Storage not initialized"
+            raise OutboxStorageError(msg)
 
         query = "SELECT * FROM saga_outbox WHERE saga_id = $1 ORDER BY created_at"
 
@@ -327,13 +334,14 @@ class PostgreSQLOutboxStorage(OutboxStorage):
     ) -> list[OutboxEvent]:  # pragma: no cover
         """Get events that appear to be stuck."""
         if not self._pool:
-            raise OutboxStorageError("Storage not initialized")
+            msg = "Storage not initialized"
+            raise OutboxStorageError(msg)
 
         cutoff = datetime.now(UTC) - timedelta(seconds=claimed_older_than_seconds)
 
         query = """
-            SELECT * FROM saga_outbox 
-            WHERE status = 'claimed' 
+            SELECT * FROM saga_outbox
+            WHERE status = 'claimed'
               AND claimed_at < $1
             ORDER BY claimed_at
         """
@@ -348,16 +356,17 @@ class PostgreSQLOutboxStorage(OutboxStorage):
     ) -> int:  # pragma: no cover
         """Release stuck events back to PENDING status."""
         if not self._pool:
-            raise OutboxStorageError("Storage not initialized")
+            msg = "Storage not initialized"
+            raise OutboxStorageError(msg)
 
         cutoff = datetime.now(UTC) - timedelta(seconds=claimed_older_than_seconds)
 
         query = """
-            UPDATE saga_outbox 
+            UPDATE saga_outbox
             SET status = 'pending',
                 worker_id = NULL,
                 claimed_at = NULL
-            WHERE status = 'claimed' 
+            WHERE status = 'claimed'
               AND claimed_at < $1
         """
 
@@ -369,7 +378,8 @@ class PostgreSQLOutboxStorage(OutboxStorage):
     async def get_pending_count(self) -> int:  # pragma: no cover
         """Get count of pending events."""
         if not self._pool:
-            raise OutboxStorageError("Storage not initialized")
+            msg = "Storage not initialized"
+            raise OutboxStorageError(msg)
 
         query = "SELECT COUNT(*) FROM saga_outbox WHERE status = 'pending'"
 
@@ -382,10 +392,11 @@ class PostgreSQLOutboxStorage(OutboxStorage):
     ) -> list[OutboxEvent]:  # pragma: no cover
         """Get events in dead letter queue."""
         if not self._pool:  # pragma: no cover
-            raise OutboxStorageError("Storage not initialized")
+            msg = "Storage not initialized"
+            raise OutboxStorageError(msg)
 
         query = """
-            SELECT * FROM saga_outbox 
+            SELECT * FROM saga_outbox
             WHERE status = 'dead_letter'
             ORDER BY created_at DESC
             LIMIT $1
@@ -401,7 +412,8 @@ class PostgreSQLOutboxStorage(OutboxStorage):
     ) -> int:  # pragma: no cover
         """Move old sent events to archive table."""
         if not self._pool:  # pragma: no cover
-            raise OutboxStorageError("Storage not initialized")
+            msg = "Storage not initialized"
+            raise OutboxStorageError(msg)
 
         cutoff = datetime.now(UTC) - timedelta(days=older_than_days)
 
@@ -409,14 +421,14 @@ class PostgreSQLOutboxStorage(OutboxStorage):
             # Copy to archive
             insert_query = """
                     INSERT INTO saga_outbox_archive
-                    SELECT * FROM saga_outbox 
+                    SELECT * FROM saga_outbox
                     WHERE status = 'sent' AND sent_at < $1
                 """
             await conn.execute(insert_query, cutoff)
 
             # Delete from main table
             delete_query = """
-                    DELETE FROM saga_outbox 
+                    DELETE FROM saga_outbox
                     WHERE status = 'sent' AND sent_at < $1
                 """
             result = await conn.execute(delete_query, cutoff)
@@ -458,11 +470,11 @@ class PostgreSQLOutboxStorage(OutboxStorage):
         source_topic: str,
         event_type: str,
         payload: dict,
-        connection: Optional["asyncpg.Connection"] = None
+        connection: Optional["asyncpg.Connection"] = None,
     ) -> bool:  # pragma: no cover
         """
         Check if event was already processed and insert if not.
-        
+
         Args:
             event_id: Event identifier
             consumer_name: Consumer service name
@@ -470,10 +482,11 @@ class PostgreSQLOutboxStorage(OutboxStorage):
             event_type: Event type
             payload: Event payload
             connection: Optional connection for transactions
-        
+
         Returns:
             True if duplicate (already processed), False if new
         """
+
         async def _execute(conn):
             try:
                 await conn.execute(
@@ -488,7 +501,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
                     consumer_name,
                     source_topic,
                     event_type,
-                    json.dumps(payload)
+                    json.dumps(payload),
                 )
                 return False  # Not a duplicate
             except asyncpg.UniqueViolationError:
@@ -500,9 +513,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
             return await _execute(conn)
 
     async def update_inbox_duration(
-        self,
-        event_id: str,
-        duration_ms: int
+        self, event_id: str, duration_ms: int
     ) -> None:  # pragma: no cover
         """Update processing duration for an event."""
         async with self._pool.acquire() as conn:
@@ -513,28 +524,26 @@ class PostgreSQLOutboxStorage(OutboxStorage):
                 WHERE event_id = $2
                 """,
                 duration_ms,
-                event_id
+                event_id,
             )
 
     async def cleanup_inbox(
-        self,
-        consumer_name: str,
-        older_than_days: int
+        self, consumer_name: str, older_than_days: int
     ) -> int:  # pragma: no cover
         """
         Delete old inbox entries.
-        
+
         Returns:
             Number of entries deleted
         """
         async with self._pool.acquire() as conn:
             result = await conn.execute(
-                """
+                f"""
                 DELETE FROM consumer_inbox
                 WHERE consumer_name = $1
-                  AND consumed_at < NOW() - INTERVAL '%s days'
-                """ % older_than_days,
-                consumer_name
+                  AND consumed_at < NOW() - INTERVAL '{older_than_days} days'
+                """,
+                consumer_name,
             )
             # Parse "DELETE N" to get count
             return int(result.split()[-1]) if result.startswith("DELETE") else 0

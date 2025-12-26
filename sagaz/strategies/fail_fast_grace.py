@@ -14,7 +14,7 @@ from sagaz.strategies.base import ParallelExecutionStrategy
 class FailFastWithGraceStrategy(ParallelExecutionStrategy):
     """
     Implements FAIL_FAST_WITH_GRACE parallel failure strategy
-    
+
     When one parallel step fails:
     1. Cancel remaining parallel steps that haven't started yet
     2. Wait gracefully for in-flight parallel steps to complete (with timeout)
@@ -24,7 +24,7 @@ class FailFastWithGraceStrategy(ParallelExecutionStrategy):
     def __init__(self, grace_period: float = 2.0):
         """
         Initialize strategy with grace period
-        
+
         Args:
             grace_period: Maximum time to wait for in-flight steps to complete
         """
@@ -33,13 +33,13 @@ class FailFastWithGraceStrategy(ParallelExecutionStrategy):
     async def execute_parallel_steps(self, steps: list[Any]) -> list[Any]:
         """
         Execute steps in parallel with graceful failure handling
-        
+
         Args:
             steps: List of steps to execute (each step should have an execute() method)
-            
+
         Returns:
             List of results from all successful steps
-            
+
         Raises:
             Exception: First exception encountered from any step
         """
@@ -80,8 +80,7 @@ class FailFastWithGraceStrategy(ParallelExecutionStrategy):
 
         try:
             await asyncio.wait_for(
-                asyncio.gather(*pending, return_exceptions=True),
-                timeout=self.grace_period
+                asyncio.gather(*pending, return_exceptions=True), timeout=self.grace_period
             )
         except TimeoutError:
             for task in pending:

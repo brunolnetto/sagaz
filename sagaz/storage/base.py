@@ -15,7 +15,7 @@ from sagaz.types import SagaStatus, SagaStepStatus
 class SagaStorage(ABC):
     """
     Abstract base class for saga state persistence
-    
+
     Provides interface for storing and retrieving saga execution state,
     enabling saga recovery and state inspection across restarts.
     """
@@ -28,11 +28,11 @@ class SagaStorage(ABC):
         status: SagaStatus,
         steps: list[dict[str, Any]],
         context: dict[str, Any],
-        metadata: dict[str, Any] | None = None
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """
         Save saga state to persistent storage
-        
+
         Args:
             saga_id: Unique saga identifier
             saga_name: Human-readable saga name
@@ -46,10 +46,10 @@ class SagaStorage(ABC):
     async def load_saga_state(self, saga_id: str) -> dict[str, Any] | None:
         """
         Load saga state from persistent storage
-        
+
         Args:
             saga_id: Unique saga identifier
-            
+
         Returns:
             Saga state dictionary or None if not found
         """
@@ -58,10 +58,10 @@ class SagaStorage(ABC):
     async def delete_saga_state(self, saga_id: str) -> bool:
         """
         Delete saga state from persistent storage
-        
+
         Args:
             saga_id: Unique saga identifier
-            
+
         Returns:
             True if deleted, False if not found
         """
@@ -72,17 +72,17 @@ class SagaStorage(ABC):
         status: SagaStatus | None = None,
         saga_name: str | None = None,
         limit: int = 100,
-        offset: int = 0
+        offset: int = 0,
     ) -> list[dict[str, Any]]:
         """
         List sagas with optional filtering
-        
+
         Args:
             status: Filter by saga status
             saga_name: Filter by saga name pattern
             limit: Maximum number of results
             offset: Pagination offset
-            
+
         Returns:
             List of saga state summaries
         """
@@ -95,11 +95,11 @@ class SagaStorage(ABC):
         status: SagaStepStatus,
         result: Any = None,
         error: str | None = None,
-        executed_at: datetime | None = None
+        executed_at: datetime | None = None,
     ) -> None:
         """
         Update individual step state
-        
+
         Args:
             saga_id: Unique saga identifier
             step_name: Name of the step to update
@@ -113,24 +113,22 @@ class SagaStorage(ABC):
     async def get_saga_statistics(self) -> dict[str, Any]:
         """
         Get storage statistics
-        
+
         Returns:
             Dictionary with storage statistics (counts by status, etc.)
         """
 
     @abstractmethod
     async def cleanup_completed_sagas(
-        self,
-        older_than: datetime,
-        statuses: list[SagaStatus] | None = None
+        self, older_than: datetime, statuses: list[SagaStatus] | None = None
     ) -> int:
         """
         Clean up old completed sagas
-        
+
         Args:
             older_than: Delete sagas completed before this timestamp
             statuses: Only delete sagas with these statuses (default: COMPLETED, ROLLED_BACK)
-            
+
         Returns:
             Number of sagas deleted
         """
@@ -139,7 +137,7 @@ class SagaStorage(ABC):
     async def health_check(self) -> dict[str, Any]:
         """
         Check storage health
-        
+
         Returns:
             Health status information
         """
@@ -163,7 +161,7 @@ class SagaStepState:
         error: str | None = None,
         executed_at: datetime | None = None,
         compensated_at: datetime | None = None,
-        retry_count: int = 0
+        retry_count: int = 0,
     ):
         self.name = name
         self.status = status

@@ -1,10 +1,10 @@
 # Sagaz - Production-Ready Saga Pattern for Python
 
-[![Test Coverage](https://img.shields.io/badge/coverage-96%25-brightgreen.svg)]()
-[![Tests](https://img.shields.io/badge/tests-793%20passing-brightgreen.svg)]()
-[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)]()
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)]()
-[![Chaos Tests](https://img.shields.io/badge/chaos%20tests-passing-green.svg)]()
+[![codecov](https://codecov.io/gh/brunolnetto/sagaz/graph/badge.svg?token=29PU5W65KL)](https://codecov.io/gh/brunolnetto/sagaz)
+[![Tests](https://github.com/brunolnetto/sagaz/actions/workflows/tests.yml/badge.svg)](https://github.com/brunolnetto/sagaz/actions/workflows/tests.yml)
+[![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/sagaz.svg)](https://pypi.org/project/sagaz/)
 
 **Enterprise-grade distributed transaction orchestration with exactly-once semantics.**
 

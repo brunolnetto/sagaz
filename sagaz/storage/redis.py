@@ -23,6 +23,7 @@ from sagaz.types import SagaStatus, SagaStepStatus
 
 try:
     import redis.asyncio as redis
+
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
@@ -32,10 +33,10 @@ except ImportError:
 class RedisSagaStorage(SagaStorage):
     """
     Redis implementation of saga storage
-    
+
     Uses Redis for persistent, distributed saga state storage.
     Supports automatic cleanup and clustering.
-    
+
     Example:
         >>> async with RedisSagaStorage("redis://localhost:6379") as storage:
         ...     await storage.save_saga_state(
@@ -52,10 +53,11 @@ class RedisSagaStorage(SagaStorage):
         redis_url: str = "redis://localhost:6379",
         key_prefix: str = "saga:",
         default_ttl: int | None = None,  # TTL in seconds for completed sagas
-        **redis_kwargs
+        **redis_kwargs,
     ):
         if not REDIS_AVAILABLE:
-            raise MissingDependencyError("redis", "Redis storage backend")
+            msg = "redis"
+            raise MissingDependencyError(msg, "Redis storage backend")
 
         self.redis_url = redis_url
         self.key_prefix = key_prefix
@@ -72,7 +74,8 @@ class RedisSagaStorage(SagaStorage):
                 # Test connection
                 await self._redis.ping()
             except Exception as e:
-                raise SagaStorageConnectionError(f"Failed to connect to Redis: {e}")
+                msg = f"Failed to connect to Redis: {e}"
+                raise SagaStorageConnectionError(msg)
 
         return self._redis
 
@@ -95,7 +98,7 @@ class RedisSagaStorage(SagaStorage):
         status: SagaStatus,
         steps: list[dict[str, Any]],
         context: dict[str, Any],
-        metadata: dict[str, Any] | None = None
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """Save saga state to Redis"""
 
@@ -117,9 +120,7 @@ class RedisSagaStorage(SagaStorage):
         # Use pipeline for atomic operations
         async with redis_client.pipeline() as pipe:
             # Store saga data
-            await pipe.hset(saga_key, mapping={
-                "data": json.dumps(saga_data, default=str)
-            })
+            await pipe.hset(saga_key, mapping={"data": json.dumps(saga_data, default=str)})
 
             # Add to status index
             status_index = self._index_key(f"status:{status.value}")
@@ -148,7 +149,8 @@ class RedisSagaStorage(SagaStorage):
         try:
             return json.loads(saga_data_json)
         except json.JSONDecodeError as e:
-            raise SagaStorageError(f"Failed to decode saga data for {saga_id}: {e}")
+            msg = f"Failed to decode saga data for {saga_id}: {e}"
+            raise SagaStorageError(msg)
 
     async def delete_saga_state(self, saga_id: str) -> bool:
         """Delete saga state from Redis"""
@@ -182,7 +184,7 @@ class RedisSagaStorage(SagaStorage):
         status: SagaStatus | None = None,
         saga_name: str | None = None,
         limit: int = 100,
-        offset: int = 0
+        offset: int = 0,
     ) -> list[dict[str, Any]]:
         """List sagas with filtering"""
 
@@ -190,7 +192,7 @@ class RedisSagaStorage(SagaStorage):
         saga_ids = await self._get_filtered_saga_ids(redis_client, status, saga_name)
 
         # Apply pagination
-        saga_id_list = list(saga_ids)[offset:offset + limit]
+        saga_id_list = list(saga_ids)[offset : offset + limit]
 
         # Load and build summaries
         results = await self._build_saga_summaries(saga_id_list)
@@ -233,7 +235,8 @@ class RedisSagaStorage(SagaStorage):
         pattern = f"{self.key_prefix}*"
         keys = await redis_client.keys(pattern)
         return {
-            key.decode().replace(self.key_prefix, "") for key in keys
+            key.decode().replace(self.key_prefix, "")
+            for key in keys
             if ":step:" not in key.decode() and ":index:" not in key.decode()
         }
 
@@ -256,7 +259,8 @@ class RedisSagaStorage(SagaStorage):
             "updated_at": saga_data["updated_at"],
             "step_count": len(saga_data["steps"]),
             "completed_steps": sum(
-                1 for step in saga_data["steps"]
+                1
+                for step in saga_data["steps"]
                 if step.get("status") == SagaStepStatus.COMPLETED.value
             ),
         }
@@ -268,22 +272,29 @@ class RedisSagaStorage(SagaStorage):
         status: SagaStepStatus,
         result: Any = None,
         error: str | None = None,
-        executed_at: datetime | None = None
+        executed_at: datetime | None = None,
     ) -> None:
         """Update individual step state"""
         saga_data = await self.load_saga_state(saga_id)
         if not saga_data:
-            raise SagaNotFoundError(f"Saga {saga_id} not found")
+            msg = f"Saga {saga_id} not found"
+            raise SagaNotFoundError(msg)
 
         if not self._update_step_in_data(saga_data, step_name, status, result, error, executed_at):
-            raise SagaStorageError(f"Step {step_name} not found in saga {saga_id}")
+            msg = f"Step {step_name} not found in saga {saga_id}"
+            raise SagaStorageError(msg)
 
         saga_data["updated_at"] = datetime.now(UTC).isoformat()
         await self._save_updated_saga(saga_data)
 
     def _update_step_in_data(
-        self, saga_data: dict, step_name: str, status: SagaStepStatus,
-        result: Any, error: str | None, executed_at: datetime | None
+        self,
+        saga_data: dict,
+        step_name: str,
+        status: SagaStepStatus,
+        result: Any,
+        error: str | None,
+        executed_at: datetime | None,
     ) -> bool:
         """Update step data in saga. Returns True if step was found."""
         for step in saga_data["steps"]:
@@ -304,7 +315,7 @@ class RedisSagaStorage(SagaStorage):
             status=SagaStatus(saga_data["status"]),
             steps=saga_data["steps"],
             context=saga_data["context"],
-            metadata=saga_data["metadata"]
+            metadata=saga_data["metadata"],
         )
 
     async def get_saga_statistics(self) -> dict[str, Any]:
@@ -332,9 +343,7 @@ class RedisSagaStorage(SagaStorage):
         }
 
     async def cleanup_completed_sagas(
-        self,
-        older_than: datetime,
-        statuses: list[SagaStatus] | None = None
+        self, older_than: datetime, statuses: list[SagaStatus] | None = None
     ) -> int:
         """Clean up old completed sagas"""
         if statuses is None:
@@ -344,9 +353,7 @@ class RedisSagaStorage(SagaStorage):
         deleted_count = 0
 
         for status in statuses:
-            deleted_count += await self._cleanup_sagas_by_status(
-                redis_client, status, older_than
-            )
+            deleted_count += await self._cleanup_sagas_by_status(redis_client, status, older_than)
 
         return deleted_count
 
@@ -403,7 +410,8 @@ class RedisSagaStorage(SagaStorage):
             await redis_client.delete(test_key)
 
             if result != b"ok":
-                raise Exception("Read/write test failed")
+                msg = "Read/write test failed"
+                raise Exception(msg)
 
             # Get Redis info
             info = await redis_client.info()

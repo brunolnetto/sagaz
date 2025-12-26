@@ -22,6 +22,7 @@ from sagaz.types import SagaStatus, SagaStepStatus
 
 try:
     import asyncpg
+
     ASYNCPG_AVAILABLE = True
 except ImportError:
     ASYNCPG_AVAILABLE = False
@@ -31,10 +32,10 @@ except ImportError:
 class PostgreSQLSagaStorage(SagaStorage):
     """
     PostgreSQL implementation of saga storage
-    
+
     Uses PostgreSQL for ACID-compliant saga state storage with
     full SQL querying capabilities and referential integrity.
-    
+
     Example:
         >>> async with PostgreSQLSagaStorage("postgresql://user:pass@localhost/db") as storage:
         ...     await storage.save_saga_state(
@@ -57,7 +58,7 @@ class PostgreSQLSagaStorage(SagaStorage):
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
-    
+
     CREATE TABLE IF NOT EXISTS saga_steps (
         id SERIAL PRIMARY KEY,
         saga_id VARCHAR(255) REFERENCES sagas(saga_id) ON DELETE CASCADE,
@@ -70,7 +71,7 @@ class PostgreSQLSagaStorage(SagaStorage):
         retry_count INTEGER DEFAULT 0,
         UNIQUE(saga_id, step_name)
     );
-    
+
     CREATE INDEX IF NOT EXISTS idx_sagas_status ON sagas(status);
     CREATE INDEX IF NOT EXISTS idx_sagas_name ON sagas(saga_name);
     CREATE INDEX IF NOT EXISTS idx_sagas_created_at ON sagas(created_at);
@@ -79,14 +80,11 @@ class PostgreSQLSagaStorage(SagaStorage):
     """
 
     def __init__(
-        self,
-        connection_string: str,
-        pool_min_size: int = 5,
-        pool_max_size: int = 20,
-        **pool_kwargs
+        self, connection_string: str, pool_min_size: int = 5, pool_max_size: int = 20, **pool_kwargs
     ):
         if not ASYNCPG_AVAILABLE:
-            raise MissingDependencyError("asyncpg", "PostgreSQL storage backend")
+            msg = "asyncpg"
+            raise MissingDependencyError(msg, "PostgreSQL storage backend")
 
         self.connection_string = connection_string
         self.pool_min_size = pool_min_size
@@ -103,7 +101,7 @@ class PostgreSQLSagaStorage(SagaStorage):
                     self.connection_string,
                     min_size=self.pool_min_size,
                     max_size=self.pool_max_size,
-                    **self.pool_kwargs
+                    **self.pool_kwargs,
                 )
 
                 # Initialize database schema
@@ -111,7 +109,8 @@ class PostgreSQLSagaStorage(SagaStorage):
                     await conn.execute(self.CREATE_TABLES_SQL)
 
             except Exception as e:
-                raise SagaStorageConnectionError(f"Failed to connect to PostgreSQL: {e}")
+                msg = f"Failed to connect to PostgreSQL: {e}"
+                raise SagaStorageConnectionError(msg)
 
         return self._pool
 
@@ -122,7 +121,7 @@ class PostgreSQLSagaStorage(SagaStorage):
         status: SagaStatus,
         steps: list[dict[str, Any]],
         context: dict[str, Any],
-        metadata: dict[str, Any] | None = None
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """Save saga state to PostgreSQL"""
 
@@ -131,18 +130,24 @@ class PostgreSQLSagaStorage(SagaStorage):
         async with pool.acquire() as conn:
             async with conn.transaction():
                 # Upsert saga record
-                await conn.execute("""
+                await conn.execute(
+                    """
                     INSERT INTO sagas (saga_id, saga_name, status, context, metadata, updated_at)
                     VALUES ($1, $2, $3, $4, $5, NOW())
-                    ON CONFLICT (saga_id) 
+                    ON CONFLICT (saga_id)
                     DO UPDATE SET
                         saga_name = EXCLUDED.saga_name,
                         status = EXCLUDED.status,
                         context = EXCLUDED.context,
                         metadata = EXCLUDED.metadata,
                         updated_at = NOW()
-                """, saga_id, saga_name, status.value, json.dumps(context),
-                     json.dumps(metadata or {}))
+                """,
+                    saga_id,
+                    saga_name,
+                    status.value,
+                    json.dumps(context),
+                    json.dumps(metadata or {}),
+                )
 
                 # Delete existing steps and insert new ones
                 await conn.execute("DELETE FROM saga_steps WHERE saga_id = $1", saga_id)
@@ -150,22 +155,29 @@ class PostgreSQLSagaStorage(SagaStorage):
                 if steps:
                     step_data = []
                     for step in steps:
-                        step_data.append([
-                            saga_id,
-                            step["name"],
-                            step.get("status", SagaStepStatus.PENDING.value),
-                            json.dumps(step.get("result")) if step.get("result") is not None else None,
-                            step.get("error"),
-                            step.get("executed_at"),
-                            step.get("compensated_at"),
-                            step.get("retry_count", 0)
-                        ])
+                        step_data.append(
+                            [
+                                saga_id,
+                                step["name"],
+                                step.get("status", SagaStepStatus.PENDING.value),
+                                json.dumps(step.get("result"))
+                                if step.get("result") is not None
+                                else None,
+                                step.get("error"),
+                                step.get("executed_at"),
+                                step.get("compensated_at"),
+                                step.get("retry_count", 0),
+                            ]
+                        )
 
-                    await conn.executemany("""
-                        INSERT INTO saga_steps 
+                    await conn.executemany(
+                        """
+                        INSERT INTO saga_steps
                         (saga_id, step_name, status, result, error, executed_at, compensated_at, retry_count)
                         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                    """, step_data)
+                    """,
+                        step_data,
+                    )
 
     async def load_saga_state(self, saga_id: str) -> dict[str, Any] | None:
         """Load saga state from PostgreSQL"""
@@ -173,18 +185,24 @@ class PostgreSQLSagaStorage(SagaStorage):
         pool = await self._get_pool()
 
         async with pool.acquire() as conn:
-            saga_row = await conn.fetchrow("""
+            saga_row = await conn.fetchrow(
+                """
                 SELECT saga_id, saga_name, status, context, metadata, created_at, updated_at
                 FROM sagas WHERE saga_id = $1
-            """, saga_id)
+            """,
+                saga_id,
+            )
 
             if not saga_row:
                 return None
 
-            step_rows = await conn.fetch("""
+            step_rows = await conn.fetch(
+                """
                 SELECT step_name, status, result, error, executed_at, compensated_at, retry_count
                 FROM saga_steps WHERE saga_id = $1 ORDER BY id
-            """, saga_id)
+            """,
+                saga_id,
+            )
 
             return self._build_saga_dict(saga_row, step_rows)
 
@@ -242,7 +260,7 @@ class PostgreSQLSagaStorage(SagaStorage):
         status: SagaStatus | None = None,
         saga_name: str | None = None,
         limit: int = 100,
-        offset: int = 0
+        offset: int = 0,
     ) -> list[dict[str, Any]]:
         """List sagas with filtering"""
 
@@ -275,7 +293,7 @@ class PostgreSQLSagaStorage(SagaStorage):
         offset_param = f"${param_count}"
 
         query = f"""
-            SELECT 
+            SELECT
                 s.saga_id,
                 s.saga_name,
                 s.status,
@@ -296,15 +314,17 @@ class PostgreSQLSagaStorage(SagaStorage):
 
             results = []
             for row in rows:
-                results.append({
-                    "saga_id": row["saga_id"],
-                    "saga_name": row["saga_name"],
-                    "status": row["status"],
-                    "created_at": row["created_at"].isoformat(),
-                    "updated_at": row["updated_at"].isoformat(),
-                    "step_count": row["step_count"],
-                    "completed_steps": row["completed_steps"],
-                })
+                results.append(
+                    {
+                        "saga_id": row["saga_id"],
+                        "saga_name": row["saga_name"],
+                        "status": row["status"],
+                        "created_at": row["created_at"].isoformat(),
+                        "updated_at": row["updated_at"].isoformat(),
+                        "step_count": row["step_count"],
+                        "completed_steps": row["completed_steps"],
+                    }
+                )
 
             return results
 
@@ -315,7 +335,7 @@ class PostgreSQLSagaStorage(SagaStorage):
         status: SagaStepStatus,
         result: Any = None,
         error: str | None = None,
-        executed_at: datetime | None = None
+        executed_at: datetime | None = None,
     ) -> None:
         """Update individual step state"""
 
@@ -325,19 +345,31 @@ class PostgreSQLSagaStorage(SagaStorage):
             # Update step
             result_json = json.dumps(result) if result is not None else None
 
-            update_result = await conn.execute("""
-                    UPDATE saga_steps 
+            update_result = await conn.execute(
+                """
+                    UPDATE saga_steps
                     SET status = $3, result = $4, error = $5, executed_at = $6
                     WHERE saga_id = $1 AND step_name = $2
-                """, saga_id, step_name, status.value, result_json, error, executed_at)
+                """,
+                saga_id,
+                step_name,
+                status.value,
+                result_json,
+                error,
+                executed_at,
+            )
 
             if update_result.split()[-1] == "0":  # No rows affected
-                raise SagaStorageError(f"Step {step_name} not found in saga {saga_id}")
+                msg = f"Step {step_name} not found in saga {saga_id}"
+                raise SagaStorageError(msg)
 
             # Update saga timestamp
-            await conn.execute("""
+            await conn.execute(
+                """
                     UPDATE sagas SET updated_at = NOW() WHERE saga_id = $1
-                """, saga_id)
+                """,
+                saga_id,
+            )
 
     async def get_saga_statistics(self) -> dict[str, Any]:
         """Get storage statistics"""
@@ -347,8 +379,8 @@ class PostgreSQLSagaStorage(SagaStorage):
         async with pool.acquire() as conn:
             # Count by status
             status_rows = await conn.fetch("""
-                SELECT status, COUNT(*) as count 
-                FROM sagas 
+                SELECT status, COUNT(*) as count
+                FROM sagas
                 GROUP BY status
             """)
 
@@ -367,9 +399,7 @@ class PostgreSQLSagaStorage(SagaStorage):
             }
 
     async def cleanup_completed_sagas(
-        self,
-        older_than: datetime,
-        statuses: list[SagaStatus] | None = None
+        self, older_than: datetime, statuses: list[SagaStatus] | None = None
     ) -> int:
         """Clean up old completed sagas"""
 
@@ -380,10 +410,14 @@ class PostgreSQLSagaStorage(SagaStorage):
         status_values = [s.value for s in statuses]
 
         async with pool.acquire() as conn:
-            result = await conn.execute("""
-                DELETE FROM sagas 
+            result = await conn.execute(
+                """
+                DELETE FROM sagas
                 WHERE status = ANY($1) AND updated_at < $2
-            """, status_values, older_than)
+            """,
+                status_values,
+                older_than,
+            )
 
             return int(result.split()[-1])  # Extract affected row count
 
@@ -397,7 +431,8 @@ class PostgreSQLSagaStorage(SagaStorage):
                 # Test basic query
                 result = await conn.fetchval("SELECT 1")
                 if result != 1:
-                    raise Exception("Basic query failed")
+                    msg = "Basic query failed"
+                    raise Exception(msg)
 
                 # Get PostgreSQL version
                 version = await conn.fetchval("SELECT version()")

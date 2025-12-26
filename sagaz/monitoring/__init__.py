@@ -6,10 +6,10 @@ for saga pattern implementations.
 
 Quick Start:
     >>> from sagaz.monitoring import setup_saga_logging, is_tracing_available
-    
+
     # Set up structured logging
     >>> logger = setup_saga_logging(json_format=True)
-    
+
     # Check if tracing is available
     >>> if is_tracing_available():
     ...     from sagaz.monitoring import setup_tracing
@@ -29,21 +29,19 @@ from .tracing import (
 )
 
 __all__ = [
-    # Metrics
-    "SagaMetrics",
-
+    "TRACING_AVAILABLE",
+    "SagaJsonFormatter",
     # Logging
     "SagaLogger",
-    "SagaJsonFormatter",
-    "setup_saga_logging",
-    "saga_logger",
-
+    # Metrics
+    "SagaMetrics",
     # Tracing
     "SagaTracer",
+    "is_tracing_available",
+    "saga_logger",
+    "saga_tracer",
+    "setup_saga_logging",
+    "setup_tracing",
     "trace_saga_action",
     "trace_saga_compensation",
-    "setup_tracing",
-    "saga_tracer",
-    "is_tracing_available",
-    "TRACING_AVAILABLE",
 ]

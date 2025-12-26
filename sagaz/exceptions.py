@@ -34,7 +34,7 @@ class SagaDependencyError(SagaError):
 class MissingDependencyError(SagaError):
     """
     Raised when an optional dependency is not installed.
-    
+
     This exception provides clear installation instructions to help users
     quickly resolve missing package issues.
     """
@@ -46,7 +46,7 @@ class MissingDependencyError(SagaError):
         "opentelemetry-otlp": "pip install opentelemetry-exporter-otlp-proto-grpc",
     }
 
-    def __init__(self, package: str, feature: str = None):
+    def __init__(self, package: str, feature: str | None = None):
         self.package = package
         self.feature = feature
 
@@ -71,5 +71,3 @@ class MissingDependencyError(SagaError):
             )
 
         super().__init__(message)
-
-
