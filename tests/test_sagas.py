@@ -558,7 +558,7 @@ class TestFailFastStrategy:
 
         async def slow_task(ctx):
             try:
-                await asyncio.sleep(5.0)
+                await asyncio.sleep(0.5)  # Just needs to be longer than fast_fail (0.1s)
             except asyncio.CancelledError:
                 cancelled.append("cancelled")
                 raise

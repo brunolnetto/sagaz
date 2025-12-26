@@ -214,6 +214,7 @@ class TestConsumerInbox:
         )
 
 
+@pytest.mark.integration  # K8s manifest tests are slow due to YAML parsing
 class TestKubernetesManifests:
     """Test Kubernetes manifests are valid YAML."""
 

@@ -54,6 +54,9 @@ from sagaz.compensation_graph import (
     CompensationType,
     SagaCompensationGraph,
 )
+
+# Configuration
+from sagaz.config import SagaConfig, configure, get_config
 from sagaz.core import Saga as ClassicSaga
 from sagaz.core import SagaContext, SagaStep
 
@@ -90,16 +93,13 @@ from sagaz.types import ParallelFailureStrategy, SagaResult, SagaStatus, SagaSte
 # Backward compatibility aliases
 DAGSaga = ClassicSaga
 
-__version__ = "1.0.1"
 
 __all__ = [
     "CircularDependencyError",
-    # Classic/Imperative API
     "ClassicSaga",
     "CompensationGraphError",
     "CompensationNode",
     "CompensationType",
-    # Backward compatibility
     "DAGSaga",
     "DeclarativeSaga",
     "LoggingSagaListener",
@@ -107,20 +107,16 @@ __all__ = [
     "MissingDependencyError",
     "OutboxSagaListener",
     "ParallelFailureStrategy",
-    # Declarative API (recommended)
     "Saga",
     "SagaCompensationError",
-    # Compensation graph
     "SagaCompensationGraph",
+    "SagaConfig",
     "SagaContext",
-    # Exceptions
     "SagaError",
     "SagaExecutionError",
-    # Listeners (cross-cutting concerns)
     "SagaListener",
     "SagaOrchestrator",
     "SagaResult",
-    # Types
     "SagaStatus",
     "SagaStep",
     "SagaStepDefinition",
@@ -128,8 +124,10 @@ __all__ = [
     "SagaStepStatus",
     "SagaTimeoutError",
     "TracingSagaListener",
-    "action",  # Preferred
+    "action",
     "compensate",
+    "configure",
     "default_listeners",
-    "step",  # Alias for backward compat
+    "get_config",
+    "step",
 ]
