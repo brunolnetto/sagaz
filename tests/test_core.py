@@ -1277,6 +1277,10 @@ class TestSagaParallel:
 
         execution_order = []
 
+        async def setup_action(ctx: SagaContext):
+            execution_order.append("setup")
+            return "setup_result"
+
         async def step1_action(ctx: SagaContext):
             execution_order.append("step1")
             await asyncio.sleep(0.05)  # Longer delay
@@ -1292,10 +1296,11 @@ class TestSagaParallel:
             await asyncio.sleep(0.01)
             return "step3_result"
 
-        # Add parallel steps (no dependencies = can run in parallel)
-        await saga.add_step("step1", step1_action, dependencies=set())
-        await saga.add_step("step2", step2_action, dependencies=set())
-        await saga.add_step("step3", step3_action, dependencies=set())
+        # Add root step first, then parallel steps that depend on it
+        await saga.add_step("setup", setup_action, dependencies=set())
+        await saga.add_step("step1", step1_action, dependencies={"setup"})
+        await saga.add_step("step2", step2_action, dependencies={"setup"})
+        await saga.add_step("step3", step3_action, dependencies={"setup"})
 
         # Execute saga
         result = await saga.execute()
@@ -1303,13 +1308,14 @@ class TestSagaParallel:
         # Verify parallel execution
         assert result.success is True
         assert result.status == SagaStatus.COMPLETED
-        assert result.completed_steps == 3
+        assert result.completed_steps == 4
 
         # All steps should have executed
+        assert "setup" in execution_order
         assert "step1" in execution_order
         assert "step2" in execution_order
         assert "step3" in execution_order
-        assert len(execution_order) == 3
+        assert len(execution_order) == 4
 
     @pytest.mark.asyncio
     async def test_dag_with_dependencies(self):
