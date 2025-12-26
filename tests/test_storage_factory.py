@@ -2,7 +2,6 @@
 Tests for the storage factory module
 """
 
-
 import pytest
 
 from sagaz.exceptions import MissingDependencyError

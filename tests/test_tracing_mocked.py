@@ -69,8 +69,9 @@ class TestTracingWithMockedOTel:
 
         tracer = SagaTracer(service_name="test")
 
-        with pytest.raises(ValueError, match="Test error"), tracer.start_saga_trace(
-            saga_id="error-test", saga_name="ErrorSaga", total_steps=1
+        with (
+            pytest.raises(ValueError, match="Test error"),
+            tracer.start_saga_trace(saga_id="error-test", saga_name="ErrorSaga", total_steps=1),
         ):
             msg = "Test error"
             raise ValueError(msg)
@@ -86,11 +87,14 @@ class TestTracingWithMockedOTel:
 
         tracer = SagaTracer(service_name="test")
 
-        with pytest.raises(RuntimeError, match="Step failed"), tracer.start_step_trace(
-            saga_id="step-error",
-            saga_name="ErrorSaga",
-            step_name="failing_step",
-            step_type="action",
+        with (
+            pytest.raises(RuntimeError, match="Step failed"),
+            tracer.start_step_trace(
+                saga_id="step-error",
+                saga_name="ErrorSaga",
+                step_name="failing_step",
+                step_type="action",
+            ),
         ):
             msg = "Step failed"
             raise RuntimeError(msg)

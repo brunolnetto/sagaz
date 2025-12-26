@@ -30,8 +30,10 @@ except ImportError:
 
     def Counter(*args, **kwargs):
         return _NoOpMetric()
+
     def Histogram(*args, **kwargs):
         return _NoOpMetric()
+
 
 logger = logging.getLogger(__name__)
 

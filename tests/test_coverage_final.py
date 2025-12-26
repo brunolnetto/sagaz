@@ -1,6 +1,5 @@
 """Final tests to push coverage to 95%+"""
 
-
 from datetime import UTC
 
 import pytest

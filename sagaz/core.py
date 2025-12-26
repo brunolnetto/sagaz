@@ -54,8 +54,11 @@ from abc import ABC
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
+
+if TYPE_CHECKING:
+    from sagaz.storage.base import SagaStorage
 
 from statemachine.exceptions import TransitionNotAllowed
 
@@ -308,12 +311,13 @@ class Saga(ABC):
         unreachable = step_names - visited
         if unreachable:
             components = self._find_connected_components(adjacency, step_names)
-            raise ValueError(
+            msg = (
                 f"Saga '{self.name}' has {len(components)} disconnected step groups: "
                 f"{[sorted(c) for c in components]}. "
                 f"All steps must be connected via dependencies. "
-                f"Consider splitting into separate sagas or adding connecting dependencies."
+                "Consider splitting into separate sagas or adding connecting dependencies."
             )
+            raise ValueError(msg)
 
     def _find_connected_components(
         self, adjacency: dict[str, set[str]], step_names: set[str]
@@ -374,7 +378,9 @@ class Saga(ABC):
         # Parse highlight trail
         completed = set(highlight_trail.get("completed_steps", [])) if highlight_trail else set()
         failed_step = highlight_trail.get("failed_step") if highlight_trail else None
-        compensated = set(highlight_trail.get("compensated_steps", [])) if highlight_trail else set()
+        compensated = (
+            set(highlight_trail.get("compensated_steps", [])) if highlight_trail else set()
+        )
 
         # Find root and leaf steps
         all_deps: set[str] = set()
@@ -445,11 +451,13 @@ class Saga(ABC):
             else:
                 comp_order = [s.name for s in self.steps if s.compensation]
                 for i in range(len(comp_order) - 1, 0, -1):
-                    lines.append(f"    comp_{comp_order[i]} -.-> comp_{comp_order[i-1]}")
+                    lines.append(f"    comp_{comp_order[i]} -.-> comp_{comp_order[i - 1]}")
 
             # Connect root compensations to ROLLED_BACK
             if show_state_markers:
-                root_comp_steps = [s for s in compensable_steps if not self.step_dependencies.get(s.name)]
+                root_comp_steps = [
+                    s for s in compensable_steps if not self.step_dependencies.get(s.name)
+                ]
                 for step in root_comp_steps:
                     lines.append(f"    comp_{step.name} -.-> ROLLED_BACK")
 
@@ -461,15 +469,38 @@ class Saga(ABC):
         lines.append("    classDef compensation fill:#fff3cd,stroke:#ffc107,color:#856404")
         lines.append("    classDef highlighted stroke-width:3px")
         lines.append("    classDef startEnd fill:#333,stroke:#333,color:#fff")
+        lines.append("    classDef dimmed fill:#e9ecef,stroke:#adb5bd,color:#6c757d")
 
-        # Apply default styling
         step_names = [s.name for s in self.steps]
-        if step_names:
-            lines.append(f"    class {','.join(step_names)} success")
+        comp_names = [f"comp_{s.name}" for s in compensable_steps] if show_compensation else []
 
-        if show_compensation and compensable_steps:
-            comp_names = [f"comp_{s.name}" for s in compensable_steps]
-            lines.append(f"    class {','.join(comp_names)} compensation")
+        # When trail is provided, only executed nodes get colored
+        if highlight_trail:
+            # First dim all nodes
+            if step_names:
+                lines.append(f"    class {','.join(step_names)} dimmed")
+            if comp_names:
+                lines.append(f"    class {','.join(comp_names)} dimmed")
+
+            # Then color executed nodes
+            if completed:
+                lines.append(f"    class {','.join(sorted(completed))} success")
+                lines.append(f"    class {','.join(sorted(completed))} highlighted")
+
+            if failed_step:
+                lines.append(f"    class {failed_step} failure")
+                lines.append(f"    class {failed_step} highlighted")
+
+            if compensated:
+                comp_highlighted = [f"comp_{s}" for s in sorted(compensated)]
+                lines.append(f"    class {','.join(comp_highlighted)} compensation")
+                lines.append(f"    class {','.join(comp_highlighted)} highlighted")
+        else:
+            # Default: all steps success, all comps compensation
+            if step_names:
+                lines.append(f"    class {','.join(step_names)} success")
+            if comp_names:
+                lines.append(f"    class {','.join(comp_names)} compensation")
 
         # Style state markers
         if show_state_markers:
@@ -477,17 +508,6 @@ class Saga(ABC):
             if show_compensation and compensable_steps:
                 state_markers.append("ROLLED_BACK")
             lines.append(f"    class {','.join(state_markers)} startEnd")
-
-        # Apply trail highlighting
-        if highlight_trail:
-            if completed:
-                lines.append(f"    class {','.join(completed)} highlighted")
-            if failed_step:
-                lines.append(f"    class {failed_step} failure")
-                lines.append(f"    class {failed_step} highlighted")
-            if compensated:
-                comp_highlighted = [f"comp_{s}" for s in compensated]
-                lines.append(f"    class {','.join(comp_highlighted)} highlighted")
 
         lines.append("")
         lines.append("    linkStyle default stroke:#28a745")
@@ -516,7 +536,7 @@ class Saga(ABC):
             Mermaid diagram with highlighted execution trail.
         """
         saga_state = await storage.get_saga_state(saga_id)
-        
+
         if not saga_state:
             return self.to_mermaid(direction, show_compensation, None, show_state_markers)
 
@@ -548,8 +568,6 @@ class Saga(ABC):
             Mermaid diagram in markdown format.
         """
         return f"```mermaid\n{self.to_mermaid(direction, show_compensation, highlight_trail, show_state_markers)}\n```"
-
-
 
     def _build_execution_batches(self) -> list[set[str]]:
         """
@@ -682,8 +700,6 @@ class Saga(ABC):
             context=self.context,
             compensation_errors=self.compensation_errors if not success else [],
         )
-
-
 
     async def execute(self) -> SagaResult:
         """

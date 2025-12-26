@@ -3,7 +3,6 @@ Tests for helper methods and properties across various modules
 Targets:sagaz/core.py,sagaz/types.py,sagaz/orchestrator.py
 """
 
-
 import pytest
 
 from sagaz.core import Saga

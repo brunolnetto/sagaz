@@ -31,7 +31,10 @@ import inspect
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
+
+if TYPE_CHECKING:
+    from sagaz.storage.base import SagaStorage
 
 from sagaz.compensation_graph import CompensationType, SagaCompensationGraph
 
@@ -383,7 +386,9 @@ class Saga:
         # Parse highlight trail
         completed = set(highlight_trail.get("completed_steps", [])) if highlight_trail else set()
         failed_step = highlight_trail.get("failed_step") if highlight_trail else None
-        compensated = set(highlight_trail.get("compensated_steps", [])) if highlight_trail else set()
+        compensated = (
+            set(highlight_trail.get("compensated_steps", [])) if highlight_trail else set()
+        )
 
         # Find root and leaf steps
         all_deps: set[str] = set()
@@ -400,7 +405,7 @@ class Saga:
         for step in ordered_steps:
             has_comp = step.compensation_fn is not None
             is_root = not step.depends_on
-            
+
             # Determine node shape
             if is_root:
                 shape = f"([{step.step_id}])"
@@ -408,7 +413,7 @@ class Saga:
                 shape = f"[{step.step_id}]"
             else:
                 shape = f"[/{step.step_id}/]"
-            
+
             lines.append(f"    {step.step_id}{shape}")
 
         # Add final state markers
@@ -458,7 +463,7 @@ class Saga:
             else:
                 comp_order = [s.step_id for s in ordered_steps if s.compensation_fn is not None]
                 for i in range(len(comp_order) - 1, 0, -1):
-                    lines.append(f"    comp_{comp_order[i]} -.-> comp_{comp_order[i-1]}")
+                    lines.append(f"    comp_{comp_order[i]} -.-> comp_{comp_order[i - 1]}")
 
             # Connect root compensations to ROLLED_BACK
             if show_state_markers:
@@ -474,16 +479,38 @@ class Saga:
         lines.append("    classDef compensation fill:#fff3cd,stroke:#ffc107,color:#856404")
         lines.append("    classDef highlighted stroke-width:3px")
         lines.append("    classDef startEnd fill:#333,stroke:#333,color:#fff")
-        
-        # Apply default styling to all step nodes (success style)
+        lines.append("    classDef dimmed fill:#e9ecef,stroke:#adb5bd,color:#6c757d")
+
         step_names = [s.step_id for s in ordered_steps]
-        if step_names:
-            lines.append(f"    class {','.join(step_names)} success")
-        
-        # Apply compensation styling
-        if show_compensation and compensable_steps:
-            comp_names = [f"comp_{s.step_id}" for s in compensable_steps]
-            lines.append(f"    class {','.join(comp_names)} compensation")
+        comp_names = [f"comp_{s.step_id}" for s in compensable_steps] if show_compensation else []
+
+        # When trail is provided, only executed nodes get colored
+        if highlight_trail:
+            # First dim all nodes
+            if step_names:
+                lines.append(f"    class {','.join(step_names)} dimmed")
+            if comp_names:
+                lines.append(f"    class {','.join(comp_names)} dimmed")
+
+            # Then color executed nodes
+            if completed:
+                lines.append(f"    class {','.join(sorted(completed))} success")
+                lines.append(f"    class {','.join(sorted(completed))} highlighted")
+
+            if failed_step:
+                lines.append(f"    class {failed_step} failure")
+                lines.append(f"    class {failed_step} highlighted")
+
+            if compensated:
+                comp_highlighted = [f"comp_{s}" for s in sorted(compensated)]
+                lines.append(f"    class {','.join(comp_highlighted)} compensation")
+                lines.append(f"    class {','.join(comp_highlighted)} highlighted")
+        else:
+            # Default: all steps success, all comps compensation
+            if step_names:
+                lines.append(f"    class {','.join(step_names)} success")
+            if comp_names:
+                lines.append(f"    class {','.join(comp_names)} compensation")
 
         # Style state markers
         if show_state_markers:
@@ -491,22 +518,6 @@ class Saga:
             if show_compensation and compensable_steps:
                 state_markers.append("ROLLED_BACK")
             lines.append(f"    class {','.join(state_markers)} startEnd")
-
-        # Apply trail highlighting if provided
-        if highlight_trail:
-            # Highlight completed steps
-            if completed:
-                lines.append(f"    class {','.join(completed)} highlighted")
-            
-            # Highlight failed step
-            if failed_step:
-                lines.append(f"    class {failed_step} failure")
-                lines.append(f"    class {failed_step} highlighted")
-            
-            # Highlight compensated steps
-            if compensated:
-                comp_highlighted = [f"comp_{s}" for s in compensated]
-                lines.append(f"    class {','.join(comp_highlighted)} highlighted")
 
         # Style the links
         lines.append("")
@@ -548,7 +559,7 @@ class Saga:
         """
         # Fetch saga state from storage
         saga_state = await storage.get_saga_state(saga_id)
-        
+
         if not saga_state:
             # No execution found, return diagram without highlighting
             return self.to_mermaid(direction, show_compensation, None, show_state_markers)
