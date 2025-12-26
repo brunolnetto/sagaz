@@ -292,11 +292,50 @@ kubectl get pods -n sagaz
 
 ---
 
+## Visualize Your Saga
+
+Generate Mermaid diagrams to visualize your saga structure:
+
+```python
+saga = OrderSaga()
+
+# Generate basic diagram
+print(saga.to_mermaid())
+
+# Or with markdown code fence
+print(saga.to_mermaid_markdown())
+```
+
+**Output:**
+```mermaid
+flowchart TB
+    START((●))
+    reserve_inventory([reserve_inventory])
+    charge_payment[charge_payment]
+    SUCCESS((◎))
+    START --> reserve_inventory
+    reserve_inventory --> charge_payment
+    charge_payment --> SUCCESS
+```
+
+To visualize a specific execution from storage:
+
+```python
+diagram = await saga.to_mermaid_with_execution(
+    saga_id="abc-123",
+    storage=PostgreSQLSagaStorage(...)
+)
+```
+
+---
+
 ## Next Steps
 
 | Topic | Link |
 |-------|------|
 | Configuration Guide | [Configuration](guides/configuration.md) |
+| Mermaid Visualization | [Diagram Guide](guides/mermaid.md) |
+| Grafana Dashboards | [Grafana Setup](../grafana/README.md) |
 | Architecture | [Overview](architecture/overview.md) |
 | Full API Reference | [API Docs](reference/api.md) |
 | Kubernetes Deployment | [K8s Guide](guides/kubernetes.md) |

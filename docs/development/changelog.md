@@ -41,15 +41,29 @@ configure(config)  # All sagas now inherit this config!
 #### 📊 Mermaid Diagram Generation
 - **NEW:** `saga.to_mermaid()` - Generate Mermaid flowchart diagrams of saga structure
 - **NEW:** `saga.to_mermaid_markdown()` - Generate markdown-wrapped diagrams
-- Supports both declarative (`Saga`) and classic (`ClassicSaga`) APIs
-- Visual distinction for root steps (stadium), compensable steps (rectangle), and non-compensable (parallelogram)
+- **NEW:** `saga.to_mermaid_with_execution(saga_id, storage)` - Auto-fetch execution trail from storage
+- **NEW:** State machine markers - Initial (●) and final (◎) nodes like UML state diagrams
+- **NEW:** Color styling:
+  - 🟢 Green - Success path nodes
+  - 🟡 Amber - Compensation nodes
+  - 🔴 Red - Failed steps
+  - Bold borders for highlighted execution trail
+- **NEW:** `show_state_markers` parameter - Toggle ●/◎ markers
+- **NEW:** `show_compensation` parameter - Toggle compensation flow
+- **NEW:** `highlight_trail` parameter - Highlight specific execution path
 
 ```python
->>> print(saga.to_mermaid())
-flowchart TB
-    reserve_inventory([reserve_inventory])
-    charge_payment[charge_payment]
-    reserve_inventory --> charge_payment
+# Basic diagram
+print(saga.to_mermaid())
+
+# Without state markers (cleaner for docs)
+print(saga.to_mermaid(show_state_markers=False))
+
+# Visualize specific execution from storage
+diagram = await saga.to_mermaid_with_execution(
+    saga_id="abc-123",
+    storage=PostgreSQLSagaStorage(...)
+)
 ```
 
 #### 🔗 Connected Graph Validation
@@ -68,7 +82,7 @@ flowchart TB
 
 #### 📚 Documentation
 - **NEW:** `docs/guides/configuration.md` - Comprehensive configuration guide
-- **UPDATED:** `README.md` - Added SagaConfig feature section and examples
+- **UPDATED:** `README.md` - Added Mermaid visualization section with examples
 - **UPDATED:** `docs/quickstart.md` - Added configuration section
 - **UPDATED:** `docs/architecture/overview.md` - Added SagaConfig to components
 
@@ -89,9 +103,9 @@ flowchart TB
 - **ENHANCED:** Verbose output for integration test debugging
 
 ### Testing
-- **ADDED:** 30 new tests for SagaConfig functionality
-- **TOTAL:** 823 tests (all passing)
-- **COVERAGE:** 95%
+- **ADDED:** 50+ new tests for Mermaid, SagaConfig, and connected graph validation
+- **TOTAL:** 860+ tests (all passing)
+- **COVERAGE:** 96%
 
 ### Breaking Changes
 - None - All changes are backward compatible

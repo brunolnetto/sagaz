@@ -8,7 +8,6 @@
 
 **Enterprise-grade distributed transaction orchestration with exactly-once semantics.**
 
-> ✅ **96% Test Coverage Achieved** - Exceeding 95% target with 793 passing tests (includes chaos engineering tests)
 
 ---
 
@@ -30,6 +29,14 @@
 - ✅ **Dead letter queue** - Automatic failure handling
 - ✅ **Worker auto-scaling** - Kubernetes HPA support
 
+### Configuration & Developer Experience 🆕
+- 🆕 **Unified SagaConfig** - Single config for storage, broker, observability
+- 🆕 **Environment variables** - 12-factor app support via `SagaConfig.from_env()`
+- 🆕 **Mermaid diagrams** - `saga.to_mermaid()` for flowchart visualization
+- 🆕 **Connected graph validation** - Enforces single connected component in DAG sagas
+- ✅ **Global configuration** - Configure once, all sagas inherit
+- ✅ **Type-safe instances** - Real storage/broker instances, not brittle strings
+
 ### Storage Backends
 - ✅ **PostgreSQL** - Production-grade with ACID guarantees
 - ✅ **Redis** - High-performance caching layer
@@ -39,6 +46,7 @@
 - ✅ **Prometheus metrics** - 40+ metrics exposed
 - ✅ **OpenTelemetry tracing** - Distributed tracing support
 - ✅ **Structured logging** - JSON logs with correlation IDs
+- 🆕 **Grafana dashboard** - Ready-to-import JSON template
 - 🆕 **Kubernetes manifests** - Production-ready deployment
 - ✅ **Health checks** - Liveness and readiness probes
 - 🆕 **Chaos engineering tests** - 12 resilience tests validating production readiness
@@ -157,6 +165,59 @@ result = await inbox.process_idempotent(
 )
 ```
 
+### Unified Configuration 🆕
+
+```python
+from sagaz import SagaConfig, configure
+
+# One config for everything
+config = SagaConfig(
+    storage=PostgreSQLSagaStorage("postgresql://localhost/db"),
+    broker=KafkaBroker(bootstrap_servers="localhost:9092"),
+    metrics=True,
+    tracing=True,
+    logging=True,
+)
+configure(config)  # All sagas now inherit this config!
+
+# Or from environment variables (12-factor app)
+config = SagaConfig.from_env()  # Reads SAGAZ_STORAGE_URL, SAGAZ_BROKER_URL, etc.
+```
+
+### Mermaid Diagram Visualization 🆕
+
+```python
+from sagaz import Saga, action, compensate
+
+class OrderSaga(Saga):
+    saga_name = "order"
+    
+    @action("reserve")
+    async def reserve(self, ctx): return {}
+    
+    @compensate("reserve")
+    async def release(self, ctx): pass
+    
+    @action("charge", depends_on=["reserve"])
+    async def charge(self, ctx): return {}
+    
+    @compensate("charge")
+    async def refund(self, ctx): pass
+
+saga = OrderSaga()
+
+# Generate Mermaid diagram with state markers
+print(saga.to_mermaid())
+
+# Visualize specific execution from storage
+diagram = await saga.to_mermaid_with_execution(
+    saga_id="abc-123",
+    storage=PostgreSQLSagaStorage(...)
+)
+```
+
+**Output:** State machine diagram with ● START, ◎ SUCCESS/ROLLED_BACK, color-coded paths (green=success, amber=compensation, red=failure), and execution trail highlighting.
+
 ---
 
 ## ☸️ Kubernetes Deployment
@@ -200,6 +261,10 @@ outbox_published_events_total
 outbox_optimistic_send_success_total  # 🆕
 consumer_inbox_duplicates_total       # 🆕
 ```
+
+### Grafana Dashboard 🆕
+
+Ready-to-import dashboard template at [`grafana/sagaz-dashboard.json`](grafana/sagaz-dashboard.json).
 
 ### Grafana Alerts
 
@@ -250,13 +315,14 @@ See [docs/CHAOS_ENGINEERING.md](docs/CHAOS_ENGINEERING.md) for detailed chaos te
 | Topic | Link |
 |-------|------|
 | **Documentation Index** | [docs/DOCUMENTATION_INDEX.md](docs/DOCUMENTATION_INDEX.md) |
+| **Configuration Guide** 🆕 | [docs/guides/configuration.md](docs/guides/configuration.md) |
 | **DAG Pattern** | [docs/feature_compensation_graph.md](docs/feature_compensation_graph.md) |
 | **Optimistic Sending** 🆕 | [docs/optimistic-sending.md](docs/optimistic-sending.md) |
 | **Consumer Inbox** 🆕 | [docs/consumer-inbox.md](docs/consumer-inbox.md) |
 | **Kubernetes Deploy** 🆕 | [k8s/README.md](k8s/README.md) |
+| **Grafana Dashboards** 🆕 | [grafana/README.md](grafana/README.md) |
 | **Chaos Engineering** 🆕 | [docs/CHAOS_ENGINEERING.md](docs/CHAOS_ENGINEERING.md) |
-| **Implementation Details** | [docs/IMPLEMENTATION_SUMMARY.md](docs/IMPLEMENTATION_SUMMARY.md) |
-| **Changelog** | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
+| **Changelog** | [docs/development/changelog.md](docs/development/changelog.md) |
 
 ---
 
@@ -278,12 +344,13 @@ See [docs/CHAOS_ENGINEERING.md](docs/CHAOS_ENGINEERING.md) for detailed chaos te
 
 ## 🏆 Production Stats
 
-- ✅ **96% test coverage** (793 passing tests)
+- ✅ **96% test coverage** (860+ passing tests)
 - ✅ **Type-safe** - Full type hints
 - ✅ **Zero dependencies** - Core features work standalone
 - ✅ **Well-documented** - Comprehensive examples
 - ✅ **Battle-tested** - Production-ready
 - 🆕 **Kubernetes-native** - Cloud-ready deployment
+- 🆕 **Mermaid visualization** - Auto-generated saga diagrams
 
 ---
 
@@ -291,17 +358,17 @@ See [docs/CHAOS_ENGINEERING.md](docs/CHAOS_ENGINEERING.md) for detailed chaos te
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/sage.git
+git clone https://github.com/brunolnetto/sagaz.git
 cd sagaz
 
-# Install dependencies
-pip install -e ".[dev]"
+# Install dependencies (using uv)
+uv sync --all-extras
 
 # Run tests
-pytest
+uv run pytest
 
 # With coverage
-pytest --cov=sage --cov-report=html
+uv run pytest --cov=sagaz --cov-report=html
 # Current: 96% coverage
 ```
 
@@ -315,16 +382,22 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 🔗 Project Status
 
-**Current Version**: 1.0.0 (December 2024)
+**Current Version**: 1.0.3 (December 2024)
 
-**Recent Updates** (December 2024):
-- 🆕 Optimistic sending pattern (10x latency improvement)
-- 🆕 Consumer inbox pattern (exactly-once processing)
-- 🆕 Kubernetes manifests (production deployment)
-- ✅ 96% test coverage achieved
-- ✅ 793 passing tests
+**Recent Updates** (v1.0.3):
+- 🆕 Mermaid diagram generation with state markers (●/◎)
+- 🆕 `to_mermaid_with_execution()` - Auto-fetch trail from storage
+- 🆕 Connected graph validation for DAG sagas
+- 🆕 Grafana dashboard template
+- 🆕 Unified SagaConfig with environment variable support
 
-See [docs/FINAL_STATUS.md](docs/FINAL_STATUS.md) for detailed status.
+**v1.0.0-1.0.2:**
+- ✅ Optimistic sending pattern (10x latency improvement)
+- ✅ Consumer inbox pattern (exactly-once processing)
+- ✅ Kubernetes manifests (production deployment)
+- ✅ 96% test coverage with 860+ tests
+
+See [docs/ROADMAP.md](docs/ROADMAP.md) for roadmap.
 
 ---
 
