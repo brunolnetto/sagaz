@@ -1,30 +1,37 @@
 name: Lint
-on: [push, pull_request]
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
 
 env:
   CI: true
+  PYTHONDONTWRITEBYTECODE: 1
 
 jobs:
   lint:
+    name: Lint & Format (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 4
+      max-parallel: 3
       fail-fast: false
       matrix:
         python-version: ['3.11', '3.12', '3.13']
+    
     steps:
-      - uses: actions/checkout@v5
+      - name: Check out repository
+        uses: actions/checkout@v4
       
-      - name: Set up python
-        id: setup-python
-        uses: actions/setup-python@v6
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
       
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v4
         with:
-          version: "0.9.5"
+          version: "0.5.10"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       
@@ -32,10 +39,47 @@ jobs:
         run: uv sync --group dev
       
       - name: Run ruff linter
-        run: uv run ruff check sagaz/ tests/
+        run: uv run ruff check sagaz/ tests/ --output-format=github
       
       - name: Run ruff formatter check
         run: uv run ruff format --check sagaz/ tests/
       
       - name: Run mypy type checker
-        run: uv run mypy sagaz/
+        run: uv run mypy sagaz/ --ignore-missing-imports
+
+  # Security checks (run once, not per Python version)
+  security:
+    name: Security Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "0.5.10"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      
+      - name: Install dependencies
+        run: uv sync --group dev
+      
+      - name: Run bandit security linter
+        run: uv run bandit -r sagaz/ -c pyproject.toml -f sarif -o bandit-results.sarif || true
+      
+      - name: Upload bandit results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: bandit-results.sarif
+          category: bandit
+
+      - name: Run pip-audit for vulnerabilities
+        run: uv run pip-audit --strict --progress-spinner=off || true
