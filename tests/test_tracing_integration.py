@@ -88,7 +88,7 @@ def otel_collector():
     try:
         container.start()
         # Wait for the collector to be ready
-        time.sleep(3)  # Give it time to start
+        time.sleep(1)  # Reduced from 3s - minimal startup time
         
         # Get the mapped port
         grpc_port = container.get_exposed_port(4317)
@@ -140,7 +140,7 @@ class TestOTLPCollectorIntegration:
             with tracer.start_as_current_span("test-step-1") as step_span:
                 step_span.set_attribute("step.name", "payment")
                 step_span.set_attribute("step.type", "action")
-                time.sleep(0.05)  # Simulate work
+                time.sleep(0.01)  # Reduced from 0.05s - simulate work
                 step_span.set_attribute("step.status", "completed")
                 spans_created.append(step_span)
         
@@ -187,7 +187,7 @@ class TestOTLPCollectorIntegration:
                 step_type="action"
             ) as step1_span:
                 assert step1_span is not None
-                time.sleep(0.02)
+                time.sleep(0.01)  # Reduced from 0.02s
             
             tracer.record_step_completion(
                 step_name="inventory_reserve",
@@ -203,7 +203,7 @@ class TestOTLPCollectorIntegration:
                 step_type="action"
             ) as step2_span:
                 assert step2_span is not None
-                time.sleep(0.02)
+                time.sleep(0.01)  # Reduced from 0.02s
             
             tracer.record_step_completion(
                 step_name="payment_process",
