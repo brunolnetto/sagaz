@@ -308,19 +308,22 @@ class SagaConfig:
     def _parse_broker_url(url: str) -> BaseBroker:
         """Parse broker URL and return appropriate broker instance."""
         if url.startswith("kafka://"):
-            from sagaz.outbox.brokers.kafka import KafkaBroker
+            from sagaz.outbox.brokers.kafka import KafkaBroker, KafkaBrokerConfig
 
             # Extract bootstrap servers from URL
             servers = url.replace("kafka://", "")
-            return KafkaBroker(bootstrap_servers=servers)
+            config = KafkaBrokerConfig(bootstrap_servers=servers)
+            return KafkaBroker(config)
         if url.startswith("redis://"):
-            from sagaz.outbox.brokers.redis import RedisBroker
+            from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
 
-            return RedisBroker(redis_url=url)
+            config = RedisBrokerConfig(url=url)
+            return RedisBroker(config)
         if url.startswith(("amqp://", "rabbitmq://")):
-            from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
+            from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker, RabbitMQBrokerConfig
 
-            return RabbitMQBroker(url=url.replace("rabbitmq://", "amqp://"))
+            config = RabbitMQBrokerConfig(url=url.replace("rabbitmq://", "amqp://"))
+            return RabbitMQBroker(config)
         if url == "memory://" or url == "":
             from sagaz.outbox.brokers.memory import InMemoryBroker
 

@@ -249,8 +249,9 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 
 # Parallel execution with pytest-xdist
-# Run tests with: pytest -n auto (auto-detect CPUs) or pytest -n 4 (4 workers)
-# addopts = "-n auto"  # Uncomment to enable by default
+# Run tests with: pytest -n auto --dist=loadgroup (respects xdist_group markers)
+# Use --dist=loadgroup to share containers across tests with same xdist_group
+# addopts = "-n auto --dist=loadgroup"  # Uncomment to enable by default
 
 # Register custom markers
 markers = [

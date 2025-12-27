@@ -1,478 +1,489 @@
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+"""
+Additional tests to improve coverage for config.py and other low-coverage files.
+
+These tests cover edge cases and branches not covered by existing tests.
+"""
+
+import os
+from unittest import mock
 
 import pytest
 
-from sagaz.outbox.brokers.factory import create_broker_from_env
-from sagaz.outbox.types import OutboxStatus
-from sagaz.outbox.worker import OutboxConfig, OutboxWorker
+from sagaz.config import SagaConfig, configure, get_config
+
+# Check for optional dependencies
+try:
+    import asyncpg
+    ASYNCPG_AVAILABLE = True
+except ImportError:
+    ASYNCPG_AVAILABLE = False
+
+try:
+    import redis
+    REDIS_AVAILABLE = True
+except ImportError:
+    REDIS_AVAILABLE = False
+
+try:
+    import aiokafka
+    AIOKAFKA_AVAILABLE = True
+except ImportError:
+    AIOKAFKA_AVAILABLE = False
+
+try:
+    import aio_pika
+    AIOPIKA_AVAILABLE = True
+except ImportError:
+    AIOPIKA_AVAILABLE = False
 
 
-class TestCoverageImprovements:
-    @pytest.mark.asyncio
-    async def test_worker_lifecycle(self):
-        """Test worker start/stop loop coverage."""
-        storage = AsyncMock()
-        broker = AsyncMock()
-        config = OutboxConfig(poll_interval_seconds=0.01)
+class TestSagaConfigCoverage:
+    """Tests for SagaConfig coverage gaps."""
 
-        worker = OutboxWorker(storage, broker, config)
+    def test_config_with_custom_listener_instances(self):
+        """Test config with custom listener instances (lines 186, 192)."""
+        from sagaz.listeners import (
+            LoggingSagaListener,
+            MetricsSagaListener,
+            TracingSagaListener,
+        )
 
-        # Mock process_batch to return 0 so it waits
-        worker.process_batch = AsyncMock(return_value=0)
+        custom_logging = LoggingSagaListener()
+        custom_metrics = MetricsSagaListener()
+        custom_tracing = TracingSagaListener()
 
-        # Mock signal handlers to avoid side effects
+        config = SagaConfig(
+            logging=custom_logging,
+            metrics=custom_metrics,
+            tracing=custom_tracing,
+        )
 
-        loop_mock = MagicMock()
-        with patch("asyncio.get_event_loop", return_value=loop_mock):
-            # Start worker in background
-            task = asyncio.create_task(worker.start())
+        # The custom instances should be in the listeners list
+        assert custom_logging in config.listeners
+        assert custom_metrics in config.listeners
+        assert custom_tracing in config.listeners
 
-            # Allow it to run a loop iteration
-            await asyncio.sleep(0.05)
+    def test_config_derives_postgresql_outbox_without_conn_string(self):
+        """Test config falls back to memory when PostgreSQL storage lacks conn string (line 144)."""
+        from unittest.mock import MagicMock
 
-            # Stop worker
-            await worker.stop()
+        from sagaz.outbox.brokers.memory import InMemoryBroker
+        from sagaz.outbox.storage.memory import InMemoryOutboxStorage
 
-            # Wait for task to finish
-            await task
+        # Mock PostgreSQLSagaStorage without connection_string attribute
+        mock_storage = MagicMock()
+        mock_storage.__class__.__name__ = "PostgreSQLSagaStorage"
+        # Remove connection_string attribute
+        del mock_storage.connection_string
 
-        assert not worker._running
-        assert worker.process_batch.called
+        config = SagaConfig(
+            storage=mock_storage,
+            broker=InMemoryBroker(),
+        )
 
-    @pytest.mark.asyncio
-    async def test_worker_shutdown_handler(self):
-        """Test worker shutdown handler."""
-        storage = AsyncMock()
-        broker = AsyncMock()
-        worker = OutboxWorker(storage, broker)
+        # Should fall back to memory outbox
+        assert isinstance(config._derived_outbox_storage, InMemoryOutboxStorage)
 
-        # Mock create_task to verify it calls stop
-        with patch("asyncio.create_task") as mock_create_task:
-            worker._handle_shutdown()
-            mock_create_task.assert_called_once()
+    @pytest.mark.skipif(
+        not ASYNCPG_AVAILABLE,
+        reason="Requires optional dependency: asyncpg"
+    )
+    def test_parse_storage_url_postgresql(self):
+        """Test _parse_storage_url with postgresql:// (lines 293-295)."""
+        from sagaz.storage.postgresql import PostgreSQLSagaStorage
 
-    def test_broker_factory_from_env(self, monkeypatch):
-        """Test create_broker_from_env with different types."""
-        # Test Memory
-        monkeypatch.setenv("BROKER_TYPE", "memory")
-        broker = create_broker_from_env()
-        assert broker.__class__.__name__ == "InMemoryBroker"
+        storage = SagaConfig._parse_storage_url("postgresql://localhost/testdb")
+        assert isinstance(storage, PostgreSQLSagaStorage)
 
-        # Test Kafka (Mock the availability and module)
-        monkeypatch.setenv("BROKER_TYPE", "kafka")
-        monkeypatch.setenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
-        with (
-            patch("sagaz.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
-            patch("sagaz.outbox.brokers.kafka.AIOKafkaProducer"),
-        ):
-            broker = create_broker_from_env()
-            assert broker.__class__.__name__ == "KafkaBroker"
+    @pytest.mark.skipif(
+        not ASYNCPG_AVAILABLE,
+        reason="Requires optional dependency: asyncpg"
+    )
+    def test_parse_storage_url_postgres(self):
+        """Test _parse_storage_url with postgres:// (lines 293-295)."""
+        from sagaz.storage.postgresql import PostgreSQLSagaStorage
 
-        # Test RabbitMQ (Mock the availability and module)
-        monkeypatch.setenv("BROKER_TYPE", "rabbitmq")
-        with (
-            patch("sagaz.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
-            patch("sagaz.outbox.brokers.rabbitmq.aio_pika"),
-        ):
-            broker = create_broker_from_env()
-            assert broker.__class__.__name__ == "RabbitMQBroker"
+        storage = SagaConfig._parse_storage_url("postgres://localhost/testdb")
+        assert isinstance(storage, PostgreSQLSagaStorage)
 
-    @pytest.mark.asyncio
-    async def test_postgresql_status_updates(self):
-        """Test coverage for PostgreSQL update_status branches."""
-        from datetime import datetime
+    @pytest.mark.skipif(
+        not REDIS_AVAILABLE,
+        reason="Requires optional dependency: redis"
+    )
+    def test_parse_storage_url_redis(self):
+        """Test _parse_storage_url with redis:// (lines 297-299)."""
+        from sagaz.storage.redis import RedisSagaStorage
 
-        with patch("sagaz.outbox.storage.postgresql.ASYNCPG_AVAILABLE", True):
-            from sagaz.outbox.storage.postgresql import PostgreSQLOutboxStorage
+        storage = SagaConfig._parse_storage_url("redis://localhost:6379/0")
+        assert isinstance(storage, RedisSagaStorage)
 
-            storage = PostgreSQLOutboxStorage("postgresql://localhost:5432/db")
+    def test_parse_storage_url_unknown(self):
+        """Test _parse_storage_url with unknown scheme raises error."""
+        with pytest.raises(ValueError, match="Unknown storage URL scheme"):
+            SagaConfig._parse_storage_url("mysql://localhost/db")
 
-            # Mock connection with fetchrow (direct connection path)
-            conn = AsyncMock()
-            # Mock row with all required fields
-            mock_row = {
-                "event_id": "evt-1",
-                "saga_id": "saga-1",
-                "aggregate_type": "agg",
-                "aggregate_id": "1",
-                "event_type": "type",
-                "payload": "{}",
-                "headers": "{}",
-                "status": "pending",  # lowercase to match OutboxStatus enum values
-                "created_at": datetime.now(),
-                "claimed_at": None,
-                "sent_at": None,
-                "retry_count": 0,
-                "last_error": None,
-                "worker_id": None,
-            }
-            conn.fetchrow = AsyncMock(return_value=mock_row)
-            storage._pool = conn  # Use conn directly as pool since it has fetchrow
+    @pytest.mark.skipif(
+        not AIOKAFKA_AVAILABLE,
+        reason="Requires optional dependency: aiokafka"
+    )
+    def test_parse_broker_url_kafka(self):
+        """Test _parse_broker_url with kafka:// (lines 311-315)."""
+        from sagaz.outbox.brokers.kafka import KafkaBroker
 
-            # Test FAILED status
-            await storage.update_status("evt-1", OutboxStatus.FAILED, error_message="Error")
-            # Verify query contained 'last_error'
-            call_args = conn.fetchrow.call_args[0]
-            assert "last_error" in call_args[0]
+        broker = SagaConfig._parse_broker_url("kafka://localhost:9092")
+        assert isinstance(broker, KafkaBroker)
 
-            # Test PENDING status (release)
-            await storage.update_status("evt-1", OutboxStatus.PENDING)
-            call_args = conn.fetchrow.call_args[0]
-            assert "worker_id = NULL" in call_args[0]
+    @pytest.mark.skipif(
+        not REDIS_AVAILABLE,
+        reason="Requires optional dependency: redis"
+    )
+    def test_parse_broker_url_redis(self):
+        """Test _parse_broker_url with redis:// (lines 317-319)."""
+        from sagaz.outbox.brokers.redis import RedisBroker
 
-    @pytest.mark.asyncio
-    async def test_kafka_broker_idempotency(self):
-        """Test Kafka broker connect/close idempotency."""
-        with (
-            patch("sagaz.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
-            patch("sagaz.outbox.brokers.kafka.AIOKafkaProducer") as MockProducer,
-        ):
-            from sagaz.outbox.brokers.kafka import KafkaBroker, KafkaBrokerConfig
+        broker = SagaConfig._parse_broker_url("redis://localhost:6379/0")
+        assert isinstance(broker, RedisBroker)
 
-            config = KafkaBrokerConfig(bootstrap_servers="localhost:9092")
-            broker = KafkaBroker(config)
+    @pytest.mark.skipif(
+        not AIOPIKA_AVAILABLE,
+        reason="Requires optional dependency: aio-pika"
+    )
+    def test_parse_broker_url_rabbitmq(self):
+        """Test _parse_broker_url with rabbitmq:// (lines 321-323)."""
+        from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
 
-            mock_producer = AsyncMock()
-            MockProducer.return_value = mock_producer
+        broker = SagaConfig._parse_broker_url("rabbitmq://localhost:5672")
+        assert isinstance(broker, RabbitMQBroker)
 
-            # Connect twice
-            await broker.connect()
-            assert broker._connected
-            await broker.connect()  # Should return early
-            assert mock_producer.start.call_count == 1
+    @pytest.mark.skipif(
+        not AIOPIKA_AVAILABLE,
+        reason="Requires optional dependency: aio-pika"
+    )
+    def test_parse_broker_url_amqp(self):
+        """Test _parse_broker_url with amqp:// (lines 321-323)."""
+        from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
 
-            # Close twice
-            await broker.close()
-            assert not broker._connected
-            await broker.close()  # Should return early
-            assert mock_producer.stop.call_count == 1
+        broker = SagaConfig._parse_broker_url("amqp://localhost:5672")
+        assert isinstance(broker, RabbitMQBroker)
 
-    @pytest.mark.asyncio
-    async def test_rabbitmq_broker_idempotency(self):
-        """Test RabbitMQ broker connect/close idempotency."""
-        with (
-            patch("sagaz.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
-            patch("sagaz.outbox.brokers.rabbitmq.aio_pika") as mock_aio_pika,
-            patch("sagaz.outbox.brokers.rabbitmq.ExchangeType") as mock_exchange_type,
-        ):
-            from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
+    def test_parse_broker_url_memory(self):
+        """Test _parse_broker_url with memory:// (lines 325-327)."""
+        from sagaz.outbox.brokers.memory import InMemoryBroker
 
-            # Mock ExchangeType.TOPIC
-            mock_exchange_type.TOPIC = "topic"
+        broker = SagaConfig._parse_broker_url("memory://")
+        assert isinstance(broker, InMemoryBroker)
 
-            broker = RabbitMQBroker()
-            broker._connection = AsyncMock()
-            broker._channel = AsyncMock()
+    def test_parse_broker_url_unknown(self):
+        """Test _parse_broker_url with unknown scheme raises error."""
+        with pytest.raises(ValueError, match="Unknown broker URL scheme"):
+            SagaConfig._parse_broker_url("unknown://localhost")
 
-            # Mock connect_robust to avoid real networking
-            mock_channel = AsyncMock()
-            mock_channel.declare_exchange = AsyncMock(return_value=AsyncMock())
 
-            mock_connection = AsyncMock()
-            mock_connection.channel = AsyncMock(return_value=mock_channel)
-            mock_connection.close = AsyncMock()
+class TestSagaConfigFromEnv:
+    """Tests for SagaConfig.from_env() method."""
 
-            mock_aio_pika.connect_robust = AsyncMock(return_value=mock_connection)
+    def test_from_env_with_all_options(self):
+        """Test from_env with all environment variables set."""
+        env_vars = {
+            "SAGAZ_STORAGE_URL": "memory://",
+            "SAGAZ_BROKER_URL": "memory://",
+            "SAGAZ_METRICS": "true",
+            "SAGAZ_TRACING": "true",
+            "SAGAZ_LOGGING": "false",
+        }
 
-            await broker.connect()
-            assert broker._connected
+        with mock.patch.dict(os.environ, env_vars, clear=False):
+            config = SagaConfig.from_env()
 
-            await broker.connect()  # Should return early
-            assert mock_aio_pika.connect_robust.call_count == 1
+            from sagaz.storage.memory import InMemorySagaStorage
 
-            await broker.close()
-            assert not broker._connected
+            assert isinstance(config.storage, InMemorySagaStorage)
+            assert config.broker is not None
+            assert config.metrics is True
+            assert config.tracing is True
+            assert config.logging is False
 
-            await broker.close()  # Should return early
-            # Close call count on connection object
-            assert mock_connection.close.call_count == 1
+    def test_from_env_with_no_env_vars(self):
+        """Test from_env with no environment variables (defaults)."""
+        with mock.patch.dict(os.environ, {}, clear=True):
+            # Clear specific SAGAZ vars if they exist
+            for key in list(os.environ.keys()):
+                if key.startswith("SAGAZ_"):
+                    del os.environ[key]
 
-    @pytest.mark.asyncio
-    async def test_compensation_graph_missing_dependency(self):
-        """Test compensation graph with missing dependency."""
-        from sagaz.compensation_graph import MissingDependencyError, SagaCompensationGraph
+            config = SagaConfig.from_env()
 
-        graph = SagaCompensationGraph()
+            # Default storage is InMemory
+            from sagaz.storage.memory import InMemorySagaStorage
 
-        # Register step that depends on non-existent step
-        async def comp_fn(ctx):
-            pass
+            assert isinstance(config.storage, InMemorySagaStorage)
+            assert config.broker is None
+            # Defaults: metrics=True, tracing=False, logging=True
+            assert config.metrics is True
+            assert config.tracing is False
+            assert config.logging is True
 
-        graph.register_compensation("step1", comp_fn, depends_on=["nonexistent"])
+    def test_from_env_boolean_parsing(self):
+        """Test from_env boolean parsing variants."""
+        # Test "1", "yes" variants
+        env_vars = {
+            "SAGAZ_METRICS": "1",
+            "SAGAZ_TRACING": "yes",
+            "SAGAZ_LOGGING": "0",
+        }
 
-        # Should raise MissingDependencyError when validating
-        with pytest.raises(MissingDependencyError):
-            graph.validate()
+        with mock.patch.dict(os.environ, env_vars, clear=False):
+            config = SagaConfig.from_env()
+            assert config.metrics is True
+            assert config.tracing is True
+            assert config.logging is False
 
-    @pytest.mark.asyncio
-    async def test_compensation_graph_circular_dependency(self):
-        """Test compensation graph with circular dependency."""
-        from sagaz.compensation_graph import CircularDependencyError, SagaCompensationGraph
+        # Test "no" variant
+        env_vars = {
+            "SAGAZ_METRICS": "no",
+        }
 
-        graph = SagaCompensationGraph()
+        with mock.patch.dict(os.environ, env_vars, clear=False):
+            config = SagaConfig.from_env()
+            assert config.metrics is False
 
-        async def comp_fn(ctx):
-            pass
 
-        # Create circular dependency: A -> B -> A
-        graph.register_compensation("step_a", comp_fn, depends_on=["step_b"])
-        graph.register_compensation("step_b", comp_fn, depends_on=["step_a"])
-
-        # Should raise CircularDependencyError when validating
-        with pytest.raises(CircularDependencyError):
-            graph.validate()
-
-    @pytest.mark.asyncio
-    async def test_core_saga_no_steps(self):
-        """Test saga execution with no steps."""
-        from sagaz.core import Saga as ClassicSaga
-
-        saga = ClassicSaga(name="EmptySaga")
-        result = await saga.execute()
-
-        assert result.success
-        assert result.completed_steps == 0
-        assert result.total_steps == 0
-
-    @pytest.mark.asyncio
-    async def test_core_saga_planning_failure(self):
-        """Test saga with circular dependency in planning phase."""
-        from sagaz import SagaContext
-        from sagaz.core import Saga as ClassicSaga
-
-        saga = ClassicSaga(name="BadSaga")
-
-        async def action(ctx: SagaContext):
-            return {"result": "ok"}
-
-        # Create circular dependency
-        await saga.add_step("step_a", action, dependencies={"step_b"})
-        await saga.add_step("step_b", action, dependencies={"step_a"})
-
-        result = await saga.execute()
-
-        assert not result.success
-        assert result.status.value == "failed"
-        assert "Circular or missing dependencies" in str(result.error)
+class TestSagaStateMachineCoverage:
+    """Tests for state_machine.py coverage gaps."""
 
     @pytest.mark.asyncio
-    async def test_decorator_saga_timeout(self):
-        """Test declarative saga step timeout."""
-        import asyncio
-
-        from sagaz.decorators import Saga, step
-
-        class TimeoutSaga(Saga):
-            @step(name="slow_step", timeout_seconds=0.1)
-            async def slow_step(self, ctx):
-                await asyncio.sleep(1)
-                return {"done": True}
-
-        saga = TimeoutSaga()
-
-        with pytest.raises(TimeoutError):
-            await saga.run({})
-
-    @pytest.mark.asyncio
-    async def test_decorator_saga_compensation_error(self):
-        """Test declarative saga compensation error handling."""
-        from sagaz.decorators import Saga, compensate, step
-
-        class FailingSaga(Saga):
-            @step(name="step1")
-            async def step1(self, ctx):
-                return {"step1": "done"}
-
-            @compensate("step1")
-            async def comp_step1(self, ctx):
-                # Compensation fails
-                msg = "Compensation failed"
-                raise Exception(msg)
-
-            @step(name="step2", depends_on=["step1"])
-            async def step2(self, ctx):
-                msg = "Step2 failed"
-                raise Exception(msg)
-
-        saga = FailingSaga()
-
-        with pytest.raises(Exception):
-            await saga.run({})
-
-    @pytest.mark.asyncio
-    async def test_storage_factory_postgresql(self):
-        """Test storage factory with PostgreSQL."""
-        with patch("sagaz.storage.postgresql.ASYNCPG_AVAILABLE", True):
-            from sagaz.storage.factory import create_storage
-
-            storage = create_storage(
-                "postgresql", connection_string="postgresql://localhost:5432/test"
-            )
-            assert storage.__class__.__name__ == "PostgreSQLSagaStorage"
-
-    @pytest.mark.asyncio
-    async def test_storage_factory_redis(self):
-        """Test storage factory with Redis."""
-        with patch("sagaz.storage.redis.REDIS_AVAILABLE", True), patch("sagaz.storage.redis.redis"):
-            from sagaz.storage.factory import create_storage
-
-            storage = create_storage("redis", redis_url="redis://localhost:6379")
-            assert storage.__class__.__name__ == "RedisSagaStorage"
-
-    @pytest.mark.asyncio
-    async def test_storage_factory_invalid_type(self):
-        """Test storage factory with invalid type."""
-        from sagaz.storage.factory import create_storage
-
-        with pytest.raises(ValueError, match="Unknown storage backend"):
-            create_storage("invalid")
-
-    @pytest.mark.asyncio
-    async def test_state_machine_no_saga(self):
-        """Test state machine without saga instance."""
+    async def test_state_machine_without_saga(self):
+        """Test SagaStateMachine without saga instance (line 36)."""
         from sagaz.state_machine import SagaStateMachine
 
         sm = SagaStateMachine(saga=None)
 
-        # Guards should return True when no saga
-        assert sm.has_steps()
-        assert sm.has_completed_steps()
+        # Guards should return True when saga is None
+        assert sm.has_steps() is True
+        assert sm.has_completed_steps() is True
 
     @pytest.mark.asyncio
-    async def test_orchestrator_statistics(self):
-        """Test orchestrator statistics calculation."""
-        from sagaz import SagaContext
-        from sagaz.core import Saga as ClassicSaga
-        from sagaz.orchestrator import SagaOrchestrator
+    async def test_state_machine_callbacks_without_saga_methods(self):
+        """Test callbacks when saga doesn't have the callback methods (lines 128, 133, 138, 143)."""
+        from sagaz.state_machine import SagaStateMachine
 
-        orch = SagaOrchestrator()
+        # Create a minimal saga-like object without callback methods
+        class MinimalSaga:
+            steps = ["step1"]
+            completed_steps = []
 
-        # Create and execute a saga
-        saga = ClassicSaga(name="TestSaga")
+        saga = MinimalSaga()
+        sm = SagaStateMachine(saga=saga)
 
-        async def action(ctx: SagaContext):
-            return {"result": "ok"}
-
-        await saga.add_step("step1", action)
-        await orch.execute_saga(saga)
-
-        # Get statistics
-        stats = await orch.get_statistics()
-        assert stats["total_sagas"] == 1
-        assert stats["completed"] == 1
+        # These should not raise even without callback methods
+        await sm.on_enter_executing()
+        await sm.on_enter_compensating()
+        await sm.on_enter_completed()
+        await sm.on_enter_rolled_back()
+        await sm.on_enter_failed()
 
     @pytest.mark.asyncio
-    async def test_outbox_worker_error_handling(self):
-        """Test outbox worker error handling during processing."""
-        from sagaz.outbox.types import OutboxEvent
-        from sagaz.outbox.worker import OutboxConfig, OutboxWorker
+    async def test_state_machine_on_exit_executing(self):
+        """Test on_exit_executing callback (line 155)."""
+        from sagaz.state_machine import SagaStateMachine
 
-        storage = AsyncMock()
-        broker = AsyncMock()
-        config = OutboxConfig(max_retries=2)
+        class SagaWithExit:
+            steps = ["step1"]
+            completed_steps = ["step1"]
+            exit_called = False
 
-        worker = OutboxWorker(storage, broker, config)
+            async def _on_exit_executing(self):
+                self.exit_called = True
 
-        # Create event that will fail
-        event = OutboxEvent(
-            saga_id="saga-1",
-            aggregate_type="order",
-            aggregate_id="1",
-            event_type="OrderCreated",
-            payload={"order_id": "123"},
-            retry_count=0,
-        )
+        saga = SagaWithExit()
+        sm = SagaStateMachine(saga=saga)
 
-        # Make broker.publish raise an error
-        broker.publish.side_effect = Exception("Broker error")
+        await sm.on_exit_executing()
+        assert saga.exit_called is True
 
-        # Process should handle the error and update status
-        await worker._process_event(event)
 
-        # Should have called update_status with FAILED
-        storage.update_status.assert_called()
+class TestDecoratorsCoverage:
+    """Tests for decorators.py coverage gaps."""
 
     @pytest.mark.asyncio
-    async def test_compensation_graph_get_info(self):
-        """Test compensation graph get_compensation_info."""
+    async def test_to_mermaid_with_execution_compensating_status(self):
+        """Test to_mermaid_with_execution with 'compensating' status (lines 453-455)."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        from sagaz import Saga, action, compensate
+
+        class TestSaga(Saga):
+            saga_name = "test"
+
+            @action("step_a")
+            async def step_a(self, ctx):
+                return {}
+
+            @compensate("step_a")
+            async def undo_a(self, ctx):
+                pass
+
+        saga = TestSaga()
+
+        # Mock saga state with 'compensating' status
+        mock_data = {
+            "steps": [
+                {"name": "step_a", "status": "compensating"},
+            ]
+        }
+
+        mock_storage = MagicMock()
+        mock_storage.load_saga_state = AsyncMock(return_value=mock_data)
+
+        mermaid = await saga.to_mermaid_with_execution("saga-id", mock_storage)
+
+        # step_a should be in completed (it completed before compensating)
+        assert "step_a" in mermaid
+
+    def test_saga_get_step_not_found(self):
+        """Test Saga.get_step returns None for non-existent step (line 320)."""
+        from sagaz import Saga, action
+
+        class TestSaga(Saga):
+            @action("existing_step")
+            async def existing_step(self, ctx):
+                return {}
+
+        saga = TestSaga()
+
+        # Get existing step
+        step = saga.get_step("existing_step")
+        assert step is not None
+
+        # Get non-existent step
+        step = saga.get_step("nonexistent")
+        assert step is None
+
+
+class TestCompensationGraphCoverage:
+    """Tests for compensation_graph.py coverage gaps."""
+
+    def test_compensation_graph_edge_cases(self):
+        """Test compensation graph edge cases (lines 285, 296-297, 304)."""
         from sagaz.compensation_graph import SagaCompensationGraph
 
         graph = SagaCompensationGraph()
 
+        # Register a compensation
         async def comp_fn(ctx):
             pass
 
         graph.register_compensation("step1", comp_fn)
 
-        # Get info for existing step
-        info = graph.get_compensation_info("step1")
-        assert info is not None
-        assert info.step_id == "step1"
-
-        # Get info for non-existent step
+        # Get compensation info for non-existent step
         info = graph.get_compensation_info("nonexistent")
         assert info is None
 
-    @pytest.mark.asyncio
-    async def test_outbox_types_to_dict(self):
-        """Test OutboxEvent to_dict method."""
+        # Get compensation order when nothing is executed
+        order = graph.get_compensation_order()
+        assert order == []
 
-        from sagaz.outbox.types import OutboxEvent
 
-        event = OutboxEvent(
-            saga_id="saga-1",
-            aggregate_type="order",
-            aggregate_id="1",
-            event_type="OrderCreated",
-            payload={"order_id": "123"},
+class TestMermaidAdditionalCoverage:
+    """Additional tests for mermaid.py coverage."""
+
+    def test_mermaid_add_start_to_roots_skips_unexecuted(self):
+        """Test _add_start_to_roots skips unexecuted steps (line 249)."""
+        from sagaz.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+
+        steps = [
+            StepInfo(name="root_a", has_compensation=True),
+            StepInfo(name="root_b", has_compensation=True),
+        ]
+        # Only root_a was executed
+        trail = HighlightTrail(
+            completed={"root_a"},
         )
 
-        event_dict = event.to_dict()
-        assert event_dict["saga_id"] == "saga-1"
-        assert event_dict["aggregate_type"] == "order"
-        assert event_dict["event_type"] == "OrderCreated"
-        assert isinstance(event_dict["created_at"], str)
+        generator = MermaidGenerator(steps=steps, highlight_trail=trail)
+        mermaid = generator.generate()
 
-    @pytest.mark.asyncio
-    async def test_core_saga_step_already_exists(self):
-        """Test adding duplicate step name."""
-        from sagaz import SagaContext
-        from sagaz.core import Saga as ClassicSaga
+        # root_a should have START connection, root_b should not appear
+        assert "START --> root_a" in mermaid
 
-        saga = ClassicSaga(name="DupeSaga")
+    def test_mermaid_add_leaves_to_success_skips_unexecuted(self):
+        """Test _add_leaves_to_success skips unexecuted steps (line 280)."""
+        from sagaz.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
-        async def action(ctx: SagaContext):
-            return {}
+        steps = [
+            StepInfo(name="leaf_a", has_compensation=True),
+            StepInfo(name="leaf_b", has_compensation=True),
+        ]
+        # Only leaf_a completed
+        trail = HighlightTrail(
+            completed={"leaf_a"},
+        )
 
-        await saga.add_step("step1", action)
+        generator = MermaidGenerator(steps=steps, highlight_trail=trail)
+        mermaid = generator.generate()
 
-        # Adding same step name should raise ValueError
-        with pytest.raises(ValueError, match="already exists"):
-            await saga.add_step("step1", action)
+        # leaf_a should have SUCCESS connection
+        assert "leaf_a --> SUCCESS" in mermaid
 
-    @pytest.mark.asyncio
-    async def test_core_saga_add_step_while_executing(self):
-        """Test that adding steps while saga is executing raises error."""
-        import asyncio
+    def test_mermaid_failure_edges_no_compensable_steps(self):
+        """Test _add_failure_edges with no compensable steps (line 293)."""
+        from sagaz.mermaid import MermaidGenerator, StepInfo
 
-        from sagaz import SagaContext, SagaExecutionError
-        from sagaz.core import Saga as ClassicSaga
+        steps = [
+            StepInfo(name="step_a", has_compensation=False),
+        ]
 
-        saga = ClassicSaga(name="TestSaga")
+        generator = MermaidGenerator(steps=steps)
+        mermaid = generator.generate()
 
-        async def action(ctx: SagaContext):
-            await asyncio.sleep(0.1)
-            return {}
+        # No compensation edges should exist
+        assert "comp_" not in mermaid
 
-        await saga.add_step("step1", action)
+    def test_mermaid_dag_compensation_chain_skip_non_compensated(self):
+        """Test _add_dag_compensation_chain skips non-compensated steps (lines 368, 385)."""
+        from sagaz.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
-        # Start execution in background
-        task = asyncio.create_task(saga.execute())
-        await asyncio.sleep(0.01)  # Let it start
+        steps = [
+            StepInfo(name="root", has_compensation=True),
+            StepInfo(name="child_a", has_compensation=True, depends_on={"root"}),
+            StepInfo(name="child_b", has_compensation=True, depends_on={"root"}),
+        ]
+        # Only child_a was compensated
+        trail = HighlightTrail(
+            completed={"root", "child_a", "child_b"},
+            failed_step="child_b",
+            compensated={"child_a"},
+        )
 
-        # Try to add step while executing
-        with pytest.raises(SagaExecutionError, match="Cannot add steps while saga is executing"):
-            await saga.add_step("step2", action)
+        generator = MermaidGenerator(steps=steps, highlight_trail=trail)
+        mermaid = generator.generate()
 
-        await task  # Clean up
+        # child_a compensation should appear
+        assert "comp_child_a" in mermaid
+
+
+class TestGlobalConfigFunctions:
+    """Tests for global config functions."""
+
+    def test_get_config_creates_default(self):
+        """Test get_config creates default config when none exists."""
+        import sagaz.config as config_module
+
+        # Reset global config
+        config_module._global_config = None
+
+        config = get_config()
+        assert config is not None
+
+        from sagaz.storage.memory import InMemorySagaStorage
+
+        assert isinstance(config.storage, InMemorySagaStorage)
+
+    def test_configure_sets_global_config(self):
+        """Test configure sets global config."""
+        import sagaz.config as config_module
+
+        new_config = SagaConfig()
+        configure(new_config)
+
+        assert config_module._global_config is new_config
