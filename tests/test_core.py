@@ -25,6 +25,7 @@ from sagaz import (
     SagaContext,
     SagaExecutionError,
     SagaOrchestrator,
+    SagaResult,
     SagaStatus,
     SagaTimeoutError,
 )
@@ -2176,3 +2177,338 @@ class TestRealWorldScenarios:
 
         # Should only be called once due to idempotency
         assert len(api_calls) == 1
+
+
+# ============================================
+# HELPER METHODS AND PROPERTIES TESTS
+# ============================================
+
+
+class TestSagaHelperMethods:
+    """Test helper methods in Saga class"""
+
+    @pytest.mark.asyncio
+    async def test_saga_name_property(self):
+        """Test Saga.name property getter"""
+        saga = Saga("MySagaName")
+        assert saga.name == "MySagaName"
+
+    @pytest.mark.asyncio
+    async def test_set_failure_strategy(self):
+        """Test set_failure_strategy method with logging"""
+        from sagaz.strategies.base import ParallelFailureStrategy
+
+        saga = Saga("TestSaga")
+
+        # Default should be FAIL_FAST_WITH_GRACE
+        assert saga.failure_strategy.value == "fail_fast_grace"
+
+        # Change to WAIT_ALL
+        saga.set_failure_strategy(ParallelFailureStrategy.WAIT_ALL)
+        assert saga.failure_strategy.value == "wait_all"
+
+        # Change to FAIL_FAST
+        saga.set_failure_strategy(ParallelFailureStrategy.FAIL_FAST)
+        assert saga.failure_strategy.value == "fail_fast"
+
+    @pytest.mark.asyncio
+    async def test_saga_step_name_property(self):
+        """Test SagaStep name access through saga"""
+
+        async def dummy_action(ctx):
+            return "result"
+
+        saga = Saga("TestSaga")
+        await saga.add_step("test_step", dummy_action)
+
+        # Access step name through saga
+        assert saga.steps[0].name == "test_step"
+        assert len(saga.steps) == 1
+
+
+class TestSagaResultProperties:
+    """Test SagaResult properties"""
+
+    def test_is_completed_property(self):
+        """Test is_completed property"""
+        # Completed result
+        result = SagaResult(
+            success=True,
+            saga_name="TestSaga",
+            status=SagaStatus.COMPLETED,
+            completed_steps=2,
+            total_steps=2,
+            error=None,
+            execution_time=1.0,
+            context={},
+            compensation_errors=[],
+        )
+        assert result.is_completed is True
+
+        # Not completed
+        result_pending = SagaResult(
+            success=False,
+            saga_name="TestSaga",
+            status=SagaStatus.PENDING,
+            completed_steps=0,
+            total_steps=2,
+            error=None,
+            execution_time=0.0,
+            context={},
+            compensation_errors=[],
+        )
+        assert result_pending.is_completed is False
+
+    def test_is_rolled_back_property(self):
+        """Test is_rolled_back property"""
+        # Rolled back result
+        result = SagaResult(
+            success=False,
+            saga_name="TestSaga",
+            status=SagaStatus.ROLLED_BACK,
+            completed_steps=1,
+            total_steps=2,
+            error=ValueError("Failed"),
+            execution_time=1.0,
+            context={},
+            compensation_errors=[],
+        )
+        assert result.is_rolled_back is True
+
+        # Not rolled back
+        result_completed = SagaResult(
+            success=True,
+            saga_name="TestSaga",
+            status=SagaStatus.COMPLETED,
+            completed_steps=2,
+            total_steps=2,
+            error=None,
+            execution_time=1.0,
+            context={},
+            compensation_errors=[],
+        )
+        assert result_completed.is_rolled_back is False
+
+
+class TestStepWithoutCompensation:
+    """Test saga steps without compensation functions"""
+
+    @pytest.mark.asyncio
+    async def test_step_without_compensation_execute(self):
+        """Test executing step without compensation - covers core.py:103-104"""
+        saga = Saga("no-comp-saga")
+
+        executed = []
+
+        async def action_only(ctx):
+            executed.append("action")
+            return "result"
+
+        # Add step WITHOUT compensation
+        await saga.add_step("no_comp_step", action_only)
+
+        result = await saga.execute()
+
+        assert result.success is True
+        assert "action" in executed
+        assert len(saga.steps) == 1
+        assert saga.steps[0].compensation is None
+
+    @pytest.mark.asyncio
+    async def test_step_without_compensation_no_rollback_needed(self):
+        """Test that step without compensation doesn't cause issues"""
+        saga = Saga("mixed-comp-saga")
+
+        async def step1_action(ctx):
+            return "step1"
+
+        async def step2_action(ctx):
+            msg = "Step 2 fails"
+            raise ValueError(msg)
+
+        async def step2_comp(result, ctx):
+            pass
+
+        # Step 1 has NO compensation
+        await saga.add_step("step1", step1_action)
+
+        # Step 2 has compensation and will fail
+        await saga.add_step("step2", step2_action, step2_comp)
+
+        result = await saga.execute()
+
+        # Should fail and compensate step 2, but step 1 has no compensation
+        assert result.success is False
+
+
+# ============================================
+# STEP EXECUTOR AND EDGE CASE TESTS
+# ============================================
+
+
+class TestStepExecutor:
+    """Tests for _StepExecutor class to cover edge cases"""
+
+    @pytest.mark.asyncio
+    async def test_step_executor_compensate_no_compensation(self):
+        """Test _StepExecutor.compensate when step has no compensation function"""
+        from sagaz.core import SagaStep, _StepExecutor
+
+        # Create a step with no compensation
+        step = SagaStep(name="test_step", action=lambda ctx: "result", compensation=None)
+
+        context = SagaContext()
+        executor = _StepExecutor(step, context)
+        executor.result = {"data": "test"}
+
+        # Should not raise, just return None
+        await executor.compensate()
+
+    @pytest.mark.asyncio
+    async def test_step_executor_compensate_with_compensation(self):
+        """Test _StepExecutor.compensate when step has compensation function"""
+        from sagaz.core import SagaStep, _StepExecutor
+
+        compensation_called = []
+
+        async def mock_compensation(result, ctx):
+            compensation_called.append(result)
+
+        step = SagaStep(
+            name="test_step", action=lambda ctx: "result", compensation=mock_compensation
+        )
+
+        context = SagaContext()
+        executor = _StepExecutor(step, context)
+        executor.result = {"data": "test"}
+
+        await executor.compensate()
+
+        assert len(compensation_called) == 1
+        assert compensation_called[0] == {"data": "test"}
+
+    def test_step_executor_name_property(self):
+        """Test _StepExecutor.name property"""
+        from sagaz.core import SagaStep, _StepExecutor
+
+        step = SagaStep(name="my_unique_step", action=lambda ctx: None)
+
+        context = SagaContext()
+        executor = _StepExecutor(step, context)
+
+        assert executor.name == "my_unique_step"
+
+
+class TestBuildExecutionBatches:
+    """Tests for circular/missing dependency detection in _build_execution_batches"""
+
+    @pytest.mark.asyncio
+    async def test_circular_dependency_detection(self):
+        """Test that circular dependencies are detected during build"""
+        saga = Saga(name="CircularSaga")
+
+        # Create circular dependency: A -> B -> A
+        await saga.add_step(name="step_a", action=lambda ctx: "a", dependencies={"step_b"})
+        await saga.add_step(name="step_b", action=lambda ctx: "b", dependencies={"step_a"})
+
+        # Execute should fail during planning phase
+        result = await saga.execute()
+
+        assert result.success is False
+        assert result.status == SagaStatus.FAILED
+        assert "Circular" in str(result.error) or "dependencies" in str(result.error)
+
+    @pytest.mark.asyncio
+    async def test_missing_dependency_detection(self):
+        """Test that missing dependencies are detected"""
+        saga = Saga(name="MissingDepSaga")
+
+        # Create step that depends on non-existent step
+        await saga.add_step(
+            name="step_a", action=lambda ctx: "a", dependencies={"nonexistent_step"}
+        )
+
+        result = await saga.execute()
+
+        assert result.success is False
+        assert result.status == SagaStatus.FAILED
+
+
+class TestDAGExceptionHandling:
+    """Tests for DAG execution exception handling"""
+
+    @pytest.mark.asyncio
+    async def test_dag_execution_unexpected_exception(self):
+        """Test DAG handles unexpected exceptions during batch building"""
+        saga = Saga(name="ExceptionSaga")
+
+        async def failing_action(ctx):
+            msg = "Unexpected error"
+            raise RuntimeError(msg)
+
+        await saga.add_step(
+            name="step_a",
+            action=failing_action,
+            dependencies=set(),  # Explicit DAG mode
+        )
+
+        result = await saga.execute()
+
+        assert result.success is False
+        # Should be rolled back or failed
+        assert result.status in [SagaStatus.ROLLED_BACK, SagaStatus.FAILED]
+
+
+class TestSagaStepHash:
+    """Tests for SagaStep.__hash__ method"""
+
+    def test_saga_step_hash(self):
+        """Test that SagaStep can be hashed using idempotency_key"""
+        from sagaz.core import SagaStep
+
+        step1 = SagaStep(name="step1", action=lambda ctx: None, idempotency_key="key-123")
+
+        step2 = SagaStep(name="step2", action=lambda ctx: None, idempotency_key="key-456")
+
+        step3 = SagaStep(
+            name="step3",
+            action=lambda ctx: None,
+            idempotency_key="key-123",  # Same key as step1
+        )
+
+        # Steps with different idempotency keys should have different hashes
+        assert hash(step1) != hash(step2)
+
+        # Steps with same idempotency key should have same hash
+        assert hash(step1) == hash(step3)
+
+        # Should be usable in sets
+        step_set = {step1, step2}
+        assert len(step_set) == 2
+
+
+class TestSagaAlreadyExecuting:
+    """Tests for saga already executing check"""
+
+    @pytest.mark.asyncio
+    async def test_saga_already_executing_error(self):
+        """Test that concurrent execution raises error"""
+        saga = Saga(name="ConcurrentSaga")
+
+        await saga.add_step(name="simple_step", action=lambda ctx: "done")
+
+        # Manually set the _executing flag to simulate already executing
+        # This is a simpler way to test the guard clause without async race conditions
+        async with saga._execution_lock:
+            saga._executing = True
+
+        # Try to execute - should raise because _executing is True
+        with pytest.raises(SagaExecutionError, match="already executing"):
+            await saga.execute()
+
+        # Reset and verify normal execution works
+        async with saga._execution_lock:
+            saga._executing = False
+
+        result = await saga.execute()
+        assert result.success is True
