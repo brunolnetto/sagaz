@@ -29,7 +29,7 @@ class OrderSaga(Saga):
     async def undo_validate(self, ctx):
         pass
 
-    @action("check_inventory")
+    @action("check_inventory", depends_on=["validate_order"])
     async def check_inventory(self, ctx):
         return {"inventory_checked": True}
         
@@ -37,7 +37,7 @@ class OrderSaga(Saga):
     async def release_inventory_check(self, ctx):
         pass
 
-    @action("fraud_check")
+    @action("fraud_check", depends_on=["validate_order"])
     async def fraud_check(self, ctx):
         return {"fraud_score": 0}
         

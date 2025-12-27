@@ -362,17 +362,12 @@ class TestMermaidGeneration:
             }
         )
 
-        # Non-executed nodes are dimmed first
-        assert "classDef dimmed fill:#e9ecef" in mermaid
-        # Completed steps have success class and highlighted
+        # Completed steps have success class
         assert "class step_a,step_b success" in mermaid
-        assert "class step_a,step_b highlighted" in mermaid
         # Failed step marked as failure
         assert "class step_c failure" in mermaid
-        assert "class step_c highlighted" in mermaid
-        # Compensated steps have compensation class and highlighted (order is alphabetical)
+        # Compensated steps have compensation class (order is alphabetical)
         assert "class comp_step_a,comp_step_b compensation" in mermaid
-        assert "class comp_step_a,comp_step_b highlighted" in mermaid
         
         # Verify link highlighting - success (green) and compensation (yellow)
         assert "linkStyle" in mermaid
@@ -396,8 +391,7 @@ class TestMermaidGeneration:
         # Should still generate valid diagram without trail-specific highlighting
         assert "flowchart TB" in mermaid
         assert "step_a" in mermaid
-        # The classDef highlighted exists, but no steps should be assigned this class
-        assert "class step_a highlighted" not in mermaid
+        # No highlight class for static diagrams without trail
 
     @pytest.mark.asyncio
     async def test_classic_saga_to_mermaid_with_execution_with_state(self):
@@ -429,15 +423,12 @@ class TestMermaidGeneration:
         mermaid = await saga.to_mermaid_with_execution("test-saga-id", mock_storage)
 
         # Should highlight based on state
-        # step_a was compensated, meaning it completed first -> success + highlighted
+        # step_a was compensated, meaning it completed first -> success
         assert "class step_a success" in mermaid
-        assert "class step_a highlighted" in mermaid
-        # step_a compensation also ran -> compensation + highlighted
+        # step_a compensation also ran -> compensation
+        # step_b failed -> failure
+        assert "class step_b failure" in mermaid
         assert "class comp_step_a compensation" in mermaid
-        # step_b failed -> failure + highlighted
-        assert "class step_b failure" in mermaid
-        assert "class step_b failure" in mermaid
-        assert "class comp_step_a highlighted" in mermaid
 
     @pytest.mark.asyncio
     async def test_classic_saga_to_mermaid_markdown(self):
@@ -530,9 +521,8 @@ class TestMermaidGeneration:
             }
         )
 
-        assert "class a highlighted" in mermaid
-        assert "class b failure" in mermaid
-        assert "class comp_a highlighted" in mermaid
+        assert "class a success" in mermaid
+        assert "class comp_a compensation" in mermaid
 
     @pytest.mark.asyncio
     async def test_declarative_saga_to_mermaid_with_execution(self):
@@ -565,7 +555,7 @@ class TestMermaidGeneration:
         mermaid = await saga.to_mermaid_with_execution("saga-id", mock_storage)
 
         assert "class step success" in mermaid
-        assert "class step highlighted" in mermaid
+        assert "class step success" in mermaid
 
 
 class TestConnectedGraphValidation:
