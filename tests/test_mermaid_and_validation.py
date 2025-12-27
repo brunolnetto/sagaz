@@ -151,9 +151,9 @@ class TestMermaidGeneration:
         # Should show compensation nodes
         assert "comp_reserve{{undo reserve}}" in mermaid
         assert "comp_charge{{undo charge}}" in mermaid
-        # Each step should have a fail edge to its compensation
-        assert "reserve -. fail .-> comp_reserve" in mermaid
-        assert "charge -. fail .-> comp_charge" in mermaid
+        # Each step should have a compensate edge to its compensation
+        assert "reserve -. compensate .-> comp_reserve" in mermaid
+        assert "charge -. compensate .-> comp_charge" in mermaid
         # Compensation chain: charge's comp triggers reserve's comp
         assert "comp_charge -.-> comp_reserve" in mermaid
 
@@ -202,7 +202,7 @@ class TestMermaidGeneration:
 
         # Should NOT show compensation nodes when disabled
         assert "comp_step" not in mermaid
-        assert "-. fail .->" not in mermaid  # No fail edges
+        assert "-. compensate .->" not in mermaid  # No compensate edges
 
     def test_declarative_saga_parallel_dag_compensation(self):
         """Test that parallel DAG shows correct reverse compensation flow."""
@@ -251,11 +251,11 @@ class TestMermaidGeneration:
         assert "work_a --> finalize" in mermaid
         assert "work_b --> finalize" in mermaid
 
-        # Each step has fail edge
-        assert "setup -. fail .-> comp_setup" in mermaid
-        assert "work_a -. fail .-> comp_work_a" in mermaid
-        assert "work_b -. fail .-> comp_work_b" in mermaid
-        assert "finalize -. fail .-> comp_finalize" in mermaid
+        # Each step has compensate edge
+        assert "setup -. compensate .-> comp_setup" in mermaid
+        assert "work_a -. compensate .-> comp_work_a" in mermaid
+        assert "work_b -. compensate .-> comp_work_b" in mermaid
+        assert "finalize -. compensate .-> comp_finalize" in mermaid
 
         # Compensation chain (reverse dependencies)
         assert "comp_finalize -.-> comp_work_a" in mermaid
@@ -373,6 +373,11 @@ class TestMermaidGeneration:
         # Compensated steps have compensation class and highlighted (order is alphabetical)
         assert "class comp_step_a,comp_step_b compensation" in mermaid
         assert "class comp_step_a,comp_step_b highlighted" in mermaid
+        
+        # Verify link highlighting - success (green) and compensation (yellow)
+        assert "linkStyle" in mermaid
+        assert "stroke:#28a745" in mermaid  # Green for success edges
+        assert "stroke:#ffc107" in mermaid  # Yellow for compensation edges
 
     @pytest.mark.asyncio
     async def test_classic_saga_to_mermaid_with_execution_no_state(self):
@@ -384,7 +389,7 @@ class TestMermaidGeneration:
 
         # Mock storage that returns None
         mock_storage = MagicMock()
-        mock_storage.get_saga_state = AsyncMock(return_value=None)
+        mock_storage.load_saga_state = AsyncMock(return_value=None)
 
         mermaid = await saga.to_mermaid_with_execution("nonexistent-id", mock_storage)
 
@@ -410,19 +415,27 @@ class TestMermaidGeneration:
         await saga.add_step("step_a", action, comp, dependencies=set())
         await saga.add_step("step_b", action, comp, dependencies={"step_a"})
 
-        # Mock saga state
-        mock_state = MagicMock()
-        mock_state.completed_steps = {"step_a"}
-        mock_state.failed_step = "step_b"
-        mock_state.compensated_steps = {"step_a"}
+        # Mock saga state dict
+        mock_data = {
+            "steps": [
+                {"name": "step_a", "status": "compensated"},
+                {"name": "step_b", "status": "failed"},
+            ]
+        }
 
         mock_storage = MagicMock()
-        mock_storage.get_saga_state = AsyncMock(return_value=mock_state)
+        mock_storage.load_saga_state = AsyncMock(return_value=mock_data)
 
         mermaid = await saga.to_mermaid_with_execution("test-saga-id", mock_storage)
 
         # Should highlight based on state
+        # step_a was compensated, meaning it completed first -> success + highlighted
+        assert "class step_a success" in mermaid
         assert "class step_a highlighted" in mermaid
+        # step_a compensation also ran -> compensation + highlighted
+        assert "class comp_step_a compensation" in mermaid
+        # step_b failed -> failure + highlighted
+        assert "class step_b failure" in mermaid
         assert "class step_b failure" in mermaid
         assert "class comp_step_a highlighted" in mermaid
 
@@ -539,17 +552,19 @@ class TestMermaidGeneration:
 
         saga = ExecSaga()
 
-        # Mock saga state
-        mock_state = MagicMock()
-        mock_state.completed_steps = {"step"}
-        mock_state.failed_step = None
-        mock_state.compensated_steps = set()
+        # Mock saga state dict
+        mock_data = {
+            "steps": [
+                {"name": "step", "status": "completed"}
+            ]
+        }
 
         mock_storage = MagicMock()
-        mock_storage.get_saga_state = AsyncMock(return_value=mock_state)
+        mock_storage.load_saga_state = AsyncMock(return_value=mock_data)
 
         mermaid = await saga.to_mermaid_with_execution("saga-id", mock_storage)
 
+        assert "class step success" in mermaid
         assert "class step highlighted" in mermaid
 
 

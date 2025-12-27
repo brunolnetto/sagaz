@@ -370,160 +370,28 @@ class Saga:
             ...     "compensated_steps": ["charge", "reserve"]
             ... })
         """
-        lines = [f"flowchart {direction}"]
+        from sagaz.mermaid import MermaidGenerator, StepInfo, HighlightTrail
 
-        # Collect steps with compensation and determine execution order
-        compensable_steps = [s for s in self._steps if s.compensation_fn is not None]
-        has_any_deps = any(step.depends_on for step in self._steps)
+        # Convert steps to StepInfo format
+        steps = [
+            StepInfo(
+                name=s.step_id,
+                has_compensation=s.compensation_fn is not None,
+                depends_on=set(s.depends_on),
+            )
+            for s in self._steps
+        ]
 
-        # Build step order
-        if has_any_deps:
-            execution_levels = self.get_execution_order()
-            ordered_steps = [step for level in execution_levels for step in level]
-        else:
-            ordered_steps = self._steps.copy()
-
-        # Parse highlight trail
-        completed = set(highlight_trail.get("completed_steps", [])) if highlight_trail else set()
-        failed_step = highlight_trail.get("failed_step") if highlight_trail else None
-        compensated = (
-            set(highlight_trail.get("compensated_steps", [])) if highlight_trail else set()
+        # Create generator and generate diagram
+        generator = MermaidGenerator(
+            steps=steps,
+            direction=direction,
+            show_compensation=show_compensation,
+            show_state_markers=show_state_markers,
+            highlight_trail=HighlightTrail.from_dict(highlight_trail),
         )
 
-        # Find root and leaf steps
-        all_deps: set[str] = set()
-        for step in self._steps:
-            all_deps.update(step.depends_on)
-        root_steps = [s for s in ordered_steps if not s.depends_on]
-        leaf_steps = [s for s in ordered_steps if s.step_id not in all_deps]
-
-        # Add initial state marker
-        if show_state_markers:
-            lines.append("    START((●))")
-
-        # Add step nodes (happy path)
-        for step in ordered_steps:
-            has_comp = step.compensation_fn is not None
-            is_root = not step.depends_on
-
-            # Determine node shape
-            if is_root:
-                shape = f"([{step.step_id}])"
-            elif has_comp:
-                shape = f"[{step.step_id}]"
-            else:
-                shape = f"[/{step.step_id}/]"
-
-            lines.append(f"    {step.step_id}{shape}")
-
-        # Add final state markers
-        if show_state_markers:
-            lines.append("    SUCCESS((◎))")
-            if show_compensation and compensable_steps:
-                lines.append("    ROLLED_BACK((◎))")
-
-        # Add compensation nodes if enabled
-        if show_compensation:
-            for step in compensable_steps:
-                lines.append(f"    comp_{step.step_id}{{{{undo {step.step_id}}}}}")
-
-        # Connect START to root steps
-        if show_state_markers:
-            for step in root_steps:
-                lines.append(f"    START --> {step.step_id}")
-
-        # Add success edges (happy path) - GREEN
-        for step in ordered_steps:
-            for dep in sorted(step.depends_on):
-                lines.append(f"    {dep} --> {step.step_id}")
-
-        # For sequential sagas, show chain
-        if not has_any_deps and len(ordered_steps) > 1:
-            for i in range(len(ordered_steps) - 1):
-                lines.append(f"    {ordered_steps[i].step_id} --> {ordered_steps[i + 1].step_id}")
-
-        # Connect leaf steps to SUCCESS
-        if show_state_markers:
-            for step in leaf_steps:
-                lines.append(f"    {step.step_id} --> SUCCESS")
-
-        # Add failure + compensation edges if enabled - RED
-        if show_compensation and compensable_steps:
-            # Each step with compensation has a fail edge to its compensation
-            for step in compensable_steps:
-                lines.append(f"    {step.step_id} -. fail .-> comp_{step.step_id}")
-
-            # Compensation chain
-            if has_any_deps:
-                for step in compensable_steps:
-                    for dep in sorted(step.depends_on):
-                        dep_step = self._step_registry.get(dep)
-                        if dep_step and dep_step.compensation_fn is not None:
-                            lines.append(f"    comp_{step.step_id} -.-> comp_{dep}")
-            else:
-                comp_order = [s.step_id for s in ordered_steps if s.compensation_fn is not None]
-                for i in range(len(comp_order) - 1, 0, -1):
-                    lines.append(f"    comp_{comp_order[i]} -.-> comp_{comp_order[i - 1]}")
-
-            # Connect root compensations to ROLLED_BACK
-            if show_state_markers:
-                root_comp_steps = [s for s in compensable_steps if not s.depends_on]
-                for step in root_comp_steps:
-                    lines.append(f"    comp_{step.step_id} -.-> ROLLED_BACK")
-
-        # Add styling
-        lines.append("")
-        lines.append("    %% Styling")
-        lines.append("    classDef success fill:#d4edda,stroke:#28a745,color:#155724")
-        lines.append("    classDef failure fill:#f8d7da,stroke:#dc3545,color:#721c24")
-        lines.append("    classDef compensation fill:#fff3cd,stroke:#ffc107,color:#856404")
-        lines.append("    classDef highlighted stroke-width:3px")
-        lines.append("    classDef startEnd fill:#333,stroke:#333,color:#fff")
-        lines.append("    classDef dimmed fill:#e9ecef,stroke:#adb5bd,color:#6c757d")
-
-        step_names = [s.step_id for s in ordered_steps]
-        comp_names = [f"comp_{s.step_id}" for s in compensable_steps] if show_compensation else []
-
-        # When trail is provided, only executed nodes get colored
-        if highlight_trail:
-            # First dim all nodes
-            if step_names:
-                lines.append(f"    class {','.join(step_names)} dimmed")
-            if comp_names:
-                lines.append(f"    class {','.join(comp_names)} dimmed")
-
-            # Then color executed nodes
-            if completed:
-                lines.append(f"    class {','.join(sorted(completed))} success")
-                lines.append(f"    class {','.join(sorted(completed))} highlighted")
-
-            if failed_step:
-                lines.append(f"    class {failed_step} failure")
-                lines.append(f"    class {failed_step} highlighted")
-
-            if compensated:
-                comp_highlighted = [f"comp_{s}" for s in sorted(compensated)]
-                lines.append(f"    class {','.join(comp_highlighted)} compensation")
-                lines.append(f"    class {','.join(comp_highlighted)} highlighted")
-        else:
-            # Default: all steps success, all comps compensation
-            if step_names:
-                lines.append(f"    class {','.join(step_names)} success")
-            if comp_names:
-                lines.append(f"    class {','.join(comp_names)} compensation")
-
-        # Style state markers
-        if show_state_markers:
-            state_markers = ["START", "SUCCESS"]
-            if show_compensation and compensable_steps:
-                state_markers.append("ROLLED_BACK")
-            lines.append(f"    class {','.join(state_markers)} startEnd")
-
-        # Style the links
-        lines.append("")
-        lines.append("    linkStyle default stroke:#28a745")
-
-        return "\n".join(lines)
+        return generator.generate()
 
     async def to_mermaid_with_execution(
         self,
@@ -558,17 +426,39 @@ class Saga:
             ... )
         """
         # Fetch saga state from storage
-        saga_state = await storage.get_saga_state(saga_id)
+        saga_data = await storage.load_saga_state(saga_id)
 
-        if not saga_state:
+        if not saga_data:
             # No execution found, return diagram without highlighting
             return self.to_mermaid(direction, show_compensation, None, show_state_markers)
 
-        # Build highlight trail from saga state
+        # Parse steps to build highlight trail
+        steps_data = saga_data.get("steps", [])
+        completed_steps = set()
+        failed_step = None
+        compensated_steps = set()
+
+        for step in steps_data:
+            status = step.get("status")
+            name = step.get("name")
+
+            if status == "completed":
+                completed_steps.add(name)
+            elif status == "failed":
+                failed_step = name
+            elif status == "compensated":
+                compensated_steps.add(name)
+                # A compensated step must have completed first
+                completed_steps.add(name)
+            elif status == "compensating":
+                compensated_steps.add(name)
+                completed_steps.add(name)
+
+        # Build highlight trail
         highlight_trail = {
-            "completed_steps": list(saga_state.completed_steps),
-            "failed_step": saga_state.failed_step,
-            "compensated_steps": list(saga_state.compensated_steps),
+            "completed_steps": list(completed_steps),
+            "failed_step": failed_step,
+            "compensated_steps": list(compensated_steps),
         }
 
         return self.to_mermaid(direction, show_compensation, highlight_trail, show_state_markers)
