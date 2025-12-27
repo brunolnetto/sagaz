@@ -543,11 +543,7 @@ class TestMermaidGeneration:
         saga = ExecSaga()
 
         # Mock saga state dict
-        mock_data = {
-            "steps": [
-                {"name": "step", "status": "completed"}
-            ]
-        }
+        mock_data = {"steps": [{"name": "step", "status": "completed"}]}
 
         mock_storage = MagicMock()
         mock_storage.load_saga_state = AsyncMock(return_value=mock_data)
