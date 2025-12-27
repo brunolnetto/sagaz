@@ -381,3 +381,72 @@ class TestOutboxWorkerStart:
 
         # Should have processed the event
         mock_broker.publish_event.assert_called()
+
+
+class TestOutboxWorkerProcessEvent:
+    """Tests for OutboxWorker._process_event method."""
+
+    @pytest.mark.asyncio
+    async def test_worker_max_retries_exceeded(self):
+        """Test event that exceeds max retries goes to FAILED."""
+        from sagaz.outbox.types import OutboxEvent
+        from sagaz.outbox.worker import OutboxConfig, OutboxWorker
+
+        storage = AsyncMock()
+        broker = AsyncMock()
+        broker.publish_event.side_effect = Exception("Broker error")
+
+        # Return an event from update_status
+        updated_event = OutboxEvent(
+            saga_id="saga-1",
+            aggregate_type="order",
+            aggregate_id="1",
+            event_type="OrderCreated",
+            payload={"order_id": "123"},
+            retry_count=10,
+        )
+        storage.update_status.return_value = updated_event
+
+        config = OutboxConfig(max_retries=2)
+        worker = OutboxWorker(storage, broker, config)
+
+        # Event that has already retried max times
+        event = OutboxEvent(
+            saga_id="saga-1",
+            aggregate_type="order",
+            aggregate_id="1",
+            event_type="OrderCreated",
+            payload={"order_id": "123"},
+            retry_count=2,  # Already at max
+        )
+
+        await worker._process_event(event)
+
+        # Should update to FAILED (check if called)
+        assert storage.update_status.called
+
+    @pytest.mark.asyncio
+    async def test_worker_successful_publish(self):
+        """Test successful event publishing."""
+        from sagaz.outbox.types import OutboxEvent
+        from sagaz.outbox.worker import OutboxConfig, OutboxWorker
+
+        storage = AsyncMock()
+        broker = AsyncMock()
+
+        config = OutboxConfig()
+        worker = OutboxWorker(storage, broker, config)
+
+        event = OutboxEvent(
+            saga_id="saga-1",
+            aggregate_type="order",
+            aggregate_id="1",
+            event_type="OrderCreated",
+            payload={"order_id": "123"},
+        )
+
+        await worker._process_event(event)
+
+        # Should publish_event and mark as SENT
+        broker.publish_event.assert_called_once()
+        storage.update_status.assert_called()

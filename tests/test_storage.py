@@ -460,3 +460,79 @@ class TestInMemorySagaStorage:
         )
 
         assert storage.get_saga_count() == 1
+
+
+class TestInMemoryStorageListFiltering:
+    """Tests for InMemorySagaStorage list filtering edge cases"""
+
+    @pytest.mark.asyncio
+    async def test_list_sagas_with_status_mismatch(self):
+        """Test listing sagas that don't match status filter"""
+        storage = InMemorySagaStorage()
+
+        # Create saga with EXECUTING status
+        await storage.save_saga_state(
+            saga_id="executing-saga",
+            saga_name="ExecutingSaga",
+            status=SagaStatus.EXECUTING,
+            steps=[],
+            context={},
+        )
+
+        # Search for COMPLETED status - should not find it
+        result = await storage.list_sagas(status=SagaStatus.COMPLETED)
+        assert len(result) == 0 or not any(s["saga_id"] == "executing-saga" for s in result)
+
+    @pytest.mark.asyncio
+    async def test_list_sagas_with_name_mismatch(self):
+        """Test listing sagas that don't match name filter"""
+        storage = InMemorySagaStorage()
+
+        await storage.save_saga_state(
+            saga_id="unique-name-saga",
+            saga_name="VeryUniqueName",
+            status=SagaStatus.COMPLETED,
+            steps=[],
+            context={},
+        )
+
+        # Search for different name - should not find it
+        result = await storage.list_sagas(saga_name="DifferentName")
+        assert not any(s["saga_id"] == "unique-name-saga" for s in result)
+
+    @pytest.mark.asyncio
+    async def test_cleanup_with_custom_statuses(self):
+        """Test cleanup with custom status list"""
+        storage = InMemorySagaStorage()
+
+        # Create sagas with different statuses
+        await storage.save_saga_state(
+            saga_id="failed-saga",
+            saga_name="FailedSaga",
+            status=SagaStatus.FAILED,
+            steps=[],
+            context={},
+        )
+
+        await storage.save_saga_state(
+            saga_id="executing-saga",
+            saga_name="ExecutingSaga",
+            status=SagaStatus.EXECUTING,
+            steps=[],
+            context={},
+        )
+
+        await asyncio.sleep(0.1)
+
+        # Cleanup only FAILED status (not default)
+        deleted = await storage.cleanup_completed_sagas(
+            older_than=datetime.now(UTC), statuses=[SagaStatus.FAILED]
+        )
+
+        assert deleted == 1
+
+        # EXECUTING should still exist
+        assert await storage.load_saga_state("executing-saga") is not None
+
+        # FAILED should be deleted
+        assert await storage.load_saga_state("failed-saga") is None
