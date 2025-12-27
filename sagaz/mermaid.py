@@ -115,8 +115,8 @@ class MermaidGenerator:
         show_comp_subgraph = not has_trail or bool(self.trail.compensated)
         
         self._add_start_marker()
-        self._add_step_nodes()
-        self._add_final_markers(show_comp_subgraph)
+        self._add_step_nodes(has_trail)
+        self._add_final_markers(show_comp_subgraph, has_trail)
         self._add_compensation_nodes(show_comp_subgraph)
 
     def _add_start_marker(self) -> None:
@@ -124,36 +124,58 @@ class MermaidGenerator:
         if self.show_state_markers:
             self._lines.append("    START((●))")
 
-    def _add_step_nodes(self) -> None:
-        """Add step nodes."""
+    def _add_step_nodes(self, has_trail: bool) -> None:
+        """Add step nodes. When trail exists, only show executed nodes."""
         for step in self.steps:
+            # When we have a trail, only show nodes that were touched
+            if has_trail:
+                was_executed = (
+                    step.name in self.trail.completed or 
+                    step.name == self.trail.failed_step
+                )
+                if not was_executed:
+                    continue
+            
             shape = self._get_node_shape(step)
             self._lines.append(f"    {step.name}{shape}")
 
-    def _add_final_markers(self, show_comp_subgraph: bool) -> None:
-        """Add SUCCESS and ROLLED_BACK markers."""
+    def _add_final_markers(self, show_comp_subgraph: bool, has_trail: bool) -> None:
+        """Add SUCCESS and ROLLED_BACK markers. Show only relevant one when trail exists."""
         if not self.show_state_markers:
             return
         
-        # SUCCESS marker
-        if self.trail.total_duration and not self.trail.failed_step:
-            self._lines.append(f'    SUCCESS(("✓ {self.trail.total_duration}"))')
-        else:
-            self._lines.append("    SUCCESS((◎))")
-        
-        # ROLLED_BACK marker
-        if self.show_compensation and self._compensable_steps and show_comp_subgraph:
-            if self.trail.total_duration and self.trail.failed_step:
-                self._lines.append(f'    ROLLED_BACK(("✗ {self.trail.total_duration}"))')
+        # When we have a trail, only show the relevant end marker
+        if has_trail:
+            if self.trail.failed_step:
+                # Saga failed - show ROLLED_BACK only
+                if self.trail.total_duration:
+                    self._lines.append(f'    ROLLED_BACK(("✗ {self.trail.total_duration}"))')
+                else:
+                    self._lines.append("    ROLLED_BACK((◎))")
             else:
+                # Saga succeeded - show SUCCESS only
+                if self.trail.total_duration:
+                    self._lines.append(f'    SUCCESS(("✓ {self.trail.total_duration}"))')
+                else:
+                    self._lines.append("    SUCCESS((◎))")
+        else:
+            # Static diagram: show both markers
+            self._lines.append("    SUCCESS((◎))")
+            if self.show_compensation and self._compensable_steps and show_comp_subgraph:
                 self._lines.append("    ROLLED_BACK((◎))")
 
     def _add_compensation_nodes(self, show_comp_subgraph: bool) -> None:
-        """Add compensation nodes."""
+        """Add compensation nodes. Only for steps that were actually compensated when trail exists."""
         if not (self.show_compensation and show_comp_subgraph):
             return
         
+        has_trail = bool(self.trail.completed or self.trail.failed_step or self.trail.compensated)
+        
         for step in self._compensable_steps:
+            # When we have a trail, only show compensation nodes for actually compensated steps
+            if has_trail and step.name not in self.trail.compensated:
+                continue
+            
             comp_duration = self.trail.comp_durations.get(step.name)
             if comp_duration:
                 self._lines.append(f'    comp_{step.name}{{{{"undo {step.name}<br/>{comp_duration}"}}}}')
@@ -212,41 +234,54 @@ class MermaidGenerator:
 
     def _add_success_edges(self) -> None:
         """Add success path edges (green arrows)."""
-        self._add_start_to_roots()
-        self._add_dependency_or_sequential_edges()
-        self._add_leaves_to_success()
+        has_trail = bool(self.trail.completed or self.trail.failed_step or self.trail.compensated)
+        self._add_start_to_roots(has_trail)
+        self._add_dependency_or_sequential_edges(has_trail)
+        self._add_leaves_to_success(has_trail)
 
-    def _add_start_to_roots(self) -> None:
-        """Connect START to root steps."""
+    def _add_start_to_roots(self, has_trail: bool) -> None:
+        """Connect START to root steps that were executed."""
         if not self.show_state_markers:
             return
         for step in self._root_steps:
             was_started = step.name in self.trail.completed or step.name == self.trail.failed_step
+            # Only add edge if node exists (was executed or no trail)
+            if has_trail and not was_started:
+                continue
             self._add_link("START", "-->", step.name, highlight=was_started)
 
-    def _add_dependency_or_sequential_edges(self) -> None:
-        """Add edges between steps based on dependencies or sequential order."""
+    def _add_dependency_or_sequential_edges(self, has_trail: bool) -> None:
+        """Add edges between steps that were executed."""
         if self._has_deps:
             for step in self.steps:
+                step_executed = step.name in self.trail.completed or step.name == self.trail.failed_step
                 for dep in sorted(step.depends_on):
-                    dep_completed = dep in self.trail.completed
-                    step_started = step.name in self.trail.completed or step.name == self.trail.failed_step
-                    self._add_link(dep, "-->", step.name, highlight=(dep_completed and step_started))
+                    dep_executed = dep in self.trail.completed or dep == self.trail.failed_step
+                    # Only add edge if both nodes exist
+                    if has_trail and not (dep_executed and step_executed):
+                        continue
+                    self._add_link(dep, "-->", step.name, highlight=(dep_executed and step_executed))
         else:
             for i in range(len(self.steps) - 1):
                 s1, s2 = self.steps[i].name, self.steps[i + 1].name
-                s1_completed = s1 in self.trail.completed
-                s2_started = s2 in self.trail.completed or s2 == self.trail.failed_step
-                self._add_link(s1, "-->", s2, highlight=(s1_completed and s2_started))
+                s1_executed = s1 in self.trail.completed or s1 == self.trail.failed_step
+                s2_executed = s2 in self.trail.completed or s2 == self.trail.failed_step
+                if has_trail and not (s1_executed and s2_executed):
+                    continue
+                self._add_link(s1, "-->", s2, highlight=(s1_executed and s2_executed))
 
-    def _add_leaves_to_success(self) -> None:
-        """Connect leaf steps to SUCCESS."""
+    def _add_leaves_to_success(self, has_trail: bool) -> None:
+        """Connect leaf steps to SUCCESS (only on success, not failure)."""
         if not self.show_state_markers:
             return
+        # Only show leaf->SUCCESS edge if saga succeeded (no failure)
+        if has_trail and self.trail.failed_step:
+            return  # Don't connect to SUCCESS when saga failed
         for step in self._leaf_steps:
             step_completed = step.name in self.trail.completed
-            saga_success = self.trail.failed_step is None
-            self._add_link(step.name, "-->", "SUCCESS", highlight=(step_completed and saga_success))
+            if has_trail and not step_completed:
+                continue
+            self._add_link(step.name, "-->", "SUCCESS", highlight=step_completed)
 
     def _add_failure_edges(self) -> None:
         """Add failure and compensation edges."""
@@ -293,15 +328,24 @@ class MermaidGenerator:
 
     def _add_compensation_chain(self) -> None:
         """Add edges between compensation nodes (reverse dependency order)."""
+        has_trail = bool(self.trail.completed or self.trail.failed_step or self.trail.compensated)
+        
         if self._has_deps:
             for step in self._compensable_steps:
+                s_comp = step.name in self.trail.compensated
+                # Skip if trail exists and step wasn't compensated
+                if has_trail and not s_comp:
+                    continue
+                    
                 ancestors = self._get_compensable_ancestors(step)
                 for dep in sorted(ancestors):
-                    s_comp = step.name in self.trail.compensated
                     d_comp = dep in self.trail.compensated
+                    # Skip if trail exists and ancestor wasn't compensated
+                    if has_trail and not d_comp:
+                        continue
                     self._add_link(
                         f"comp_{step.name}", "-.->", f"comp_{dep}", 
-                        highlight=(s_comp and d_comp), link_type="compensation"
+                        highlight=True, link_type="compensation"
                     )
         else:
             # Sequential: reverse order chain
@@ -310,9 +354,12 @@ class MermaidGenerator:
                 s1, s2 = comp_order[i], comp_order[i - 1]
                 s1_comp = s1 in self.trail.compensated
                 s2_comp = s2 in self.trail.compensated
+                # Skip if trail exists and either step wasn't compensated
+                if has_trail and not (s1_comp and s2_comp):
+                    continue
                 self._add_link(
                     f"comp_{s1}", "-.->", f"comp_{s2}", 
-                    highlight=(s1_comp and s2_comp), link_type="compensation"
+                    highlight=True, link_type="compensation"
                 )
 
     def _add_rollback_edges(self) -> None:
@@ -320,12 +367,17 @@ class MermaidGenerator:
         if not self.show_state_markers:
             return
         
+        has_trail = bool(self.trail.completed or self.trail.failed_step or self.trail.compensated)
         root_comps = self._get_root_compensation_steps()
+        
         for step in root_comps:
             is_comp = step.name in self.trail.compensated
+            # Skip if trail exists and step wasn't compensated
+            if has_trail and not is_comp:
+                continue
             self._add_link(
                 f"comp_{step.name}", "-.->", "ROLLED_BACK", 
-                highlight=is_comp, link_type="compensation"
+                highlight=True, link_type="compensation"
             )
 
     def _get_compensable_ancestors(self, step: StepInfo) -> set[str]:
@@ -394,25 +446,20 @@ class MermaidGenerator:
             self._apply_default_node_classes(step_names, comp_names)
 
     def _apply_trail_node_classes(self, step_names: list[str], comp_names: list[str]) -> None:
-        """Apply classes when we have a trail."""
-        if step_names:
-            self._lines.append(f"    class {','.join(step_names)} dimmed")
-        if comp_names:
-            self._lines.append(f"    class {','.join(comp_names)} dimmed")
-
+        """Apply classes when we have a trail. No dimming needed since only executed nodes are shown."""
+        # Completed steps get success style
         if self.trail.completed:
             completed_list = sorted(self.trail.completed)
             self._lines.append(f"    class {','.join(completed_list)} success")
-            self._lines.append(f"    class {','.join(completed_list)} highlighted")
 
+        # Failed step gets failure style
         if self.trail.failed_step:
             self._lines.append(f"    class {self.trail.failed_step} failure")
-            self._lines.append(f"    class {self.trail.failed_step} highlighted")
 
+        # Compensated steps get compensation style
         if self.trail.compensated:
             comp_highlighted = [f"comp_{s}" for s in sorted(self.trail.compensated)]
             self._lines.append(f"    class {','.join(comp_highlighted)} compensation")
-            self._lines.append(f"    class {','.join(comp_highlighted)} highlighted")
 
     def _apply_default_node_classes(self, step_names: list[str], comp_names: list[str]) -> None:
         """Apply default classes when no trail."""
@@ -425,10 +472,21 @@ class MermaidGenerator:
         """Style START, SUCCESS, ROLLED_BACK markers."""
         if not self.show_state_markers:
             return
-        state_markers = ["START", "SUCCESS"]
-        if self.show_compensation and self._compensable_steps:
-            state_markers.append("ROLLED_BACK")
-        self._lines.append(f"    class {','.join(state_markers)} startEnd")
+        
+        has_trail = bool(self.trail.completed or self.trail.failed_step or self.trail.compensated)
+        
+        if has_trail:
+            # Only style the markers we actually show
+            if self.trail.failed_step:
+                self._lines.append("    class START,ROLLED_BACK startEnd")
+            else:
+                self._lines.append("    class START,SUCCESS startEnd")
+        else:
+            # Static diagram: style all markers
+            state_markers = ["START", "SUCCESS"]
+            if self.show_compensation and self._compensable_steps:
+                state_markers.append("ROLLED_BACK")
+            self._lines.append(f"    class {','.join(state_markers)} startEnd")
 
     def _style_links(self) -> None:
         """Style link colors (gray default, green success, yellow compensation)."""
