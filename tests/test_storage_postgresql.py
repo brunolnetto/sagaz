@@ -16,12 +16,14 @@ from sagaz.types import SagaStatus, SagaStepStatus
 # Check availability of dependencies
 try:
     import asyncpg
+
     ASYNCPG_AVAILABLE = True
 except ImportError:
     ASYNCPG_AVAILABLE = False
 
 try:
     from testcontainers.postgres import PostgresContainer
+
     TESTCONTAINERS_AVAILABLE = True
 except ImportError:
     TESTCONTAINERS_AVAILABLE = False
@@ -30,6 +32,7 @@ except ImportError:
 # ============================================
 # UNIT/MOCKED TESTS
 # ============================================
+
 
 class TestPostgreSQLStorageImportError:
     """Tests for PostgreSQL storage when asyncpg package is not available"""
@@ -317,6 +320,7 @@ class TestPostgreSQLSagaStorageMocked:
 # ============================================
 # INTEGRATION TESTS
 # ============================================
+
 
 @pytest.mark.skipif(not TESTCONTAINERS_AVAILABLE, reason="testcontainers not available")
 @pytest.mark.skipif(not ASYNCPG_AVAILABLE, reason="asyncpg not installed")

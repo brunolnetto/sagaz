@@ -17,12 +17,14 @@ from sagaz.types import SagaStatus, SagaStepStatus
 # Check availability of dependencies
 try:
     import redis
+
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
 
 try:
     from testcontainers.redis import RedisContainer
+
     TESTCONTAINERS_AVAILABLE = True
 except ImportError:
     TESTCONTAINERS_AVAILABLE = False
@@ -44,6 +46,7 @@ class AsyncContextManagerMock:
 # ============================================
 # UNIT/MOCKED TESTS
 # ============================================
+
 
 class TestRedisStorageImportError:
     """Tests for Redis storage when redis package is not available"""

@@ -14,24 +14,28 @@ from sagaz.config import SagaConfig, configure, get_config
 # Check for optional dependencies
 try:
     import asyncpg
+
     ASYNCPG_AVAILABLE = True
 except ImportError:
     ASYNCPG_AVAILABLE = False
 
 try:
     import redis
+
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
 
 try:
     import aiokafka
+
     AIOKAFKA_AVAILABLE = True
 except ImportError:
     AIOKAFKA_AVAILABLE = False
 
 try:
     import aio_pika
+
     AIOPIKA_AVAILABLE = True
 except ImportError:
     AIOPIKA_AVAILABLE = False
@@ -84,10 +88,7 @@ class TestSagaConfigCoverage:
         # Should fall back to memory outbox
         assert isinstance(config._derived_outbox_storage, InMemoryOutboxStorage)
 
-    @pytest.mark.skipif(
-        not ASYNCPG_AVAILABLE,
-        reason="Requires optional dependency: asyncpg"
-    )
+    @pytest.mark.skipif(not ASYNCPG_AVAILABLE, reason="Requires optional dependency: asyncpg")
     def test_parse_storage_url_postgresql(self):
         """Test _parse_storage_url with postgresql:// (lines 293-295)."""
         from sagaz.storage.postgresql import PostgreSQLSagaStorage
@@ -95,10 +96,7 @@ class TestSagaConfigCoverage:
         storage = SagaConfig._parse_storage_url("postgresql://localhost/testdb")
         assert isinstance(storage, PostgreSQLSagaStorage)
 
-    @pytest.mark.skipif(
-        not ASYNCPG_AVAILABLE,
-        reason="Requires optional dependency: asyncpg"
-    )
+    @pytest.mark.skipif(not ASYNCPG_AVAILABLE, reason="Requires optional dependency: asyncpg")
     def test_parse_storage_url_postgres(self):
         """Test _parse_storage_url with postgres:// (lines 293-295)."""
         from sagaz.storage.postgresql import PostgreSQLSagaStorage
@@ -106,10 +104,7 @@ class TestSagaConfigCoverage:
         storage = SagaConfig._parse_storage_url("postgres://localhost/testdb")
         assert isinstance(storage, PostgreSQLSagaStorage)
 
-    @pytest.mark.skipif(
-        not REDIS_AVAILABLE,
-        reason="Requires optional dependency: redis"
-    )
+    @pytest.mark.skipif(not REDIS_AVAILABLE, reason="Requires optional dependency: redis")
     def test_parse_storage_url_redis(self):
         """Test _parse_storage_url with redis:// (lines 297-299)."""
         from sagaz.storage.redis import RedisSagaStorage
@@ -122,10 +117,7 @@ class TestSagaConfigCoverage:
         with pytest.raises(ValueError, match="Unknown storage URL scheme"):
             SagaConfig._parse_storage_url("mysql://localhost/db")
 
-    @pytest.mark.skipif(
-        not AIOKAFKA_AVAILABLE,
-        reason="Requires optional dependency: aiokafka"
-    )
+    @pytest.mark.skipif(not AIOKAFKA_AVAILABLE, reason="Requires optional dependency: aiokafka")
     def test_parse_broker_url_kafka(self):
         """Test _parse_broker_url with kafka:// (lines 311-315)."""
         from sagaz.outbox.brokers.kafka import KafkaBroker
@@ -133,10 +125,7 @@ class TestSagaConfigCoverage:
         broker = SagaConfig._parse_broker_url("kafka://localhost:9092")
         assert isinstance(broker, KafkaBroker)
 
-    @pytest.mark.skipif(
-        not REDIS_AVAILABLE,
-        reason="Requires optional dependency: redis"
-    )
+    @pytest.mark.skipif(not REDIS_AVAILABLE, reason="Requires optional dependency: redis")
     def test_parse_broker_url_redis(self):
         """Test _parse_broker_url with redis:// (lines 317-319)."""
         from sagaz.outbox.brokers.redis import RedisBroker
@@ -144,10 +133,7 @@ class TestSagaConfigCoverage:
         broker = SagaConfig._parse_broker_url("redis://localhost:6379/0")
         assert isinstance(broker, RedisBroker)
 
-    @pytest.mark.skipif(
-        not AIOPIKA_AVAILABLE,
-        reason="Requires optional dependency: aio-pika"
-    )
+    @pytest.mark.skipif(not AIOPIKA_AVAILABLE, reason="Requires optional dependency: aio-pika")
     def test_parse_broker_url_rabbitmq(self):
         """Test _parse_broker_url with rabbitmq:// (lines 321-323)."""
         from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
@@ -155,10 +141,7 @@ class TestSagaConfigCoverage:
         broker = SagaConfig._parse_broker_url("rabbitmq://localhost:5672")
         assert isinstance(broker, RabbitMQBroker)
 
-    @pytest.mark.skipif(
-        not AIOPIKA_AVAILABLE,
-        reason="Requires optional dependency: aio-pika"
-    )
+    @pytest.mark.skipif(not AIOPIKA_AVAILABLE, reason="Requires optional dependency: aio-pika")
     def test_parse_broker_url_amqp(self):
         """Test _parse_broker_url with amqp:// (lines 321-323)."""
         from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker

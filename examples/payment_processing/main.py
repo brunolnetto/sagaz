@@ -1,4 +1,3 @@
-
 # ============================================
 # EXAMPLE 2: PAYMENT PROCESSING WITH FALLBACK
 # ============================================
@@ -91,4 +90,3 @@ class PaymentProcessingSaga(ClassicSaga):
             "transaction_id": payment_result["transaction_id"],
             "recorded_at": datetime.now().isoformat(),
         }
-

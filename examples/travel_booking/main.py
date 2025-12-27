@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 # EXAMPLE: MULTI-SERVICE BOOKING
 # ============================================
 
+
 class TravelBookingSaga(ClassicSaga):
     """
     Travel booking across multiple services (flight + hotel + car rental)
@@ -65,9 +66,7 @@ class TravelBookingSaga(ClassicSaga):
             )
 
         # Step 4: Send itinerary
-        await self.add_step(
-            name="send_itinerary", action=self._send_itinerary, timeout=10.0
-        )
+        await self.add_step(name="send_itinerary", action=self._send_itinerary, timeout=10.0)
 
     async def _book_flight(self, ctx: SagaContext) -> dict[str, Any]:
         """Book flight"""
