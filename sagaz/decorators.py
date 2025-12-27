@@ -370,7 +370,7 @@ class Saga:
             ...     "compensated_steps": ["charge", "reserve"]
             ... })
         """
-        from sagaz.mermaid import MermaidGenerator, StepInfo, HighlightTrail
+        from sagaz.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
         # Convert steps to StepInfo format
         steps = [
