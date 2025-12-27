@@ -28,7 +28,9 @@ class HighlightTrail:
     failed_step: str | None = None
     compensated: set[str] = field(default_factory=set)
     step_durations: dict[str, str] = field(default_factory=dict)  # step_name -> "120ms"
-    comp_durations: dict[str, str] = field(default_factory=dict)  # step_name -> "50ms" (for compensation)
+    comp_durations: dict[str, str] = field(
+        default_factory=dict
+    )  # step_name -> "50ms" (for compensation)
     total_duration: str | None = None  # Overall saga duration
 
     @classmethod
@@ -130,8 +132,7 @@ class MermaidGenerator:
             # When we have a trail, only show nodes that were touched
             if has_trail:
                 was_executed = (
-                    step.name in self.trail.completed or
-                    step.name == self.trail.failed_step
+                    step.name in self.trail.completed or step.name == self.trail.failed_step
                 )
                 if not was_executed:
                     continue
@@ -178,7 +179,9 @@ class MermaidGenerator:
 
             comp_duration = self.trail.comp_durations.get(step.name)
             if comp_duration:
-                self._lines.append(f'    comp_{step.name}{{{{"undo {step.name}<br/>{comp_duration}"}}}}')
+                self._lines.append(
+                    f'    comp_{step.name}{{{{"undo {step.name}<br/>{comp_duration}"}}}}'
+                )
             else:
                 self._lines.append(f"    comp_{step.name}{{{{undo {step.name}}}}}")
 
@@ -209,8 +212,7 @@ class MermaidGenerator:
     # -------------------------------------------------------------------------
 
     def _add_link(
-        self, src: str, arrow: str, dst: str,
-        highlight: bool = False, link_type: str = "success"
+        self, src: str, arrow: str, dst: str, highlight: bool = False, link_type: str = "success"
     ) -> None:
         """Add a link to the diagram, optionally highlighting it.
 
@@ -314,15 +316,21 @@ class MermaidGenerator:
                 # Only show edges for actually compensated steps
                 if is_compensated and step.has_compensation:
                     self._add_link(
-                        step.name, "-. compensate .->", f"comp_{step.name}",
-                        highlight=True, link_type="compensation"
+                        step.name,
+                        "-. compensate .->",
+                        f"comp_{step.name}",
+                        highlight=True,
+                        link_type="compensation",
                     )
             else:
                 # Static diagram: show all potential edges
                 if step.has_compensation:
                     self._add_link(
-                        step.name, "-. compensate .->", f"comp_{step.name}",
-                        highlight=False, link_type="compensation"
+                        step.name,
+                        "-. compensate .->",
+                        f"comp_{step.name}",
+                        highlight=False,
+                        link_type="compensation",
                     )
                 else:
                     # Non-compensable: point to nearest compensable ancestor
@@ -330,8 +338,11 @@ class MermaidGenerator:
                     if ancestors:
                         target = sorted(ancestors)[0]
                         self._add_link(
-                            step.name, "-. compensate .->", f"comp_{target}",
-                            highlight=False, link_type="compensation"
+                            step.name,
+                            "-. compensate .->",
+                            f"comp_{target}",
+                            highlight=False,
+                            link_type="compensation",
                         )
 
     def _add_compensation_chain(self) -> None:
@@ -356,8 +367,11 @@ class MermaidGenerator:
                 if has_trail and not d_comp:
                     continue
                 self._add_link(
-                    f"comp_{step.name}", "-.->", f"comp_{dep}",
-                    highlight=True, link_type="compensation"
+                    f"comp_{step.name}",
+                    "-.->",
+                    f"comp_{dep}",
+                    highlight=True,
+                    link_type="compensation",
                 )
 
     def _add_sequential_compensation_chain(self, has_trail: bool) -> None:
@@ -370,8 +384,7 @@ class MermaidGenerator:
             if has_trail and not (s1_comp and s2_comp):
                 continue
             self._add_link(
-                f"comp_{s1}", "-.->", f"comp_{s2}",
-                highlight=True, link_type="compensation"
+                f"comp_{s1}", "-.->", f"comp_{s2}", highlight=True, link_type="compensation"
             )
 
     def _add_rollback_edges(self) -> None:
@@ -388,8 +401,7 @@ class MermaidGenerator:
             if has_trail and not is_comp:
                 continue
             self._add_link(
-                f"comp_{step.name}", "-.->", "ROLLED_BACK",
-                highlight=True, link_type="compensation"
+                f"comp_{step.name}", "-.->", "ROLLED_BACK", highlight=True, link_type="compensation"
             )
 
     def _get_compensable_ancestors(self, step: StepInfo) -> set[str]:
@@ -449,7 +461,9 @@ class MermaidGenerator:
     def _apply_node_classes(self) -> None:
         """Apply classes to step and compensation nodes."""
         step_names = [s.name for s in self.steps]
-        comp_names = [f"comp_{s.name}" for s in self._compensable_steps] if self.show_compensation else []
+        comp_names = (
+            [f"comp_{s.name}" for s in self._compensable_steps] if self.show_compensation else []
+        )
 
         if self.trail.completed or self.trail.failed_step or self.trail.compensated:
             self._apply_trail_node_classes(step_names, comp_names)
