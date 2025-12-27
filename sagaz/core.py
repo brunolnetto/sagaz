@@ -809,7 +809,7 @@ class Saga(ABC):
 
     async def _execute_step_with_retry(self, step: "SagaStep") -> None:
         """Execute a step with retry logic and exponential backoff"""
-        last_error = None
+        last_error: SagaTimeoutError | SagaStepError | None = None
         total_attempts = step.max_retries + 1  # Initial attempt + retries
 
         for attempt in range(total_attempts):
@@ -825,7 +825,7 @@ class Saga(ABC):
                 )
 
             except SagaStepError as e:
-                last_error = e  # type: ignore[assignment]
+                last_error = e
                 logger.warning(
                     f"Step '{step.name}' failed (attempt {attempt + 1}/{total_attempts}): {e}"
                 )
@@ -838,7 +838,8 @@ class Saga(ABC):
 
         # All retries exhausted
         step.error = last_error
-        raise last_error  # type: ignore[misc]
+        assert last_error is not None, "last_error should be set after exhausting retries"
+        raise last_error
 
     async def _execute_step(self, step: "SagaStep") -> None:
         """Execute a single step with timeout"""
@@ -907,7 +908,7 @@ class Saga(ABC):
 
     async def _compensate_step_with_retry(self, step: "SagaStep") -> None:
         """Compensate a step with retry logic"""
-        last_error = None
+        last_error: SagaCompensationError | None = None
         max_comp_retries = 3
 
         for attempt in range(max_comp_retries):
@@ -928,7 +929,8 @@ class Saga(ABC):
                 await asyncio.sleep(backoff_time)
 
         # All retries exhausted
-        raise last_error  # type: ignore[misc]
+        assert last_error is not None, "last_error should be set after exhausting retries"
+        raise last_error
 
     async def _compensate_step(self, step: "SagaStep") -> None:
         """Compensate a single step with timeout"""
@@ -936,9 +938,12 @@ class Saga(ABC):
             step.status = SagaStepStatus.COMPENSATING
             logger.info(f"Compensating step: {step.name}")
 
+            # Type assertion - compensation must exist if _compensate_step is called
+            assert step.compensation is not None, f"No compensation defined for step '{step.name}'"
+
             # Pass the step result to compensation for context
             await asyncio.wait_for(
-                await self._invoke(step.compensation, step.result, self.context),  # type: ignore[arg-type]
+                self._invoke(step.compensation, step.result, self.context),
                 timeout=step.compensation_timeout,
             )
 

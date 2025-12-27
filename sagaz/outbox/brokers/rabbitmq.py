@@ -31,10 +31,10 @@ try:
     RABBITMQ_AVAILABLE = True
 except ImportError:
     RABBITMQ_AVAILABLE = False
-    aio_pika = None  # pragma: no cover
-    Message = None  # pragma: no cover
-    DeliveryMode = None  # pragma: no cover
-    ExchangeType = None  # pragma: no cover
+    aio_pika = None  # type: ignore[assignment]  # pragma: no cover
+    Message = None  # type: ignore[assignment, misc]  # pragma: no cover
+    DeliveryMode = None  # type: ignore[assignment, misc]  # pragma: no cover
+    ExchangeType = None  # type: ignore[assignment, misc]  # pragma: no cover
 
 logger = logging.getLogger(__name__)
 
@@ -185,7 +185,7 @@ class RabbitMQBroker(BaseBroker):
             rmq_message = Message(
                 body=message,
                 delivery_mode=DeliveryMode.PERSISTENT,
-                headers=headers or {},
+                headers=headers or {},  # type: ignore[arg-type]
                 content_type="application/json",
             )
 
@@ -252,7 +252,7 @@ class RabbitMQBroker(BaseBroker):
         queue = await self._channel.declare_queue(  # pragma: no cover
             queue_name,
             durable=durable,
-            arguments=arguments or None,
+            arguments=arguments or None,  # type: ignore[arg-type]
         )
 
         await queue.bind(self._exchange, routing_key)  # pragma: no cover

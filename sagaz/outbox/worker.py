@@ -348,8 +348,8 @@ def get_storage():
 def _get_broker_url(broker_type: str) -> str:
     """Get broker URL from environment based on broker type."""
     if broker_type == "rabbitmq":
-        return os.getenv("RABBITMQ_URL") or os.getenv("BROKER_URL")  # type: ignore[return-value]
-    return os.getenv("KAFKA_BOOTSTRAP_SERVERS") or os.getenv("BROKER_URL")  # type: ignore[return-value]
+        return os.getenv("RABBITMQ_URL", "") or os.getenv("BROKER_URL", "")
+    return os.getenv("KAFKA_BOOTSTRAP_SERVERS", "") or os.getenv("BROKER_URL", "")
 
 
 def _create_kafka_broker(broker_url: str):

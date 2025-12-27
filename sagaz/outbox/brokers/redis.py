@@ -36,7 +36,7 @@ try:
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
-    redis = None
+    redis = None  # type: ignore[assignment]
 
 
 logger = logging.getLogger(__name__)
