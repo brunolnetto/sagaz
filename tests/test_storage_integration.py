@@ -41,19 +41,9 @@ except ImportError:
 # POSTGRESQL INTEGRATION TESTS
 # ============================================
 
+# Note: postgres_container fixture is now defined in conftest.py
+# with session scope for better performance (shared across all tests)
 
-@pytest.fixture(scope="module")
-def postgres_container():
-    """Start PostgreSQL container for testing."""
-    if not TESTCONTAINERS_AVAILABLE:
-        pytest.skip("testcontainers not available")
-
-    container = PostgresContainer("postgres:15-alpine")
-    container.start()
-
-    yield container
-
-    container.stop()
 
 
 @pytest.fixture
@@ -83,6 +73,7 @@ async def pg_storage(postgres_container):
 @pytest.mark.integration
 @pytest.mark.skipif(not TESTCONTAINERS_AVAILABLE, reason="testcontainers not available")
 @pytest.mark.skipif(not ASYNCPG_AVAILABLE, reason="asyncpg not available")
+@pytest.mark.xdist_group(name="postgres")
 class TestPostgreSQLIntegration:
     """Integration tests for PostgreSQL storage."""
 
@@ -206,19 +197,9 @@ class TestPostgreSQLIntegration:
 # REDIS INTEGRATION TESTS
 # ============================================
 
+# Note: redis_container fixture is now defined in conftest.py
+# with session scope for better performance (shared across all tests)
 
-@pytest.fixture(scope="module")
-def redis_container():
-    """Start Redis container for testing."""
-    if not TESTCONTAINERS_AVAILABLE:
-        pytest.skip("testcontainers not available")
-
-    container = RedisContainer("redis:7-alpine")
-    container.start()
-
-    yield container
-
-    container.stop()
 
 
 @pytest.fixture
@@ -249,6 +230,7 @@ async def redis_storage(redis_container):
 @pytest.mark.integration
 @pytest.mark.skipif(not TESTCONTAINERS_AVAILABLE, reason="testcontainers not available")
 @pytest.mark.skipif(not REDIS_AVAILABLE, reason="redis not available")
+@pytest.mark.xdist_group(name="redis")
 class TestRedisIntegration:
     """Integration tests for Redis storage."""
 
@@ -373,6 +355,7 @@ async def redis_broker(redis_container):
 @pytest.mark.integration
 @pytest.mark.skipif(not TESTCONTAINERS_AVAILABLE, reason="testcontainers not available")
 @pytest.mark.skipif(not REDIS_AVAILABLE, reason="redis not available")
+@pytest.mark.xdist_group(name="redis")
 class TestRedisBrokerIntegration:
     """Integration tests for Redis broker."""
 

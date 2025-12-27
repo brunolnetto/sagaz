@@ -34,27 +34,9 @@ from sagaz.storage.postgresql import PostgreSQLSagaStorage
 from sagaz.storage.redis import RedisSagaStorage
 from sagaz.types import SagaStatus, SagaStepStatus
 
+# Note: postgres_container and redis_container fixtures are now defined
+# in conftest.py with session scope for better performance (shared across all tests)
 
-# Session-scoped fixtures - containers are expensive to start
-# These are shared across the entire test session
-@pytest.fixture(scope="session")
-def postgres_container():
-    """Fixture that provides a PostgreSQL container for the test session
-
-    Note: Container startup takes ~25-30s. This is shared across all PostgreSQL tests.
-    """
-    with PostgresContainer("postgres:16-alpine") as postgres:
-        yield postgres
-
-
-@pytest.fixture(scope="session")
-def redis_container():
-    """Fixture that provides a Redis container for the test session
-
-    Note: Container startup takes ~5-8s. This is shared across all Redis tests.
-    """
-    with RedisContainer("redis:7-alpine") as redis:
-        yield redis
 
 
 # Mark to run storage tests sequentially to avoid container conflicts
