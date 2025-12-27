@@ -13,7 +13,7 @@ This measures the theoretical maximum your machine can handle.
 Usage:
     # First, port-forward PostgreSQL
     kubectl port-forward -nsagaz svc/postgresql 5433:5432 &
-    
+
     # Run benchmark
     python scripts/high_throughput_benchmark.py --events 100000 --workers 20
 """
@@ -42,6 +42,7 @@ try:
     from rich.table import Table
     from rich.panel import Panel
     from rich.live import Live
+
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
@@ -54,7 +55,7 @@ console = Console() if RICH_AVAILABLE else None
 
 class HighThroughputBenchmark:
     """Optimized benchmark for maximum throughput testing."""
-    
+
     def __init__(
         self,
         database_url: str = DATABASE_URL,
@@ -65,7 +66,7 @@ class HighThroughputBenchmark:
         self.num_workers = num_workers
         self.batch_size = batch_size
         self.pool: Optional[asyncpg.Pool] = None
-        
+
         # Stats
         self.events_inserted = 0
         self.events_processed = 0
@@ -73,7 +74,7 @@ class HighThroughputBenchmark:
         self.process_start_time = 0
         self._lock = asyncio.Lock()
         self._stop = False
-    
+
     async def connect(self):
         """Connect with optimized pool settings."""
         # Use smaller pool to avoid overwhelming port-forward
@@ -86,22 +87,22 @@ class HighThroughputBenchmark:
             # Performance tuning
             statement_cache_size=100,
         )
-        
+
         if RICH_AVAILABLE:
             console.print("[green]✓[/green] Connected to PostgreSQL")
-    
+
     async def close(self):
         """Close connection pool."""
         if self.pool:
             await self.pool.close()
-    
+
     async def clear_outbox(self):
         """Clear all events for clean benchmark."""
         async with self.pool.acquire() as conn:
             result = await conn.execute("DELETE FROM saga_outbox")
             if RICH_AVAILABLE:
                 console.print(f"[dim]Cleared outbox: {result}[/dim]")
-    
+
     async def batch_insert_with_copy(
         self,
         num_events: int,
@@ -109,55 +110,66 @@ class HighThroughputBenchmark:
     ) -> float:
         """
         Insert events using PostgreSQL COPY for maximum speed.
-        
+
         COPY is 10-100x faster than INSERT for bulk data.
         """
         self.insert_start_time = time.time()
         self.events_inserted = 0
-        
+
         async with self.pool.acquire() as conn:
             for batch_start in range(0, num_events, batch_size):
                 batch_count = min(batch_size, num_events - batch_start)
-                
+
                 # Build data for COPY
                 records = []
                 for i in range(batch_count):
                     event_id = uuid.uuid4()
                     saga_id = str(uuid.uuid4())
                     aggregate_id = str(uuid.uuid4())
-                    payload = json.dumps({
-                        "index": batch_start + i,
-                        "data": f"Event {batch_start + i}",
-                        "ts": datetime.now(timezone.utc).isoformat(),
-                    })
+                    payload = json.dumps(
+                        {
+                            "index": batch_start + i,
+                            "data": f"Event {batch_start + i}",
+                            "ts": datetime.now(timezone.utc).isoformat(),
+                        }
+                    )
                     headers = json.dumps({"batch": batch_start // batch_size})
-                    
-                    records.append((
-                        event_id,
-                        saga_id,
-                        "benchmark",
-                        aggregate_id,
-                        "BenchmarkEvent",
-                        payload,
-                        headers,
-                        "pending",
-                        datetime.now(timezone.utc),
-                        0,  # retry_count
-                    ))
-                
+
+                    records.append(
+                        (
+                            event_id,
+                            saga_id,
+                            "benchmark",
+                            aggregate_id,
+                            "BenchmarkEvent",
+                            payload,
+                            headers,
+                            "pending",
+                            datetime.now(timezone.utc),
+                            0,  # retry_count
+                        )
+                    )
+
                 # Use COPY for fast insert
                 await conn.copy_records_to_table(
                     "saga_outbox",
                     records=records,
                     columns=[
-                        "event_id", "saga_id", "aggregate_type", "aggregate_id",
-                        "event_type", "payload", "headers", "status", "created_at",
-                        "retry_count"
+                        "event_id",
+                        "saga_id",
+                        "aggregate_type",
+                        "aggregate_id",
+                        "event_type",
+                        "payload",
+                        "headers",
+                        "status",
+                        "created_at",
+                        "retry_count",
                     ],
                 )
-                
+
                 self.events_inserted += batch_count
-                
+
                 if RICH_AVAILABLE and batch_start % 10000 == 0:
                     elapsed = time.time() - self.insert_start_time
                     rate = self.events_inserted / elapsed if elapsed > 0 else 0
@@ -165,14 +177,14 @@ class HighThroughputBenchmark:
                         f"  [cyan]Inserted:[/cyan] {self.events_inserted:,} | "
                         f"[green]Rate:[/green] {rate:,.0f}/sec"
                     )
-        
+
         insert_time = time.time() - self.insert_start_time
         return insert_time
-    
+
     async def process_batch_worker(self, worker_id: int):
         """
         Simulated high-speed worker that processes events.
-        
+
         This simulates the outbox worker pattern but with:
         - In-memory "publish" (no actual broker)
         - Batch status updates
@@ -180,7 +192,8 @@ class HighThroughputBenchmark:
         while not self._stop:
             async with self.pool.acquire() as conn:
                 # Claim batch with FOR UPDATE SKIP LOCKED
-                events = await conn.fetch("""
+                events = await conn.fetch(
+                    """
                     UPDATE saga_outbox
                     SET status = 'claimed', 
                         worker_id = $1,
@@ -192,28 +205,34 @@ class HighThroughputBenchmark:
                         FOR UPDATE SKIP LOCKED
                     )
                     RETURNING event_id
-                """, f"worker-{worker_id}", self.batch_size)
-                
+                """,
+                    f"worker-{worker_id}",
+                    self.batch_size,
+                )
+
                 if not events:
                     # No more events
                     await asyncio.sleep(0.01)
                     continue
-                
+
                 event_ids = [e["event_id"] for e in events]
-                
+
                 # Simulate "publish" - in-memory, instant
                 # In real scenario, this would be broker.publish()
-                
+
                 # Batch update to SENT
-                await conn.execute("""
+                await conn.execute(
+                    """
                     UPDATE saga_outbox
                     SET status = 'sent', sent_at = NOW()
                     WHERE event_id = ANY($1::uuid[])
-                """, event_ids)
-                
+                """,
+                    event_ids,
+                )
+
                 async with self._lock:
                     self.events_processed += len(event_ids)
-    
+
     async def _monitor_progress_rich(self, total_events: int) -> bool:
         """Monitor progress with Rich UI. Returns True if stalled."""
         with Progress(
@@ -227,70 +246,66 @@ class HighThroughputBenchmark:
             console=console,
         ) as progress:
             task = progress.add_task(
-                f"Processing with {self.num_workers} workers...",
-                total=total_events,
-                rate="0"
+                f"Processing with {self.num_workers} workers...", total=total_events, rate="0"
             )
-            
+
             while self.events_processed < total_events:
                 await asyncio.sleep(0.5)
                 elapsed = time.time() - self.process_start_time
                 rate = self.events_processed / elapsed if elapsed > 0 else 0
-                progress.update(
-                    task,
-                    completed=self.events_processed,
-                    rate=f"{rate:,.0f}"
-                )
-                
+                progress.update(task, completed=self.events_processed, rate=f"{rate:,.0f}")
+
                 if elapsed > 120 and self.events_processed < total_events * 0.9:
                     console.print("[red]Warning: Processing appears stalled[/red]")
                     return True
         return False
-    
+
     async def _monitor_progress_simple(self, total_events: int):
         """Monitor progress with simple output."""
         while self.events_processed < total_events:
             await asyncio.sleep(1)
             elapsed = time.time() - self.process_start_time
             rate = self.events_processed / elapsed if elapsed > 0 else 0
-            print(f"  Processed: {self.events_processed:,}/{total_events:,} | Rate: {rate:,.0f}/sec", end="\r")
-    
+            print(
+                f"  Processed: {self.events_processed:,}/{total_events:,} | Rate: {rate:,.0f}/sec",
+                end="\r",
+            )
+
     async def _stop_workers(self, workers: list):
         """Stop all worker tasks."""
         self._stop = True
         await asyncio.sleep(0.1)
-        
+
         for w in workers:
             w.cancel()
             try:
                 await w
             except asyncio.CancelledError:
                 pass
-    
+
     async def run_processing_workers(self, total_events: int):
         """Run parallel workers to process events."""
         self.process_start_time = time.time()
         self.events_processed = 0
         self._stop = False
-        
+
         # Create worker tasks
         workers = [
-            asyncio.create_task(self.process_batch_worker(i))
-            for i in range(self.num_workers)
+            asyncio.create_task(self.process_batch_worker(i)) for i in range(self.num_workers)
         ]
-        
+
         # Monitor progress
         if RICH_AVAILABLE:
             await self._monitor_progress_rich(total_events)
         else:
             await self._monitor_progress_simple(total_events)
-        
+
         # Stop workers
         await self._stop_workers(workers)
-        
+
         process_time = time.time() - self.process_start_time
         return process_time
-    
+
     async def get_stats(self) -> dict:
         """Get current outbox statistics."""
         async with self.pool.acquire() as conn:
@@ -312,69 +327,71 @@ async def run_benchmark(
     db_url: str = DATABASE_URL,
 ):
     """Run the high-throughput benchmark."""
-    
+
     if RICH_AVAILABLE:
-        console.print(Panel.fit(
-            f"[bold]High-Throughput Outbox Benchmark[/bold]\n"
-            f"Events: {num_events:,} | Workers: {num_workers} | Batch: {batch_size}",
-            border_style="bold blue"
-        ))
+        console.print(
+            Panel.fit(
+                f"[bold]High-Throughput Outbox Benchmark[/bold]\n"
+                f"Events: {num_events:,} | Workers: {num_workers} | Batch: {batch_size}",
+                border_style="bold blue",
+            )
+        )
     else:
         print(f"\n=== High-Throughput Benchmark ===")
         print(f"Events: {num_events:,} | Workers: {num_workers} | Batch: {batch_size}")
-    
+
     benchmark = HighThroughputBenchmark(
         database_url=db_url,
         num_workers=num_workers,
         batch_size=batch_size,
     )
-    
+
     try:
         await benchmark.connect()
-        
+
         # Clear existing events
         await benchmark.clear_outbox()
-        
+
         # Phase 1: Insert events
         if RICH_AVAILABLE:
             console.rule("[bold cyan]Phase 1: Bulk Insert (COPY)")
         else:
             print("\n--- Phase 1: Bulk Insert ---")
-        
+
         insert_time = await benchmark.batch_insert_with_copy(
             num_events=num_events,
             batch_size=10000,
         )
         insert_rate = num_events / insert_time
-        
+
         if RICH_AVAILABLE:
             console.print(f"[green]✓[/green] Inserted {num_events:,} events in {insert_time:.2f}s")
             console.print(f"  [bold]Insert Rate:[/bold] {insert_rate:,.0f} events/sec")
         else:
             print(f"Inserted {num_events:,} events in {insert_time:.2f}s ({insert_rate:,.0f}/sec)")
-        
+
         # Phase 2: Process events
         if RICH_AVAILABLE:
             console.rule("[bold cyan]Phase 2: Process Events (In-Memory Broker)")
         else:
             print("\n--- Phase 2: Process Events ---")
-        
+
         process_time = await benchmark.run_processing_workers(num_events)
         process_rate = num_events / process_time
-        
+
         # Get final stats
         stats = await benchmark.get_stats()
-        
+
         # Results
         total_time = insert_time + process_time
         overall_rate = num_events / total_time
-        
+
         if RICH_AVAILABLE:
             console.print()
             results = Table(title="Benchmark Results", border_style="green")
             results.add_column("Metric", style="cyan")
             results.add_column("Value", justify="right", style="bold")
-            
+
             results.add_row("Total Events", f"{num_events:,}")
             results.add_row("Workers", str(num_workers))
             results.add_row("Batch Size", str(batch_size))
@@ -390,30 +407,34 @@ async def run_benchmark(
             results.add_row("─" * 20, "─" * 15)
             results.add_row("Events Sent", f"{stats['sent']:,}")
             results.add_row("Events Pending", f"{stats['pending']:,}")
-            
+
             console.print(results)
-            
+
             # Assessment
             if process_rate >= 5000:
                 console.print("\n[bold green]🚀 EXCELLENT![/bold green] High-throughput achieved!")
             elif process_rate >= 2000:
-                console.print("\n[bold yellow]✓ GOOD[/bold yellow] - Solid throughput for local testing")
+                console.print(
+                    "\n[bold yellow]✓ GOOD[/bold yellow] - Solid throughput for local testing"
+                )
             elif process_rate >= 500:
                 console.print("\n[yellow]⚠ MODERATE[/yellow] - Consider more workers or resources")
             else:
                 console.print("\n[red]✗ LOW[/red] - Check system resources")
-            
+
             # Time to 1M
             time_to_1m = 1_000_000 / process_rate
-            console.print(f"\n[dim]Time to process 1M events at this rate: {time_to_1m:.1f}s ({time_to_1m/60:.1f} min)[/dim]")
-        
+            console.print(
+                f"\n[dim]Time to process 1M events at this rate: {time_to_1m:.1f}s ({time_to_1m / 60:.1f} min)[/dim]"
+            )
+
         else:
             print(f"\n=== Results ===")
             print(f"Insert: {insert_time:.2f}s ({insert_rate:,.0f}/sec)")
             print(f"Process: {process_time:.2f}s ({process_rate:,.0f}/sec)")
             print(f"Total: {total_time:.2f}s ({overall_rate:,.0f}/sec)")
             print(f"Time to 1M: {1_000_000 / process_rate:.1f}s")
-        
+
         return {
             "events": num_events,
             "insert_time": insert_time,
@@ -423,7 +444,7 @@ async def run_benchmark(
             "total_time": total_time,
             "overall_rate": overall_rate,
         }
-        
+
     finally:
         await benchmark.close()
 
@@ -432,36 +453,27 @@ async def main():
     parser = argparse.ArgumentParser(
         description="High-Throughput Benchmark forsagaz Outbox Pattern"
     )
-    
+
     parser.add_argument(
-        "--events", "-e",
+        "--events",
+        "-e",
         type=int,
         default=100000,
-        help="Number of events to process (default: 100000)"
+        help="Number of events to process (default: 100000)",
     )
-    
+
     parser.add_argument(
-        "--workers", "-w",
-        type=int,
-        default=20,
-        help="Number of parallel workers (default: 20)"
+        "--workers", "-w", type=int, default=20, help="Number of parallel workers (default: 20)"
     )
-    
+
     parser.add_argument(
-        "--batch", "-b",
-        type=int,
-        default=1000,
-        help="Batch size per worker (default: 1000)"
+        "--batch", "-b", type=int, default=1000, help="Batch size per worker (default: 1000)"
     )
-    
-    parser.add_argument(
-        "--db-url",
-        default=DATABASE_URL,
-        help="PostgreSQL connection URL"
-    )
-    
+
+    parser.add_argument("--db-url", default=DATABASE_URL, help="PostgreSQL connection URL")
+
     args = parser.parse_args()
-    
+
     await run_benchmark(
         num_events=args.events,
         num_workers=args.workers,

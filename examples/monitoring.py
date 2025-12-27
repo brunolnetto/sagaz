@@ -29,7 +29,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-
 # ============================================
 # MONITORING & OBSERVABILITY
 # ============================================
@@ -67,12 +66,10 @@ class MonitoredSagaOrchestrator(SagaOrchestrator):
             self.metrics["total_rolled_back"] += 1
 
         # Update average execution time
-        total_time = self.metrics["average_execution_time"] * (
-            self.metrics["total_executed"] - 1
-        )
-        self.metrics["average_execution_time"] = (total_time + result.execution_time) / self.metrics[
-            "total_executed"
-        ]
+        total_time = self.metrics["average_execution_time"] * (self.metrics["total_executed"] - 1)
+        self.metrics["average_execution_time"] = (
+            total_time + result.execution_time
+        ) / self.metrics["total_executed"]
 
         logger.info(
             f"Saga {saga.name} completed in {result.execution_time:.2f}s - "

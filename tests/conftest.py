@@ -127,6 +127,7 @@ def k8s_manifests():
 try:
     from testcontainers.postgres import PostgresContainer
     from testcontainers.redis import RedisContainer
+
     TESTCONTAINERS_AVAILABLE = True
 except ImportError:
     TESTCONTAINERS_AVAILABLE = False
@@ -194,12 +195,14 @@ def redis_url(redis_container):
 # Check for storage backends
 try:
     import asyncpg
+
     ASYNCPG_AVAILABLE = True
 except ImportError:
     ASYNCPG_AVAILABLE = False
 
 try:
     import redis.asyncio
+
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
@@ -245,6 +248,3 @@ def redis_storage_factory(redis_url):
         return RedisSagaStorage(redis_url=redis_url, **kwargs)
 
     return factory
-
-
-

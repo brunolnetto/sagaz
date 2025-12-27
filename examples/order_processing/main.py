@@ -80,10 +80,16 @@ class OrderProcessingSaga(ClassicSaga):
         for item in self.items:
             # Simulate inventory failure for large quantities
             if item["quantity"] > 100:
-                raise SagaStepError(f"Insufficient inventory for item {item['id']}: requested {item['quantity']}, available 100")
-            
+                raise SagaStepError(
+                    f"Insufficient inventory for item {item['id']}: requested {item['quantity']}, available 100"
+                )
+
             reserved_items.append(
-                {"item_id": item["id"], "quantity": item["quantity"], "reservation_id": f"RES-{item['id']}"}
+                {
+                    "item_id": item["id"],
+                    "quantity": item["quantity"],
+                    "reservation_id": f"RES-{item['id']}",
+                }
             )
 
         return {"reservations": reserved_items, "timestamp": datetime.now().isoformat()}
@@ -107,7 +113,9 @@ class OrderProcessingSaga(ClassicSaga):
 
         # Simulate payment failure for large amounts (more realistic than random)
         if self.total_amount > 10000:
-            raise SagaStepError(f"Payment declined: amount ${self.total_amount} exceeds credit limit")
+            raise SagaStepError(
+                f"Payment declined: amount ${self.total_amount} exceeds credit limit"
+            )
 
         payment_result = {
             "transaction_id": f"TXN-{self.order_id}",
@@ -178,8 +186,13 @@ class OrderProcessingSaga(ClassicSaga):
         # Simulate database update
         await asyncio.sleep(0.05)
 
-        return {"order_id": self.order_id, "status": "COMPLETED", "updated_at": datetime.now().isoformat()}
-    
+        return {
+            "order_id": self.order_id,
+            "status": "COMPLETED",
+            "updated_at": datetime.now().isoformat(),
+        }
+
+
 async def demo_order_processing():
     """Demo: E-commerce order processing"""
     print("\n" + "=" * 60)

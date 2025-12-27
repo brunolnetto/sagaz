@@ -45,7 +45,6 @@ except ImportError:
 # with session scope for better performance (shared across all tests)
 
 
-
 @pytest.fixture
 async def pg_storage(postgres_container):
     """Create PostgreSQL storage instance."""
@@ -199,7 +198,6 @@ class TestPostgreSQLIntegration:
 
 # Note: redis_container fixture is now defined in conftest.py
 # with session scope for better performance (shared across all tests)
-
 
 
 @pytest.fixture

@@ -191,7 +191,7 @@ class SagaOrchestrator:
     async def get_statistics(self) -> dict[str, Any]:
         """Get orchestrator statistics"""
         from collections import Counter
-        
+
         async with self._lock:
             counts = Counter(saga.status for saga in self.sagas.values())
             return {
