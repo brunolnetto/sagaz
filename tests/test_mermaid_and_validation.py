@@ -368,7 +368,7 @@ class TestMermaidGeneration:
         assert "class step_c failure" in mermaid
         # Compensated steps have compensation class (order is alphabetical)
         assert "class comp_step_a,comp_step_b compensation" in mermaid
-        
+
         # Verify link highlighting - success (green) and compensation (yellow)
         assert "linkStyle" in mermaid
         assert "stroke:#28a745" in mermaid  # Green for success edges

@@ -379,7 +379,7 @@ class Saga(ABC):
         Returns:
             Mermaid diagram string that can be rendered in markdown.
         """
-        from sagaz.mermaid import MermaidGenerator, StepInfo, HighlightTrail
+        from sagaz.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
         # Convert steps to StepInfo format
         steps = [
