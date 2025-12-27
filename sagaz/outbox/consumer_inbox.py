@@ -28,10 +28,10 @@ except ImportError:
         def labels(self, *args, **kwargs):
             return self
 
-    def Counter(*args, **kwargs) -> _NoOpMetric:
+    def Counter(*args, **kwargs) -> _NoOpMetric:  # type: ignore[no-redef]
         return _NoOpMetric()
 
-    def Histogram(*args, **kwargs) -> _NoOpMetric:
+    def Histogram(*args, **kwargs) -> _NoOpMetric:  # type: ignore[no-redef]
         return _NoOpMetric()
 
 

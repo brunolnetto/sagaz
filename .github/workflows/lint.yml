@@ -44,6 +44,9 @@ jobs:
       - name: Run ruff formatter check
         run: uv run ruff format --check sagaz/ tests/
       
+      - name: Install optional dependencies for type checking
+        run: uv pip install redis aio-pika aiokafka prometheus_client asyncpg
+      
       - name: Run mypy type checker
         run: uv run mypy sagaz/ --ignore-missing-imports
 
