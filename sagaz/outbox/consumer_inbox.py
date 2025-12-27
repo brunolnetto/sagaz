@@ -28,10 +28,10 @@ except ImportError:
         def labels(self, *args, **kwargs):
             return self
 
-    def Counter(*args, **kwargs):
+    def Counter(*args, **kwargs) -> _NoOpMetric:  # type: ignore[no-redef]
         return _NoOpMetric()
 
-    def Histogram(*args, **kwargs):
+    def Histogram(*args, **kwargs) -> _NoOpMetric:  # type: ignore[no-redef]
         return _NoOpMetric()
 
 
@@ -131,4 +131,4 @@ class ConsumerInbox:
         )
 
         logger.info(f"Cleaned up {deleted} old inbox entries")
-        return deleted
+        return deleted  # type: ignore[no-any-return]

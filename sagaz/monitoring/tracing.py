@@ -38,9 +38,9 @@ try:
 except ImportError:
     # Graceful degradation if OpenTelemetry is not installed
     TRACING_AVAILABLE = False
-    trace = None
-    Span = None
-    StatusCode = None
+    trace = None  # type: ignore[assignment]
+    Span = None  # type: ignore[assignment, misc]
+    StatusCode = None  # type: ignore[assignment, misc]
 
 from sagaz.types import SagaStatus, SagaStepStatus
 
@@ -88,7 +88,7 @@ class SagaTracer:
         if TRACING_AVAILABLE:
             self.tracer = trace.get_tracer(__name__)
         else:
-            self.tracer = None
+            self.tracer = None  # type: ignore[assignment]
 
     @contextmanager
     def start_saga_trace(
@@ -265,7 +265,7 @@ class SagaTracer:
             return {}
 
         # Extract trace context as HTTP headers
-        carrier = {}
+        carrier: dict[str, str] = {}
         TraceContextTextMapPropagator().inject(carrier)
         return carrier
 
@@ -306,16 +306,16 @@ def trace_saga_action(tracer: SagaTracer):
 
             if not saga_context:
                 # No saga context found, execute without tracing
-                return await func(*args, **kwargs)
+                return await func(*args, **kwargs)  # type: ignore[no-any-return, misc]
 
             step_name = getattr(saga_context, "step_name", func.__name__)
             saga_id = getattr(saga_context, "saga_id", "unknown")
             saga_name = getattr(saga_context, "saga_name", "unknown")
 
             with tracer.start_step_trace(saga_id, saga_name, step_name, "action"):
-                return await func(*args, **kwargs)
+                return await func(*args, **kwargs)  # type: ignore[no-any-return, misc]
 
-        return wrapper
+        return wrapper  # type: ignore[return-value]
 
     return decorator
 
@@ -340,16 +340,16 @@ def trace_saga_compensation(tracer: SagaTracer):
                 saga_context = args[1]
 
             if not saga_context:
-                return await func(*args, **kwargs)
+                return await func(*args, **kwargs)  # type: ignore[no-any-return, misc]
 
             step_name = getattr(saga_context, "step_name", func.__name__)
             saga_id = getattr(saga_context, "saga_id", "unknown")
             saga_name = getattr(saga_context, "saga_name", "unknown")
 
             with tracer.start_step_trace(saga_id, saga_name, step_name, "compensation"):
-                return await func(*args, **kwargs)
+                return await func(*args, **kwargs)  # type: ignore[no-any-return, misc]
 
-        return wrapper
+        return wrapper  # type: ignore[return-value]
 
     return decorator
 
@@ -402,7 +402,7 @@ def setup_tracing(
 
             # Add span processor
             span_processor = BatchSpanProcessor(otlp_exporter)
-            trace.get_tracer_provider().add_span_processor(span_processor)
+            trace.get_tracer_provider().add_span_processor(span_processor)  # type: ignore[attr-defined]
 
         except ImportError:
             pass

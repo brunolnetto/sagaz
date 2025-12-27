@@ -274,8 +274,8 @@ class SagaCompensationGraph:
     def _find_cycle(self, deps: dict[str, set[str]], nodes: set[str]) -> list[str]:
         """Find a cycle in the dependency graph for error reporting."""
         # Simple cycle detection for error message
-        visited = set()
-        path = []
+        visited: set[str] = set()
+        path: list[str] = []
 
         def dfs(node: str) -> list[str] | None:
             if node in path:

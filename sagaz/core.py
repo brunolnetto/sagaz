@@ -356,7 +356,7 @@ class Saga(ABC):
         self,
         direction: str = "TB",
         show_compensation: bool = True,
-        highlight_trail: dict[str, any] | None = None,
+        highlight_trail: dict[str, Any] | None = None,
         show_state_markers: bool = True,
     ) -> str:
         """
@@ -462,7 +462,7 @@ class Saga(ABC):
         self,
         direction: str = "TB",
         show_compensation: bool = True,
-        highlight_trail: dict[str, any] | None = None,
+        highlight_trail: dict[str, Any] | None = None,
         show_state_markers: bool = True,
     ) -> str:
         """
@@ -496,7 +496,7 @@ class Saga(ABC):
     def _build_dag_batches(self) -> list[set[str]]:
         """Build batches using topological sort for DAG execution."""
         batches = []
-        executed = set()
+        executed: set[str] = set()
         remaining = {step.name for step in self.steps}
 
         while remaining:
@@ -825,7 +825,7 @@ class Saga(ABC):
                 )
 
             except SagaStepError as e:
-                last_error = e
+                last_error = e  # type: ignore[assignment]
                 logger.warning(
                     f"Step '{step.name}' failed (attempt {attempt + 1}/{total_attempts}): {e}"
                 )
@@ -838,7 +838,7 @@ class Saga(ABC):
 
         # All retries exhausted
         step.error = last_error
-        raise last_error
+        raise last_error  # type: ignore[misc]
 
     async def _execute_step(self, step: "SagaStep") -> None:
         """Execute a single step with timeout"""
@@ -928,7 +928,7 @@ class Saga(ABC):
                 await asyncio.sleep(backoff_time)
 
         # All retries exhausted
-        raise last_error
+        raise last_error  # type: ignore[misc]
 
     async def _compensate_step(self, step: "SagaStep") -> None:
         """Compensate a single step with timeout"""
@@ -938,7 +938,7 @@ class Saga(ABC):
 
             # Pass the step result to compensation for context
             await asyncio.wait_for(
-                self._invoke(step.compensation, step.result, self.context),
+                await self._invoke(step.compensation, step.result, self.context),  # type: ignore[arg-type]
                 timeout=step.compensation_timeout,
             )
 
@@ -967,7 +967,7 @@ class Saga(ABC):
     @property
     def current_state(self) -> str:
         """Get current state name"""
-        return self._state_machine.current_state.name
+        return self._state_machine.current_state.name  # type: ignore[no-any-return]
 
     def get_status(self) -> dict[str, Any]:
         """Get detailed saga status"""

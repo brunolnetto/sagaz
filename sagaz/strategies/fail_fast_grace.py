@@ -63,14 +63,14 @@ class FailFastWithGraceStrategy(ParallelExecutionStrategy):
         failed_task = self._find_failed_task(done)
         if failed_task:
             await self._handle_failure_with_grace(pending)
-            raise failed_task.exception()
+            raise failed_task.exception()  # type: ignore[misc]
         return [task.result() for task in tasks]
 
-    def _find_failed_task(self, done: set) -> asyncio.Task:
+    def _find_failed_task(self, done: set) -> asyncio.Task | None:
         """Find the first failed task in done set."""
         for task in done:
             if task.exception():
-                return task
+                return task  # type: ignore[no-any-return]
         return None
 
     async def _handle_failure_with_grace(self, pending: set):

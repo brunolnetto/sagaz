@@ -205,9 +205,9 @@ class PostgreSQLOutboxStorage(OutboxStorage):
             return event
 
         if hasattr(conn, "execute"):
-            return await _insert(conn)
+            return await _insert(conn)  # type: ignore[no-any-return]
         async with conn.acquire() as c:
-            return await _insert(c)
+            return await _insert(c)  # type: ignore[no-any-return]
 
     async def claim_batch(  # pragma: no cover
         self,
@@ -272,7 +272,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
                 WHERE event_id = $1
                 RETURNING *
             """
-            params = (event_id, status.value, error_message)
+            params = (event_id, status.value, error_message)  # type: ignore[assignment]
         elif status == OutboxStatus.PENDING:
             query = """
                 UPDATE saga_outbox
@@ -300,9 +300,9 @@ class PostgreSQLOutboxStorage(OutboxStorage):
             return self._row_to_event(row)
 
         if hasattr(conn, "fetchrow"):
-            return await _update(conn)
+            return await _update(conn)  # type: ignore[no-any-return]
         async with conn.acquire() as c:
-            return await _update(c)
+            return await _update(c)  # type: ignore[no-any-return]
 
     async def get_by_id(self, event_id: str) -> OutboxEvent | None:  # pragma: no cover
         """Get an event by its ID."""
@@ -384,7 +384,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
         query = "SELECT COUNT(*) FROM saga_outbox WHERE status = 'pending'"
 
         async with self._pool.acquire() as conn:
-            return await conn.fetchval(query)
+            return await conn.fetchval(query)  # type: ignore[no-any-return]
 
     async def get_dead_letter_events(
         self,
@@ -508,15 +508,15 @@ class PostgreSQLOutboxStorage(OutboxStorage):
                 return True  # Duplicate
 
         if connection:
-            return await _execute(connection)
-        async with self._pool.acquire() as conn, conn.transaction():
-            return await _execute(conn)
+            return await _execute(connection)  # type: ignore[no-any-return]
+        async with self._pool.acquire() as conn, conn.transaction():  # type: ignore[union-attr]
+            return await _execute(conn)  # type: ignore[no-any-return]
 
     async def update_inbox_duration(
         self, event_id: str, duration_ms: int
     ) -> None:  # pragma: no cover
         """Update processing duration for an event."""
-        async with self._pool.acquire() as conn:
+        async with self._pool.acquire() as conn:  # type: ignore[union-attr]
             await conn.execute(
                 """
                 UPDATE consumer_inbox
@@ -536,7 +536,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
         Returns:
             Number of entries deleted
         """
-        async with self._pool.acquire() as conn:
+        async with self._pool.acquire() as conn:  # type: ignore[union-attr]
             result = await conn.execute(
                 f"""
                 DELETE FROM consumer_inbox

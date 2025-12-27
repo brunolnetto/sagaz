@@ -118,7 +118,7 @@ def step(
 
     def decorator(func: F) -> F:
         # Store metadata on the function
-        func._saga_step_meta = StepMetadata(
+        func._saga_step_meta = StepMetadata(  # type: ignore[attr-defined]
             name=name,
             depends_on=depends_on or [],
             aggregate_type=aggregate_type,
@@ -166,7 +166,7 @@ def compensate(
     """
 
     def decorator(func: F) -> F:
-        func._saga_compensation_meta = CompensationMetadata(
+        func._saga_compensation_meta = CompensationMetadata(  # type: ignore[attr-defined]
             for_step=for_step,
             depends_on=depends_on or [],
             compensation_type=compensation_type,
@@ -337,7 +337,7 @@ class Saga:
         self,
         direction: str = "TB",
         show_compensation: bool = True,
-        highlight_trail: dict[str, any] | None = None,
+        highlight_trail: dict[str, Any] | None = None,
         show_state_markers: bool = True,
     ) -> str:
         """
@@ -467,7 +467,7 @@ class Saga:
         self,
         direction: str = "TB",
         show_compensation: bool = True,
-        highlight_trail: dict[str, any] | None = None,
+        highlight_trail: dict[str, Any] | None = None,
         show_state_markers: bool = True,
     ) -> str:
         """

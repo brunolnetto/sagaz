@@ -128,9 +128,9 @@ class RedisBroker(BaseBroker):
                 "Redis broker requires redis-py. Install with: pip install redis",
             )
 
-        super().__init__(config or RedisBrokerConfig())
+        super().__init__(config)
         self.config: RedisBrokerConfig = config or RedisBrokerConfig()
-        self._client: redis.Redis | None = None
+        self._client = None
 
     @classmethod
     def from_env(cls) -> "RedisBroker":
@@ -155,7 +155,7 @@ class RedisBroker(BaseBroker):
             )
 
             # Verify connection
-            await self._client.ping()
+            await self._client.ping()  # type: ignore[attr-defined]
 
             self._connected = True
             logger.info("Connected to Redis")
@@ -207,9 +207,9 @@ class RedisBroker(BaseBroker):
 
     def _build_stream_fields(
         self, topic: str, message: bytes, headers: dict[str, str] | None, key: str | None
-    ) -> dict[str, bytes]:
+    ) -> dict[bytes, bytes]:
         """Build fields dict for Redis stream entry."""
-        fields: dict[str, bytes] = {
+        fields: dict[bytes, bytes] = {
             b"topic": self._encode_value(topic),
             b"payload": message,
         }

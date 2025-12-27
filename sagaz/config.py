@@ -312,18 +312,18 @@ class SagaConfig:
 
             # Extract bootstrap servers from URL
             servers = url.replace("kafka://", "")
-            config = KafkaBrokerConfig(bootstrap_servers=servers)
-            return KafkaBroker(config)
+            kafka_config = KafkaBrokerConfig(bootstrap_servers=servers)
+            return KafkaBroker(kafka_config)
         if url.startswith("redis://"):
             from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
 
-            config = RedisBrokerConfig(url=url)
-            return RedisBroker(config)
+            redis_config = RedisBrokerConfig(url=url)
+            return RedisBroker(redis_config)
         if url.startswith(("amqp://", "rabbitmq://")):
             from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker, RabbitMQBrokerConfig
 
-            config = RabbitMQBrokerConfig(url=url.replace("rabbitmq://", "amqp://"))
-            return RabbitMQBroker(config)
+            rmq_config = RabbitMQBrokerConfig(url=url.replace("rabbitmq://", "amqp://"))
+            return RabbitMQBroker(rmq_config)
         if url == "memory://" or url == "":
             from sagaz.outbox.brokers.memory import InMemoryBroker
 
