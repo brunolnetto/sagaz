@@ -105,7 +105,7 @@ class PostgreSQLSagaStorage(SagaStorage):
                 )
 
                 # Initialize database schema
-                async with self._pool.acquire() as conn:
+                async with self._pool.acquire() as conn:  # type: ignore[attr-defined]
                     await conn.execute(self.CREATE_TABLES_SQL)
 
             except Exception as e:
@@ -253,7 +253,7 @@ class PostgreSQLSagaStorage(SagaStorage):
         async with pool.acquire() as conn:
             # Cascade delete will handle steps
             result = await conn.execute("DELETE FROM sagas WHERE saga_id = $1", saga_id)
-            return result.split()[-1] == "1"  # Extract affected row count
+            return result.split()[-1] == "1"  # type: ignore[no-any-return]  # Extract affected row count
 
     async def list_sagas(
         self,
@@ -267,8 +267,8 @@ class PostgreSQLSagaStorage(SagaStorage):
         pool = await self._get_pool()
 
         # Build dynamic query
-        conditions = []
-        params = []
+        conditions: list[str] = []
+        params: list[Any] = []
         param_count = 0
 
         if status:
@@ -456,13 +456,14 @@ class PostgreSQLSagaStorage(SagaStorage):
                 "timestamp": datetime.now(UTC).isoformat(),
             }
 
-    def _format_bytes(self, bytes_size: int) -> str:
+    def _format_bytes(self, num_bytes: int) -> str:
         """Format bytes in human readable format"""
+        size: float = float(num_bytes)
         for unit in ["B", "KB", "MB", "GB", "TB"]:
-            if bytes_size < 1024.0:
-                return f"{bytes_size:.1f}{unit}"
-            bytes_size /= 1024.0
-        return f"{bytes_size:.1f}PB"
+            if size < 1024.0:
+                return f"{size:.1f}{unit}"
+            size = size / 1024.0
+        return f"{size:.1f}PB"
 
     async def __aenter__(self):
         """Async context manager entry"""

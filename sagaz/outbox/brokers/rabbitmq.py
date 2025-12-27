@@ -31,10 +31,10 @@ try:
     RABBITMQ_AVAILABLE = True
 except ImportError:
     RABBITMQ_AVAILABLE = False
-    aio_pika = None  # pragma: no cover
-    Message = None  # pragma: no cover
-    DeliveryMode = None  # pragma: no cover
-    ExchangeType = None  # pragma: no cover
+    aio_pika = None  # type: ignore[assignment]  # pragma: no cover
+    Message = None  # type: ignore[assignment, misc]  # pragma: no cover
+    DeliveryMode = None  # type: ignore[assignment, misc]  # pragma: no cover
+    ExchangeType = None  # type: ignore[assignment, misc]  # pragma: no cover
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +108,8 @@ class RabbitMQBroker(BaseBroker):
             msg = "aio-pika"
             raise MissingDependencyError(msg, "RabbitMQ message broker")  # pragma: no cover
 
-        self.config = config or RabbitMQBrokerConfig()
+        super().__init__(config)
+        self.config: RabbitMQBrokerConfig = config or RabbitMQBrokerConfig()
         self._connection: AbstractConnection | None = None
         self._channel: AbstractChannel | None = None
         self._exchange: AbstractExchange | None = None
@@ -181,16 +182,16 @@ class RabbitMQBroker(BaseBroker):
 
         try:
             # Create message with persistent delivery mode
-            msg = Message(
+            rmq_message = Message(
                 body=message,
                 delivery_mode=DeliveryMode.PERSISTENT,
-                headers=headers or {},
+                headers=headers or {},  # type: ignore[arg-type]
                 content_type="application/json",
             )
 
             # Publish to exchange with routing key
             await self._exchange.publish(
-                msg,
+                rmq_message,
                 routing_key=topic,
             )
 
@@ -251,7 +252,7 @@ class RabbitMQBroker(BaseBroker):
         queue = await self._channel.declare_queue(  # pragma: no cover
             queue_name,
             durable=durable,
-            arguments=arguments or None,
+            arguments=arguments or None,  # type: ignore[arg-type]
         )
 
         await queue.bind(self._exchange, routing_key)  # pragma: no cover

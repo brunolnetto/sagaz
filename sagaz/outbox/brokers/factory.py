@@ -186,7 +186,7 @@ def create_broker(
     factory, dependency = _BROKER_REGISTRY[broker_type]
 
     try:
-        return factory(kwargs)
+        return factory(kwargs)  # type: ignore[no-any-return]
     except ImportError:
         if dependency:
             raise MissingDependencyError(dependency, f"{broker_type} message broker")

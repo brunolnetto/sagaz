@@ -115,7 +115,8 @@ class KafkaBroker(BaseBroker):
             msg = "aiokafka"
             raise MissingDependencyError(msg, "Kafka message broker")  # pragma: no cover
 
-        self.config = config or KafkaBrokerConfig()
+        super().__init__(config)
+        self.config: KafkaBrokerConfig = config or KafkaBrokerConfig()
         self._producer: AIOKafkaProducer | None = None
         self._connected = False
 

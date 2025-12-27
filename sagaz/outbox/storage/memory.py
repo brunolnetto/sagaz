@@ -45,7 +45,7 @@ class InMemoryOutboxStorage(OutboxStorage):
         now = datetime.now(UTC)
         cutoff = now - timedelta(seconds=older_than_seconds)
 
-        claimed = []
+        claimed: list[OutboxEvent] = []
         for event in list(self._events.values()):
             if len(claimed) >= batch_size:
                 break

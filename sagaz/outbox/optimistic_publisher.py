@@ -32,10 +32,10 @@ except ImportError:
             """No-op context manager for timing."""
             yield
 
-    def Counter(*args, **kwargs):
+    def Counter(*args, **kwargs) -> _NoOpMetric:  # type: ignore[no-redef]
         return _NoOpMetric()
 
-    def Histogram(*args, **kwargs):
+    def Histogram(*args, **kwargs) -> _NoOpMetric:  # type: ignore[no-redef]
         return _NoOpMetric()
 
 

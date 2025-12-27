@@ -27,7 +27,7 @@ try:
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
-    redis = None
+    redis = None  # type: ignore[assignment]
 
 
 class RedisSagaStorage(SagaStorage):
@@ -72,7 +72,7 @@ class RedisSagaStorage(SagaStorage):
             try:
                 self._redis = redis.from_url(self.redis_url, **self.redis_kwargs)
                 # Test connection
-                await self._redis.ping()
+                await self._redis.ping()  # type: ignore[attr-defined]
             except Exception as e:
                 msg = f"Failed to connect to Redis: {e}"
                 raise SagaStorageConnectionError(msg)
@@ -147,7 +147,7 @@ class RedisSagaStorage(SagaStorage):
             return None
 
         try:
-            return json.loads(saga_data_json)
+            return json.loads(saga_data_json)  # type: ignore[no-any-return]
         except json.JSONDecodeError as e:
             msg = f"Failed to decode saga data for {saga_id}: {e}"
             raise SagaStorageError(msg)
@@ -177,7 +177,7 @@ class RedisSagaStorage(SagaStorage):
 
             result = await pipe.execute()
 
-        return result[0] > 0  # First command (delete) returns count
+        return result[0] > 0  # type: ignore[no-any-return]  # First command (delete) returns count
 
     async def list_sagas(
         self,

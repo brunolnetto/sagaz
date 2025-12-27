@@ -132,11 +132,11 @@ class InMemorySagaStorage(SagaStorage):
             self._apply_step_update(step, status, result, error, executed_at)
             saga_data["updated_at"] = datetime.now(UTC).isoformat()
 
-    def _find_step(self, saga_data: dict, step_name: str) -> dict | None:
+    def _find_step(self, saga_data: dict[str, Any], step_name: str) -> dict[str, Any] | None:
         """Find a step by name in saga data."""
         for step in saga_data["steps"]:
             if step["name"] == step_name:
-                return step
+                return step  # type: ignore[no-any-return]
         return None
 
     def _apply_step_update(
@@ -158,18 +158,16 @@ class InMemorySagaStorage(SagaStorage):
         """Get storage statistics"""
 
         async with self._lock:
-            stats = {
-                "total_sagas": len(self._sagas),
-                "by_status": {},
-                "memory_usage_bytes": self._estimate_memory_usage(),
-            }
-
-            # Count by status
+            by_status: dict[str, int] = {}
             for saga_data in self._sagas.values():
                 status = saga_data["status"]
-                stats["by_status"][status] = stats["by_status"].get(status, 0) + 1
+                by_status[status] = by_status.get(status, 0) + 1
 
-            return stats
+            return {
+                "total_sagas": len(self._sagas),
+                "by_status": by_status,
+                "memory_usage_bytes": self._estimate_memory_usage(),
+            }
 
     async def cleanup_completed_sagas(
         self, older_than: datetime, statuses: list[SagaStatus] | None = None
