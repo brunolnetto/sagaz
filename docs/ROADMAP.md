@@ -28,13 +28,29 @@ Active development roadmap for the sagaz saga pattern library.
 
 ## Planned Features
 
-### v1.1.0 - Performance & Observability
+### v1.1.0 - Reliability & Observability
 
-| Feature | Priority | Status | ADR |
-|---------|----------|--------|-----|
+**Target**: January 2025 | **Effort**: 16-24 hours (1-2 weeks)
+
+| Feature | Priority | Status | Docs |
+|---------|----------|--------|------|
+| **Dead Letter Queue Pattern** | High | 📋 Planned | [Docs](patterns/dead-letter-queue.md) |
+| **AlertManager Rules Template** | High | 📋 Planned | [Template](monitoring/alertmanager-rules.yml) |
 | Batch saga status updates | Low | 📋 Planned | - |
 
+**Checklist**:
+- [ ] Implement `DLQHandler` class
+- [ ] Add `RetryPolicy` configuration to `SagaConfig`
+- [ ] Create DLQ metrics (depth, age, rate)
+- [ ] Test AlertManager rules with Prometheus
+- [ ] Implement batch status update API
+- [ ] Add DLQ CLI commands (`sagaz dlq replay`, `purge`)
+- [ ] Write integration tests
+- [ ] Update documentation
+
 > ℹ️ **OpenTelemetry tracing** was completed in v1.0.0 (`TracingSagaListener`)
+
+---
 
 ### v1.2.0 - Storage Options (Postponed)
 
@@ -43,7 +59,11 @@ Active development roadmap for the sagaz saga pattern library.
 | MySQL storage backend | Low | ⏸️ Postponed | PostgreSQL/Redis covers most use cases |
 | CockroachDB compatibility | Low | ⏸️ Postponed | Niche requirement |
 
+---
+
 ### v2.0.0 - CDC (Change Data Capture)
+
+**Target**: February 2025 | **Effort**: 26-40 hours (2-3 weeks)
 
 | Feature | Priority | Status | ADR |
 |---------|----------|--------|-----|
@@ -56,30 +76,98 @@ Active development roadmap for the sagaz saga pattern library.
 
 **Target throughput**: 50,000+ events/sec
 
+**Checklist**:
+- [ ] Create Debezium connector configuration
+- [ ] Implement `CDCWorker` class
+- [ ] Add Kafka Connect Docker/K8s manifests
+- [ ] Implement native `pg_logical` option
+- [ ] Add CDC-specific Prometheus metrics
+- [ ] Create CDC Grafana dashboard panels
+- [ ] Write migration guide (polling → CDC)
+- [ ] Performance benchmarks (target: 50k events/sec)
+- [ ] Integration tests with Debezium
+- [ ] Update documentation
+
 ---
 
-## Feature Details
+### v2.1.0 - Analytics (Fluss + Iceberg)
 
-### CDC Support (v2.0.0)
+**Target**: March 2025 | **Effort**: 32-48 hours (3-4 weeks)
 
-**Goal**: Enable high-throughput event processing via Change Data Capture.
+| Feature | Priority | Status | Design |
+|---------|----------|--------|--------|
+| **Fluss Analytics Listener** | High | 📋 Planned | [Design](architecture/fluss-analytics.md) |
+| Iceberg tiering integration | High | 📋 Planned | [Design](architecture/fluss-analytics.md) |
+| Real-time saga dashboards | Medium | 📋 Planned | - |
+| Historical saga analytics | Medium | 📋 Planned | - |
+| Trino/Spark query examples | Low | 📋 Planned | - |
 
-**Scope**:
-- Debezium connector configuration
-- CDC Worker that consumes from Kafka
-- Native PostgreSQL logical replication option
-- Prometheus metrics for CDC monitoring
-- Grafana dashboard panels
-- Migration guide from polling to CDC
+**Goal**: Real-time + historical analytics for saga executions.
 
-**Design**: See [ADR-011: CDC Support](architecture/adr/adr-011-cdc-support.md)
+**Checklist**:
+- [ ] Create `FlussClient` wrapper
+- [ ] Implement `FlussAnalyticsListener`
+- [ ] Define Fluss table schema
+- [ ] Configure Iceberg tiering
+- [ ] Create Docker Compose for local Fluss setup
+- [ ] Build real-time Grafana dashboard
+- [ ] Write Flink SQL query examples
+- [ ] Write Trino query examples
+- [ ] Write Spark query examples
+- [ ] Performance testing
+- [ ] Update documentation
 
-**Dependencies**:
-- Kafka infrastructure
-- Debezium / Kafka Connect
-- Updated monitoring stack
+**Architecture**:
+```
+Saga → FlussListener → Fluss (real-time) → Iceberg (historical)
+                           ↓                      ↓
+                     Dashboard              Long-term
+                     (sub-second)           analytics
+```
 
-**Estimated Effort**: ~26 hours (3-4 days)
+---
+
+### v2.2.0 - Event Enrichment & Multi-Sink
+
+**Target**: April 2025 | **Effort**: 16-24 hours (1-2 weeks)
+
+| Feature | Priority | Status | Docs |
+|---------|----------|--------|------|
+| **Event Enrichment Pipeline** | Medium | 📋 Planned | - |
+| Multi-Sink Fan-out | Low | ✅ Supported | [Pattern](patterns/multi-sink-fanout.md) |
+| Flink transformation examples | Low | 📋 Planned | - |
+| Kafka Streams integration | Low | 📋 Planned | - |
+
+**Goal**: Transform, enrich, and route saga events to multiple destinations.
+
+**Checklist**:
+- [ ] Create `EnrichmentListener` base class
+- [ ] Implement context enrichment helpers
+- [ ] Create Flink job examples (filtering, aggregation)
+- [ ] Create Kafka Streams examples
+- [ ] Document enrichment patterns
+- [ ] Add enrichment configuration to `SagaConfig`
+- [ ] Write integration tests
+- [ ] Update documentation
+
+---
+
+## Timeline Summary
+
+```
+2025 Development Schedule
+═══════════════════════════════════════════════════════════════════
+       Jan          Feb          Mar          Apr
+═══════════════════════════════════════════════════════════════════
+   ┌─────────┐  ┌───────────┐  ┌────────────┐  ┌─────────┐
+   │ v1.1.0  │  │  v2.0.0   │  │  v2.1.0    │  │ v2.2.0  │
+   │ DLQ &   │  │  CDC      │  │  Fluss +   │  │ Enrich  │
+   │ Alerts  │  │ Debezium  │  │  Iceberg   │  │ & Sinks │
+   └─────────┘  └───────────┘  └────────────┘  └─────────┘
+      1-2 wks      2-3 wks        3-4 wks       1-2 wks
+═══════════════════════════════════════════════════════════════════
+   Total: ~90-136 hours | ~3 months @ 15-20 hrs/week
+```
 
 ---
 
