@@ -13,7 +13,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 # ============================================
 # CONSUMER INBOX TESTS (Correct API)
 # ============================================
@@ -105,7 +104,7 @@ class TestOptimisticPublisherUnit:
 
         storage = AsyncMock()
         storage.mark_sent = AsyncMock()
-        
+
         broker = AsyncMock()
         broker.publish = AsyncMock()
 
