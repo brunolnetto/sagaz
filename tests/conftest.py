@@ -209,7 +209,7 @@ except ImportError:
 def postgres_storage_factory(postgres_connection_string):
     """
     Factory to create PostgreSQL storage instances using the session container.
-    
+
     Usage:
         def test_something(postgres_storage_factory):
             async with postgres_storage_factory() as storage:
@@ -217,12 +217,12 @@ def postgres_storage_factory(postgres_connection_string):
     """
     if not ASYNCPG_AVAILABLE or postgres_connection_string is None:
         return None
-    
+
     from sagaz.storage.postgresql import PostgreSQLSagaStorage
-    
+
     def factory():
         return PostgreSQLSagaStorage(postgres_connection_string)
-    
+
     return factory
 
 
@@ -230,7 +230,7 @@ def postgres_storage_factory(postgres_connection_string):
 def redis_storage_factory(redis_url):
     """
     Factory to create Redis storage instances using the session container.
-    
+
     Usage:
         def test_something(redis_storage_factory):
             async with redis_storage_factory() as storage:
@@ -238,12 +238,12 @@ def redis_storage_factory(redis_url):
     """
     if not REDIS_AVAILABLE or redis_url is None:
         return None
-    
+
     from sagaz.storage.redis import RedisSagaStorage
-    
+
     def factory(**kwargs):
         return RedisSagaStorage(redis_url=redis_url, **kwargs)
-    
+
     return factory
 
 

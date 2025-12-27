@@ -3,8 +3,9 @@ Tests for Mermaid diagram generation and connected graph validation.
 Combines coverage for MermaidGenerator, declarative Sagas, and graph validation.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from sagaz import Saga, action, compensate
 from sagaz.core import Saga as ClassicSaga
