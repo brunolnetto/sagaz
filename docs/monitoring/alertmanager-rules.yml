@@ -1,0 +1,349 @@
+# Sagaz AlertManager Rules
+#
+# Alerting rules for saga orchestration monitoring.
+# Import this file into your Prometheus AlertManager configuration.
+#
+# Usage:
+#   Copy to your AlertManager rules directory or include via:
+#   rule_files:
+#     - /etc/prometheus/rules/sagaz-alerts.yml
+
+groups:
+  # =========================================================================
+  # Saga Execution Alerts
+  # =========================================================================
+  - name: sagaz.saga_execution
+    rules:
+      # High saga failure rate
+      - alert: SagaHighFailureRate
+        expr: |
+          (
+            sum(rate(sagaz_saga_completed_total{status="failed"}[5m]))
+            /
+            sum(rate(sagaz_saga_completed_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High saga failure rate detected"
+          description: |
+            Saga failure rate is {{ $value | humanizePercentage }} over the last 5 minutes.
+            Threshold: 5%
+          runbook_url: "https://docs.example.com/runbooks/saga-failures"
+          dashboard_url: "https://grafana.example.com/d/sagaz-overview"
+
+      # Critical saga failure rate
+      - alert: SagaCriticalFailureRate
+        expr: |
+          (
+            sum(rate(sagaz_saga_completed_total{status="failed"}[5m]))
+            /
+            sum(rate(sagaz_saga_completed_total[5m]))
+          ) > 0.20
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+          pagerduty: "true"
+        annotations:
+          summary: "CRITICAL: Saga failure rate above 20%"
+          description: |
+            Saga failure rate is {{ $value | humanizePercentage }}.
+            Immediate investigation required.
+          runbook_url: "https://docs.example.com/runbooks/saga-critical"
+
+      # Saga stuck (running too long)
+      - alert: SagaStuckExecution
+        expr: |
+          sagaz_saga_running_duration_seconds > 300
+        for: 1m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Saga running for over 5 minutes"
+          description: |
+            Saga {{ $labels.saga_name }} (ID: {{ $labels.saga_id }}) 
+            has been running for {{ $value | humanizeDuration }}.
+          runbook_url: "https://docs.example.com/runbooks/saga-stuck"
+
+      # No sagas running (potential issue)
+      - alert: SagaNoActivity
+        expr: |
+          sum(rate(sagaz_saga_started_total[10m])) == 0
+        for: 15m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "No saga activity detected"
+          description: |
+            No sagas have started in the last 15 minutes.
+            This may indicate an application issue.
+
+  # =========================================================================
+  # Step Execution Alerts
+  # =========================================================================
+  - name: sagaz.step_execution
+    rules:
+      # Step consistently failing
+      - alert: StepConsistentlyFailing
+        expr: |
+          (
+            sum by (saga_name, step_name) (rate(sagaz_step_completed_total{status="failed"}[15m]))
+            /
+            sum by (saga_name, step_name) (rate(sagaz_step_completed_total[15m]))
+          ) > 0.50
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Step {{ $labels.step_name }} failing frequently"
+          description: |
+            Step {{ $labels.step_name }} in saga {{ $labels.saga_name }}
+            has a {{ $value | humanizePercentage }} failure rate.
+
+      # Step latency SLA breach
+      - alert: StepLatencySLABreach
+        expr: |
+          histogram_quantile(0.95, 
+            sum by (saga_name, step_name, le) (
+              rate(sagaz_step_duration_seconds_bucket[5m])
+            )
+          ) > 5
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Step {{ $labels.step_name }} P95 latency above SLA"
+          description: |
+            Step {{ $labels.step_name }} P95 latency is {{ $value | humanizeDuration }}.
+            SLA: 5 seconds.
+
+  # =========================================================================
+  # Compensation Alerts
+  # =========================================================================
+  - name: sagaz.compensation
+    rules:
+      # High compensation rate
+      - alert: HighCompensationRate
+        expr: |
+          (
+            sum(rate(sagaz_compensation_total[5m]))
+            /
+            sum(rate(sagaz_saga_completed_total[5m]))
+          ) > 0.10
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High saga compensation rate"
+          description: |
+            {{ $value | humanizePercentage }} of sagas are triggering compensation.
+            This may indicate systemic issues.
+
+      # Compensation failure
+      - alert: CompensationFailure
+        expr: |
+          increase(sagaz_compensation_total{status="failed"}[5m]) > 0
+        labels:
+          severity: critical
+          team: platform
+          pagerduty: "true"
+        annotations:
+          summary: "Saga compensation failed"
+          description: |
+            Compensation for {{ $labels.saga_name }}.{{ $labels.step_name }} failed.
+            This may leave the system in an inconsistent state.
+            IMMEDIATE ACTION REQUIRED.
+          runbook_url: "https://docs.example.com/runbooks/compensation-failure"
+
+  # =========================================================================
+  # Dead Letter Queue Alerts
+  # =========================================================================
+  - name: sagaz.dlq
+    rules:
+      # DLQ has messages
+      - alert: DLQMessagesPresent
+        expr: |
+          sagaz_dlq_queue_depth > 0
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Messages in Dead Letter Queue"
+          description: |
+            {{ $value }} messages in DLQ topic {{ $labels.topic }}.
+            Review and process DLQ messages.
+
+      # DLQ growing rapidly
+      - alert: DLQGrowingRapidly
+        expr: |
+          rate(sagaz_dlq_messages_total[5m]) > 1
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "DLQ growing rapidly"
+          description: |
+            DLQ is receiving {{ $value | humanize }} messages/sec.
+            Immediate investigation required.
+
+      # DLQ messages too old
+      - alert: DLQStaleMessages
+        expr: |
+          sagaz_dlq_oldest_message_age_seconds > 86400
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Stale messages in DLQ"
+          description: |
+            DLQ has messages older than 24 hours.
+            Review and resolve or purge.
+
+  # =========================================================================
+  # Outbox Alerts
+  # =========================================================================
+  - name: sagaz.outbox
+    rules:
+      # Outbox backlog growing
+      - alert: OutboxBacklogGrowing
+        expr: |
+          sagaz_outbox_pending_count > 1000
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Outbox backlog growing"
+          description: |
+            {{ $value }} pending messages in outbox.
+            Outbox worker may be down or slow.
+
+      # Outbox worker not processing
+      - alert: OutboxWorkerStalled
+        expr: |
+          rate(sagaz_outbox_processed_total[5m]) == 0 
+          and 
+          sagaz_outbox_pending_count > 0
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Outbox worker stalled"
+          description: |
+            Outbox worker is not processing messages.
+            Check worker health and logs.
+
+      # Outbox lag too high
+      - alert: OutboxHighLag
+        expr: |
+          sagaz_outbox_lag_seconds > 60
+        for: 2m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Outbox processing lag too high"
+          description: |
+            Outbox lag is {{ $value | humanizeDuration }}.
+            Events are delayed reaching consumers.
+
+  # =========================================================================
+  # CDC Alerts (v2.0.0+)
+  # =========================================================================
+  - name: sagaz.cdc
+    rules:
+      # CDC connector down
+      - alert: CDCConnectorDown
+        expr: |
+          absent(sagaz_cdc_connector_status{status="running"})
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "CDC connector is down"
+          description: |
+            Debezium CDC connector is not running.
+            Check Kafka Connect health.
+
+      # CDC replication lag
+      - alert: CDCReplicationLag
+        expr: |
+          sagaz_cdc_replication_lag_seconds > 30
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "CDC replication lag high"
+          description: |
+            CDC lag is {{ $value | humanizeDuration }}.
+            Events may be delayed.
+
+  # =========================================================================
+  # Infrastructure Alerts
+  # =========================================================================
+  - name: sagaz.infrastructure
+    rules:
+      # Database connection pool exhausted
+      - alert: DatabasePoolExhausted
+        expr: |
+          sagaz_db_pool_available == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Database connection pool exhausted"
+          description: |
+            No available database connections.
+            Sagas may be failing to start.
+
+      # Broker connection issues
+      - alert: BrokerConnectionIssues
+        expr: |
+          sagaz_broker_connection_errors_total > 0
+        for: 1m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Broker connection issues detected"
+          description: |
+            Connection errors to message broker.
+            Check broker health and network.
+
+# =========================================================================
+# Inhibition Rules
+# =========================================================================
+# Prevent alert spam during major incidents
+inhibit_rules:
+  # Inhibit step alerts when saga is critically failing
+  - source_match:
+      alertname: SagaCriticalFailureRate
+    target_match_re:
+      alertname: Step.*
+    equal: ['saga_name']
+
+  # Inhibit DLQ alerts when outbox is stalled (root cause)
+  - source_match:
+      alertname: OutboxWorkerStalled
+    target_match_re:
+      alertname: DLQ.*
+
+  # Inhibit compensation warnings when compensation failure (more severe)
+  - source_match:
+      alertname: CompensationFailure
+    target_match:
+      alertname: HighCompensationRate
