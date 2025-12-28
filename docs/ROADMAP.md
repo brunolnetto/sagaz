@@ -2,6 +2,8 @@
 
 Active development roadmap for the sagaz saga pattern library.
 
+> 📋 **See also**: [Strategic Roadmap](STRATEGY.md) for go-to-market strategy, CLI plans, and competitive positioning.
+
 ## Current Version: 1.0.x
 
 ### ✅ Completed Features
@@ -26,7 +28,62 @@ Active development roadmap for the sagaz saga pattern library.
 
 ---
 
-## Planned Features
+## Development Tracks
+
+Sagaz development follows two parallel tracks:
+
+| Track | Focus | Goal |
+|-------|-------|------|
+| **🔧 Technical** | Features & Performance | More capabilities |
+| **🚀 Developer Experience** | CLI & Tooling | Easier adoption |
+
+---
+
+## 🚀 Developer Experience Track (NEW)
+
+### CLI v1.0 - Local Development
+
+**Target**: January 2025 | **Effort**: 20-30 hours (2-3 weeks)
+
+| Feature | Priority | Status |
+|---------|----------|--------|
+| `sagaz init --local` | High | 📋 Planned |
+| `sagaz dev` (start containers) | High | 📋 Planned |
+| `sagaz status` (health check) | High | 📋 Planned |
+| `sagaz logs` (log tailing) | Medium | 📋 Planned |
+| `sagaz visualize` (Mermaid) | Medium | 📋 Planned |
+
+**Checklist**:
+- [ ] Create `sagaz-cli` package with Click/Typer
+- [ ] Implement interactive setup wizard (Rich)
+- [ ] Generate Docker Compose from templates
+- [ ] Create `sagaz.yaml` config format
+- [ ] Implement health check dashboard
+- [ ] Add log tailing with filtering
+- [ ] Integrate Mermaid visualization
+
+### CLI v2.0 - Multi-Cloud Deploy
+
+**Target**: Q2 2025 | **Effort**: 30-40 hours (3-4 weeks)
+
+| Feature | Priority | Status |
+|---------|----------|--------|
+| `sagaz deploy --provider aws` | High | 📋 Planned |
+| `sagaz deploy --provider gcp` | Medium | 📋 Planned |
+| `sagaz deploy --provider k8s` | High | 📋 Planned |
+| `sagaz deploy --cost-estimate` | Medium | 📋 Planned |
+
+**Checklist**:
+- [ ] Create Terraform templates for AWS
+- [ ] Create Terraform templates for GCP
+- [ ] Create Kubernetes manifests
+- [ ] Implement cost estimation
+- [ ] Add `--dry-run` preview mode
+- [ ] Migration between providers
+
+---
+
+## 🔧 Technical Track
 
 ### v1.1.0 - Reliability & Observability
 

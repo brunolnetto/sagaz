@@ -286,6 +286,99 @@ class SagaConfig:
             logging=parse_bool("SAGAZ_LOGGING", True),
         )
 
+    @classmethod
+    def from_file(cls, file_path: str | Path) -> SagaConfig:
+        """
+        Load configuration from a YAML or JSON file.
+
+        Args:
+            file_path: Path to the configuration file (e.g., 'sagaz.yaml')
+
+        Example:
+            >>> config = SagaConfig.from_file("sagaz.yaml")
+        """
+        import yaml
+        from pathlib import Path
+
+        path = Path(file_path)
+        if not path.exists():
+            raise FileNotFoundError(f"Configuration file not found: {file_path}")
+
+        with path.open() as f:
+            data = yaml.safe_load(f)
+
+        if not data:
+            return cls()
+
+        # Extract sections
+        storage_data = data.get("storage", {})
+        broker_data = data.get("broker", {})
+        obs_data = data.get("observability", {})
+
+        storage = None
+        broker = None
+
+        # 1. Build Storage
+        if storage_data:
+            s_type = storage_data.get("type", "postgresql").lower()
+            conn = storage_data.get("connection", {})
+            if s_type == "postgresql":
+                from sagaz.storage.postgresql import PostgreSQLSagaStorage
+
+                # Build URL from components if not provided
+                url = conn.get("url")
+                if not url:
+                    user = conn.get("user", "postgres")
+                    pwd = conn.get("password", "postgres")
+                    host = conn.get("host", "localhost")
+                    port = conn.get("port", 5432)
+                    db = conn.get("database", "sagaz")
+                    url = f"postgresql://{user}:{pwd}@{host}:{port}/{db}"
+                storage = PostgreSQLSagaStorage(url)
+            elif s_type == "redis":
+                from sagaz.storage.redis import RedisSagaStorage
+
+                url = conn.get("url", "redis://localhost:6379")
+                storage = RedisSagaStorage(url)
+
+        # 2. Build Broker
+        if broker_data:
+            b_type = broker_data.get("type", "").lower()
+            conn = broker_data.get("connection", {})
+            if b_type == "kafka":
+                from sagaz.outbox.brokers.kafka import KafkaBroker, KafkaBrokerConfig
+
+                host = conn.get("host", "localhost")
+                port = conn.get("port", 9092)
+                kafka_config = KafkaBrokerConfig(bootstrap_servers=f"{host}:{port}")
+                broker = KafkaBroker(kafka_config)
+            elif b_type == "redis":
+                from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+
+                host = conn.get("host", "localhost")
+                port = conn.get("port", 6379)
+                redis_config = RedisBrokerConfig(url=f"redis://{host}:{port}")
+                broker = RedisBroker(redis_config)
+            elif b_type in ("rabbitmq", "amqp"):
+                from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker, RabbitMQBrokerConfig
+
+                user = conn.get("user", "guest")
+                pwd = conn.get("password", "guest")
+                host = conn.get("host", "localhost")
+                port = conn.get("port", 5672)
+                url = f"amqp://{user}:{pwd}@{host}:{port}/"
+                rmq_config = RabbitMQBrokerConfig(url=url)
+                broker = RabbitMQBroker(rmq_config)
+
+        # 3. Build Config
+        return cls(
+            storage=storage,
+            broker=broker,
+            metrics=obs_data.get("prometheus", {}).get("enabled", True),
+            tracing=obs_data.get("tracing", {}).get("enabled", False),
+            logging=obs_data.get("logging", {}).get("enabled", True),
+        )
+
     @staticmethod
     def _parse_storage_url(url: str) -> SagaStorage:
         """Parse storage URL and return appropriate storage instance."""

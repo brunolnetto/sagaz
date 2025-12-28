@@ -1007,6 +1007,40 @@ class Saga(ABC):
         """Format datetime to ISO string or None."""
         return dt.isoformat() if dt else None
 
+    # =========================================================================
+    # API Protection - Prevent mixing declarative and imperative approaches
+    # =========================================================================
+
+    async def run(self, *args, **kwargs):
+        """
+        The run() method is for declarative Saga. Use execute() for ClassicSaga.
+
+        Correct usage for imperative API:
+            saga = ClassicSaga(name="MySaga")
+            await saga.add_step("step1", action_fn, compensation_fn)
+            result = await saga.execute()
+
+        For declarative API with decorators, use the Saga class:
+            from sagaz import Saga, action, compensate
+
+            class MySaga(Saga):
+                saga_name = "my-saga"
+
+                @action("step1")
+                async def step1(self, ctx):
+                    return {"result": "data"}
+
+            saga = MySaga()
+            result = await saga.run({"key": "value"})
+        """
+        raise TypeError(
+            "Cannot use run() on ClassicSaga. "
+            "Use execute() instead for imperative API. "
+            "For declarative API with @action/@compensate decorators, "
+            "use the Saga class from sagaz. "
+            "See docstring for examples."
+        )
+
 
 @dataclass
 class SagaContext:

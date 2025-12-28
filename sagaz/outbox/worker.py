@@ -22,6 +22,7 @@ import logging
 import os
 import signal
 import sys
+import time
 import uuid
 from collections.abc import Awaitable, Callable
 
@@ -36,6 +37,82 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+# ============================================================================
+# Prometheus Metrics (optional - gracefully degrade if not installed)
+# ============================================================================
+
+try:
+    from prometheus_client import Counter, Gauge, Histogram
+
+    PROMETHEUS_AVAILABLE = True
+
+    # Counters
+    OUTBOX_BATCH_PROCESSED = Counter(
+        "outbox_batch_processed_total",
+        "Total batches processed by outbox worker",
+        ["worker_id"],
+    )
+
+    OUTBOX_PUBLISHED_EVENTS = Counter(
+        "outbox_published_events_total",
+        "Total events successfully published",
+        ["worker_id", "event_type"],
+    )
+
+    OUTBOX_FAILED_EVENTS = Counter(
+        "outbox_failed_events_total",
+        "Total events that failed to publish",
+        ["worker_id", "event_type"],
+    )
+
+    OUTBOX_DEAD_LETTER_EVENTS = Counter(
+        "outbox_dead_letter_events_total",
+        "Total events moved to dead letter queue",
+        ["worker_id", "event_type"],
+    )
+
+    OUTBOX_RETRY_ATTEMPTS = Counter(
+        "outbox_retry_attempts_total",
+        "Total retry attempts",
+        ["worker_id"],
+    )
+
+    # Gauges
+    OUTBOX_PENDING_EVENTS = Gauge(
+        "outbox_pending_events_total",
+        "Current number of pending events in outbox",
+    )
+
+    OUTBOX_PROCESSING_EVENTS = Gauge(
+        "outbox_processing_events_total",
+        "Current number of events being processed",
+        ["worker_id"],
+    )
+
+    OUTBOX_BATCH_SIZE = Gauge(
+        "outbox_batch_size",
+        "Size of last processed batch",
+        ["worker_id"],
+    )
+
+    OUTBOX_EVENTS_BY_STATE = Gauge(
+        "outbox_events_by_state",
+        "Number of events per state",
+        ["state"],
+    )
+
+    # Histograms
+    OUTBOX_PUBLISH_DURATION = Histogram(
+        "outbox_publish_duration_seconds",
+        "Time to publish an event to the broker",
+        ["worker_id", "event_type"],
+        buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 5.0],
+    )
+
+except ImportError:
+    PROMETHEUS_AVAILABLE = False
+    logger.debug("prometheus-client not installed, metrics disabled")
 
 
 class OutboxWorker:
@@ -143,6 +220,14 @@ class OutboxWorker:
     async def _process_iteration(self) -> bool:
         """Process one iteration of the loop. Returns True if loop should break."""
         try:
+            # Update pending events gauge
+            if PROMETHEUS_AVAILABLE:
+                try:
+                    pending_count = await self.storage.get_pending_count()
+                    OUTBOX_PENDING_EVENTS.set(pending_count)
+                except Exception:
+                    pass  # Ignore errors when getting pending count
+
             processed = await self.process_batch()
             if processed == 0:
                 await self._wait_for_next_poll()
@@ -191,7 +276,13 @@ class OutboxWorker:
         if not events:  # pragma: no cover
             return 0
 
-        logger.debug(f"Worker {self.worker_id} claimed {len(events)} events")
+        batch_size = len(events)
+        logger.debug(f"Worker {self.worker_id} claimed {batch_size} events")
+
+        # Record Prometheus metrics
+        if PROMETHEUS_AVAILABLE:
+            OUTBOX_BATCH_SIZE.labels(worker_id=self.worker_id).set(batch_size)
+            OUTBOX_PROCESSING_EVENTS.labels(worker_id=self.worker_id).set(batch_size)
 
         # Process events in parallel
         tasks = [self._process_event(event) for event in events]
@@ -205,6 +296,11 @@ class OutboxWorker:
             else:
                 processed += 1
 
+        # Record batch completion
+        if PROMETHEUS_AVAILABLE:
+            OUTBOX_BATCH_PROCESSED.labels(worker_id=self.worker_id).inc()
+            OUTBOX_PROCESSING_EVENTS.labels(worker_id=self.worker_id).set(0)
+
         return processed
 
     async def _process_event(self, event: OutboxEvent) -> None:
@@ -214,6 +310,9 @@ class OutboxWorker:
         Args:
             event: The event to process
         """
+        start_time = time.time()
+        event_type = event.event_type or "unknown"
+
         try:
             # Publish to broker
             await self.broker.publish_event(event)  # type: ignore[attr-defined]
@@ -225,6 +324,16 @@ class OutboxWorker:
             )
 
             self._events_processed += 1
+
+            # Record Prometheus metrics
+            if PROMETHEUS_AVAILABLE:
+                duration = time.time() - start_time
+                OUTBOX_PUBLISHED_EVENTS.labels(
+                    worker_id=self.worker_id, event_type=event_type
+                ).inc()
+                OUTBOX_PUBLISH_DURATION.labels(
+                    worker_id=self.worker_id, event_type=event_type
+                ).observe(duration)
 
             if self._on_event_published:
                 await self._on_event_published(event)
@@ -249,6 +358,7 @@ class OutboxWorker:
             error: The exception that occurred
         """
         error_message = str(error)
+        event_type = event.event_type or "unknown"
 
         logger.warning(
             f"Event {event.event_id} failed to publish: {error_message} "
@@ -263,6 +373,13 @@ class OutboxWorker:
         )
 
         self._events_failed += 1
+
+        # Record Prometheus metrics
+        if PROMETHEUS_AVAILABLE:
+            OUTBOX_FAILED_EVENTS.labels(
+                worker_id=self.worker_id, event_type=event_type
+            ).inc()
+            OUTBOX_RETRY_ATTEMPTS.labels(worker_id=self.worker_id).inc()
 
         if self._on_event_failed:  # pragma: no cover
             await self._on_event_failed(event, error)
@@ -290,6 +407,13 @@ class OutboxWorker:
         )
 
         self._events_dead_lettered += 1
+
+        # Record Prometheus metrics
+        if PROMETHEUS_AVAILABLE:
+            event_type = event.event_type or "unknown"
+            OUTBOX_DEAD_LETTER_EVENTS.labels(
+                worker_id=self.worker_id, event_type=event_type
+            ).inc()
 
         logger.error(
             f"Event {event.event_id} moved to dead letter queue "

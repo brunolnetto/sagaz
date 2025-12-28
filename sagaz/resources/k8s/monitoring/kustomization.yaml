@@ -10,7 +10,7 @@ resources:
 configMapGenerator:
   - name: sagaz-grafana-dashboards
     files:
-      - grafana-dashboard-saga.json
+      - grafana-dashboard-main.json
       - grafana-dashboard-outbox.json
     options:
       labels:
