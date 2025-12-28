@@ -36,12 +36,14 @@ The central orchestrator that manages saga execution and compensation.
 
 | Component | Purpose | Location |
 |-----------|---------|----------|
-| `Saga` | Declarative saga builder | `sagaz/decorators.py` |
-| `ClassicSaga` | Imperative saga builder | `sagaz/core.py` |
+| `Saga` | Unified saga class (declarative + imperative) | `sagaz/decorators.py` |
 | `SagaConfig` | Unified configuration for storage/broker/observability | `sagaz/config.py` |
 | `SagaStep` | Individual step with action + compensation | `sagaz/core.py` |
 | `SagaContext` | Shared state across steps | `sagaz/core.py` |
 | `SagaOrchestrator` | Executes sagas with retry/timeout | `sagaz/orchestrator.py` |
+
+> **Note:** The `Saga` class supports both declarative (decorators) and imperative (add_step) modes.
+> See [ADR-015: Unified Saga API](adr/adr-015-unified-saga-api.md) for design rationale.
 
 ### 2. Outbox System
 
@@ -191,8 +193,10 @@ See [ADR-011: CDC Support](adr-011-cdc-support.md) for full design.
 - [Component Details](components.md) - Deep dive into service artifacts
 - [Dataflow](dataflow.md) - Event flow and state machines
 - [Architecture Decisions](decisions.md) - Why we made these choices
+- [Unified Saga API (ADR-015)](adr/adr-015-unified-saga-api.md) - Single class for declarative and imperative modes
 - [Synchronous Orchestration (ADR-012)](adr/adr-012-synchronous-orchestration-model.md) - Why steps are direct calls, not messages
 - [CDC Support (ADR-011)](adr/adr-011-cdc-support.md) - High-throughput upgrade path
 - [Distributed Saga Support (Design)](design-distributed-saga-support.md) - Future v2.0 design for microservice sagas
 - [Roadmap](../ROADMAP.md) - Planned features
+
 

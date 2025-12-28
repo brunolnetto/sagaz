@@ -241,18 +241,42 @@ class Saga:
     saga_name: str | None = None
     listeners: list | None = None  # List of SagaListener instances (None = use config)
 
-    def __init__(self, config=None):
+    def __init__(self, name: str | None = None, config=None):
         """
         Initialize the saga.
 
+        Supports two usage modes:
+        
+        1. Declarative (via inheritance + decorators):
+            class OrderSaga(Saga):
+                saga_name = "order"
+                
+                @action("step1")
+                async def step1(self, ctx): return {}
+            
+            saga = OrderSaga()
+            result = await saga.run({})
+
+        2. Imperative (via instance + add_step):
+            saga = Saga(name="order")
+            saga.add_step("step1", action_fn, compensation_fn)
+            result = await saga.run({})
+
         Args:
+            name: Saga name (required for imperative mode, optional for declarative)
             config: Optional SagaConfig. If not provided, uses global config.
+        
+        Note: You cannot mix both approaches. Once you use decorators, 
+              add_step() will raise an error, and vice versa.
         """
         self._steps: list[SagaStepDefinition] = []
         self._step_registry: dict[str, SagaStepDefinition] = {}
         self._compensation_graph = SagaCompensationGraph()
         self._context: dict[str, Any] = {}
         self._saga_id: str = ""
+        
+        # Mode tracking: 'declarative', 'imperative', or None (not yet determined)
+        self._mode: str | None = None
 
         # Use provided config or global config
         if config is not None:
@@ -268,7 +292,20 @@ class Saga:
         else:
             self._instance_listeners = self.listeners or []
 
+        # Collect decorated methods (if any)
         self._collect_steps()
+        
+        # If decorated methods were found, we're in declarative mode
+        if self._steps:
+            self._mode = 'declarative'
+            # saga_name takes precedence, then name parameter
+            if self.saga_name is None and name is not None:
+                self.saga_name = name
+        else:
+            # No decorators found - allow imperative mode
+            # Name is required for imperative usage
+            if name is not None:
+                self.saga_name = name
 
     def _collect_steps(self) -> None:
         """Collect decorated methods into step definitions."""
@@ -324,6 +361,80 @@ class Saga:
         step.compensation_type = meta.compensation_type
         step.compensation_timeout_seconds = meta.timeout_seconds
         step.on_compensate = meta.on_compensate
+
+    # =========================================================================
+    # Imperative API Support - add_step() for programmatic saga building
+    # =========================================================================
+
+    def add_step(
+        self,
+        name: str,
+        action: Callable[[dict[str, Any]], Awaitable[dict[str, Any] | None]],
+        compensation: Callable[[dict[str, Any]], Awaitable[None]] | None = None,
+        depends_on: list[str] | None = None,
+        timeout_seconds: float = 60.0,
+        compensation_timeout_seconds: float = 30.0,
+        max_retries: int = 3,
+        description: str | None = None,
+    ) -> "Saga":
+        """
+        Add a step programmatically (imperative mode).
+
+        Args:
+            name: Unique step identifier
+            action: Async function that takes context dict and returns updated context
+            compensation: Async function to undo this step on failure
+            depends_on: List of step names that must complete before this step
+            timeout_seconds: Step execution timeout (default: 60s)
+            compensation_timeout_seconds: Compensation timeout (default: 30s)
+            max_retries: Maximum retry attempts (default: 3)
+            description: Human-readable description
+
+        Returns:
+            Self for method chaining
+
+        Raises:
+            TypeError: If saga has decorated methods (declarative mode)
+            ValueError: If step name already exists
+
+        Example:
+            saga = Saga(name="order-processing")
+            saga.add_step("validate", validate_order)
+            saga.add_step("charge", charge_payment, refund_payment, depends_on=["validate"])
+            saga.add_step("ship", ship_order, depends_on=["charge"])
+            result = await saga.run({"order_id": "123"})
+        """
+        # Check for mode conflict
+        if self._mode == 'declarative':
+            raise TypeError(
+                "Cannot use add_step() on a saga with @action/@compensate decorators. "
+                "Choose one approach: either use decorators (declarative) or add_step() (imperative), "
+                "but not both. See Saga class docstring for examples."
+            )
+        
+        # Check for duplicate step name
+        if name in self._step_registry:
+            raise ValueError(f"Step '{name}' already exists in this saga")
+        
+        # Set mode to imperative
+        self._mode = 'imperative'
+        
+        # Create step definition
+        step_def = SagaStepDefinition(
+            step_id=name,
+            forward_fn=action,
+            compensation_fn=compensation,
+            depends_on=depends_on or [],
+            timeout_seconds=timeout_seconds,
+            compensation_timeout_seconds=compensation_timeout_seconds,
+            max_retries=max_retries,
+            description=description or f"Execute {name}",
+        )
+        
+        self._steps.append(step_def)
+        self._step_registry[name] = step_def
+        
+        return self  # Enable method chaining
 
     def get_steps(self) -> list[SagaStepDefinition]:
         """Get all step definitions."""

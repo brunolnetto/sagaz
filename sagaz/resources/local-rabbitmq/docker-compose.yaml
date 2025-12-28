@@ -1,0 +1,58 @@
+services:
+  # PostgreSQL: Core state storage for Sagaz
+  postgres:
+    image: postgres:15-alpine
+    container_name: sagaz-postgres
+    environment:
+      POSTGRES_DB: sagaz
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432" # Use 5433 to avoid conflicts with local PostgreSQL
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d sagaz" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # RabbitMQ: Robust message broker
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: sagaz-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "check_running" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Prometheus: Monitoring
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: sagaz-prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+
+  # Grafana: Dashboards
+  grafana:
+    image: grafana/grafana:10.1.0
+    container_name: sagaz-grafana
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+volumes:
+  postgres_data:

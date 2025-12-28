@@ -8,13 +8,14 @@ Sagaz - Enterprise Saga Pattern Implementation
 A production-ready implementation of the Saga pattern for distributed transactions
 with support for:
 - Declarative saga definitions with @action and @compensate decorators
+- Imperative saga building with add_step() method chaining
 - Flexible compensation ordering with dependency graphs
 - Multiple storage backends (Memory, Redis, PostgreSQL)
 - OpenTelemetry distributed tracing
 - Prometheus metrics
 - Saga lifecycle listeners for cross-cutting concerns
 
-Quick Start (Declarative API - Recommended):
+Usage Mode 1 - Declarative (via inheritance + decorators):
     >>> from sagaz import Saga, action, compensate
     >>>
     >>> class OrderSaga(Saga):
@@ -31,6 +32,14 @@ Quick Start (Declarative API - Recommended):
     >>> saga = OrderSaga()
     >>> result = await saga.run({"items": [...], "amount": 99.99})
 
+Usage Mode 2 - Imperative (via instance + add_step):
+    >>> from sagaz import Saga
+    >>>
+    >>> saga = Saga(name="order-processing")
+    >>> saga.add_step("create_order", create_order, cancel_order)
+    >>> saga.add_step("charge", charge_payment, refund, depends_on=["create_order"])
+    >>> result = await saga.run({"order_id": "123"})
+
 With Listeners (Metrics, Logging, Outbox):
     >>> from sagaz.listeners import MetricsSagaListener, OutboxSagaListener
     >>>
@@ -38,15 +47,10 @@ With Listeners (Metrics, Logging, Outbox):
     ...     saga_name = "order-processing"
     ...     listeners = [MetricsSagaListener(), OutboxSagaListener(storage)]
 
-Classic API (Imperative):
-    >>> from sagaz import ClassicSaga
-    >>>
-    >>> saga = ClassicSaga(name="OrderSaga")
-    >>> saga.add_step("create_order", create_order, compensate=cancel_order)
-    >>> result = await saga.execute(context={"order_id": "123"})
+Note: You cannot mix both approaches. Once you use decorators, 
+      add_step() will raise an error, and vice versa.
 """
 
-# Import the classic imperative Saga as ClassicSaga
 from sagaz.compensation_graph import (
     CircularDependencyError,
     CompensationGraphError,
@@ -57,10 +61,12 @@ from sagaz.compensation_graph import (
 
 # Configuration
 from sagaz.config import SagaConfig, configure, get_config
+
+# Legacy ClassicSaga for backward compatibility (deprecated)
 from sagaz.core import Saga as ClassicSaga
 from sagaz.core import SagaContext, SagaStep
 
-# Import the declarative Saga as the primary Saga class
+# The unified Saga class (primary export)
 from sagaz.decorators import (
     DeclarativeSaga,  # Backward compatibility alias
     Saga,
@@ -90,44 +96,52 @@ from sagaz.listeners import (
 from sagaz.orchestrator import SagaOrchestrator
 from sagaz.types import ParallelFailureStrategy, SagaResult, SagaStatus, SagaStepStatus
 
-# Backward compatibility aliases
-DAGSaga = ClassicSaga
+# Backward compatibility aliases (deprecated - use Saga instead)
+DAGSaga = Saga
 
 
 __all__ = [
-    "CircularDependencyError",
-    "ClassicSaga",
-    "CompensationGraphError",
-    "CompensationNode",
-    "CompensationType",
-    "DAGSaga",
-    "DeclarativeSaga",
-    "LoggingSagaListener",
-    "MetricsSagaListener",
-    "MissingDependencyError",
-    "OutboxSagaListener",
-    "ParallelFailureStrategy",
+    # Primary exports
     "Saga",
-    "SagaCompensationError",
-    "SagaCompensationGraph",
-    "SagaConfig",
-    "SagaContext",
-    "SagaError",
-    "SagaExecutionError",
-    "SagaListener",
-    "SagaOrchestrator",
-    "SagaResult",
-    "SagaStatus",
-    "SagaStep",
-    "SagaStepDefinition",
-    "SagaStepError",
-    "SagaStepStatus",
-    "SagaTimeoutError",
-    "TracingSagaListener",
     "action",
     "compensate",
-    "configure",
-    "default_listeners",
-    "get_config",
     "step",
+    # Configuration
+    "SagaConfig",
+    "configure",
+    "get_config",
+    # Types and results
+    "SagaResult",
+    "SagaStatus",
+    "SagaStepStatus",
+    "SagaStepDefinition",
+    "ParallelFailureStrategy",
+    # Listeners
+    "SagaListener",
+    "LoggingSagaListener",
+    "MetricsSagaListener",
+    "OutboxSagaListener",
+    "TracingSagaListener",
+    "default_listeners",
+    # Exceptions
+    "SagaError",
+    "SagaExecutionError",
+    "SagaStepError",
+    "SagaTimeoutError",
+    "SagaCompensationError",
+    "MissingDependencyError",
+    # Compensation graph
+    "SagaCompensationGraph",
+    "CompensationNode",
+    "CompensationType",
+    "CompensationGraphError",
+    "CircularDependencyError",
+    # Orchestrator
+    "SagaOrchestrator",
+    # Legacy/internal (for backward compatibility)
+    "ClassicSaga",  # Deprecated - use Saga instead
+    "DAGSaga",  # Deprecated - use Saga instead
+    "DeclarativeSaga",  # Deprecated - use Saga instead
+    "SagaContext",
+    "SagaStep",
 ]
