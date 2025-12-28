@@ -470,7 +470,7 @@ class TestMetricsSagaListener:
 
         await listener.on_saga_start("OrderSaga", "saga-123", {})
 
-        assert "saga-123" in listener._start_times
+        assert "saga-123" in listener._saga_start_times
 
     @pytest.mark.asyncio
     async def test_on_saga_complete_records_duration(self):
