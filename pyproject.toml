@@ -8,6 +8,45 @@ dependencies = [
 ]
 requires-python = ">=3.11"
 
+# CLI entry point - allows running 'sagaz' command
+[project.scripts]
+sagaz = "sagaz.cli:main"
+
+[project.optional-dependencies]
+cli = [
+    "click>=8.1.0",
+    "rich>=13.0.0",
+]
+storage = [
+    # Storage backends (optional - install as needed)
+    "asyncpg>=0.30.0",  # PostgreSQL storage
+    "redis>=7.0.0",      # Redis storage  
+]
+integration-tests = [
+    # Integration testing with real databases (requires Docker)
+    "testcontainers[kafka,postgres,rabbitmq,redis]>=4.13.0",
+]
+redis = [
+    "redis>=7.1.0",
+]
+postgres = [
+    "asyncpg>=0.31.0",
+]
+kafka = [
+    "aiokafka>=0.12.0",
+]
+rabbitmq = [
+    "aio-pika>=9.0.0",
+]
+tracing = [
+    "opentelemetry-api>=1.39.1",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.39.1",
+    "opentelemetry-sdk>=1.39.1",
+]
+prometheus = [
+    "prometheus-client>=0.23.1",
+]
+
 [dependency-groups]
 dev = [
     # Testing
@@ -35,37 +74,6 @@ dev = [
     "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
 ]
 
-storage = [
-    # Storage backends (optional - install as needed)
-    "asyncpg>=0.30.0",  # PostgreSQL storage
-    "redis>=7.0.0",      # Redis storage  
-]
-
-integration-tests = [
-    # Integration testing with real databases (requires Docker)
-    "testcontainers[kafka,postgres,rabbitmq,redis]>=4.13.0",
-]
-redis = [
-    "redis>=7.1.0",
-]
-postgres = [
-    "asyncpg>=0.31.0",
-]
-kafka = [
-    "aiokafka>=0.12.0",
-]
-rabbitmq = [
-    "aio-pika>=9.0.0",
-]
-tracing = [
-    "opentelemetry-api>=1.39.1",
-    "opentelemetry-exporter-otlp-proto-grpc>=1.39.1",
-    "opentelemetry-sdk>=1.39.1",
-]
-prometheus = [
-    "prometheus-client>=0.23.1",
-]
-
 
 # ============================================================================
 # Build System Configuration
@@ -80,7 +88,7 @@ build-backend = "setuptools.build_meta"
 packages = ["sagaz"]
 
 [tool.setuptools.package-data]
-app = ["py.typed"]
+sagaz = ["py.typed", "resources/**/*", "resources/**/.*"]
 
 [dependencies]
 python = "^3.11"
@@ -258,6 +266,9 @@ markers = [
     "integration: marks tests as integration tests (require Docker/external services)",
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "xdist_group(name): marks tests to run on same worker (for shared state)",
+    "performance: marks tests as performance/throughput tests",
+    "stress: marks tests as stress/endurance tests (long-running)",
+    "chaos: marks tests as chaos engineering tests",
 ]
 
 # Filter warnings from external libraries
