@@ -97,7 +97,8 @@ from sagaz.orchestrator import SagaOrchestrator
 from sagaz.types import ParallelFailureStrategy, SagaResult, SagaStatus, SagaStepStatus
 
 # Backward compatibility aliases (deprecated - use Saga instead)
-DAGSaga = Saga
+# DAGSaga must remain as ClassicSaga for backward compatibility with tests
+DAGSaga = ClassicSaga
 
 
 __all__ = [
