@@ -1,0 +1,162 @@
+name: "Performance Benchmarks"
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run weekly on Sundays at midnight
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+    inputs:
+      config:
+        description: 'Test configuration (local/production)'
+        required: false
+        default: 'local'
+
+jobs:
+  benchmark:
+    name: "Run Benchmarks"
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Create virtual environment
+        run: uv venv
+
+      - name: Install dependencies
+        run: |
+          source .venv/bin/activate
+          uv pip install -e ".[prometheus]"
+          uv sync --group dev
+
+      - name: Run performance tests (local config)
+        id: perf_local
+        run: |
+          source .venv/bin/activate
+          echo "## Performance Test Results (Local Config)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          pytest tests/test_performance.py -v -m "performance and not slow" --tb=short 2>&1 | tee perf_output.txt
+          cat perf_output.txt >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        continue-on-error: true
+
+      - name: Extract metrics
+        id: metrics
+        run: |
+          # Extract throughput and latency from output
+          THROUGHPUT=$(grep -oP 'Throughput: \K[\d.]+' perf_output.txt | head -1 || echo "N/A")
+          P95=$(grep -oP 'P95.*: \K[\d.]+' perf_output.txt | head -1 || echo "N/A")
+          P99=$(grep -oP 'P99.*: \K[\d.]+' perf_output.txt | head -1 || echo "N/A")
+          
+          echo "throughput=$THROUGHPUT" >> $GITHUB_OUTPUT
+          echo "p95=$P95" >> $GITHUB_OUTPUT
+          echo "p99=$P99" >> $GITHUB_OUTPUT
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Key Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Throughput | ${THROUGHPUT} sagas/sec |" >> $GITHUB_STEP_SUMMARY
+          echo "| P95 Latency | ${P95} ms |" >> $GITHUB_STEP_SUMMARY
+          echo "| P99 Latency | ${P99} ms |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Run stress tests
+        if: github.event_name == 'schedule' || github.event.inputs.config == 'production'
+        run: |
+          source .venv/bin/activate
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Stress Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          pytest tests/test_performance.py -v -m stress --tb=short 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        continue-on-error: true
+
+      - name: Run production config tests
+        if: github.event.inputs.config == 'production'
+        run: |
+          source .venv/bin/activate
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Production Config Results" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          pytest tests/test_performance.py -v -m "slow" --tb=short 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        continue-on-error: true
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: perf_output.txt
+          retention-days: 30
+
+      - name: Check for regressions
+        run: |
+          THROUGHPUT=$(grep -oP 'Throughput: \K[\d.]+' perf_output.txt | head -1)
+          
+          # Fail if throughput dropped below minimum threshold
+          if [ ! -z "$THROUGHPUT" ]; then
+            if (( $(echo "$THROUGHPUT < 30" | bc -l) )); then
+              echo "::error::Performance regression detected! Throughput: $THROUGHPUT sagas/sec (min: 30)"
+              exit 1
+            fi
+          fi
+          
+          echo "Performance check passed"
+
+  benchmark-comparison:
+    name: "Compare with baseline"
+    runs-on: ubuntu-latest
+    needs: benchmark
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download current results
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-results
+          path: current/
+
+      - name: Compare metrics
+        run: |
+          echo "## Performance Comparison" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Comparing against baseline metrics..." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Baseline thresholds
+          BASELINE_THROUGHPUT=100
+          BASELINE_P95=50
+          
+          CURRENT_THROUGHPUT=$(grep -oP 'Throughput: \K[\d.]+' current/perf_output.txt | head -1 || echo "0")
+          CURRENT_P95=$(grep -oP 'P95.*: \K[\d.]+' current/perf_output.txt | head -1 || echo "0")
+          
+          echo "| Metric | Current | Baseline | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|---------|----------|--------|" >> $GITHUB_STEP_SUMMARY
+          
+          # Compare throughput
+          if (( $(echo "$CURRENT_THROUGHPUT >= $BASELINE_THROUGHPUT" | bc -l) )); then
+            echo "| Throughput | ${CURRENT_THROUGHPUT} | ${BASELINE_THROUGHPUT} | ✅ Pass |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Throughput | ${CURRENT_THROUGHPUT} | ${BASELINE_THROUGHPUT} | ⚠️ Below baseline |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Compare P95
+          if (( $(echo "$CURRENT_P95 <= $BASELINE_P95" | bc -l) )); then
+            echo "| P95 Latency | ${CURRENT_P95}ms | ${BASELINE_P95}ms | ✅ Pass |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| P95 Latency | ${CURRENT_P95}ms | ${BASELINE_P95}ms | ⚠️ Above baseline |" >> $GITHUB_STEP_SUMMARY
+          fi
