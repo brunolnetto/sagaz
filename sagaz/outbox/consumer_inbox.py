@@ -34,8 +34,8 @@ except ImportError:
     def _noop_histogram(*args, **kwargs) -> _NoOpMetric:
         return _NoOpMetric()
 
-    Counter = _noop_counter
-    Histogram = _noop_histogram
+    Counter = _noop_counter  # type: ignore[misc,assignment]
+    Histogram = _noop_histogram  # type: ignore[misc,assignment]
 
 
 logger = logging.getLogger(__name__)
