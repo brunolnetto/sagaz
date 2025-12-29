@@ -30,6 +30,7 @@ import sys
 # Check for optional CLI dependencies
 try:
     import click
+
     HAS_CLICK = True
 except ImportError:
     HAS_CLICK = False
@@ -37,6 +38,7 @@ except ImportError:
 try:
     from rich.console import Console
     from rich.panel import Panel
+
     HAS_RICH = True
 except ImportError:
     HAS_RICH = False
@@ -49,6 +51,7 @@ def main():
 
     # Import and run the CLI app
     from sagaz.cli_app import cli
+
     cli()
 
 

@@ -191,7 +191,9 @@ async def run_saga_and_measure(saga_class, context: dict) -> float:
     return (end - start) * 1000  # Convert to milliseconds
 
 
-async def run_concurrent_sagas(saga_class, iterations: int, concurrency: int, context: dict = None) -> PerformanceResult:
+async def run_concurrent_sagas(
+    saga_class, iterations: int, concurrency: int, context: dict = None
+) -> PerformanceResult:
     """Run multiple sagas concurrently and measure performance."""
     context = context or {}
     latencies: list[float] = []
@@ -330,7 +332,9 @@ class TestThroughput:
         print(f"Mean latency: {result.mean:.2f}ms")
 
         # Heavy saga should still scale with concurrency
-        assert result.throughput > 30, f"Heavy saga production throughput too low: {result.throughput}"
+        assert result.throughput > 30, (
+            f"Heavy saga production throughput too low: {result.throughput}"
+        )
 
 
 # ============================================================================
@@ -469,14 +473,16 @@ class TestEndurance:
         print(f"P99 latency: {sorted(latencies)[int(len(latencies) * 0.99)]:.2f}ms")
 
         # Latency should remain stable over time
-        first_half = latencies[:len(latencies)//2]
-        second_half = latencies[len(latencies)//2:]
+        first_half = latencies[: len(latencies) // 2]
+        second_half = latencies[len(latencies) // 2 :]
 
         first_half_mean = statistics.mean(first_half)
         second_half_mean = statistics.mean(second_half)
 
         # Latency should not degrade significantly
-        degradation = (second_half_mean - first_half_mean) / first_half_mean if first_half_mean > 0 else 0
+        degradation = (
+            (second_half_mean - first_half_mean) / first_half_mean if first_half_mean > 0 else 0
+        )
         print(f"Latency degradation: {degradation * 100:.1f}%")
 
         assert degradation < 0.5, f"Latency degraded too much: {degradation * 100:.1f}%"

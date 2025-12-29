@@ -411,9 +411,7 @@ class Saga:
                 "Choose one approach: either use decorators (declarative) or add_step() (imperative), "
                 "but not both. See Saga class docstring for examples."
             )
-            raise TypeError(
-                msg
-            )
+            raise TypeError(msg)
 
         # Check for duplicate step name
         if name in self._step_registry:
