@@ -27,7 +27,7 @@ try:
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
-    redis = None  # type: ignore[assignment]
+    redis = None
 
 
 class RedisSagaStorage(SagaStorage):

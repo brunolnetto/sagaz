@@ -39,10 +39,10 @@ try:
     PROMETHEUS_AVAILABLE = True
 except ImportError:
     PROMETHEUS_AVAILABLE = False
-    Counter = None  # type: ignore
-    Gauge = None  # type: ignore
-    Histogram = None  # type: ignore
-    start_http_server = None  # type: ignore
+    Counter = None
+    Gauge = None
+    Histogram = None
+    start_http_server = None
 
 logger = logging.getLogger(__name__)
 
