@@ -298,8 +298,6 @@ class SagaConfig:
         Example:
             >>> config = SagaConfig.from_file("sagaz.yaml")
         """
-        from pathlib import Path
-
         import yaml
 
         path = Path(file_path)
@@ -318,62 +316,11 @@ class SagaConfig:
         broker_data = data.get("broker", {})
         obs_data = data.get("observability", {})
 
-        storage = None
-        broker = None
+        # Build components using helper methods
+        storage = cls._build_storage_from_config(storage_data)
+        broker = cls._build_broker_from_config(broker_data)
 
-        # 1. Build Storage
-        if storage_data:
-            s_type = storage_data.get("type", "postgresql").lower()
-            conn = storage_data.get("connection", {})
-            if s_type == "postgresql":
-                from sagaz.storage.postgresql import PostgreSQLSagaStorage
-
-                # Build URL from components if not provided
-                url = conn.get("url")
-                if not url:
-                    user = conn.get("user", "postgres")
-                    pwd = conn.get("password", "postgres")
-                    host = conn.get("host", "localhost")
-                    port = conn.get("port", 5432)
-                    db = conn.get("database", "sagaz")
-                    url = f"postgresql://{user}:{pwd}@{host}:{port}/{db}"
-                storage = PostgreSQLSagaStorage(url)
-            elif s_type == "redis":
-                from sagaz.storage.redis import RedisSagaStorage
-
-                url = conn.get("url", "redis://localhost:6379")
-                storage = RedisSagaStorage(url)
-
-        # 2. Build Broker
-        if broker_data:
-            b_type = broker_data.get("type", "").lower()
-            conn = broker_data.get("connection", {})
-            if b_type == "kafka":
-                from sagaz.outbox.brokers.kafka import KafkaBroker, KafkaBrokerConfig
-
-                host = conn.get("host", "localhost")
-                port = conn.get("port", 9092)
-                kafka_config = KafkaBrokerConfig(bootstrap_servers=f"{host}:{port}")
-                broker = KafkaBroker(kafka_config)
-            elif b_type == "redis":
-                from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
-
-                host = conn.get("host", "localhost")
-                port = conn.get("port", 6379)
-                redis_config = RedisBrokerConfig(url=f"redis://{host}:{port}")
-                broker = RedisBroker(redis_config)
-            elif b_type in ("rabbitmq", "amqp"):
-                from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker, RabbitMQBrokerConfig
-
-                user = conn.get("user", "guest")
-                pwd = conn.get("password", "guest")
-                host = conn.get("host", "localhost")
-                port = conn.get("port", 5672)
-                url = f"amqp://{user}:{pwd}@{host}:{port}/"
-                rmq_config = RabbitMQBrokerConfig(url=url)
-                broker = RabbitMQBroker(rmq_config)
-
-        # 3. Build Config
+        # Build Config
         return cls(
             storage=storage,
             broker=broker,
@@ -381,6 +328,77 @@ class SagaConfig:
             tracing=obs_data.get("tracing", {}).get("enabled", False),
             logging=obs_data.get("logging", {}).get("enabled", True),
         )
+
+    @classmethod
+    def _build_storage_from_config(cls, storage_data: dict) -> SagaStorage | None:
+        """Build storage instance from config dict."""
+        if not storage_data:
+            return None
+
+        s_type = storage_data.get("type", "postgresql").lower()
+        conn = storage_data.get("connection", {})
+
+        if s_type == "postgresql":
+            from sagaz.storage.postgresql import PostgreSQLSagaStorage
+
+            url = conn.get("url") or cls._build_postgres_url(conn)
+            return PostgreSQLSagaStorage(url)
+
+        if s_type == "redis":
+            from sagaz.storage.redis import RedisSagaStorage
+
+            url = conn.get("url", "redis://localhost:6379")
+            return RedisSagaStorage(url)
+
+        return None
+
+    @staticmethod
+    def _build_postgres_url(conn: dict) -> str:
+        """Build PostgreSQL URL from connection components."""
+        user = conn.get("user", "postgres")
+        pwd = conn.get("password", "postgres")
+        host = conn.get("host", "localhost")
+        port = conn.get("port", 5432)
+        db = conn.get("database", "sagaz")
+        return f"postgresql://{user}:{pwd}@{host}:{port}/{db}"
+
+    @classmethod
+    def _build_broker_from_config(cls, broker_data: dict) -> BaseBroker | None:
+        """Build broker instance from config dict."""
+        if not broker_data:
+            return None
+
+        b_type = broker_data.get("type", "").lower()
+        conn = broker_data.get("connection", {})
+
+        if b_type == "kafka":
+            from sagaz.outbox.brokers.kafka import KafkaBroker, KafkaBrokerConfig
+
+            host = conn.get("host", "localhost")
+            port = conn.get("port", 9092)
+            kafka_config = KafkaBrokerConfig(bootstrap_servers=f"{host}:{port}")
+            return KafkaBroker(kafka_config)
+
+        if b_type == "redis":
+            from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+
+            host = conn.get("host", "localhost")
+            port = conn.get("port", 6379)
+            redis_config = RedisBrokerConfig(url=f"redis://{host}:{port}")
+            return RedisBroker(redis_config)
+
+        if b_type in ("rabbitmq", "amqp"):
+            from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker, RabbitMQBrokerConfig
+
+            user = conn.get("user", "guest")
+            pwd = conn.get("password", "guest")
+            host = conn.get("host", "localhost")
+            port = conn.get("port", 5672)
+            url = f"amqp://{user}:{pwd}@{host}:{port}/"
+            rmq_config = RabbitMQBrokerConfig(url=url)
+            return RabbitMQBroker(rmq_config)
+
+        return None
 
     @staticmethod
     def _parse_storage_url(url: str) -> SagaStorage:
