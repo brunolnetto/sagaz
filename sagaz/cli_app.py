@@ -22,6 +22,7 @@ try:
     from rich.panel import Panel
     from rich.progress import Progress, SpinnerColumn, TextColumn
     from rich.table import Table
+
     console = Console()
 except ImportError:
     console = None
@@ -30,6 +31,7 @@ except ImportError:
 # ============================================================================
 # CLI Group
 # ============================================================================
+
 
 @click.group()
 @click.version_option(version="1.0.3", prog_name="sagaz")
@@ -59,34 +61,44 @@ def cli():
 # sagaz init
 # ============================================================================
 
+
 @cli.command()
 @click.option(
-    "--local", "mode", flag_value="local", default=True,
-    help="Docker Compose setup for local development"
+    "--local",
+    "mode",
+    flag_value="local",
+    default=True,
+    help="Docker Compose setup for local development",
 )
 @click.option(
-    "--selfhost", "mode", flag_value="selfhost",
-    help="Setup for self-hosted/on-premise servers"
+    "--selfhost", "mode", flag_value="selfhost", help="Setup for self-hosted/on-premise servers"
 )
 @click.option(
-    "--k8s", "mode", flag_value="k8s",
-    help="Kubernetes manifests for cloud-native deployment"
+    "--k8s", "mode", flag_value="k8s", help="Kubernetes manifests for cloud-native deployment"
 )
 @click.option(
-    "--hybrid", "mode", flag_value="hybrid",
-    help="Hybrid deployment (local services + cloud broker)"
+    "--hybrid",
+    "mode",
+    flag_value="hybrid",
+    help="Hybrid deployment (local services + cloud broker)",
 )
 @click.option(
-    "--preset", type=click.Choice(["redis", "kafka", "rabbitmq"]), default="redis",
-    help="Message broker preset (default: redis)"
+    "--preset",
+    type=click.Choice(["redis", "kafka", "rabbitmq"]),
+    default="redis",
+    help="Message broker preset (default: redis)",
 )
 @click.option(
-    "--with-monitoring", is_flag=True, default=True,
-    help="Include Prometheus/Grafana monitoring stack (default: yes)"
+    "--with-monitoring",
+    is_flag=True,
+    default=True,
+    help="Include Prometheus/Grafana monitoring stack (default: yes)",
 )
 @click.option(
-    "--with-benchmarks", is_flag=True, default=False,
-    help="Include benchmark configuration (optional)"
+    "--with-benchmarks",
+    is_flag=True,
+    default=False,
+    help="Include benchmark configuration (optional)",
 )
 def init(mode: str, preset: str, with_monitoring: bool, with_benchmarks: bool):
     """
@@ -109,11 +121,13 @@ def init(mode: str, preset: str, with_monitoring: bool, with_benchmarks: bool):
         sagaz init --hybrid                # Hybrid deployment
     """
     if console:
-        console.print(Panel.fit(
-            f"[bold blue]Sagaz Project Initialization[/bold blue]\n"
-            f"Mode: [cyan]{mode}[/cyan] | Broker: [green]{preset}[/green]",
-            border_style="blue"
-        ))
+        console.print(
+            Panel.fit(
+                f"[bold blue]Sagaz Project Initialization[/bold blue]\n"
+                f"Mode: [cyan]{mode}[/cyan] | Broker: [green]{preset}[/green]",
+                border_style="blue",
+            )
+        )
 
     if mode == "local":
         _init_local(preset, with_monitoring)
@@ -131,7 +145,9 @@ def init(mode: str, preset: str, with_monitoring: bool, with_benchmarks: bool):
 def _init_local(preset: str, with_monitoring: bool):
     """Create local Docker Compose setup."""
     if console:
-        console.print(f"Creating local development environment (preset: [bold green]{preset}[/bold green])...")
+        console.print(
+            f"Creating local development environment (preset: [bold green]{preset}[/bold green])..."
+        )
 
     # 1. Create docker-compose.yaml
     if Path("docker-compose.yaml").exists():
@@ -173,8 +189,7 @@ def _init_selfhost(preset: str, with_monitoring: bool):
     Path("selfhost").mkdir(exist_ok=True)
 
     # Create systemd service files
-    _create_systemd_service("sagaz-worker", "Sagaz Outbox Worker",
-                            "python -m sagaz.outbox.worker")
+    _create_systemd_service("sagaz-worker", "Sagaz Outbox Worker", "python -m sagaz.outbox.worker")
 
     # Create environment file
     env_content = f"""# Sagaz Environment Configuration
@@ -287,7 +302,9 @@ def _init_k8s(with_monitoring: bool, with_benchmarks: bool):
         console.print("Copying Kubernetes manifests to [bold cyan]./k8s[/bold cyan]...")
 
     if Path("k8s").exists():
-        if not click.confirm("Directory [bold yellow]k8s/[/bold yellow] already exists. Overwrite?"):
+        if not click.confirm(
+            "Directory [bold yellow]k8s/[/bold yellow] already exists. Overwrite?"
+        ):
             click.echo("Aborted.")
             return
         shutil.rmtree("k8s")
@@ -467,9 +484,13 @@ volumes:
     env = f"""# Hybrid Deployment Environment
 # Cloud-managed broker credentials
 
-BROKER_URL={"redis://your-cloud-redis:6379" if preset == "redis" else
-            "kafka://your-cloud-kafka:9092" if preset == "kafka" else
-            "amqp://user:pass@your-cloud-rabbitmq:5672"}
+BROKER_URL={
+        "redis://your-cloud-redis:6379"
+        if preset == "redis"
+        else "kafka://your-cloud-kafka:9092"
+        if preset == "kafka"
+        else "amqp://user:pass@your-cloud-rabbitmq:5672"
+    }
 """
     Path("hybrid/hybrid.env").write_text(env)
     click.echo("  CREATE hybrid/hybrid.env")
@@ -565,7 +586,9 @@ def _copy_resource(resource_path: str, target_path: str):
 def _create_sagaz_config(preset: str):
     """Create sagaz.yaml based on the preset."""
     try:
-        template = pkg_resources.files("sagaz.resources").joinpath("sagaz.yaml.template").read_text()
+        template = (
+            pkg_resources.files("sagaz.resources").joinpath("sagaz.yaml.template").read_text()
+        )
 
         # Simple replacements (no jinja2 yet for v1.0 simplicity)
         ports = {"redis": 6379, "kafka": 9092, "rabbitmq": 5672}
@@ -582,6 +605,7 @@ def _create_sagaz_config(preset: str):
 # ============================================================================
 # sagaz dev
 # ============================================================================
+
 
 @cli.command()
 @click.option("-d", "--detach", is_flag=True, help="Run in background")
@@ -609,6 +633,7 @@ def dev(detach: bool):
 # sagaz stop
 # ============================================================================
 
+
 @cli.command()
 def stop():
     """Stop local development environment."""
@@ -624,6 +649,7 @@ def stop():
 # sagaz status
 # ============================================================================
 
+
 @cli.command()
 def status():
     """Check health of all services."""
@@ -638,12 +664,12 @@ def status():
 
         # Check Docker Compose services
         result = subprocess.run(
-            ["docker", "compose", "ps", "--format", "json"],
-            capture_output=True, text=True
+            ["docker", "compose", "ps", "--format", "json"], capture_output=True, text=True
         )
 
         if result.returncode == 0 and result.stdout.strip():
             import json
+
             try:
                 services = json.loads(f"[{result.stdout.replace('}{', '},{')}]")
                 for svc in services:
@@ -665,9 +691,14 @@ def status():
 # sagaz benchmark
 # ============================================================================
 
+
 @cli.command()
-@click.option("--profile", type=click.Choice(["local", "production", "stress", "full"]),
-              default="local", help="Benchmark profile")
+@click.option(
+    "--profile",
+    type=click.Choice(["local", "production", "stress", "full"]),
+    default="local",
+    help="Benchmark profile",
+)
 @click.option("--output", type=click.Path(), help="Output file for results (JSON)")
 @click.option("--quick", is_flag=True, help="Quick sanity check (minimal iterations)")
 def benchmark(profile: str, output: str, quick: bool):
@@ -688,11 +719,13 @@ def benchmark(profile: str, output: str, quick: bool):
         sagaz benchmark --output out.json # Save results
     """
     if console:
-        console.print(Panel.fit(
-            f"[bold blue]Sagaz Performance Benchmark[/bold blue]\n"
-            f"Profile: [cyan]{profile}[/cyan]",
-            border_style="blue"
-        ))
+        console.print(
+            Panel.fit(
+                f"[bold blue]Sagaz Performance Benchmark[/bold blue]\n"
+                f"Profile: [cyan]{profile}[/cyan]",
+                border_style="blue",
+            )
+        )
 
     # Build pytest command
     cmd = ["python", "-m", "pytest", "tests/test_performance.py", "-v", "--tb=short"]
@@ -707,7 +740,10 @@ def benchmark(profile: str, output: str, quick: bool):
 
     if quick:
         # Override to minimal test
-        cmd = ["python", "-c", """
+        cmd = [
+            "python",
+            "-c",
+            """
 import asyncio
 from sagaz import Saga, action
 
@@ -729,7 +765,8 @@ async def main():
     print(f"Quick benchmark: {throughput:.1f} sagas/sec")
 
 asyncio.run(main())
-"""]
+""",
+        ]
 
     # Run benchmark
     result = subprocess.run(cmd, capture_output=output is not None)
@@ -744,6 +781,7 @@ asyncio.run(main())
 # ============================================================================
 # sagaz logs
 # ============================================================================
+
 
 @cli.command()
 @click.argument("saga_id", required=False)
@@ -782,6 +820,7 @@ def logs(saga_id: str, follow: bool, service: str):
 # sagaz monitor
 # ============================================================================
 
+
 @cli.command()
 def monitor():
     """Open Grafana dashboard in browser."""
@@ -795,6 +834,7 @@ def monitor():
 # ============================================================================
 # sagaz version
 # ============================================================================
+
 
 @cli.command()
 def version():

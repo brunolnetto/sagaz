@@ -123,9 +123,7 @@ class PrometheusMetrics:
             ["saga_name"],
         )
 
-    def record_execution(
-        self, saga_name: str, status: "SagaStatus", duration: float
-    ) -> None:
+    def record_execution(self, saga_name: str, status: "SagaStatus", duration: float) -> None:
         """
         Record a saga execution.
 
@@ -147,9 +145,7 @@ class PrometheusMetrics:
         if status_str in ("failed", "rolled_back"):
             self._compensations_total.labels(saga_name=saga_name).inc()
 
-    def record_step_duration(
-        self, saga_name: str, step_name: str, duration: float
-    ) -> None:
+    def record_step_duration(self, saga_name: str, step_name: str, duration: float) -> None:
         """
         Record a step execution duration.
 
@@ -161,9 +157,7 @@ class PrometheusMetrics:
         if not self._enabled:
             return
 
-        self._step_duration.labels(saga_name=saga_name, step_name=step_name).observe(
-            duration
-        )
+        self._step_duration.labels(saga_name=saga_name, step_name=step_name).observe(duration)
 
     def saga_started(self, saga_name: str) -> None:
         """

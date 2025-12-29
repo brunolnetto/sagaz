@@ -174,9 +174,7 @@ class MetricsSagaListener(SagaListener):
     ) -> None:
         self._record_step_duration(saga_name, step_name, ctx)
 
-    def _record_step_duration(
-        self, saga_name: str, step_name: str, ctx: dict[str, Any]
-    ) -> None:
+    def _record_step_duration(self, saga_name: str, step_name: str, ctx: dict[str, Any]) -> None:
         import time
 
         saga_id = ctx.get("saga_id", "unknown")

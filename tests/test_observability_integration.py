@@ -131,8 +131,9 @@ class TestGrafanaDashboardValidity:
         for metric in metric_names:
             # Allow _bucket suffix for histograms
             base_metric = metric.replace("_bucket", "").replace("_count", "").replace("_sum", "")
-            assert base_metric in valid_metrics or base_metric.endswith("_seconds"), \
+            assert base_metric in valid_metrics or base_metric.endswith("_seconds"), (
                 f"Unknown metric in dashboard: {metric}"
+            )
 
     def test_outbox_dashboard_is_valid_json(self):
         """Verify outbox dashboard JSON is valid."""

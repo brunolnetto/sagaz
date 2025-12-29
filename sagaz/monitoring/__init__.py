@@ -54,4 +54,3 @@ __all__ = [
     "trace_saga_action",
     "trace_saga_compensation",
 ]
-

@@ -376,9 +376,7 @@ class OutboxWorker:
 
         # Record Prometheus metrics
         if PROMETHEUS_AVAILABLE:
-            OUTBOX_FAILED_EVENTS.labels(
-                worker_id=self.worker_id, event_type=event_type
-            ).inc()
+            OUTBOX_FAILED_EVENTS.labels(worker_id=self.worker_id, event_type=event_type).inc()
             OUTBOX_RETRY_ATTEMPTS.labels(worker_id=self.worker_id).inc()
 
         if self._on_event_failed:  # pragma: no cover
@@ -411,9 +409,7 @@ class OutboxWorker:
         # Record Prometheus metrics
         if PROMETHEUS_AVAILABLE:
             event_type = event.event_type or "unknown"
-            OUTBOX_DEAD_LETTER_EVENTS.labels(
-                worker_id=self.worker_id, event_type=event_type
-            ).inc()
+            OUTBOX_DEAD_LETTER_EVENTS.labels(worker_id=self.worker_id, event_type=event_type).inc()
 
         logger.error(
             f"Event {event.event_id} moved to dead letter queue "
