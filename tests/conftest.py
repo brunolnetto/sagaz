@@ -142,13 +142,18 @@ def postgres_container():
 
     Shared across all tests in the session.
     Container starts once and stops at the end of the test session.
+    Gracefully skips if container fails to start (e.g., Docker issues).
     """
     if not TESTCONTAINERS_AVAILABLE:
         pytest.skip("testcontainers not available")
         return None
 
-    with PostgresContainer("postgres:16-alpine") as container:
-        yield container
+    try:
+        with PostgresContainer("postgres:16-alpine") as container:
+            yield container
+    except Exception as e:
+        # Container failed to start (timeout, Docker issues, etc.)
+        pytest.skip(f"PostgreSQL container failed to start: {e}")
 
 
 @pytest.fixture(scope="session")
@@ -158,13 +163,18 @@ def redis_container():
 
     Shared across all tests in the session.
     Container starts once and stops at the end of the test session.
+    Gracefully skips if container fails to start (e.g., Docker issues).
     """
     if not TESTCONTAINERS_AVAILABLE:
         pytest.skip("testcontainers not available")
         return None
 
-    with RedisContainer("redis:7-alpine") as container:
-        yield container
+    try:
+        with RedisContainer("redis:7-alpine") as container:
+            yield container
+    except Exception as e:
+        # Container failed to start (timeout, Docker issues, etc.)
+        pytest.skip(f"Redis container failed to start: {e}")
 
 
 @pytest.fixture(scope="session")

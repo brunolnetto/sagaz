@@ -35,12 +35,13 @@ try:
     from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
     TRACING_AVAILABLE = True
-except ImportError:
+except ImportError:  # pragma: no cover
     # Graceful degradation if OpenTelemetry is not installed
     TRACING_AVAILABLE = False
     trace = None  # type: ignore[assignment]
     Span = None  # type: ignore[assignment, misc]
     StatusCode = None  # type: ignore[assignment, misc]
+
 
 from sagaz.types import SagaStatus, SagaStepStatus
 

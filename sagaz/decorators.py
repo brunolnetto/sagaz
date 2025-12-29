@@ -33,8 +33,9 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypeVar
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from sagaz.storage.base import SagaStorage
+
 
 from sagaz.compensation_graph import CompensationType, SagaCompensationGraph
 

@@ -25,7 +25,7 @@ try:
     import redis.asyncio as redis
 
     REDIS_AVAILABLE = True
-except ImportError:
+except ImportError:  # pragma: no cover
     REDIS_AVAILABLE = False
     redis: Any = None  # type: ignore[no-redef]
 

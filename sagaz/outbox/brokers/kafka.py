@@ -140,7 +140,7 @@ class KafkaBroker(BaseBroker):
         if self._connected:
             return
 
-        try:
+        try:  # pragma: no cover (RUN_INTEGRATION=1 with Docker)
             producer_kwargs = {
                 "bootstrap_servers": self.config.bootstrap_servers,
                 "client_id": self.config.client_id,
@@ -171,7 +171,7 @@ class KafkaBroker(BaseBroker):
             msg = f"Failed to connect to Kafka: {e}"
             raise BrokerConnectionError(msg) from e
 
-    async def publish(  # pragma: no cover
+    async def publish(
         self,
         topic: str,
         message: bytes,
@@ -179,11 +179,11 @@ class KafkaBroker(BaseBroker):
         key: str | None = None,
     ) -> None:
         """Publish a message to Kafka."""
-        if not self._connected or not self._producer:  # pragma: no cover
+        if not self._connected or not self._producer:
             msg = "Kafka producer not connected"
             raise BrokerConnectionError(msg)
 
-        try:
+        try:  # pragma: no cover (RUN_INTEGRATION=1 with Docker)
             await self._producer.send_and_wait(
                 topic=topic,
                 value=message,
@@ -208,7 +208,7 @@ class KafkaBroker(BaseBroker):
         """Encode key to bytes if provided."""
         return key.encode("utf-8") if key else None
 
-    async def close(self) -> None:  # pragma: no cover
+    async def close(self) -> None:  # pragma: no cover (RUN_INTEGRATION=1)
         """Close the Kafka producer."""
         if self._producer:
             await self._producer.stop()
@@ -216,12 +216,12 @@ class KafkaBroker(BaseBroker):
         self._connected = False
         logger.info("Kafka producer closed")
 
-    async def health_check(self) -> bool:  # pragma: no cover
+    async def health_check(self) -> bool:
         """Check Kafka connection health."""
-        if not self._connected or not self._producer:  # pragma: no cover
+        if not self._connected or not self._producer:
             return False
 
-        try:
+        try:  # pragma: no cover (RUN_INTEGRATION=1 with Docker)
             # Try to get cluster metadata as a health check
             await self._producer.client.fetch_all_metadata()
             return True
