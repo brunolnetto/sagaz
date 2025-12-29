@@ -186,7 +186,7 @@ class RabbitMQBroker(BaseBroker):
             rmq_message = Message(
                 body=message,
                 delivery_mode=DeliveryMode.PERSISTENT,
-                headers=headers or {},
+                headers=headers or {},  # type: ignore[arg-type]
                 content_type="application/json",
             )
 
@@ -253,7 +253,7 @@ class RabbitMQBroker(BaseBroker):
         queue = await self._channel.declare_queue(  # pragma: no cover
             queue_name,
             durable=durable,
-            arguments=arguments or None,
+            arguments=arguments or None,  # type: ignore[arg-type]
         )
 
         await queue.bind(self._exchange, routing_key)  # pragma: no cover

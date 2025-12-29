@@ -236,7 +236,8 @@ disallow_incomplete_defs = false
 check_untyped_defs = true
 no_implicit_optional = true
 warn_redundant_casts = true
-warn_unused_ignores = true
+# Disabled: Optional dependency patterns require type:ignore that appear unused when deps are installed
+warn_unused_ignores = false
 warn_no_return = true
 strict_equality = true
 ignore_missing_imports = true
