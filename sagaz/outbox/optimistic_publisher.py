@@ -6,6 +6,7 @@ Reduces latency from ~100ms (polling) to <10ms (immediate) in happy path.
 
 import asyncio
 import logging
+from typing import Any
 
 # Optional prometheus metrics
 try:
@@ -18,13 +19,13 @@ except ImportError:
     from contextlib import contextmanager
 
     class _NoOpMetric:
-        def inc(self, *args, **kwargs):
+        def inc(self, *args: Any, **kwargs: Any) -> None:
             pass
 
-        def observe(self, *args, **kwargs):
+        def observe(self, *args: Any, **kwargs: Any) -> None:
             pass
 
-        def labels(self, *args, **kwargs):
+        def labels(self, *args: Any, **kwargs: Any) -> "_NoOpMetric":
             return self
 
         @contextmanager
@@ -32,11 +33,14 @@ except ImportError:
             """No-op context manager for timing."""
             yield
 
-    def Counter(*args, **kwargs) -> _NoOpMetric:
+    def _noop_counter(*args: Any, **kwargs: Any) -> _NoOpMetric:
         return _NoOpMetric()
 
-    def Histogram(*args, **kwargs) -> _NoOpMetric:
+    def _noop_histogram(*args: Any, **kwargs: Any) -> _NoOpMetric:
         return _NoOpMetric()
+
+    Counter = _noop_counter
+    Histogram = _noop_histogram
 
 
 from .types import OutboxEvent

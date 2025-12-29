@@ -13,6 +13,7 @@ Usage:
 
 import logging
 from dataclasses import dataclass
+from typing import Any
 
 from sagaz.exceptions import MissingDependencyError
 from sagaz.outbox.brokers.base import (
@@ -31,10 +32,10 @@ try:
     RABBITMQ_AVAILABLE = True
 except ImportError:
     RABBITMQ_AVAILABLE = False
-    aio_pika = None  # pragma: no cover
-    Message = None  # pragma: no cover
-    DeliveryMode = None  # pragma: no cover
-    ExchangeType = None  # pragma: no cover
+    aio_pika: Any = None  # type: ignore[no-redef]  # pragma: no cover
+    Message: Any = None  # type: ignore[no-redef]  # pragma: no cover
+    DeliveryMode: Any = None  # type: ignore[no-redef]  # pragma: no cover
+    ExchangeType: Any = None  # type: ignore[no-redef]  # pragma: no cover
 
 logger = logging.getLogger(__name__)
 

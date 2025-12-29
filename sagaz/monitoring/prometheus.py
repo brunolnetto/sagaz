@@ -27,7 +27,7 @@ Requirements:
 """
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from sagaz.types import SagaStatus
@@ -39,10 +39,10 @@ try:
     PROMETHEUS_AVAILABLE = True
 except ImportError:
     PROMETHEUS_AVAILABLE = False
-    Counter = None
-    Gauge = None
-    Histogram = None
-    start_http_server = None
+    Counter: Any = None  # type: ignore[no-redef]
+    Gauge: Any = None  # type: ignore[no-redef]
+    Histogram: Any = None  # type: ignore[no-redef]
+    start_http_server: Any = None  # type: ignore[no-redef]
 
 logger = logging.getLogger(__name__)
 
