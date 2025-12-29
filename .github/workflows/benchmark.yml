@@ -47,7 +47,7 @@ jobs:
           echo "## Performance Test Results (Local Config)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          pytest tests/test_performance.py -v -m "performance and not slow" --tb=short 2>&1 | tee perf_output.txt
+          pytest tests/test_performance.py -v -s -m "performance and not slow" --tb=short 2>&1 | tee perf_output.txt
           cat perf_output.txt >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
         continue-on-error: true
@@ -79,7 +79,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Stress Test Results" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          pytest tests/test_performance.py -v -m stress --tb=short 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          pytest tests/test_performance.py -v -s -m stress --tb=short 2>&1 | tee -a $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
         continue-on-error: true
 
@@ -90,7 +90,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Production Config Results" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          pytest tests/test_performance.py -v -m "slow" --tb=short 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          pytest tests/test_performance.py -v -s -m "slow" --tb=short 2>&1 | tee -a $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
         continue-on-error: true
 
