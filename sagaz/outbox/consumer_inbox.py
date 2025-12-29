@@ -28,11 +28,14 @@ except ImportError:
         def labels(self, *args, **kwargs):
             return self
 
-    def Counter(*args, **kwargs) -> _NoOpMetric:
+    def _noop_counter(*args, **kwargs) -> _NoOpMetric:
         return _NoOpMetric()
 
-    def Histogram(*args, **kwargs) -> _NoOpMetric:
+    def _noop_histogram(*args, **kwargs) -> _NoOpMetric:
         return _NoOpMetric()
+
+    Counter = _noop_counter
+    Histogram = _noop_histogram
 
 
 logger = logging.getLogger(__name__)
