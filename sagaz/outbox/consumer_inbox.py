@@ -14,7 +14,7 @@ try:
     from prometheus_client import Counter, Histogram
 
     PROMETHEUS_AVAILABLE = True
-except ImportError:
+except ImportError:  # pragma: no cover
     PROMETHEUS_AVAILABLE = False
 
     # No-op fallbacks

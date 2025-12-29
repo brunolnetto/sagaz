@@ -57,8 +57,9 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from sagaz.storage.base import SagaStorage
+
 
 from statemachine.exceptions import TransitionNotAllowed
 

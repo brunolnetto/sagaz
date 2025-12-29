@@ -1608,6 +1608,7 @@ name = "sagaz"
 version = "1.0.3"
 source = { editable = "." }
 dependencies = [
+    { name = "asyncpg" },
     { name = "python-statemachine" },
 ]
 
@@ -1646,6 +1647,9 @@ tracing = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "aio-pika" },
+    { name = "aiokafka" },
+    { name = "asyncpg" },
     { name = "bandit" },
     { name = "ipython" },
     { name = "mypy" },
@@ -1654,6 +1658,7 @@ dev = [
     { name = "opentelemetry-sdk" },
     { name = "pip-audit" },
     { name = "prek" },
+    { name = "prometheus-client" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
@@ -1661,18 +1666,17 @@ dev = [
     { name = "pytest-watch" },
     { name = "pytest-xdist" },
     { name = "radon" },
+    { name = "redis" },
     { name = "ruff" },
-    { name = "testcontainers" },
-    { name = "types-pyyaml" },
-]
-integration-tests = [
     { name = "testcontainers", extra = ["rabbitmq", "redis"] },
+    { name = "types-pyyaml" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "aio-pika", marker = "extra == 'rabbitmq'", specifier = ">=9.0.0" },
     { name = "aiokafka", marker = "extra == 'kafka'", specifier = ">=0.12.0" },
+    { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "asyncpg", marker = "extra == 'postgres'", specifier = ">=0.31.0" },
     { name = "asyncpg", marker = "extra == 'storage'", specifier = ">=0.30.0" },
     { name = "click", marker = "extra == 'cli'", specifier = ">=8.1.0" },
@@ -1690,6 +1694,9 @@ provides-extras = ["cli", "storage", "integration-tests", "redis", "postgres", "
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "aio-pika", specifier = ">=9.0.0" },
+    { name = "aiokafka", specifier = ">=0.12.0" },
+    { name = "asyncpg", specifier = ">=0.30.0" },
     { name = "bandit", extras = ["toml"], specifier = ">=1.7.5" },
     { name = "ipython", specifier = "==9.8.0" },
     { name = "mypy", specifier = "==1.19.1" },
@@ -1698,6 +1705,7 @@ dev = [
     { name = "opentelemetry-sdk", specifier = ">=1.20.0" },
     { name = "pip-audit", specifier = ">=2.6.1" },
     { name = "prek", specifier = ">=0.2.13" },
+    { name = "prometheus-client", specifier = ">=0.23.1" },
     { name = "pytest", specifier = "==9.0.2" },
     { name = "pytest-asyncio", specifier = "==1.3.0" },
     { name = "pytest-cov", specifier = "==7.0.0" },
@@ -1705,11 +1713,11 @@ dev = [
     { name = "pytest-watch", specifier = ">=4.2.0" },
     { name = "pytest-xdist", specifier = ">=3.8.0" },
     { name = "radon", specifier = ">=6.0.1" },
+    { name = "redis", specifier = ">=6.0.0" },
     { name = "ruff", specifier = ">=0.1.6" },
-    { name = "testcontainers", specifier = ">=4.13.3" },
+    { name = "testcontainers", extras = ["kafka", "postgres", "rabbitmq", "redis"], specifier = ">=4.13.3" },
     { name = "types-pyyaml", specifier = ">=6.0.0" },
 ]
-integration-tests = [{ name = "testcontainers", extras = ["kafka", "postgres", "rabbitmq", "redis"], specifier = ">=4.13.0" }]
 
 [[package]]
 name = "six"

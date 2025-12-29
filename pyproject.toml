@@ -4,7 +4,8 @@ version = "1.0.3"
 description = "Production-ready Saga pattern with DAG support"
 readme = "README.md"
 dependencies = [
-    "python-statemachine>=2.1.0"
+    "asyncpg>=0.31.0",
+    "python-statemachine>=2.1.0",
 ]
 requires-python = ">=3.11"
 
@@ -66,7 +67,7 @@ dev = [
     "bandit[toml]>=1.7.5",
     "pip-audit>=2.6.1",
     "radon>=6.0.1",
-    "testcontainers>=4.13.3",
+    "testcontainers[kafka,postgres,rabbitmq,redis]>=4.13.3",
     "pytest-timeout>=2.4.0",
     # OpenTelemetry (for tracing tests)
     "opentelemetry-api>=1.20.0",
@@ -74,10 +75,12 @@ dev = [
     "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
     # Type stubs
     "types-PyYAML>=6.0.0",
-]
-integration-tests = [
-    # Integration testing with real databases (requires Docker)
-    "testcontainers[kafka,postgres,rabbitmq,redis]>=4.13.0",
+    # All optional backends for integration testing
+    "asyncpg>=0.30.0",
+    "redis>=6.0.0",
+    "aiokafka>=0.12.0",
+    "aio-pika>=9.0.0",
+    "prometheus-client>=0.23.1",
 ]
 
 # ============================================================================
@@ -265,7 +268,8 @@ python_functions = ["test_*"]
 # Parallel execution with pytest-xdist
 # Run tests with: pytest -n auto --dist=loadgroup (respects xdist_group markers)
 # Use --dist=loadgroup to share containers across tests with same xdist_group
-# addopts = "-n auto --dist=loadgroup"  # Uncomment to enable by default
+# Exclude performance/stress tests by default (run separately in benchmark workflow)
+addopts = "-m 'not performance and not stress'"
 
 # Register custom markers
 markers = [
@@ -282,6 +286,7 @@ filterwarnings = [
     "error",  # Treat warnings as errors by default
     # Ignore deprecation warnings from testcontainers
     "ignore:The @wait_container_is_ready decorator is deprecated:DeprecationWarning:testcontainers",
+    "ignore:The wait_for_logs function with string or callable predicates is deprecated:DeprecationWarning:testcontainers",
     # Ignore RuntimeWarning from statemachine library
     "ignore:coroutine 'sleep' was never awaited:RuntimeWarning:statemachine",
     # Ignore RuntimeWarning from stdlib (caused by statemachine)
@@ -321,6 +326,9 @@ omit = [
     "sagaz/__init__.py",
     "sagaz/*/__init__.py",
     "examples/*",
+    # CLI tools - interactive wrappers, not core library logic
+    "sagaz/cli.py",
+    "sagaz/cli_app.py",
 ]
 
 [tool.coverage.html]

@@ -30,12 +30,13 @@ try:
     from aio_pika.abc import AbstractChannel, AbstractConnection, AbstractExchange
 
     RABBITMQ_AVAILABLE = True
-except ImportError:
+except ImportError:  # pragma: no cover
     RABBITMQ_AVAILABLE = False
-    aio_pika: Any = None  # type: ignore[no-redef]  # pragma: no cover
-    Message: Any = None  # type: ignore[no-redef]  # pragma: no cover
-    DeliveryMode: Any = None  # type: ignore[no-redef]  # pragma: no cover
-    ExchangeType: Any = None  # type: ignore[no-redef]  # pragma: no cover
+    aio_pika: Any = None  # type: ignore[no-redef]
+    Message: Any = None  # type: ignore[no-redef]
+    DeliveryMode: Any = None  # type: ignore[no-redef]
+    ExchangeType: Any = None  # type: ignore[no-redef]
+
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +134,7 @@ class RabbitMQBroker(BaseBroker):
         if self._connected:
             return
 
-        try:
+        try:  # pragma: no cover (RUN_INTEGRATION=1 with Docker)
             # Connect to RabbitMQ
             self._connection = await aio_pika.connect_robust(
                 self.config.url,
@@ -161,7 +162,7 @@ class RabbitMQBroker(BaseBroker):
             msg = f"Failed to connect to RabbitMQ: {e}"
             raise BrokerConnectionError(msg) from e
 
-    async def publish(  # pragma: no cover
+    async def publish(
         self,
         topic: str,
         message: bytes,
@@ -177,11 +178,11 @@ class RabbitMQBroker(BaseBroker):
             headers: Optional message headers
             key: Optional message key (ignored for RabbitMQ, use topic as routing key)
         """
-        if not self._connected or not self._exchange:  # pragma: no cover
+        if not self._connected or not self._exchange:
             msg = "RabbitMQ broker not connected"
             raise BrokerConnectionError(msg)
 
-        try:
+        try:  # pragma: no cover (RUN_INTEGRATION=1 with Docker)
             # Create message with persistent delivery mode
             rmq_message = Message(
                 body=message,
@@ -202,7 +203,7 @@ class RabbitMQBroker(BaseBroker):
             msg = f"Failed to publish to RabbitMQ: {e}"
             raise BrokerPublishError(msg) from e
 
-    async def close(self) -> None:  # pragma: no cover
+    async def close(self) -> None:  # pragma: no cover (RUN_INTEGRATION=1)
         """Close the RabbitMQ connection."""
         if self._channel:
             await self._channel.close()
@@ -216,12 +217,12 @@ class RabbitMQBroker(BaseBroker):
         self._connected = False
         logger.info("RabbitMQ connection closed")
 
-    async def health_check(self) -> bool:  # pragma: no cover
+    async def health_check(self) -> bool:
         """Check RabbitMQ connection health."""
         if not self._connected or not self._connection:  # pragma: no cover
             return False
 
-        try:
+        try:  # pragma: no cover (RUN_INTEGRATION=1 with Docker)
             return not self._connection.is_closed
         except Exception:  # pragma: no cover
             return False

@@ -24,7 +24,7 @@ try:
     import asyncpg
 
     ASYNCPG_AVAILABLE = True
-except ImportError:
+except ImportError:  # pragma: no cover
     ASYNCPG_AVAILABLE = False
     asyncpg = None
 
