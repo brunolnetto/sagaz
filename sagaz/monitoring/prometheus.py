@@ -10,7 +10,7 @@ compatible with the Grafana dashboards.
 
 Quick Start:
     >>> from sagaz.monitoring.prometheus import PrometheusMetrics, start_metrics_server
-    >>> 
+    >>>
     >>> # Start the metrics server
     >>> start_metrics_server(port=8000)
     >>>
@@ -61,9 +61,9 @@ class PrometheusMetrics:
     Example:
         >>> from sagaz.monitoring.prometheus import PrometheusMetrics
         >>> from sagaz.listeners import MetricsSagaListener
-        >>> 
+        >>>
         >>> metrics = PrometheusMetrics()
-        >>> 
+        >>>
         >>> class OrderSaga(Saga):
         ...     listeners = [MetricsSagaListener(metrics=metrics)]
     """

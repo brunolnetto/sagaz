@@ -7,7 +7,6 @@ import pytest
 
 from sagaz import Saga, action, compensate
 
-
 # ============================================================================
 # Test Declarative Mode
 # ============================================================================
@@ -40,7 +39,7 @@ class TestDeclarativeMode:
     def test_mode_is_declarative(self):
         """Saga with decorators should have mode='declarative'."""
         saga = SimpleSaga()
-        assert saga._mode == 'declarative'
+        assert saga._mode == "declarative"
 
     def test_add_step_raises_on_declarative_saga(self):
         """add_step() should raise TypeError when saga has decorators."""
@@ -88,7 +87,7 @@ class TestImperativeMode:
         assert saga._mode is None  # No mode yet
 
         saga.add_step("step1", action_fn)
-        assert saga._mode == 'imperative'
+        assert saga._mode == "imperative"
 
     def test_add_step_returns_self_for_chaining(self):
         """add_step() should return self for method chaining."""

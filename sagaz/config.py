@@ -297,8 +297,9 @@ class SagaConfig:
         Example:
             >>> config = SagaConfig.from_file("sagaz.yaml")
         """
-        import yaml
         from pathlib import Path
+
+        import yaml
 
         path = Path(file_path)
         if not path.exists():

@@ -125,7 +125,7 @@ class MetricsSagaListener(SagaListener):
     Records saga metrics using a metrics backend.
 
     Supports both the simple SagaMetrics class and the PrometheusMetrics backend.
-    
+
     For Prometheus dashboards, use PrometheusMetrics:
         >>> from sagaz.monitoring.prometheus import PrometheusMetrics
         >>> metrics = PrometheusMetrics()
