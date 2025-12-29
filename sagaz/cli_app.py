@@ -9,18 +9,19 @@ This module contains the actual CLI commands for all deployment scenarios:
 - Benchmarking
 """
 
-import click
-from pathlib import Path
+import importlib.resources as pkg_resources
 import shutil
 import subprocess
 import sys
-import os
+from pathlib import Path
+
+import click
 
 try:
     from rich.console import Console
     from rich.panel import Panel
-    from rich.table import Table
     from rich.progress import Progress, SpinnerColumn, TextColumn
+    from rich.table import Table
     console = Console()
 except ImportError:
     console = None
@@ -35,24 +36,23 @@ except ImportError:
 def cli():
     """
     Sagaz - Production-ready Saga Pattern Orchestration.
-    
+
     \b
     Deployment Scenarios:
         sagaz init --local        # Local development (Docker Compose)
         sagaz init --selfhost     # Self-hosted servers
         sagaz init --k8s          # Kubernetes (cloud-native)
         sagaz init --hybrid       # Hybrid deployment
-    
+
     \b
     Operations:
         sagaz dev                 # Start local environment
         sagaz status              # Check health
         sagaz benchmark           # Run performance tests
         sagaz benchmark --stress  # Run stress tests
-    
+
     Documentation: https://github.com/brunolnetto/sagaz
     """
-    pass
 
 
 # ============================================================================
@@ -91,14 +91,14 @@ def cli():
 def init(mode: str, preset: str, with_monitoring: bool, with_benchmarks: bool):
     """
     Initialize a new Sagaz project for your deployment scenario.
-    
+
     \b
     Deployment Modes:
         --local       Docker Compose for development (default)
         --selfhost    Systemd services for on-premise servers
         --k8s         Kubernetes manifests for cloud-native
         --hybrid      Mix of local and cloud services
-    
+
     \b
     Examples:
         sagaz init                         # Local + Redis (simplest)
@@ -114,7 +114,7 @@ def init(mode: str, preset: str, with_monitoring: bool, with_benchmarks: bool):
             f"Mode: [cyan]{mode}[/cyan] | Broker: [green]{preset}[/green]",
             border_style="blue"
         ))
-    
+
     if mode == "local":
         _init_local(preset, with_monitoring)
     elif mode == "selfhost":
@@ -123,18 +123,16 @@ def init(mode: str, preset: str, with_monitoring: bool, with_benchmarks: bool):
         _init_k8s(with_monitoring, with_benchmarks)
     elif mode == "hybrid":
         _init_hybrid(preset)
-    
+
     if with_benchmarks and mode not in ["k8s"]:
         _init_benchmarks()
 
-
-import importlib.resources as pkg_resources
 
 def _init_local(preset: str, with_monitoring: bool):
     """Create local Docker Compose setup."""
     if console:
         console.print(f"Creating local development environment (preset: [bold green]{preset}[/bold green])...")
-    
+
     # 1. Create docker-compose.yaml
     if Path("docker-compose.yaml").exists():
         if not click.confirm("docker-compose.yaml already exists. Overwrite?"):
@@ -170,14 +168,14 @@ def _init_selfhost(preset: str, with_monitoring: bool):
     """Create self-hosted/on-premise server setup."""
     if console:
         console.print("Creating self-hosted deployment files...")
-    
+
     # Create selfhost directory
     Path("selfhost").mkdir(exist_ok=True)
-    
+
     # Create systemd service files
-    _create_systemd_service("sagaz-worker", "Sagaz Outbox Worker", 
+    _create_systemd_service("sagaz-worker", "Sagaz Outbox Worker",
                             "python -m sagaz.outbox.worker")
-    
+
     # Create environment file
     env_content = f"""# Sagaz Environment Configuration
 # Copy to /etc/sagaz/sagaz.env
@@ -194,17 +192,17 @@ BROKER_TYPE={preset}
         env_content += "KAFKA_BOOTSTRAP_SERVERS=localhost:9092\n"
     elif preset == "rabbitmq":
         env_content += "RABBITMQ_URL=amqp://guest:guest@localhost:5672\n"
-    
+
     env_content += """
 # Observability
 SAGAZ_METRICS_PORT=8000
 SAGAZ_LOG_LEVEL=INFO
 SAGAZ_LOG_JSON=true
 """
-    
+
     Path("selfhost/sagaz.env").write_text(env_content)
     click.echo("  CREATE selfhost/sagaz.env")
-    
+
     # Create installation script
     install_script = """#!/bin/bash
 # Sagaz Self-Hosted Installation Script
@@ -233,12 +231,12 @@ echo "Installation complete!"
 echo "Start with: sudo systemctl start sagaz-worker"
 """
     Path("selfhost/install.sh").write_text(install_script)
-    os.chmod("selfhost/install.sh", 0o755)
+    Path("selfhost/install.sh").chmod(0o755)
     click.echo("  CREATE selfhost/install.sh")
-    
+
     if with_monitoring:
         _create_selfhost_monitoring()
-    
+
     if console:
         console.print("\n[bold green]Self-hosted setup complete![/bold green]")
         console.print("Next steps:")
@@ -287,28 +285,28 @@ def _init_k8s(with_monitoring: bool, with_benchmarks: bool):
     """Copy Kubernetes manifests from the library to the current directory."""
     if console:
         console.print("Copying Kubernetes manifests to [bold cyan]./k8s[/bold cyan]...")
-    
+
     if Path("k8s").exists():
         if not click.confirm("Directory [bold yellow]k8s/[/bold yellow] already exists. Overwrite?"):
             click.echo("Aborted.")
             return
         shutil.rmtree("k8s")
-    
+
     try:
         # Copy base k8s manifests
         _copy_dir_resource("k8s/base", "k8s/base")
         _copy_dir_resource("k8s/overlays", "k8s/overlays")
-        
+
         if with_monitoring:
             _copy_dir_resource("k8s/monitoring", "k8s/monitoring")
         else:
             click.echo("  SKIP k8s/monitoring (--no-monitoring)")
-        
+
         if with_benchmarks:
             _create_k8s_benchmark_config()
         else:
             click.echo("  SKIP k8s/benchmark (use --with-benchmarks to include)")
-        
+
         if console:
             console.print("[bold green]Kubernetes manifests copied successfully![/bold green]")
     except Exception as e:
@@ -318,7 +316,7 @@ def _init_k8s(with_monitoring: bool, with_benchmarks: bool):
 def _create_k8s_benchmark_config():
     """Create Kubernetes benchmark job configuration."""
     Path("k8s/benchmark").mkdir(parents=True, exist_ok=True)
-    
+
     benchmark_job = """apiVersion: batch/v1
 kind: Job
 metadata:
@@ -331,7 +329,7 @@ spec:
       - name: benchmark
         image: sagaz/sagaz:latest
         command: ["python", "-m", "pytest"]
-        args: 
+        args:
           - "tests/test_performance.py"
           - "-v"
           - "-m"
@@ -353,7 +351,7 @@ spec:
 """
     Path("k8s/benchmark/job.yaml").write_text(benchmark_job)
     click.echo("  CREATE k8s/benchmark/job.yaml")
-    
+
     # Create stress test job
     stress_job = """apiVersion: batch/v1
 kind: Job
@@ -367,7 +365,7 @@ spec:
       - name: stress
         image: sagaz/sagaz:latest
         command: ["python", "-m", "pytest"]
-        args: 
+        args:
           - "tests/test_performance.py"
           - "-v"
           - "-m"
@@ -391,9 +389,9 @@ def _init_hybrid(preset: str):
     """Create hybrid deployment configuration."""
     if console:
         console.print("Creating hybrid deployment configuration...")
-    
+
     Path("hybrid").mkdir(exist_ok=True)
-    
+
     # Create hybrid config explaining the setup
     readme = f"""# Hybrid Deployment Configuration
 
@@ -428,7 +426,7 @@ Edit `hybrid.env` with your cloud broker credentials.
 """
     Path("hybrid/README.md").write_text(readme)
     click.echo("  CREATE hybrid/README.md")
-    
+
     # Create hybrid docker-compose
     compose = f"""version: '3.8'
 
@@ -464,18 +462,18 @@ volumes:
 """
     Path("hybrid/docker-compose.yaml").write_text(compose)
     click.echo("  CREATE hybrid/docker-compose.yaml")
-    
+
     # Create environment template
     env = f"""# Hybrid Deployment Environment
 # Cloud-managed broker credentials
 
-BROKER_URL={"redis://your-cloud-redis:6379" if preset == "redis" else 
+BROKER_URL={"redis://your-cloud-redis:6379" if preset == "redis" else
             "kafka://your-cloud-kafka:9092" if preset == "kafka" else
             "amqp://user:pass@your-cloud-rabbitmq:5672"}
 """
     Path("hybrid/hybrid.env").write_text(env)
     click.echo("  CREATE hybrid/hybrid.env")
-    
+
     if console:
         console.print("\n[bold green]Hybrid setup complete![/bold green]")
         console.print("Next steps:")
@@ -486,7 +484,7 @@ BROKER_URL={"redis://your-cloud-redis:6379" if preset == "redis" else
 def _init_benchmarks():
     """Create local benchmark configuration."""
     Path("benchmarks").mkdir(exist_ok=True)
-    
+
     benchmark_script = """#!/bin/bash
 # Sagaz Benchmark Runner
 
@@ -526,7 +524,7 @@ echo ""
 echo "Benchmark complete!"
 """
     Path("benchmarks/run.sh").write_text(benchmark_script)
-    os.chmod("benchmarks/run.sh", 0o755)
+    Path("benchmarks/run.sh").chmod(0o755)
     click.echo("  CREATE benchmarks/run.sh")
 
 
@@ -536,7 +534,7 @@ def _copy_dir_resource(resource_dir: str, target_dir: str):
         traversable_dir = pkg_resources.files("sagaz.resources").joinpath(resource_dir)
         if not traversable_dir.exists():
             return
-            
+
         Path(target_dir).mkdir(parents=True, exist_ok=True)
         for item in traversable_dir.iterdir():
             if item.is_dir():
@@ -549,7 +547,7 @@ def _copy_dir_resource(resource_dir: str, target_dir: str):
                     content = item.read_bytes()
                     Path(target_dir, item.name).write_bytes(content)
                 click.echo(f"  CREATE {target_dir}/{item.name}")
-    except Exception as e:
+    except Exception:
         # Silently fail if dir doesn't exist, it's optional for some presets
         pass
 
@@ -568,13 +566,13 @@ def _create_sagaz_config(preset: str):
     """Create sagaz.yaml based on the preset."""
     try:
         template = pkg_resources.files("sagaz.resources").joinpath("sagaz.yaml.template").read_text()
-        
+
         # Simple replacements (no jinja2 yet for v1.0 simplicity)
         ports = {"redis": 6379, "kafka": 9092, "rabbitmq": 5672}
-        
+
         content = template.replace("{{ broker_type }}", preset)
         content = content.replace("{{ broker_port }}", str(ports.get(preset, 6379)))
-        
+
         Path("sagaz.yaml").write_text(content)
         click.echo("  CREATE sagaz.yaml")
     except Exception as e:
@@ -590,7 +588,7 @@ def _create_sagaz_config(preset: str):
 def dev(detach: bool):
     """
     Start local development environment.
-    
+
     Requires docker-compose.yaml in current directory.
     Run 'sagaz init --local' first.
     """
@@ -598,11 +596,11 @@ def dev(detach: bool):
         click.echo("docker-compose.yaml not found.")
         click.echo("   Run 'sagaz init --local' first.")
         sys.exit(1)
-    
+
     cmd = ["docker", "compose", "up"]
     if detach:
         cmd.append("-d")
-    
+
     click.echo("Starting development environment...")
     subprocess.run(cmd)
 
@@ -617,7 +615,7 @@ def stop():
     if not Path("docker-compose.yaml").exists():
         click.echo("docker-compose.yaml not found.")
         sys.exit(1)
-    
+
     click.echo("Stopping development environment...")
     subprocess.run(["docker", "compose", "down"])
 
@@ -631,19 +629,19 @@ def status():
     """Check health of all services."""
     click.echo("Checking service health...")
     click.echo("")
-    
+
     if console:
         table = Table(title="Service Status")
         table.add_column("Service", style="cyan")
         table.add_column("Status", style="green")
         table.add_column("Details")
-        
+
         # Check Docker Compose services
         result = subprocess.run(
             ["docker", "compose", "ps", "--format", "json"],
             capture_output=True, text=True
         )
-        
+
         if result.returncode == 0 and result.stdout.strip():
             import json
             try:
@@ -657,7 +655,7 @@ def status():
                 table.add_row("docker-compose", "[yellow]○ parse error[/yellow]", "")
         else:
             table.add_row("docker-compose", "[red]○ not running[/red]", "Run 'sagaz dev'")
-        
+
         console.print(table)
     else:
         subprocess.run(["docker", "compose", "ps"])
@@ -668,21 +666,21 @@ def status():
 # ============================================================================
 
 @cli.command()
-@click.option("--profile", type=click.Choice(["local", "production", "stress", "full"]), 
+@click.option("--profile", type=click.Choice(["local", "production", "stress", "full"]),
               default="local", help="Benchmark profile")
 @click.option("--output", type=click.Path(), help="Output file for results (JSON)")
 @click.option("--quick", is_flag=True, help="Quick sanity check (minimal iterations)")
 def benchmark(profile: str, output: str, quick: bool):
     """
     Run performance benchmarks.
-    
+
     \b
     Profiles:
         local       Fast tests for development (default)
         production  Comprehensive tests with production config
         stress      High concurrency and endurance tests
         full        All benchmark tests
-    
+
     \b
     Examples:
         sagaz benchmark                  # Quick local tests
@@ -695,10 +693,10 @@ def benchmark(profile: str, output: str, quick: bool):
             f"Profile: [cyan]{profile}[/cyan]",
             border_style="blue"
         ))
-    
+
     # Build pytest command
     cmd = ["python", "-m", "pytest", "tests/test_performance.py", "-v", "--tb=short"]
-    
+
     if profile == "local":
         cmd.extend(["-m", "performance and not slow"])
     elif profile == "production":
@@ -706,7 +704,7 @@ def benchmark(profile: str, output: str, quick: bool):
     elif profile == "stress":
         cmd.extend(["-m", "stress"])
     # full = no marker filter
-    
+
     if quick:
         # Override to minimal test
         cmd = ["python", "-c", """
@@ -715,7 +713,7 @@ from sagaz import Saga, action
 
 class TestSaga(Saga):
     saga_name = "benchmark-quick"
-    
+
     @action("step1")
     async def step1(self, ctx):
         return {"done": True}
@@ -732,14 +730,14 @@ async def main():
 
 asyncio.run(main())
 """]
-    
+
     # Run benchmark
     result = subprocess.run(cmd, capture_output=output is not None)
-    
+
     if output and result.returncode == 0:
         Path(output).write_text(result.stdout.decode() if result.stdout else "")
         click.echo(f"Results saved to {output}")
-    
+
     return result.returncode
 
 
@@ -754,7 +752,7 @@ asyncio.run(main())
 def logs(saga_id: str, follow: bool, service: str):
     """
     View saga and service logs.
-    
+
     \b
     Examples:
         sagaz logs              # All logs
@@ -763,13 +761,13 @@ def logs(saga_id: str, follow: bool, service: str):
         sagaz logs abc123       # Logs for specific saga ID
     """
     cmd = ["docker", "compose", "logs"]
-    
+
     if follow:
         cmd.append("-f")
-    
+
     if service:
         cmd.append(service)
-    
+
     if saga_id:
         # Filter logs by saga ID using grep
         click.echo(f"Searching for saga: {saga_id}")
@@ -788,7 +786,7 @@ def logs(saga_id: str, follow: bool, service: str):
 def monitor():
     """Open Grafana dashboard in browser."""
     import webbrowser
-    
+
     grafana_url = "http://localhost:3000"
     click.echo(f"Opening Grafana: {grafana_url}")
     webbrowser.open(grafana_url)

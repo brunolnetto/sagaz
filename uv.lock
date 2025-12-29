@@ -254,6 +254,18 @@ wheels = [
 ]
 
 [[package]]
+name = "click"
+version = "8.3.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/3d/fa/656b739db8587d7b5dfa22e22ed02566950fbfbcdc20311993483657a5c0/click-8.3.1.tar.gz", hash = "sha256:12ff4785d337a1bb490bb7e9c2b1ee5da3112e94a8622f26a6c77f5d2fc6842a", size = 295065, upload-time = "2025-11-15T20:45:42.706Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/98/78/01c019cdb5d6498122777c1a43056ebb3ebfeef2076d9d026bfe15583b2b/click-8.3.1-py3-none-any.whl", hash = "sha256:981153a64e25f12d547d3426c367a4857371575ee7ad18df2a6183ab0545b2a6", size = 108274, upload-time = "2025-11-15T20:45:41.139Z" },
+]
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 source = { registry = "https://pypi.org/simple" }
@@ -1599,25 +1611,10 @@ dependencies = [
     { name = "python-statemachine" },
 ]
 
-[package.dev-dependencies]
-dev = [
-    { name = "bandit" },
-    { name = "ipython" },
-    { name = "mypy" },
-    { name = "opentelemetry-api" },
-    { name = "opentelemetry-exporter-otlp-proto-grpc" },
-    { name = "opentelemetry-sdk" },
-    { name = "pip-audit" },
-    { name = "prek" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-cov" },
-    { name = "pytest-timeout" },
-    { name = "pytest-watch" },
-    { name = "pytest-xdist" },
-    { name = "radon" },
-    { name = "ruff" },
-    { name = "testcontainers" },
+[package.optional-dependencies]
+cli = [
+    { name = "click" },
+    { name = "rich" },
 ]
 integration-tests = [
     { name = "testcontainers", extra = ["rabbitmq", "redis"] },
@@ -1647,8 +1644,48 @@ tracing = [
     { name = "opentelemetry-sdk" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "bandit" },
+    { name = "ipython" },
+    { name = "mypy" },
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-exporter-otlp-proto-grpc" },
+    { name = "opentelemetry-sdk" },
+    { name = "pip-audit" },
+    { name = "prek" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "pytest-timeout" },
+    { name = "pytest-watch" },
+    { name = "pytest-xdist" },
+    { name = "radon" },
+    { name = "ruff" },
+    { name = "testcontainers" },
+]
+integration-tests = [
+    { name = "testcontainers", extra = ["rabbitmq", "redis"] },
+]
+
 [package.metadata]
-requires-dist = [{ name = "python-statemachine", specifier = ">=2.1.0" }]
+requires-dist = [
+    { name = "aio-pika", marker = "extra == 'rabbitmq'", specifier = ">=9.0.0" },
+    { name = "aiokafka", marker = "extra == 'kafka'", specifier = ">=0.12.0" },
+    { name = "asyncpg", marker = "extra == 'postgres'", specifier = ">=0.31.0" },
+    { name = "asyncpg", marker = "extra == 'storage'", specifier = ">=0.30.0" },
+    { name = "click", marker = "extra == 'cli'", specifier = ">=8.1.0" },
+    { name = "opentelemetry-api", marker = "extra == 'tracing'", specifier = ">=1.39.1" },
+    { name = "opentelemetry-exporter-otlp-proto-grpc", marker = "extra == 'tracing'", specifier = ">=1.39.1" },
+    { name = "opentelemetry-sdk", marker = "extra == 'tracing'", specifier = ">=1.39.1" },
+    { name = "prometheus-client", marker = "extra == 'prometheus'", specifier = ">=0.23.1" },
+    { name = "python-statemachine", specifier = ">=2.1.0" },
+    { name = "redis", marker = "extra == 'redis'", specifier = ">=7.1.0" },
+    { name = "redis", marker = "extra == 'storage'", specifier = ">=7.0.0" },
+    { name = "rich", marker = "extra == 'cli'", specifier = ">=13.0.0" },
+    { name = "testcontainers", extras = ["kafka", "postgres", "rabbitmq", "redis"], marker = "extra == 'integration-tests'", specifier = ">=4.13.0" },
+]
+provides-extras = ["cli", "storage", "integration-tests", "redis", "postgres", "kafka", "rabbitmq", "tracing", "prometheus"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -1671,20 +1708,6 @@ dev = [
     { name = "testcontainers", specifier = ">=4.13.3" },
 ]
 integration-tests = [{ name = "testcontainers", extras = ["kafka", "postgres", "rabbitmq", "redis"], specifier = ">=4.13.0" }]
-kafka = [{ name = "aiokafka", specifier = ">=0.12.0" }]
-postgres = [{ name = "asyncpg", specifier = ">=0.31.0" }]
-prometheus = [{ name = "prometheus-client", specifier = ">=0.23.1" }]
-rabbitmq = [{ name = "aio-pika", specifier = ">=9.0.0" }]
-redis = [{ name = "redis", specifier = ">=7.1.0" }]
-storage = [
-    { name = "asyncpg", specifier = ">=0.30.0" },
-    { name = "redis", specifier = ">=7.0.0" },
-]
-tracing = [
-    { name = "opentelemetry-api", specifier = ">=1.39.1" },
-    { name = "opentelemetry-exporter-otlp-proto-grpc", specifier = ">=1.39.1" },
-    { name = "opentelemetry-sdk", specifier = ">=1.39.1" },
-]
 
 [[package]]
 name = "six"

@@ -45,12 +45,8 @@ except ImportError:
 def main():
     """Main entry point for the sagaz CLI."""
     if not HAS_CLICK:
-        print("CLI dependencies not installed.")
-        print("   Install with: pip install sagaz[cli]")
-        print("")
-        print("   Or manually: pip install click rich")
         sys.exit(1)
-    
+
     # Import and run the CLI app
     from sagaz.cli_app import cli
     cli()
@@ -58,42 +54,6 @@ def main():
 
 def main_fallback():
     """Fallback when click is not installed - show help."""
-    print("""
-╔════════════════════════════════════════════════════════════════════════╗
-║                           SAGAZ CLI                                     ║
-╠════════════════════════════════════════════════════════════════════════╣
-║                                                                          ║
-║  The Sagaz CLI requires additional dependencies.                        ║
-║                                                                          ║
-║  Install with:                                                           ║
-║      pip install sagaz[cli]                                              ║
-║                                                                          ║
-║  Or manually:                                                            ║
-║      pip install click rich                                              ║
-║                                                                          ║
-║  Available commands (after installation):                                ║
-║                                                                          ║
-║  Deployment:                                                             ║
-║      sagaz init --local       Create Docker Compose setup               ║
-║      sagaz init --selfhost    Create systemd service files              ║
-║      sagaz init --k8s         Create Kubernetes manifests               ║
-║      sagaz init --hybrid      Create hybrid deployment config           ║
-║                                                                          ║
-║  Operations:                                                             ║
-║      sagaz dev                Start local environment                   ║
-║      sagaz stop               Stop local environment                    ║
-║      sagaz status             Check service health                      ║
-║      sagaz logs               View saga logs                            ║
-║      sagaz monitor            Open Grafana dashboard                    ║
-║                                                                          ║
-║  Benchmarking:                                                           ║
-║      sagaz benchmark          Run performance tests                     ║
-║      sagaz benchmark --stress Run stress tests                          ║
-║                                                                          ║
-║      sagaz --help             Show all commands                         ║
-║                                                                          ║
-╚════════════════════════════════════════════════════════════════════════╝
-""")
     sys.exit(1)
 
 

@@ -73,7 +73,10 @@ dev = [
     "opentelemetry-sdk>=1.20.0",
     "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
 ]
-
+integration-tests = [
+    # Integration testing with real databases (requires Docker)
+    "testcontainers[kafka,postgres,rabbitmq,redis]>=4.13.0",
+]
 
 # ============================================================================
 # Build System Configuration
