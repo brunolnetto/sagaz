@@ -1033,13 +1033,14 @@ class Saga(ABC):
             saga = MySaga()
             result = await saga.run({"key": "value"})
         """
-        raise TypeError(
+        msg = (
             "Cannot use run() on ClassicSaga. "
             "Use execute() instead for imperative API. "
             "For declarative API with @action/@compensate decorators, "
             "use the Saga class from sagaz. "
             "See docstring for examples."
         )
+        raise TypeError(msg)
 
 
 @dataclass

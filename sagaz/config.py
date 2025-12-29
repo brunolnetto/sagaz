@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -303,7 +304,8 @@ class SagaConfig:
 
         path = Path(file_path)
         if not path.exists():
-            raise FileNotFoundError(f"Configuration file not found: {file_path}")
+            msg = f"Configuration file not found: {file_path}"
+            raise FileNotFoundError(msg)
 
         with path.open() as f:
             data = yaml.safe_load(f)
