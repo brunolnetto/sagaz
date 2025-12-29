@@ -23,9 +23,10 @@ try:
     from rich.progress import Progress, SpinnerColumn, TextColumn
     from rich.table import Table
 
-    console = Console()
+    console: Console | None = Console()
 except ImportError:
     console = None
+    Panel = None  # type: ignore[assignment,misc]
 
 
 # ============================================================================
@@ -549,11 +550,14 @@ echo "Benchmark complete!"
     click.echo("  CREATE benchmarks/run.sh")
 
 
-def _copy_dir_resource(resource_dir: str, target_dir: str):
+def _copy_dir_resource(resource_dir: str, target_dir: str) -> None:
     """Recursively copy a directory from the package resources."""
     try:
         traversable_dir = pkg_resources.files("sagaz.resources").joinpath(resource_dir)
-        if not traversable_dir.exists():
+        # Check if directory exists (Traversable may not have exists())
+        try:
+            list(traversable_dir.iterdir())  # Will raise if doesn't exist
+        except (FileNotFoundError, TypeError):
             return
 
         Path(target_dir).mkdir(parents=True, exist_ok=True)
@@ -562,11 +566,11 @@ def _copy_dir_resource(resource_dir: str, target_dir: str):
                 _copy_dir_resource(f"{resource_dir}/{item.name}", f"{target_dir}/{item.name}")
             else:
                 try:
-                    content = item.read_text()
-                    Path(target_dir, item.name).write_text(content)
+                    text_content = item.read_text()
+                    Path(target_dir, item.name).write_text(text_content)
                 except UnicodeDecodeError:
-                    content = item.read_bytes()
-                    Path(target_dir, item.name).write_bytes(content)
+                    binary_content = item.read_bytes()
+                    Path(target_dir, item.name).write_bytes(binary_content)
                 click.echo(f"  CREATE {target_dir}/{item.name}")
     except Exception:
         # Silently fail if dir doesn't exist, it's optional for some presets
