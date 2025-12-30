@@ -58,8 +58,17 @@ class PaymentProcessingSaga(Saga):
 
     @compensate("primary_payment")
     async def refund_primary(self, ctx: SagaContext) -> None:
-        """Refund payment from primary provider."""
+        """Refund payment from primary provider using transaction data from context."""
         logger.warning(f"Refunding payment {self.payment_id}")
+        
+        # Access payment result from context
+        provider = ctx.get("provider")
+        transaction_id = ctx.get("transaction_id")
+        amount = ctx.get("amount")
+        
+        if transaction_id:
+            logger.info(f"Refunding {provider} transaction {transaction_id} for ${amount}")
+        
         await asyncio.sleep(0.2)
 
     @action("record_transaction", depends_on=["primary_payment"])

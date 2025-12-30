@@ -51,8 +51,14 @@ class OrderProcessingSaga(Saga):
 
     @compensate("reserve_inventory")
     async def release_inventory(self, ctx: SagaContext) -> None:
-        """Release reserved inventory."""
+        """Release reserved inventory using data from context."""
         logger.warning(f"Releasing inventory for order {self.order_id}")
+        
+        # Access the action result from context
+        reservations = ctx.get("reservations", [])
+        for reservation in reservations:
+            logger.info(f"Releasing reservation: {reservation['reservation_id']}")
+        
         await asyncio.sleep(0.1)
 
     @action("process_payment", depends_on=["reserve_inventory"])
@@ -72,8 +78,15 @@ class OrderProcessingSaga(Saga):
 
     @compensate("process_payment")
     async def refund_payment(self, ctx: SagaContext) -> None:
-        """Refund payment."""
+        """Refund payment using transaction data from context."""
         logger.warning(f"Refunding payment for order {self.order_id}")
+        
+        # Access the payment result from context
+        transaction_id = ctx.get("transaction_id")
+        amount = ctx.get("amount")
+        if transaction_id:
+            logger.info(f"Refunding transaction {transaction_id} for ${amount}")
+        
         await asyncio.sleep(0.2)
 
     @action("create_shipment", depends_on=["process_payment"])
@@ -90,8 +103,15 @@ class OrderProcessingSaga(Saga):
 
     @compensate("create_shipment")
     async def cancel_shipment(self, ctx: SagaContext) -> None:
-        """Cancel shipment."""
+        """Cancel shipment using shipment data from context."""
         logger.warning(f"Canceling shipment for order {self.order_id}")
+        
+        # Access the shipment result from context
+        shipment_id = ctx.get("shipment_id")
+        tracking_number = ctx.get("tracking_number")
+        if shipment_id:
+            logger.info(f"Canceling shipment {shipment_id} with tracking {tracking_number}")
+        
         await asyncio.sleep(0.1)
 
     @action("send_confirmation", depends_on=["create_shipment"])
