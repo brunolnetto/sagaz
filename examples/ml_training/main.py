@@ -13,7 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from sagaz import Saga, SagaContext, action, compensate
+from sagaz import Saga, action, compensate
 from sagaz.exceptions import SagaStepError
 
 logging.basicConfig(
@@ -37,7 +37,7 @@ class MLTrainingPipelineSaga(Saga):
     
     Each step includes compensation logic for automatic cleanup on failure.
     """
-    
+
     saga_name = "ml-training-pipeline"
 
     def __init__(
@@ -87,23 +87,23 @@ class MLTrainingPipelineSaga(Saga):
         """
         logger.info(f"🔍 Validating dataset: {self.dataset_path}")
         await asyncio.sleep(0.2)  # Simulate I/O
-        
+
         # Simulate validation checks
         dataset_size = random.randint(10000, 100000)
         feature_count = random.randint(10, 50)
         missing_ratio = random.uniform(0.0, 0.1)
-        
+
         if missing_ratio > 0.15:
             raise SagaStepError(f"Dataset has {missing_ratio:.1%} missing values (threshold: 15%)")
-        
+
         # Create temporary validation artifacts
         temp_dir = Path("/tmp") / f"ml_validation_{self.experiment_id}"
         temp_dir.mkdir(parents=True, exist_ok=True)
         validation_report = temp_dir / "validation_report.json"
         validation_report.write_text('{"status": "passed"}')
-        
+
         logger.info(f"✅ Dataset validated: {dataset_size:,} records, {feature_count} features")
-        
+
         return {
             "dataset_size": dataset_size,
             "feature_count": feature_count,
@@ -116,7 +116,7 @@ class MLTrainingPipelineSaga(Saga):
     async def cleanup_validation_artifacts(self, ctx: dict[str, Any]) -> None:
         """Clean up temporary validation artifacts."""
         logger.warning(f"🧹 Cleaning up validation artifacts for experiment {self.experiment_id}")
-        
+
         temp_dir = ctx.get("temp_dir")
         if temp_dir:
             logger.info(f"Removing validation directory: {temp_dir}")
@@ -140,26 +140,26 @@ class MLTrainingPipelineSaga(Saga):
         """
         dataset_size = ctx.get("dataset_size", 0)
         feature_count = ctx.get("feature_count", 0)
-        
+
         logger.info(f"⚙️ Engineering features for {dataset_size:,} records")
         await asyncio.sleep(0.3)  # Simulate feature computation
-        
+
         # Simulate feature engineering
         engineered_features = feature_count + random.randint(5, 15)
         feature_importance_scores = [random.random() for _ in range(engineered_features)]
-        
+
         # Save feature artifacts
         feature_dir = Path("/tmp") / f"ml_features_{self.experiment_id}"
         feature_dir.mkdir(parents=True, exist_ok=True)
-        
+
         transformer_path = feature_dir / "feature_transformer.pkl"
         transformer_path.write_text("# Pickle transformer here")
-        
+
         feature_list_path = feature_dir / "features.txt"
         feature_list_path.write_text("\n".join([f"feature_{i}" for i in range(engineered_features)]))
-        
+
         logger.info(f"✅ Feature engineering complete: {engineered_features} features")
-        
+
         return {
             "engineered_feature_count": engineered_features,
             "feature_importance": feature_importance_scores,
@@ -172,7 +172,7 @@ class MLTrainingPipelineSaga(Saga):
     async def cleanup_feature_artifacts(self, ctx: dict[str, Any]) -> None:
         """Remove feature engineering artifacts."""
         logger.warning(f"🧹 Cleaning up feature artifacts for experiment {self.experiment_id}")
-        
+
         feature_dir = ctx.get("feature_dir")
         if feature_dir:
             logger.info(f"Removing feature directory: {feature_dir}")
@@ -196,38 +196,38 @@ class MLTrainingPipelineSaga(Saga):
         """
         dataset_size = ctx.get("dataset_size", 0)
         feature_count = ctx.get("engineered_feature_count", 0)
-        
+
         logger.info(f"🤖 Training model '{self.model_name}' with {self.hyperparameters}")
         logger.info(f"Training on {dataset_size:,} samples with {feature_count} features")
-        
+
         # Simulate training epochs
         epochs = self.hyperparameters.get("epochs", 10)
         training_losses = []
         validation_losses = []
-        
+
         for epoch in range(epochs):
             train_loss = 1.0 - (epoch / epochs) * 0.7 + random.uniform(-0.05, 0.05)
             val_loss = train_loss + random.uniform(0.0, 0.1)
             training_losses.append(train_loss)
             validation_losses.append(val_loss)
-            
+
             if epoch % 3 == 0:
                 logger.info(f"Epoch {epoch+1}/{epochs} - train_loss: {train_loss:.4f}, val_loss: {val_loss:.4f}")
-        
+
         await asyncio.sleep(0.5)  # Simulate training time
-        
+
         # Save model artifacts
         model_dir = Path("/tmp") / f"ml_model_{self.experiment_id}"
         model_dir.mkdir(parents=True, exist_ok=True)
-        
+
         model_path = model_dir / f"{self.model_name}.h5"
         model_path.write_text("# Model weights here")
-        
+
         config_path = model_dir / "config.json"
         config_path.write_text(f'{{"hyperparameters": {self.hyperparameters}}}')
-        
+
         logger.info(f"✅ Model training complete: final loss {training_losses[-1]:.4f}")
-        
+
         return {
             "model_path": str(model_path),
             "config_path": str(config_path),
@@ -241,7 +241,7 @@ class MLTrainingPipelineSaga(Saga):
     async def cleanup_model_artifacts(self, ctx: dict[str, Any]) -> None:
         """Remove model training artifacts."""
         logger.warning(f"🧹 Cleaning up model artifacts for experiment {self.experiment_id}")
-        
+
         model_dir = ctx.get("model_dir")
         if model_dir:
             logger.info(f"Removing model directory: {model_dir}")
@@ -267,33 +267,33 @@ class MLTrainingPipelineSaga(Saga):
             Evaluation metrics and test results
         """
         model_path = ctx.get("model_path")
-        
+
         logger.info(f"📊 Evaluating model from {model_path}")
         await asyncio.sleep(0.3)  # Simulate evaluation
-        
+
         # Simulate evaluation metrics
         accuracy = random.uniform(0.75, 0.95)
         precision = accuracy + random.uniform(-0.05, 0.05)
         recall = accuracy + random.uniform(-0.05, 0.05)
         f1_score = 2 * (precision * recall) / (precision + recall)
         auc_roc = accuracy + random.uniform(0.0, 0.05)
-        
-        logger.info(f"Model Metrics:")
+
+        logger.info("Model Metrics:")
         logger.info(f"  Accuracy:  {accuracy:.4f}")
         logger.info(f"  Precision: {precision:.4f}")
         logger.info(f"  Recall:    {recall:.4f}")
         logger.info(f"  F1 Score:  {f1_score:.4f}")
         logger.info(f"  AUC-ROC:   {auc_roc:.4f}")
-        
+
         # Check accuracy threshold
         if accuracy < self.accuracy_threshold:
             raise SagaStepError(
                 f"Model accuracy {accuracy:.4f} below threshold {self.accuracy_threshold:.4f}. "
                 f"Training failed - automatic rollback initiated."
             )
-        
+
         logger.info(f"✅ Model evaluation passed: {accuracy:.4f} >= {self.accuracy_threshold:.4f}")
-        
+
         return {
             "accuracy": accuracy,
             "precision": precision,
@@ -327,19 +327,19 @@ class MLTrainingPipelineSaga(Saga):
         """
         accuracy = ctx.get("accuracy", 0.0)
         model_path = ctx.get("model_path")
-        
+
         logger.info(f"📝 Registering model '{self.model_name}' in model registry")
         logger.info(f"Model path: {model_path}")
         logger.info(f"Metrics: accuracy={accuracy:.4f}")
-        
+
         await asyncio.sleep(0.2)  # Simulate registry API call
-        
+
         # Simulate model registry registration
         model_version = random.randint(1, 100)
         registry_uri = f"models:/{self.model_name}/{model_version}"
-        
+
         logger.info(f"✅ Model registered: {registry_uri}")
-        
+
         return {
             "model_version": model_version,
             "registry_uri": registry_uri,
@@ -351,10 +351,10 @@ class MLTrainingPipelineSaga(Saga):
     async def deregister_model(self, ctx: dict[str, Any]) -> None:
         """Remove model from registry."""
         logger.warning(f"🧹 Deregistering model '{self.model_name}' from registry")
-        
+
         model_version = ctx.get("model_version")
         registry_uri = ctx.get("registry_uri")
-        
+
         if registry_uri:
             logger.info(f"Removing model: {registry_uri}")
             # In production: mlflow.delete_model_version(...)
@@ -382,25 +382,25 @@ class MLTrainingPipelineSaga(Saga):
         """
         registry_uri = ctx.get("registry_uri")
         model_version = ctx.get("model_version")
-        
-        logger.info(f"🚀 Deploying model to production")
+
+        logger.info("🚀 Deploying model to production")
         logger.info(f"Model: {registry_uri}")
-        logger.info(f"Strategy: Blue/Green Deployment")
-        
+        logger.info("Strategy: Blue/Green Deployment")
+
         await asyncio.sleep(0.4)  # Simulate deployment
-        
+
         # Simulate deployment process
         deployment_id = f"deploy-{self.experiment_id}"
         endpoint_url = f"https://api.ml-platform.com/models/{self.model_name}/v{model_version}"
-        
+
         # Health check
         await asyncio.sleep(0.1)
         health_status = "healthy"
-        
-        logger.info(f"✅ Model deployed successfully")
+
+        logger.info("✅ Model deployed successfully")
         logger.info(f"Endpoint: {endpoint_url}")
         logger.info(f"Health: {health_status}")
-        
+
         return {
             "deployment_id": deployment_id,
             "endpoint_url": endpoint_url,
@@ -421,17 +421,17 @@ class MLTrainingPipelineSaga(Saga):
         - Verify previous version health
         """
         logger.warning(f"⏪ Rolling back deployment for model '{self.model_name}'")
-        
+
         deployment_id = ctx.get("deployment_id")
         endpoint_url = ctx.get("endpoint_url")
-        
+
         if deployment_id:
             logger.info(f"Removing deployment: {deployment_id}")
-            logger.info(f"Switching traffic to previous version")
+            logger.info("Switching traffic to previous version")
             # In production: kubectl rollout undo deployment/{deployment_id}
             await asyncio.sleep(0.3)
-            
-            logger.info(f"✅ Rollback complete - traffic restored to previous version")
+
+            logger.info("✅ Rollback complete - traffic restored to previous version")
 
 
 async def successful_pipeline_demo():
@@ -439,7 +439,7 @@ async def successful_pipeline_demo():
     print("\n" + "=" * 80)
     print("🤖 ML Training Pipeline - Successful Training Demo")
     print("=" * 80)
-    
+
     saga = MLTrainingPipelineSaga(
         experiment_id="exp-20240115-001",
         dataset_path="/data/training/customer_churn.parquet",
@@ -453,9 +453,9 @@ async def successful_pipeline_demo():
             "dropout": 0.3,
         },
     )
-    
+
     result = await saga.run({"experiment_id": saga.experiment_id})
-    
+
     print(f"\n{'✅' if result.get('saga_id') else '❌'} Training Pipeline Result:")
     print(f"   Saga ID:        {result.get('saga_id')}")
     print(f"   Experiment ID:  {result.get('experiment_id')}")
@@ -470,7 +470,7 @@ async def failed_pipeline_demo():
     print("\n" + "=" * 80)
     print("⚠️  ML Training Pipeline - Failed Training with Rollback Demo")
     print("=" * 80)
-    
+
     saga = MLTrainingPipelineSaga(
         experiment_id="exp-20240115-002",
         dataset_path="/data/training/customer_churn.parquet",
@@ -483,26 +483,26 @@ async def failed_pipeline_demo():
             "optimizer": "sgd",
         },
     )
-    
+
     try:
         result = await saga.run({"experiment_id": saga.experiment_id})
         print(f"✅ Unexpectedly succeeded: {result.get('saga_id')}")
     except SagaStepError as e:
         print(f"\n❌ Pipeline failed as expected: {e}")
-        print(f"✅ Automatic compensation completed successfully")
-        print(f"   All resources cleaned up")
-        print(f"   Model artifacts removed")
-        print(f"   Ready for retry with adjusted parameters")
+        print("✅ Automatic compensation completed successfully")
+        print("   All resources cleaned up")
+        print("   Model artifacts removed")
+        print("   Ready for retry with adjusted parameters")
 
 
 async def main():
     """Run both success and failure scenarios."""
     # Run successful pipeline
     await successful_pipeline_demo()
-    
+
     # Run failed pipeline with automatic rollback
     await failed_pipeline_demo()
-    
+
     print("\n" + "=" * 80)
     print("📚 MLOps Pipeline Demo Complete")
     print("=" * 80)
