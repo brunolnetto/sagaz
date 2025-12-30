@@ -1,23 +1,26 @@
-from typing import Any
+"""
+Travel Booking Saga Example
+
+Demonstrates multi-service travel reservation with the declarative pattern.
+"""
+
 import asyncio
 import logging
+from typing import Any
 
-from sagaz import (
-    ClassicSaga,
-    SagaContext,
+from sagaz import Saga, SagaContext, action, compensate
+
+logging.basicConfig(
+    level=logging.INFO, 
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
-
 logger = logging.getLogger(__name__)
 
-# ============================================
-# EXAMPLE: MULTI-SERVICE BOOKING
-# ============================================
 
-
-class TravelBookingSaga(ClassicSaga):
-    """
-    Travel booking across multiple services (flight + hotel + car rental)
-    """
+class TravelBookingSaga(Saga):
+    """Travel booking across multiple services (flight + hotel + car rental)."""
+    
+    saga_name = "travel-booking"
 
     def __init__(
         self,
@@ -27,49 +30,16 @@ class TravelBookingSaga(ClassicSaga):
         hotel_details: dict,
         car_details: dict | None = None,
     ):
-        super().__init__(name=f"TravelBooking-{booking_id}", version="1.0")
+        super().__init__()
         self.booking_id = booking_id
         self.user_id = user_id
         self.flight_details = flight_details
         self.hotel_details = hotel_details
         self.car_details = car_details
 
-    async def build(self):
-        """Build travel booking saga"""
-
-        # Step 1: Book flight
-        await self.add_step(
-            name="book_flight",
-            action=self._book_flight,
-            compensation=self._cancel_flight,
-            timeout=30.0,
-            max_retries=2,
-        )
-
-        # Step 2: Book hotel
-        await self.add_step(
-            name="book_hotel",
-            action=self._book_hotel,
-            compensation=self._cancel_hotel,
-            timeout=30.0,
-            max_retries=2,
-        )
-
-        # Step 3: Book car (optional)
-        if self.car_details:
-            await self.add_step(
-                name="book_car",
-                action=self._book_car,
-                compensation=self._cancel_car,
-                timeout=20.0,
-                max_retries=2,
-            )
-
-        # Step 4: Send itinerary
-        await self.add_step(name="send_itinerary", action=self._send_itinerary, timeout=10.0)
-
-    async def _book_flight(self, ctx: SagaContext) -> dict[str, Any]:
-        """Book flight"""
+    @action("book_flight")
+    async def book_flight(self, ctx: SagaContext) -> dict[str, Any]:
+        """Book flight."""
         logger.info(f"Booking flight for {self.user_id}")
         await asyncio.sleep(0.3)
 
@@ -79,13 +49,22 @@ class TravelBookingSaga(ClassicSaga):
             "confirmation": f"CONF-FL-{self.booking_id}",
         }
 
-    async def _cancel_flight(self, result: dict, ctx: SagaContext) -> None:
-        """Cancel flight booking"""
-        logger.warning(f"Canceling flight {result['booking_reference']}")
+    @compensate("book_flight")
+    async def cancel_flight(self, ctx: SagaContext) -> None:
+        """Cancel flight booking using booking data from context."""
+        logger.warning(f"Canceling flight for booking {self.booking_id}")
+        
+        # Access flight booking result from context
+        booking_reference = ctx.get("booking_reference")
+        confirmation = ctx.get("confirmation")
+        if booking_reference:
+            logger.info(f"Canceling flight booking {booking_reference} (confirmation: {confirmation})")
+        
         await asyncio.sleep(0.2)
 
-    async def _book_hotel(self, ctx: SagaContext) -> dict[str, Any]:
-        """Book hotel"""
+    @action("book_hotel", depends_on=["book_flight"])
+    async def book_hotel(self, ctx: SagaContext) -> dict[str, Any]:
+        """Book hotel."""
         logger.info(f"Booking hotel for {self.user_id}")
         await asyncio.sleep(0.3)
 
@@ -95,13 +74,25 @@ class TravelBookingSaga(ClassicSaga):
             "confirmation": f"CONF-HT-{self.booking_id}",
         }
 
-    async def _cancel_hotel(self, result: dict, ctx: SagaContext) -> None:
-        """Cancel hotel booking"""
-        logger.warning(f"Canceling hotel {result['booking_reference']}")
+    @compensate("book_hotel")
+    async def cancel_hotel(self, ctx: SagaContext) -> None:
+        """Cancel hotel booking using booking data from context."""
+        logger.warning(f"Canceling hotel for booking {self.booking_id}")
+        
+        # Access hotel booking result from context  
+        booking_reference = ctx.get("booking_reference")
+        hotel_name = ctx.get("hotel_name")
+        if booking_reference:
+            logger.info(f"Canceling hotel {hotel_name} booking {booking_reference}")
+        
         await asyncio.sleep(0.2)
 
-    async def _book_car(self, ctx: SagaContext) -> dict[str, Any]:
-        """Book rental car"""
+    @action("book_car", depends_on=["book_hotel"])
+    async def book_car(self, ctx: SagaContext) -> dict[str, Any]:
+        """Book rental car (if requested)."""
+        if not self.car_details:
+            return {"skipped": True}
+            
         logger.info(f"Booking car for {self.user_id}")
         await asyncio.sleep(0.2)
 
@@ -111,38 +102,38 @@ class TravelBookingSaga(ClassicSaga):
             "confirmation": f"CONF-CAR-{self.booking_id}",
         }
 
-    async def _cancel_car(self, result: dict, ctx: SagaContext) -> None:
-        """Cancel car booking"""
-        logger.warning(f"Canceling car {result['booking_reference']}")
+    @compensate("book_car")
+    async def cancel_car(self, ctx: SagaContext) -> None:
+        """Cancel car booking using booking data from context."""
+        logger.warning(f"Canceling car for booking {self.booking_id}")
+        
+        # Access car booking result from context (may not exist if skipped)
+        booking_reference = ctx.get("booking_reference")
+        car_type = ctx.get("car_type")
+        if booking_reference and not ctx.get("skipped"):
+            logger.info(f"Canceling {car_type} rental booking {booking_reference}")
+        
         await asyncio.sleep(0.1)
 
-    async def _send_itinerary(self, ctx: SagaContext) -> dict[str, Any]:
-        """Send complete itinerary to user"""
+    @action("send_itinerary", depends_on=["book_car"])
+    async def send_itinerary(self, ctx: SagaContext) -> dict[str, Any]:
+        """Send complete itinerary to user."""
         logger.info(f"Sending itinerary to {self.user_id}")
         await asyncio.sleep(0.1)
 
-        flight = ctx.get("book_flight")
-        hotel = ctx.get("book_hotel")
-        car = ctx.get("book_car")
-
         return {
             "sent": True,
-            "flight_confirmation": flight["confirmation"],
-            "hotel_confirmation": hotel["confirmation"],
-            "car_confirmation": car["confirmation"] if car else None,
+            "booking_id": self.booking_id,
         }
 
 
-async def demo_travel_booking():
-    """Demo: Travel booking"""
-    print("\n" + "=" * 60)
-    print("DEMO 2: Travel Booking")
+async def main():
+    """Run the travel booking saga demo."""
+    print("=" * 60)
+    print("Travel Booking Saga Demo")
     print("=" * 60)
 
-    orchestrator = MonitoredSagaOrchestrator()
-
-    # Create travel booking saga
-    booking = TravelBookingSaga(
+    saga = TravelBookingSaga(
         booking_id="BOOK-456",
         user_id="USER-123",
         flight_details={"flight_number": "AA123", "from": "NYC", "to": "LAX"},
@@ -150,21 +141,12 @@ async def demo_travel_booking():
         car_details={"car_type": "Sedan", "days": 3},
     )
 
-    await booking.build()
+    result = await saga.run({"booking_id": saga.booking_id})
 
-    # Execute saga
-    result = await orchestrator.execute_saga(booking)
+    print(f"\n{'✅' if result.get('saga_id') else '❌'} Travel Booking Result:")
+    print(f"   Saga ID: {result.get('saga_id')}")
+    print(f"   Booking ID: {result.get('booking_id')}")
 
-    # Print result
-    print(f"\n✅ Travel Booking Result:")
-    print(f"   Success: {result.success}")
-    print(f"   Status: {result.status.value}")
-    print(f"   Completed Steps: {result.completed_steps}/{result.total_steps}")
 
-    if result.is_completed:
-        print("\n📧 Itinerary Details:")
-        itinerary = booking.context.get("send_itinerary")
-        print(f"   Flight: {itinerary['flight_confirmation']}")
-        print(f"   Hotel: {itinerary['hotel_confirmation']}")
-        if itinerary["car_confirmation"]:
-            print(f"   Car: {itinerary['car_confirmation']}")
+if __name__ == "__main__":
+    asyncio.run(main())

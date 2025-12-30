@@ -1,204 +1,138 @@
-from typing import Any, Callable
+"""
+Trade Execution Saga Example
+
+Demonstrates financial trading system with the declarative pattern.
+"""
+
 import asyncio
 import logging
+from typing import Any
 
-from sagaz import (
-    ClassicSaga,
-    SagaContext,
-    SagaStatus,
-    SagaResult,
+from sagaz import Saga, SagaContext, action, compensate
+from sagaz.exceptions import SagaStepError
+
+logging.basicConfig(
+    level=logging.INFO, 
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
-
 logger = logging.getLogger(__name__)
 
-# ============================================
-# EXAMPLE: TRADE EXECUTION SAGA
-# ============================================
 
-
-class TradeExecutionSaga(ClassicSaga):
-    """Production-ready saga for executing trades with multi-step validation and compensation"""
+class TradeExecutionSaga(Saga):
+    """Production-ready saga for executing trades with multi-step validation and compensation."""
+    
+    saga_name = "trade-execution"
 
     def __init__(self, trade_id: int, symbol: str, quantity: float, price: float, user_id: int):
-        super().__init__(name=f"TradeExecutionSaga-{trade_id}", version="2.0")
+        super().__init__()
         self.trade_id = trade_id
         self.symbol = symbol
         self.quantity = quantity
         self.price = price
         self.user_id = user_id
 
-    async def build(
-        self,
-        reserve_funds_action: Callable,
-        execute_trade_action: Callable,
-        update_position_action: Callable,
-        unreserve_funds_compensation: Callable,
-        cancel_trade_compensation: Callable,
-        revert_position_compensation: Callable,
-    ) -> None:
-        """Build saga with provided actions"""
+    @action("reserve_funds")
+    async def reserve_funds(self, ctx: SagaContext) -> dict[str, Any]:
+        """Reserve funds for trade."""
+        amount = self.quantity * self.price
+        logger.info(f"Reserving ${amount} for user {self.user_id}")
+        await asyncio.sleep(0.1)
 
-        # Step 1: Reserve funds for trade
-        await self.add_step(
-            name="reserve_funds",
-            action=lambda ctx: reserve_funds_action(self.user_id, self.quantity * self.price, ctx),
-            compensation=lambda result, ctx: unreserve_funds_compensation(
-                self.user_id, result, ctx
-            ),
-            timeout=10.0,
-            max_retries=3,
-        )
+        if amount > 100000:
+            raise SagaStepError(f"Insufficient funds: need ${amount}")
 
-        # Step 2: Execute trade on exchange
-        await self.add_step(
-            name="execute_trade",
-            action=lambda ctx: execute_trade_action(
-                self.trade_id, self.symbol, self.quantity, self.price, ctx
-            ),
-            compensation=lambda result, ctx: cancel_trade_compensation(self.trade_id, result, ctx),
-            timeout=30.0,
-            max_retries=2,
-        )
+        return {
+            "reservation_id": f"RES-{self.trade_id}",
+            "amount": amount,
+            "user_id": self.user_id,
+        }
 
-        # Step 3: Update position in database
-        await self.add_step(
-            name="update_position",
-            action=lambda ctx: update_position_action(
-                self.trade_id, self.quantity, self.price, ctx
-            ),
-            compensation=lambda result, ctx: revert_position_compensation(self.trade_id, ctx),
-            timeout=5.0,
-            max_retries=3,
-        )
+    @compensate("reserve_funds")
+    async def unreserve_funds(self, ctx: SagaContext) -> None:
+        """Unreserve funds using reservation data from context."""
+        logger.warning(f"Unreserving funds for trade {self.trade_id}")
+        
+        # Access reservation result from context
+        reservation_id = ctx.get("reservation_id")
+        amount = ctx.get("amount")
+        if reservation_id:
+            logger.info(f"Unreserving ${amount} (reservation: {reservation_id})")
+        
+        await asyncio.sleep(0.1)
 
+    @action("execute_trade", depends_on=["reserve_funds"])
+    async def execute_trade(self, ctx: SagaContext) -> dict[str, Any]:
+        """Execute trade on exchange."""
+        logger.info(f"Executing trade {self.trade_id}: {self.symbol} x{self.quantity} @ ${self.price}")
+        await asyncio.sleep(0.3)
 
-# ============================================
-# STRATEGY ACTIVATION SAGA
-# ============================================
+        return {
+            "execution_id": f"EXE-{self.trade_id}",
+            "symbol": self.symbol,
+            "quantity": self.quantity,
+            "executed_price": self.price,
+            "status": "executed",
+        }
 
+    @compensate("execute_trade")
+    async def cancel_trade(self, ctx: SagaContext) -> None:
+        """Cancel trade on exchange using execution data from context."""
+        logger.warning(f"Canceling trade {self.trade_id}")
+        
+        # Access trade execution result from context
+        execution_id = ctx.get("execution_id")
+        symbol = ctx.get("symbol")
+        quantity = ctx.get("quantity")
+        if execution_id:
+            logger.info(f"Canceling execution {execution_id} for {symbol} x{quantity}")
+        
+        await asyncio.sleep(0.2)
 
-class StrategyActivationSaga(ClassicSaga):
-    """Production-ready saga for activating trading strategies"""
+    @action("update_position", depends_on=["execute_trade"])
+    async def update_position(self, ctx: SagaContext) -> dict[str, Any]:
+        """Update position in database."""
+        logger.info(f"Updating position for trade {self.trade_id}")
+        await asyncio.sleep(0.05)
 
-    def __init__(self, strategy_id: int, user_id: int):
-        super().__init__(name=f"StrategyActivationSaga-{strategy_id}", version="2.0")
-        self.strategy_id = strategy_id
-        self.user_id = user_id
+        return {
+            "position_updated": True,
+            "trade_id": self.trade_id,
+        }
 
-    async def build(
-        self,
-        validate_strategy_action: Callable,
-        validate_funds_action: Callable,
-        activate_strategy_action: Callable,
-        publish_event_action: Callable,
-        deactivate_strategy_compensation: Callable,
-    ) -> None:
-        """Build saga with provided actions"""
-
-        # Step 1: Validate strategy configuration
-        await self.add_step(
-            name="validate_strategy",
-            action=lambda ctx: validate_strategy_action(self.strategy_id, ctx),
-            timeout=5.0,
-        )
-
-        # Step 2: Validate user has sufficient funds
-        await self.add_step(
-            name="validate_funds",
-            action=lambda ctx: validate_funds_action(self.user_id, self.strategy_id, ctx),
-            timeout=5.0,
-        )
-
-        # Step 3: Activate the strategy
-        await self.add_step(
-            name="activate_strategy",
-            action=lambda ctx: activate_strategy_action(self.strategy_id, self.user_id, ctx),
-            compensation=lambda result, ctx: deactivate_strategy_compensation(
-                self.strategy_id, ctx
-            ),
-            timeout=10.0,
-            max_retries=3,
-        )
-
-        # Step 4: Publish event (no compensation needed - idempotent)
-        await self.add_step(
-            name="publish_event",
-            action=lambda ctx: publish_event_action(self.strategy_id, self.user_id, ctx),
-            timeout=5.0,
-        )
+    @compensate("update_position")
+    async def revert_position(self, ctx: SagaContext) -> None:
+        """Revert position update using position data from context."""
+        logger.warning(f"Reverting position for trade {self.trade_id}")
+        
+        # Access position update result from context
+        position_updated = ctx.get("position_updated")
+        trade_id = ctx.get("trade_id")
+        if position_updated:
+            logger.info(f"Reverting position for trade {trade_id}")
+        
+        await asyncio.sleep(0.05)
 
 
-# ============================================
-# SAGA ORCHESTRATOR
-# ============================================
+async def main():
+    """Run the trade execution saga demo."""
+    print("=" * 60)
+    print("Trade Execution Saga Demo")
+    print("=" * 60)
+
+    saga = TradeExecutionSaga(
+        trade_id=12345,
+        symbol="AAPL",
+        quantity=100,
+        price=150.00,
+        user_id=789,
+    )
+
+    result = await saga.run({"trade_id": saga.trade_id})
+
+    print(f"\n{'✅' if result.get('saga_id') else '❌'} Trade Execution Result:")
+    print(f"   Saga ID: {result.get('saga_id')}")
+    print(f"   Trade ID: {result.get('trade_id')}")
 
 
-class SagaOrchestrator:
-    """
-    Production-ready orchestrator for managing and tracking multiple sagas
-    Thread-safe with proper async support
-    """
-
-    def __init__(self):
-        self.sagas: dict[str, ClassicSaga] = {}
-        self._lock = asyncio.Lock()
-
-    async def execute_saga(self, saga: ClassicSaga) -> SagaResult:
-        """Execute a saga and track it"""
-        async with self._lock:
-            self.sagas[saga.saga_id] = saga
-
-        result = await saga.execute()
-
-        logger.info(
-            f"Saga {saga.name} [{saga.saga_id}] finished with status: {result.status.value}"
-        )
-
-        return result
-
-    async def get_saga(self, saga_id: str) -> ClassicSaga | None:
-        """Get saga by ID"""
-        async with self._lock:
-            return self.sagas.get(saga_id)
-
-    async def get_saga_status(self, saga_id: str) -> dict[str, Any] | None:
-        """Get status of a saga by ID"""
-        saga = await self.get_saga(saga_id)
-        return saga.get_status() if saga else None
-
-    async def get_all_sagas_status(self) -> list[dict[str, Any]]:
-        """Get status of all sagas"""
-        async with self._lock:
-            return [saga.get_status() for saga in self.sagas.values()]
-
-    async def count_by_status(self, status: SagaStatus) -> int:
-        """Count sagas by status"""
-        async with self._lock:
-            return sum(1 for saga in self.sagas.values() if saga.status == status)
-
-    async def count_completed(self) -> int:
-        """Count completed sagas"""
-        return await self.count_by_status(SagaStatus.COMPLETED)
-
-    async def count_failed(self) -> int:
-        """Count failed sagas (unrecoverable)"""
-        return await self.count_by_status(SagaStatus.FAILED)
-
-    async def count_rolled_back(self) -> int:
-        """Count rolled back sagas (recovered)"""
-        return await self.count_by_status(SagaStatus.ROLLED_BACK)
-
-    async def get_statistics(self) -> dict[str, Any]:
-        """Get orchestrator statistics"""
-        from collections import Counter
-
-        async with self._lock:
-            counts = Counter(saga.status for saga in self.sagas.values())
-            return {
-                "total_sagas": len(self.sagas),
-                "completed": counts.get(SagaStatus.COMPLETED, 0),
-                "rolled_back": counts.get(SagaStatus.ROLLED_BACK, 0),
-                "failed": counts.get(SagaStatus.FAILED, 0),
-                "executing": counts.get(SagaStatus.EXECUTING, 0),
-                "pending": counts.get(SagaStatus.PENDING, 0),
-            }
+if __name__ == "__main__":
+    asyncio.run(main())
