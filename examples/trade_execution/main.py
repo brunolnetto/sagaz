@@ -8,7 +8,7 @@ import asyncio
 import logging
 from typing import Any
 
-from sagaz import Saga, action, compensate
+from sagaz import Saga, SagaContext, action, compensate
 from sagaz.exceptions import SagaStepError
 
 logging.basicConfig(
@@ -32,7 +32,7 @@ class TradeExecutionSaga(Saga):
         self.user_id = user_id
 
     @action("reserve_funds")
-    async def reserve_funds(self, ctx: dict[str, Any]) -> dict[str, Any]:
+    async def reserve_funds(self, ctx: SagaContext) -> dict[str, Any]:
         """Reserve funds for trade."""
         amount = self.quantity * self.price
         logger.info(f"Reserving ${amount} for user {self.user_id}")
@@ -48,13 +48,13 @@ class TradeExecutionSaga(Saga):
         }
 
     @compensate("reserve_funds")
-    async def unreserve_funds(self, ctx: dict[str, Any]) -> None:
+    async def unreserve_funds(self, ctx: SagaContext) -> None:
         """Unreserve funds."""
         logger.warning(f"Unreserving funds for trade {self.trade_id}")
         await asyncio.sleep(0.1)
 
     @action("execute_trade", depends_on=["reserve_funds"])
-    async def execute_trade(self, ctx: dict[str, Any]) -> dict[str, Any]:
+    async def execute_trade(self, ctx: SagaContext) -> dict[str, Any]:
         """Execute trade on exchange."""
         logger.info(f"Executing trade {self.trade_id}: {self.symbol} x{self.quantity} @ ${self.price}")
         await asyncio.sleep(0.3)
@@ -68,13 +68,13 @@ class TradeExecutionSaga(Saga):
         }
 
     @compensate("execute_trade")
-    async def cancel_trade(self, ctx: dict[str, Any]) -> None:
+    async def cancel_trade(self, ctx: SagaContext) -> None:
         """Cancel trade on exchange."""
         logger.warning(f"Canceling trade {self.trade_id}")
         await asyncio.sleep(0.2)
 
     @action("update_position", depends_on=["execute_trade"])
-    async def update_position(self, ctx: dict[str, Any]) -> dict[str, Any]:
+    async def update_position(self, ctx: SagaContext) -> dict[str, Any]:
         """Update position in database."""
         logger.info(f"Updating position for trade {self.trade_id}")
         await asyncio.sleep(0.05)
@@ -85,7 +85,7 @@ class TradeExecutionSaga(Saga):
         }
 
     @compensate("update_position")
-    async def revert_position(self, ctx: dict[str, Any]) -> None:
+    async def revert_position(self, ctx: SagaContext) -> None:
         """Revert position update."""
         logger.warning(f"Reverting position for trade {self.trade_id}")
         await asyncio.sleep(0.05)

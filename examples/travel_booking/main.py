@@ -8,7 +8,7 @@ import asyncio
 import logging
 from typing import Any
 
-from sagaz import Saga, action, compensate
+from sagaz import Saga, SagaContext, action, compensate
 
 logging.basicConfig(
     level=logging.INFO, 
@@ -38,7 +38,7 @@ class TravelBookingSaga(Saga):
         self.car_details = car_details
 
     @action("book_flight")
-    async def book_flight(self, ctx: dict[str, Any]) -> dict[str, Any]:
+    async def book_flight(self, ctx: SagaContext) -> dict[str, Any]:
         """Book flight."""
         logger.info(f"Booking flight for {self.user_id}")
         await asyncio.sleep(0.3)
@@ -50,13 +50,13 @@ class TravelBookingSaga(Saga):
         }
 
     @compensate("book_flight")
-    async def cancel_flight(self, ctx: dict[str, Any]) -> None:
+    async def cancel_flight(self, ctx: SagaContext) -> None:
         """Cancel flight booking."""
         logger.warning(f"Canceling flight for booking {self.booking_id}")
         await asyncio.sleep(0.2)
 
     @action("book_hotel", depends_on=["book_flight"])
-    async def book_hotel(self, ctx: dict[str, Any]) -> dict[str, Any]:
+    async def book_hotel(self, ctx: SagaContext) -> dict[str, Any]:
         """Book hotel."""
         logger.info(f"Booking hotel for {self.user_id}")
         await asyncio.sleep(0.3)
@@ -68,13 +68,13 @@ class TravelBookingSaga(Saga):
         }
 
     @compensate("book_hotel")
-    async def cancel_hotel(self, ctx: dict[str, Any]) -> None:
+    async def cancel_hotel(self, ctx: SagaContext) -> None:
         """Cancel hotel booking."""
         logger.warning(f"Canceling hotel for booking {self.booking_id}")
         await asyncio.sleep(0.2)
 
     @action("book_car", depends_on=["book_hotel"])
-    async def book_car(self, ctx: dict[str, Any]) -> dict[str, Any]:
+    async def book_car(self, ctx: SagaContext) -> dict[str, Any]:
         """Book rental car (if requested)."""
         if not self.car_details:
             return {"skipped": True}
@@ -89,13 +89,13 @@ class TravelBookingSaga(Saga):
         }
 
     @compensate("book_car")
-    async def cancel_car(self, ctx: dict[str, Any]) -> None:
+    async def cancel_car(self, ctx: SagaContext) -> None:
         """Cancel car booking."""
         logger.warning(f"Canceling car for booking {self.booking_id}")
         await asyncio.sleep(0.1)
 
     @action("send_itinerary", depends_on=["book_car"])
-    async def send_itinerary(self, ctx: dict[str, Any]) -> dict[str, Any]:
+    async def send_itinerary(self, ctx: SagaContext) -> dict[str, Any]:
         """Send complete itinerary to user."""
         logger.info(f"Sending itinerary to {self.user_id}")
         await asyncio.sleep(0.1)
