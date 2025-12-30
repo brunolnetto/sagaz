@@ -22,6 +22,12 @@ examples/
 │   ├── README.md
 │   └── main.py               Saga implementation with entrypoint
 │
+├── ml_training/               ← MLOps machine learning workflows
+│   ├── README.md             Comprehensive MLOps guide (300+ lines)
+│   ├── main.py               ML training pipeline with rollback
+│   ├── model_deployment.py   Blue/green deployment saga
+│   └── feature_store.py      Feature engineering pipeline
+│
 └── README.md                  ← This file
 ```
 
@@ -43,6 +49,15 @@ python examples/travel_booking/main.py
 
 # Trade Execution (Financial)
 python examples/trade_execution/main.py
+
+# ML Training Pipeline (MLOps)
+python examples/ml_training/main.py
+
+# Model Deployment (Blue/Green)
+python examples/ml_training/model_deployment.py
+
+# Feature Store Pipeline
+python examples/ml_training/feature_store.py
 ```
 
 ## 📚 Example Details
@@ -127,6 +142,61 @@ saga = TradeExecutionSaga(
 
 result = await saga.run({"trade_id": saga.trade_id})
 ```
+
+### 🤖 ML Training Pipeline
+**Directory:** `ml_training/`  
+**Use Case:** End-to-end ML pipeline with automatic rollback  
+**Steps:** Validation → Feature Engineering → Training → Evaluation → Deployment  
+**Best For:** Understanding MLOps integration patterns
+
+The `ml_training/` directory contains three comprehensive examples:
+
+1. **`main.py`** - Complete ML training pipeline
+   - Dataset validation
+   - Feature engineering
+   - Model training with hyperparameters
+   - Model evaluation with accuracy threshold
+   - Model registration in registry
+   - Production deployment
+
+2. **`model_deployment.py`** - Blue/green deployment
+   - Backup current model
+   - Deploy to staging
+   - Run smoke tests
+   - Gradual traffic shifting (canary)
+   - Production health monitoring
+
+3. **`feature_store.py`** - Feature engineering pipeline
+   - Data ingestion from data lake
+   - Feature computation
+   - Data quality validation
+   - Transactional feature store publish
+
+Example usage:
+```python
+from examples.ml_training.main import MLTrainingPipelineSaga
+
+saga = MLTrainingPipelineSaga(
+    experiment_id="exp-001",
+    dataset_path="/data/training/dataset.parquet",
+    model_name="churn-predictor",
+    accuracy_threshold=0.85,
+    hyperparameters={"learning_rate": 0.001, "epochs": 15}
+)
+
+result = await saga.run({"experiment_id": saga.experiment_id})
+```
+
+**Key Features:**
+- ✅ Automatic resource cleanup (GPU, temp files)
+- ✅ Model registry consistency
+- ✅ Safe deployments with rollback
+- ✅ Feature store transactional guarantees
+- ✅ Distributed tracing for ML pipelines
+
+See [ml_training/README.md](ml_training/README.md) for comprehensive MLOps guide (300+ lines).
+
+---
 
 ## 🎯 Key Features Demonstrated
 
@@ -297,6 +367,7 @@ These examples demonstrate:
 2. **Intermediate:** `payment_processing/` - Provider fallback patterns
 3. **Advanced:** `travel_booking/` - Multi-service orchestration
 4. **Expert:** `trade_execution/` - Financial system with strict compensations
+5. **Production MLOps:** `ml_training/` - Real-world ML pipeline patterns
 
 Each example builds on the previous one, introducing new concepts progressively.
 
