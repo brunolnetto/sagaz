@@ -1,6 +1,6 @@
 # Examples
 
-This directory contains self-contained saga examples. Each example is in its own folder with actions, compensations, and documentation.
+This directory contains self-contained saga examples demonstrating the **declarative pattern** using `@action` and `@compensate` decorators.
 
 ## 📁 Directory Structure
 
@@ -8,104 +8,42 @@ This directory contains self-contained saga examples. Each example is in its own
 examples/
 ├── order_processing/          ← E-commerce order workflow
 │   ├── README.md             Complete documentation
-│   ├── main.py               Saga orchestration
-│   ├── actions.py            Forward steps
-│   └── compensations.py      Rollback steps
+│   └── main.py               Saga implementation with entrypoint
 │
 ├── travel_booking/            ← Travel reservation workflow
 │   ├── README.md
-│   ├── main.py
-│   ├── actions.py
-│   └── compensations.py
+│   └── main.py               Saga implementation with entrypoint
 │
 ├── trade_execution/           ← Financial trading workflow
 │   ├── README.md
-│   ├── main.py
-│   ├── actions.py
-│   └── compensations.py
+│   └── main.py               Saga implementation with entrypoint
 │
 ├── payment_processing/        ← Payment processing workflow
 │   ├── README.md
-│   ├── main.py
-│   ├── actions.py
-│   └── compensations.py
+│   └── main.py               Saga implementation with entrypoint
 │
-└── monitoring.py              ← Observability integration
+└── README.md                  ← This file
 ```
 
 ## 🚀 Quick Start
 
-Each example is self-contained in its own directory.
+Each example is self-contained in a single `main.py` file and can be run directly.
 
-### 1. Order Processing (E-commerce)
+### Running Examples
 
-```python
-from examples.order_processing import OrderProcessingSaga
+```bash
+# Order Processing (E-commerce)
+python examples/order_processing/main.py
 
-saga = OrderProcessingSaga(
-    order_id="ORD-123",
-    user_id="USER-456",
-    items=[{"sku": "ITEM-1", "quantity": 2}],
-    total_amount=99.99
-)
+# Payment Processing
+python examples/payment_processing/main.py
 
-result = await saga.execute()
+# Travel Booking (Multi-service)
+python examples/travel_booking/main.py
+
+# Trade Execution (Financial)
+python examples/trade_execution/main.py
 ```
-
-See [order_processing/README.md](order_processing/README.md) for details.
-
-### 2. Travel Booking (Multi-service)
-
-```python
-from examples.travel_booking import TravelBookingSaga
-
-saga = TravelBookingSaga(
-    trip_id="TRIP-456",
-    user_id="USER-789",
-    flight="AA123",
-    hotel="HTL-789",
-    car_rental=True
-)
-
-result = await saga.execute()
-```
-
-See [travel_booking/README.md](travel_booking/README.md) for details.
-
-### 3. Trade Execution (Financial)
-
-```python
-from examples.trade_execution import TradeExecutionSaga
-
-saga = TradeExecutionSaga(
-    trade_id="TRD-789",
-    account_id="ACC-123",
-    symbol="AAPL",
-    quantity=100,
-    price=150.00
-)
-
-result = await saga.execute()
-```
-
-See [trade_execution/README.md](trade_execution/README.md) for details.
-
-### 4. Payment Processing
-
-```python
-from examples.payment_processing import PaymentSaga
-
-saga = PaymentSaga(
-    payment_id="PAY-101",
-    user_id="USER-456",
-    amount=250.00,
-    currency="USD"
-)
-
-result = await saga.execute()
-```
-
-See [payment_processing/README.md](payment_processing/README.md) for details.
 
 ## 📚 Example Details
 
@@ -115,211 +53,284 @@ See [payment_processing/README.md](payment_processing/README.md) for details.
 **Steps:** Inventory → Payment → Shipment → Email  
 **Best For:** Learning basic saga patterns
 
+Example usage:
+```python
+from examples.order_processing.main import OrderProcessingSaga
+
+saga = OrderProcessingSaga(
+    order_id="ORD-123",
+    user_id="USER-456",
+    items=[{"id": "ITEM-1", "quantity": 2}],
+    total_amount=99.99
+)
+
+result = await saga.run({"order_id": saga.order_id})
+```
+
+### 💳 Payment Processing
+**Directory:** `payment_processing/`  
+**Use Case:** Payment gateway integration  
+**Steps:** Validation → Primary Payment → Transaction Recording  
+**Best For:** Idempotency and retry patterns
+
+Example usage:
+```python
+from examples.payment_processing.main import PaymentProcessingSaga
+
+saga = PaymentProcessingSaga(
+    payment_id="PAY-101",
+    amount=250.00,
+    providers=["Stripe", "PayPal", "Square"]
+)
+
+result = await saga.run({"payment_id": saga.payment_id})
+```
+
 ### ✈️ Travel Booking
 **Directory:** `travel_booking/`  
 **Use Case:** Multi-service travel reservation  
 **Steps:** Flight → Hotel → Car → Itinerary  
 **Best For:** Understanding service orchestration
 
+Example usage:
+```python
+from examples.travel_booking.main import TravelBookingSaga
+
+saga = TravelBookingSaga(
+    booking_id="BOOK-456",
+    user_id="USER-789",
+    flight_details={"flight_number": "AA123", "from": "NYC", "to": "LAX"},
+    hotel_details={"hotel_name": "Grand Hotel", "nights": 3},
+    car_details={"car_type": "Sedan", "days": 3}
+)
+
+result = await saga.run({"booking_id": saga.booking_id})
+```
+
 ### 📈 Trade Execution
 **Directory:** `trade_execution/`  
 **Use Case:** Financial trading system  
-**Steps:** Validation → Risk Check → Execution → Settlement  
-**Best For:** Complex business logic with conditional steps
+**Steps:** Reserve Funds → Execute Trade → Update Position  
+**Best For:** Complex business logic with compensations
 
-### 💳 Payment Processing
-**Directory:** `payment_processing/`  
-**Use Case:** Payment gateway integration  
-**Steps:** Fraud Check → Authorization → Capture → Reconciliation  
-**Best For:** Idempotency and retry patterns
-
-## 🏃 Running Examples
-
-### Option 1: Import and Use
+Example usage:
 ```python
-from examples.order_processing import OrderProcessingSaga
+from examples.trade_execution.main import TradeExecutionSaga
 
-saga = OrderProcessingSaga(
-    order_id="ORD-123",
-    user_id="USER-456",
-    items=[{"sku": "ITEM-1", "quantity": 2}],
-    total_amount=99.99
+saga = TradeExecutionSaga(
+    trade_id=12345,
+    symbol="AAPL",
+    quantity=100,
+    price=150.00,
+    user_id=789
 )
-result = await saga.execute()
+
+result = await saga.run({"trade_id": saga.trade_id})
 ```
 
-### Option 2: Run Directly
-```bash
-cd examples/order_processing
-python main.py
+## 🎯 Key Features Demonstrated
+
+### Declarative Pattern
+All examples use the modern **declarative approach** with decorators:
+
+```python
+from sagaz import Saga, action, compensate
+
+class OrderProcessingSaga(Saga):
+    saga_name = "order-processing"
+    
+    @action("reserve_inventory")
+    async def reserve_inventory(self, ctx):
+        # Forward action logic
+        return {"reserved": True}
+    
+    @compensate("reserve_inventory")
+    async def release_inventory(self, ctx):
+        # Compensation logic
+        pass
+    
+    @action("process_payment", depends_on=["reserve_inventory"])
+    async def process_payment(self, ctx):
+        # This runs after reserve_inventory
+        return {"paid": True}
 ```
 
-### Option 3: Use as Template
-```bash
-cp -r examples/order_processing my_saga
-cd my_saga
-# Edit main.py, actions.py, compensations.py
+### Dependencies
+Use `depends_on` to create execution order:
+
+```python
+@action("step1")
+async def step1(self, ctx): pass
+
+@action("step2", depends_on=["step1"])
+async def step2(self, ctx): pass
+
+@action("step3", depends_on=["step2"])
+async def step3(self, ctx): pass
+```
+
+### Automatic Compensation
+On failure, compensations run in **reverse order**:
+1. Execute: step1 → step2 → step3 (fails)
+2. Compensate: step2 → step1
+
+### Error Handling
+```python
+from sagaz.exceptions import SagaStepError
+
+@action("validate")
+async def validate(self, ctx):
+    if not valid:
+        raise SagaStepError("Validation failed")
 ```
 
 ## 📊 Monitoring
 
-The `monitoring.py` file shows observability integration:
+All sagas automatically include:
+- ✅ **Structured logging** with step progression
+- ✅ **Automatic listeners** (LoggingSagaListener by default)
+- ✅ **Saga execution tracking** with unique IDs
+- ✅ **Success/failure notifications**
 
-```python
-from examples.monitoring import setup_monitoring
-
-# Setup metrics, tracing, logging
-setup_monitoring()
-
-# Run any saga with full observability
-saga = OrderProcessingSaga(...)
-result = await saga.execute()
+Example output:
+```
+[SAGA] Starting: order-processing (id=abc-123)
+[STEP] Entering: order-processing.reserve_inventory
+[STEP] Success: order-processing.reserve_inventory
+[STEP] Entering: order-processing.process_payment
+[STEP] Success: order-processing.process_payment
+[SAGA] Completed: order-processing (id=abc-123)
 ```
 
-Features:
-- ✅ Prometheus metrics
-- ✅ OpenTelemetry tracing
-- ✅ Structured logging
-- ✅ Custom metric labels
+## 🧪 Testing Examples
 
-## 🧪 Testing
-
-All examples have corresponding tests:
+Run the examples directly:
 
 ```bash
-# Test all examples
-pytest tests/test_sagas.py -v
+# Test order processing
+python examples/order_processing/main.py
 
-# Test specific example
-pytest tests/test_sagas.py::TestOrderProcessingSaga -v
-pytest tests/test_sagas.py::TestTravelBookingSaga -v
-pytest tests/test_sagas.py::TestTradeExecutionSaga -v
-pytest tests/test_sagas.py::TestPaymentSaga -v
+# Test payment processing
+python examples/payment_processing/main.py
+
+# Test travel booking
+python examples/travel_booking/main.py
+
+# Test trade execution
+python examples/trade_execution/main.py
 ```
-
-## 📚 Learning Path
-
-1. **Start:** `order_processing/` - Simplest workflow (4 steps)
-2. **Intermediate:** `payment_processing/` - Idempotency patterns
-3. **Advanced:** `travel_booking/` - Multi-service orchestration
-4. **Expert:** `trade_execution/` - Complex business logic
-
-Each example includes:
-- ✅ Complete documentation (README.md)
-- ✅ Action implementations (actions.py)
-- ✅ Compensation handlers (compensations.py)
-- ✅ Main saga logic (main.py)
-- ✅ Test coverage
 
 ## 🔧 Customization
 
 ### Create Your Own Example
 
+1. **Create a new file:**
 ```bash
-# Copy template
-cp -r examples/order_processing examples/my_saga
-
-# Edit files
-cd examples/my_saga
-# 1. Edit main.py - orchestration logic
-# 2. Edit actions.py - forward steps
-# 3. Edit compensations.py - rollback steps
-# 4. Edit README.md - documentation
+mkdir -p examples/my_saga
+touch examples/my_saga/main.py
 ```
 
-### Modify Actions
-
+2. **Implement your saga:**
 ```python
-# examples/my_saga/actions.py
-async def my_action(ctx: Any) -> Dict[str, Any]:
-    """Your business logic here"""
-    result = await external_api.call(ctx.data)
-    return {"result": result}
+"""My Custom Saga Example"""
+
+import asyncio
+import logging
+from typing import Any
+
+from sagaz import Saga, action, compensate
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+class MySaga(Saga):
+    saga_name = "my-saga"
+    
+    def __init__(self, id: str):
+        super().__init__()
+        self.id = id
+    
+    @action("step1")
+    async def step1(self, ctx: dict[str, Any]) -> dict[str, Any]:
+        logger.info(f"Executing step1 for {self.id}")
+        await asyncio.sleep(0.1)
+        return {"step1": "done"}
+    
+    @compensate("step1")
+    async def undo_step1(self, ctx: dict[str, Any]) -> None:
+        logger.warning(f"Compensating step1 for {self.id}")
+        await asyncio.sleep(0.1)
+
+
+async def main():
+    print("My Saga Demo")
+    saga = MySaga(id="TEST-123")
+    result = await saga.run({"id": saga.id})
+    print(f"✅ Result: {result.get('saga_id')}")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
-### Modify Compensations
-
-```python
-# examples/my_saga/compensations.py
-async def undo_my_action(ctx: Any) -> Dict[str, Any]:
-    """Rollback logic here"""
-    await external_api.rollback(ctx.data)
-    return {"rolled_back": True}
+3. **Run your saga:**
+```bash
+python examples/my_saga/main.py
 ```
 
 ## 💡 Best Practices
 
 These examples demonstrate:
-- ✅ **Self-Contained**: Each example in its own directory
-- ✅ **Separation of Concerns**: Actions, compensations, orchestration separated
-- ✅ **Documentation**: Each example has detailed README
-- ✅ **Error Handling**: Proper exception handling and retries
-- ✅ **Idempotency**: Safe to retry operations
-- ✅ **Type Safety**: Type hints for better IDE support
-- ✅ **Testing**: All examples have comprehensive tests
-- ✅ **Real-World**: Based on actual production patterns
+- ✅ **Single file per saga** - Each example in one `main.py` file
+- ✅ **Declarative pattern** - Using `@action` and `@compensate` decorators
+- ✅ **Proper entrypoints** - All examples have `if __name__ == "__main__":`
+- ✅ **Clear documentation** - Docstrings for every class and method
+- ✅ **Error handling** - Proper exception handling with `SagaStepError`
+- ✅ **Idempotency** - Safe to retry operations
+- ✅ **Type hints** - Full type annotations for better IDE support
+- ✅ **Real-world patterns** - Based on actual production use cases
+
+## 📚 Learning Path
+
+1. **Start:** `order_processing/` - Simplest workflow (4 steps)
+2. **Intermediate:** `payment_processing/` - Provider fallback patterns
+3. **Advanced:** `travel_booking/` - Multi-service orchestration
+4. **Expert:** `trade_execution/` - Financial system with strict compensations
+
+Each example builds on the previous one, introducing new concepts progressively.
 
 ## 🐛 Troubleshooting
 
 ### Import Errors
 ```bash
-# Make sure you're in the project root
-cd /path/to/saga_pattern
-
-# Install in development mode
+# Install the package in development mode
 pip install -e .
 ```
 
 ### Module Not Found
 ```bash
 # Add project to PYTHONPATH
-export PYTHONPATH="${PYTHONPATH}:/path/to/saga_pattern"
+export PYTHONPATH="${PYTHONPATH}:/path/to/sagaz"
 ```
 
 ### Example Doesn't Run
 ```bash
-# Check dependencies
-pip install -r requirements.txt
+# Check Python version (requires 3.11+)
+python --version
 
-# Run with Python module syntax
-python -m examples.sagas.order_processing
+# Reinstall dependencies
+pip install -r requirements.txt
 ```
 
 ## 📖 Related Documentation
 
 - [Main README](../README.md) - Project overview
-- [DAG Pattern](../docs/feature_compensation_graph.md) - Parallel execution
-- [Optimistic Sending](../docs/optimistic-sending.md) - Performance optimization
-- [Consumer Inbox](../docs/consumer-inbox.md) - Exactly-once processing
-- [Kubernetes Deployment](../k8s/README.md) - Production deployment
-
-## 🤝 Contributing Examples
-
-Want to add your own example?
-
-1. **Create directory structure:**
-```bash
-mkdir -p examples/my_example
-cd examples/my_example
-touch main.py actions.py compensations.py README.md __init__.py
-```
-
-2. **Implement your saga:**
-   - `main.py` - Orchestration logic
-   - `actions.py` - Forward step functions
-   - `compensations.py` - Rollback functions
-   - `README.md` - Documentation
-   - `__init__.py` - Module exports
-
-3. **Add tests:**
-```bash
-# Add tests to tests/test_sagas.py
-```
-
-4. **Update documentation:**
-   - Add entry to `examples/README.md`
-   - Update `docs/DOCUMENTATION_INDEX.md`
+- [Saga Class](../sagaz/decorators.py) - Declarative API implementation
+- [Action/Compensate Decorators](../sagaz/decorators.py) - Decorator details
+- [Configuration](../docs/configuration.md) - Global configuration
+- [Monitoring](../docs/monitoring.md) - Observability integration
 
 ---
 
-**Questions?** Check [documentation index](../docs/DOCUMENTATION_INDEX.md) or open an issue.
+**Questions?** Check [main documentation](../README.md) or open an issue.
