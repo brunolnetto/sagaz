@@ -9,7 +9,7 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from sagaz import Saga, action, compensate
+from sagaz import Saga, SagaContext, action, compensate
 from sagaz.exceptions import SagaStepError
 
 logging.basicConfig(
@@ -32,7 +32,7 @@ class OrderProcessingSaga(Saga):
         self.total_amount = total_amount
 
     @action("reserve_inventory")
-    async def reserve_inventory(self, ctx: dict[str, Any]) -> dict[str, Any]:
+    async def reserve_inventory(self, ctx: SagaContext) -> dict[str, Any]:
         """Reserve inventory for all items."""
         logger.info(f"Reserving inventory for order {self.order_id}")
         await asyncio.sleep(0.1)
@@ -50,13 +50,13 @@ class OrderProcessingSaga(Saga):
         return {"reservations": reserved_items, "timestamp": datetime.now().isoformat()}
 
     @compensate("reserve_inventory")
-    async def release_inventory(self, ctx: dict[str, Any]) -> None:
+    async def release_inventory(self, ctx: SagaContext) -> None:
         """Release reserved inventory."""
         logger.warning(f"Releasing inventory for order {self.order_id}")
         await asyncio.sleep(0.1)
 
     @action("process_payment", depends_on=["reserve_inventory"])
-    async def process_payment(self, ctx: dict[str, Any]) -> dict[str, Any]:
+    async def process_payment(self, ctx: SagaContext) -> dict[str, Any]:
         """Process payment."""
         logger.info(f"Processing payment of ${self.total_amount}")
         await asyncio.sleep(0.2)
@@ -71,13 +71,13 @@ class OrderProcessingSaga(Saga):
         }
 
     @compensate("process_payment")
-    async def refund_payment(self, ctx: dict[str, Any]) -> None:
+    async def refund_payment(self, ctx: SagaContext) -> None:
         """Refund payment."""
         logger.warning(f"Refunding payment for order {self.order_id}")
         await asyncio.sleep(0.2)
 
     @action("create_shipment", depends_on=["process_payment"])
-    async def create_shipment(self, ctx: dict[str, Any]) -> dict[str, Any]:
+    async def create_shipment(self, ctx: SagaContext) -> dict[str, Any]:
         """Create shipment."""
         logger.info(f"Creating shipment for order {self.order_id}")
         await asyncio.sleep(0.15)
@@ -89,13 +89,13 @@ class OrderProcessingSaga(Saga):
         }
 
     @compensate("create_shipment")
-    async def cancel_shipment(self, ctx: dict[str, Any]) -> None:
+    async def cancel_shipment(self, ctx: SagaContext) -> None:
         """Cancel shipment."""
         logger.warning(f"Canceling shipment for order {self.order_id}")
         await asyncio.sleep(0.1)
 
     @action("send_confirmation", depends_on=["create_shipment"])
-    async def send_confirmation(self, ctx: dict[str, Any]) -> dict[str, Any]:
+    async def send_confirmation(self, ctx: SagaContext) -> dict[str, Any]:
         """Send confirmation email (idempotent - no compensation needed)."""
         logger.info(f"Sending confirmation for order {self.order_id}")
         await asyncio.sleep(0.05)

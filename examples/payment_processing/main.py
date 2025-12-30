@@ -9,7 +9,7 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from sagaz import Saga, action, compensate
+from sagaz import Saga, SagaContext, action, compensate
 from sagaz.exceptions import SagaStepError
 
 logging.basicConfig(
@@ -31,7 +31,7 @@ class PaymentProcessingSaga(Saga):
         self.providers = providers
 
     @action("validate_payment")
-    async def validate_payment(self, ctx: dict[str, Any]) -> dict[str, Any]:
+    async def validate_payment(self, ctx: SagaContext) -> dict[str, Any]:
         """Validate payment request."""
         logger.info(f"Validating payment {self.payment_id}")
         await asyncio.sleep(0.05)
@@ -42,7 +42,7 @@ class PaymentProcessingSaga(Saga):
         return {"valid": True, "amount": self.amount}
 
     @action("primary_payment", depends_on=["validate_payment"])
-    async def process_with_primary(self, ctx: dict[str, Any]) -> dict[str, Any]:
+    async def process_with_primary(self, ctx: SagaContext) -> dict[str, Any]:
         """Process payment with primary provider."""
         primary_provider = self.providers[0]
         logger.info(f"Processing ${self.amount} with {primary_provider}")
@@ -57,13 +57,13 @@ class PaymentProcessingSaga(Saga):
         }
 
     @compensate("primary_payment")
-    async def refund_primary(self, ctx: dict[str, Any]) -> None:
+    async def refund_primary(self, ctx: SagaContext) -> None:
         """Refund payment from primary provider."""
         logger.warning(f"Refunding payment {self.payment_id}")
         await asyncio.sleep(0.2)
 
     @action("record_transaction", depends_on=["primary_payment"])
-    async def record_transaction(self, ctx: dict[str, Any]) -> dict[str, Any]:
+    async def record_transaction(self, ctx: SagaContext) -> dict[str, Any]:
         """Record transaction in database."""
         logger.info(f"Recording transaction for payment {self.payment_id}")
         await asyncio.sleep(0.05)
