@@ -51,8 +51,15 @@ class TravelBookingSaga(Saga):
 
     @compensate("book_flight")
     async def cancel_flight(self, ctx: SagaContext) -> None:
-        """Cancel flight booking."""
+        """Cancel flight booking using booking data from context."""
         logger.warning(f"Canceling flight for booking {self.booking_id}")
+        
+        # Access flight booking result from context
+        booking_reference = ctx.get("booking_reference")
+        confirmation = ctx.get("confirmation")
+        if booking_reference:
+            logger.info(f"Canceling flight booking {booking_reference} (confirmation: {confirmation})")
+        
         await asyncio.sleep(0.2)
 
     @action("book_hotel", depends_on=["book_flight"])
@@ -69,8 +76,15 @@ class TravelBookingSaga(Saga):
 
     @compensate("book_hotel")
     async def cancel_hotel(self, ctx: SagaContext) -> None:
-        """Cancel hotel booking."""
+        """Cancel hotel booking using booking data from context."""
         logger.warning(f"Canceling hotel for booking {self.booking_id}")
+        
+        # Access hotel booking result from context  
+        booking_reference = ctx.get("booking_reference")
+        hotel_name = ctx.get("hotel_name")
+        if booking_reference:
+            logger.info(f"Canceling hotel {hotel_name} booking {booking_reference}")
+        
         await asyncio.sleep(0.2)
 
     @action("book_car", depends_on=["book_hotel"])
@@ -90,8 +104,15 @@ class TravelBookingSaga(Saga):
 
     @compensate("book_car")
     async def cancel_car(self, ctx: SagaContext) -> None:
-        """Cancel car booking."""
+        """Cancel car booking using booking data from context."""
         logger.warning(f"Canceling car for booking {self.booking_id}")
+        
+        # Access car booking result from context (may not exist if skipped)
+        booking_reference = ctx.get("booking_reference")
+        car_type = ctx.get("car_type")
+        if booking_reference and not ctx.get("skipped"):
+            logger.info(f"Canceling {car_type} rental booking {booking_reference}")
+        
         await asyncio.sleep(0.1)
 
     @action("send_itinerary", depends_on=["book_car"])

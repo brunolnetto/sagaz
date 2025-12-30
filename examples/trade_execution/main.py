@@ -49,8 +49,15 @@ class TradeExecutionSaga(Saga):
 
     @compensate("reserve_funds")
     async def unreserve_funds(self, ctx: SagaContext) -> None:
-        """Unreserve funds."""
+        """Unreserve funds using reservation data from context."""
         logger.warning(f"Unreserving funds for trade {self.trade_id}")
+        
+        # Access reservation result from context
+        reservation_id = ctx.get("reservation_id")
+        amount = ctx.get("amount")
+        if reservation_id:
+            logger.info(f"Unreserving ${amount} (reservation: {reservation_id})")
+        
         await asyncio.sleep(0.1)
 
     @action("execute_trade", depends_on=["reserve_funds"])
@@ -69,8 +76,16 @@ class TradeExecutionSaga(Saga):
 
     @compensate("execute_trade")
     async def cancel_trade(self, ctx: SagaContext) -> None:
-        """Cancel trade on exchange."""
+        """Cancel trade on exchange using execution data from context."""
         logger.warning(f"Canceling trade {self.trade_id}")
+        
+        # Access trade execution result from context
+        execution_id = ctx.get("execution_id")
+        symbol = ctx.get("symbol")
+        quantity = ctx.get("quantity")
+        if execution_id:
+            logger.info(f"Canceling execution {execution_id} for {symbol} x{quantity}")
+        
         await asyncio.sleep(0.2)
 
     @action("update_position", depends_on=["execute_trade"])
@@ -86,8 +101,15 @@ class TradeExecutionSaga(Saga):
 
     @compensate("update_position")
     async def revert_position(self, ctx: SagaContext) -> None:
-        """Revert position update."""
+        """Revert position update using position data from context."""
         logger.warning(f"Reverting position for trade {self.trade_id}")
+        
+        # Access position update result from context
+        position_updated = ctx.get("position_updated")
+        trade_id = ctx.get("trade_id")
+        if position_updated:
+            logger.info(f"Reverting position for trade {trade_id}")
+        
         await asyncio.sleep(0.05)
 
 
