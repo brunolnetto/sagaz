@@ -151,6 +151,10 @@ def compensate(
     Compensation functions are called when a saga fails and needs to
     undo previously completed steps.
 
+    Compensation functions can optionally return values and access results
+    from previously executed compensations when using the new
+    `execute_compensations()` API.
+
     Args:
         for_step: Name of the step this compensates
         depends_on: Steps whose compensations must complete BEFORE this one
@@ -160,10 +164,21 @@ def compensate(
         description: Human-readable description
         on_compensate: Hook called when compensation runs (ctx, step_name) -> None
 
-    Example:
+    Example (Legacy):
         >>> @compensate("charge_payment", on_compensate=publish_refund_event)
         ... async def refund(self, ctx):
         ...     await PaymentService.refund(ctx["charge_id"])
+
+    Example (New with result passing):
+        >>> @compensate("cancel_order")
+        ... async def cancel_order(self, ctx, comp_results=None):
+        ...     cancellation = await OrderService.cancel(ctx["order_id"])
+        ...     return {"cancellation_id": cancellation.id}
+        ...
+        >>> @compensate("charge_payment", depends_on=["cancel_order"])
+        ... async def refund(self, ctx, comp_results=None):
+        ...     cancel_id = comp_results.get("cancel_order", {}).get("cancellation_id")
+        ...     await PaymentService.refund(ctx["charge_id"], ref=cancel_id)
     """
 
     def decorator(func: F) -> F:

@@ -56,7 +56,7 @@ class CompensationFailureStrategy(Enum):
 @dataclass
 class CompensationResult:
     """Result of compensation execution.
-    
+
     Attributes:
         success: Whether all compensations succeeded
         executed: List of step IDs that were compensated successfully
@@ -129,25 +129,25 @@ def _detect_compensation_signature(
 ) -> bool:
     """
     Detect if compensation function accepts compensation_results parameter.
-    
+
     Args:
         compensation_fn: The compensation function to inspect
-        
+
     Returns:
         True if function accepts compensation_results parameter (new signature),
         False if it only accepts context (legacy signature)
     """
     sig = inspect.signature(compensation_fn)
     params = list(sig.parameters.keys())
-    
+
     # Remove 'self' if present (for bound methods)
     if params and params[0] == "self":
         params = params[1:]
-    
+
     # New signature: (ctx, compensation_results) or (ctx, comp_results=None)
     # Legacy signature: (ctx)
     return len(params) >= 2 or (
-        len(params) == 2 and "comp_results" in params or "compensation_results" in params
+        (len(params) == 2 and "comp_results" in params) or "compensation_results" in params
     )
 
 
@@ -450,7 +450,7 @@ class SagaCompensationGraph:
         failed: list[str] = []
         skipped: list[str] = []
         errors: dict[str, Exception] = {}
-        
+
         # Get compensation order
         try:
             levels = self.get_compensation_order()
@@ -465,18 +465,18 @@ class SagaCompensationGraph:
                 errors={"_graph": e},
                 execution_time_ms=(time.time() - start_time) * 1000,
             )
-        
+
         # Track failed steps for SKIP_DEPENDENTS strategy
         failed_steps_set: set[str] = set()
         should_stop = False
-        
+
         # Execute level by level
         for level in levels:
             if should_stop:
                 # FAIL_FAST: skip remaining levels
                 skipped.extend(level)
                 continue
-            
+
             # Filter out steps that should be skipped
             steps_to_execute = [
                 step_id
@@ -485,24 +485,24 @@ class SagaCompensationGraph:
                     step_id, failed_steps_set, failure_strategy
                 )
             ]
-            
+
             # Track skipped steps
             for step_id in level:
                 if step_id not in steps_to_execute:
                     skipped.append(step_id)
-            
+
             # Execute level with failure handling
             level_results = await self._execute_level(
                 steps_to_execute, context, failure_strategy
             )
-            
+
             # Process results
             for step_id, result in level_results.items():
                 if isinstance(result, Exception):
                     failed.append(step_id)
                     errors[step_id] = result
                     failed_steps_set.add(step_id)
-                    
+
                     # Check if we should stop
                     if failure_strategy == CompensationFailureStrategy.FAIL_FAST:
                         should_stop = True
@@ -510,10 +510,10 @@ class SagaCompensationGraph:
                     executed.append(step_id)
                     if result is not None:
                         self._compensation_results[step_id] = result
-        
+
         execution_time_ms = (time.time() - start_time) * 1000
         success = len(failed) == 0
-        
+
         return CompensationResult(
             success=success,
             executed=executed,
@@ -543,7 +543,7 @@ class SagaCompensationGraph:
         """
         if not step_ids:
             return {}
-        
+
         # Create tasks for all steps in the level
         tasks = {
             step_id: self._execute_single_compensation(
@@ -551,7 +551,7 @@ class SagaCompensationGraph:
             )
             for step_id in step_ids
         }
-        
+
         # Execute in parallel and gather results
         results = {}
         for step_id, task in tasks.items():
@@ -563,7 +563,7 @@ class SagaCompensationGraph:
                     self._compensation_results[step_id] = result
             except Exception as e:
                 results[step_id] = e
-        
+
         return results
 
     async def _execute_single_compensation(
@@ -589,21 +589,21 @@ class SagaCompensationGraph:
         node = self.nodes.get(step_id)
         if not node:
             return None
-        
+
         # Determine number of retries
         max_retries = (
             node.max_retries
             if failure_strategy == CompensationFailureStrategy.RETRY_THEN_CONTINUE
             else 0
         )
-        
+
         last_error: Exception | None = None
-        
+
         for attempt in range(max_retries + 1):
             try:
                 # Detect function signature
                 accepts_results = _detect_compensation_signature(node.compensation_fn)
-                
+
                 # Call compensation with appropriate signature
                 if accepts_results:
                     result = await asyncio.wait_for(
@@ -616,19 +616,18 @@ class SagaCompensationGraph:
                         node.compensation_fn(context),
                         timeout=node.timeout_seconds,
                     )
-                
+
                 return result
-            
+
             except Exception as e:
                 last_error = e
                 if attempt < max_retries:
                     # Exponential backoff before retry
                     await asyncio.sleep(2**attempt * 0.1)
                     continue
-                else:
-                    # No more retries, raise the error
-                    raise
-        
+                # No more retries, raise the error
+                raise
+
         # Should not reach here, but satisfy type checker
         if last_error:
             raise last_error
@@ -653,23 +652,19 @@ class SagaCompensationGraph:
         """
         if failure_strategy != CompensationFailureStrategy.SKIP_DEPENDENTS:
             return False
-        
+
         node = self.nodes.get(step_id)
         if not node:
             return False
-        
+
         # Build compensation dependencies for this step
         # A step's compensation depends on the compensations of steps that depend on it
         # in forward execution (because those must compensate first)
         comp_deps = self._build_reverse_dependencies(list(self.nodes.keys()))
-        
+
         # Check if any of the steps that must compensate before this one have failed
         steps_before_this = comp_deps.get(step_id, set())
-        for dep in steps_before_this:
-            if dep in failed_steps:
-                return True
-        
-        return False
+        return any(dep in failed_steps for dep in steps_before_this)
 
     def clear(self) -> None:
         """Clear all registered compensations and executed steps."""
