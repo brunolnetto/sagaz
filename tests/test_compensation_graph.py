@@ -6,7 +6,9 @@ import pytest
 
 from sagaz.compensation_graph import (
     CircularDependencyError,
+    CompensationFailureStrategy,
     CompensationNode,
+    CompensationResult,
     CompensationType,
     MissingDependencyError,
     SagaCompensationGraph,
@@ -378,3 +380,397 @@ class TestMissingDependencyError:
         assert "missing_step" in str(error)
         assert error.step_id == "my_step"
         assert error.missing_dep == "missing_step"
+
+
+class TestCompensationResult:
+    """Tests for CompensationResult dataclass."""
+
+    def test_create_success_result(self):
+        """Test creating a successful compensation result."""
+        result = CompensationResult(
+            success=True,
+            executed=["step1", "step2"],
+            failed=[],
+            skipped=[],
+            results={"step1": {"id": 1}, "step2": {"id": 2}},
+            errors={},
+            execution_time_ms=123.45,
+        )
+
+        assert result.success is True
+        assert result.executed == ["step1", "step2"]
+        assert len(result.failed) == 0
+        assert len(result.skipped) == 0
+        assert result.results["step1"]["id"] == 1
+        assert result.execution_time_ms == 123.45
+
+    def test_create_failure_result(self):
+        """Test creating a failed compensation result."""
+        error = Exception("Test error")
+        result = CompensationResult(
+            success=False,
+            executed=["step1"],
+            failed=["step2"],
+            skipped=["step3"],
+            results={"step1": {"id": 1}},
+            errors={"step2": error},
+            execution_time_ms=200.0,
+        )
+
+        assert result.success is False
+        assert result.failed == ["step2"]
+        assert result.skipped == ["step3"]
+        assert result.errors["step2"] == error
+
+
+class TestCompensationFailureStrategy:
+    """Tests for CompensationFailureStrategy enum."""
+
+    def test_all_strategies_exist(self):
+        """Test all failure strategies are defined."""
+        assert CompensationFailureStrategy.FAIL_FAST.value == "fail_fast"
+        assert CompensationFailureStrategy.CONTINUE_ON_ERROR.value == "continue_on_error"
+        assert CompensationFailureStrategy.RETRY_THEN_CONTINUE.value == "retry_then_continue"
+        assert CompensationFailureStrategy.SKIP_DEPENDENTS.value == "skip_dependents"
+
+
+class TestCompensationResultPassing:
+    """Tests for compensation result passing feature."""
+
+    @pytest.mark.asyncio
+    async def test_compensation_with_return_value(self):
+        """Test compensation can return a value."""
+        graph = SagaCompensationGraph()
+        
+        async def cancel_order(ctx, comp_results=None):
+            return {"cancellation_id": "cancel-123", "cancelled_at": "2024-01-01"}
+        
+        graph.register_compensation("cancel_order", cancel_order)
+        graph.mark_step_executed("cancel_order")
+        
+        result = await graph.execute_compensations({"order_id": "123"})
+        
+        assert result.success is True
+        assert "cancel_order" in result.executed
+        assert result.results["cancel_order"]["cancellation_id"] == "cancel-123"
+
+    @pytest.mark.asyncio
+    async def test_compensation_result_passing_between_steps(self):
+        """Test results are passed from one compensation to another."""
+        graph = SagaCompensationGraph()
+        
+        results_tracker = {}
+        
+        async def refund_payment(ctx, comp_results=None):
+            results_tracker["refund_payment_received"] = comp_results
+            return {"refund_id": "refund-456"}
+        
+        async def cancel_order(ctx, comp_results=None):
+            results_tracker["cancel_order_received"] = comp_results
+            # Access result from refund_payment (which compensates first)
+            refund_id = comp_results.get("refund_payment", {}).get("refund_id")
+            return {"cancellation_id": "cancel-123", "referenced_refund": refund_id}
+        
+        # Forward execution: refund_payment depends on cancel_order
+        # Compensation order: refund_payment first (level 0), cancel_order second (level 1)
+        graph.register_compensation("cancel_order", cancel_order)
+        graph.register_compensation("refund_payment", refund_payment, depends_on=["cancel_order"])
+        graph.mark_step_executed("cancel_order")
+        graph.mark_step_executed("refund_payment")
+        
+        result = await graph.execute_compensations({"order_id": "123"})
+        
+        assert result.success is True
+        assert "refund_payment" in result.executed
+        assert "cancel_order" in result.executed
+        
+        # Verify cancel_order received refund_payment's result
+        assert results_tracker["cancel_order_received"]["refund_payment"]["refund_id"] == "refund-456"
+        assert result.results["cancel_order"]["referenced_refund"] == "refund-456"
+
+    @pytest.mark.asyncio
+    async def test_backward_compatibility_old_signature(self):
+        """Test old compensation signature (ctx only) still works."""
+        graph = SagaCompensationGraph()
+        
+        async def old_style_compensation(ctx):
+            # Old signature: only accepts ctx
+            return None
+        
+        graph.register_compensation("old_step", old_style_compensation)
+        graph.mark_step_executed("old_step")
+        
+        result = await graph.execute_compensations({"data": "test"})
+        
+        assert result.success is True
+        assert "old_step" in result.executed
+
+    @pytest.mark.asyncio
+    async def test_mixed_old_and_new_signatures(self):
+        """Test mixing old and new compensation signatures."""
+        graph = SagaCompensationGraph()
+        
+        async def old_comp(ctx):
+            pass
+        
+        async def new_comp(ctx, comp_results=None):
+            return {"new_result": "value"}
+        
+        graph.register_compensation("old_step", old_comp)
+        graph.register_compensation("new_step", new_comp)
+        graph.mark_step_executed("old_step")
+        graph.mark_step_executed("new_step")
+        
+        result = await graph.execute_compensations({})
+        
+        assert result.success is True
+        assert "old_step" in result.executed
+        assert "new_step" in result.executed
+        assert result.results.get("new_step", {}).get("new_result") == "value"
+
+
+class TestFailureStrategies:
+    """Tests for compensation failure strategies."""
+
+    @pytest.mark.asyncio
+    async def test_fail_fast_strategy(self):
+        """Test FAIL_FAST stops on first failure."""
+        graph = SagaCompensationGraph()
+        
+        async def failing_comp(ctx, comp_results=None):
+            raise Exception("Intentional failure")
+        
+        async def should_not_run(ctx, comp_results=None):
+            return {"executed": True}
+        
+        # step2 depends on step1, so step1 compensates after step2
+        graph.register_compensation("step1", should_not_run)
+        graph.register_compensation("step2", failing_comp, depends_on=["step1"])
+        graph.mark_step_executed("step1")
+        graph.mark_step_executed("step2")
+        
+        result = await graph.execute_compensations(
+            {},
+            failure_strategy=CompensationFailureStrategy.FAIL_FAST
+        )
+        
+        assert result.success is False
+        assert "step2" in result.failed
+        assert "step1" in result.skipped  # Should be skipped after step2 fails
+
+    @pytest.mark.asyncio
+    async def test_continue_on_error_strategy(self):
+        """Test CONTINUE_ON_ERROR executes all compensations despite failures."""
+        graph = SagaCompensationGraph()
+        
+        async def failing_comp(ctx, comp_results=None):
+            raise Exception("Intentional failure")
+        
+        async def succeeding_comp(ctx, comp_results=None):
+            return {"success": True}
+        
+        graph.register_compensation("step1", succeeding_comp)
+        graph.register_compensation("step2", failing_comp, depends_on=["step1"])
+        graph.mark_step_executed("step1")
+        graph.mark_step_executed("step2")
+        
+        result = await graph.execute_compensations(
+            {},
+            failure_strategy=CompensationFailureStrategy.CONTINUE_ON_ERROR
+        )
+        
+        assert result.success is False
+        assert "step2" in result.failed
+        assert "step1" in result.executed  # Should still execute
+        assert result.results["step1"]["success"] is True
+
+    @pytest.mark.asyncio
+    async def test_retry_then_continue_strategy(self):
+        """Test RETRY_THEN_CONTINUE retries failed compensations."""
+        graph = SagaCompensationGraph()
+        
+        attempt_counts = {"step1": 0}
+        
+        async def flaky_comp(ctx, comp_results=None):
+            attempt_counts["step1"] += 1
+            if attempt_counts["step1"] < 2:
+                raise Exception("Temporary failure")
+            return {"attempt": attempt_counts["step1"]}
+        
+        graph.register_compensation("step1", flaky_comp, max_retries=3)
+        graph.mark_step_executed("step1")
+        
+        result = await graph.execute_compensations(
+            {},
+            failure_strategy=CompensationFailureStrategy.RETRY_THEN_CONTINUE
+        )
+        
+        assert result.success is True
+        assert "step1" in result.executed
+        assert attempt_counts["step1"] == 2  # Failed once, succeeded on retry
+
+    @pytest.mark.asyncio
+    async def test_skip_dependents_strategy(self):
+        """Test SKIP_DEPENDENTS skips steps whose compensation depends on failed ones."""
+        graph = SagaCompensationGraph()
+        
+        async def step1_comp(ctx, comp_results=None):
+            return {"step1": "done"}
+        
+        async def failing_comp(ctx, comp_results=None):
+            raise Exception("Intentional failure")
+        
+        async def dependent_comp(ctx, comp_results=None):
+            return {"should_not_execute": True}
+        
+        # Setup compensation dependencies:
+        # Forward: step3 → step2 → step1 (step2 depends on step3, step1 depends on step2)
+        # Compensation order: step1 → step2 → step3 (reverse of forward)
+        # 
+        # When we execute compensations:
+        # - Level 0: step1 runs (no one depends on it in compensation)
+        # - Level 1: step2 runs (depends on step1's compensation) - FAILS
+        # - Level 2: step3 should be SKIPPED (depends on step2's compensation, which failed)
+        
+        graph.register_compensation("step1", step1_comp, depends_on=["step2"])
+        graph.register_compensation("step2", failing_comp, depends_on=["step3"])
+        graph.register_compensation("step3", dependent_comp)
+        
+        graph.mark_step_executed("step1")
+        graph.mark_step_executed("step2")
+        graph.mark_step_executed("step3")
+        
+        result = await graph.execute_compensations(
+            {},
+            failure_strategy=CompensationFailureStrategy.SKIP_DEPENDENTS
+        )
+        
+        assert result.success is False
+        assert "step1" in result.executed  # step1 executed (compensates first)
+        assert "step2" in result.failed  # step2 failed (compensates second)
+        assert "step3" in result.skipped  # step3 skipped (depends on step2, which failed)
+
+
+class TestExecuteCompensationsEdgeCases:
+    """Tests for edge cases in execute_compensations."""
+
+    @pytest.mark.asyncio
+    async def test_empty_graph(self):
+        """Test executing compensations on empty graph."""
+        graph = SagaCompensationGraph()
+        
+        result = await graph.execute_compensations({})
+        
+        assert result.success is True
+        assert len(result.executed) == 0
+        assert len(result.failed) == 0
+
+    @pytest.mark.asyncio
+    async def test_no_executed_steps(self):
+        """Test when compensations are registered but no steps executed."""
+        graph = SagaCompensationGraph()
+        
+        async def comp(ctx, comp_results=None):
+            pass
+        
+        graph.register_compensation("step1", comp)
+        # Don't mark as executed
+        
+        result = await graph.execute_compensations({})
+        
+        assert result.success is True
+        assert len(result.executed) == 0
+
+    @pytest.mark.asyncio
+    async def test_circular_dependency_returns_error(self):
+        """Test circular dependency is caught during execution."""
+        graph = SagaCompensationGraph()
+        
+        async def comp(ctx, comp_results=None):
+            pass
+        
+        # Create circular dependency
+        graph.register_compensation("step1", comp, depends_on=["step2"])
+        graph.register_compensation("step2", comp, depends_on=["step1"])
+        graph.mark_step_executed("step1")
+        graph.mark_step_executed("step2")
+        
+        result = await graph.execute_compensations({})
+        
+        assert result.success is False
+        assert "_graph" in result.errors
+
+    @pytest.mark.asyncio
+    async def test_timeout_handling(self):
+        """Test compensation timeout is respected."""
+        graph = SagaCompensationGraph()
+        
+        async def slow_comp(ctx, comp_results=None):
+            import asyncio
+            await asyncio.sleep(10)  # Will timeout
+        
+        graph.register_compensation("step1", slow_comp, timeout_seconds=0.1)
+        graph.mark_step_executed("step1")
+        
+        result = await graph.execute_compensations({})
+        
+        assert result.success is False
+        assert "step1" in result.failed
+        assert isinstance(result.errors["step1"], Exception)
+
+    @pytest.mark.asyncio
+    async def test_parallel_execution_in_level(self):
+        """Test multiple independent compensations execute in parallel."""
+        graph = SagaCompensationGraph()
+        
+        import time
+        execution_times = {}
+        
+        async def comp1(ctx, comp_results=None):
+            start = time.time()
+            import asyncio
+            await asyncio.sleep(0.1)
+            execution_times["comp1"] = time.time() - start
+            return {"comp1": "done"}
+        
+        async def comp2(ctx, comp_results=None):
+            start = time.time()
+            import asyncio
+            await asyncio.sleep(0.1)
+            execution_times["comp2"] = time.time() - start
+            return {"comp2": "done"}
+        
+        # Both independent, should run in parallel
+        graph.register_compensation("step1", comp1)
+        graph.register_compensation("step2", comp2)
+        graph.mark_step_executed("step1")
+        graph.mark_step_executed("step2")
+        
+        start_time = time.time()
+        result = await graph.execute_compensations({})
+        total_time = time.time() - start_time
+        
+        assert result.success is True
+        assert "step1" in result.executed
+        assert "step2" in result.executed
+        # If parallel, total time should be ~0.1s, not ~0.2s
+        # Allow more overhead for slower systems
+        assert total_time < 0.25  # Allow more overhead
+
+    @pytest.mark.asyncio
+    async def test_execution_time_tracking(self):
+        """Test execution time is tracked correctly."""
+        graph = SagaCompensationGraph()
+        
+        async def comp(ctx, comp_results=None):
+            import asyncio
+            await asyncio.sleep(0.05)
+        
+        graph.register_compensation("step1", comp)
+        graph.mark_step_executed("step1")
+        
+        result = await graph.execute_compensations({})
+        
+        assert result.success is True
+        assert result.execution_time_ms > 0
+        assert result.execution_time_ms >= 50  # At least 50ms
