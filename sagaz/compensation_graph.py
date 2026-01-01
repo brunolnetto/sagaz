@@ -15,6 +15,9 @@ Example:
     ...     await asyncio.gather(*[execute_compensation(step) for step in level])
 """
 
+import asyncio
+import inspect
+import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from enum import Enum
@@ -32,6 +35,45 @@ class CompensationType(Enum):
 
     MANUAL = "manual"
     """Requires human intervention (e.g., review by support team)"""
+
+
+class CompensationFailureStrategy(Enum):
+    """Strategy for handling compensation failures."""
+
+    FAIL_FAST = "fail_fast"
+    """Stop immediately on first failure, don't attempt remaining compensations"""
+
+    CONTINUE_ON_ERROR = "continue_on_error"
+    """Continue with remaining compensations, collect all errors"""
+
+    RETRY_THEN_CONTINUE = "retry_then_continue"
+    """Retry failed compensation (using max_retries), then continue if still fails"""
+
+    SKIP_DEPENDENTS = "skip_dependents"
+    """Skip compensations that depend on the failed one, continue with independent"""
+
+
+@dataclass
+class CompensationResult:
+    """Result of compensation execution.
+    
+    Attributes:
+        success: Whether all compensations succeeded
+        executed: List of step IDs that were compensated successfully
+        failed: List of step IDs that failed during compensation
+        skipped: List of step IDs that were skipped due to dependency failure
+        results: Dictionary mapping step IDs to their compensation return values
+        errors: Dictionary mapping failed step IDs to their exceptions
+        execution_time_ms: Total execution time in milliseconds
+    """
+
+    success: bool
+    executed: list[str] = field(default_factory=list)
+    failed: list[str] = field(default_factory=list)
+    skipped: list[str] = field(default_factory=list)
+    results: dict[str, Any] = field(default_factory=dict)
+    errors: dict[str, Exception] = field(default_factory=dict)
+    execution_time_ms: float = 0.0
 
 
 @dataclass
@@ -80,6 +122,33 @@ class MissingDependencyError(CompensationGraphError):
         self.step_id = step_id
         self.missing_dep = missing_dep
         super().__init__(f"Step '{step_id}' depends on non-existent step '{missing_dep}'")
+
+
+def _detect_compensation_signature(
+    compensation_fn: Callable[[dict[str, Any]], Awaitable[Any]]
+) -> bool:
+    """
+    Detect if compensation function accepts compensation_results parameter.
+    
+    Args:
+        compensation_fn: The compensation function to inspect
+        
+    Returns:
+        True if function accepts compensation_results parameter (new signature),
+        False if it only accepts context (legacy signature)
+    """
+    sig = inspect.signature(compensation_fn)
+    params = list(sig.parameters.keys())
+    
+    # Remove 'self' if present (for bound methods)
+    if params and params[0] == "self":
+        params = params[1:]
+    
+    # New signature: (ctx, compensation_results) or (ctx, comp_results=None)
+    # Legacy signature: (ctx)
+    return len(params) >= 2 or (
+        len(params) == 2 and "comp_results" in params or "compensation_results" in params
+    )
 
 
 class SagaCompensationGraph:
@@ -131,26 +200,42 @@ class SagaCompensationGraph:
         """
         Register a compensation action for a step.
 
+        Compensation functions can optionally return values and access results
+        from previously executed compensations.
+
         Args:
             step_id: Unique identifier for this step
-            compensation_fn: Async function(context) to execute on compensation
+            compensation_fn: Async function to execute on compensation.
+                Supports two signatures:
+                - Legacy: async def fn(ctx) -> None
+                - New: async def fn(ctx, compensation_results) -> Any
             depends_on: Steps that must be compensated BEFORE this one
             compensation_type: Type of compensation action
             description: Optional description for logging
             max_retries: Max retry attempts (default: 3)
             timeout_seconds: Execution timeout (default: 30s)
 
-        Example:
+        Example (Legacy):
             >>> async def refund_payment(ctx):
             ...     await PaymentService.refund(ctx["charge_id"])
             >>>
             >>> graph.register_compensation(
             ...     "charge_payment",
             ...     refund_payment,
-            ...     depends_on=["create_order"],  # Refund after order cancelled
+            ...     depends_on=["create_order"],
             ...     compensation_type=CompensationType.SEMANTIC,
             ...     description="Refund customer payment"
             ... )
+
+        Example (New with result passing):
+            >>> async def cancel_order(ctx, comp_results=None):
+            ...     cancellation = await OrderService.cancel(ctx["order_id"])
+            ...     return {"cancellation_id": cancellation.id}
+            >>>
+            >>> async def refund_payment(ctx, comp_results=None):
+            ...     cancel_id = comp_results.get("cancel_order", {}).get("cancellation_id")
+            ...     await PaymentService.refund(ctx["charge_id"], ref=cancel_id)
+            ...     return {"refund_id": "ref-123"}
         """
         node = CompensationNode(
             step_id=step_id,
@@ -344,6 +429,247 @@ class SagaCompensationGraph:
             CompensationNode if found, None otherwise
         """
         return self.nodes.get(step_id)
+
+    async def execute_compensations(
+        self,
+        context: dict[str, Any],
+        failure_strategy: CompensationFailureStrategy = CompensationFailureStrategy.CONTINUE_ON_ERROR,
+    ) -> CompensationResult:
+        """
+        Execute all compensations respecting dependencies and failure strategy.
+
+        Args:
+            context: Saga context passed to compensation functions
+            failure_strategy: How to handle compensation failures
+
+        Returns:
+            CompensationResult with detailed execution info
+        """
+        start_time = time.time()
+        executed: list[str] = []
+        failed: list[str] = []
+        skipped: list[str] = []
+        errors: dict[str, Exception] = {}
+        
+        # Get compensation order
+        try:
+            levels = self.get_compensation_order()
+        except CircularDependencyError as e:
+            # Return failure immediately if there's a structural issue
+            return CompensationResult(
+                success=False,
+                executed=[],
+                failed=[],
+                skipped=[],
+                results={},
+                errors={"_graph": e},
+                execution_time_ms=(time.time() - start_time) * 1000,
+            )
+        
+        # Track failed steps for SKIP_DEPENDENTS strategy
+        failed_steps_set: set[str] = set()
+        should_stop = False
+        
+        # Execute level by level
+        for level in levels:
+            if should_stop:
+                # FAIL_FAST: skip remaining levels
+                skipped.extend(level)
+                continue
+            
+            # Filter out steps that should be skipped
+            steps_to_execute = [
+                step_id
+                for step_id in level
+                if not self._should_skip_step(
+                    step_id, failed_steps_set, failure_strategy
+                )
+            ]
+            
+            # Track skipped steps
+            for step_id in level:
+                if step_id not in steps_to_execute:
+                    skipped.append(step_id)
+            
+            # Execute level with failure handling
+            level_results = await self._execute_level(
+                steps_to_execute, context, failure_strategy
+            )
+            
+            # Process results
+            for step_id, result in level_results.items():
+                if isinstance(result, Exception):
+                    failed.append(step_id)
+                    errors[step_id] = result
+                    failed_steps_set.add(step_id)
+                    
+                    # Check if we should stop
+                    if failure_strategy == CompensationFailureStrategy.FAIL_FAST:
+                        should_stop = True
+                else:
+                    executed.append(step_id)
+                    if result is not None:
+                        self._compensation_results[step_id] = result
+        
+        execution_time_ms = (time.time() - start_time) * 1000
+        success = len(failed) == 0
+        
+        return CompensationResult(
+            success=success,
+            executed=executed,
+            failed=failed,
+            skipped=skipped,
+            results=self._compensation_results.copy(),
+            errors=errors,
+            execution_time_ms=execution_time_ms,
+        )
+
+    async def _execute_level(
+        self,
+        step_ids: list[str],
+        context: dict[str, Any],
+        failure_strategy: CompensationFailureStrategy,
+    ) -> dict[str, Any | Exception]:
+        """
+        Execute a level of compensations in parallel.
+
+        Args:
+            step_ids: List of step IDs to execute in parallel
+            context: Saga context
+            failure_strategy: How to handle failures
+
+        Returns:
+            Dictionary mapping step_id to result or exception
+        """
+        if not step_ids:
+            return {}
+        
+        # Create tasks for all steps in the level
+        tasks = {
+            step_id: self._execute_single_compensation(
+                step_id, context, failure_strategy
+            )
+            for step_id in step_ids
+        }
+        
+        # Execute in parallel and gather results
+        results = {}
+        for step_id, task in tasks.items():
+            try:
+                result = await task
+                results[step_id] = result
+                # Store result immediately so next steps can access it
+                if result is not None:
+                    self._compensation_results[step_id] = result
+            except Exception as e:
+                results[step_id] = e
+        
+        return results
+
+    async def _execute_single_compensation(
+        self,
+        step_id: str,
+        context: dict[str, Any],
+        failure_strategy: CompensationFailureStrategy,
+    ) -> Any:
+        """
+        Execute a single compensation with retry logic.
+
+        Args:
+            step_id: Step identifier
+            context: Saga context
+            failure_strategy: How to handle failures
+
+        Returns:
+            Compensation result value (if any)
+
+        Raises:
+            Exception: If compensation fails after retries
+        """
+        node = self.nodes.get(step_id)
+        if not node:
+            return None
+        
+        # Determine number of retries
+        max_retries = (
+            node.max_retries
+            if failure_strategy == CompensationFailureStrategy.RETRY_THEN_CONTINUE
+            else 0
+        )
+        
+        last_error: Exception | None = None
+        
+        for attempt in range(max_retries + 1):
+            try:
+                # Detect function signature
+                accepts_results = _detect_compensation_signature(node.compensation_fn)
+                
+                # Call compensation with appropriate signature
+                if accepts_results:
+                    result = await asyncio.wait_for(
+                        node.compensation_fn(context, self._compensation_results),
+                        timeout=node.timeout_seconds,
+                    )
+                else:
+                    # Legacy signature: only context
+                    result = await asyncio.wait_for(
+                        node.compensation_fn(context),
+                        timeout=node.timeout_seconds,
+                    )
+                
+                return result
+            
+            except Exception as e:
+                last_error = e
+                if attempt < max_retries:
+                    # Exponential backoff before retry
+                    await asyncio.sleep(2**attempt * 0.1)
+                    continue
+                else:
+                    # No more retries, raise the error
+                    raise
+        
+        # Should not reach here, but satisfy type checker
+        if last_error:
+            raise last_error
+        return None
+
+    def _should_skip_step(
+        self,
+        step_id: str,
+        failed_steps: set[str],
+        failure_strategy: CompensationFailureStrategy,
+    ) -> bool:
+        """
+        Determine if a step should be skipped based on failed dependencies.
+
+        Args:
+            step_id: Step to check
+            failed_steps: Set of steps that have failed
+            failure_strategy: The failure handling strategy
+
+        Returns:
+            True if step should be skipped, False otherwise
+        """
+        if failure_strategy != CompensationFailureStrategy.SKIP_DEPENDENTS:
+            return False
+        
+        node = self.nodes.get(step_id)
+        if not node:
+            return False
+        
+        # Build compensation dependencies for this step
+        # A step's compensation depends on the compensations of steps that depend on it
+        # in forward execution (because those must compensate first)
+        comp_deps = self._build_reverse_dependencies(list(self.nodes.keys()))
+        
+        # Check if any of the steps that must compensate before this one have failed
+        steps_before_this = comp_deps.get(step_id, set())
+        for dep in steps_before_this:
+            if dep in failed_steps:
+                return True
+        
+        return False
 
     def clear(self) -> None:
         """Clear all registered compensations and executed steps."""
