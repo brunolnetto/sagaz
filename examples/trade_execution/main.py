@@ -113,6 +113,81 @@ class TradeExecutionSaga(Saga):
         await asyncio.sleep(0.05)
 
 
+class StrategyActivationSaga(Saga):
+    """Strategy activation saga for trading systems."""
+    
+    saga_name = "strategy-activation"
+
+    def __init__(self, strategy_id: int, user_id: int):
+        super().__init__()
+        self.strategy_id = strategy_id
+        self.user_id = user_id
+
+    @action("validate_strategy")
+    async def validate_strategy(self, ctx: SagaContext) -> dict[str, Any]:
+        """Validate the strategy."""
+        logger.info(f"Validating strategy {self.strategy_id}")
+        await asyncio.sleep(0.05)
+        return {"valid": True, "strategy_id": self.strategy_id}
+
+    @action("validate_funds", depends_on=["validate_strategy"])
+    async def validate_funds(self, ctx: SagaContext) -> dict[str, Any]:
+        """Validate sufficient funds."""
+        logger.info(f"Validating funds for user {self.user_id}")
+        await asyncio.sleep(0.05)
+        return {"sufficient": True, "user_id": self.user_id}
+
+    @action("activate_strategy", depends_on=["validate_funds"])
+    async def activate_strategy(self, ctx: SagaContext) -> dict[str, Any]:
+        """Activate the strategy."""
+        logger.info(f"Activating strategy {self.strategy_id}")
+        await asyncio.sleep(0.1)
+        return {"strategy_id": self.strategy_id, "active": True}
+
+    @compensate("activate_strategy")
+    async def deactivate_strategy(self, ctx: SagaContext) -> None:
+        """Deactivate the strategy."""
+        logger.warning(f"Deactivating strategy {self.strategy_id}")
+        strategy_id = ctx.get("strategy_id")
+        if strategy_id:
+            logger.info(f"Deactivating strategy {strategy_id}")
+        await asyncio.sleep(0.05)
+
+    @action("publish_event", depends_on=["activate_strategy"])
+    async def publish_event(self, ctx: SagaContext) -> dict[str, Any]:
+        """Publish activation event."""
+        logger.info(f"Publishing activation event for strategy {self.strategy_id}")
+        await asyncio.sleep(0.05)
+        return {"event_id": f"evt_{self.strategy_id}", "published": True}
+
+
+class SagaOrchestrator:
+    """Simple saga orchestrator for managing multiple sagas."""
+    
+    def __init__(self):
+        self.sagas: dict[str, Any] = {}
+        
+    async def execute_saga(self, saga):
+        """Execute a saga and track it."""
+        result = await saga.run({})
+        self.sagas[saga._saga_id] = saga
+        return result
+        
+    async def get_saga(self, saga_id: str):
+        """Get a saga by ID."""
+        return self.sagas.get(saga_id)
+        
+    async def get_statistics(self):
+        """Get orchestrator statistics."""
+        completed = sum(1 for s in self.sagas.values() if hasattr(s, '_context'))
+        return {
+            "total_sagas": len(self.sagas),
+            "completed": completed,
+            "executing": 0,
+            "pending": 0,
+        }
+
+
 async def main():
     """Run the trade execution saga demo."""
     print("=" * 60)
