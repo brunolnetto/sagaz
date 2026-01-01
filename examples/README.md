@@ -28,6 +28,26 @@ examples/
 │   ├── model_deployment.py   Blue/green deployment saga
 │   └── feature_store.py      Feature engineering pipeline
 │
+├── iot_device_orchestration/  ← Smart home IoT orchestration
+│   ├── README.md
+│   └── main.py               Multi-device coordination saga
+│
+├── healthcare_patient_onboarding/ ← HIPAA-compliant healthcare
+│   ├── README.md
+│   └── main.py               Patient registration workflow
+│
+├── supply_chain_drone_delivery/ ← Autonomous drone delivery
+│   ├── README.md
+│   └── main.py               FAA-compliant delivery orchestration
+│
+├── smart_grid_energy/         ← Demand response for energy grids
+│   ├── README.md
+│   └── main.py               Grid stabilization workflow
+│
+├── edge_federated_learning/   ← Federated ML on edge devices
+│   ├── README.md
+│   └── main.py               Privacy-preserving distributed training
+│
 └── README.md                  ← This file
 ```
 
@@ -38,26 +58,23 @@ Each example is self-contained in a single `main.py` file and can be run directl
 ### Running Examples
 
 ```bash
-# Order Processing (E-commerce)
+# E-commerce & Business
 python examples/order_processing/main.py
-
-# Payment Processing
 python examples/payment_processing/main.py
-
-# Travel Booking (Multi-service)
 python examples/travel_booking/main.py
-
-# Trade Execution (Financial)
 python examples/trade_execution/main.py
 
-# ML Training Pipeline (MLOps)
+# MLOps & AI
 python examples/ml_training/main.py
-
-# Model Deployment (Blue/Green)
 python examples/ml_training/model_deployment.py
-
-# Feature Store Pipeline
 python examples/ml_training/feature_store.py
+python examples/edge_federated_learning/main.py
+
+# Emerging Technologies
+python examples/iot_device_orchestration/main.py
+python examples/healthcare_patient_onboarding/main.py
+python examples/supply_chain_drone_delivery/main.py
+python examples/smart_grid_energy/main.py
 ```
 
 ## 📚 Example Details
@@ -195,6 +212,120 @@ result = await saga.run({"experiment_id": saga.experiment_id})
 - ✅ Distributed tracing for ML pipelines
 
 See [ml_training/README.md](ml_training/README.md) for comprehensive MLOps guide (300+ lines).
+
+### 📱 IoT Device Orchestration
+**Directory:** `iot_device_orchestration/`  
+**Use Case:** Smart home device coordination  
+**Steps:** Lock Doors → Thermostat Away → Lights Off → Arm Security → Notify  
+**Best For:** Multi-device coordination with safety rollback
+
+Example usage:
+```python
+from examples.iot_device_orchestration.main import IoTDeviceOrchestrationSaga
+
+saga = IoTDeviceOrchestrationSaga(
+    routine_id="ROUTINE-001",
+    home_id="HOME-123",
+    user_id="USER-456",
+    device_count=100,
+    simulate_failure=False
+)
+
+result = await saga.run({"routine_id": saga.routine_id})
+```
+
+### 🏥 Healthcare Patient Onboarding
+**Directory:** `healthcare_patient_onboarding/`  
+**Use Case:** HIPAA-compliant patient registration  
+**Steps:** Verify Identity → Create EHR → Assign PCP → Portal Setup → Schedule → Welcome  
+**Best For:** Compliance, audit trails, PHI protection
+
+Example usage:
+```python
+from examples.healthcare_patient_onboarding.main import HealthcarePatientOnboardingSaga
+
+saga = HealthcarePatientOnboardingSaga(
+    patient_id="PAT-2026-001",
+    first_name="Alice",
+    last_name="Johnson",
+    date_of_birth="1985-06-15",
+    ssn_last_4="1234",
+    email="alice.johnson@email.com",
+    phone="+1-555-0123",
+    simulate_failure=False
+)
+
+result = await saga.run({"patient_id": saga.patient_id})
+```
+
+### 🚁 Supply Chain Drone Delivery
+**Directory:** `supply_chain_drone_delivery/`  
+**Use Case:** Autonomous drone package delivery  
+**Steps:** Reserve Drone → Plan Path → Get FAA Auth → Pickup → Deliver → Return  
+**Best For:** Regulatory compliance, real-time coordination
+
+Example usage:
+```python
+from examples.supply_chain_drone_delivery.main import SupplyChainDroneDeliverySaga
+
+saga = SupplyChainDroneDeliverySaga(
+    delivery_id="DEL-2026-001",
+    package_id="PKG-54321",
+    warehouse_id="WH-SF-01",
+    destination_lat=37.7899,
+    destination_lon=-122.3999,
+    package_weight_kg=2.5,
+    priority="standard",
+    simulate_failure=False
+)
+
+result = await saga.run({"delivery_id": saga.delivery_id})
+```
+
+### ⚡ Smart Grid Energy Management
+**Directory:** `smart_grid_energy/`  
+**Use Case:** Demand response for grid stabilization  
+**Steps:** Forecast → Identify Participants → Send Requests → Monitor → Verify → Pay  
+**Best For:** Distributed resource coordination, real-time monitoring
+
+Example usage:
+```python
+from examples.smart_grid_energy.main import SmartGridEnergySaga
+
+saga = SmartGridEnergySaga(
+    event_id="DR-2026-HEATWAVE-001",
+    grid_operator_id="GRID-CAISO",
+    target_reduction_mw=1.5,
+    event_duration_hours=4,
+    incentive_rate_per_kwh=0.15,
+    simulate_failure=False
+)
+
+result = await saga.run({"event_id": saga.event_id})
+```
+
+### 🤖 Edge Federated Learning
+**Directory:** `edge_federated_learning/`  
+**Use Case:** Privacy-preserving distributed ML training  
+**Steps:** Select Nodes → Distribute Weights → Train → Aggregate → Validate → Deploy  
+**Best For:** Privacy-preserving ML, partial participation handling
+
+Example usage:
+```python
+from examples.edge_federated_learning.main import EdgeFederatedLearningSaga
+
+saga = EdgeFederatedLearningSaga(
+    training_round_id="FL-ROUND-042",
+    model_name="user-behavior-predictor",
+    model_version="3.2.0",
+    target_accuracy=0.85,
+    min_participating_nodes=10,
+    training_rounds=5,
+    simulate_failure=False
+)
+
+result = await saga.run({"training_round_id": saga.training_round_id})
+```
 
 ---
 
@@ -363,13 +494,49 @@ These examples demonstrate:
 
 ## 📚 Learning Path
 
+### Basic Patterns
 1. **Start:** `order_processing/` - Simplest workflow (4 steps)
 2. **Intermediate:** `payment_processing/` - Provider fallback patterns
 3. **Advanced:** `travel_booking/` - Multi-service orchestration
 4. **Expert:** `trade_execution/` - Financial system with strict compensations
-5. **Production MLOps:** `ml_training/` - Real-world ML pipeline patterns
+
+### Production Use Cases
+5. **MLOps:** `ml_training/` - Real-world ML pipeline patterns
+6. **IoT:** `iot_device_orchestration/` - Multi-device coordination (100+ devices)
+7. **Healthcare:** `healthcare_patient_onboarding/` - HIPAA compliance & audit trails
+8. **Supply Chain:** `supply_chain_drone_delivery/` - Regulatory compliance (FAA)
+9. **Energy:** `smart_grid_energy/` - Distributed resource management
+10. **AI/ML:** `edge_federated_learning/` - Privacy-preserving distributed training
 
 Each example builds on the previous one, introducing new concepts progressively.
+
+### By Industry
+
+**E-commerce/Retail**
+- `order_processing/` - Order fulfillment
+- `payment_processing/` - Payment gateway integration
+
+**Travel & Hospitality**
+- `travel_booking/` - Multi-service booking
+
+**Finance**
+- `trade_execution/` - Trading systems
+
+**Technology & AI**
+- `ml_training/` - MLOps pipelines
+- `edge_federated_learning/` - Distributed ML
+
+**Healthcare**
+- `healthcare_patient_onboarding/` - Patient registration
+
+**IoT & Smart Home**
+- `iot_device_orchestration/` - Device automation
+
+**Logistics & Supply Chain**
+- `supply_chain_drone_delivery/` - Autonomous delivery
+
+**Energy & Utilities**
+- `smart_grid_energy/` - Grid management
 
 ## 🐛 Troubleshooting
 
