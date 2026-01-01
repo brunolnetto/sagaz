@@ -282,7 +282,7 @@ async def main():
 
     try:
         result_failure = await saga_failure.run({"patient_id": saga_failure.patient_id})
-    except Exception as e:
+    except Exception:
         result_failure = {}
 
     print(f"\n{'❌' if not result_failure.get('saga_id') else '✅'} Rollback Result:")
