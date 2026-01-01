@@ -61,9 +61,10 @@ class TestOrderProcessingSaga:
         )
 
         try:
-            result = await saga.run({"order_id": saga.order_id})
+            await saga.run({"order_id": saga.order_id})
             # Should not reach here - saga should fail
-            assert False, "Saga should have failed due to insufficient inventory"
+            msg = "Saga should have failed due to insufficient inventory"
+            raise AssertionError(msg)
         except Exception as e:
             # Expected failure
             assert "Insufficient inventory" in str(e)
@@ -82,9 +83,10 @@ class TestOrderProcessingSaga:
         )
 
         try:
-            result = await saga.run({"order_id": saga.order_id})
+            await saga.run({"order_id": saga.order_id})
             # Should not reach here - saga should fail
-            assert False, "Saga should have failed due to payment failure"
+            msg = "Saga should have failed due to payment failure"
+            raise AssertionError(msg)
         except Exception as e:
             # Expected failure
             assert "Payment declined" in str(e)
@@ -137,9 +139,10 @@ class TestOrderProcessingSaga:
         )
 
         try:
-            result = await saga.run({"order_id": saga.order_id})
+            await saga.run({"order_id": saga.order_id})
             # Should not reach here - saga should fail
-            assert False, "Saga should have failed due to payment failure"
+            msg = "Saga should have failed due to payment failure"
+            raise AssertionError(msg)
         except Exception as e:
             # Payment fails, inventory should be rolled back
             assert "Payment declined" in str(e)
@@ -162,9 +165,10 @@ class TestOrderProcessingSaga:
         )
 
         try:
-            result = await saga.run({"order_id": saga.order_id})
+            await saga.run({"order_id": saga.order_id})
             # Should not reach here - saga should fail
-            assert False, "Saga should have failed due to payment failure"
+            msg = "Saga should have failed due to payment failure"
+            raise AssertionError(msg)
         except Exception as e:
             # Should fail at payment and rollback all 3 item reservations
             assert "Payment declined" in str(e)
@@ -260,17 +264,19 @@ class TestTravelBookingSaga:
         # Find the car booking step and replace it with a failing function
         for step_def in saga._steps:
             if step_def.step_id == "book_car":
-                original_fn = step_def.forward_fn
+
                 async def failing_car(ctx):
                     msg = "Car rental unavailable"
                     raise SagaStepError(msg)
+
                 step_def.forward_fn = failing_car
                 break
 
         try:
-            result = await saga.run({"booking_id": saga.booking_id})
+            await saga.run({"booking_id": saga.booking_id})
             # Should not reach here
-            assert False, "Saga should have failed"
+            msg = "Saga should have failed"
+            raise AssertionError(msg)
         except Exception as e:
             # Should fail and compensate previous steps
             assert "Car rental unavailable" in str(e)
@@ -337,16 +343,19 @@ class TestTravelBookingSaga:
         # Make itinerary fail to trigger hotel compensation
         for step_def in saga._steps:
             if step_def.step_id == "send_itinerary":
+
                 async def failing_itinerary(ctx):
                     msg = "Email service down"
                     raise SagaStepError(msg)
+
                 step_def.forward_fn = failing_itinerary
                 break
 
         try:
-            result = await saga.run({"booking_id": saga.booking_id})
+            await saga.run({"booking_id": saga.booking_id})
             # Should not reach here
-            assert False, "Saga should have failed"
+            msg = "Saga should have failed"
+            raise AssertionError(msg)
         except Exception as e:
             # Should compensate hotel and flight
             assert "Email service down" in str(e)
@@ -407,16 +416,19 @@ class TestTravelBookingSaga:
         # Mock the book_hotel to force failure
         for step_def in saga._steps:
             if step_def.step_id == "book_hotel":
+
                 async def failing_hotel(ctx):
                     msg = "Hotel full"
                     raise ValueError(msg)
+
                 step_def.forward_fn = failing_hotel
                 break
 
         try:
-            result = await saga.run({"booking_id": saga.booking_id})
+            await saga.run({"booking_id": saga.booking_id})
             # Should not reach here
-            assert False, "Saga should have failed"
+            msg = "Saga should have failed"
+            raise AssertionError(msg)
         except Exception as e:
             # Flight should be cancelled via compensation
             assert "Hotel full" in str(e)
@@ -655,7 +667,7 @@ class TestTradeExecutionSaga:
 
         # Verify saga was created with steps (decorated methods)
         assert len(saga._steps) == 3
-        
+
         # Check that all expected steps are present
         step_ids = {step.step_id for step in saga._steps}
         assert "reserve_funds" in step_ids
@@ -691,7 +703,7 @@ class TestStrategyActivationSaga:
 
         # Verify saga was created with steps (decorated methods)
         assert len(saga._steps) == 4
-        
+
         # Check that all expected steps are present
         step_ids = {step.step_id for step in saga._steps}
         assert "validate_strategy" in step_ids
@@ -727,7 +739,7 @@ class TestSagaOrchestratorFromTradeExecution:
         # Create simple saga
         class SimpleSaga(Saga):
             saga_name = "test-saga"
-            
+
             @action("test_step")
             async def test_step(self, ctx):
                 return {"result": "success"}
@@ -748,7 +760,7 @@ class TestSagaOrchestratorFromTradeExecution:
 
         class TestSaga(Saga):
             saga_name = "get-test"
-            
+
             @action("step")
             async def step(self, ctx):
                 return {"done": True}
@@ -770,9 +782,10 @@ class TestSagaOrchestratorFromTradeExecution:
 
         # Create and execute multiple sagas
         for i in range(3):
+
             class CountSaga(Saga):
                 saga_name = f"count-saga-{i}"
-                
+
                 @action("step")
                 async def step(self, ctx):
                     return {"count": i}
@@ -801,7 +814,7 @@ class TestMonitoredSagaOrchestrator:
         # Execute successful saga
         class SuccessSaga(Saga):
             saga_name = "success-test"
-            
+
             @action("step1")
             async def step1(self, ctx):
                 return {"success": True}
@@ -827,13 +840,14 @@ class TestMonitoredSagaOrchestrator:
         # Execute failing saga
         class FailSaga(Saga):
             saga_name = "fail-test"
-            
+
             @action("failing_step")
             async def failing_step(self, ctx):
-                raise SagaStepError("Test failure")
+                msg = "Test failure"
+                raise SagaStepError(msg)
 
         saga = FailSaga()
-        
+
         try:
             await orchestrator.execute_saga(saga)
         except Exception:
@@ -855,9 +869,10 @@ class TestMonitoredSagaOrchestrator:
 
         # Execute 2 successful sagas
         for i in range(2):
+
             class SuccessSaga(Saga):
                 saga_name = f"success-{i}"
-                
+
                 @action("step")
                 async def step(self, ctx):
                     return {"ok": True}
@@ -868,10 +883,11 @@ class TestMonitoredSagaOrchestrator:
         # Execute 1 failing saga
         class FailSaga(Saga):
             saga_name = "fail"
-            
+
             @action("step")
             async def step(self, ctx):
-                raise SagaStepError("Fail")
+                msg = "Fail"
+                raise SagaStepError(msg)
 
         fail_saga = FailSaga()
         try:
