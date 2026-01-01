@@ -53,8 +53,10 @@ Note: You cannot mix both approaches. Once you use decorators,
 
 from sagaz.compensation_graph import (
     CircularDependencyError,
+    CompensationFailureStrategy,
     CompensationGraphError,
     CompensationNode,
+    CompensationResult,
     CompensationType,
     SagaCompensationGraph,
 )
@@ -105,8 +107,10 @@ __all__ = [
     "CircularDependencyError",
     # Legacy/internal (for backward compatibility)
     "ClassicSaga",  # Deprecated - use Saga instead
+    "CompensationFailureStrategy",
     "CompensationGraphError",
     "CompensationNode",
+    "CompensationResult",
     "CompensationType",
     "DAGSaga",  # Deprecated - use Saga instead
     "DeclarativeSaga",  # Deprecated - use Saga instead
