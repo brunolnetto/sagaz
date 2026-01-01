@@ -6,6 +6,7 @@ Demonstrates how to collect metrics and monitor saga executions.
 
 import logging
 from datetime import datetime
+from typing import Any
 
 from sagaz import Saga
 
@@ -20,8 +21,8 @@ class MonitoredSagaOrchestrator:
     """
 
     def __init__(self):
-        self.sagas = {}
-        self.metrics = {
+        self.sagas: dict[str, Saga] = {}
+        self.metrics: dict[str, Any] = {
             "total_executed": 0,
             "total_successful": 0,
             "total_failed": 0,
