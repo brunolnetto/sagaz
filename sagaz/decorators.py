@@ -21,7 +21,7 @@ Quick Start:
     ...     async def charge(self, ctx):
     ...         return await PaymentService.charge(ctx["amount"])
     ...
-    ...     @compensate("charge_payment", depends_on=["create_order"])
+    ...     @compensate("charge_payment")  # Dependencies auto-derived from action
     ...     async def refund(self, ctx):
     ...         await PaymentService.refund(ctx["charge_id"])
 """
@@ -138,7 +138,6 @@ def step(
 
 def compensate(
     for_step: str,
-    depends_on: list[str] | None = None,
     compensation_type: CompensationType = CompensationType.MECHANICAL,
     timeout_seconds: float = 30.0,
     max_retries: int = 3,
@@ -151,13 +150,15 @@ def compensate(
     Compensation functions are called when a saga fails and needs to
     undo previously completed steps.
 
+    Compensation dependencies are automatically derived from the forward
+    action dependencies and reversed by the compensation graph.
+
     Compensation functions can optionally return values and access results
     from previously executed compensations when using the new
     `execute_compensations()` API.
 
     Args:
         for_step: Name of the step this compensates
-        depends_on: Steps whose compensations must complete BEFORE this one
         compensation_type: Type of compensation (MECHANICAL, SEMANTIC, MANUAL)
         timeout_seconds: Compensation timeout (default: 30s)
         max_retries: Maximum retry attempts (default: 3)
@@ -175,7 +176,7 @@ def compensate(
         ...     cancellation = await OrderService.cancel(ctx["order_id"])
         ...     return {"cancellation_id": cancellation.id}
         ...
-        >>> @compensate("charge_payment", depends_on=["cancel_order"])
+        >>> @compensate("charge_payment")
         ... async def refund(self, ctx, comp_results=None):
         ...     cancel_id = comp_results.get("cancel_order", {}).get("cancellation_id")
         ...     await PaymentService.refund(ctx["charge_id"], ref=cancel_id)
@@ -184,7 +185,7 @@ def compensate(
     def decorator(func: F) -> F:
         func._saga_compensation_meta = CompensationMetadata(  # type: ignore[attr-defined]
             for_step=for_step,
-            depends_on=depends_on or [],
+            depends_on=[],  # No longer used - dependencies derived from forward actions
             compensation_type=compensation_type,
             timeout_seconds=timeout_seconds,
             max_retries=max_retries,
@@ -373,7 +374,8 @@ class Saga:
             return
         step = self._step_registry[step_name]
         step.compensation_fn = method
-        step.compensation_depends_on = meta.depends_on.copy()
+        # Compensation dependencies are derived from forward dependencies (step.depends_on)
+        # No need to set step.compensation_depends_on - it's ignored
         step.compensation_type = meta.compensation_type
         step.compensation_timeout_seconds = meta.timeout_seconds
         step.on_compensate = meta.on_compensate
@@ -702,13 +704,17 @@ class Saga:
         self._compensation_graph.reset_execution()
 
     def _register_compensations(self) -> None:
-        """Register all compensations in the graph."""
+        """Register all compensations in the graph.
+
+        Compensation dependencies are automatically derived from forward
+        action dependencies. The compensation graph will auto-reverse them.
+        """
         for step in self._steps:
             if step.compensation_fn:
                 self._compensation_graph.register_compensation(
                     step.step_id,
                     step.compensation_fn,
-                    depends_on=step.compensation_depends_on,
+                    depends_on=step.depends_on,  # Use forward dependencies (will be auto-reversed)
                     compensation_type=step.compensation_type,
                     max_retries=step.max_retries,
                     timeout_seconds=step.compensation_timeout_seconds,

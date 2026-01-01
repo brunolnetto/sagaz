@@ -419,7 +419,7 @@ class TestSagaAdvanced:
             async def step2(self, ctx):
                 return {"s2": True}
 
-            @compensate("step2", depends_on=["step1"])
+            @compensate("step2")  # Dependencies auto-derived from forward dependencies
             async def undo_step2(self, ctx):
                 compensation_order.append("step2")
 
