@@ -351,7 +351,8 @@ class TestSagaCompensationGraph:
 
         repr_str = repr(graph)
 
-        assert "SagaCompensationGraph" in repr_str
+        # SagaCompensationGraph is now an alias for SagaExecutionGraph
+        assert "SagaExecutionGraph" in repr_str
         assert "nodes=1" in repr_str
         assert "executed=1" in repr_str
 
