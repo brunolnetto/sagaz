@@ -1,38 +1,84 @@
-# ADR-022: Compensation Result Passing and Failure Strategies
+# ADR-022: Unified Execution Graph and Compensation Context
 
 **Status:** Accepted  
 **Date:** 2026-01-01  
+**Updated:** 2026-01-01 (Architectural Refinement)
 **Deciders:** Sagaz Core Team
 
 ## Context
 
-The `SagaCompensationGraph` provides automatic compensation ordering based on step dependencies, enabling parallel compensation execution where safe. However, it had two significant limitations:
+The saga pattern implementation had separate concerns for forward execution and compensation that led to architectural questions:
 
-### Limitations
+### Original Limitations
 
 1. **No Result Passing Between Compensations**: Compensations couldn't share data with each other, limiting coordination capabilities
-2. **No Configurable Failure Handling**: When a compensation failed, the behavior was fixed - all remaining compensations would still attempt to run
+2. **No Configurable Failure Handling**: When a compensation failed, the behavior was fixed
+3. **Separate Graph Classes**: Having a `SagaCompensationGraph` but no corresponding `SagaActionGraph` raised questions about the distinction
+4. **Context Management**: Using plain `dict[str, Any]` for both saga context and compensation context mixed concerns
 
-### Use Cases Requiring These Features
+### Architectural Questions
 
-**Result Passing:**
-```python
-# Cancel order first, get cancellation ID
-cancellation = await OrderService.cancel(order_id)
-
-# Use cancellation ID when issuing refund
-await PaymentService.refund(charge_id, reference=cancellation.id)
-```
-
-**Failure Strategies:**
-- **FAIL_FAST**: Stop immediately if payment refund fails (don't proceed with less critical compensations)
-- **CONTINUE_ON_ERROR**: Try all compensations even if some fail (collect all errors for review)
-- **RETRY_THEN_CONTINUE**: Retry flaky external service calls before moving on
-- **SKIP_DEPENDENTS**: If order cancellation fails, skip email notification (depends on cancellation)
+1. **Is SagaCompensationGraph distinction necessary?** Since we're essentially reversing dependency arrows, could this be unified?
+2. **Should compensation have its own context?** A separate `SagaCompensationContext` could facilitate blob storage and snapshots
 
 ## Decision
 
-### 1. Compensation Result Passing
+### 1. Unified Execution Graph
+
+**Renamed `SagaCompensationGraph` → `SagaExecutionGraph`** with backward compatibility alias.
+
+**Rationale:**
+- The same dependency structure serves both forward execution and compensation (reversed)
+- Unifying simplifies the architecture - one graph, two directions
+- Compensation-specific features (CompensationType, timeouts, retries) remain as node metadata
+- Forward execution continues to use inline topological sort on `SagaStepDefinition` in the Saga class
+- `SagaExecutionGraph` focuses on compensation tracking and execution
+
+**Implementation:**
+```python
+class SagaExecutionGraph:
+    """
+    Unified graph for managing both forward execution and compensation dependencies.
+    
+    The same dependency structure is used in both directions:
+    - Forward: for action execution
+    - Reversed: for compensation
+    """
+    
+# Backward compatibility
+SagaCompensationGraph = SagaExecutionGraph
+```
+
+### 2. Separate Compensation Context
+
+**Introduced `SagaCompensationContext`** to separate compensation concerns.
+
+**Rationale:**
+- Facilitates blob storage and context snapshots
+- Clear separation between saga execution context and compensation context
+- Makes it explicit what data is available during compensation
+- Enables better serialization for distributed compensation
+
+**Structure:**
+```python
+@dataclass
+class SagaCompensationContext:
+    saga_id: str
+    step_id: str
+    original_context: dict[str, Any]  # Snapshot at failure time
+    compensation_results: dict[str, Any]  # Results from prior compensations
+    metadata: dict[str, Any]
+    created_at: datetime
+    
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize for blob storage"""
+        
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "SagaCompensationContext":
+        """Restore from storage"""
+```
+
+### 3. Compensation Result Passing
 
 Allow compensation functions to return values and access results from previously executed compensations.
 
@@ -58,7 +104,7 @@ async def refund_payment(ctx: dict, compensation_results: dict[str, Any]) -> Any
 - **Result Storage**: Store in `_compensation_results` dict (already existed, unused)
 - **Passing**: Pass as second parameter to compensation functions
 
-### 2. Failure Strategies
+### 4. Failure Strategies
 
 Introduce four configurable strategies for handling compensation failures:
 
@@ -77,31 +123,29 @@ class CompensationFailureStrategy(Enum):
     """Skip compensations that depend on the failed one, continue with independent"""
 ```
 
-### 3. Enhanced Execution API
+### 5. Enhanced Execution API
 
-New `execute_compensations()` method returns detailed results:
-
-```python
-@dataclass
-class CompensationResult:
-    success: bool
-    executed: list[str]  # Steps that were compensated
-    failed: list[str]  # Steps that failed
-    skipped: list[str]  # Steps skipped due to dependency failure
-    results: dict[str, Any]  # Results from each compensation
-    errors: dict[str, Exception]  # Errors by step
-    execution_time_ms: float
-```
-
-Usage:
+New `execute_compensations()` method supports both dict and SagaCompensationContext:
 
 ```python
+# With dict (backward compatible)
 result = await graph.execute_compensations(
     context={"order_id": "123"},
     failure_strategy=CompensationFailureStrategy.SKIP_DEPENDENTS
 )
 
-if not result.success:
+# With SagaCompensationContext (new, for blob storage)
+comp_context = SagaCompensationContext(
+    saga_id="saga-123",
+    step_id="",
+    original_context={"order_id": "123"},
+    compensation_results={}
+)
+result = await graph.execute_compensations(
+    context=comp_context,
+    failure_strategy=CompensationFailureStrategy.SKIP_DEPENDENTS
+)
+```
     logger.error(f"Compensations failed: {result.failed}")
     logger.warning(f"Compensations skipped: {result.skipped}")
 ```
@@ -237,6 +281,28 @@ No changes required! The new features are opt-in:
 
 ## Design Decisions
 
+### Why Unify into SagaExecutionGraph?
+
+**Decision:** Renamed `SagaCompensationGraph` to `SagaExecutionGraph` with backward compatibility alias.
+
+**Rationale:**
+- Eliminates architectural confusion: why have `SagaCompensationGraph` but no `SagaActionGraph`?
+- Same dependency structure used bidirectionally (forward for execution, reversed for compensation)
+- Simplifies mental model: one graph, two traversal directions
+- Compensation-specific features (types, timeouts) remain as node metadata
+- Maintains backward compatibility via alias
+
+### Why Introduce SagaCompensationContext?
+
+**Decision:** Created separate `SagaCompensationContext` dataclass.
+
+**Rationale:**
+- **Blob Storage Support**: Context snapshots can be serialized/deserialized for distributed compensation
+- **Clear Separation**: Distinguishes between saga execution context and compensation context
+- **Explicit Data**: Makes it clear what data is available during compensation
+- **Metadata Tracking**: Built-in fields for saga_id, step_id, timestamps
+- **Backward Compatible**: `execute_compensations()` accepts both dict and SagaCompensationContext
+
 ### Why Use `comp_results` as Second Parameter?
 
 **Alternatives Considered:**
@@ -269,6 +335,8 @@ No changes required! The new features are opt-in:
 
 ### Positive
 
+- **Unified Architecture**: Single graph concept eliminates confusion
+- **Blob Storage Ready**: `SagaCompensationContext` enables distributed compensation
 - **Enhanced Coordination**: Compensations can share data
 - **Flexible Error Handling**: Choose strategy based on business requirements
 - **Better Observability**: Detailed results show exactly what happened
@@ -280,11 +348,13 @@ No changes required! The new features are opt-in:
 - **Complexity**: More options to understand and configure
 - **Documentation**: Need to explain compensation order carefully (reversed!)
 - **Performance**: Signature detection adds small overhead (cached after first call)
+- **Migration**: Users wanting blob storage need to adopt SagaCompensationContext
 
 ### Neutral
 
 - **Two APIs**: Can use `get_compensation_order()` (old) or `execute_compensations()` (new)
 - **Learning Curve**: Need to understand compensation order reversal
+- **Alias Maintenance**: `SagaCompensationGraph` remains as alias for backward compatibility
 
 ## Testing
 

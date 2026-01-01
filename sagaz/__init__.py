@@ -58,7 +58,9 @@ from sagaz.compensation_graph import (
     CompensationNode,
     CompensationResult,
     CompensationType,
-    SagaCompensationGraph,
+    SagaCompensationContext,
+    SagaCompensationGraph,  # Backward compatibility alias
+    SagaExecutionGraph,
 )
 
 # Configuration
@@ -121,15 +123,17 @@ __all__ = [
     "ParallelFailureStrategy",
     # Primary exports
     "Saga",
+    "SagaCompensationContext",
     "SagaCompensationError",
-    # Compensation graph
-    "SagaCompensationGraph",
+    # Compensation/Execution graph
+    "SagaCompensationGraph",  # Backward compatibility alias
     # Configuration
     "SagaConfig",
     "SagaContext",
     # Exceptions
     "SagaError",
     "SagaExecutionError",
+    "SagaExecutionGraph",
     # Listeners
     "SagaListener",
     # Orchestrator

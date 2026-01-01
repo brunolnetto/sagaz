@@ -1,18 +1,21 @@
 """
-Compensation dependency graph management.
+Unified saga execution graph for forward execution and compensation.
 
-Provides flexible compensation ordering based on step dependencies,
-enabling parallel compensation execution where safe.
+Provides flexible dependency ordering for both action execution and compensation,
+enabling parallel execution where safe. The same graph structure is used for both
+directions by reversing dependencies for compensation.
 
 Example:
-    >>> graph = SagaCompensationGraph()
-    >>> graph.register_compensation("create_order", cancel_order)
-    >>> graph.register_compensation("charge_payment", refund_payment, depends_on=["create_order"])
+    >>> graph = SagaExecutionGraph()
+    >>> # Register steps with forward dependencies
+    >>> graph.register_step("create_order", create_fn, cancel_fn)
+    >>> graph.register_step("charge_payment", charge_fn, refund_fn, depends_on=["create_order"])
     >>>
-    >>> # When failure occurs, execute compensations in dependency order:
-    >>> levels = graph.get_compensation_order()
-    >>> for level in levels:
-    ...     await asyncio.gather(*[execute_compensation(step) for step in level])
+    >>> # Get forward execution order
+    >>> levels = graph.get_execution_order()
+    >>>
+    >>> # Get compensation order (automatically reversed)
+    >>> comp_levels = graph.get_compensation_order()
 """
 
 import asyncio
@@ -20,6 +23,7 @@ import inspect
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 from typing import Any
 
@@ -74,6 +78,62 @@ class CompensationResult:
     results: dict[str, Any] = field(default_factory=dict)
     errors: dict[str, Exception] = field(default_factory=dict)
     execution_time_ms: float = 0.0
+
+
+@dataclass
+class SagaCompensationContext:
+    """
+    Context specifically for compensation execution.
+
+    Separates compensation concerns from forward execution context,
+    facilitating blob storage and snapshots.
+
+    Attributes:
+        saga_id: Unique identifier for the saga instance
+        step_id: Current compensation step being executed
+        original_context: Snapshot of the saga context at failure time
+        compensation_results: Results from previously executed compensations
+        metadata: Additional metadata (timestamps, retry counts, etc.)
+    """
+
+    saga_id: str
+    step_id: str
+    original_context: dict[str, Any] = field(default_factory=dict)
+    compensation_results: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    created_at: datetime = field(default_factory=datetime.now)
+
+    def get_result(self, step_id: str, default: Any = None) -> Any:
+        """Get result from a previously executed compensation."""
+        return self.compensation_results.get(step_id, default)
+
+    def set_result(self, step_id: str, result: Any) -> None:
+        """Store result from a compensation."""
+        self.compensation_results[step_id] = result
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for storage."""
+        return {
+            "saga_id": self.saga_id,
+            "step_id": self.step_id,
+            "original_context": self.original_context,
+            "compensation_results": self.compensation_results,
+            "metadata": self.metadata,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "SagaCompensationContext":
+        """Restore from dictionary (e.g., from blob storage)."""
+        created_at_str = data.get("created_at")
+        return cls(
+            saga_id=data["saga_id"],
+            step_id=data["step_id"],
+            original_context=data.get("original_context", {}),
+            compensation_results=data.get("compensation_results", {}),
+            metadata=data.get("metadata", {}),
+            created_at=datetime.fromisoformat(created_at_str) if created_at_str else datetime.now(),
+        )
 
 
 @dataclass
@@ -151,23 +211,25 @@ def _detect_compensation_signature(
     )
 
 
-class SagaCompensationGraph:
+class SagaExecutionGraph:
     """
-    Manages compensation dependencies and execution order.
+    Unified graph for managing both forward execution and compensation dependencies.
 
-    The compensation graph allows defining complex compensation relationships
-    where certain compensations must complete before others can begin.
+    This graph handles dependency ordering for both action execution (forward)
+    and compensation (reversed). The same dependency structure is used in both
+    directions - forward for execution, reversed for compensation.
 
     Key Features:
-        - Parallel execution of independent compensations
+        - Parallel execution of independent steps/compensations
         - Dependency-based ordering (topological sort)
         - Supports different compensation types
         - Tracks executed steps for accurate compensation
+        - Unified structure simplifies saga architecture
 
     Usage:
-        >>> graph = SagaCompensationGraph()
+        >>> graph = SagaExecutionGraph()
         >>>
-        >>> # Register compensations with dependencies
+        >>> # Register steps with compensations and dependencies
         >>> graph.register_compensation("step1", undo_step1)
         >>> graph.register_compensation("step2", undo_step2, depends_on=["step1"])
         >>> graph.register_compensation("step3", undo_step3, depends_on=["step1", "step2"])
@@ -176,10 +238,10 @@ class SagaCompensationGraph:
         >>> graph.mark_step_executed("step1")
         >>> graph.mark_step_executed("step2")
         >>>
-        >>> # Get compensation order (only executed steps)
+        >>> # Get compensation order (automatically reversed from forward deps)
         >>> levels = graph.get_compensation_order()
         >>> # Returns: [["step2"], ["step1"]]
-        >>> # step2 has dependency on step1, so step1 compensates AFTER step2
+        >>> # step2 has dependency on step1 (forward), so step1 compensates AFTER step2
     """
 
     def __init__(self):
@@ -432,15 +494,17 @@ class SagaCompensationGraph:
 
     async def execute_compensations(
         self,
-        context: dict[str, Any],
+        context: dict[str, Any] | SagaCompensationContext,
         failure_strategy: CompensationFailureStrategy = CompensationFailureStrategy.CONTINUE_ON_ERROR,
+        saga_id: str | None = None,
     ) -> CompensationResult:
         """
         Execute all compensations respecting dependencies and failure strategy.
 
         Args:
-            context: Saga context passed to compensation functions
+            context: Saga context (dict for backward compatibility) or SagaCompensationContext
             failure_strategy: How to handle compensation failures
+            saga_id: Saga ID (used when context is dict, ignored if SagaCompensationContext)
 
         Returns:
             CompensationResult with detailed execution info
@@ -450,6 +514,17 @@ class SagaCompensationGraph:
         failed: list[str] = []
         skipped: list[str] = []
         errors: dict[str, Exception] = {}
+
+        # Convert dict to SagaCompensationContext if needed
+        if isinstance(context, dict):
+            comp_context = SagaCompensationContext(
+                saga_id=saga_id or "unknown",
+                step_id="",
+                original_context=context,
+                compensation_results=self._compensation_results.copy(),
+            )
+        else:
+            comp_context = context
 
         # Get compensation order
         try:
@@ -493,7 +568,7 @@ class SagaCompensationGraph:
 
             # Execute level with failure handling
             level_results = await self._execute_level(
-                steps_to_execute, context, failure_strategy
+                steps_to_execute, comp_context, failure_strategy
             )
 
             # Process results
@@ -510,6 +585,7 @@ class SagaCompensationGraph:
                     executed.append(step_id)
                     if result is not None:
                         self._compensation_results[step_id] = result
+                        comp_context.set_result(step_id, result)
 
         execution_time_ms = (time.time() - start_time) * 1000
         success = len(failed) == 0
@@ -527,7 +603,7 @@ class SagaCompensationGraph:
     async def _execute_level(
         self,
         step_ids: list[str],
-        context: dict[str, Any],
+        comp_context: SagaCompensationContext,
         failure_strategy: CompensationFailureStrategy,
     ) -> dict[str, Any | Exception]:
         """
@@ -535,7 +611,7 @@ class SagaCompensationGraph:
 
         Args:
             step_ids: List of step IDs to execute in parallel
-            context: Saga context
+            comp_context: Compensation context with original saga context and results
             failure_strategy: How to handle failures
 
         Returns:
@@ -547,7 +623,7 @@ class SagaCompensationGraph:
         # Create tasks for all steps in the level
         tasks = {
             step_id: self._execute_single_compensation(
-                step_id, context, failure_strategy
+                step_id, comp_context, failure_strategy
             )
             for step_id in step_ids
         }
@@ -561,6 +637,7 @@ class SagaCompensationGraph:
                 # Store result immediately so next steps can access it
                 if result is not None:
                     self._compensation_results[step_id] = result
+                    comp_context.set_result(step_id, result)
             except Exception as e:
                 results[step_id] = e
 
@@ -569,7 +646,7 @@ class SagaCompensationGraph:
     async def _execute_single_compensation(
         self,
         step_id: str,
-        context: dict[str, Any],
+        comp_context: SagaCompensationContext,
         failure_strategy: CompensationFailureStrategy,
     ) -> Any:
         """
@@ -577,7 +654,7 @@ class SagaCompensationGraph:
 
         Args:
             step_id: Step identifier
-            context: Saga context
+            comp_context: Compensation context with original saga context and results
             failure_strategy: How to handle failures
 
         Returns:
@@ -589,6 +666,9 @@ class SagaCompensationGraph:
         node = self.nodes.get(step_id)
         if not node:
             return None
+
+        # Update context with current step
+        comp_context.step_id = step_id
 
         # Determine number of retries
         max_retries = (
@@ -605,15 +685,19 @@ class SagaCompensationGraph:
                 accepts_results = _detect_compensation_signature(node.compensation_fn)
 
                 # Call compensation with appropriate signature
+                # For backward compatibility, support both dict context and SagaCompensationContext
                 if accepts_results:
                     result = await asyncio.wait_for(
-                        node.compensation_fn(context, self._compensation_results),
+                        node.compensation_fn(
+                            comp_context.original_context,
+                            comp_context.compensation_results
+                        ),
                         timeout=node.timeout_seconds,
                     )
                 else:
-                    # Legacy signature: only context
+                    # Legacy signature: only context (dict)
                     result = await asyncio.wait_for(
-                        node.compensation_fn(context),
+                        node.compensation_fn(comp_context.original_context),
                         timeout=node.timeout_seconds,
                     )
 
@@ -678,6 +762,8 @@ class SagaCompensationGraph:
         self._compensation_results.clear()
 
     def __repr__(self) -> str:
-        return (
-            f"SagaCompensationGraph(nodes={len(self.nodes)}, executed={len(self.executed_steps)})"
-        )
+        return f"SagaExecutionGraph(nodes={len(self.nodes)}, executed={len(self.executed_steps)})"
+
+
+# Backward compatibility alias
+SagaCompensationGraph = SagaExecutionGraph
