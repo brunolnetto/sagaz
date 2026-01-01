@@ -619,9 +619,9 @@ class OrderPlacementSaga(DeclarativeSaga):
     async def charge_payment(self, ctx):
         return await PaymentService.charge(ctx["order_data"]["amount"])
     
-    @compensate("charge_payment", depends_on=["create_order"])
+    @compensate("charge_payment")  # Dependencies auto-derived from action
     async def refund_payment(self, ctx):
-        # This will wait for cancel_order to complete first!
+        # This will wait for cancel_order to complete first (auto-reversed)!
         await PaymentService.refund(ctx["charge_id"])
 
 
