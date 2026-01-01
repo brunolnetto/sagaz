@@ -1,0 +1,7 @@
+# No additional dependencies required beyond the base sagaz package
+# All integrations are simulated in this example
+# 
+# For production federated learning, consider:
+# tensorflow-federated>=0.40.0
+# pysyft>=0.8.0
+# torch>=2.0.0
