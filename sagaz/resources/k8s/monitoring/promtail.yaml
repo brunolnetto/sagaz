@@ -46,13 +46,13 @@ data:
           - source_labels: [__meta_kubernetes_pod_label_app]
             target_label: app
 
-          # Set the log path
+          # Set the log path using pod UID and container name
           - source_labels:
               - __meta_kubernetes_pod_uid
               - __meta_kubernetes_pod_container_name
             target_label: __path__
             separator: /
-            replacement: /var/log/pods/*$1/*.log
+            replacement: /var/log/pods/*$1/*$2/*.log
 
         # Pipeline stages for JSON log parsing
         pipeline_stages:
