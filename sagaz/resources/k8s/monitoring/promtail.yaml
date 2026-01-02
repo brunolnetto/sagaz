@@ -1,0 +1,251 @@
+---
+# Promtail ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: promtail-config
+  namespace: monitoring
+data:
+  promtail.yaml: |
+    server:
+      http_listen_port: 9080
+      grpc_listen_port: 0
+      log_level: info
+
+    positions:
+      filename: /tmp/positions.yaml
+
+    clients:
+      - url: http://loki:3100/loki/api/v1/push
+
+    scrape_configs:
+      # Scrape all pod logs from the node
+      - job_name: kubernetes-pods
+        kubernetes_sd_configs:
+          - role: pod
+        
+        relabel_configs:
+          # Only scrape pods in the sagaz namespace
+          - source_labels: [__meta_kubernetes_namespace]
+            regex: sagaz
+            action: keep
+
+          # Add pod name as label
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+
+          # Add namespace as label
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+
+          # Add container name as label
+          - source_labels: [__meta_kubernetes_pod_container_name]
+            target_label: container
+
+          # Add app label
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            target_label: app
+
+          # Set the log path
+          - source_labels:
+              - __meta_kubernetes_pod_uid
+              - __meta_kubernetes_pod_container_name
+            target_label: __path__
+            separator: /
+            replacement: /var/log/pods/*$1/*.log
+
+        # Pipeline stages for JSON log parsing
+        pipeline_stages:
+          # Stage 1: Parse JSON logs
+          - json:
+              expressions:
+                timestamp: timestamp
+                level: level
+                logger: logger
+                message: message
+                saga_id: saga_id
+                saga_name: saga_name
+                step_name: step_name
+                correlation_id: correlation_id
+                duration_ms: duration_ms
+                status: status
+                error_type: error_type
+                error_message: error_message
+                retry_count: retry_count
+                module: module
+                function: function
+                line: line
+
+          # Stage 2: Extract timestamp if present
+          - timestamp:
+              source: timestamp
+              format: RFC3339Nano
+              fallback_formats:
+                - RFC3339
+
+          # Stage 3: Set labels from extracted JSON fields
+          - labels:
+              level:
+              saga_id:
+              saga_name:
+              correlation_id:
+              step_name:
+
+          # Stage 4: Set output message
+          - output:
+              source: message
+
+          # Stage 5: Drop empty saga_id labels (for non-saga logs)
+          - labeldrop:
+              - saga_id
+              - saga_name
+              - correlation_id
+              - step_name
+            action: drop
+            source: saga_id
+            value: "^$"
+
+---
+# Promtail ServiceAccount
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: promtail
+  namespace: monitoring
+
+---
+# Promtail ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: promtail
+rules:
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - nodes/proxy
+      - services
+      - endpoints
+      - pods
+    verbs: ["get", "watch", "list"]
+  - apiGroups: [""]
+    resources:
+      - events
+    verbs: ["get", "watch", "list"]
+
+---
+# Promtail ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: promtail
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: promtail
+subjects:
+  - kind: ServiceAccount
+    name: promtail
+    namespace: monitoring
+
+---
+# Promtail DaemonSet
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: promtail
+  namespace: monitoring
+  labels:
+    app: promtail
+spec:
+  selector:
+    matchLabels:
+      app: promtail
+  template:
+    metadata:
+      labels:
+        app: promtail
+    spec:
+      serviceAccountName: promtail
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+      containers:
+        - name: promtail
+          image: grafana/promtail:2.9.3
+          args:
+            - -config.file=/etc/promtail/promtail.yaml
+          ports:
+            - name: http
+              containerPort: 9080
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /etc/promtail
+            - name: positions
+              mountPath: /tmp
+            - name: varlog
+              mountPath: /var/log
+              readOnly: true
+            - name: varlibdockercontainers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: config
+          configMap:
+            name: promtail-config
+        - name: positions
+          hostPath:
+            path: /var/lib/promtail-positions
+            type: DirectoryOrCreate
+        - name: varlog
+          hostPath:
+            path: /var/log
+            type: Directory
+        - name: varlibdockercontainers
+          hostPath:
+            path: /var/lib/docker/containers
+            type: DirectoryOrCreate
+      tolerations:
+        - effect: NoSchedule
+          operator: Exists
+        - effect: NoExecute
+          operator: Exists
+
+---
+# Promtail Service (for metrics)
+apiVersion: v1
+kind: Service
+metadata:
+  name: promtail
+  namespace: monitoring
+  labels:
+    app: promtail
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 9080
+      targetPort: http
+      protocol: TCP
+  selector:
+    app: promtail
