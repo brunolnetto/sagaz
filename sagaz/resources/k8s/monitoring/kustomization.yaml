@@ -6,12 +6,15 @@ namespace: monitoring
 resources:
   - monitoring-stack.yaml
   - prometheus-alerts.yaml
+  - loki.yaml
+  - promtail.yaml
 
 configMapGenerator:
   - name: sagaz-grafana-dashboards
     files:
       - grafana-dashboard-main.json
       - grafana-dashboard-outbox.json
+      - grafana-dashboard-logs.json
     options:
       labels:
         grafana_dashboard: "1"
