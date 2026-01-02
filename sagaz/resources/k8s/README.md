@@ -227,14 +227,25 @@ velero restore create --from-backup sagaz-backup
 
 ## Monitoring & Observability
 
+### Three Pillars of Observability
+
+The sagaz monitoring stack provides complete observability through:
+
+1. **Metrics** (Prometheus + Grafana) - Real-time performance and health metrics
+2. **Traces** (OpenTelemetry + Jaeger/Tempo) - Distributed request tracing
+3. **Logs** (Loki + Promtail + Grafana) - Centralized log aggregation and search
+
 ### Deploy Monitoring Stack
 
 ```bash
 # Create monitoring namespace
 kubectl create namespace monitoring
 
-# Deploy monitoring components
+# Deploy complete monitoring stack (Grafana, Prometheus, Loki, Promtail)
 kubectl apply -k monitoring/
+
+# Verify deployment
+kubectl get pods -n monitoring
 
 # Access Grafana (port-forward)
 kubectl port-forward -n monitoring svc/grafana 3000:3000
@@ -244,10 +255,34 @@ kubectl port-forward -n monitoring svc/grafana 3000:3000
 
 ### Dashboards
 
-Two pre-built Grafana dashboards are provided:
+Three pre-built Grafana dashboards are provided:
 
 1. **Saga Orchestration Dashboard** - Monitor saga execution, success rates, latency, and compensations
 2. **Outbox Pattern Dashboard** - Monitor event publishing, worker health, and queue metrics
+3. **Logs Dashboard** - Centralized log search, error analysis, and saga timeline visualization
+
+### Log Aggregation (Loki + Promtail)
+
+The monitoring stack includes Loki for log aggregation with JSON log parsing:
+
+```bash
+# View logs in Grafana Explore
+# Navigate to: Explore → Select "Loki" datasource
+
+# Example LogQL queries:
+{namespace="sagaz", saga_id="abc-123"}                    # All logs for a saga
+{namespace="sagaz", level="ERROR"}                         # All error logs
+{namespace="sagaz", correlation_id="req-xyz-789"}          # Logs by correlation ID
+```
+
+Key features:
+- Automatic JSON log parsing
+- Label extraction: `saga_id`, `saga_name`, `correlation_id`, `step_name`
+- Correlation with metrics and traces
+- 31-day retention (configurable)
+- Full-text search across all logs
+
+See `monitoring/README.md` for comprehensive LogQL query examples.
 
 ### Alerts
 
@@ -267,6 +302,7 @@ Operational runbooks with step-by-step troubleshooting:
 - Outbox worker down
 - High lag scenarios
 - Dead letter queue handling
+- Loki/Promtail issues
 
 See `monitoring/RUNBOOKS.md` for complete procedures.
 
