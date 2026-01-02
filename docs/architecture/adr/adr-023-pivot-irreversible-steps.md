@@ -186,16 +186,16 @@ Every saga is automatically divided into zones:
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Three Mental Models
+## Pivot Mechanism: Taint Propagation
 
-### Model 1: Taint Propagation (Automatic)
+### Core Concept
 
-**Concept:** When a pivot completes, it "taints" all its ancestors, making them irreversible too.
+When a pivot step completes successfully, it "taints" all ancestor steps, making them irreversible. This automatic mechanism ensures safety without manual configuration.
 
 **Visualization:**
 
 ```
-Initial state (no pivots executed):
+Before pivot completes:
     ┌─────────┐     ┌─────────┐     ┌─────────┐
     │ Step A  │ ──→ │ Step B  │ ──→ │ Step C  │
     │(reverse)│     │(reverse)│     │ (PIVOT) │
@@ -211,225 +211,181 @@ After Step C (pivot) completes:
                     All locked
 ```
 
-**Pros:**
-- ✅ Simple mental model
-- ✅ Automatic - no manual zone management
-- ✅ Conservative (safe) - prevents accidental rollback
-- ✅ Works well for linear sagas
-
-**Cons:**
-- ❌ Can be too conservative for complex DAGs
-- ❌ No flexibility for partial rollback scenarios
+**Why automatic taint propagation?**
+- **Safety**: Conservative default prevents accidental rollback after commitment
+- **Simplicity**: No manual zone management required
+- **Correctness**: Reflects the reality that ancestors enabled the pivot
 
 **Example:**
 
 ```python
 class TradeSaga(DAGSaga):
     async def build(self):
-        # Preparation zone (reversible)
+        # Preparation (reversible before pivot)
         await self.add_dag_step("validate_order", validate, rollback_validate)
         await self.add_dag_step("check_balance", check, rollback_check)
         
-        # Commitment point
+        # Commitment point (pivot)
         await self.add_dag_step(
             "place_order", 
             place, 
             cancel_order,
             dependencies={"validate_order", "check_balance"},
-            pivot=True  # Once order is placed, can't undo validate/check
+            pivot=True  # Once order placed, ancestors become tainted
         )
         
         # Post-commit (forward-only)
         await self.add_dag_step("update_portfolio", update, revert)
 ```
 
-### Model 2: Pivot Zones (Explicit)
+### Zones: Automatic Analysis Feature
 
-**Concept:** Explicitly group steps into named zones with clear boundaries.
+Zones are **automatically derived** from pivot analysis to provide modeling insights and visualization. They are not a configuration option, but rather an analytical tool.
 
-**Visualization:**
+**Automatic Zone Calculation:**
 
 ```
-┌───────────────────────────────────────────────────────────┐
-│ PREPARATION ZONE (zone="preparation")                     │
-│ ┌─────────┐  ┌─────────┐  ┌─────────┐                    │
-│ │validate │→ │reserve  │→ │authorize│                    │
-│ └─────────┘  └─────────┘  └─────────┘                    │
-│ Fully reversible, can rollback completely                 │
-└───────────────────────────────────────────────────────────┘
-                          ↓
-┌───────────────────────────────────────────────────────────┐
-│ COMMITMENT ZONE (zone="commitment")                       │
-│ ┌─────────┐  ┌─────────┐                                 │
-│ │ charge  │→ │provision│                                 │
-│ └─────────┘  └─────────┘                                 │
-│ Can only use semantic compensation (refunds, credits)    │
-└───────────────────────────────────────────────────────────┘
-                          ↓
-┌───────────────────────────────────────────────────────────┐
-│ FULFILLMENT ZONE (zone="fulfillment")                     │
-│ ┌─────────┐  ┌─────────┐  ┌─────────┐                    │
-│ │  ship   │→ │ notify  │→ │ invoice │                    │
-│ └─────────┘  └─────────┘  └─────────┘                    │
-│ Forward recovery only, manual intervention if needed     │
-└───────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                   AUTOMATICALLY COMPUTED                     │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  REVERSIBLE ZONE                                             │
+│  ┌──────────┐      ┌──────────┐                             │
+│  │ validate │  ──→ │ reserve  │                             │
+│  │ order    │      │ funds    │                             │
+│  └──────────┘      └──────────┘                             │
+│  Can fully rollback before any pivot ↑                       │
+│                                                              │
+├─────────────────────────────────────────────────────────────┤
+│                    ↓ PIVOT BOUNDARY ↓                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  TAINTED ZONE (ancestors of pivots)                          │
+│  ┌──────────┐      ┌──────────┐                             │
+│  │ validate │  ──→ │ reserve  │  [LOCKED AFTER PIVOT]       │
+│  │ order    │      │ funds    │                             │
+│  └──────────┘      └──────────┘                             │
+│                                                              │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  COMMITTED ZONE (post-pivot descendants)                     │
+│  ┌──────────┐      ┌──────────┐      ┌──────────┐           │
+│  │ charge   │  ──→ │ ship     │  ──→ │ notify   │           │
+│  │ payment  │      │ order    │      │ customer │           │
+│  └──────────┘      └──────────┘      └──────────┘           │
+│  Forward-only recovery →                                     │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**Pros:**
-- ✅ Explicit control over boundaries
-- ✅ Matches business workflow stages
-- ✅ Clear documentation of saga phases
-- ✅ Good for complex multi-stage processes
+**Zone Usage:**
+- **Visualization**: Color-code steps in Mermaid diagrams
+- **Validation**: Warn about missing compensations in reversible zone
+- **Monitoring**: Track which zone a failed step belongs to
+- **Documentation**: Auto-generate zone descriptions
 
-**Cons:**
-- ❌ Requires manual zone definition
-- ❌ More verbose
-- ❌ Risk of misconfiguration
+Zones provide **insight**, not configuration. The pivot marking drives the behavior; zones reflect the consequences.
 
-**Example:**
+### Multiple Pivots in Same Execution Layer
+
+**Challenge:** When a DAG has multiple pivots at the same topological level (can execute in parallel), how should taint propagation work?
+
+```
+Example: Parallel payment processing
+    
+              ┌─────────────┐
+              │  validate   │
+              └──────┬──────┘
+                     │
+          ┌──────────┴──────────┐
+          ↓                     ↓
+    ┌──────────┐          ┌──────────┐
+    │ charge   │          │ reserve  │
+    │ card     │          │ account  │
+    │ (PIVOT)  │          │ (PIVOT)  │
+    └──────────┘          └──────────┘
+          ↓                     ↓
+          └──────────┬──────────┘
+                     ↓
+              ┌──────────┐
+              │ finalize │
+              └──────────┘
+```
+
+**Research Question:** Should parallel pivots:
+1. **Union taint**: `validate` becomes tainted when ANY pivot completes?
+2. **All-or-nothing**: `validate` only tainted when ALL pivots complete?
+3. **Independent**: Track taint per-branch (complex, increases state space)?
+
+**Proposed Approach (Pending Research):**
+
+**Option 1: Conservative Union** (Recommended for v2.1.0)
+- When ANY pivot in a parallel layer completes, ALL shared ancestors become tainted
+- Rationale: One irreversible action makes the whole saga committed
+- Trade-off: May be overly conservative for truly independent branches
 
 ```python
-class SaaSProvisioningSaga(DAGSaga):
-    async def build(self):
-        # Explicit zones for multi-tenant SaaS setup
-        
-        # Setup zone - fully reversible
-        await self.add_dag_step(
-            "create_tenant", create_tenant, delete_tenant,
-            zone="setup"
-        )
-        await self.add_dag_step(
-            "allocate_db", allocate_db, deallocate_db,
-            zone="setup"
-        )
-        
-        # Configuration zone - semantic compensation
-        await self.add_dag_step(
-            "provision_infra", provision, deprovision,
-            dependencies={"allocate_db"},
-            zone="configuration"
-        )
-        
-        # Activation zone - forward-only
-        await self.add_dag_step(
-            "activate_tenant", activate, deactivate,
-            dependencies={"provision_infra"},
-            zone="activation",
-            pivot=True
-        )
+# Conservative: Any pivot locks shared ancestors
+if any_pivot_completed(parallel_layer):
+    taint_all_shared_ancestors()
 ```
 
-### Model 3: Branch-Local Pivots
+**Option 2: All-Pivots Threshold** (Consider for v2.2.0)
+- Shared ancestors tainted only when ALL pivots in layer complete
+- Rationale: All parallel commitments must succeed before locking past
+- Trade-off: More complex state tracking, race conditions possible
 
-**Concept:** Each parallel branch in a DAG can have independent pivot points.
+**Option 3: Branch Independence** (Advanced, v2.3.0+)
+- Each branch tracks its own taint propagation
+- Requires explicit branch IDs: `branch_id="payment_a"`
+- Rationale: IoT/multi-device scenarios with truly independent workflows
+- Trade-off: Complex semantics, hard to reason about cross-branch effects
 
-**Visualization:**
+**Recommendation:** Start with **Option 1 (Conservative Union)** for safety, then add **Option 3 (Branch Independence)** as an opt-in feature based on real-world needs.
 
-```
-                    ┌─────────────────────────────┐
-                    │    Start                    │
-                    └──────────┬──────────────────┘
-                              │
-              ┌───────────────┴────────────────┐
-              ↓                                ↓
-    ┌─────────────────┐              ┌─────────────────┐
-    │  Branch A       │              │  Branch B       │
-    │  ┌────────┐     │              │  ┌────────┐     │
-    │  │prepare │     │              │  │validate│     │
-    │  └───┬────┘     │              │  └───┬────┘     │
-    │      ↓          │              │      ↓          │
-    │  ┌────────┐     │              │  ┌────────┐     │
-    │  │commit  │     │              │  │execute │     │
-    │  │(PIVOT) │     │              │  │(PIVOT) │     │
-    │  └────────┘     │              │  └────────┘     │
-    │  Independent ──→│              │ ←── Independent │
-    └─────────────────┘              └─────────────────┘
-              ↓                                ↓
-              └───────────────┬────────────────┘
-                              ↓
-                    ┌──────────────────┐
-                    │   Finalize       │
-                    └──────────────────┘
-```
+**Future Research Needed:**
+- Formal verification of taint propagation semantics
+- Performance impact of tracking taint per-branch vs globally
+- Case studies of production DAGs with parallel pivots
+- User studies on mental model comprehension
 
-**Pros:**
-- ✅ Maximum flexibility for parallel workflows
-- ✅ Independent failure handling per branch
-- ✅ Useful for multi-device IoT scenarios
+### Branch-Local Pivots (Advanced Feature)
 
-**Cons:**
-- ❌ Complex semantics
-- ❌ Hard to reason about interactions
-- ❌ Risk of inconsistent states across branches
-
-**Example:**
+For scenarios requiring independent pivot handling per branch (e.g., multi-device IoT):
 
 ```python
 class IoTMultiDeviceSaga(DAGSaga):
     async def build(self):
-        # Each device branch has independent pivot
-        
         await self.add_dag_step("validate_config", validate, rollback)
         
         # Device 1 branch
         await self.add_dag_step(
             "deploy_device1", deploy1, undeploy1,
-            dependencies={"validate_config"}
+            dependencies={"validate_config"},
+            branch_id="device1"  # Optional: explicit branch grouping
         )
         await self.add_dag_step(
             "activate_device1", activate1, deactivate1,
             dependencies={"deploy_device1"},
-            pivot=True,  # Device 1 commits independently
-            branch_id="device1"
+            pivot=True,
+            branch_id="device1"  # Pivot only affects this branch
         )
         
-        # Device 2 branch
+        # Device 2 branch (independent)
         await self.add_dag_step(
             "deploy_device2", deploy2, undeploy2,
-            dependencies={"validate_config"}
+            dependencies={"validate_config"},
+            branch_id="device2"
         )
         await self.add_dag_step(
             "activate_device2", activate2, deactivate2,
             dependencies={"deploy_device2"},
-            pivot=True,  # Device 2 commits independently
-            branch_id="device2"
+            pivot=True,
+            branch_id="device2"  # Independent pivot
         )
 ```
 
-### Model Comparison
-
-| Aspect | Model 1: Taint | Model 2: Zones | Model 3: Branch-Local |
-|--------|----------------|----------------|----------------------|
-| **Complexity** | Low | Medium | High |
-| **Automatic** | Yes | No (manual zones) | No (manual branches) |
-| **Linear Sagas** | ✅ Excellent | ⚠️ Overkill | ❌ Not applicable |
-| **DAG Sagas** | ✅ Good | ✅ Excellent | ✅ Good for specific cases |
-| **Parallel Branches** | ⚠️ Conservative | ✅ Flexible | ✅ Maximum flexibility |
-| **Risk of Error** | Low | Medium | High |
-| **Best For** | General purpose | Multi-stage workflows | IoT, multi-device |
-
-## Recommended Approach: Hybrid (Model 1 + Optional Model 2)
-
-**Decision:** Use Model 1 (Taint Propagation) as the default with optional Model 2 (Explicit Zones) for complex workflows.
-
-**Rationale:**
-1. **80/20 Rule** - Most sagas are simple and benefit from automatic taint propagation
-2. **Progressive Enhancement** - Start simple, add zones only when needed
-3. **Safety** - Conservative default prevents accidental rollback
-4. **Flexibility** - Explicit zones available for complex cases
-
-**Implementation:**
-
-```python
-# Simple case: Automatic (Model 1)
-await self.add_dag_step("charge_payment", charge, refund, pivot=True)
-# Automatically derives zones from pivot marking
-
-# Complex case: Explicit zones (Model 2)
-await self.add_dag_step("charge_payment", charge, refund, 
-                       zone="commitment", pivot=True)
-# Explicit zone grouping for multi-stage workflows
-```
+**Note:** Branch-local pivots are an **advanced feature** for specific use cases. Most sagas should use the simpler global taint propagation.
 
 ## API Design
 
@@ -1198,31 +1154,43 @@ class TradeSaga(DAGSaga):
 
 ## Decision Matrix
 
-Guide for choosing the right pivot approach based on saga characteristics:
+Guide for choosing the right pivot configuration based on saga characteristics:
 
-| Scenario | Recommended Approach | Rationale |
+| Scenario | Pivot Configuration | Rationale |
 |----------|---------------------|-----------|
-| **Simple E-commerce Order** | Model 1 (Taint) - Single pivot at payment | Linear workflow, clear commitment point |
-| **Multi-tenant SaaS Provisioning** | Model 2 (Zones) - Zones for setup/config/activation | Multi-stage with distinct business phases |
-| **IoT Multi-Device Orchestration** | Model 3 (Branch-Local) - Independent device pivots | Parallel branches with independent commitments |
-| **Healthcare Compliance** | Model 2 (Zones) - Explicit audit zones | Regulatory requirements need clear boundaries |
-| **Financial Trading** | Model 1 (Taint) - Single pivot at order placement | Clear commitment point, strict consistency |
-| **Manufacturing Pipeline** | Model 2 (Zones) - Zones for planning/production/QA | Multi-stage with physical constraints |
-| **Payment Gateway Integration** | Model 1 (Taint) - Pivot at actual charge | Simple workflow, clear commitment |
-| **Smart Home Automation** | Model 1 or 3 - Depends on independence | Model 3 if devices are independent |
-| **Video Processing Pipeline** | Model 1 (Taint) - No pivots needed | Fully reversible (storage-based) |
-| **Backup & Restore** | Model 2 (Zones) - Zones for prepare/execute/verify | Multi-stage with checkpoints |
+| **Simple E-commerce Order** | Single pivot at payment | Linear workflow, clear commitment point |
+| **Multi-tenant SaaS Provisioning** | Multiple pivots in sequence | Multi-stage workflow with distinct commitment phases |
+| **IoT Multi-Device Orchestration** | Branch-local pivots (advanced) | Parallel branches with independent device commitments |
+| **Healthcare Compliance** | Single pivot at patient check-in | Physical action creates irreversible commitment |
+| **Financial Trading** | Single pivot at order placement | Clear commitment point, strict consistency needed |
+| **Manufacturing Pipeline** | Multiple sequential pivots | Physical stages: planning → production → quality check |
+| **Payment Gateway Integration** | Single pivot at charge | Simple workflow, clear commitment |
+| **Smart Home Automation** | Single or branch-local | Branch-local if devices are truly independent |
+| **Video Processing Pipeline** | No pivots (optional) | Fully reversible (storage-based), unless publishing externally |
+| **Backup & Restore** | Multiple sequential pivots | Stages: snapshot → transfer → verification |
 
-### Decision Tree
+### Decision Guidelines
 
+**When to use pivots:**
+1. Mark steps as `pivot=True` where actions become irreversible
+2. System automatically computes zones for analysis
+3. Zones provide visualization and validation, not configuration
+
+**For parallel pivots:**
+- Default (v2.1.0): Conservative union - any pivot taints shared ancestors
+- Advanced (v2.3.0+): Branch-local pivots with explicit `branch_id`
+
+**Decision flow:**
 ```
-Is your saga a simple linear workflow?
-├─ Yes → Use Model 1 (Taint Propagation)
-└─ No → Does it have distinct business phases?
-    ├─ Yes → Use Model 2 (Explicit Zones)
-    └─ No → Are parallel branches independent?
-        ├─ Yes → Consider Model 3 (Branch-Local)
-        └─ No → Use Model 1 (Taint Propagation)
+Does your saga have any irreversible actions?
+├─ No → No pivots needed, full rollback available
+└─ Yes → Mark irreversible steps with pivot=True
+    │
+    ├─ Single pivot? → Simple taint propagation
+    ├─ Multiple sequential pivots? → Each marks its own boundary
+    └─ Multiple parallel pivots?
+        ├─ Shared ancestors → Use default (union taint)
+        └─ Independent branches → Consider branch_id (advanced)
 ```
 
 ## Implementation Roadmap
