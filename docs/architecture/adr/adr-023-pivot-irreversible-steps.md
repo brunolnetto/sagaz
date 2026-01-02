@@ -140,9 +140,9 @@ await self.add_dag_step(
 )
 ```
 
-#### 2. Taint Propagation (Automatic)
+#### 2. Taint Propagation & Pivot as Backstop
 
-When a pivot step **completes successfully**, all ancestor steps become "tainted" (locked from rollback):
+When a pivot step **completes successfully**, all ancestor steps become "tainted" (locked from rollback). The pivot acts as a **one-way compensation backstop**:
 
 ```
 Before pivot completes:
@@ -150,11 +150,16 @@ Before pivot completes:
     Status: reserve_funds = REVERSIBLE
 
 After pivot completes:
-    [reserve_funds:TAINTED] ──→ [charge_payment:COMMITTED]
-    Status: reserve_funds = TAINTED (locked, cannot rollback anymore)
+    [reserve_funds:TAINTED] ──→ [charge_payment:PIVOT BOUNDARY] ──→ [ship] ──→ [notify]
+    Status: reserve_funds = TAINTED (locked, cannot cross pivot backward)
+    Status: ship, notify = Can compensate backward until hitting pivot
 ```
 
-**Why?** Because charging the payment means we've committed to the transaction. We can't truly "undo" the reservation anymore without business impact.
+**Key Insight:** The pivot is a **one-way boundary**:
+- **Cannot cross backward**: Compensation stops at pivot, cannot go to tainted ancestors
+- **Can compensate after pivot**: Post-pivot steps can be compensated in reverse order until reaching the pivot
+
+**Why?** Charging the payment commits the transaction. We can't "undo" tainted ancestors, but we CAN cleanup post-pivot steps (ship, notify) as long as we don't cross back through the pivot.
 
 #### 3. Saga Zones
 
@@ -181,12 +186,18 @@ Every saga is automatically divided into zones:
 │  │ charge   │  ──→ │ ship     │  ──→ │ notify   │           │
 │  │ payment  │      │ order    │      │ customer │           │
 │  └──────────┘      └──────────┘      └──────────┘           │
-│  PIVOT ↑           Forward-only recovery →                   │
+│  PIVOT ↑           ← Compensate backward until pivot         │
+│  (Backstop)        (Cannot cross to tainted ancestors)       │
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Pivot Mechanism: Taint Propagation
+**Zone Semantics:**
+- **Reversible Zone**: Before pivot - full rollback available
+- **Pivot**: One-way boundary/backstop - marks commitment point
+- **Committed Zone**: After pivot - can compensate backward until hitting pivot
+
+## Pivot Mechanism: Taint Propagation & Backstop
 
 ### Core Concept
 
@@ -315,10 +326,25 @@ class OrderSaga(DAGSaga):
 ```
 
 **Post-Pivot Zone (Committed):**
-- All steps **must have compensation or forward recovery**
-- Rationale: After pivot, partial success is dangerous—must have recovery path
-- Behavior: Missing compensation/recovery is pre-execution **ERROR**
-- Validation: ERROR (blocks saga execution)
+- Steps **can have compensation** (backward rollback until pivot boundary)
+- Rationale: Post-pivot steps may fail and need cleanup, but compensation stops at pivot
+- Behavior: Compensate in reverse order until reaching pivot (do not cross pivot backward)
+- Validation: WARNING if no compensation (recommended for cleanup)
+
+**Compensation Flow:**
+```
+Execution: validate → reserve → PIVOT(charge) → ship → notify
+                                   ↑
+                                Backstop
+
+If "notify" fails:
+  1. Compensate "notify" (if has compensation)
+  2. Compensate "ship" (if has compensation)
+  3. STOP at pivot boundary
+  4. Do NOT compensate "charge", "reserve", "validate" (tainted ancestors)
+
+Result: Post-pivot cleanup done, but pivot and ancestors remain committed
+```
 
 **Example:**
 ```python
@@ -328,16 +354,19 @@ class OrderSaga(DAGSaga):
         
         await self.add_dag_step("charge_payment", charge, refund, pivot=True)
         
-        # ERROR: Post-pivot step without recovery
-        await self.add_dag_step("ship_order", ship, compensation=None)  # ❌ INVALID
-        
-        # CORRECT: Post-pivot with forward recovery
+        # Post-pivot: compensation allowed (backward until pivot)
         await self.add_dag_step("ship_order", ship, cancel_ship)  # ✅ Valid
+        
+        # Post-pivot: forward recovery as alternative
+        await self.add_dag_step("notify", notify, compensation=None)  # ⚠️ WARNING
     
-    @forward_recovery("ship_order")
-    async def handle_shipping_failure(self, ctx, error):
-        return RecoveryAction.RETRY  # Forward recovery defined
+    @forward_recovery("notify")
+    async def handle_notify_failure(self, ctx, error):
+        return RecoveryAction.RETRY  # Alternative to compensation
 ```
+
+**Pivot as Backstop:**
+The pivot acts as a **compensation backstop** — failures after the pivot can be cleaned up by compensating backward until hitting the pivot, which prevents crossing back into the tainted zone.
 
 ### Multiple Pivots in Same Execution Layer
 
@@ -960,8 +989,8 @@ Before executing a saga with pivots, the system should validate the configuratio
 | **Pivot Reachability** | ERROR | All pivots must be reachable from start node(s) |
 | **No Pivot Cycles** | ERROR | Pivots must not form cycles (would make all steps irreversible) |
 | **Pre-Pivot Compensation** | WARNING | Reversible steps without compensation are acceptable (execution continues to next compensable step) |
-| **Post-Pivot Compensation** | ERROR | All committed zone steps MUST have forward recovery handlers or compensation (non-sensical to be missing) |
-| **Forward Recovery Coverage** | ERROR | Post-pivot steps must have forward recovery handlers |
+| **Post-Pivot Compensation** | WARNING | Post-pivot steps should have compensation (backward cleanup until pivot) or forward recovery |
+| **Forward Recovery Coverage** | INFO | Forward recovery handlers recommended for post-pivot resilience |
 | **Redundant Pivots** | WARNING | If pivot B is descendant of pivot A, pivot A is redundant |
 | **Zone Isolation** | ERROR | No edges from committed zone back to reversible zone (DAG violation) |
 | **Branch Consistency** | WARNING | In parallel branches, pivots at similar levels recommended |
@@ -1036,23 +1065,23 @@ def validate_saga_pivots(
                 affected_steps=[step]
             ))
     
-    # Check 4: Post-pivot compensation/recovery (ERROR - required)
+    # Check 4: Post-pivot compensation (WARNING - recommended)
     for step in zones.committed:
         has_compensation = step in compensations
         has_forward_recovery = step in forward_recovery_handlers
         
         if not has_compensation and not has_forward_recovery:
             issues.append(ValidationIssue(
-                severity=ValidationSeverity.ERROR,
+                severity=ValidationSeverity.WARNING,
                 check_name="post_pivot_compensation",
-                message=f"Post-pivot step '{step}' must have compensation or forward recovery handler",
+                message=f"Post-pivot step '{step}' should have compensation (backward until pivot) or forward recovery",
                 affected_steps=[step]
             ))
-        elif not has_forward_recovery:
+        elif has_compensation and not has_forward_recovery:
             issues.append(ValidationIssue(
-                severity=ValidationSeverity.WARNING,
+                severity=ValidationSeverity.INFO,
                 check_name="forward_recovery_coverage",
-                message=f"Post-pivot step '{step}' should have forward recovery handler for better resilience",
+                message=f"Post-pivot step '{step}' could benefit from forward recovery handler for additional resilience",
                 affected_steps=[step]
             ))
     
@@ -1183,10 +1212,10 @@ class CompensationFailureStrategy(Enum):
     RESPECT_PIVOTS = "respect_pivots"  # DEFAULT
     """
     Respect pivot boundaries during compensation (DEFAULT behavior).
-    - Compensate only reversible zone
-    - Skip compensation of tainted/committed zones
-    - Log but don't fail if post-pivot compensation fails
-    - For independent branches: compensate until nearest tainted ancestor
+    - Pre-pivot: Compensate normally (reversible zone)
+    - Post-pivot: Compensate backward until hitting pivot (backstop)
+    - Never cross pivot boundary backward (tainted ancestors remain committed)
+    - For independent branches: compensate until nearest pivot or tainted ancestor
     """
 ```
 
@@ -1209,9 +1238,24 @@ saga = PaymentSaga(
 
 1. **Before any pivot completes**: Full rollback available for all executed steps
 2. **After pivot completes**: 
-   - Steps in reversible zone: NOT compensated (tainted, cannot truly undo)
-   - Steps in committed zone: Forward recovery only, compensation skipped
-3. **Independent branches**: Compensation proceeds up each branch until the nearest tainted ancestor node
+   - Steps in reversible zone (pre-pivot): NOT compensated (tainted, cannot cross pivot backward)
+   - Steps in committed zone (post-pivot): CAN be compensated backward until reaching pivot
+   - Pivot acts as backstop: Compensation stops at pivot, never crosses to tainted ancestors
+3. **Independent branches**: Compensation proceeds up each branch until the nearest pivot or tainted ancestor
+
+**Example Compensation Flow:**
+```
+Execution: A → B → PIVOT(C) → D → E → F (fails)
+
+Compensation:
+  1. Compensate F (if has compensation)
+  2. Compensate E (if has compensation)
+  3. Compensate D (if has compensation)
+  4. STOP at PIVOT(C) — backstop boundary reached
+  5. Do NOT compensate B, A (tainted ancestors beyond pivot)
+
+Result: Partial cleanup (D, E, F), but pivot C and ancestors (A, B) remain committed
+```
 
 ### Integration with PR #19: Advanced Examples
 
