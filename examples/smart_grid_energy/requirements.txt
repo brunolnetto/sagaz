@@ -1,0 +1,2 @@
+# No additional dependencies required beyond the base sagaz package
+# All integrations are simulated in this example
