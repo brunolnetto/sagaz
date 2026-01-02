@@ -257,13 +257,10 @@ sum by (saga_name) (count_over_time({namespace="sagaz"} | json | message =~ "(?i
 
 ```logql
 # Complete execution timeline for a specific saga (chronological order)
-{namespace="sagaz", saga_id="abc-123"} | json 
-| line_format "{{.timestamp}} [{{.level}}] {{.step_name}} - {{.message}}"
+{namespace="sagaz", saga_id="abc-123"} | json | line_format "{{.timestamp}} [{{.level}}] {{.step_name}} - {{.message}}"
 
 # See saga flow from start to completion
-{namespace="sagaz"} | json 
-| message =~ "(?i)(saga started|step (started|completed|failed)|compensation|saga (completed|failed))"
-| saga_id="abc-123"
+{namespace="sagaz"} | json | message =~ "(?i)(saga started|step (started|completed|failed)|compensation|saga (completed|failed))" | saga_id="abc-123"
 
 # Retry analysis - find steps with retries
 {namespace="sagaz"} | json | retry_count > 0
