@@ -95,16 +95,6 @@ data:
           - output:
               source: message
 
-          # Stage 5: Drop empty saga_id labels (for non-saga logs)
-          - labeldrop:
-              - saga_id
-              - saga_name
-              - correlation_id
-              - step_name
-            action: drop
-            source: saga_id
-            value: "^$"
-
 ---
 # Promtail ServiceAccount
 apiVersion: v1
@@ -167,9 +157,12 @@ spec:
         app: promtail
     spec:
       serviceAccountName: promtail
+      # Run as root to read log files - this is standard for log shipping agents
+      # Note: Promtail is read-only and only accesses log files
       securityContext:
         runAsUser: 0
         runAsGroup: 0
+        fsGroup: 0
       containers:
         - name: promtail
           image: grafana/promtail:2.9.3
@@ -179,6 +172,20 @@ spec:
             - name: http
               containerPort: 9080
               protocol: TCP
+          securityContext:
+            # Drop all capabilities except what's needed
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - DAC_OVERRIDE  # Required to read log files
+                - DAC_READ_SEARCH  # Required to read log directories
+            # Prevent privilege escalation
+            allowPrivilegeEscalation: false
+            # Not a privileged container
+            privileged: false
+            # Read-only root filesystem (except /tmp for positions)
+            readOnlyRootFilesystem: true
           volumeMounts:
             - name: config
               mountPath: /etc/promtail
