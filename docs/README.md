@@ -1,4 +1,4 @@
-#sagaz Documentation
+# Documentation
 
 > Production-ready Saga Pattern library with Transactional Outbox support
 
@@ -68,3 +68,4 @@ Ensures exactly-once event delivery by storing events in the database within the
 | Latency (p99) | <100ms | <50ms |
 
 See [Benchmarking Guide](guides/benchmarking.md) for details.
+
