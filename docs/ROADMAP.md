@@ -109,12 +109,34 @@ Sagaz development follows two parallel tracks:
 
 ---
 
-### v1.2.0 - Storage Options (Postponed)
+### v1.2.0 - Unified Storage Layer
 
-| Feature | Priority | Status | Notes |
-|---------|----------|--------|-------|
-| MySQL storage backend | Low | ⏸️ Postponed | PostgreSQL/Redis covers most use cases |
-| CockroachDB compatibility | Low | ⏸️ Postponed | Niche requirement |
+**Target**: February 2025 | **Effort**: 5-6 weeks
+
+> 📋 **Implementation Plan**: [Unified Storage Implementation Plan](architecture/unified-storage-implementation-plan.md)
+
+| Feature | Priority | Status | Docs |
+|---------|----------|--------|------|
+| **Core Infrastructure** | High | 📋 Planned | [Plan](architecture/unified-storage-implementation-plan.md#phase-1-core-infrastructure-week-1-2) |
+| **Redis Outbox Storage** | High | 📋 Planned | [Plan](architecture/unified-storage-implementation-plan.md#phase-3-backend-reorganization-week-3-4) |
+| **Data Transfer Layer** | High | 📋 Planned | [Plan](architecture/unified-storage-implementation-plan.md#phase-4-transfer-layer-week-4-5) |
+| SQLite Backend | Low | 📋 Planned | [Plan](architecture/unified-storage-implementation-plan.md#phase-5-sqlite-backend-week-5-6---optional) |
+| Unified Factory API | Medium | 📋 Planned | [Plan](architecture/unified-storage-implementation-plan.md#phase-6-factory-enhancement--documentation-week-6) |
+
+**Goals**:
+- Eliminate code duplication between saga/outbox storage
+- Add Redis outbox storage for full Redis support
+- Enable data transfer between storage backends
+- Optional SQLite for embedded/local use cases
+
+**Checklist**:
+- [ ] Create `storage/core/` shared infrastructure
+- [ ] Refactor interfaces to `storage/interfaces/`
+- [ ] Implement Redis outbox storage
+- [ ] Implement storage transfer CLI commands
+- [ ] Add backward compatibility layer
+- [ ] Update factory with unified API
+- [ ] Write migration guide
 
 ---
 
