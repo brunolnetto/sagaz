@@ -2,7 +2,7 @@
 
 ## Status
 
-**Deferred** | Date: 2024-12-27
+**Deferred** | Date: 2026-01-05
 
 > ⚠️ **Note**: This is an **optional** feature for advanced use cases. 
 > For most Sagaz deployments, schemas defined in Python code (Pydantic/dataclasses) 

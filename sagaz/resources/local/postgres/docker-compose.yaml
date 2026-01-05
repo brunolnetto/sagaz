@@ -1,0 +1,234 @@
+# Sagaz High-Availability PostgreSQL Setup
+#
+# Architecture:
+#   - postgres-primary: OLTP write master
+#   - postgres-replica: OLAP read replica (streaming replication)
+#   - pgbouncer-rw: Connection pool for writes (transaction mode)
+#   - pgbouncer-ro: Connection pool for reads (session mode)
+#   - postgres-init: Runs partitioning migrations
+#
+# Usage:
+#   docker-compose up -d
+#   docker-compose ps
+#   docker-compose logs -f
+
+services:
+  # ============================================================================
+  # PostgreSQL Primary (OLTP - Write Master)
+  # ============================================================================
+  postgres-primary:
+    image: postgres:16-alpine
+    container_name: sagaz-postgres-primary
+    environment:
+      POSTGRES_DB: sagaz
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST_AUTH_METHOD: trust
+      # Enable replication
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
+    command: >
+      postgres -c wal_level=replica -c hot_standby=on -c max_wal_senders=10 -c max_replication_slots=10 -c hot_standby_feedback=on -c shared_preload_libraries=pg_stat_statements -c pg_stat_statements.track=all -c log_statement=ddl -c log_min_duration_statement=1000
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_primary_data:/var/lib/postgresql/data
+      - ./init-primary.sh:/docker-entrypoint-initdb.d/01-init-primary.sh:ro
+    networks:
+      - sagaz-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d sagaz" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================================
+  # PostgreSQL Read Replica (OLAP - Analytics)
+  # ============================================================================
+  postgres-replica:
+    image: postgres:16-alpine
+    container_name: sagaz-postgres-replica
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      PGDATA: /var/lib/postgresql/data/pgdata
+    command: >
+      bash -c " if [ ! -f /var/lib/postgresql/data/pgdata/PG_VERSION ]; then
+        echo 'Initializing replica from primary...';
+        rm -rf /var/lib/postgresql/data/pgdata/*;
+        until pg_basebackup -h postgres-primary -U postgres -D /var/lib/postgresql/data/pgdata -Fp -Xs -P -R; do
+          echo 'Waiting for primary to be ready...';
+          sleep 2;
+        done;
+        echo 'standby_mode = on' >> /var/lib/postgresql/data/pgdata/standby.signal;
+        echo 'primary_conninfo = ''host=postgres-primary port=5432 user=postgres password=postgres''' >> /var/lib/postgresql/data/pgdata/postgresql.auto.conf;
+      fi; postgres -c hot_standby=on -c wal_level=replica "
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_replica_data:/var/lib/postgresql/data
+    networks:
+      - sagaz-network
+    depends_on:
+      postgres-primary:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================================
+  # PgBouncer for Write Traffic (Transaction Pooling)
+  # ============================================================================
+  pgbouncer-rw:
+    image: edoburu/pgbouncer:1.21.0
+    container_name: sagaz-pgbouncer-rw
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres-primary:5432/sagaz
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 200
+      DEFAULT_POOL_SIZE: 25
+      MIN_POOL_SIZE: 5
+      RESERVE_POOL_SIZE: 5
+      SERVER_LIFETIME: 3600
+      SERVER_IDLE_TIMEOUT: 600
+      STATS_USERS: postgres
+    ports:
+      - "6432:5432"
+    networks:
+      - sagaz-network
+    depends_on:
+      postgres-primary:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "psql -h 127.0.0.1 -p 5432 -U postgres -d pgbouncer -c 'SHOW POOLS;' || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ============================================================================
+  # PgBouncer for Read Traffic (Session Pooling)
+  # ============================================================================
+  pgbouncer-ro:
+    image: edoburu/pgbouncer:1.21.0
+    container_name: sagaz-pgbouncer-ro
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres-replica:5432/sagaz
+      POOL_MODE: session
+      MAX_CLIENT_CONN: 300
+      DEFAULT_POOL_SIZE: 50
+      MIN_POOL_SIZE: 10
+      RESERVE_POOL_SIZE: 10
+      SERVER_LIFETIME: 7200
+      SERVER_IDLE_TIMEOUT: 900
+      STATS_USERS: postgres
+    ports:
+      - "6433:5432"
+    networks:
+      - sagaz-network
+    depends_on:
+      postgres-replica:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "psql -h 127.0.0.1 -p 5432 -U postgres -d pgbouncer -c 'SHOW POOLS;' || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ============================================================================
+  # PostgreSQL Initialization (Partitioning)
+  # ============================================================================
+  postgres-init:
+    image: postgres:16-alpine
+    container_name: sagaz-postgres-init
+    environment:
+      PGHOST: postgres-primary
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: sagaz
+    volumes:
+      - ./partitioning:/partitioning:ro
+    networks:
+      - sagaz-network
+    depends_on:
+      postgres-primary:
+        condition: service_healthy
+    command: >
+      sh -c " echo 'Waiting for primary to be fully ready...'; sleep 5; echo 'Running partitioning migrations...'; psql -f /partitioning/001_create_partitioned_tables.sql; psql -f /partitioning/002_partition_maintenance_functions.sql; psql -f /partitioning/003_initial_partitions.sql; echo 'Partitioning setup complete!'; "
+    restart: "no"
+
+  # ============================================================================
+  # Redis (Optional - for broker/cache)
+  # ============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: sagaz-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - sagaz-network
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================================
+  # Prometheus (Monitoring)
+  # ============================================================================
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: sagaz-prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - sagaz-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+
+  # ============================================================================
+  # Grafana (Dashboards)
+  # ============================================================================
+  grafana:
+    image: grafana/grafana:10.1.0
+    container_name: sagaz-grafana
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - sagaz-network
+    depends_on:
+      - prometheus
+
+volumes:
+  postgres_primary_data:
+    driver: local
+  postgres_replica_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  sagaz-network:
+    driver: bridge

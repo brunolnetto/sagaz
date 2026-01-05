@@ -1,6 +1,30 @@
-# Documentation
+# Sagaz Documentation
 
 > Production-ready Saga Pattern library with Transactional Outbox support
+
+---
+
+## 📖 Quick Navigation
+
+### By Role
+
+| I am a... | Start Here |
+|-----------|-----------|
+| **New User** | [Quickstart](quickstart.md) |
+| **Developer** | [Architecture](architecture/overview.md) |
+| **Operator** | [Kubernetes Guide](guides/kubernetes.md) |
+| **Architect** | [ADR Index](architecture/adr/README.md) |
+
+### By Topic
+
+| Topic | Docs |
+|-------|------|
+| **Getting Started** | [Quickstart](quickstart.md), [Configuration](guides/configuration.md) |
+| **Patterns** | [Consumer Inbox](patterns/consumer-inbox.md), [DLQ](patterns/dead-letter-queue.md) |
+| **Operations** | [Kubernetes](guides/kubernetes.md), [Benchmarking](guides/benchmarking.md) |
+| **Strategy** | [Roadmap](ROADMAP.md) *(now includes strategy)* |
+
+---
 
 ## Quick Links
 
@@ -12,7 +36,7 @@
 | **See how data flows** | [Dataflow & Events](architecture/dataflow.md) |
 | **Deploy to Kubernetes** | [Kubernetes Guide](guides/kubernetes.md) |
 | **Run benchmarks** | [Benchmarking Guide](guides/benchmarking.md) |
-| **See what's planned** | [Roadmap](ROADMAP.md) |
+| **See what's planned** | [Roadmap & Strategy](ROADMAP.md) |
 
 ---
 
@@ -21,19 +45,29 @@
 ```
 docs/
 ├── quickstart.md              # 5-minute setup
+├── ROADMAP.md                 # Roadmap & Strategy 2026
+├── STRUCTURE.md               # Documentation guide
 ├── architecture/              # System design
 │   ├── overview.md            # High-level architecture
 │   ├── components.md          # Service artifacts & classes
 │   ├── dataflow.md            # Event flow & state machines
-│   └── decisions.md           # Architecture Decision Records
+│   ├── decisions.md           # Architecture Decision Records
+│   └── adr/                   # Individual ADRs
+│       └── README.md          # ADR Index
 ├── guides/                    # How-to guides
-│   ├── configuration.md       # SagaConfig unified setup 🆕
+│   ├── configuration.md       # SagaConfig unified setup
 │   ├── kubernetes.md          # K8s deployment
 │   └── benchmarking.md        # Performance testing
+├── patterns/                  # Implementation patterns
+│   ├── consumer-inbox.md      # Idempotent consumption
+│   ├── dead-letter-queue.md   # DLQ pattern
+│   └── multi-sink-fanout.md   # Multi-sink pattern
 ├── reference/                 # Technical reference
 │   └── api.md                 # API documentation
 └── archive/                   # Historical documentation
 ```
+
+For details on where to add new content, see [STRUCTURE.md](STRUCTURE.md).
 
 ---
 
@@ -69,3 +103,10 @@ Ensures exactly-once event delivery by storing events in the database within the
 
 See [Benchmarking Guide](guides/benchmarking.md) for details.
 
+---
+
+## Related
+
+- [GitHub Repository](https://github.com/brunolnetto/sagaz)
+- [PyPI Package](https://pypi.org/project/sagaz/)
+- [Roadmap & Strategy](ROADMAP.md)
