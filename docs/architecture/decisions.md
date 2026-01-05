@@ -299,6 +299,36 @@ For distributed saga support (steps as separate services), see [Design Doc: Dist
 
 ---
 
+## ADR-016: Unified Storage Layer
+
+### Context
+
+Sagaz has two separate storage hierarchies (saga storage and outbox storage) with significant code duplication and inconsistent feature coverage (e.g., Redis has no outbox storage).
+
+### Decision
+
+Unify the storage layer with:
+- Shared core infrastructure (`storage/core/`)
+- Complete backend coverage (add Redis outbox, SQLite)
+- Data transfer layer for migrations
+- Unified factory API
+- Backward compatibility layer
+
+### Rationale
+
+- Eliminates ~200 lines of duplicated code
+- Enables Redis as full backend (saga + outbox)
+- Allows data migration between backends
+- Simplifies API and maintenance
+
+### Status
+
+**Accepted** - See [ADR-016: Unified Storage Layer](adr/adr-016-unified-storage-layer.md) for details.
+
+Implementation plan: [Unified Storage Implementation Plan](unified-storage-implementation-plan.md)
+
+---
+
 ## Summary
 
 | # | Decision | Rationale |
@@ -315,3 +345,5 @@ For distributed saga support (steps as separate services), see [Design Doc: Dist
 | 10 | Dead Letter Queue | Handle permanent failures |
 | 11 | CDC Support | High-throughput upgrade path (proposed) |
 | 12 | Synchronous Orchestration | Simplicity for single-service sagas |
+| 16 | Unified Storage Layer | DRY, full Redis support, data transfer |
+
