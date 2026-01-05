@@ -1,8 +1,24 @@
-#sagaz Roadmap
+# Sagaz Roadmap & Strategy 2026
 
-Active development roadmap for the sagaz saga pattern library.
+Active development roadmap for the Sagaz saga pattern library.
 
-> 📋 **See also**: [Strategic Roadmap](STRATEGY.md) for go-to-market strategy, CLI plans, and competitive positioning.
+> **Updated**: 2026-01-05 | **Version**: 1.0.x → 2.x
+
+---
+
+## Vision
+
+**"The open-source distributed transaction platform that just works."**
+
+Sagaz competes with AWS Step Functions, Temporal, and Azure Durable Functions by offering:
+- ✅ **Exactly-once guarantees** (they don't have this)
+- ✅ **Transactional outbox pattern** (they don't have this)
+- ✅ **True code-first Python** (not JSON/YAML)
+- ✅ **No vendor lock-in**
+- ✅ **10x cost advantage**
+- ✅ **Sub-10ms latency**
+
+---
 
 ## Current Version: 1.0.x
 
@@ -28,22 +44,39 @@ Active development roadmap for the sagaz saga pattern library.
 
 ---
 
-## Development Tracks
+## 2026 Strategic Timeline
 
-Sagaz development follows two parallel tracks:
+```
+2026 Strategic Timeline
+═══════════════════════════════════════════════════════════════════════════════
+      Q1 (Jan-Mar)          Q2 (Apr-Jun)         Q3 (Jul-Sep)      Q4 (Oct-Dec)
+═══════════════════════════════════════════════════════════════════════════════
 
-| Track | Focus | Goal |
-|-------|-------|------|
-| **🔧 Technical** | Features & Performance | More capabilities |
-| **🚀 Developer Experience** | CLI & Tooling | Easier adoption |
+DX    ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
+      │ CLI v1.0     │   │ CLI v2.0     │   │ Cloud Tier   │
+      │ init/deploy  │   │ Multi-cloud  │   │ Managed Dev  │
+      └──────────────┘   └──────────────┘   └──────────────┘
+
+TECH  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
+      │ v1.1 DLQ     │   │ v2.0 CDC     │   │ v2.1 Fluss   │  → v2.2 Enrich
+      │ Alerts       │   │ Debezium     │   │ Iceberg      │
+      └──────────────┘   └──────────────┘   └──────────────┘
+
+ECO   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
+      │ Quickstart   │   │ FastAPI      │   │ Templates    │
+      │ Docs/Videos  │   │ Django       │   │ Marketplace  │
+      └──────────────┘   └──────────────┘   └──────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════
+```
 
 ---
 
-## 🚀 Developer Experience Track (NEW)
+## Q1 2026 (Jan-Mar)
 
 ### CLI v1.0 - Local Development
 
-**Target**: January 2025 | **Effort**: 20-30 hours (2-3 weeks)
+**Target**: Q1 2026 | **Effort**: 20-30 hours
 
 | Feature | Priority | Status |
 |---------|----------|--------|
@@ -53,18 +86,34 @@ Sagaz development follows two parallel tracks:
 | `sagaz logs` (log tailing) | Medium | 📋 Planned |
 | `sagaz visualize` (Mermaid) | Medium | 📋 Planned |
 
-**Checklist**:
-- [ ] Create `sagaz-cli` package with Click/Typer
-- [ ] Implement interactive setup wizard (Rich)
-- [ ] Generate Docker Compose from templates
-- [ ] Create `sagaz.yaml` config format
-- [ ] Implement health check dashboard
-- [ ] Add log tailing with filtering
-- [ ] Integrate Mermaid visualization
+### v1.1.0 - Reliability & Observability
+
+**Target**: Q1 2026 | **Effort**: 16-24 hours
+
+| Feature | Priority | Status | Docs |
+|---------|----------|--------|------|
+| **Dead Letter Queue Pattern** | High | 📋 Planned | [Docs](patterns/dead-letter-queue.md) |
+| **AlertManager Rules Template** | High | 📋 Planned | [Template](monitoring/alertmanager-rules.yml) |
+| Batch saga status updates | Low | 📋 Planned | - |
+
+### v1.2.0 - Unified Storage Layer
+
+**Target**: Q1 2026 | **Effort**: 5-6 weeks
+
+| Feature | Priority | Status | Docs |
+|---------|----------|--------|------|
+| **Core Infrastructure** | High | 📋 Planned | [Plan](architecture/unified-storage-implementation-plan.md) |
+| **Redis Outbox Storage** | High | 📋 Planned | [Plan](architecture/unified-storage-implementation-plan.md) |
+| **Data Transfer Layer** | High | 📋 Planned | [Plan](architecture/unified-storage-implementation-plan.md) |
+| SQLite Backend | Low | 📋 Planned | - |
+
+---
+
+## Q2 2026 (Apr-Jun)
 
 ### CLI v2.0 - Multi-Cloud Deploy
 
-**Target**: Q2 2025 | **Effort**: 30-40 hours (3-4 weeks)
+**Target**: Q2 2026 | **Effort**: 30-40 hours
 
 | Feature | Priority | Status |
 |---------|----------|--------|
@@ -73,130 +122,42 @@ Sagaz development follows two parallel tracks:
 | `sagaz deploy --provider k8s` | High | 📋 Planned |
 | `sagaz deploy --cost-estimate` | Medium | 📋 Planned |
 
-**Checklist**:
-- [ ] Create Terraform templates for AWS
-- [ ] Create Terraform templates for GCP
-- [ ] Create Kubernetes manifests
-- [ ] Implement cost estimation
-- [ ] Add `--dry-run` preview mode
-- [ ] Migration between providers
-
----
-
-## 🔧 Technical Track
-
-### v1.1.0 - Reliability & Observability
-
-**Target**: January 2025 | **Effort**: 16-24 hours (1-2 weeks)
-
-| Feature | Priority | Status | Docs |
-|---------|----------|--------|------|
-| **Dead Letter Queue Pattern** | High | 📋 Planned | [Docs](patterns/dead-letter-queue.md) |
-| **AlertManager Rules Template** | High | 📋 Planned | [Template](monitoring/alertmanager-rules.yml) |
-| Batch saga status updates | Low | 📋 Planned | - |
-
-**Checklist**:
-- [ ] Implement `DLQHandler` class
-- [ ] Add `RetryPolicy` configuration to `SagaConfig`
-- [ ] Create DLQ metrics (depth, age, rate)
-- [ ] Test AlertManager rules with Prometheus
-- [ ] Implement batch status update API
-- [ ] Add DLQ CLI commands (`sagaz dlq replay`, `purge`)
-- [ ] Write integration tests
-- [ ] Update documentation
-
-> ℹ️ **OpenTelemetry tracing** was completed in v1.0.0 (`TracingSagaListener`)
-
----
-
-### v1.2.0 - Unified Storage Layer
-
-**Target**: February 2025 | **Effort**: 5-6 weeks
-
-> 📋 **Implementation Plan**: [Unified Storage Implementation Plan](architecture/unified-storage-implementation-plan.md)
-
-| Feature | Priority | Status | Docs |
-|---------|----------|--------|------|
-| **Core Infrastructure** | High | 📋 Planned | [Plan](architecture/unified-storage-implementation-plan.md#phase-1-core-infrastructure-week-1-2) |
-| **Redis Outbox Storage** | High | 📋 Planned | [Plan](architecture/unified-storage-implementation-plan.md#phase-3-backend-reorganization-week-3-4) |
-| **Data Transfer Layer** | High | 📋 Planned | [Plan](architecture/unified-storage-implementation-plan.md#phase-4-transfer-layer-week-4-5) |
-| SQLite Backend | Low | 📋 Planned | [Plan](architecture/unified-storage-implementation-plan.md#phase-5-sqlite-backend-week-5-6---optional) |
-| Unified Factory API | Medium | 📋 Planned | [Plan](architecture/unified-storage-implementation-plan.md#phase-6-factory-enhancement--documentation-week-6) |
-
-**Goals**:
-- Eliminate code duplication between saga/outbox storage
-- Add Redis outbox storage for full Redis support
-- Enable data transfer between storage backends
-- Optional SQLite for embedded/local use cases
-
-**Checklist**:
-- [ ] Create `storage/core/` shared infrastructure
-- [ ] Refactor interfaces to `storage/interfaces/`
-- [ ] Implement Redis outbox storage
-- [ ] Implement storage transfer CLI commands
-- [ ] Add backward compatibility layer
-- [ ] Update factory with unified API
-- [ ] Write migration guide
-
----
-
 ### v2.0.0 - CDC (Change Data Capture)
 
-**Target**: February 2025 | **Effort**: 26-40 hours (2-3 weeks)
+**Target**: Q2 2026 | **Effort**: 26-40 hours | [ADR-011](architecture/adr/adr-011-cdc-support.md)
 
-| Feature | Priority | Status | ADR |
-|---------|----------|--------|-----|
-| **CDC Support (Debezium)** | High | 📋 Planned | [ADR-011](architecture/adr/adr-011-cdc-support.md) |
-| CDC Worker implementation | High | 📋 Planned | ADR-011 |
-| Native pg_logical support | Medium | 📋 Planned | ADR-011 |
-| CDC Prometheus metrics | High | 📋 Planned | ADR-011 |
-| CDC Grafana dashboards | High | 📋 Planned | ADR-011 |
-| Migration tooling (polling → CDC) | Medium | 📋 Planned | ADR-011 |
+| Feature | Priority | Status |
+|---------|----------|--------|
+| **CDC Support (Debezium)** | High | 📋 Planned |
+| CDC Worker implementation | High | 📋 Planned |
+| Native pg_logical support | Medium | 📋 Planned |
+| CDC Prometheus metrics | High | 📋 Planned |
+| CDC Grafana dashboards | High | 📋 Planned |
 
 **Target throughput**: 50,000+ events/sec
 
-**Checklist**:
-- [ ] Create Debezium connector configuration
-- [ ] Implement `CDCWorker` class
-- [ ] Add Kafka Connect Docker/K8s manifests
-- [ ] Implement native `pg_logical` option
-- [ ] Add CDC-specific Prometheus metrics
-- [ ] Create CDC Grafana dashboard panels
-- [ ] Write migration guide (polling → CDC)
-- [ ] Performance benchmarks (target: 50k events/sec)
-- [ ] Integration tests with Debezium
-- [ ] Update documentation
+### Dry-Run Mode
+
+**Target**: Q2 2026 | [ADR-019](architecture/adr/adr-019-dry-run-mode.md)
+
+Validate and preview saga execution without side effects.
 
 ---
 
+## Q3 2026 (Jul-Sep)
+
 ### v2.1.0 - Analytics (Fluss + Iceberg)
 
-**Target**: March 2025 | **Effort**: 32-48 hours (3-4 weeks)
+**Target**: Q3 2026 | **Effort**: 32-48 hours | [ADR-013](architecture/adr/adr-013-fluss-iceberg-analytics.md)
 
-| Feature | Priority | Status | Design |
-|---------|----------|--------|--------|
-| **Fluss Analytics Listener** | High | 📋 Planned | [Design](architecture/fluss-analytics.md) |
-| Iceberg tiering integration | High | 📋 Planned | [Design](architecture/fluss-analytics.md) |
-| Real-time saga dashboards | Medium | 📋 Planned | - |
-| Historical saga analytics | Medium | 📋 Planned | - |
-| Trino/Spark query examples | Low | 📋 Planned | - |
+| Feature | Priority | Status |
+|---------|----------|--------|
+| **Fluss Analytics Listener** | High | 📋 Planned |
+| Iceberg tiering integration | High | 📋 Planned |
+| Real-time saga dashboards | Medium | 📋 Planned |
+| Historical saga analytics | Medium | 📋 Planned |
 
-**Goal**: Real-time + historical analytics for saga executions.
-
-**Checklist**:
-- [ ] Create `FlussClient` wrapper
-- [ ] Implement `FlussAnalyticsListener`
-- [ ] Define Fluss table schema
-- [ ] Configure Iceberg tiering
-- [ ] Create Docker Compose for local Fluss setup
-- [ ] Build real-time Grafana dashboard
-- [ ] Write Flink SQL query examples
-- [ ] Write Trino query examples
-- [ ] Write Spark query examples
-- [ ] Performance testing
-- [ ] Update documentation
-
-**Architecture**:
+**Architecture:**
 ```
 Saga → FlussListener → Fluss (real-time) → Iceberg (historical)
                            ↓                      ↓
@@ -204,62 +165,188 @@ Saga → FlussListener → Fluss (real-time) → Iceberg (historical)
                      (sub-second)           analytics
 ```
 
----
+### Saga Replay & Time-Travel
 
-### v2.2.0 - Event Enrichment & Multi-Sink
+**Target**: Q3 2026 | [ADR-016](architecture/adr/adr-016-saga-replay.md)
 
-**Target**: April 2025 | **Effort**: 16-24 hours (1-2 weeks)
+Replay failed sagas and query historical state for debugging and compliance.
 
-| Feature | Priority | Status | Docs |
-|---------|----------|--------|------|
-| **Event Enrichment Pipeline** | Medium | 📋 Planned | - |
-| Multi-Sink Fan-out | Low | ✅ Supported | [Pattern](patterns/multi-sink-fanout.md) |
-| Flink transformation examples | Low | 📋 Planned | - |
-| Kafka Streams integration | Low | 📋 Planned | - |
+### Pivot/Irreversible Steps
 
-**Goal**: Transform, enrich, and route saga events to multiple destinations.
+**Target**: Q3 2026 | [ADR-023](architecture/adr/adr-023-pivot-irreversible-steps.md)
 
-**Checklist**:
-- [ ] Create `EnrichmentListener` base class
-- [ ] Implement context enrichment helpers
-- [ ] Create Flink job examples (filtering, aggregation)
-- [ ] Create Kafka Streams examples
-- [ ] Document enrichment patterns
-- [ ] Add enrichment configuration to `SagaConfig`
-- [ ] Write integration tests
-- [ ] Update documentation
+Support for irreversible steps and forward recovery patterns.
 
 ---
 
-## Timeline Summary
+## Q4 2026 (Oct-Dec)
 
-```
-2025 Development Schedule
-═══════════════════════════════════════════════════════════════════
-       Jan          Feb          Mar          Apr
-═══════════════════════════════════════════════════════════════════
-   ┌─────────┐  ┌───────────┐  ┌────────────┐  ┌─────────┐
-   │ v1.1.0  │  │  v2.0.0   │  │  v2.1.0    │  │ v2.2.0  │
-   │ DLQ &   │  │  CDC      │  │  Fluss +   │  │ Enrich  │
-   │ Alerts  │  │ Debezium  │  │  Iceberg   │  │ & Sinks │
-   └─────────┘  └───────────┘  └────────────┘  └─────────┘
-      1-2 wks      2-3 wks        3-4 wks       1-2 wks
-═══════════════════════════════════════════════════════════════════
-   Total: ~90-136 hours | ~3 months @ 15-20 hrs/week
-```
+### Multi-Tenancy Support
+
+**Target**: Q4 2026 | [ADR-020](architecture/adr/adr-020-multi-tenancy.md)
+
+| Feature | Priority | Status |
+|---------|----------|--------|
+| Tenant context propagation | High | 📋 Planned |
+| Row-level security (RLS) | High | 📋 Planned |
+| Resource quotas per tenant | Medium | 📋 Planned |
+| Per-tenant encryption | Medium | 📋 Planned |
+
+### Cloud Managed Tier (Beta)
+
+Sagaz Cloud platform with managed infrastructure.
 
 ---
 
-## Future Considerations (Community Interest)
+## 2027+ Considerations
+
+### Lightweight Context Streaming
+
+[ADR-021](architecture/adr/adr-021-lightweight-context-streaming.md) - Reference-based context passing and streaming between steps.
+
+### Future Ideas (Community Interest)
 
 | Feature | Notes | Status |
 |---------|-------|--------|
 | Event sourcing integration | Store saga state as events | 💡 Ideas |
 | Saga choreography mode | Event-driven sagas (vs orchestration) | 💡 Ideas |
 | Multi-region support | Cross-region saga coordination | 💡 Ideas |
-| Cloud-native CDC | AWS DMS, GCP Datastream, Azure | 💡 Ideas |
-| Schema registry | Avro/Protobuf event schemas | 💡 Ideas |
 | Saga visualization UI | Dashboard for saga monitoring | 💡 Ideas |
+
+---
+
+## Strategic Focus Areas
+
+### Cost Advantage
+
+| Platform | Setup | Monthly Cost (10K exec) |
+|----------|-------|------------------------|
+| AWS Step Functions | None | ~$250 |
+| Temporal Cloud | None | ~$200 |
+| Azure Durable Functions | None | ~$150 |
+| **Sagaz (Fully Managed)** | 15 min | ~$180 |
+| **Sagaz (Hybrid)** | 15 min | ~$75 |
+| **Sagaz (Self-Hosted)** | 30 min | ~$0* |
+
+*Self-hosted: Only compute costs (your existing infra)
+
+### Deployment Flexibility
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         DEPLOYMENT MODES                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  SELF-HOSTED                HYBRID                    FULLY MANAGED          │
+│  ────────────               ──────                    ─────────────          │
+│  • Docker Compose           • App on K8s              • Cloud Only           │
+│  • All local               • Managed data services   • RDS, MSK, etc        │
+│                                                                              │
+│  Cost: $0                  Cost: $50-200/mo          Cost: $100-500/mo      │
+│  Ops: High                 Ops: Medium               Ops: Low               │
+│  Scale: Limited            Scale: High               Scale: High            │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Competitive Positioning
+
+| Feature | Sagaz | Temporal | Step Functions | Durable Functions |
+|---------|-------|----------|----------------|-------------------|
+| Setup time | 5 min | 30-60 min | 2 min | 10 min |
+| Monthly cost (10k exec) | ~$50 | ~$100 | ~$250 | ~$150 |
+| Exactly-once | ✅ | ✅ | ❌ | ❌ |
+| Code-first Python | ✅ | ✅ | ❌ | ❌ |
+| Multi-cloud | ✅ | ✅ | ❌ | ❌ |
+| Transactional outbox | ✅ | ❌ | ❌ | ❌ |
+| Sub-10ms publishing | ✅ | ❌ | ❌ | ❌ |
+| Open source | ✅ | ✅ | ❌ | ❌ |
+| Self-hosted option | ✅ | ✅ | ❌ | ❌ |
+
+---
+
+## Developer Experience
+
+### CLI Architecture
+
+```
+sagaz-cli/
+├── commands/
+│   ├── init.py        # Setup wizard
+│   ├── deploy.py      # Deployment automation
+│   ├── monitor.py     # Observability
+│   ├── logs.py        # Log tailing
+│   └── status.py      # Health checks
+├── providers/
+│   ├── local.py       # Docker Compose (default)
+│   ├── aws.py         # AWS (Terraform/CDK)
+│   ├── gcp.py         # GCP
+│   └── k8s.py         # Kubernetes (any cloud)
+└── templates/
+    ├── terraform/     # IaC templates per provider
+    ├── k8s/           # Kubernetes manifests
+    └── docker/        # Docker Compose files
+```
+
+### CLI Commands
+
+```bash
+# Getting started (5 minutes to production)
+sagaz init                     # Interactive wizard
+sagaz init --local             # Docker Compose (default)
+sagaz init --provider aws      # AWS with Terraform
+sagaz init --provider k8s      # Kubernetes
+
+# Deployment
+sagaz deploy                   # Deploy infrastructure
+sagaz deploy --dry-run         # Preview changes
+sagaz deploy --cost-estimate   # Show monthly cost
+
+# Operations
+sagaz status                   # Health of all components
+sagaz monitor                  # Open Grafana dashboard
+sagaz logs                     # Tail all logs
+sagaz logs saga-id-123         # Specific saga logs
+
+# Saga management
+sagaz saga list                # List running sagas
+sagaz saga inspect <id>        # Saga details + Mermaid
+sagaz saga retry <id>          # Retry failed saga
+sagaz saga cancel <id>         # Cancel running saga
+
+# DLQ management
+sagaz dlq list                 # Show DLQ messages
+sagaz dlq replay --all         # Replay all
+sagaz dlq purge --older 7d     # Purge old messages
+```
+
+---
+
+## Success Metrics
+
+### Developer Experience
+- **Time-to-first-saga**: < 5 minutes (target)
+- **CLI adoption**: % of users using `sagaz init`
+- **Setup failure rate**: < 5%
+
+### Adoption
+- **GitHub stars**: 1k → 5k → 10k
+- **PyPI downloads**: 1k/month → 10k/month
+- **Active users**: DAU/MAU ratio
+
+### Business
+- **Free tier signups**: Conversion funnel
+- **Paid tier revenue**: MRR growth
+- **Enterprise leads**: Pipeline value
+
+---
+
+## Related Documents
+
+- [ADR Index](architecture/adr/README.md) - All Architecture Decision Records
+- [Architecture Overview](architecture/overview.md) - System design
+- [Patterns](patterns/) - Implementation patterns
+- [Documentation Structure](STRUCTURE.md) - Where to add new content
 
 ---
 
@@ -267,7 +354,7 @@ Saga → FlussListener → Fluss (real-time) → Iceberg (historical)
 
 To propose a new feature:
 1. Open a GitHub issue with the feature request
-2. If significant, create an ADR in `docs/architecture/`
+2. If significant, create an ADR in `docs/architecture/adr/`
 3. Submit a PR referencing the issue/ADR
 
 ---

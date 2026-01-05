@@ -1,26 +1,30 @@
-# Archive Directory
+# Documentation Archive
 
-This directory contains historical documentation and progress reports from the development process.
+Historical documentation superseded by current docs.
+
+**Last Updated**: 2026-01-05
 
 ## Archived Files
 
-### Progress Reports (December 2024)
-- `COVERAGE_IMPROVEMENTS.md` - Coverage improvement tracking
-- `EXECUTIVE_SUMMARY.md` - Mid-development executive summary
-- `FINAL_SUMMARY.md` - Initial completion summary
-- `MISSING_TO_100_PERCENT.md` - Gap analysis before final features
-- `TEST_GUIDE.md` - Testing guide during development
-- `VICTORY_96_PERCENT.md` - 96% coverage achievement report
-- `OLD_README.md` - Original README before v1.0.0
+### Superseded Strategy Documents
+- [HISTORICAL_STRATEGY_2024.md](HISTORICAL_STRATEGY_2024.md) - Original 2024 strategy, now merged into [ROADMAP.md](../ROADMAP.md)
 
-## Current Documentation
+### Historical Milestones
+- [VICTORY_96_PERCENT.md](VICTORY_96_PERCENT.md) - Test coverage milestone (2024-Q4)
+- [COVERAGE_IMPROVEMENTS.md](COVERAGE_IMPROVEMENTS.md) - Coverage improvement tracking
+- [MISSING_TO_100_PERCENT.md](MISSING_TO_100_PERCENT.md) - Gap analysis before final features
 
-For current documentation, see:
-- `../README.md` - Main project README
-- `../FINAL_STATUS.md` - Production readiness report
-- `../IMPLEMENTATION_SUMMARY.md` - Feature implementation details
-- `../CHANGELOG.md` - Version history
-- `../docs/` - Complete documentation suite
+### Development Journey
+- [EXECUTIVE_SUMMARY.md](EXECUTIVE_SUMMARY.md) - Mid-development executive summary
+- [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) - Implementation tracking
+- [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md) - Original documentation index
+- [TEST_GUIDE.md](TEST_GUIDE.md) - Testing guide during development
+- [OLD_README.md](OLD_README.md) - Original README before v1.0.0
+
+### Experimental Features
+- [CHAOS_ENGINEERING.md](CHAOS_ENGINEERING.md) - Chaos testing (2024)
+- [CHAOS_IMPLEMENTATION_SUMMARY.md](CHAOS_IMPLEMENTATION_SUMMARY.md) - Chaos implementation details
+- [implementation-plan.md](implementation-plan.md) - Original implementation plan
 
 ## Why These Were Archived
 
@@ -35,8 +39,17 @@ They have been superseded by the final production documentation but are preserve
 - Development process transparency
 - Future contributors understanding the evolution
 
+## Current Documentation
+
+For current documentation, see:
+- [../README.md](../README.md) - Documentation home
+- [../ROADMAP.md](../ROADMAP.md) - Roadmap & Strategy (2026)
+- [../architecture/](../architecture/) - Architecture documentation
+- [../patterns/](../patterns/) - Implementation patterns
+- [../guides/](../guides/) - How-to guides
+
 ---
 
-**Archive Date:** December 23, 2024  
-**Version:** 1.0.0  
+**Archive Date:** 2026-01-05  
+**Version:** Post-1.0.x  
 **Status:** Preserved for reference

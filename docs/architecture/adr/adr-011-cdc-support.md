@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed** - Design phase
+**Proposed** | Date: 2026-01-05 | Priority: High | Target: Q2 2026
 
 ## Context
 
@@ -620,6 +620,14 @@ For now, polling workers are sufficient for most use cases. CDC provides a clear
 - **Kafka**: Highest throughput, best replay
 - **Redis Streams**: Lowest latency, simplest setup
 - **RabbitMQ**: Flexible routing, familiar AMQP
+
+---
+
+## See Also
+
+- [Roadmap](../../ROADMAP.md#q2-2026) - Implementation timeline
+- [ADR-012: Synchronous Orchestration](adr-012-synchronous-orchestration-model.md) - Current architecture
+- [ADR-013: Fluss Analytics](adr-013-fluss-iceberg-analytics.md) - Analytics layer
 
 ---
 

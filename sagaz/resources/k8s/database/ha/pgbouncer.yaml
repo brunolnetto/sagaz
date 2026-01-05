@@ -1,0 +1,352 @@
+---
+# ============================================================================
+# PgBouncer for Write Traffic (Transaction Pooling)
+# ============================================================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pgbouncer-rw-config
+  namespace: sagaz
+  labels:
+    app: pgbouncer
+    pool-type: write
+data:
+  pgbouncer.ini: |
+    [databases]
+    sagaz = host=postgresql-primary port=5432 dbname=sagaz
+    
+    [pgbouncer]
+    listen_port = 5432
+    listen_addr = *
+    auth_type = trust
+    auth_file = /etc/pgbouncer/userlist.txt
+    
+    # Pool configuration - TRANSACTION mode for OLTP
+    pool_mode = transaction
+    max_client_conn = 200
+    default_pool_size = 25
+    min_pool_size = 5
+    reserve_pool_size = 5
+    
+    # Server connection settings
+    server_lifetime = 3600
+    server_idle_timeout = 600
+    server_connect_timeout = 15
+    
+    # Client connection settings
+    client_idle_timeout = 0
+    client_login_timeout = 60
+    query_timeout = 0
+    query_wait_timeout = 120
+    
+    # Logging
+    log_connections = 1
+    log_disconnections = 1
+    log_pooler_errors = 1
+    
+    # Stats
+    stats_period = 60
+    
+    # Admin
+    admin_users = postgres
+    stats_users = postgres
+
+  userlist.txt: |
+    "postgres" ""
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgbouncer-rw
+  namespace: sagaz
+  labels:
+    app: pgbouncer
+    pool-type: write
+spec:
+  replicas: 2  # For high availability
+  selector:
+    matchLabels:
+      app: pgbouncer
+      pool-type: write
+  
+  template:
+    metadata:
+      labels:
+        app: pgbouncer
+        pool-type: write
+    spec:
+      containers:
+        - name: pgbouncer
+          image: edoburu/pgbouncer:1.21.0
+          imagePullPolicy: IfNotPresent
+          
+          ports:
+            - name: pgbouncer
+              containerPort: 5432
+              protocol: TCP
+          
+          env:
+            - name: DATABASE_URL
+              value: postgres://postgres@postgresql-primary:5432/sagaz
+            - name: POOL_MODE
+              value: transaction
+            - name: MAX_CLIENT_CONN
+              value: "200"
+            - name: DEFAULT_POOL_SIZE
+              value: "25"
+            - name: MIN_POOL_SIZE
+              value: "5"
+            - name: RESERVE_POOL_SIZE
+              value: "5"
+            - name: SERVER_LIFETIME
+              value: "3600"
+            - name: SERVER_IDLE_TIMEOUT
+              value: "600"
+          
+          # Health checks
+          livenessProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          
+          readinessProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          
+          # Resource limits
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgbouncer-rw
+  namespace: sagaz
+  labels:
+    app: pgbouncer
+    pool-type: write
+spec:
+  type: ClusterIP
+  ports:
+    - name: pgbouncer
+      port: 6432
+      targetPort: 5432
+      protocol: TCP
+  selector:
+    app: pgbouncer
+    pool-type: write
+
+---
+# ============================================================================
+# PgBouncer for Read Traffic (Session Pooling)
+# ============================================================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pgbouncer-ro-config
+  namespace: sagaz
+  labels:
+    app: pgbouncer
+    pool-type: read
+data:
+  pgbouncer.ini: |
+    [databases]
+    sagaz = host=postgresql-read port=5432 dbname=sagaz
+    
+    [pgbouncer]
+    listen_port = 5432
+    listen_addr = *
+    auth_type = trust
+    auth_file = /etc/pgbouncer/userlist.txt
+    
+    # Pool configuration - SESSION mode for OLAP
+    pool_mode = session
+    max_client_conn = 300
+    default_pool_size = 50
+    min_pool_size = 10
+    reserve_pool_size = 10
+    
+    # Server connection settings
+    server_lifetime = 7200
+    server_idle_timeout = 900
+    server_connect_timeout = 15
+    
+    # Client connection settings
+    client_idle_timeout = 0
+    client_login_timeout = 60
+    query_timeout = 0
+    query_wait_timeout = 120
+    
+    # Logging
+    log_connections = 1
+    log_disconnections = 1
+    log_pooler_errors = 1
+    
+    # Stats
+    stats_period = 60
+    
+    # Admin
+    admin_users = postgres
+    stats_users = postgres
+
+  userlist.txt: |
+    "postgres" ""
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgbouncer-ro
+  namespace: sagaz
+  labels:
+    app: pgbouncer
+    pool-type: read
+spec:
+  replicas: 3  # More replicas for analytics load
+  selector:
+    matchLabels:
+      app: pgbouncer
+      pool-type: read
+  
+  template:
+    metadata:
+      labels:
+        app: pgbouncer
+        pool-type: read
+    spec:
+      containers:
+        - name: pgbouncer
+          image: edoburu/pgbouncer:1.21.0
+          imagePullPolicy: IfNotPresent
+          
+          ports:
+            - name: pgbouncer
+              containerPort: 5432
+              protocol: TCP
+          
+          env:
+            - name: DATABASE_URL
+              value: postgres://postgres@postgresql-read:5432/sagaz
+            - name: POOL_MODE
+              value: session
+            - name: MAX_CLIENT_CONN
+              value: "300"
+            - name: DEFAULT_POOL_SIZE
+              value: "50"
+            - name: MIN_POOL_SIZE
+              value: "10"
+            - name: RESERVE_POOL_SIZE
+              value: "10"
+            - name: SERVER_LIFETIME
+              value: "7200"
+            - name: SERVER_IDLE_TIMEOUT
+              value: "900"
+          
+          # Health checks
+          livenessProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          
+          readinessProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          
+          # Resource limits
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgbouncer-ro
+  namespace: sagaz
+  labels:
+    app: pgbouncer
+    pool-type: read
+spec:
+  type: ClusterIP
+  ports:
+    - name: pgbouncer
+      port: 6433
+      targetPort: 5432
+      protocol: TCP
+  selector:
+    app: pgbouncer
+    pool-type: read
+
+---
+# Horizontal Pod Autoscaler for Read Pool (scales based on CPU)
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: pgbouncer-ro-hpa
+  namespace: sagaz
+  labels:
+    app: pgbouncer
+    pool-type: read
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: pgbouncer-ro
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+        - type: Pods
+          value: 2
+          periodSeconds: 15

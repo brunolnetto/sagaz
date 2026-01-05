@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed** | Date: 2025-01-01
+**Proposed** | Date: 2026-01-05 | Priority: Medium | Target: Q2 2026
 
 ## Context
 
