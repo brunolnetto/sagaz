@@ -2,7 +2,17 @@
 
 ## Status
 
-**Proposed** | Date: 2026-01-05 | Priority: High | Target: Q4 2026
+**Proposed** | Date: 2026-01-05 | Priority: Medium | Target: v1.4.0
+
+## Dependencies
+
+**Prerequisites**:
+- ADR-016: Unified Storage Layer (needs tenant-aware storage)
+
+**Synergies**:
+- ADR-017: Chaos Engineering (tenant-specific chaos testing)
+
+**Roadmap**: **Phase 3 (v1.4.0)** - Enterprise SaaS feature
 
 ## Context
 

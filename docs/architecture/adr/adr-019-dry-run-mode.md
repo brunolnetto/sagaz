@@ -2,7 +2,18 @@
 
 ## Status
 
-**Proposed** | Date: 2026-01-05 | Priority: Medium | Target: Q2 2026
+**Proposed** | Date: 2026-01-05 | Priority: Medium | Target: v1.3.0
+
+## Dependencies
+
+**Prerequisites**: None (independent feature)
+
+**Synergies**:
+- ADR-023: Pivot Steps (test forward recovery paths)
+- ADR-024: Saga Replay (test replay scenarios)
+- ADR-025: Event Triggers (test trigger logic)
+
+**Roadmap**: **Phase 2 (v1.3.0)** - Developer experience, testing tool
 
 ## Context
 

@@ -4,6 +4,19 @@
 
 **Proposed** | Date: 2026-01-02
 
+## Dependencies
+
+**Prerequisites**:
+- ADR-022: Compensation Result Passing (needed for forward recovery decision-making)
+
+**Enables**:
+- Production-critical workflows (payment capture, model deployment, physical actions)
+- Advanced compensation strategies
+
+**Conflicts**: None
+
+**Roadmap**: ⭐ **Phase 2 (v1.3.0)** - High priority, production-critical feature
+
 ## Context
 
 In distributed saga patterns, certain steps represent "points of no return" — once executed, they cannot be fully undone through traditional compensation. These **pivot steps** (also called irreversible or commitment steps) fundamentally change how a saga handles failures and recovery.

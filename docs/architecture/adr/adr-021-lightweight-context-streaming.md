@@ -2,7 +2,20 @@
 
 ## Status
 
-**Proposed** | Date: 2026-01-05 | Priority: Low | Target: 2027+
+**Proposed** | Date: 2026-01-05 | Priority: Medium | Target: v1.4.0
+
+## Dependencies
+
+**Prerequisites**:
+- ADR-016: Unified Storage Layer (needs external storage for large payloads)
+
+**Enables**:
+- ADR-023: Pivot Steps (streaming recovery actions)
+- ADR-025: Event Triggers (streaming saga execution)
+- ADR-013: Fluss Analytics (streaming data pipelines)
+- Large-scale ETL and ML training sagas
+
+**Roadmap**: **Phase 3 (v1.4.0)** - Performance optimization for large payloads
 
 ## Context
 

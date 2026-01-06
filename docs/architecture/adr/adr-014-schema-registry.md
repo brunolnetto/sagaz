@@ -4,6 +4,15 @@
 
 **Deferred** | Date: 2026-01-05
 
+## Dependencies
+
+**Prerequisites**: None (independent feature)
+
+**Synergies**:
+- ADR-025: Event Triggers (schema validation for events)
+- ADR-018: Saga Versioning (schema evolution)
+
+**Roadmap**: **Phase 4 (v2.0.0)** - Optional, only for polyglot microservices
 > ⚠️ **Note**: This is an **optional** feature for advanced use cases. 
 > For most Sagaz deployments, schemas defined in Python code (Pydantic/dataclasses) 
 > are sufficient since consumers import the same library.

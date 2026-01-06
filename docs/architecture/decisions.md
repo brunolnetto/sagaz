@@ -325,7 +325,59 @@ Unify the storage layer with:
 
 **Accepted** - See [ADR-016: Unified Storage Layer](adr/adr-016-unified-storage-layer.md) for details.
 
-Implementation plan: [Unified Storage Implementation Plan](unified-storage-implementation-plan.md)
+Implementation plan: [Unified Storage Implementation Plan](implementation-plans/unified-storage-implementation-plan.md)
+
+---
+
+## ADR-023: Pivot/Irreversible Steps
+
+### Context
+
+Certain operations in distributed systems represent a **point of no return** where compensation is impossible (e.g., payment capture, physical shipments, external API calls with irreversible side effects).
+
+### Decision
+
+Introduce **pivot steps** with taint propagation and forward recovery:
+- `pivot=True` marks point-of-no-return steps
+- `@forward_recovery("step_name")` defines how to recover forward when downstream fails
+- Executed pivots taint all ancestor steps (making them non-compensable)
+- Parallel branches without pivots remain compensable
+
+### Rationale
+
+- Real-world workflows include irreversible operations
+- Forward recovery provides explicit path when compensation is impossible
+- Tainting logic prevents invalid compensation attempts
+- Visualization shows recovery paths clearly
+
+### Status
+
+**Proposed** - See [ADR-023: Pivot/Irreversible Steps](adr/adr-023-pivot-irreversible-steps.md) for comprehensive design.
+
+---
+
+## ADR-025: Event-Driven Triggers & Auto-Discovery
+
+### Context
+
+Current imperative execution (`saga.run()`) creates friction for event-driven architectures and streaming MLOps, requiring manual boilerplate to wire events to sagas.
+
+### Decision
+
+Implement **Event-Driven Triggers** with auto-discovery:
+- `@trigger(source, topic)` decorator to map events to saga contexts
+- **Auto-Discovery**: Sagas are automatically registered upon import via `__init_subclass__`
+- **Unified Action**: `@action` execution mode (sync vs streaming) determined by return type (generator vs value)
+
+### Rationale
+
+- **Zero Boilerplate**: Import-based discovery reduces setup code
+- **Reactive**: Sagas become first-class consumers of events
+- **Unified API**: No need for separate `@streaming_action`
+
+### Status
+
+**Proposed** - See [ADR-025: Event-Driven Triggers](adr/adr-025-event-driven-triggers.md) for details.
 
 ---
 
@@ -346,4 +398,6 @@ Implementation plan: [Unified Storage Implementation Plan](unified-storage-imple
 | 11 | CDC Support | High-throughput upgrade path (proposed) |
 | 12 | Synchronous Orchestration | Simplicity for single-service sagas |
 | 16 | Unified Storage Layer | DRY, full Redis support, data transfer |
+| 23 | Pivot/Irreversible Steps | Handle irreversible operations (proposed) |
+| 25 | Event-Driven Triggers | Auto-discovered, reactive sagas (proposed) |
 

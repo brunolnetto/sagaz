@@ -4,6 +4,18 @@
 
 **Accepted** - Implementation planned for v1.2.0
 
+## Dependencies
+
+**Prerequisites**: None (Foundation ADR)
+
+**Enables**:
+- ADR-021: Lightweight Context Streaming (needs external storage)
+- ADR-024: Saga Replay (needs state snapshots)
+- ADR-020: Multi-Tenancy (needs data isolation)
+- ADR-011: CDC Support (needs unified PostgreSQL backend)
+
+**Roadmap**: ⭐ **Phase 1 (v1.2.0)** - Critical foundation, blocks 6 other ADRs
+
 ## Context
 
 Sagaz currently has **two separate storage hierarchies**:
@@ -144,7 +156,7 @@ from sagaz.storage.backends import PostgreSQLSagaStorage, PostgreSQLOutboxStorag
 
 ## Implementation
 
-See **[Unified Storage Implementation Plan](../unified-storage-implementation-plan.md)** for detailed:
+See **[Unified Storage Implementation Plan](../implementation-plans/unified-storage-implementation-plan.md)** for detailed:
 - 6-phase implementation approach
 - Task breakdowns and timelines
 - API designs and code examples
