@@ -4,6 +4,7 @@ Model Deployment Saga with Blue/Green Strategy
 Demonstrates production-grade model deployment with automatic rollback
 capabilities. Implements blue/green deployment pattern with smoke tests
 and gradual traffic shifting.
+Data is passed through the run() method's initial context, not the constructor.
 """
 
 import asyncio
@@ -26,73 +27,38 @@ class ModelDeploymentSaga(Saga):
     """
     Production model deployment with blue/green strategy and automatic rollback.
     
-    Deployment Flow:
-    1. Backup Current Model - Snapshot current production model
-    2. Deploy to Staging - Deploy new model to staging environment
-    3. Run Smoke Tests - Execute critical test suite
-    4. Blue/Green Deployment - Gradual traffic shift to new version
-    5. Monitor Health - Track metrics and error rates
+    This saga is stateless - all deployment configuration is passed through the context
+    via the run() method.
     
-    On any failure, automatically rolls back to previous stable version.
+    Expected context:
+        - model_name: str
+        - model_version: int
+        - registry_uri: str
+        - deployment_environment: str (optional, default "production")
+        - canary_percentage: int (optional, default 10)
+        - smoke_test_timeout: float (optional, default 30.0)
     """
 
     saga_name = "model-deployment"
 
-    def __init__(
-        self,
-        model_name: str,
-        model_version: int,
-        registry_uri: str,
-        deployment_environment: str = "production",
-        canary_percentage: int = 10,
-        smoke_test_timeout: float = 30.0,
-    ):
-        """
-        Initialize model deployment saga.
-        
-        Args:
-            model_name: Name of model to deploy
-            model_version: Version number in model registry
-            registry_uri: Full URI to model in registry
-            deployment_environment: Target environment (staging/production)
-            canary_percentage: Initial traffic percentage for canary
-            smoke_test_timeout: Timeout for smoke tests in seconds
-        """
-        super().__init__()
-        self.model_name = model_name
-        self.model_version = model_version
-        self.registry_uri = registry_uri
-        self.deployment_environment = deployment_environment
-        self.canary_percentage = canary_percentage
-        self.smoke_test_timeout = smoke_test_timeout
-
     @action("backup_current_model")
     async def backup_current_model(self, ctx: dict[str, Any]) -> dict[str, Any]:
-        """
-        Create backup snapshot of current production model.
+        """Create backup snapshot of current production model."""
+        model_name = ctx.get("model_name")
+        model_version = ctx.get("model_version")
         
-        Backup includes:
-        - Model binary
-        - Configuration
-        - Deployment manifest
-        - Routing rules
-        - Current metrics baseline
-        
-        Returns:
-            Backup metadata and restore point information
-        """
-        logger.info(f"💾 Backing up current production model: {self.model_name}")
+        logger.info(f"💾 Backing up current production model: {model_name}")
         await asyncio.sleep(0.2)  # Simulate backup operation
 
         # Simulate current production state
-        current_version = self.model_version - 1 if self.model_version > 1 else 1
-        backup_id = f"backup-{self.model_name}-v{current_version}-{int(datetime.now().timestamp())}"
+        current_version = model_version - 1 if model_version > 1 else 1
+        backup_id = f"backup-{model_name}-v{current_version}-{int(datetime.now().timestamp())}"
 
         logger.info(f"Current production version: v{current_version}")
         logger.info(f"Backup ID: {backup_id}")
 
         # Store backup metadata
-        backup_location = f"s3://ml-backups/{self.model_name}/{backup_id}"
+        backup_location = f"s3://ml-backups/{model_name}/{backup_id}"
 
         logger.info(f"✅ Backup created: {backup_location}")
 
@@ -100,7 +66,7 @@ class ModelDeploymentSaga(Saga):
             "backup_id": backup_id,
             "backup_location": backup_location,
             "previous_version": current_version,
-            "previous_registry_uri": f"models:/{self.model_name}/{current_version}",
+            "previous_registry_uri": f"models:/{model_name}/{current_version}",
             "backup_timestamp": datetime.now().isoformat(),
         }
 
@@ -119,27 +85,19 @@ class ModelDeploymentSaga(Saga):
 
     @action("deploy_to_staging", depends_on=["backup_current_model"])
     async def deploy_to_staging(self, ctx: dict[str, Any]) -> dict[str, Any]:
-        """
-        Deploy new model version to staging environment.
+        """Deploy new model version to staging environment."""
+        model_name = ctx.get("model_name")
+        model_version = ctx.get("model_version")
+        registry_uri = ctx.get("registry_uri")
         
-        Staging Deployment:
-        - Isolated environment
-        - Full feature parity with production
-        - Synthetic traffic
-        - Performance benchmarks
-        - Integration tests
-        
-        Returns:
-            Staging deployment metadata and endpoint
-        """
-        logger.info(f"🚀 Deploying model v{self.model_version} to staging")
-        logger.info(f"Registry: {self.registry_uri}")
+        logger.info(f"🚀 Deploying model v{model_version} to staging")
+        logger.info(f"Registry: {registry_uri}")
 
         await asyncio.sleep(0.3)  # Simulate deployment
 
         # Simulate staging deployment
-        staging_endpoint = f"https://staging.ml-platform.com/models/{self.model_name}/v{self.model_version}"
-        staging_deployment_id = f"staging-{self.model_name}-v{self.model_version}"
+        staging_endpoint = f"https://staging.ml-platform.com/models/{model_name}/v{model_version}"
+        staging_deployment_id = f"staging-{model_name}-v{model_version}"
 
         # Simulate container startup
         await asyncio.sleep(0.2)
@@ -176,27 +134,13 @@ class ModelDeploymentSaga(Saga):
 
     @action("run_smoke_tests", depends_on=["deploy_to_staging"])
     async def run_smoke_tests(self, ctx: dict[str, Any]) -> dict[str, Any]:
-        """
-        Execute smoke test suite against staging deployment.
-        
-        Smoke Tests:
-        - Model prediction accuracy
-        - Response time latency
-        - Memory usage
-        - Error rate
-        - Input validation
-        - Output format validation
-        
-        Raises:
-            SagaStepError: If any critical test fails
-        
-        Returns:
-            Test results and performance metrics
-        """
+        """Execute smoke test suite against staging deployment."""
         staging_endpoint = ctx.get("staging_endpoint")
+        model_version = ctx.get("model_version")
+        smoke_test_timeout = ctx.get("smoke_test_timeout", 30.0)
 
         logger.info(f"🧪 Running smoke tests against: {staging_endpoint}")
-        logger.info(f"Timeout: {self.smoke_test_timeout}s")
+        logger.info(f"Timeout: {smoke_test_timeout}s")
 
         # Simulate test execution
         test_cases = [
@@ -229,7 +173,7 @@ class ModelDeploymentSaga(Saga):
         if failed_tests:
             raise SagaStepError(
                 f"Smoke tests failed: {', '.join(failed_tests)}. "
-                f"Model v{self.model_version} cannot be deployed to production."
+                f"Model v{model_version} cannot be deployed to production."
             )
 
         # Performance metrics
@@ -253,32 +197,25 @@ class ModelDeploymentSaga(Saga):
 
     @action("blue_green_deployment", depends_on=["run_smoke_tests"])
     async def blue_green_deployment(self, ctx: dict[str, Any]) -> dict[str, Any]:
-        """
-        Execute blue/green deployment to production.
+        """Execute blue/green deployment to production."""
+        model_name = ctx.get("model_name")
+        model_version = ctx.get("model_version")
+        canary_percentage = ctx.get("canary_percentage", 10)
+        previous_version = ctx.get("previous_version", 0)
         
-        Blue/Green Strategy:
-        1. Deploy new version (green) alongside current (blue)
-        2. Route canary traffic to green
-        3. Monitor metrics and error rates
-        4. Gradually increase traffic to green
-        5. Complete cutover when validation passes
-        
-        Returns:
-            Deployment status and traffic distribution
-        """
         logger.info("🔄 Initiating blue/green deployment")
-        logger.info(f"Model: {self.model_name} v{self.model_version}")
-        logger.info(f"Strategy: Canary with {self.canary_percentage}% traffic")
+        logger.info(f"Model: {model_name} v{model_version}")
+        logger.info(f"Strategy: Canary with {canary_percentage}% traffic")
 
         # Deploy green version
         logger.info("Deploying green version...")
         await asyncio.sleep(0.3)
 
-        green_deployment_id = f"prod-{self.model_name}-v{self.model_version}"
-        green_endpoint = f"https://api.ml-platform.com/models/{self.model_name}/v{self.model_version}"
+        green_deployment_id = f"prod-{model_name}-v{model_version}"
+        green_endpoint = f"https://api.ml-platform.com/models/{model_name}/v{model_version}"
 
         # Initial canary traffic
-        logger.info(f"Routing {self.canary_percentage}% traffic to green version")
+        logger.info(f"Routing {canary_percentage}% traffic to green version")
         await asyncio.sleep(0.2)
 
         # Monitor canary metrics
@@ -294,7 +231,7 @@ class ModelDeploymentSaga(Saga):
             )
 
         # Gradual traffic increase
-        traffic_percentages = [self.canary_percentage, 25, 50, 75, 100]
+        traffic_percentages = [canary_percentage, 25, 50, 75, 100]
         for traffic_pct in traffic_percentages[1:]:
             logger.info(f"Increasing traffic to {traffic_pct}%")
             await asyncio.sleep(0.15)
@@ -304,7 +241,7 @@ class ModelDeploymentSaga(Saga):
         return {
             "green_deployment_id": green_deployment_id,
             "green_endpoint": green_endpoint,
-            "blue_deployment_id": f"prod-{self.model_name}-v{ctx.get('previous_version', 0)}",
+            "blue_deployment_id": f"prod-{model_name}-v{previous_version}",
             "traffic_distribution": {"green": 100, "blue": 0},
             "canary_error_rate": canary_error_rate,
             "canary_latency": canary_latency,
@@ -313,20 +250,10 @@ class ModelDeploymentSaga(Saga):
 
     @compensate("blue_green_deployment")
     async def rollback_to_blue(self, ctx: dict[str, Any]) -> None:
-        """
-        Rollback production traffic to blue (previous) version.
-        
-        Rollback Process:
-        1. Immediately shift 100% traffic to blue
-        2. Terminate green deployment
-        3. Restore previous configuration
-        4. Validate blue health
-        5. Alert operations team
-        """
+        """Rollback production traffic to blue (previous) version."""
         logger.warning("⏪ ROLLBACK: Switching traffic back to blue version")
 
         green_deployment_id = ctx.get("green_deployment_id")
-        blue_deployment_id = ctx.get("blue_deployment_id")
         previous_version = ctx.get("previous_version")
 
         logger.info(f"Routing 100% traffic to blue: v{previous_version}")
@@ -345,19 +272,7 @@ class ModelDeploymentSaga(Saga):
 
     @action("monitor_health", depends_on=["blue_green_deployment"])
     async def monitor_health(self, ctx: dict[str, Any]) -> dict[str, Any]:
-        """
-        Monitor production health after deployment.
-        
-        Monitoring:
-        - Request rate and latency
-        - Error rates and status codes
-        - Model prediction quality
-        - Resource utilization (CPU, memory)
-        - Business metrics (conversion rate, etc.)
-        
-        Returns:
-            Health check results and metrics
-        """
+        """Monitor production health after deployment."""
         green_endpoint = ctx.get("green_endpoint")
 
         logger.info(f"📊 Monitoring production health: {green_endpoint}")
@@ -411,20 +326,24 @@ async def successful_deployment_demo():
     print("🚀 Model Deployment - Successful Blue/Green Deployment Demo")
     print("=" * 80)
 
-    saga = ModelDeploymentSaga(
-        model_name="fraud-detector",
-        model_version=15,
-        registry_uri="models:/fraud-detector/15",
-        deployment_environment="production",
-        canary_percentage=10,
-        smoke_test_timeout=30.0,
-    )
+    # Reusable saga instance
+    saga = ModelDeploymentSaga()
+    
+    deployment_data = {
+        "model_name": "fraud-detector",
+        "model_version": 15,
+        "registry_uri": "models:/fraud-detector/15",
+        "deployment_environment": "production",
+        "canary_percentage": 10,
+        "smoke_test_timeout": 30.0,
+        "deployment_id": "deploy-15"
+    }
 
-    result = await saga.run({"deployment_id": f"deploy-{saga.model_version}"})
+    result = await saga.run(deployment_data)
 
     print(f"\n{'✅' if result.get('saga_id') else '❌'} Deployment Result:")
     print(f"   Saga ID:           {result.get('saga_id')}")
-    print(f"   Model Version:     v{result.get('previous_version')} → v{saga.model_version}")
+    print(f"   Model Version:     v{result.get('previous_version')} → v{deployment_data['model_version']}")
     print(f"   Endpoint:          {result.get('green_endpoint')}")
     print(f"   Traffic:           {result.get('traffic_distribution')}")
     print(f"   Health Status:     {result.get('health_status')}")
@@ -439,20 +358,25 @@ async def failed_deployment_demo():
     print("=" * 80)
     print("(This demo may succeed - smoke tests have 95% pass rate)")
 
-    saga = ModelDeploymentSaga(
-        model_name="recommendation-engine",
-        model_version=42,
-        registry_uri="models:/recommendation-engine/42",
-        deployment_environment="production",
-        canary_percentage=5,  # Conservative canary
-        smoke_test_timeout=30.0,
-    )
+    saga = ModelDeploymentSaga()
+    
+    base_data = {
+        "model_name": "recommendation-engine",
+        "model_version": 42,
+        "registry_uri": "models:/recommendation-engine/42",
+        "deployment_environment": "production",
+        "canary_percentage": 5,
+        "smoke_test_timeout": 30.0,
+    }
 
     # Run multiple times to potentially trigger failure
     for attempt in range(1, 4):
         print(f"\n--- Deployment Attempt {attempt} ---")
         try:
-            result = await saga.run({"deployment_id": f"deploy-{saga.model_version}-attempt{attempt}"})
+            data = base_data.copy()
+            data["deployment_id"] = f"deploy-42-attempt{attempt}"
+            
+            result = await saga.run(data)
             print(f"✅ Deployment succeeded on attempt {attempt}")
             print(f"   Endpoint: {result.get('green_endpoint')}")
             break

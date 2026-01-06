@@ -6,325 +6,303 @@ This directory contains self-contained saga examples demonstrating the **declara
 
 ```
 examples/
-├── order_processing/          ← E-commerce order workflow
-│   ├── README.md             Complete documentation
-│   └── main.py               Saga implementation with entrypoint
+├── ecommerce/                 ← E-commerce & Retail
+│   └── order_processing/      ← Order fulfillment workflow
 │
-├── travel_booking/            ← Travel reservation workflow
-│   ├── README.md
-│   └── main.py               Saga implementation with entrypoint
+├── fintech/                   ← Financial Services
+│   ├── payment_processing/    ← Payment gateway integration
+│   └── trade_execution/       ← Stock trading system
 │
-├── trade_execution/           ← Financial trading workflow
-│   ├── README.md
-│   └── main.py               Saga implementation with entrypoint
+├── travel/                    ← Travel & Hospitality
+│   └── booking/               ← Travel reservation workflow
 │
-├── payment_processing/        ← Payment processing workflow
-│   ├── README.md
-│   └── main.py               Saga implementation with entrypoint
+├── healthcare/                ← Healthcare & Life Sciences
+│   └── patient_onboarding/    ← HIPAA-compliant registration
 │
-├── ml_training/               ← MLOps machine learning workflows
-│   ├── README.md             Comprehensive MLOps guide (300+ lines)
-│   ├── main.py               ML training pipeline with rollback
-│   ├── model_deployment.py   Blue/green deployment saga
-│   └── feature_store.py      Feature engineering pipeline
+├── iot/                       ← Internet of Things
+│   ├── device_orchestration/  ← Smart home coordinator
+│   └── smart_grid/            ← Energy demand response
 │
-├── iot_device_orchestration/  ← Smart home IoT orchestration
-│   ├── README.md
-│   └── main.py               Multi-device coordination saga
+├── logistics/                 ← Supply Chain
+│   └── drone_delivery/        ← Autonomous delivery
 │
-├── healthcare_patient_onboarding/ ← HIPAA-compliant healthcare
-│   ├── README.md
-│   └── main.py               Patient registration workflow
+├── ml/                        ← Machine Learning & AI
+│   ├── training/              ← MLOps training pipeline
+│   └── federated_learning/    ← Distributed edge training
 │
-├── supply_chain_drone_delivery/ ← Autonomous drone delivery
-│   ├── README.md
-│   └── main.py               FAA-compliant delivery orchestration
-│
-├── smart_grid_energy/         ← Demand response for energy grids
-│   ├── README.md
-│   └── main.py               Grid stabilization workflow
-│
-├── edge_federated_learning/   ← Federated ML on edge devices
-│   ├── README.md
-│   └── main.py               Privacy-preserving distributed training
+├── monitoring/                ← Observability
+│   ├── main.py                ← Metrics monitoring
+│   └── mermaid_demo.py        ← Visualization generator
 │
 └── README.md                  ← This file
 ```
 
 ## 🚀 Quick Start
 
-Each example is self-contained in a single `main.py` file and can be run directly.
+Each example is self-contained in its directory and can be run directly.
 
 ### Running Examples
 
 ```bash
-# E-commerce & Business
-python examples/order_processing/main.py
-python examples/payment_processing/main.py
-python examples/travel_booking/main.py
-python examples/trade_execution/main.py
+# E-commerce
+python examples/ecommerce/order_processing/main.py
 
-# MLOps & AI
-python examples/ml_training/main.py
-python examples/ml_training/model_deployment.py
-python examples/ml_training/feature_store.py
-python examples/edge_federated_learning/main.py
+# Fintech
+python examples/fintech/payment_processing/main.py
+python examples/fintech/trade_execution/main.py
 
-# Emerging Technologies
-python examples/iot_device_orchestration/main.py
-python examples/healthcare_patient_onboarding/main.py
-python examples/supply_chain_drone_delivery/main.py
-python examples/smart_grid_energy/main.py
+# Travel
+python examples/travel/booking/main.py
+
+# Healthcare
+python examples/healthcare/patient_onboarding/main.py
+
+# IoT & Energy
+python examples/iot/device_orchestration/main.py
+python examples/iot/smart_grid/main.py
+
+# Logistics
+python examples/logistics/drone_delivery/main.py
+
+# AI & MLOps
+python examples/ml/training/main.py
+python examples/ml/training/model_deployment.py
+python examples/ml/federated_learning/main.py
+
+# Monitoring & Visualization
+python examples/monitoring/mermaid_demo.py
 ```
 
 ## 📚 Example Details
 
 ### 🛒 Order Processing
-**Directory:** `order_processing/`  
+**Path:** `examples/ecommerce/order_processing/`  
 **Use Case:** E-commerce order fulfillment  
 **Steps:** Inventory → Payment → Shipment → Email  
 **Best For:** Learning basic saga patterns
 
 Example usage:
 ```python
-from examples.order_processing.main import OrderProcessingSaga
+from examples.ecommerce.order_processing.main import OrderProcessingSaga
 
-saga = OrderProcessingSaga(
-    order_id="ORD-123",
-    user_id="USER-456",
-    items=[{"id": "ITEM-1", "quantity": 2}],
-    total_amount=99.99
-)
+# Create a reusable saga instance (stateless)
+saga = OrderProcessingSaga()
 
-result = await saga.run({"order_id": saga.order_id})
+# Pass order data through the run() method
+result = await saga.run({
+    "order_id": "ORD-123",
+    "user_id": "USER-456",
+    "items": [{"id": "ITEM-1", "quantity": 2}],
+    "total_amount": 99.99
+})
 ```
 
 ### 💳 Payment Processing
-**Directory:** `payment_processing/`  
+**Path:** `examples/fintech/payment_processing/`  
 **Use Case:** Payment gateway integration  
 **Steps:** Validation → Primary Payment → Transaction Recording  
 **Best For:** Idempotency and retry patterns
 
 Example usage:
 ```python
-from examples.payment_processing.main import PaymentProcessingSaga
+from examples.fintech.payment_processing.main import PaymentProcessingSaga
 
-saga = PaymentProcessingSaga(
-    payment_id="PAY-101",
-    amount=250.00,
-    providers=["Stripe", "PayPal", "Square"]
-)
+saga = PaymentProcessingSaga()
 
-result = await saga.run({"payment_id": saga.payment_id})
-```
-
-### ✈️ Travel Booking
-**Directory:** `travel_booking/`  
-**Use Case:** Multi-service travel reservation  
-**Steps:** Flight → Hotel → Car → Itinerary  
-**Best For:** Understanding service orchestration
-
-Example usage:
-```python
-from examples.travel_booking.main import TravelBookingSaga
-
-saga = TravelBookingSaga(
-    booking_id="BOOK-456",
-    user_id="USER-789",
-    flight_details={"flight_number": "AA123", "from": "NYC", "to": "LAX"},
-    hotel_details={"hotel_name": "Grand Hotel", "nights": 3},
-    car_details={"car_type": "Sedan", "days": 3}
-)
-
-result = await saga.run({"booking_id": saga.booking_id})
+result = await saga.run({
+    "payment_id": "PAY-101",
+    "amount": 250.00,
+    "providers": ["Stripe", "PayPal", "Square"]
+})
 ```
 
 ### 📈 Trade Execution
-**Directory:** `trade_execution/`  
+**Path:** `examples/fintech/trade_execution/`  
 **Use Case:** Financial trading system  
 **Steps:** Reserve Funds → Execute Trade → Update Position  
 **Best For:** Complex business logic with compensations
 
 Example usage:
 ```python
-from examples.trade_execution.main import TradeExecutionSaga
+from examples.fintech.trade_execution.main import TradeExecutionSaga
 
-saga = TradeExecutionSaga(
-    trade_id=12345,
-    symbol="AAPL",
-    quantity=100,
-    price=150.00,
-    user_id=789
-)
+saga = TradeExecutionSaga()
 
-result = await saga.run({"trade_id": saga.trade_id})
+result = await saga.run({
+    "trade_id": 12345,
+    "symbol": "AAPL",
+    "quantity": 100,
+    "price": 150.00,
+    "user_id": 789
+})
 ```
 
-### 🤖 ML Training Pipeline
-**Directory:** `ml_training/`  
-**Use Case:** End-to-end ML pipeline with automatic rollback  
-**Steps:** Validation → Feature Engineering → Training → Evaluation → Deployment  
-**Best For:** Understanding MLOps integration patterns
-
-The `ml_training/` directory contains three comprehensive examples:
-
-1. **`main.py`** - Complete ML training pipeline
-   - Dataset validation
-   - Feature engineering
-   - Model training with hyperparameters
-   - Model evaluation with accuracy threshold
-   - Model registration in registry
-   - Production deployment
-
-2. **`model_deployment.py`** - Blue/green deployment
-   - Backup current model
-   - Deploy to staging
-   - Run smoke tests
-   - Gradual traffic shifting (canary)
-   - Production health monitoring
-
-3. **`feature_store.py`** - Feature engineering pipeline
-   - Data ingestion from data lake
-   - Feature computation
-   - Data quality validation
-   - Transactional feature store publish
+### ✈️ Travel Booking
+**Path:** `examples/travel/booking/`  
+**Use Case:** Multi-service travel reservation  
+**Steps:** Flight → Hotel → Car → Itinerary  
+**Best For:** Understanding service orchestration
 
 Example usage:
 ```python
-from examples.ml_training.main import MLTrainingPipelineSaga
+from examples.travel.booking.main import TravelBookingSaga
 
-saga = MLTrainingPipelineSaga(
-    experiment_id="exp-001",
-    dataset_path="/data/training/dataset.parquet",
-    model_name="churn-predictor",
-    accuracy_threshold=0.85,
-    hyperparameters={"learning_rate": 0.001, "epochs": 15}
-)
+saga = TravelBookingSaga()
 
-result = await saga.run({"experiment_id": saga.experiment_id})
-```
-
-**Key Features:**
-- ✅ Automatic resource cleanup (GPU, temp files)
-- ✅ Model registry consistency
-- ✅ Safe deployments with rollback
-- ✅ Feature store transactional guarantees
-- ✅ Distributed tracing for ML pipelines
-
-See [ml_training/README.md](ml_training/README.md) for comprehensive MLOps guide (300+ lines).
-
-### 📱 IoT Device Orchestration
-**Directory:** `iot_device_orchestration/`  
-**Use Case:** Smart home device coordination  
-**Steps:** Lock Doors → Thermostat Away → Lights Off → Arm Security → Notify  
-**Best For:** Multi-device coordination with safety rollback
-
-Example usage:
-```python
-from examples.iot_device_orchestration.main import IoTDeviceOrchestrationSaga
-
-saga = IoTDeviceOrchestrationSaga(
-    routine_id="ROUTINE-001",
-    home_id="HOME-123",
-    user_id="USER-456",
-    device_count=100,
-    simulate_failure=False
-)
-
-result = await saga.run({"routine_id": saga.routine_id})
+result = await saga.run({
+    "booking_id": "BOOK-456",
+    "user_id": "USER-789",
+    "flight_details": {"flight_number": "AA123", "from": "NYC", "to": "LAX"},
+    "hotel_details": {"hotel_name": "Grand Hotel", "nights": 3},
+    "car_details": {"car_type": "Sedan", "days": 3}
+})
 ```
 
 ### 🏥 Healthcare Patient Onboarding
-**Directory:** `healthcare_patient_onboarding/`  
+**Path:** `examples/healthcare/patient_onboarding/`  
 **Use Case:** HIPAA-compliant patient registration  
 **Steps:** Verify Identity → Create EHR → Assign PCP → Portal Setup → Schedule → Welcome  
 **Best For:** Compliance, audit trails, PHI protection
 
 Example usage:
 ```python
-from examples.healthcare_patient_onboarding.main import HealthcarePatientOnboardingSaga
+from examples.healthcare.patient_onboarding.main import HealthcarePatientOnboardingSaga
 
-saga = HealthcarePatientOnboardingSaga(
-    patient_id="PAT-2026-001",
-    first_name="Alice",
-    last_name="Johnson",
-    date_of_birth="1985-06-15",
-    ssn_last_4="1234",
-    email="alice.johnson@email.com",
-    phone="+1-555-0123",
-    simulate_failure=False
-)
+saga = HealthcarePatientOnboardingSaga()
 
-result = await saga.run({"patient_id": saga.patient_id})
+result = await saga.run({
+    "patient_id": "PAT-2026-001",
+    "first_name": "Alice",
+    "last_name": "Johnson",
+    "date_of_birth": "1985-06-15",
+    "ssn_last_4": "1234",
+    "email": "alice.johnson@email.com",
+    "phone": "+1-555-0123"
+})
 ```
 
-### 🚁 Supply Chain Drone Delivery
-**Directory:** `supply_chain_drone_delivery/`  
-**Use Case:** Autonomous drone package delivery  
-**Steps:** Reserve Drone → Plan Path → Get FAA Auth → Pickup → Deliver → Return  
-**Best For:** Regulatory compliance, real-time coordination
+### 📱 IoT Device Orchestration
+**Path:** `examples/iot/device_orchestration/`  
+**Use Case:** Smart home device coordination  
+**Steps:** Lock Doors → Thermostat Away → Lights Off → Arm Security → Notify  
+**Best For:** Multi-device coordination with safety rollback
 
 Example usage:
 ```python
-from examples.supply_chain_drone_delivery.main import SupplyChainDroneDeliverySaga
+from examples.iot.device_orchestration.main import IoTDeviceOrchestrationSaga
 
-saga = SupplyChainDroneDeliverySaga(
-    delivery_id="DEL-2026-001",
-    package_id="PKG-54321",
-    warehouse_id="WH-SF-01",
-    destination_lat=37.7899,
-    destination_lon=-122.3999,
-    package_weight_kg=2.5,
-    priority="standard",
-    simulate_failure=False
-)
+saga = IoTDeviceOrchestrationSaga()
 
-result = await saga.run({"delivery_id": saga.delivery_id})
+result = await saga.run({
+    "routine_id": "ROUTINE-001",
+    "home_id": "HOME-123",
+    "user_id": "USER-456",
+    "device_count": 100
+})
 ```
 
 ### ⚡ Smart Grid Energy Management
-**Directory:** `smart_grid_energy/`  
+**Path:** `examples/iot/smart_grid/`  
 **Use Case:** Demand response for grid stabilization  
 **Steps:** Forecast → Identify Participants → Send Requests → Monitor → Verify → Pay  
 **Best For:** Distributed resource coordination, real-time monitoring
 
 Example usage:
 ```python
-from examples.smart_grid_energy.main import SmartGridEnergySaga
+from examples.iot.smart_grid.main import SmartGridEnergySaga
 
-saga = SmartGridEnergySaga(
-    event_id="DR-2026-HEATWAVE-001",
-    grid_operator_id="GRID-CAISO",
-    target_reduction_mw=1.5,
-    event_duration_hours=4,
-    incentive_rate_per_kwh=0.15,
-    simulate_failure=False
-)
+saga = SmartGridEnergySaga()
 
-result = await saga.run({"event_id": saga.event_id})
+result = await saga.run({
+    "event_id": "DR-2026-HEATWAVE-001",
+    "grid_operator_id": "GRID-CAISO",
+    "target_reduction_mw": 1.5,
+    "event_duration_hours": 4,
+    "incentive_rate_per_kwh": 0.15
+})
+```
+
+### 🚁 Supply Chain Drone Delivery
+**Path:** `examples/logistics/drone_delivery/`  
+**Use Case:** Autonomous drone package delivery  
+**Steps:** Reserve Drone → Plan Path → Get FAA Auth → Pickup → Deliver → Return  
+**Best For:** Regulatory compliance, real-time coordination
+
+Example usage:
+```python
+from examples.logistics.drone_delivery.main import SupplyChainDroneDeliverySaga
+
+saga = SupplyChainDroneDeliverySaga()
+
+result = await saga.run({
+    "delivery_id": "DEL-2026-001",
+    "package_id": "PKG-54321",
+    "warehouse_id": "WH-SF-01",
+    "destination_lat": 37.7899,
+    "destination_lon": -122.3999,
+    "package_weight_kg": 2.5,
+    "priority": "standard"
+})
+```
+
+### 🤖 ML Training Pipeline
+**Path:** `examples/ml/training/`  
+**Use Case:** End-to-end ML pipeline with automatic rollback  
+**Steps:** Validation → Feature Engineering → Training → Evaluation → Deployment  
+**Best For:** Understanding MLOps integration patterns
+
+The `examples/ml/training/` directory contains three examples:
+1. **`main.py`** - Complete training pipeline
+2. **`model_deployment.py`** - Blue/green deployment
+3. **`feature_store.py`** - Feature engineering pipeline
+
+Example usage:
+```python
+from examples.ml.training.main import MLTrainingPipelineSaga
+
+saga = MLTrainingPipelineSaga()
+
+result = await saga.run({
+    "experiment_id": "exp-001",
+    "dataset_path": "/data/training/dataset.parquet",
+    "model_name": "churn-predictor",
+    "accuracy_threshold": 0.85,
+    "hyperparameters": {"learning_rate": 0.001, "epochs": 15}
+})
 ```
 
 ### 🤖 Edge Federated Learning
-**Directory:** `edge_federated_learning/`  
+**Path:** `examples/ml/federated_learning/`  
 **Use Case:** Privacy-preserving distributed ML training  
 **Steps:** Select Nodes → Distribute Weights → Train → Aggregate → Validate → Deploy  
 **Best For:** Privacy-preserving ML, partial participation handling
 
 Example usage:
 ```python
-from examples.edge_federated_learning.main import EdgeFederatedLearningSaga
+from examples.ml.federated_learning.main import EdgeFederatedLearningSaga
 
-saga = EdgeFederatedLearningSaga(
-    training_round_id="FL-ROUND-042",
-    model_name="user-behavior-predictor",
-    model_version="3.2.0",
-    target_accuracy=0.85,
-    min_participating_nodes=10,
-    training_rounds=5,
-    simulate_failure=False
-)
+saga = EdgeFederatedLearningSaga()
 
-result = await saga.run({"training_round_id": saga.training_round_id})
+result = await saga.run({
+    "training_round_id": "FL-ROUND-042",
+    "model_name": "user-behavior-predictor",
+    "model_version": "3.2.0",
+    "target_accuracy": 0.85,
+    "min_participating_nodes": 10,
+    "training_rounds": 5
+})
+```
+
+### 📊 Monitoring & Visualization
+**Path:** `examples/monitoring/`  
+**Use Case:** Saga metrics and visualization  
+
+- **`mermaid_demo.py`**: Generates Mermaid diagrams via `saga.to_mermaid()`
+- **`main.py`**: Monitoring orchestrator example
+
+Run the visualization demo:
+```bash
+python examples/monitoring/mermaid_demo.py
 ```
 
 ---
@@ -335,55 +313,54 @@ result = await saga.run({"training_round_id": saga.training_round_id})
 All examples use the modern **declarative approach** with decorators:
 
 ```python
-from sagaz import Saga, action, compensate
+from sagaz import Saga, SagaContext, action, compensate
 
 class OrderProcessingSaga(Saga):
+    """Stateless saga - all data passed through run() context."""
+    
     saga_name = "order-processing"
     
     @action("reserve_inventory")
-    async def reserve_inventory(self, ctx):
+    async def reserve_inventory(self, ctx: SagaContext):
+        # Get data from context
+        order_id = ctx.get("order_id")
+        items = ctx.get("items", [])
+        
         # Forward action logic
-        return {"reserved": True}
+        return {"reserved": True, "order_id": order_id}
     
     @compensate("reserve_inventory")
-    async def release_inventory(self, ctx):
-        # Compensation logic
-        pass
+    async def release_inventory(self, ctx: SagaContext):
+        # Compensation uses context data
+        order_id = ctx.get("order_id")
+        # Release logic here
     
     @action("process_payment", depends_on=["reserve_inventory"])
-    async def process_payment(self, ctx):
-        # This runs after reserve_inventory
-        return {"paid": True}
+    async def process_payment(self, ctx: SagaContext):
+        # Access data from previous steps and initial context
+        total_amount = ctx.get("total_amount")
+        return {"paid": True, "amount": total_amount}
 ```
 
-### Dependencies
-Use `depends_on` to create execution order:
+### Stateless Sagas (Recommended)
+
+**Best Practice:** Pass execution data through `run()`, not the constructor.
 
 ```python
-@action("step1")
-async def step1(self, ctx): pass
+# ✅ RECOMMENDED: Stateless saga, data via run()
+saga = OrderProcessingSaga()
+result1 = await saga.run({"order_id": "ORD-001", "amount": 99.99})
+result2 = await saga.run({"order_id": "ORD-002", "amount": 149.99})  # Reuse!
 
-@action("step2", depends_on=["step1"])
-async def step2(self, ctx): pass
-
-@action("step3", depends_on=["step2"])
-async def step3(self, ctx): pass
+# ❌ AVOID: Data in constructor (not reusable)
+saga = OrderProcessingSaga(order_id="ORD-001", amount=99.99)  # Single use
 ```
 
-### Automatic Compensation
-On failure, compensations run in **reverse order**:
-1. Execute: step1 → step2 → step3 (fails)
-2. Compensate: step2 → step1
-
-### Error Handling
-```python
-from sagaz.exceptions import SagaStepError
-
-@action("validate")
-async def validate(self, ctx):
-    if not valid:
-        raise SagaStepError("Validation failed")
-```
+**Benefits:**
+- ✅ **Reusable** - Same saga instance processes multiple requests
+- ✅ **Testable** - Easy to test with different inputs
+- ✅ **Serializable** - Context can be stored/restored
+- ✅ **Industry standard** - Aligns with Temporal, Step Functions, etc.
 
 ## 📊 Monitoring
 
@@ -403,35 +380,17 @@ Example output:
 [SAGA] Completed: order-processing (id=abc-123)
 ```
 
-## 🧪 Testing Examples
-
-Run the examples directly:
-
-```bash
-# Test order processing
-python examples/order_processing/main.py
-
-# Test payment processing
-python examples/payment_processing/main.py
-
-# Test travel booking
-python examples/travel_booking/main.py
-
-# Test trade execution
-python examples/trade_execution/main.py
-```
-
 ## 🔧 Customization
 
 ### Create Your Own Example
 
 1. **Create a new file:**
 ```bash
-mkdir -p examples/my_saga
-touch examples/my_saga/main.py
+mkdir -p examples/my_domain/my_saga
+touch examples/my_domain/my_saga/main.py
 ```
 
-2. **Implement your saga:**
+2. **Implement your saga (stateless pattern):**
 ```python
 """My Custom Saga Example"""
 
@@ -439,35 +398,39 @@ import asyncio
 import logging
 from typing import Any
 
-from sagaz import Saga, action, compensate
+from sagaz import Saga, SagaContext, action, compensate
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 class MySaga(Saga):
+    """Stateless saga - all data passed through run() context."""
+    
     saga_name = "my-saga"
     
-    def __init__(self, id: str):
-        super().__init__()
-        self.id = id
-    
     @action("step1")
-    async def step1(self, ctx: dict[str, Any]) -> dict[str, Any]:
-        logger.info(f"Executing step1 for {self.id}")
+    async def step1(self, ctx: SagaContext) -> dict[str, Any]:
+        entity_id = ctx.get("id")
+        logger.info(f"Executing step1 for {entity_id}")
         await asyncio.sleep(0.1)
-        return {"step1": "done"}
+        return {"step1": "done", "id": entity_id}
     
     @compensate("step1")
-    async def undo_step1(self, ctx: dict[str, Any]) -> None:
-        logger.warning(f"Compensating step1 for {self.id}")
+    async def undo_step1(self, ctx: SagaContext) -> None:
+        entity_id = ctx.get("id")
+        logger.warning(f"Compensating step1 for {entity_id}")
         await asyncio.sleep(0.1)
 
 
 async def main():
     print("My Saga Demo")
-    saga = MySaga(id="TEST-123")
-    result = await saga.run({"id": saga.id})
+    
+    # Create reusable saga
+    saga = MySaga()
+    
+    # Run with different data
+    result = await saga.run({"id": "TEST-123", "value": 100})
     print(f"✅ Result: {result.get('saga_id')}")
 
 
@@ -477,12 +440,13 @@ if __name__ == "__main__":
 
 3. **Run your saga:**
 ```bash
-python examples/my_saga/main.py
+python examples/my_domain/my_saga/main.py
 ```
 
 ## 💡 Best Practices
 
 These examples demonstrate:
+- ✅ **Stateless sagas** - Data passed through `run()`, not constructor
 - ✅ **Single file per saga** - Each example in one `main.py` file
 - ✅ **Declarative pattern** - Using `@action` and `@compensate` decorators
 - ✅ **Proper entrypoints** - All examples have `if __name__ == "__main__":`
@@ -495,48 +459,20 @@ These examples demonstrate:
 ## 📚 Learning Path
 
 ### Basic Patterns
-1. **Start:** `order_processing/` - Simplest workflow (4 steps)
-2. **Intermediate:** `payment_processing/` - Provider fallback patterns
-3. **Advanced:** `travel_booking/` - Multi-service orchestration
-4. **Expert:** `trade_execution/` - Financial system with strict compensations
+1. **Start:** `examples/ecommerce/order_processing/` - Simplest workflow (4 steps)
+2. **Intermediate:** `examples/fintech/payment_processing/` - Provider fallback patterns
+3. **Advanced:** `examples/travel/booking/` - Multi-service orchestration
+4. **Expert:** `examples/fintech/trade_execution/` - Financial system with strict compensations
 
 ### Production Use Cases
-5. **MLOps:** `ml_training/` - Real-world ML pipeline patterns
-6. **IoT:** `iot_device_orchestration/` - Multi-device coordination (100+ devices)
-7. **Healthcare:** `healthcare_patient_onboarding/` - HIPAA compliance & audit trails
-8. **Supply Chain:** `supply_chain_drone_delivery/` - Regulatory compliance (FAA)
-9. **Energy:** `smart_grid_energy/` - Distributed resource management
-10. **AI/ML:** `edge_federated_learning/` - Privacy-preserving distributed training
+5. **MLOps:** `examples/ml/training/` - Real-world ML pipeline patterns
+6. **IoT:** `examples/iot/device_orchestration/` - Multi-device coordination (100+ devices)
+7. **Healthcare:** `examples/healthcare/patient_onboarding/` - HIPAA compliance & audit trails
+8. **Supply Chain:** `examples/logistics/drone_delivery/` - Regulatory compliance (FAA)
+9. **Energy:** `examples/iot/smart_grid/` - Distributed resource management
+10. **AI/ML:** `examples/ml/federated_learning/` - Privacy-preserving distributed training
 
 Each example builds on the previous one, introducing new concepts progressively.
-
-### By Industry
-
-**E-commerce/Retail**
-- `order_processing/` - Order fulfillment
-- `payment_processing/` - Payment gateway integration
-
-**Travel & Hospitality**
-- `travel_booking/` - Multi-service booking
-
-**Finance**
-- `trade_execution/` - Trading systems
-
-**Technology & AI**
-- `ml_training/` - MLOps pipelines
-- `edge_federated_learning/` - Distributed ML
-
-**Healthcare**
-- `healthcare_patient_onboarding/` - Patient registration
-
-**IoT & Smart Home**
-- `iot_device_orchestration/` - Device automation
-
-**Logistics & Supply Chain**
-- `supply_chain_drone_delivery/` - Autonomous delivery
-
-**Energy & Utilities**
-- `smart_grid_energy/` - Grid management
 
 ## 🐛 Troubleshooting
 
@@ -566,8 +502,8 @@ pip install -r requirements.txt
 - [Main README](../README.md) - Project overview
 - [Saga Class](../sagaz/decorators.py) - Declarative API implementation
 - [Action/Compensate Decorators](../sagaz/decorators.py) - Decorator details
-- [Configuration](../docs/configuration.md) - Global configuration
-- [Monitoring](../docs/monitoring.md) - Observability integration
+- [Configuration](../docs/guides/configuration.md) - Global configuration
+- [Patterns](../docs/patterns/) - Implementation patterns
 
 ---
 
