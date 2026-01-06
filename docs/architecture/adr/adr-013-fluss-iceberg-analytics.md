@@ -2,7 +2,15 @@
 
 ## Status
 
-**Proposed** | Date: 2026-01-05 | Priority: Medium | Target: Q3 2026
+**Proposed** | Date: 2026-01-05 | Priority: Low | Target: Future
+
+## Dependencies
+
+**Prerequisites**:
+- ADR-021: Context Streaming (streaming data pipelines)
+- ADR-025: Event Triggers (consume analytics events)
+
+**Roadmap**: **Phase 5 (Future/Optional)** - Only for real-time analytics use cases
 
 ## Context
 

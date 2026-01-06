@@ -2,7 +2,17 @@
 
 ## Status
 
-**Proposed** | Date: 2026-01-05 | Priority: High | Target: Q2 2026
+**Proposed** | Date: 2026-01-05 | Priority: Low | Target: Future
+
+## Dependencies
+
+**Prerequisites**:
+- ADR-016: Unified Storage Layer (needs unified PostgreSQL backend)
+
+**Synergies**:
+- ADR-025: Event Triggers (CDC events can trigger sagas)
+
+**Roadmap**: **Phase 5 (Future/Optional)** - Only for 50K+ events/sec throughput
 
 ## Context
 

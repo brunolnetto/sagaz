@@ -1,8 +1,19 @@
-# ADR-016: Saga Replay & Time-Travel
+# ADR-024: Saga Replay & Time-Travel
 
 ## Status
 
-**Proposed** | Date: 2026-01-05 | Priority: Medium | Target: Q3 2026
+**Proposed** | Date: 2026-01-05 | Priority: Medium | Target: v2.0.0
+
+## Dependencies
+
+**Prerequisites**:
+- ADR-016: Unified Storage Layer (needs state snapshots)
+
+**Synergies**:
+- ADR-018: Saga Versioning (replay across versions)
+- ADR-019: Dry Run Mode (use replay for testing)
+
+**Roadmap**: **Phase 4 (v2.0.0)** - Advanced debugging and compliance
 
 ## Context
 

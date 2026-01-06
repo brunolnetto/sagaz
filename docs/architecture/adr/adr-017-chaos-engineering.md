@@ -2,7 +2,18 @@
 
 ## Status
 
-**Proposed** | Date: 2025-01-01
+**Proposed** | Date: 2025-01-01 | Target: v1.4.0
+
+## Dependencies
+
+**Prerequisites**: None (independent feature)
+
+**Synergies**:
+- ADR-019: Dry Run Mode (complement testing strategies)
+- ADR-020: Multi-Tenancy (tenant-specific chaos testing)
+- ADR-023: Pivot Steps (test forward recovery)
+
+**Roadmap**: **Phase 3 (v1.4.0)** - Testing and reliability tool
 
 ## Context
 

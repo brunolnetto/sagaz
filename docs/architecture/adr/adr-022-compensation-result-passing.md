@@ -5,6 +5,15 @@
 **Updated:** 2026-01-01 (Architectural Refinement)
 **Deciders:** Sagaz Core Team
 
+## Dependencies
+
+**Prerequisites**: None (independent feature)
+
+**Enables**:
+- ADR-023: Pivot/Irreversible Steps (forward recovery needs compensation context)
+
+**Roadmap**: ⭐ **Phase 1 (v1.2.0)** - Foundation for pivot steps
+
 ## Context
 
 The saga pattern implementation had separate concerns for forward execution and compensation that led to architectural questions:

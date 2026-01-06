@@ -2,7 +2,18 @@
 
 ## Status
 
-**Proposed** | Date: 2025-01-01
+**Proposed** | Date: 2025-01-01 | Target: v2.0.0
+
+## Dependencies
+
+**Prerequisites**:
+- ADR-024: Saga Replay (optional - replay across versions)
+
+**Synergies**:
+- Blue-green deployments
+- Zero-downtime version upgrades
+
+**Roadmap**: **Phase 4 (v2.0.0)** - Enterprise production feature
 
 ## Context
 
