@@ -3,6 +3,7 @@ IoT Device Orchestration Saga Example
 
 Demonstrates smart home "Leaving Home" routine orchestrating 100+ devices
 with multi-device coordination, automatic rollback, and safe state maintenance.
+Data is passed through the run() method's initial context, not the constructor.
 """
 
 import asyncio
@@ -20,29 +21,27 @@ logger = logging.getLogger(__name__)
 
 
 class IoTDeviceOrchestrationSaga(Saga):
-    """Smart home 'Leaving Home' routine with multi-device coordination."""
+    """
+    Smart home 'Leaving Home' routine with multi-device coordination.
+    
+    This saga is stateless - all data is passed through the context via the run() method.
+    
+    Expected context:
+        - routine_id: str
+        - home_id: str
+        - user_id: str
+        - device_count: int
+        - simulate_failure: bool (optional)
+    """
 
     saga_name = "iot-device-orchestration"
-
-    def __init__(
-        self,
-        routine_id: str,
-        home_id: str,
-        user_id: str,
-        device_count: int = 100,
-        simulate_failure: bool = False,
-    ):
-        super().__init__()
-        self.routine_id = routine_id
-        self.home_id = home_id
-        self.user_id = user_id
-        self.device_count = device_count
-        self.simulate_failure = simulate_failure
 
     @action("lock_doors")
     async def lock_doors(self, ctx: SagaContext) -> dict[str, Any]:
         """Lock all doors using Z-Wave protocol."""
-        logger.info(f"🚪 Locking all doors for home {self.home_id}")
+        home_id = ctx.get("home_id")
+        
+        logger.info(f"🚪 Locking all doors for home {home_id}")
         await asyncio.sleep(0.15)
 
         # Simulate Z-Wave protocol communication
@@ -61,7 +60,8 @@ class IoTDeviceOrchestrationSaga(Saga):
     @compensate("lock_doors")
     async def unlock_doors(self, ctx: SagaContext) -> None:
         """Unlock doors on failure for safety (emergency access)."""
-        logger.warning(f"🔓 EMERGENCY: Unlocking doors for home {self.home_id}")
+        home_id = ctx.get("home_id")
+        logger.warning(f"🔓 EMERGENCY: Unlocking doors for home {home_id}")
 
         locked_doors = ctx.get("locked_doors", [])
         for door in locked_doors:
@@ -72,7 +72,9 @@ class IoTDeviceOrchestrationSaga(Saga):
     @action("set_thermostat_away", depends_on=["lock_doors"])
     async def set_thermostat_away(self, ctx: SagaContext) -> dict[str, Any]:
         """Set thermostat to away mode (energy saving)."""
-        logger.info(f"🌡️  Setting thermostat to away mode for home {self.home_id}")
+        home_id = ctx.get("home_id")
+        
+        logger.info(f"🌡️  Setting thermostat to away mode for home {home_id}")
         await asyncio.sleep(0.1)
 
         # Simulate thermostat configuration
@@ -90,7 +92,8 @@ class IoTDeviceOrchestrationSaga(Saga):
     @compensate("set_thermostat_away")
     async def restore_thermostat(self, ctx: SagaContext) -> None:
         """Restore thermostat to previous comfortable temperature."""
-        logger.warning(f"🌡️  Restoring thermostat for home {self.home_id}")
+        home_id = ctx.get("home_id")
+        logger.warning(f"🌡️  Restoring thermostat for home {home_id}")
 
         previous_temp = ctx.get("previous_temp", 72)
         device_id = ctx.get("device_id", "THERM-MAIN")
@@ -101,7 +104,11 @@ class IoTDeviceOrchestrationSaga(Saga):
     @action("turn_off_lights", depends_on=["set_thermostat_away"])
     async def turn_off_lights(self, ctx: SagaContext) -> dict[str, Any]:
         """Turn off all lights to save energy."""
-        logger.info(f"💡 Turning off all lights for home {self.home_id}")
+        home_id = ctx.get("home_id")
+        device_count = ctx.get("device_count", 100)
+        simulate_failure = ctx.get("simulate_failure", False)
+        
+        logger.info(f"💡 Turning off all lights for home {home_id}")
         await asyncio.sleep(0.2)
 
         # Simulate controlling many smart bulbs/switches
@@ -113,10 +120,10 @@ class IoTDeviceOrchestrationSaga(Saga):
                 "previous_state": "on" if i % 3 != 0 else "dimmed",
                 "brightness": 0,
             }
-            for i in range(1, self.device_count + 1)
+            for i in range(1, device_count + 1)
         ]
 
-        if self.simulate_failure:
+        if simulate_failure:
             raise SagaStepError("Communication failure with lighting controller hub")
 
         logger.info(f"   ✅ Turned off {len(lights_off)} lights")
@@ -125,7 +132,8 @@ class IoTDeviceOrchestrationSaga(Saga):
     @compensate("turn_off_lights")
     async def restore_lights(self, ctx: SagaContext) -> None:
         """Restore previous lighting state for safety."""
-        logger.warning(f"💡 Restoring lights for home {self.home_id}")
+        home_id = ctx.get("home_id")
+        logger.warning(f"💡 Restoring lights for home {home_id}")
 
         lights = ctx.get("lights", [])
         for light in lights[:5]:  # Log first 5
@@ -137,7 +145,10 @@ class IoTDeviceOrchestrationSaga(Saga):
     @action("arm_security_system", depends_on=["turn_off_lights"])
     async def arm_security_system(self, ctx: SagaContext) -> dict[str, Any]:
         """Arm security system with motion detection."""
-        logger.info(f"🔐 Arming security system for home {self.home_id}")
+        home_id = ctx.get("home_id")
+        routine_id = ctx.get("routine_id")
+        
+        logger.info(f"🔐 Arming security system for home {home_id}")
         await asyncio.sleep(0.15)
 
         security_config = {
@@ -145,7 +156,7 @@ class IoTDeviceOrchestrationSaga(Saga):
             "mode": "away",
             "sensors_active": ["motion", "door", "window", "glass_break"],
             "armed_zones": list(range(1, 11)),  # 10 zones
-            "alarm_code": f"ARM-{self.routine_id}",
+            "alarm_code": f"ARM-{routine_id}",
         }
 
         logger.info(f"   ✅ Security armed with {len(security_config['sensors_active'])} sensor types")
@@ -154,7 +165,8 @@ class IoTDeviceOrchestrationSaga(Saga):
     @compensate("arm_security_system")
     async def disarm_security_system(self, ctx: SagaContext) -> None:
         """Disarm security system to prevent false alarms."""
-        logger.warning(f"🔓 Disarming security system for home {self.home_id}")
+        home_id = ctx.get("home_id")
+        logger.warning(f"🔓 Disarming security system for home {home_id}")
 
         system_id = ctx.get("system_id", "SEC-MAIN")
         logger.info(f"   Disarming {system_id}")
@@ -164,13 +176,17 @@ class IoTDeviceOrchestrationSaga(Saga):
     @action("send_notification", depends_on=["arm_security_system"])
     async def send_notification(self, ctx: SagaContext) -> dict[str, Any]:
         """Send confirmation notification to homeowner (idempotent)."""
-        logger.info(f"📱 Sending notification to user {self.user_id}")
+        user_id = ctx.get("user_id")
+        home_id = ctx.get("home_id")
+        device_count = ctx.get("device_count", 0)
+        
+        logger.info(f"📱 Sending notification to user {user_id}")
         await asyncio.sleep(0.05)
 
         notification = {
-            "user_id": self.user_id,
+            "user_id": user_id,
             "title": "🏠 Leaving Home Complete",
-            "message": f"All {self.device_count}+ devices secured. Home {self.home_id} is safe.",
+            "message": f"All {device_count}+ devices secured. Home {home_id} is safe.",
             "channels": ["push", "email"],
         }
 
@@ -184,45 +200,48 @@ async def main():
     print("IoT Device Orchestration Saga Demo - Smart Home 'Leaving Home' Routine")
     print("=" * 80)
 
+    # Reusable saga instance
+    saga = IoTDeviceOrchestrationSaga()
+
     # Scenario 1: Successful execution
     print("\n🟢 Scenario 1: Successful Leaving Home Routine")
     print("-" * 80)
 
-    saga_success = IoTDeviceOrchestrationSaga(
-        routine_id="ROUTINE-001",
-        home_id="HOME-123",
-        user_id="USER-456",
-        device_count=100,
-        simulate_failure=False,
-    )
+    success_data = {
+        "routine_id": "ROUTINE-001",
+        "home_id": "HOME-123",
+        "user_id": "USER-456",
+        "device_count": 100,
+        "simulate_failure": False,
+    }
 
-    result_success = await saga_success.run({"routine_id": saga_success.routine_id})
+    result_success = await saga.run(success_data)
 
     print(f"\n{'✅' if result_success.get('saga_id') else '❌'} Leaving Home Routine Result:")
     print(f"   Saga ID: {result_success.get('saga_id')}")
     print(f"   Routine ID: {result_success.get('routine_id')}")
-    print(f"   Status: All {saga_success.device_count} devices secured")
+    print(f"   Status: All {success_data['device_count']} devices secured")
 
     # Scenario 2: Failure with automatic rollback
     print("\n\n🔴 Scenario 2: Device Failure with Automatic Rollback")
     print("-" * 80)
 
-    saga_failure = IoTDeviceOrchestrationSaga(
-        routine_id="ROUTINE-002",
-        home_id="HOME-123",
-        user_id="USER-456",
-        device_count=100,
-        simulate_failure=True,  # Simulate failure at lights step
-    )
+    failure_data = {
+        "routine_id": "ROUTINE-002",
+        "home_id": "HOME-123",
+        "user_id": "USER-456",
+        "device_count": 100,
+        "simulate_failure": True,  # Simulate failure at lights step
+    }
 
     try:
-        result_failure = await saga_failure.run({"routine_id": saga_failure.routine_id})
+        result_failure = await saga.run(failure_data)
     except Exception:
         result_failure = {}
 
     print(f"\n{'❌' if not result_failure.get('saga_id') else '✅'} Rollback Result:")
     print(f"   Saga ID: {result_failure.get('saga_id', 'N/A')}")
-    print(f"   Routine ID: {saga_failure.routine_id}")
+    print(f"   Routine ID: {failure_data['routine_id']}")
     print("   Status: Failed and rolled back - home returned to safe state")
     print("   Safety: Doors unlocked, thermostat restored for occupant comfort")
 

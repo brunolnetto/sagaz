@@ -4,6 +4,7 @@ Feature Store Pipeline Saga
 Demonstrates feature engineering pipeline with transactional guarantees.
 Shows how to handle data ingestion, transformation, validation, and publishing
 to a feature store with automatic cleanup on failure.
+Data is passed through the run() method's initial context, not the constructor.
 """
 
 import asyncio
@@ -26,68 +27,27 @@ class FeatureStoreSaga(Saga):
     """
     Feature engineering pipeline with transactional semantics.
     
-    Pipeline Flow:
-    1. Data Ingestion - Extract data from data lake
-    2. Feature Computation - Transform and compute features
-    3. Feature Validation - Validate schema and data quality
-    4. Feature Store Publish - Atomically publish to feature store
+    This saga is stateless - all pipeline configuration is passed through the context
+    via the run() method.
     
-    Ensures data consistency with automatic compensation on failures.
+    Expected context:
+        - feature_group_name: str
+        - data_source: str
+        - feature_definitions: list[dict]
+        - validation_rules: dict (optional)
+        - target_store: str (optional, default "feast")
     """
 
     saga_name = "feature-store-pipeline"
 
-    def __init__(
-        self,
-        feature_group_name: str,
-        data_source: str,
-        feature_definitions: list[dict[str, Any]],
-        validation_rules: dict[str, Any] | None = None,
-        target_store: str = "feast",
-    ):
-        """
-        Initialize feature store pipeline.
-        
-        Args:
-            feature_group_name: Name of feature group to create/update
-            data_source: Path to raw data (S3, BigQuery, etc.)
-            feature_definitions: List of feature specifications
-            validation_rules: Data quality rules (schema, ranges, etc.)
-            target_store: Feature store backend (feast, tecton, etc.)
-        """
-        super().__init__()
-        self.feature_group_name = feature_group_name
-        self.data_source = data_source
-        self.feature_definitions = feature_definitions
-        self.validation_rules = validation_rules or {
-            "null_threshold": 0.1,
-            "unique_threshold": 0.01,
-            "schema_validation": True,
-        }
-        self.target_store = target_store
-
     @action("ingest_data")
     async def ingest_data(self, ctx: dict[str, Any]) -> dict[str, Any]:
-        """
-        Ingest raw data from data lake.
+        """Ingest raw data from data lake."""
+        data_source = ctx.get("data_source")
+        feature_group_name = ctx.get("feature_group_name")
         
-        Data Sources:
-        - S3/GCS object storage
-        - Data warehouse (Snowflake, BigQuery)
-        - Streaming (Kafka, Kinesis)
-        - Database (PostgreSQL, MySQL)
-        
-        Processing:
-        - Incremental ingestion with watermarks
-        - Partitioning by date/entity
-        - Deduplication
-        - Schema inference
-        
-        Returns:
-            Ingested data metadata and staging location
-        """
-        logger.info(f"📥 Ingesting data from: {self.data_source}")
-        logger.info(f"Feature group: {self.feature_group_name}")
+        logger.info(f"📥 Ingesting data from: {data_source}")
+        logger.info(f"Feature group: {feature_group_name}")
 
         await asyncio.sleep(0.3)  # Simulate data extraction
 
@@ -97,7 +57,7 @@ class FeatureStoreSaga(Saga):
         data_size_mb = random.uniform(10.0, 1000.0)
 
         # Create staging area
-        staging_location = f"s3://feature-staging/{self.feature_group_name}/{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        staging_location = f"s3://feature-staging/{feature_group_name}/{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
         logger.info("✅ Data ingested successfully")
         logger.info(f"Records: {records_ingested:,}")
@@ -127,39 +87,22 @@ class FeatureStoreSaga(Saga):
 
     @action("compute_features", depends_on=["ingest_data"])
     async def compute_features(self, ctx: dict[str, Any]) -> dict[str, Any]:
-        """
-        Compute features from raw data.
-        
-        Feature Types:
-        - Aggregations (sum, mean, count, etc.)
-        - Time windows (1h, 24h, 7d, 30d)
-        - Ratios and percentages
-        - Embeddings and encodings
-        - Statistical features (std, percentiles)
-        
-        Optimization:
-        - Parallel computation with Spark/Dask
-        - Incremental updates
-        - Caching intermediate results
-        - GPU acceleration for embeddings
-        
-        Returns:
-            Computed feature metadata and storage location
-        """
-        staging_location = ctx.get("staging_location")
+        """Compute features from raw data."""
+        feature_group_name = ctx.get("feature_group_name")
         records_ingested = ctx.get("records_ingested", 0)
+        feature_definitions = ctx.get("feature_definitions", [])
 
         logger.info(f"⚙️ Computing features for {records_ingested:,} records")
-        logger.info(f"Feature definitions: {len(self.feature_definitions)}")
+        logger.info(f"Feature definitions: {len(feature_definitions)}")
 
         # Simulate feature computation (can be parallelized)
         computed_features = []
 
-        for i, feature_def in enumerate(self.feature_definitions):
+        for i, feature_def in enumerate(feature_definitions):
             feature_name = feature_def.get("name", f"feature_{i}")
             feature_type = feature_def.get("type", "numeric")
 
-            logger.info(f"Computing feature [{i+1}/{len(self.feature_definitions)}]: {feature_name} ({feature_type})")
+            logger.info(f"Computing feature [{i+1}/{len(feature_definitions)}]: {feature_name} ({feature_type})")
             await asyncio.sleep(0.1)  # Simulate computation
 
             # Simulate feature statistics
@@ -180,7 +123,7 @@ class FeatureStoreSaga(Saga):
             })
 
         # Save computed features
-        feature_location = f"s3://feature-computed/{self.feature_group_name}/{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        feature_location = f"s3://feature-computed/{feature_group_name}/{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
         logger.info("✅ Feature computation complete")
         logger.info(f"Features computed: {len(computed_features)}")
@@ -207,29 +150,17 @@ class FeatureStoreSaga(Saga):
 
     @action("validate_features", depends_on=["compute_features"])
     async def validate_features(self, ctx: dict[str, Any]) -> dict[str, Any]:
-        """
-        Validate feature data quality.
-        
-        Validation Checks:
-        - Schema compliance
-        - Data type validation
-        - Null value thresholds
-        - Value range checks
-        - Statistical outlier detection
-        - Duplicate detection
-        - Temporal consistency
-        
-        Raises:
-            SagaStepError: If validation fails critical checks
-        
-        Returns:
-            Validation results and quality metrics
-        """
+        """Validate feature data quality."""
         computed_features = ctx.get("computed_features", [])
         records_ingested = ctx.get("records_ingested", 0)
+        validation_rules = ctx.get("validation_rules") or {
+            "null_threshold": 0.1,
+            "unique_threshold": 0.01,
+            "schema_validation": True,
+        }
 
         logger.info(f"✅ Validating {len(computed_features)} features")
-        logger.info(f"Validation rules: {self.validation_rules}")
+        logger.info(f"Validation rules: {validation_rules}")
 
         validation_results = []
         failed_validations = []
@@ -240,13 +171,13 @@ class FeatureStoreSaga(Saga):
             null_ratio = null_count / records_ingested if records_ingested > 0 else 0
 
             # Check null threshold
-            null_threshold = self.validation_rules.get("null_threshold", 0.1)
+            null_threshold = validation_rules.get("null_threshold", 0.1)
             null_check_passed = null_ratio <= null_threshold
 
             # Check uniqueness
             unique_values = feature.get("unique_values", 0)
             unique_ratio = unique_values / records_ingested if records_ingested > 0 else 0
-            unique_threshold = self.validation_rules.get("unique_threshold", 0.01)
+            unique_threshold = validation_rules.get("unique_threshold", 0.01)
             unique_check_passed = unique_ratio >= unique_threshold
 
             # Schema validation
@@ -292,32 +223,15 @@ class FeatureStoreSaga(Saga):
 
     @action("publish_to_feature_store", depends_on=["validate_features"])
     async def publish_to_feature_store(self, ctx: dict[str, Any]) -> dict[str, Any]:
-        """
-        Atomically publish features to feature store.
-        
-        Feature Store Operations:
-        - Create/update feature group
-        - Write feature values
-        - Update metadata catalog
-        - Register feature lineage
-        - Create feature views
-        - Update serving layer
-        
-        Transactional Guarantees:
-        - All-or-nothing publish
-        - Version control
-        - Rollback on partial failure
-        - Consistency across online/offline stores
-        
-        Returns:
-            Feature store publish metadata
-        """
-        feature_location = ctx.get("feature_location")
+        """Atomically publish features to feature store."""
+        feature_group_name = ctx.get("feature_group_name")
         feature_count = ctx.get("feature_count", 0)
         records_ingested = ctx.get("records_ingested", 0)
+        target_store = ctx.get("target_store", "feast")
+        data_source = ctx.get("data_source")
 
-        logger.info(f"📤 Publishing to {self.target_store} feature store")
-        logger.info(f"Feature group: {self.feature_group_name}")
+        logger.info(f"📤 Publishing to {target_store} feature store")
+        logger.info(f"Feature group: {feature_group_name}")
         logger.info(f"Features: {feature_count}")
         logger.info(f"Records: {records_ingested:,}")
 
@@ -342,7 +256,7 @@ class FeatureStoreSaga(Saga):
 
         # Register lineage
         lineage_info = {
-            "source": self.data_source,
+            "source": data_source,
             "ingestion_timestamp": ctx.get("ingestion_timestamp"),
             "computation_timestamp": ctx.get("computation_timestamp"),
             "validation_timestamp": ctx.get("validation_timestamp"),
@@ -350,7 +264,7 @@ class FeatureStoreSaga(Saga):
         }
 
         logger.info("✅ Features published successfully")
-        logger.info(f"Feature group: {self.feature_group_name} v{feature_group_version}")
+        logger.info(f"Feature group: {feature_group_name} v{feature_group_version}")
         logger.info(f"Commit ID: {commit_id}")
 
         return {
@@ -366,20 +280,10 @@ class FeatureStoreSaga(Saga):
 
     @compensate("publish_to_feature_store")
     async def rollback_feature_store(self, ctx: dict[str, Any]) -> None:
-        """
-        Rollback feature store changes.
-        
-        Rollback Operations:
-        - Revert feature group to previous version
-        - Clear new feature values
-        - Restore previous metadata
-        - Remove lineage entries
-        - Invalidate caches
-        """
+        """Rollback feature store changes."""
         logger.warning("⏪ Rolling back feature store changes")
 
         commit_id = ctx.get("commit_id")
-        feature_group_version = ctx.get("feature_group_version")
 
         if commit_id:
             logger.info(f"Reverting commit: {commit_id}")
@@ -407,6 +311,9 @@ async def successful_pipeline_demo():
     print("\n" + "=" * 80)
     print("📊 Feature Store Pipeline - Successful Feature Publishing Demo")
     print("=" * 80)
+    
+    # Reusable saga instance
+    saga = FeatureStoreSaga()
 
     feature_definitions = [
         {"name": "user_age", "type": "numeric"},
@@ -418,24 +325,25 @@ async def successful_pipeline_demo():
         {"name": "engagement_score", "type": "numeric"},
         {"name": "churn_probability", "type": "numeric"},
     ]
-
-    saga = FeatureStoreSaga(
-        feature_group_name="customer_features",
-        data_source="s3://data-lake/raw/customers/2024-01-15/",
-        feature_definitions=feature_definitions,
-        validation_rules={
+    
+    pipeline_data = {
+        "feature_group_name": "customer_features",
+        "data_source": "s3://data-lake/raw/customers/2024-01-15/",
+        "feature_definitions": feature_definitions,
+        "validation_rules": {
             "null_threshold": 0.15,
             "unique_threshold": 0.005,
             "schema_validation": True,
         },
-        target_store="feast",
-    )
+        "target_store": "feast",
+        "pipeline_id": f"pipeline-{datetime.now().strftime('%Y%m%d')}"
+    }
 
-    result = await saga.run({"pipeline_id": f"pipeline-{datetime.now().strftime('%Y%m%d')}"})
+    result = await saga.run(pipeline_data)
 
     print(f"\n{'✅' if result.get('saga_id') else '❌'} Feature Pipeline Result:")
     print(f"   Saga ID:               {result.get('saga_id')}")
-    print(f"   Feature Group:         {saga.feature_group_name}")
+    print(f"   Feature Group:         {pipeline_data['feature_group_name']}")
     print(f"   Version:               v{result.get('feature_group_version')}")
     print(f"   Records Ingested:      {result.get('records_ingested', 0):,}")
     print(f"   Features Computed:     {result.get('feature_count')}")
@@ -458,20 +366,23 @@ async def failed_pipeline_demo():
         {"name": "feature_3", "type": "categorical"},
     ]
 
-    saga = FeatureStoreSaga(
-        feature_group_name="experimental_features",
-        data_source="s3://data-lake/raw/experiments/2024-01-15/",
-        feature_definitions=feature_definitions,
-        validation_rules={
+    saga = FeatureStoreSaga()
+    
+    pipeline_data = {
+        "feature_group_name": "experimental_features",
+        "data_source": "s3://data-lake/raw/experiments/2024-01-15/",
+        "feature_definitions": feature_definitions,
+        "validation_rules": {
             "null_threshold": 0.001,  # Very strict - 0.1% max nulls
             "unique_threshold": 0.1,   # Require high uniqueness
             "schema_validation": True,
         },
-        target_store="tecton",
-    )
+        "target_store": "tecton",
+        "pipeline_id": f"pipeline-exp-{datetime.now().strftime('%Y%m%d')}"
+    }
 
     try:
-        result = await saga.run({"pipeline_id": f"pipeline-exp-{datetime.now().strftime('%Y%m%d')}"})
+        result = await saga.run(pipeline_data)
         print(f"✅ Unexpectedly succeeded: {result.get('saga_id')}")
         print("   (Validation rules were lenient enough to pass)")
     except SagaStepError as e:
