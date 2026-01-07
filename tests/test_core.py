@@ -19,8 +19,6 @@ import time
 import pytest
 
 from sagaz import (
-    ClassicSaga,
-    DAGSaga,
     ParallelFailureStrategy,
     SagaContext,
     SagaExecutionError,
@@ -29,9 +27,8 @@ from sagaz import (
     SagaStatus,
     SagaTimeoutError,
 )
+from sagaz.core import Saga
 
-# Alias for backward compatibility in tests
-Saga = ClassicSaga
 
 
 # ============================================
@@ -57,7 +54,7 @@ async def simple_saga():
     return SimpleSaga("SimpleSaga")
 
 
-class SimpleSaga(ClassicSaga):
+class SimpleSaga(Saga):
     """Simple saga for testing (renamed from TestSaga to avoid pytest collection warning)"""
 
     def __init__(self, name: str = "TestSaga", retry_backoff_base: float = 0.01, **kwargs):
@@ -851,13 +848,13 @@ class TestOrchestrator:
 # ============================================
 
 
-class TestDAGSaga:
+class TestSaga:
     """Test DAG Saga functionality"""
 
     @pytest.mark.asyncio
     async def test_dag_saga_initialization(self):
         """Test DAG saga initializes correctly"""
-        saga = DAGSaga("TestDAG")
+        saga = Saga("TestDAG")
 
         assert saga.name == "TestDAG"
         assert saga.failure_strategy == ParallelFailureStrategy.FAIL_FAST_WITH_GRACE
@@ -866,7 +863,7 @@ class TestDAGSaga:
     @pytest.mark.asyncio
     async def test_add_dag_step_without_dependencies(self):
         """Test adding DAG step without dependencies"""
-        saga = DAGSaga()
+        saga = Saga()
 
         await saga.add_step("step1", lambda ctx: "result", dependencies=set())
 
@@ -877,7 +874,7 @@ class TestDAGSaga:
     @pytest.mark.asyncio
     async def test_add_dag_step_with_dependencies(self):
         """Test adding DAG step with dependencies"""
-        saga = DAGSaga()
+        saga = Saga()
 
         await saga.add_step("step1", lambda ctx: "result", dependencies=set())
         await saga.add_step("step2", lambda ctx: "result", dependencies={"step1"})
@@ -887,7 +884,7 @@ class TestDAGSaga:
     @pytest.mark.asyncio
     async def test_invalid_dependency_raises_error(self):
         """Test adding step with nonexistent dependency raises error"""
-        saga = DAGSaga()
+        saga = Saga()
 
         # Should fail during execution when dependency validation happens
         await saga.add_step("step1", lambda ctx: "result", dependencies={"nonexistent"})
@@ -899,7 +896,7 @@ class TestDAGSaga:
     @pytest.mark.asyncio
     async def test_compute_execution_order(self):
         """Test computation of execution order (topological sort)"""
-        saga = DAGSaga()
+        saga = Saga()
 
         await saga.add_step("step1", lambda ctx: "r", dependencies=set())
         await saga.add_step("step2", lambda ctx: "r", dependencies={"step1"})
@@ -918,7 +915,7 @@ class TestDAGSaga:
     @pytest.mark.asyncio
     async def test_circular_dependency_detected(self):
         """Test circular dependency detection"""
-        saga = DAGSaga()
+        saga = Saga()
 
         await saga.add_step("step1", lambda ctx: "r", dependencies={"step2"})
         await saga.add_step("step2", lambda ctx: "r", dependencies={"step1"})
@@ -949,7 +946,7 @@ class TestDAGSaga:
         seq_time = time.time() - start
 
         # Parallel DAG saga
-        dag_saga = DAGSaga("Parallel")
+        dag_saga = Saga("Parallel")
 
         async def validate_step(ctx):
             return "r"
@@ -988,7 +985,7 @@ class TestParallelFailureStrategies:
     @pytest.mark.asyncio
     async def test_fail_fast_cancels_other_tasks(self):
         """Test FAIL_FAST cancels remaining tasks immediately"""
-        saga = DAGSaga("FailFast", failure_strategy=ParallelFailureStrategy.FAIL_FAST)
+        saga = Saga("FailFast", failure_strategy=ParallelFailureStrategy.FAIL_FAST)
         completed = []
 
         async def fast_success(ctx):
@@ -1027,7 +1024,7 @@ class TestParallelFailureStrategies:
     @pytest.mark.asyncio
     async def test_wait_all_lets_all_finish(self):
         """Test WAIT_ALL lets all tasks finish despite failures"""
-        saga = DAGSaga("WaitAll", failure_strategy=ParallelFailureStrategy.WAIT_ALL)
+        saga = Saga("WaitAll", failure_strategy=ParallelFailureStrategy.WAIT_ALL)
         completed = []
 
         async def step1(ctx):
@@ -1065,7 +1062,7 @@ class TestParallelFailureStrategies:
     @pytest.mark.asyncio
     async def test_fail_fast_grace_waits_for_inflight(self):
         """Test FAIL_FAST_WITH_GRACE waits for in-flight tasks"""
-        saga = DAGSaga(
+        saga = Saga(
             "FailFastGrace", failure_strategy=ParallelFailureStrategy.FAIL_FAST_WITH_GRACE
         )
         completed = []
@@ -1107,7 +1104,7 @@ class TestDAGCompensation:
     @pytest.mark.asyncio
     async def test_dag_compensation_in_reverse_topological_order(self):
         """Test DAG compensation happens in reverse topological order"""
-        saga = DAGSaga()
+        saga = Saga()
         compensations = []
 
         async def action(ctx):
@@ -1146,7 +1143,7 @@ class TestDAGCompensation:
     @pytest.mark.asyncio
     async def test_dag_parallel_compensation(self):
         """Test that independent compensations run in parallel"""
-        saga = DAGSaga()
+        saga = Saga()
         comp_times = {}
 
         async def action(ctx):
@@ -1969,7 +1966,7 @@ class TestIntegration:
     @pytest.mark.asyncio
     async def test_complete_ecommerce_flow(self):
         """Test complete e-commerce order processing flow"""
-        saga = DAGSaga("EcommerceOrder")
+        saga = Saga("EcommerceOrder")
         execution_log = []
 
         async def validate_order(ctx):
@@ -2022,7 +2019,7 @@ class TestIntegration:
     @pytest.mark.asyncio
     async def test_complete_ecommerce_flow_with_failure(self):
         """Test e-commerce flow with payment failure and rollback"""
-        saga = DAGSaga("EcommerceOrderFail", failure_strategy=ParallelFailureStrategy.WAIT_ALL)
+        saga = Saga("EcommerceOrderFail", failure_strategy=ParallelFailureStrategy.WAIT_ALL)
         compensations = []
 
         async def validate_order(ctx):
@@ -2077,7 +2074,7 @@ class TestIntegration:
         await seq_saga.add_step("step1", step1_action)
 
         # DAG saga - use dependencies parameter for parallel execution
-        dag_saga = DAGSaga("Parallel")
+        dag_saga = Saga("Parallel")
         await dag_saga.add_step("step1", dag_step1_action, dependencies=set())
         await dag_saga.add_step("step2", dag_step2_action, dependencies={"step1"})
 

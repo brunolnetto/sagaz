@@ -1,0 +1,6 @@
+# Django Integration Example
+django>=4.2
+python-dotenv>=1.0.0
+
+# Sagaz (install from local or pypi)
+# sagaz>=1.0.0

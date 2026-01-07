@@ -10,28 +10,9 @@ import warnings
 
 import pytest
 
-from examples.order_processing.notification import NotificationService
-
 # ============================================
 # AUTO-USE FIXTURES
 # ============================================
-
-
-@pytest.fixture(autouse=True)
-def deterministic_notifications():
-    """
-    Automatically set deterministic behavior for notification failures in tests.
-
-    This fixture runs automatically for all tests (autouse=True) and ensures
-    that notification services don't randomly fail, making tests deterministic.
-    """
-    # Set failure rates to 0 for deterministic tests
-    NotificationService.set_failure_rates(email=0.0, sms=0.0)
-
-    yield
-
-    # Reset to defaults after test
-    NotificationService.reset_failure_rates()
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -67,22 +48,6 @@ def suppress_otel_warnings():
 
     return
     # Don't restore levels - keep suppressed during session teardown
-
-
-@pytest.fixture
-def enable_notification_failures():
-    """
-    Fixture to explicitly enable notification failures for specific tests.
-
-    Use this when you want to test failure scenarios:
-        def test_with_failures(enable_notification_failures):
-            # SMS/email may fail randomly
-            ...
-    """
-    NotificationService.reset_failure_rates()
-    yield
-    # Reset after test
-    NotificationService.set_failure_rates(email=0.0, sms=0.0)
 
 
 # ============================================
@@ -125,13 +90,17 @@ def k8s_manifests():
 
 # Check for testcontainers availability
 try:
+    from testcontainers.kafka import KafkaContainer
     from testcontainers.postgres import PostgresContainer
+    from testcontainers.rabbitmq import RabbitMqContainer
     from testcontainers.redis import RedisContainer
 
     TESTCONTAINERS_AVAILABLE = True
 except ImportError:
     TESTCONTAINERS_AVAILABLE = False
+    KafkaContainer = None
     PostgresContainer = None
+    RabbitMqContainer = None
     RedisContainer = None
 
 
@@ -175,6 +144,48 @@ def redis_container():
     except Exception as e:
         # Container failed to start (timeout, Docker issues, etc.)
         pytest.skip(f"Redis container failed to start: {e}")
+
+
+@pytest.fixture(scope="session")
+def kafka_container():
+    """
+    Session-scoped Kafka container.
+
+    Shared across all tests in the session.
+    Container starts once and stops at the end of the test session.
+    Gracefully skips if container fails to start (e.g., Docker issues).
+    """
+    if not TESTCONTAINERS_AVAILABLE:
+        pytest.skip("testcontainers[kafka] not available")
+        return None
+
+    try:
+        with KafkaContainer("confluentinc/cp-kafka:7.6.0") as container:
+            yield container
+    except Exception as e:
+        # Container failed to start (timeout, Docker issues, etc.)
+        pytest.skip(f"Kafka container failed to start: {e}")
+
+
+@pytest.fixture(scope="session")
+def rabbitmq_container():
+    """
+    Session-scoped RabbitMQ container.
+
+    Shared across all tests in the session.
+    Container starts once and stops at the end of the test session.
+    Gracefully skips if container fails to start (e.g., Docker issues).
+    """
+    if not TESTCONTAINERS_AVAILABLE:
+        pytest.skip("testcontainers[rabbitmq] not available")
+        return None
+
+    try:
+        with RabbitMqContainer("rabbitmq:3.12-management") as container:
+            yield container
+    except Exception as e:
+        # Container failed to start (timeout, Docker issues, etc.)
+        pytest.skip(f"RabbitMQ container failed to start: {e}")
 
 
 @pytest.fixture(scope="session")
@@ -231,7 +242,7 @@ def postgres_storage_factory(postgres_connection_string):
     if not ASYNCPG_AVAILABLE or postgres_connection_string is None:
         return None
 
-    from sagaz.storage.postgresql import PostgreSQLSagaStorage
+    from sagaz.storage.backends.postgresql.saga import PostgreSQLSagaStorage
 
     def factory():
         return PostgreSQLSagaStorage(postgres_connection_string)
@@ -252,7 +263,7 @@ def redis_storage_factory(redis_url):
     if not REDIS_AVAILABLE or redis_url is None:
         return None
 
-    from sagaz.storage.redis import RedisSagaStorage
+    from sagaz.storage.backends.redis.saga import RedisSagaStorage
 
     def factory(**kwargs):
         return RedisSagaStorage(redis_url=redis_url, **kwargs)

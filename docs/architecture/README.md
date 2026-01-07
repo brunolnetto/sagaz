@@ -39,6 +39,7 @@ Full decision records with context, rationale, and consequences.
 | [ADR-023](adr/adr-023-pivot-irreversible-steps.md) | Pivot/Irreversible Steps | Proposed |
 | [ADR-024](adr/adr-024-saga-replay.md) | Saga Replay & Time-Travel | Proposed |
 | [ADR-025](adr/adr-025-event-driven-triggers.md) | Event-Driven Triggers | Proposed |
+| [ADR-026](adr/adr-026-industry-examples-expansion.md) | Industry Examples Expansion | Proposed |
 
 ➡️ See [adr/README.md](adr/README.md) for ADR format and guidelines.
 
@@ -53,6 +54,7 @@ Detailed implementation plans for approved architectural decisions.
 | [Unified Storage](implementation-plans/unified-storage-implementation-plan.md) | ADR-016 | Planned |
 | [Scalable Deployment](implementation-plans/scalable-deployment-plan.md) | - | Reference |
 | [HA PostgreSQL](implementation-plans/ha-postgres-implementation.md) | - | Implemented |
+| [Industry Examples](industry-examples-implementation-plan.md) | ADR-026 | Proposed |
 
 ➡️ See [implementation-plans/README.md](implementation-plans/README.md) for plan format.
 

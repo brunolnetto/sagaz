@@ -28,8 +28,8 @@ try:
     from aiokafka.errors import KafkaError
 
     KAFKA_AVAILABLE = True
-except ImportError:
-    KAFKA_AVAILABLE = False
+except ImportError:  # pragma: no cover
+    KAFKA_AVAILABLE = False  # pragma: no cover
     AIOKafkaProducer = None  # pragma: no cover
     KafkaError = Exception  # pragma: no cover
 

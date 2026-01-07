@@ -232,7 +232,6 @@ kubectl logs -n sagaz postgresql-1
 kubectl describe statefulset postgresql -n sagaz
 ```
 
-<<<<<<< HEAD
 ## Monitoring & Observability
 
 ### Three Pillars of Observability
@@ -244,15 +243,11 @@ The sagaz monitoring stack provides complete observability through:
 3. **Logs** (Loki + Promtail + Grafana) - Centralized log aggregation and search
 
 ### Deploy Monitoring Stack
-=======
-### PgBouncer Connection Errors
->>>>>>> bbcd003 (refactor(sagaz): Review resources entities)
 
 ```bash
 # Check PgBouncer logs
 kubectl logs -n sagaz -l app=pgbouncer,pool-type=write
 
-<<<<<<< HEAD
 # Deploy complete monitoring stack (Grafana, Prometheus, Loki, Promtail)
 kubectl apply -k monitoring/
 
@@ -325,14 +320,6 @@ For detailed troubleshooting procedures, see the [Monitoring Runbooks](monitorin
 ### Quick Checks
 
 #### No events being processed
-=======
-# Exec into pod and check pools
-kubectl exec -it -n sagaz deploy/pgbouncer-rw -- \
-  psql -h 127.0.0.1 -p 5432 -U postgres -d pgbouncer -c "SHOW POOLS;"
-```
-
-### Partitions Not Created
->>>>>>> bbcd003 (refactor(sagaz): Review resources entities)
 
 ```bash
 # Check init logs from postgresql-0

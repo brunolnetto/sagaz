@@ -1,7 +1,7 @@
 # ADR Implementation Roadmap & Dependencies
 
-**Last Updated**: 2026-01-05  
-**Total ADRs**: 15 (011-025)
+**Last Updated**: 2026-01-07  
+**Total ADRs**: 18 (011-028)
 
 ---
 
@@ -14,16 +14,19 @@
 | [ADR-013](adr/adr-013-fluss-iceberg-analytics.md) | Fluss + Iceberg Analytics | Proposed | Low | High |
 | [ADR-014](adr/adr-014-schema-registry.md) | Schema Registry | Proposed | Low | Medium |
 | [ADR-015](adr/adr-015-unified-saga-api.md) | Unified Saga API | **Accepted** | - | **Implemented** |
-| [ADR-016](adr/adr-016-unified-storage-layer.md) | Unified Storage Layer | **Accepted** | **High** | High |
+| [ADR-016](adr/adr-016-unified-storage-layer.md) | Unified Storage Layer | **Accepted** | - | **Implemented** |
 | [ADR-017](adr/adr-017-chaos-engineering.md) | Chaos Engineering | Proposed | Low | Medium |
 | [ADR-018](adr/adr-018-saga-versioning.md) | Saga Versioning | Proposed | Medium | High |
 | [ADR-019](adr/adr-019-dry-run-mode.md) | Dry Run Mode | Proposed | Medium | Low |
 | [ADR-020](adr/adr-020-multi-tenancy.md) | Multi-Tenancy | Proposed | Medium | High |
 | [ADR-021](adr/adr-021-lightweight-context-streaming.md) | Context Streaming | Proposed | Medium | High |
 | [ADR-022](adr/adr-022-compensation-result-passing.md) | Compensation Result Passing | **Accepted** | Medium | Medium |
-| [ADR-023](adr/adr-023-pivot-irreversible-steps.md) | Pivot/Irreversible Steps | Proposed | **High** | **Very High** |
+| [ADR-023](adr/adr-023-pivot-irreversible-steps.md) | Pivot/Irreversible Steps | **Accepted** | - | **Implemented** |
 | [ADR-024](adr/adr-024-saga-replay.md) | Saga Replay & Time-Travel | Proposed | Medium | High |
 | [ADR-025](adr/adr-025-event-driven-triggers.md) | Event-Driven Triggers | Proposed | **High** | High |
+| [ADR-026](adr/adr-026-industry-examples-expansion.md) | Industry Examples Expansion | **Accepted** | - | **Complete (24 examples)** |
+| [ADR-027](adr/adr-027-project-cli.md) | Project CLI | Proposed | High | High |
+| [ADR-028](adr/adr-028-framework-integration.md) | Framework Integration | **Accepted** | - | **Examples Created** |
 
 ---
 
@@ -33,34 +36,53 @@
 
 ```mermaid
 graph TD
-    ADR016[ADR-016: Unified Storage] --> ADR021[ADR-021: Context Streaming]
+    ADR016[ADR-016: Unified Storage ✅] --> ADR021[ADR-021: Context Streaming]
     ADR016 --> ADR024[ADR-024: Saga Replay]
     ADR016 --> ADR020[ADR-020: Multi-Tenancy]
     ADR016 --> ADR011[ADR-011: CDC Support]
     
-    ADR022[ADR-022: Compensation Passing] --> ADR023[ADR-023: Pivot Steps]
+    ADR022[ADR-022: Compensation Passing ✅] --> ADR023[ADR-023: Pivot Steps ✅]
+    ADR023 --> ADR026[ADR-026: Industry Examples ✅]
     
-    style ADR016 fill:#ff6b6b
+    style ADR016 fill:#51cf66
     style ADR022 fill:#51cf66
+    style ADR023 fill:#51cf66
+    style ADR026 fill:#51cf66
 ```
 
 ### Feature Dependencies
 
 ```mermaid
 graph TD
-    ADR023[ADR-023: Pivot Steps] --> ADR021[ADR-021: Context Streaming]
-    ADR025[ADR-025: Event Triggers] --> ADR021[ADR-021: Context Streaming]
-    ADR025 --> ADR011[ADR-011: CDC Support]
+    %% Streaming dependencies (ADR-021 requires ADR-016)
+    ADR016[ADR-016: Storage ✅] --> ADR021[ADR-021: Context Streaming]
     
+    %% Event triggers (independent, but enhances CDC)
+    ADR025[ADR-025: Event Triggers] --> ADR011[ADR-011: CDC Support]
+    
+    %% Replay chain
     ADR024[ADR-024: Saga Replay] --> ADR018[ADR-018: Versioning]
     ADR024 --> ADR019[ADR-019: Dry Run]
     
-    ADR020[ADR-020: Multi-Tenancy] --> ADR016[ADR-016: Storage]
+    %% Multi-tenancy requires storage
+    ADR016 --> ADR020[ADR-020: Multi-Tenancy]
     
-    ADR013[ADR-013: Fluss Analytics] --> ADR021[ADR-021: Streaming]
-    ADR013 --> ADR025[ADR-025: Triggers]
+    %% Advanced analytics requires streaming + triggers
+    ADR021 --> ADR013[ADR-013: Fluss Analytics]
+    ADR025 --> ADR013
     
-    style ADR023 fill:#ffd43b
+    %% Framework integration requires storage
+    ADR016 --> ADR028[ADR-028: Frameworks ✅]
+    
+    %% Pivot chain (independent of streaming!)
+    ADR022[ADR-022: Compensation ✅] --> ADR023[ADR-023: Pivot Steps ✅]
+    ADR023 --> ADR026[ADR-026: Examples ✅]
+    
+    style ADR016 fill:#51cf66
+    style ADR022 fill:#51cf66
+    style ADR023 fill:#51cf66
+    style ADR026 fill:#51cf66
+    style ADR028 fill:#51cf66
     style ADR025 fill:#ffd43b
 ```
 
@@ -69,6 +91,7 @@ graph TD
 - **ADR-017: Chaos Engineering** - No dependencies, can implement anytime
 - **ADR-014: Schema Registry** - Standalone, integrates with triggers
 - **ADR-019: Dry Run Mode** - Can implement before or after other features
+- **ADR-027: Project CLI** - Improves DX, independent
 
 ---
 
@@ -111,7 +134,7 @@ ADR-022 (Compensation Passing) → ADR-023 (Pivot Steps)
 
 | ADR | Priority | Effort | Notes |
 |-----|----------|--------|-------|
-| ✅ ADR-016 | Critical | 5-6 weeks | [Has implementation plan](implementation-plans/unified-storage-implementation-plan.md) |
+| ✅ ADR-016 | **Implemented** | 5-6 weeks | [Complete](implementation-plans/unified-storage-implementation-plan.md) |
 | ✅ ADR-022 | High | 2 weeks | Simpler, can parallel with ADR-016 |
 
 **Deliverables**:
@@ -130,18 +153,23 @@ ADR-022 (Compensation Passing) → ADR-023 (Pivot Steps)
 
 | ADR | Priority | Effort | Dependencies |
 |-----|----------|--------|--------------|
-| 🔴 ADR-023 | Critical | 5-6 weeks | ADR-022 |
+| ✅ ADR-023 | **Complete** | 5-6 weeks | ADR-022 |
 | 🔴 ADR-025 | Critical | 4-5 weeks | None (can parallel) |
 | 🟡 ADR-019 | Medium | 1-2 weeks | None |
+| 🟢 ADR-027 | High | 6-8 weeks | None |
+| ✅ ADR-028 | **Examples Created** | 4-5 weeks | ADR-016 |
 
 **Deliverables**:
-- Pivot steps with forward recovery
+- ✅ Pivot steps with forward recovery (`sagaz/pivot.py`)
 - Event-driven triggers (Kafka, RabbitMQ, Redis, Cron, Webhook)
 - Dry run mode for testing
+- Project scaffolding (`sagaz init`, `check`)
+- ✅ FastAPI, Django, Flask integration examples
 
 **User Impact**:
 - **High**: Enables real-world production scenarios (payment capture, model deployment)
 - **High**: Enables streaming MLOps and event-driven architectures
+- **High**: Drastically reduces boilerplate for web apps
 
 ---
 
@@ -154,12 +182,14 @@ ADR-022 (Compensation Passing) → ADR-023 (Pivot Steps)
 | 🟡 ADR-021 | Medium | 4-5 weeks | ADR-016 |
 | 🟡 ADR-020 | Medium | 3-4 weeks | ADR-016 |
 | 🟢 ADR-017 | Low | 2 weeks | None |
+| ✅ ADR-026 | **Complete** | 5-6 weeks | ADR-023 |
 
 **Deliverables**:
 - Lightweight context with external storage
 - Streaming sagas (generator-based)
 - Multi-tenancy support
 - Chaos engineering toolkit
+- ✅ 24 industry examples created (fintech, manufacturing, healthcare, etc.)
 
 **User Impact**:
 - **Medium**: Performance improvements for large payloads
@@ -214,7 +244,7 @@ ADR-022 (Compensation Passing) → ADR-023 (Pivot Steps)
 | Phase | Version | Duration | ADRs | Cumulative |
 |-------|---------|----------|------|------------|
 | 1 | v1.2.0 | 6-8 weeks | 2 | 8 weeks |
-| 2 | v1.3.0 | 8-10 weeks | 3 | 18 weeks |
+| 2 | v1.3.0 | 14-16 weeks | 5 | 24 weeks |
 | 3 | v1.4.0 | 6-8 weeks | 3 | 26 weeks |
 | 4 | v2.0.0 | 10-12 weeks | 3 | 38 weeks |
 | 5 | Future | 10-13 weeks | 2 | 51 weeks |
@@ -252,6 +282,14 @@ ADR-022 (Compensation Passing) → ADR-023 (Pivot Steps)
 5. **ADR-019: Dry Run Mode**
    - Simple, high developer value
    - Helps test ADR-023 and ADR-025
+
+6. **ADR-027: Project CLI**
+   - Essential for organizing complex projects
+   - "Batteries included" experience
+
+7. **ADR-028: Framework Integration**
+   - Critical for adoption in web apps
+   - High ROI (low effort, high value)
 
 ### Later (Months 7-12)
 
@@ -338,5 +376,6 @@ This allows **3 developers** to work in parallel with minimal conflicts.
 3. ✅ **ADR-023** (Pivot Steps) - Production-critical feature
 4. ✅ **ADR-025** (Event Triggers) - Enables streaming MLOps
 5. ✅ **ADR-019** (Dry Run) - Developer experience
+6. ✅ **ADR-026** (Industry Examples) - Demonstrates pivot feature across 10 industries
 
-These 5 ADRs deliver **80% of the value** with **40% of the effort**. The rest can wait for real user demand.
+These 6 ADRs deliver **80% of the value** with **40% of the effort**. The rest can wait for real user demand.

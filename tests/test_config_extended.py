@@ -72,7 +72,7 @@ class TestSagaConfigCoverage:
         from unittest.mock import MagicMock
 
         from sagaz.outbox.brokers.memory import InMemoryBroker
-        from sagaz.outbox.storage.memory import InMemoryOutboxStorage
+        from sagaz.outbox import InMemoryOutboxStorage
 
         # Mock PostgreSQLSagaStorage without connection_string attribute
         mock_storage = MagicMock()
@@ -348,9 +348,9 @@ class TestCompensationGraphCoverage:
 
     def test_compensation_graph_edge_cases(self):
         """Test compensation graph edge cases (lines 285, 296-297, 304)."""
-        from sagaz.compensation_graph import SagaCompensationGraph
+        from sagaz.execution_graph import SagaExecutionGraph
 
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
 
         # Register a compensation
         async def comp_fn(ctx):

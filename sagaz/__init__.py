@@ -51,7 +51,10 @@ Note: You cannot mix both approaches. Once you use decorators,
       add_step() will raise an error, and vice versa.
 """
 
-from sagaz.compensation_graph import (
+# =============================================================================
+# Execution Graph (compensation and dependency management)
+# =============================================================================
+from sagaz.execution_graph import (
     CircularDependencyError,
     CompensationFailureStrategy,
     CompensationGraphError,
@@ -59,26 +62,31 @@ from sagaz.compensation_graph import (
     CompensationResult,
     CompensationType,
     SagaCompensationContext,
-    SagaCompensationGraph,  # Backward compatibility alias
     SagaExecutionGraph,
 )
 
+# =============================================================================
 # Configuration
+# =============================================================================
 from sagaz.config import SagaConfig, configure, get_config
 
-# Legacy ClassicSaga for backward compatibility (deprecated)
-from sagaz.core import Saga as ClassicSaga
+# =============================================================================
+# Core Saga Classes
+# =============================================================================
 from sagaz.core import SagaContext, SagaStep
 
-# The unified Saga class (primary export)
 from sagaz.decorators import (
-    DeclarativeSaga,  # Backward compatibility alias
     Saga,
     SagaStepDefinition,
-    action,  # Preferred terminology
+    action,
     compensate,
-    step,  # Alias for backward compatibility
+    forward_recovery,
 )
+
+
+# =============================================================================
+# Exceptions
+# =============================================================================
 from sagaz.exceptions import (
     MissingDependencyError,
     SagaCompensationError,
@@ -88,7 +96,9 @@ from sagaz.exceptions import (
     SagaTimeoutError,
 )
 
-# Import listeners
+# =============================================================================
+# Listeners (observability and side effects)
+# =============================================================================
 from sagaz.listeners import (
     LoggingSagaListener,
     MetricsSagaListener,
@@ -97,60 +107,93 @@ from sagaz.listeners import (
     TracingSagaListener,
     default_listeners,
 )
+
+# =============================================================================
+# Orchestrator and Types
+# =============================================================================
 from sagaz.orchestrator import SagaOrchestrator
 from sagaz.types import ParallelFailureStrategy, SagaResult, SagaStatus, SagaStepStatus
 
-# Backward compatibility aliases (deprecated - use Saga instead)
-# DAGSaga must remain as ClassicSaga for backward compatibility with tests
-DAGSaga = ClassicSaga
+# =============================================================================
+# Pivot/Irreversible Steps (v1.3.0)
+# =============================================================================
+from sagaz.pivot import (
+    RecoveryAction,
+    StepZone,
+    SagaZones,
+    PivotInfo,
+    TaintPropagator,
+)
 
 
 __all__ = [
-    "CircularDependencyError",
-    # Legacy/internal (for backward compatibility)
-    "ClassicSaga",  # Deprecated - use Saga instead
-    "CompensationFailureStrategy",
-    "CompensationGraphError",
+    # =========================================================================
+    # Primary Exports (Recommended API)
+    # =========================================================================
+    "Saga",
+    "action",
+    "compensate",
+    "forward_recovery",
+    "SagaConfig",
+    "configure",
+    "get_config",
+
+    
+    # =========================================================================
+    # Execution Graph
+    # =========================================================================
+    "SagaExecutionGraph",
+    "SagaCompensationContext",
     "CompensationNode",
     "CompensationResult",
     "CompensationType",
-    "DAGSaga",  # Deprecated - use Saga instead
-    "DeclarativeSaga",  # Deprecated - use Saga instead
+    "CompensationFailureStrategy",
+    
+    # =========================================================================
+    # Listeners
+    # =========================================================================
+    "SagaListener",
     "LoggingSagaListener",
     "MetricsSagaListener",
-    "MissingDependencyError",
     "OutboxSagaListener",
-    "ParallelFailureStrategy",
-    # Primary exports
-    "Saga",
-    "SagaCompensationContext",
-    "SagaCompensationError",
-    # Compensation/Execution graph
-    "SagaCompensationGraph",  # Backward compatibility alias
-    # Configuration
-    "SagaConfig",
-    "SagaContext",
-    # Exceptions
-    "SagaError",
-    "SagaExecutionError",
-    "SagaExecutionGraph",
-    # Listeners
-    "SagaListener",
-    # Orchestrator
-    "SagaOrchestrator",
-    # Types and results
+    "TracingSagaListener",
+    "default_listeners",
+    
+    # =========================================================================
+    # Types and Results
+    # =========================================================================
     "SagaResult",
     "SagaStatus",
+    "SagaStepStatus",
     "SagaStep",
     "SagaStepDefinition",
+    "SagaContext",
+    "ParallelFailureStrategy",
+    
+    # =========================================================================
+    # Pivot/Irreversible Steps (v1.3.0)
+    # =========================================================================
+    "RecoveryAction",
+    "StepZone",
+    "SagaZones",
+    "PivotInfo",
+    "TaintPropagator",
+    
+    # =========================================================================
+    # Exceptions
+    # =========================================================================
+    "SagaError",
+    "SagaExecutionError",
+    "SagaCompensationError",
     "SagaStepError",
-    "SagaStepStatus",
     "SagaTimeoutError",
-    "TracingSagaListener",
-    "action",
-    "compensate",
-    "configure",
-    "default_listeners",
-    "get_config",
-    "step",
+    "MissingDependencyError",
+    "CircularDependencyError",
+    "CompensationGraphError",
+    
+    # =========================================================================
+    # Orchestrator
+    # =========================================================================
+    "SagaOrchestrator",
 ]
+

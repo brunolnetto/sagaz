@@ -130,7 +130,7 @@ class TestPostgreSQLStorageEdgeCases:
     @pytest.mark.asyncio
     async def test_load_saga_with_invalid_json_result(self, mock_pool):
         """Test loading saga when step result is not valid JSON (fallback to raw)."""
-        with patch("sagaz.storage.postgresql.ASYNCPG_AVAILABLE", True):
+        with patch("sagaz.storage.backends.postgresql.saga.ASYNCPG_AVAILABLE", True):
             from sagaz.storage.postgresql import PostgreSQLSagaStorage
 
             pool, conn = mock_pool
@@ -171,7 +171,7 @@ class TestPostgreSQLStorageEdgeCases:
     @pytest.mark.asyncio
     async def test_load_saga_with_no_executed_at(self, mock_pool):
         """Test loading saga when step has no executed_at timestamp."""
-        with patch("sagaz.storage.postgresql.ASYNCPG_AVAILABLE", True):
+        with patch("sagaz.storage.backends.postgresql.saga.ASYNCPG_AVAILABLE", True):
             from sagaz.storage.postgresql import PostgreSQLSagaStorage
 
             pool, conn = mock_pool
@@ -212,7 +212,7 @@ class TestPostgreSQLStorageEdgeCases:
     @pytest.mark.asyncio
     async def test_cleanup_completed_sagas_parses_count(self, mock_pool):
         """Test cleanup extracts count from DELETE result."""
-        with patch("sagaz.storage.postgresql.ASYNCPG_AVAILABLE", True):
+        with patch("sagaz.storage.backends.postgresql.saga.ASYNCPG_AVAILABLE", True):
             from sagaz.storage.postgresql import PostgreSQLSagaStorage
 
             pool, conn = mock_pool
@@ -231,7 +231,7 @@ class TestPostgreSQLStorageEdgeCases:
     @pytest.mark.asyncio
     async def test_get_statistics_with_valid_size(self, mock_pool):
         """Test statistics with valid database size."""
-        with patch("sagaz.storage.postgresql.ASYNCPG_AVAILABLE", True):
+        with patch("sagaz.storage.backends.postgresql.saga.ASYNCPG_AVAILABLE", True):
             from sagaz.storage.postgresql import PostgreSQLSagaStorage
 
             pool, conn = mock_pool
@@ -295,7 +295,7 @@ class TestRedisSagaStorageEdgeCases:
     @pytest.mark.asyncio
     async def test_list_sagas_with_both_status_and_name_filters(self, mock_redis):
         """Test listing sagas with both status and name filters (intersection)."""
-        with patch("sagaz.storage.redis.REDIS_AVAILABLE", True):
+        with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
             from sagaz.storage.redis import RedisSagaStorage
             from sagaz.types import SagaStatus
 
@@ -339,7 +339,7 @@ class TestRedisSagaStorageEdgeCases:
     @pytest.mark.asyncio
     async def test_list_sagas_no_filters_gets_all(self, mock_redis):
         """Test listing sagas without filters returns all sagas."""
-        with patch("sagaz.storage.redis.REDIS_AVAILABLE", True):
+        with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
             from sagaz.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
@@ -377,7 +377,7 @@ class TestRedisSagaStorageEdgeCases:
     @pytest.mark.asyncio
     async def test_update_step_with_executed_at_timestamp(self, mock_redis):
         """Test updating step with executed_at timestamp."""
-        with patch("sagaz.storage.redis.REDIS_AVAILABLE", True):
+        with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
             from sagaz.storage.redis import RedisSagaStorage
             from sagaz.types import SagaStepStatus
 
@@ -414,7 +414,7 @@ class TestRedisSagaStorageEdgeCases:
     @pytest.mark.asyncio
     async def test_health_check_with_ping_and_info(self, mock_redis):
         """Test health check gets server info."""
-        with patch("sagaz.storage.redis.REDIS_AVAILABLE", True):
+        with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
             from sagaz.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis

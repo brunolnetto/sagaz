@@ -51,7 +51,7 @@ async def pg_storage(postgres_container):
     if not ASYNCPG_AVAILABLE:
         pytest.skip("asyncpg not available")
 
-    from sagaz.storage.postgresql import PostgreSQLSagaStorage
+    from sagaz.storage.backends.postgresql.saga import PostgreSQLSagaStorage
 
     conn_string = postgres_container.get_connection_url().replace(
         "postgresql+psycopg2://", "postgresql://"
@@ -206,7 +206,7 @@ async def redis_storage(redis_container):
     if not REDIS_AVAILABLE:
         pytest.skip("redis not available")
 
-    from sagaz.storage.redis import RedisSagaStorage
+    from sagaz.storage.backends.redis.saga import RedisSagaStorage
 
     host = redis_container.get_container_host_ip()
     port = redis_container.get_exposed_port(6379)

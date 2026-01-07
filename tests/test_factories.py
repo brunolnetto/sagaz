@@ -54,9 +54,9 @@ class TestFinalCoverage:
     @pytest.mark.asyncio
     async def test_compensation_graph_reset(self):
         """Test compensation graph reset_execution"""
-        from sagaz.compensation_graph import SagaCompensationGraph
+        from sagaz.execution_graph import SagaExecutionGraph
 
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
 
         async def comp_fn(ctx):
             pass
@@ -93,9 +93,9 @@ class TestFinalCoverage:
     @pytest.mark.asyncio
     async def test_compensation_graph_unexecuted_steps(self):
         """Test compensation graph with unexecuted steps"""
-        from sagaz.compensation_graph import SagaCompensationGraph
+        from sagaz.execution_graph import SagaExecutionGraph
 
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
 
         async def comp_fn(ctx):
             pass

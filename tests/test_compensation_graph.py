@@ -4,14 +4,14 @@ Tests for the compensation graph module.
 
 import pytest
 
-from sagaz.compensation_graph import (
+from sagaz.execution_graph import (
     CircularDependencyError,
     CompensationFailureStrategy,
     CompensationNode,
     CompensationResult,
     CompensationType,
     MissingDependencyError,
-    SagaCompensationGraph,
+    SagaExecutionGraph,
 )
 
 
@@ -66,12 +66,12 @@ class TestCompensationType:
         assert CompensationType.MANUAL.value == "manual"
 
 
-class TestSagaCompensationGraph:
-    """Tests for SagaCompensationGraph."""
+class TestSagaExecutionGraph:
+    """Tests for SagaExecutionGraph."""
 
     def test_register_compensation(self):
         """Test registering a compensation."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
 
         async def undo_step1(ctx):
             pass
@@ -84,7 +84,7 @@ class TestSagaCompensationGraph:
 
     def test_register_compensation_with_options(self):
         """Test registering with all options."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
 
         async def undo(ctx):
             pass
@@ -108,7 +108,7 @@ class TestSagaCompensationGraph:
 
     def test_mark_step_executed(self):
         """Test marking steps as executed."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
 
         graph.mark_step_executed("step1")
         graph.mark_step_executed("step2")
@@ -117,7 +117,7 @@ class TestSagaCompensationGraph:
 
     def test_mark_step_executed_idempotent(self):
         """Test that marking the same step twice doesn't duplicate."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
 
         graph.mark_step_executed("step1")
         graph.mark_step_executed("step1")
@@ -126,7 +126,7 @@ class TestSagaCompensationGraph:
 
     def test_unmark_step_executed(self):
         """Test unmarking executed steps."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
 
         graph.mark_step_executed("step1")
         graph.mark_step_executed("step2")
@@ -136,7 +136,7 @@ class TestSagaCompensationGraph:
 
     def test_get_executed_steps(self):
         """Test getting executed steps returns a copy."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
 
         graph.mark_step_executed("step1")
         executed = graph.get_executed_steps()
@@ -148,7 +148,7 @@ class TestSagaCompensationGraph:
 
     def test_compensation_order_simple(self):
         """Test simple compensation order (reverse of execution)."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
 
         async def undo(ctx):
             pass
@@ -169,7 +169,7 @@ class TestSagaCompensationGraph:
 
     def test_compensation_order_parallel(self):
         """Test that independent steps can compensate in parallel."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
 
         async def undo(ctx):
             pass
@@ -193,7 +193,7 @@ class TestSagaCompensationGraph:
 
     def test_compensation_order_only_executed_steps(self):
         """Test that only executed steps are compensated."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
 
         async def undo(ctx):
             pass
@@ -211,7 +211,7 @@ class TestSagaCompensationGraph:
 
     def test_compensation_order_empty(self):
         """Test compensation order with no executed steps."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
 
         async def undo(ctx):
             pass
@@ -224,7 +224,7 @@ class TestSagaCompensationGraph:
 
     def test_compensation_order_complex_dag(self):
         """Test complex DAG compensation order."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
 
         async def undo(ctx):
             pass
@@ -254,7 +254,7 @@ class TestSagaCompensationGraph:
 
     def test_validate_success(self):
         """Test validation passes for valid graph."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
 
         async def undo(ctx):
             pass
@@ -267,7 +267,7 @@ class TestSagaCompensationGraph:
 
     def test_validate_missing_dependency(self):
         """Test validation fails for missing dependency."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
 
         async def undo(ctx):
             pass
@@ -282,7 +282,7 @@ class TestSagaCompensationGraph:
 
     def test_validate_circular_dependency(self):
         """Test validation fails for circular dependency."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
 
         async def undo(ctx):
             pass
@@ -295,7 +295,7 @@ class TestSagaCompensationGraph:
 
     def test_get_compensation_info(self):
         """Test getting compensation info by step ID."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
 
         async def undo(ctx):
             pass
@@ -311,7 +311,7 @@ class TestSagaCompensationGraph:
 
     def test_clear(self):
         """Test clearing the graph."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
 
         async def undo(ctx):
             pass
@@ -326,7 +326,7 @@ class TestSagaCompensationGraph:
 
     def test_reset_execution(self):
         """Test resetting execution state."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
 
         async def undo(ctx):
             pass
@@ -341,7 +341,7 @@ class TestSagaCompensationGraph:
 
     def test_repr(self):
         """Test string representation."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
 
         async def undo(ctx):
             pass
@@ -351,7 +351,7 @@ class TestSagaCompensationGraph:
 
         repr_str = repr(graph)
 
-        # SagaCompensationGraph is now an alias for SagaExecutionGraph
+        # SagaExecutionGraph is now an alias for SagaExecutionGraph
         assert "SagaExecutionGraph" in repr_str
         assert "nodes=1" in repr_str
         assert "executed=1" in repr_str
@@ -441,7 +441,7 @@ class TestCompensationResultPassing:
     @pytest.mark.asyncio
     async def test_compensation_with_return_value(self):
         """Test compensation can return a value."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
         
         async def cancel_order(ctx, comp_results=None):
             return {"cancellation_id": "cancel-123", "cancelled_at": "2024-01-01"}
@@ -458,7 +458,7 @@ class TestCompensationResultPassing:
     @pytest.mark.asyncio
     async def test_compensation_result_passing_between_steps(self):
         """Test results are passed from one compensation to another."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
         
         results_tracker = {}
         
@@ -492,7 +492,7 @@ class TestCompensationResultPassing:
     @pytest.mark.asyncio
     async def test_backward_compatibility_old_signature(self):
         """Test old compensation signature (ctx only) still works."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
         
         async def old_style_compensation(ctx):
             # Old signature: only accepts ctx
@@ -509,7 +509,7 @@ class TestCompensationResultPassing:
     @pytest.mark.asyncio
     async def test_mixed_old_and_new_signatures(self):
         """Test mixing old and new compensation signatures."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
         
         async def old_comp(ctx):
             pass
@@ -536,7 +536,7 @@ class TestFailureStrategies:
     @pytest.mark.asyncio
     async def test_fail_fast_strategy(self):
         """Test FAIL_FAST stops on first failure."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
         
         async def failing_comp(ctx, comp_results=None):
             raise Exception("Intentional failure")
@@ -562,7 +562,7 @@ class TestFailureStrategies:
     @pytest.mark.asyncio
     async def test_continue_on_error_strategy(self):
         """Test CONTINUE_ON_ERROR executes all compensations despite failures."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
         
         async def failing_comp(ctx, comp_results=None):
             raise Exception("Intentional failure")
@@ -588,7 +588,7 @@ class TestFailureStrategies:
     @pytest.mark.asyncio
     async def test_retry_then_continue_strategy(self):
         """Test RETRY_THEN_CONTINUE retries failed compensations."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
         
         attempt_counts = {"step1": 0}
         
@@ -613,7 +613,7 @@ class TestFailureStrategies:
     @pytest.mark.asyncio
     async def test_skip_dependents_strategy(self):
         """Test SKIP_DEPENDENTS skips steps whose compensation depends on failed ones."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
         
         async def step1_comp(ctx, comp_results=None):
             return {"step1": "done"}
@@ -658,7 +658,7 @@ class TestExecuteCompensationsEdgeCases:
     @pytest.mark.asyncio
     async def test_empty_graph(self):
         """Test executing compensations on empty graph."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
         
         result = await graph.execute_compensations({})
         
@@ -669,7 +669,7 @@ class TestExecuteCompensationsEdgeCases:
     @pytest.mark.asyncio
     async def test_no_executed_steps(self):
         """Test when compensations are registered but no steps executed."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
         
         async def comp(ctx, comp_results=None):
             pass
@@ -685,7 +685,7 @@ class TestExecuteCompensationsEdgeCases:
     @pytest.mark.asyncio
     async def test_circular_dependency_returns_error(self):
         """Test circular dependency is caught during execution."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
         
         async def comp(ctx, comp_results=None):
             pass
@@ -704,7 +704,7 @@ class TestExecuteCompensationsEdgeCases:
     @pytest.mark.asyncio
     async def test_timeout_handling(self):
         """Test compensation timeout is respected."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
         
         async def slow_comp(ctx, comp_results=None):
             import asyncio
@@ -722,7 +722,7 @@ class TestExecuteCompensationsEdgeCases:
     @pytest.mark.asyncio
     async def test_parallel_execution_in_level(self):
         """Test multiple independent compensations execute in parallel."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
         
         import time
         execution_times = {}
@@ -761,7 +761,7 @@ class TestExecuteCompensationsEdgeCases:
     @pytest.mark.asyncio
     async def test_execution_time_tracking(self):
         """Test execution time is tracked correctly."""
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
         
         async def comp(ctx, comp_results=None):
             import asyncio

@@ -17,6 +17,8 @@ from pathlib import Path
 
 import click
 
+from sagaz import cli_examples
+
 try:
     from rich.console import Console
     from rich.panel import Panel
@@ -909,6 +911,66 @@ def version():
     """Show version information."""
     click.echo("sagaz version 1.0.3")
     click.echo("Python " + sys.version.split()[0])
+
+
+# ============================================================================
+# sagaz examples
+# ============================================================================
+
+
+@cli.group(invoke_without_command=True)
+@click.pass_context
+def examples(ctx):
+    """
+    Manage and run examples.
+
+    \b
+    Commands:
+        list      List all available examples
+        run       Run a specific example by name
+
+    \b
+    Examples:
+        sagaz examples                    # Opens interactive menu
+        sagaz examples list
+        sagaz examples list --category fintech
+        sagaz examples run ecommerce/order_processing
+    """
+    if ctx.invoked_subcommand is None:
+        cli_examples.interactive_cmd()
+
+
+@examples.command("list")
+@click.option(
+    "--category",
+    "-c",
+    help="Filter by category (e.g., ecommerce, fintech, iot, ml)",
+)
+def list_examples(category: str):
+    """
+    List available examples.
+
+    \b
+    Examples:
+        sagaz examples list
+        sagaz examples list --category fintech
+        sagaz examples list -c iot
+    """
+    cli_examples.list_examples_cmd(category)
+
+
+@examples.command("run")
+@click.argument("name")
+def run_example(name: str):
+    """
+    Run a specific example by name.
+
+    \b
+    Example:
+        sagaz examples run ecommerce/order_processing
+        sagaz examples run monitoring
+    """
+    cli_examples.run_example_cmd(name)
 
 
 if __name__ == "__main__":
