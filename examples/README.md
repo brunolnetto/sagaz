@@ -4,20 +4,74 @@ This directory contains self-contained saga examples demonstrating the **declara
 
 ## 📁 Directory Structure
 
+> **Note:** Examples marked with 🔒 use the `pivot=True` feature and `@forward_recovery` decorator
+> to demonstrate irreversible steps with forward-only recovery strategies.
+
 ```
 examples/
+├── integrations/              ← Web Framework Integration
+│   ├── fastapi_app/           ← FastAPI with DI and lifespan
+│   ├── django_app/            ← Django with AppConfig
+│   └── flask_app/             ← Flask extension pattern
+│
+├── data_engineering/          ← Data Engineering & ETL
+│   ├── etl_pipeline/          ← Extract-Transform-Load workflow
+│   ├── data_quality_gate/     ← Data validation with quarantine
+│   ├── data_migration/        ← Cross-database migration
+│   └── lakehouse_ingestion/   ← Bronze → Silver → Gold pipeline
+│
 ├── ecommerce/                 ← E-commerce & Retail
 │   └── order_processing/      ← Order fulfillment workflow
 │
-├── fintech/                   ← Financial Services
+├── fintech/                   ← Financial Services 🔒
 │   ├── payment_processing/    ← Payment gateway integration
-│   └── trade_execution/       ← Stock trading system
+│   ├── trade_execution/       ← Stock trading system
+│   ├── crypto_exchange/       ← 🔒 Blockchain pivot
+│   ├── wire_transfer/         ← 🔒 Cross-border SWIFT transfer
+│   ├── loan_origination/      ← 🔒 Loan disbursement pivot
+│   └── insurance_claim/       ← 🔒 Claim payment pivot
+│
+├── manufacturing/             ← Manufacturing & Industrial 🔒
+│   ├── production/            ← 🔒 Physical action pivot
+│   ├── 3d_printing/           ← 🔒 Material commitment pivot
+│   └── chemical_reactor/      ← 🔒 Reaction initiation pivot
+│
+├── media/                     ← Media & Content 🔒
+│   ├── live_streaming/        ← 🔒 Real-time broadcast pivot
+│   └── content_publishing/    ← 🔒 CDN distribution pivot
+│
+├── real_estate/               ← Real Estate 🔒
+│   ├── property_closing/      ← 🔒 Legal commitment pivot
+│   └── rental_application/    ← 🔒 Deposit charge pivot
+│
+├── telecom/                   ← Telecommunications 🔒
+│   ├── number_porting/        ← 🔒 NPAC regulatory pivot
+│   └── sim_provisioning/      ← 🔒 SIM activation pivot
+│
+├── government/                ← Government & Compliance 🔒
+│   ├── visa_application/      ← 🔒 Biometric capture pivot
+│   └── regulatory_filing/     ← 🔒 SEC/FDA submission pivot
+│
+├── gaming/                    ← Gaming & Entertainment 🔒
+│   ├── tournament_match/      ← 🔒 Match start pivot
+│   └── in_game_purchase/      ← 🔒 Payment pivot
+│
+├── energy/                    ← Energy & Utilities 🔒
+│   ├── smart_meter/           ← 🔒 Meter activation pivot
+│   └── power_grid/            ← 🔒 Breaker close pivot
+│
+├── education/                 ← Education 🔒
+│   ├── course_enrollment/     ← 🔒 Seat confirmation pivot
+│   └── exam_proctoring/       ← 🔒 Exam start pivot
 │
 ├── travel/                    ← Travel & Hospitality
 │   └── booking/               ← Travel reservation workflow
 │
-├── healthcare/                ← Healthcare & Life Sciences
-│   └── patient_onboarding/    ← HIPAA-compliant registration
+├── healthcare/                ← Healthcare & Life Sciences 🔒
+│   ├── patient_onboarding/    ← HIPAA-compliant registration
+│   ├── lab_processing/        ← 🔒 Consumable resource pivot
+│   ├── prescription/          ← 🔒 DEA/PDMP dispensing pivot
+│   └── procedure_scheduling/  ← 🔒 OR reservation pivot
 │
 ├── iot/                       ← Internet of Things
 │   ├── device_orchestration/  ← Smart home coordinator
@@ -44,6 +98,17 @@ Each example is self-contained in its directory and can be run directly.
 ### Running Examples
 
 ```bash
+# Web Framework Integrations
+cd examples/integrations/fastapi_app && uvicorn main:app --reload
+cd examples/integrations/django_app && python manage.py runserver
+cd examples/integrations/flask_app && python main.py
+
+# Data Engineering
+python examples/data_engineering/etl_pipeline/main.py
+python examples/data_engineering/data_quality_gate/main.py
+python examples/data_engineering/data_migration/main.py
+python examples/data_engineering/lakehouse_ingestion/main.py
+
 # E-commerce
 python examples/ecommerce/order_processing/main.py
 
@@ -74,6 +139,20 @@ python examples/monitoring/mermaid_demo.py
 ```
 
 ## 📚 Example Details
+
+### 🌐 Web Framework Integrations
+**Path:** `examples/integrations/`  
+**Use Case:** Integrate Sagaz with popular web frameworks  
+**Frameworks:** FastAPI, Django, Flask  
+**Best For:** Building production-ready web APIs with sagas
+
+| Framework | Features |
+|-----------|----------|
+| **FastAPI** | Async-native, `Depends()` DI, `BackgroundTasks` |
+| **Django** | `AppConfig` initialization, management commands |
+| **Flask** | Extension pattern, sync wrapper |
+
+See [integrations/README.md](integrations/README.md) for details.
 
 ### 🛒 Order Processing
 **Path:** `examples/ecommerce/order_processing/`  

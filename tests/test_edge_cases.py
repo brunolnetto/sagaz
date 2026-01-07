@@ -16,9 +16,9 @@ class TestCompensationGraphTo100:
     @pytest.mark.asyncio
     async def test_compensation_graph_validation_circular(self):
         """Test validate() method detecting circular dependencies"""
-        from sagaz.compensation_graph import CircularDependencyError, SagaCompensationGraph
+        from sagaz.execution_graph import CircularDependencyError, SagaExecutionGraph
 
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
 
         async def comp_fn(ctx):
             pass
@@ -34,9 +34,9 @@ class TestCompensationGraphTo100:
     @pytest.mark.asyncio
     async def test_compensation_graph_find_cycle_deep(self):
         """Test _find_cycle method with deeper cycle"""
-        from sagaz.compensation_graph import CircularDependencyError, SagaCompensationGraph
+        from sagaz.execution_graph import CircularDependencyError, SagaExecutionGraph
 
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
 
         async def comp_fn(ctx):
             pass
@@ -213,7 +213,7 @@ class TestStorageTo100:
     @pytest.mark.asyncio
     async def test_postgresql_storage_import_error(self):
         """Test PostgreSQL storage when asyncpg not available"""
-        from sagaz.storage.postgresql import ASYNCPG_AVAILABLE
+        from sagaz.storage.backends.postgresql.saga import ASYNCPG_AVAILABLE
 
         # Just verify the import check works
         assert isinstance(ASYNCPG_AVAILABLE, bool)
@@ -221,7 +221,7 @@ class TestStorageTo100:
     @pytest.mark.asyncio
     async def test_redis_storage_import_error(self):
         """Test Redis storage when redis not available"""
-        from sagaz.storage.redis import REDIS_AVAILABLE
+        from sagaz.storage.backends.redis.saga import REDIS_AVAILABLE
 
         # Just verify the import check works
         assert isinstance(REDIS_AVAILABLE, bool)
@@ -450,7 +450,7 @@ class TestOutboxMemoryTo100:
     @pytest.mark.asyncio
     async def test_memory_outbox_insert_and_claim(self):
         """Test inserting events and claiming them"""
-        from sagaz.outbox.storage.memory import InMemoryOutboxStorage
+        from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
         from sagaz.outbox.types import OutboxEvent, OutboxStatus
 
         storage = InMemoryOutboxStorage()

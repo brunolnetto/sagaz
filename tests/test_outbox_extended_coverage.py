@@ -288,8 +288,8 @@ class TestPostgreSQLStorageCoverage:
     @pytest.mark.asyncio
     async def test_postgresql_get_events_by_saga(self):
         """Test getting events by saga ID"""
-        with patch("sagaz.outbox.storage.postgresql.ASYNCPG_AVAILABLE", True):
-            from sagaz.outbox.storage.postgresql import PostgreSQLOutboxStorage
+        with patch("sagaz.storage.backends.postgresql.outbox.ASYNCPG_AVAILABLE", True):
+            from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
             storage = PostgreSQLOutboxStorage("postgresql://localhost:5432/test")
 
@@ -312,8 +312,8 @@ class TestPostgreSQLStorageCoverage:
     @pytest.mark.asyncio
     async def test_postgresql_get_pending_count(self):
         """Test getting count of pending events"""
-        with patch("sagaz.outbox.storage.postgresql.ASYNCPG_AVAILABLE", True):
-            from sagaz.outbox.storage.postgresql import PostgreSQLOutboxStorage
+        with patch("sagaz.storage.backends.postgresql.outbox.ASYNCPG_AVAILABLE", True):
+            from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
             storage = PostgreSQLOutboxStorage("postgresql://localhost:5432/test")
 
@@ -336,8 +336,8 @@ class TestPostgreSQLStorageCoverage:
     @pytest.mark.asyncio
     async def test_postgresql_claim_and_lock(self):
         """Test claim batch mechanism"""
-        with patch("sagaz.outbox.storage.postgresql.ASYNCPG_AVAILABLE", True):
-            from sagaz.outbox.storage.postgresql import PostgreSQLOutboxStorage
+        with patch("sagaz.storage.backends.postgresql.outbox.ASYNCPG_AVAILABLE", True):
+            from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
             storage = PostgreSQLOutboxStorage("postgresql://localhost:5432/test")
 
@@ -361,8 +361,8 @@ class TestPostgreSQLStorageCoverage:
     @pytest.mark.asyncio
     async def test_postgresql_get_stuck_events(self):
         """Test getting stuck events"""
-        with patch("sagaz.outbox.storage.postgresql.ASYNCPG_AVAILABLE", True):
-            from sagaz.outbox.storage.postgresql import PostgreSQLOutboxStorage
+        with patch("sagaz.storage.backends.postgresql.outbox.ASYNCPG_AVAILABLE", True):
+            from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
             storage = PostgreSQLOutboxStorage("postgresql://localhost:5432/test")
 
@@ -385,8 +385,8 @@ class TestPostgreSQLStorageCoverage:
     @pytest.mark.asyncio
     async def test_postgresql_release_stuck_events(self):
         """Test releasing stuck events"""
-        with patch("sagaz.outbox.storage.postgresql.ASYNCPG_AVAILABLE", True):
-            from sagaz.outbox.storage.postgresql import PostgreSQLOutboxStorage
+        with patch("sagaz.storage.backends.postgresql.outbox.ASYNCPG_AVAILABLE", True):
+            from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
             storage = PostgreSQLOutboxStorage("postgresql://localhost:5432/test")
 
@@ -409,8 +409,8 @@ class TestPostgreSQLStorageCoverage:
     @pytest.mark.asyncio
     async def test_postgresql_get_by_id_not_found(self):
         """Test getting event by ID when not found"""
-        with patch("sagaz.outbox.storage.postgresql.ASYNCPG_AVAILABLE", True):
-            from sagaz.outbox.storage.postgresql import PostgreSQLOutboxStorage
+        with patch("sagaz.storage.backends.postgresql.outbox.ASYNCPG_AVAILABLE", True):
+            from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
             storage = PostgreSQLOutboxStorage("postgresql://localhost:5432/test")
 
@@ -437,9 +437,9 @@ class TestCompensationGraphEdgeCases:
     @pytest.mark.asyncio
     async def test_compensation_graph_multiple_dependencies(self):
         """Test compensation with multiple dependencies"""
-        from sagaz.compensation_graph import SagaCompensationGraph
+        from sagaz.execution_graph import SagaExecutionGraph
 
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
 
         async def comp_fn(ctx):
             pass
@@ -521,7 +521,7 @@ class TestStorageFactoryEdgeCases:
 
     def test_storage_factory_redis_defaults(self):
         """Test Redis creation with default URL"""
-        with patch("sagaz.storage.redis.REDIS_AVAILABLE", True), patch("sagaz.storage.redis.redis"):
+        with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True), patch("sagaz.storage.backends.redis.saga.redis"):
             from sagaz.storage.factory import create_storage
 
             storage = create_storage("redis")

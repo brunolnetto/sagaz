@@ -1,20 +1,37 @@
 """
-Storage Factory - Simplified API for creating saga storage backends
+Storage Factory - Unified API for creating storage backends.
 
 This module provides a user-friendly factory function for creating storage
 backends without needing to import specific storage classes directly.
+
+Supports both saga storage and outbox storage from a unified interface.
+
+Usage:
+    >>> from sagaz.storage import create_storage
+    
+    # Create saga storage
+    >>> saga_storage = create_storage("redis", storage_type="saga")
+    
+    # Create outbox storage
+    >>> outbox_storage = create_storage("redis", storage_type="outbox")
+    
+    # Create both at once
+    >>> saga, outbox = create_storage("postgresql", storage_type="both")
 """
 
-from typing import Any
+from typing import Any, Literal
 
 from sagaz.exceptions import MissingDependencyError
 from sagaz.storage.base import SagaStorage
-from sagaz.storage.memory import InMemorySagaStorage
+from sagaz.storage.backends.memory import InMemorySagaStorage
 
 
-def _create_redis_storage(kwargs: dict) -> SagaStorage:
-    """Create Redis storage instance."""
-    from sagaz.storage.redis import RedisSagaStorage
+StorageType = Literal["saga", "outbox", "both"]
+
+
+def _create_redis_saga_storage(kwargs: dict) -> SagaStorage:
+    """Create Redis saga storage instance."""
+    from sagaz.storage.backends.redis import RedisSagaStorage
 
     return RedisSagaStorage(
         redis_url=kwargs.get("redis_url", "redis://localhost:6379"),
@@ -23,8 +40,19 @@ def _create_redis_storage(kwargs: dict) -> SagaStorage:
     )
 
 
-def _create_postgresql_storage(kwargs: dict) -> SagaStorage:
-    """Create PostgreSQL storage instance."""
+def _create_redis_outbox_storage(kwargs: dict):
+    """Create Redis outbox storage instance."""
+    from sagaz.storage.backends.redis import RedisOutboxStorage
+
+    return RedisOutboxStorage(
+        redis_url=kwargs.get("redis_url", "redis://localhost:6379"),
+        prefix=kwargs.get("prefix", "sagaz:outbox"),
+        consumer_group=kwargs.get("consumer_group", "sagaz-workers"),
+    )
+
+
+def _create_postgresql_saga_storage(kwargs: dict) -> SagaStorage:
+    """Create PostgreSQL saga storage instance."""
     connection_string = kwargs.get("connection_string")
     if not connection_string:
         msg = (
@@ -32,7 +60,7 @@ def _create_postgresql_storage(kwargs: dict) -> SagaStorage:
             "Example: create_storage('postgresql', connection_string='postgresql://user:pass@localhost/db')"
         )
         raise ValueError(msg)
-    from sagaz.storage.postgresql import PostgreSQLSagaStorage
+    from sagaz.storage.backends.postgresql import PostgreSQLSagaStorage
 
     return PostgreSQLSagaStorage(
         connection_string=connection_string,
@@ -41,95 +69,184 @@ def _create_postgresql_storage(kwargs: dict) -> SagaStorage:
     )
 
 
+def _create_postgresql_outbox_storage(kwargs: dict):
+    """Create PostgreSQL outbox storage instance."""
+    connection_string = kwargs.get("connection_string")
+    if not connection_string:
+        msg = (
+            "PostgreSQL backend requires a connection_string.\n"
+            "Example: create_storage('postgresql', connection_string='postgresql://user:pass@localhost/db', storage_type='outbox')"
+        )
+        raise ValueError(msg)
+    from sagaz.storage.backends.postgresql import PostgreSQLOutboxStorage
+
+    return PostgreSQLOutboxStorage(
+        connection_string=connection_string,
+        pool_min_size=kwargs.get("pool_min_size", 5),
+        pool_max_size=kwargs.get("pool_max_size", 20),
+    )
+
+
+def _create_memory_outbox_storage(kwargs: dict):
+    """Create in-memory outbox storage instance."""
+    from sagaz.storage.backends.memory import InMemoryOutboxStorage
+
+    return InMemoryOutboxStorage()
+
+
+def _create_sqlite_saga_storage(kwargs: dict):
+    """Create SQLite saga storage instance."""
+    from sagaz.storage.backends.sqlite import SQLiteSagaStorage
+
+    return SQLiteSagaStorage(
+        db_path=kwargs.get("db_path", ":memory:"),
+    )
+
+
+def _create_sqlite_outbox_storage(kwargs: dict):
+    """Create SQLite outbox storage instance."""
+    from sagaz.storage.backends.sqlite import SQLiteOutboxStorage
+
+    return SQLiteOutboxStorage(
+        db_path=kwargs.get("db_path", ":memory:"),
+    )
+
+
 # Storage registry mapping backend names to factory functions
-_STORAGE_REGISTRY = {
+_SAGA_STORAGE_REGISTRY = {
     "memory": lambda kwargs: InMemorySagaStorage(),
-    "redis": _create_redis_storage,
-    "postgresql": _create_postgresql_storage,
-    "postgres": _create_postgresql_storage,
-    "pg": _create_postgresql_storage,
+    "redis": _create_redis_saga_storage,
+    "postgresql": _create_postgresql_saga_storage,
+    "postgres": _create_postgresql_saga_storage,
+    "pg": _create_postgresql_saga_storage,
+    "sqlite": _create_sqlite_saga_storage,
+}
+
+_OUTBOX_STORAGE_REGISTRY = {
+    "memory": _create_memory_outbox_storage,
+    "redis": _create_redis_outbox_storage,
+    "postgresql": _create_postgresql_outbox_storage,
+    "postgres": _create_postgresql_outbox_storage,
+    "pg": _create_postgresql_outbox_storage,
+    "sqlite": _create_sqlite_outbox_storage,
 }
 
 
 def create_storage(
     backend: str = "memory",
     *,
+    storage_type: StorageType = "saga",
     # Redis options
     redis_url: str = "redis://localhost:6379",
     key_prefix: str = "saga:",
+    prefix: str = "sagaz:outbox",
+    consumer_group: str = "sagaz-workers",
     default_ttl: int | None = None,
     # PostgreSQL options
     connection_string: str | None = None,
     pool_min_size: int = 5,
     pool_max_size: int = 20,
+    # SQLite options
+    db_path: str = ":memory:",
     # Additional kwargs
     **kwargs,
-) -> SagaStorage:
+) -> SagaStorage | tuple:
     """
-    Create a saga storage backend with a simple, unified API.
+    Create a storage backend with a simple, unified API.
 
     This factory function makes it easy to switch between storage backends
-    without changing your code structure.
+    without changing your code structure. Supports both saga and outbox storage.
 
     Args:
-        backend: Storage backend type - "memory", "redis", or "postgresql"
+        backend: Storage backend type - "memory", "redis", "postgresql", or "sqlite"
+        storage_type: Type of storage - "saga", "outbox", or "both"
         redis_url: Redis connection URL (for redis backend)
-        key_prefix: Key prefix for Redis (for redis backend)
+        key_prefix: Key prefix for Redis saga storage
+        prefix: Key prefix for Redis outbox storage
+        consumer_group: Consumer group for Redis outbox storage
         default_ttl: TTL for completed sagas in seconds (for redis backend)
         connection_string: PostgreSQL connection string (for postgresql backend)
         pool_min_size: Minimum pool size (for postgresql backend)
         pool_max_size: Maximum pool size (for postgresql backend)
+        db_path: Path to SQLite database file (for sqlite backend)
         **kwargs: Additional backend-specific options
 
     Returns:
-        Configured SagaStorage instance
+        For storage_type="saga" or "outbox": A single storage instance
+        For storage_type="both": A tuple of (saga_storage, outbox_storage)
 
     Raises:
-        ValueError: If an unknown backend is specified
+        ValueError: If an unknown backend or storage_type is specified
         MissingDependencyError: If required packages aren't installed
 
     Examples:
-        # In-memory storage (great for development/testing)
+        # In-memory saga storage (great for development/testing)
         >>> storage = create_storage("memory")
 
-        # Redis storage (for distributed systems)
+        # Redis saga storage (for distributed systems)
         >>> storage = create_storage(
         ...     "redis",
         ...     redis_url="redis://localhost:6379",
         ...     default_ttl=3600  # Expire completed sagas after 1 hour
         ... )
 
-        # PostgreSQL storage (for ACID compliance)
-        >>> storage = create_storage(
+        # Redis outbox storage (NEW in v1.2.0)
+        >>> outbox = create_storage(
+        ...     "redis",
+        ...     storage_type="outbox",
+        ...     redis_url="redis://localhost:6379"
+        ... )
+
+        # Both saga and outbox from same backend
+        >>> saga, outbox = create_storage(
         ...     "postgresql",
+        ...     storage_type="both",
         ...     connection_string="postgresql://user:pass@localhost/mydb"
         ... )
     """
     backend = backend.lower().strip()
 
-    if backend not in _STORAGE_REGISTRY:
-        available_backends = ["memory", "redis", "postgresql"]
+    # Validate backend
+    if backend not in _SAGA_STORAGE_REGISTRY:
+        available_backends = ["memory", "redis", "postgresql", "sqlite"]
         msg = (
             f"Unknown storage backend: '{backend}'\n"
             f"Available backends: {', '.join(available_backends)}"
         )
         raise ValueError(msg)
 
+    # Validate storage_type
+    if storage_type not in ("saga", "outbox", "both"):
+        raise ValueError(
+            f"Unknown storage_type: '{storage_type}'. "
+            f"Valid options: 'saga', 'outbox', 'both'"
+        )
+
     # Build kwargs dict for factory
     factory_kwargs = {
         "redis_url": redis_url,
         "key_prefix": key_prefix,
+        "prefix": prefix,
+        "consumer_group": consumer_group,
         "default_ttl": default_ttl,
         "connection_string": connection_string,
         "pool_min_size": pool_min_size,
         "pool_max_size": pool_max_size,
+        "db_path": db_path,
         **kwargs,
     }
 
     try:
-        return _STORAGE_REGISTRY[backend](factory_kwargs)
+        if storage_type == "saga":
+            return _SAGA_STORAGE_REGISTRY[backend](factory_kwargs)
+        elif storage_type == "outbox":
+            return _OUTBOX_STORAGE_REGISTRY[backend](factory_kwargs)
+        else:  # both
+            saga_storage = _SAGA_STORAGE_REGISTRY[backend](factory_kwargs)
+            outbox_storage = _OUTBOX_STORAGE_REGISTRY[backend](factory_kwargs)
+            return saga_storage, outbox_storage
     except MissingDependencyError:
-        raise
+        raise  # pragma: no cover
 
 
 def get_available_backends() -> dict[str, dict[str, Any]]:
@@ -154,6 +271,7 @@ def get_available_backends() -> dict[str, dict[str, Any]]:
             "description": "In-memory storage (no persistence)",
             "install": None,
             "best_for": "Development, testing, single-process applications",
+            "supports": ["saga", "outbox"],
         }
     }
 
@@ -166,6 +284,7 @@ def get_available_backends() -> dict[str, dict[str, Any]]:
             "description": "Redis-based distributed storage",
             "install": None,
             "best_for": "Distributed systems, high throughput, auto-expiration",
+            "supports": ["saga", "outbox"],
         }
     except ImportError:  # pragma: no cover
         backends["redis"] = {
@@ -173,6 +292,7 @@ def get_available_backends() -> dict[str, dict[str, Any]]:
             "description": "Redis-based distributed storage",
             "install": "pip install redis",
             "best_for": "Distributed systems, high throughput, auto-expiration",
+            "supports": ["saga", "outbox"],
         }
 
     # Check PostgreSQL availability
@@ -184,6 +304,7 @@ def get_available_backends() -> dict[str, dict[str, Any]]:
             "description": "PostgreSQL ACID-compliant storage",
             "install": None,
             "best_for": "ACID compliance, complex queries, data integrity",
+            "supports": ["saga", "outbox"],
         }
     except ImportError:  # pragma: no cover
         backends["postgresql"] = {
@@ -191,6 +312,27 @@ def get_available_backends() -> dict[str, dict[str, Any]]:
             "description": "PostgreSQL ACID-compliant storage",
             "install": "pip install asyncpg",
             "best_for": "ACID compliance, complex queries, data integrity",
+            "supports": ["saga", "outbox"],
+        }
+
+    # Check SQLite availability
+    try:
+        import aiosqlite
+
+        backends["sqlite"] = {
+            "available": True,
+            "description": "SQLite embedded storage",
+            "install": None,
+            "best_for": "Local development, testing, single-file persistence",
+            "supports": ["saga", "outbox"],
+        }
+    except ImportError:  # pragma: no cover
+        backends["sqlite"] = {
+            "available": False,
+            "description": "SQLite embedded storage",
+            "install": "pip install aiosqlite",
+            "best_for": "Local development, testing, single-file persistence",
+            "supports": ["saga", "outbox"],
         }
 
     return backends
@@ -208,9 +350,12 @@ def print_available_backends() -> None:
 
     for name, info in backends.items():
         status = "✓" if info["available"] else "✗"
+        supports = ", ".join(info.get("supports", ["saga"]))
         print(f"  {status} {name:<12} - {info['description']}")
+        print(f"                   Supports: {supports}")
 
         if not info["available"] and info["install"]:
-            print(f"                   Install: {info['install']}")
+            print(f"                   Install: {info['install']}")  # pragma: no cover
 
     print()
+

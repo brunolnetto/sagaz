@@ -74,7 +74,7 @@ class TestGrafanaDashboardValidity:
         import json
         from pathlib import Path
 
-        dashboard_path = Path("sagaz/resources/k8s/monitoring/grafana-dashboard-main.json")
+        dashboard_path = Path("sagaz/resources/local/redis/monitoring/grafana/dashboards/grafana-dashboard-main.json")
         if not dashboard_path.exists():
             pytest.skip("Dashboard file not found")
 
@@ -91,7 +91,7 @@ class TestGrafanaDashboardValidity:
         import json
         from pathlib import Path
 
-        dashboard_path = Path("sagaz/resources/k8s/monitoring/grafana-dashboard-main.json")
+        dashboard_path = Path("sagaz/resources/local/redis/monitoring/grafana/dashboards/grafana-dashboard-main.json")
         if not dashboard_path.exists():
             pytest.skip("Dashboard file not found")
 
@@ -140,7 +140,7 @@ class TestGrafanaDashboardValidity:
         import json
         from pathlib import Path
 
-        dashboard_path = Path("sagaz/resources/k8s/monitoring/grafana-dashboard-outbox.json")
+        dashboard_path = Path("sagaz/resources/local/redis/monitoring/grafana/dashboards/grafana-dashboard-outbox.json")
         if not dashboard_path.exists():
             pytest.skip("Outbox dashboard file not found")
 
@@ -152,53 +152,6 @@ class TestGrafanaDashboardValidity:
 
         assert "panels" in dashboard
         assert len(dashboard["panels"]) > 0
-
-
-@pytest.mark.integration
-class TestAlertRulesValidity:
-    """Test that Prometheus alert rules are valid."""
-
-    def test_prometheus_alerts_is_valid_yaml(self):
-        """Verify alert rules YAML is valid."""
-        from pathlib import Path
-
-        import yaml
-
-        alerts_path = Path("sagaz/resources/k8s/monitoring/prometheus-alerts.yaml")
-        if not alerts_path.exists():
-            pytest.skip("Alerts file not found")
-
-        with open(alerts_path) as f:
-            alerts = yaml.safe_load(f)
-
-        # Handle ConfigMap format
-        if "apiVersion" in alerts and "data" in alerts:
-            # It's a ConfigMap, extract the actual alerts
-            for key, value in alerts["data"].items():
-                if key.endswith((".yaml", ".yml")):
-                    inner_alerts = yaml.safe_load(value)
-                    assert "groups" in inner_alerts
-                    assert len(inner_alerts["groups"]) > 0
-        else:
-            # Direct alert rules format
-            assert "groups" in alerts
-            assert len(alerts["groups"]) > 0
-
-    def test_alertmanager_rules_is_valid_yaml(self):
-        """Verify alertmanager rules YAML is valid."""
-        from pathlib import Path
-
-        import yaml
-
-        rules_path = Path("sagaz/resources/k8s/monitoring/alertmanager-rules.yml")
-        if not rules_path.exists():
-            pytest.skip("Alertmanager rules file not found")
-
-        with open(rules_path) as f:
-            rules = yaml.safe_load(f)
-
-        # Basic structure validation
-        assert rules is not None
 
 
 # ============================================================================

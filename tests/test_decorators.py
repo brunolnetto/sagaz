@@ -6,7 +6,7 @@ import asyncio
 
 import pytest
 
-from sagaz.compensation_graph import CompensationType
+from sagaz.execution_graph import CompensationType
 from sagaz.decorators import (
     Saga,
     SagaStepDefinition,
@@ -91,7 +91,6 @@ class TestCompensateDecorator:
 
         @compensate(
             "payment",
-            depends_on=["inventory"],
             compensation_type=CompensationType.SEMANTIC,
             timeout_seconds=45.0,
             max_retries=5,
@@ -102,7 +101,8 @@ class TestCompensateDecorator:
 
         meta = refund._saga_compensation_meta
         assert meta.for_step == "payment"
-        assert meta.depends_on == ["inventory"]
+        # depends_on is no longer a parameter - derived from forward dependencies
+        assert meta.depends_on == []
         assert meta.compensation_type == CompensationType.SEMANTIC
         assert meta.timeout_seconds == 45.0
         assert meta.max_retries == 5
@@ -488,3 +488,62 @@ class TestSagaAdvanced:
 
         # Should complete without error
         assert result["__step1_completed"] is True
+
+
+class TestImperativeSupport:
+    """Tests for imperative API support in declarative Saga."""
+
+    @pytest.mark.asyncio
+    async def test_add_step_programmatically(self):
+        """Test adding a step using add_step()."""
+        
+        class MySaga(Saga):
+            saga_name = "test"
+            
+        saga = MySaga()
+        
+        # Add a step imperatively
+        async def my_action(ctx):
+            return {"imperative": True}
+        
+        # Add dependencies for imperative step if needed, here we test simple addition
+        saga.add_step(
+            name="imp_step",
+            action=my_action,
+            max_retries=1
+        )
+        
+        # Step should be in registry and steps list
+        assert len(saga._steps) == 1
+        assert "imp_step" in saga._step_registry
+        
+        step_def = saga.get_step("imp_step")
+        assert step_def.max_retries == 1
+        
+        # Run it
+        result = await saga.run({})
+        assert result["imperative"] is True
+
+    @pytest.mark.asyncio
+    async def test_mix_declarative_and_imperative(self):
+        """Test mixing @step decorators and add_step()."""
+        
+        class MixedSaga(Saga):
+            @step("decl_step")
+            async def decl_step(self, ctx):
+                return {"decl": True}
+                
+        saga = MixedSaga()
+        
+        # Add imperative step depending on declarative one
+        async def imp_step(ctx):
+            return {"imp": True}
+            
+        # Mixing declarative and imperative approaches should raise TypeError
+        msg = "Cannot use add_step.*with @action/@compensate decorators"
+        with pytest.raises(TypeError, match=msg):
+            saga.add_step(
+                name="imp_step",
+                action=imp_step,
+                depends_on=["decl_step"]
+            )

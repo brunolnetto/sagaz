@@ -255,7 +255,7 @@ class OutboxSagaListener(SagaListener):
     Events are published with topic format: {saga_name}.{event_type}
 
     Example:
-        >>> from sagaz.outbox.storage.postgresql import PostgreSQLOutboxStorage
+        >>> from sagaz.outbox import PostgreSQLOutboxStorage
         >>> storage = PostgreSQLOutboxStorage(conn_string)
         >>>
         >>> class OrderSaga(Saga):

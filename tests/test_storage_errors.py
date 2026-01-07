@@ -21,7 +21,7 @@ class TestPostgreSQLStorageErrors:
     @pytest.mark.asyncio
     async def test_import_error_when_asyncpg_not_available(self):
         """Test MissingDependencyError is raised when asyncpg is not installed."""
-        with patch("sagaz.storage.postgresql.ASYNCPG_AVAILABLE", False):
+        with patch("sagaz.storage.backends.postgresql.saga.ASYNCPG_AVAILABLE", False):
             with pytest.raises(MissingDependencyError):
                 PostgreSQLSagaStorage("postgresql://test")
 
@@ -32,7 +32,7 @@ class TestRedisStorageErrors:
     @pytest.mark.asyncio
     async def test_import_error_when_redis_not_available(self):
         """Test MissingDependencyError is raised when redis is not installed."""
-        with patch("sagaz.storage.redis.REDIS_AVAILABLE", False):
+        with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", False):
             with pytest.raises(MissingDependencyError):
                 RedisSagaStorage("redis://test")
 

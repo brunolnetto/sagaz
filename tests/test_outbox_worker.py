@@ -269,7 +269,7 @@ class TestGetStorageFactory:
 
         monkeypatch.setenv("DATABASE_URL", "postgresql://localhost:5432/test")
 
-        with patch("sagaz.outbox.storage.postgresql.ASYNCPG_AVAILABLE", True):
+        with patch("sagaz.storage.backends.postgresql.outbox.ASYNCPG_AVAILABLE", True):
             storage = worker.get_storage()
             assert storage is not None
 

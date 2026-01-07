@@ -17,7 +17,7 @@ from sagaz.listeners import (
     TracingSagaListener,
 )
 from sagaz.outbox.brokers.memory import InMemoryBroker
-from sagaz.outbox.storage.memory import InMemoryOutboxStorage
+from sagaz.outbox import InMemoryOutboxStorage
 from sagaz.storage.memory import InMemorySagaStorage
 
 
@@ -145,10 +145,10 @@ class TestSagaConfigOutboxStorageDerivation:
     def test_broker_with_postgresql_storage_derives(self, caplog):
         """Test PostgreSQL outbox storage derived from PostgreSQL saga storage."""
         with (
-            patch("sagaz.storage.postgresql.ASYNCPG_AVAILABLE", True),
-            patch("sagaz.storage.postgresql.asyncpg"),
-            patch("sagaz.outbox.storage.postgresql.ASYNCPG_AVAILABLE", True),
-            patch("sagaz.outbox.storage.postgresql.asyncpg"),
+            patch("sagaz.storage.backends.postgresql.saga.ASYNCPG_AVAILABLE", True),
+            patch("sagaz.storage.backends.postgresql.saga.asyncpg"),
+            patch("sagaz.storage.backends.postgresql.outbox.ASYNCPG_AVAILABLE", True),
+            patch("sagaz.storage.backends.postgresql.outbox.asyncpg"),
         ):
             from sagaz.storage.postgresql import PostgreSQLSagaStorage
 
@@ -162,8 +162,8 @@ class TestSagaConfigOutboxStorageDerivation:
 
     def test_broker_with_redis_storage_warns(self, caplog):
         """Test warning when broker is set with Redis storage."""
-        with patch("sagaz.storage.redis.REDIS_AVAILABLE", True):
-            with patch("sagaz.storage.redis.redis"):
+        with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
+            with patch("sagaz.storage.backends.redis.saga.redis"):
                 from sagaz.storage.redis import RedisSagaStorage
 
                 storage = RedisSagaStorage("redis://localhost")

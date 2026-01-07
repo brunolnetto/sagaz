@@ -1,0 +1,6 @@
+# Flask Integration Example
+flask>=2.0.0
+python-dotenv>=1.0.0
+
+# Sagaz (install from local or pypi)
+# sagaz>=1.0.0

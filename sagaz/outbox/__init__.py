@@ -36,8 +36,8 @@ Components:
     - OutboxStatus: Event lifecycle states
     - OutboxConfig: Worker configuration
 
-Storage (sagaz.outbox.storage):
-    - OutboxStorage: Storage interface
+Storage (sagaz.storage.backends):
+    - OutboxStorage: Storage interface (sagaz.storage.interfaces)
     - InMemoryOutboxStorage: For testing
     - PostgreSQLOutboxStorage: Production (requires asyncpg)
 
@@ -81,13 +81,7 @@ from sagaz.outbox.state_machine import (
     OutboxStateMachine,
 )
 
-# Storage imports
-from sagaz.outbox.storage import (
-    InMemoryOutboxStorage,
-    OutboxStorage,
-    OutboxStorageError,
-    PostgreSQLOutboxStorage,
-)
+# Types - these don't cause circular imports
 from sagaz.outbox.types import (
     OutboxClaimError,
     OutboxConfig,
@@ -97,6 +91,25 @@ from sagaz.outbox.types import (
     OutboxStatus,
 )
 from sagaz.outbox.worker import OutboxWorker
+
+
+# Lazy imports for storage classes to avoid circular imports
+def __getattr__(name: str):
+    """Lazy import for storage classes to avoid circular imports."""
+    if name == "InMemoryOutboxStorage":
+        from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
+        return InMemoryOutboxStorage
+    if name == "OutboxStorage":
+        from sagaz.storage.interfaces.outbox import OutboxStorage
+        return OutboxStorage
+    if name == "OutboxStorageError":
+        from sagaz.storage.interfaces.outbox import OutboxStorageError
+        return OutboxStorageError
+    if name == "PostgreSQLOutboxStorage":
+        from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
+        return PostgreSQLOutboxStorage
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
     "BaseBroker",

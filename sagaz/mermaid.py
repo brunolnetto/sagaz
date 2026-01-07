@@ -18,6 +18,11 @@ class StepInfo:
     name: str
     has_compensation: bool
     depends_on: set[str] = field(default_factory=set)
+    # v1.3.0: Pivot support
+    pivot: bool = False
+    """True if this step is a pivot (point of no return)."""
+    tainted: bool = False
+    """True if this step is tainted (ancestor of completed pivot)."""
 
 
 @dataclass
@@ -63,12 +68,14 @@ class MermaidGenerator:
         show_compensation: bool = True,
         show_state_markers: bool = True,
         highlight_trail: HighlightTrail | None = None,
+        show_pivot_zones: bool = True,
     ):
         self.steps = steps
         self.direction = direction
         self.show_compensation = show_compensation
         self.show_state_markers = show_state_markers
         self.trail = highlight_trail or HighlightTrail()
+        self.show_pivot_zones = show_pivot_zones
 
         self._step_map = {s.name: s for s in steps}
         self._compute_step_metadata()
@@ -84,6 +91,11 @@ class MermaidGenerator:
             all_deps.update(step.depends_on)
         self._root_steps = [s for s in self.steps if not s.depends_on]
         self._leaf_steps = [s for s in self.steps if s.name not in all_deps]
+        
+        # v1.3.0: Compute pivot zone information
+        self._pivot_steps = [s for s in self.steps if s.pivot]
+        self._tainted_steps = [s for s in self.steps if s.tainted]
+        self._has_pivots = bool(self._pivot_steps)
 
     def _init_link_tracking(self) -> None:
         """Initialize link tracking state."""
@@ -457,6 +469,14 @@ class MermaidGenerator:
         self._lines.append("    classDef highlighted stroke-width:3px")
         self._lines.append("    classDef startEnd fill:#333,stroke:#333,color:#fff")
         self._lines.append("    classDef dimmed fill:#e9ecef,stroke:#adb5bd,color:#6c757d")
+        
+        # v1.3.0: Pivot zone styles
+        if self.show_pivot_zones and self._has_pivots:
+            self._lines.append("    %% Pivot Zone Styles")
+            self._lines.append("    classDef reversible fill:#98FB98,stroke:#28a745,color:#155724")
+            self._lines.append("    classDef pivot fill:#FFD700,stroke:#FFA500,color:#8B4513,stroke-width:3px")
+            self._lines.append("    classDef committed fill:#87CEEB,stroke:#4169E1,color:#00008B")
+            self._lines.append("    classDef tainted fill:#DDA0DD,stroke:#8B008B,color:#4B0082")
 
     def _apply_node_classes(self) -> None:
         """Apply classes to step and compensation nodes."""
@@ -488,10 +508,80 @@ class MermaidGenerator:
 
     def _apply_default_node_classes(self, step_names: list[str], comp_names: list[str]) -> None:
         """Apply default classes when no trail."""
-        if step_names:
-            self._lines.append(f"    class {','.join(step_names)} success")
+        # v1.3.0: Apply pivot zone styles if enabled and pivots exist
+        if self.show_pivot_zones and self._has_pivots:
+            self._apply_zone_classes()
+        else:
+            # Original behavior: all steps get success style
+            if step_names:
+                self._lines.append(f"    class {','.join(step_names)} success")
+        
         if comp_names:
             self._lines.append(f"    class {','.join(comp_names)} compensation")
+    
+    def _apply_zone_classes(self) -> None:
+        """
+        Apply zone-based styling to nodes (v1.3.0).
+        
+        Zones:
+        - reversible: Steps before pivot (light green)
+        - pivot: The pivot step itself (gold, thick border)
+        - committed: Steps after pivot (light blue)
+        - tainted: Ancestors of completed pivot (plum/purple)
+        """
+        # Collect steps by zone
+        reversible_steps = []
+        pivot_steps = []
+        committed_steps = []
+        tainted_steps = []
+        
+        for step in self.steps:
+            if step.tainted:
+                tainted_steps.append(step.name)
+            elif step.pivot:
+                pivot_steps.append(step.name)
+            elif self._is_after_any_pivot(step):
+                committed_steps.append(step.name)
+            else:
+                reversible_steps.append(step.name)
+        
+        # Apply classes
+        if reversible_steps:
+            self._lines.append(f"    class {','.join(reversible_steps)} reversible")
+        if pivot_steps:
+            self._lines.append(f"    class {','.join(pivot_steps)} pivot")
+        if committed_steps:
+            self._lines.append(f"    class {','.join(committed_steps)} committed")
+        if tainted_steps:
+            self._lines.append(f"    class {','.join(tainted_steps)} tainted")
+    
+    def _is_after_any_pivot(self, step: StepInfo) -> bool:
+        """Check if step is a descendant of any pivot."""
+        if not self._pivot_steps:
+            return False
+        
+        # BFS from pivot steps to find descendants
+        pivots = {s.name for s in self._pivot_steps}
+        
+        # Check if any ancestor is a pivot
+        visited = set()
+        to_check = list(step.depends_on)
+        
+        while to_check:
+            dep = to_check.pop(0)
+            if dep in visited:
+                continue
+            visited.add(dep)
+            
+            if dep in pivots:
+                return True
+            
+            # Check ancestors of this dependency
+            dep_step = self._step_map.get(dep)
+            if dep_step:
+                to_check.extend(dep_step.depends_on)
+        
+        return False
 
     def _style_state_markers(self) -> None:
         """Style START, SUCCESS, ROLLED_BACK markers."""

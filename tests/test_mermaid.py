@@ -8,8 +8,9 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from sagaz import Saga, action, compensate
-from sagaz.core import Saga as ClassicSaga
+from sagaz.core import Saga as ImperativeSaga
 from sagaz.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+
 
 
 class TestMermaidGeneratorEdgeCases:
@@ -565,9 +566,42 @@ class TestMermaidGeneration:
         assert "comp_work_b -.-> comp_setup" in mermaid
 
     @pytest.mark.asyncio
+    async def test_declarative_saga_to_mermaid_with_execution(self):
+        """Test to_mermaid_with_execution with declarative saga."""
+        
+        class MySaga(Saga):
+            saga_name = "my_saga"
+            
+            @action("step1")
+            async def step1(self, ctx):
+                return {}
+            
+            @compensate("step1")
+            async def undo1(self, ctx):
+                pass
+                
+        saga = MySaga()
+        
+        # Mock storage
+        mock_data = {
+            "steps": [
+                {"name": "step1", "status": "compensated"},
+            ]
+        }
+        mock_storage = MagicMock()
+        mock_storage.load_saga_state = AsyncMock(return_value=mock_data)
+        
+        mermaid = await saga.to_mermaid_with_execution("saga-1", mock_storage)
+        
+        # Should show step1 as success (because it completed to be compensated)
+        # And comp_step1 as compensation
+        assert "class step1 success" in mermaid
+        assert "class comp_step1 compensation" in mermaid
+
+    @pytest.mark.asyncio
     async def test_classic_saga_to_mermaid_sequential(self):
         """Test Mermaid generation for classic saga."""
-        saga = ClassicSaga(name="classic")
+        saga = ImperativeSaga(name="classic")
 
         await saga.add_step("step_a", lambda ctx: "a")
         await saga.add_step("step_b", lambda ctx: "b")
@@ -582,7 +616,7 @@ class TestMermaidGeneration:
     @pytest.mark.asyncio
     async def test_classic_saga_to_mermaid_with_deps(self):
         """Test Mermaid generation for classic saga with dependencies."""
-        saga = ClassicSaga(name="classic_dag")
+        saga = ImperativeSaga(name="classic_dag")
 
         await saga.add_step("setup", lambda ctx: "setup", dependencies=set())
         await saga.add_step("work_a", lambda ctx: "a", dependencies={"setup"})
@@ -599,7 +633,7 @@ class TestMermaidGeneration:
     @pytest.mark.asyncio
     async def test_classic_saga_state_markers(self):
         """Test that state markers (START/SUCCESS/ROLLED_BACK) are generated."""
-        saga = ClassicSaga(name="state_markers")
+        saga = ImperativeSaga(name="state_markers")
 
         async def action(ctx):
             return "done"
@@ -628,7 +662,7 @@ class TestMermaidGeneration:
     @pytest.mark.asyncio
     async def test_classic_saga_hide_state_markers(self):
         """Test show_state_markers=False hides state nodes."""
-        saga = ClassicSaga(name="no_state")
+        saga = ImperativeSaga(name="no_state")
 
         await saga.add_step("step_a", lambda ctx: "a")
 
@@ -642,7 +676,7 @@ class TestMermaidGeneration:
     @pytest.mark.asyncio
     async def test_classic_saga_highlight_trail(self):
         """Test highlight_trail parameter colors executed steps."""
-        saga = ClassicSaga(name="highlight")
+        saga = ImperativeSaga(name="highlight")
 
         async def action(ctx):
             return "done"
@@ -678,7 +712,7 @@ class TestMermaidGeneration:
     @pytest.mark.asyncio
     async def test_classic_saga_to_mermaid_with_execution_no_state(self):
         """Test to_mermaid_with_execution returns basic diagram when no state found."""
-        saga = ClassicSaga(name="exec_test")
+        saga = ImperativeSaga(name="exec_test")
         await saga.add_step("step_a", lambda ctx: "a")
 
         # Mock storage that returns None
@@ -695,7 +729,7 @@ class TestMermaidGeneration:
     @pytest.mark.asyncio
     async def test_classic_saga_to_mermaid_with_execution_with_state(self):
         """Test to_mermaid_with_execution highlights actual execution."""
-        saga = ClassicSaga(name="exec_state")
+        saga = ImperativeSaga(name="exec_state")
 
         async def action(ctx):
             return "done"
@@ -730,7 +764,7 @@ class TestMermaidGeneration:
     @pytest.mark.asyncio
     async def test_classic_saga_to_mermaid_markdown(self):
         """Test to_mermaid_markdown wraps in code fence."""
-        saga = ClassicSaga(name="markdown")
+        saga = ImperativeSaga(name="markdown")
         await saga.add_step("step_a", lambda ctx: "a")
 
         markdown = saga.to_mermaid_markdown()
@@ -855,7 +889,7 @@ class TestConnectedGraphValidation:
     @pytest.mark.asyncio
     async def test_connected_saga_passes_validation(self):
         """Test that connected saga passes validation."""
-        saga = ClassicSaga(name="connected")
+        saga = ImperativeSaga(name="connected")
 
         async def action(ctx):
             return "done"
@@ -870,7 +904,7 @@ class TestConnectedGraphValidation:
     @pytest.mark.asyncio
     async def test_disjoint_saga_raises_error(self):
         """Test that disjoint saga raises ValueError."""
-        saga = ClassicSaga(name="disjoint")
+        saga = ImperativeSaga(name="disjoint")
 
         async def action(ctx):
             return "done"
@@ -889,7 +923,7 @@ class TestConnectedGraphValidation:
     @pytest.mark.asyncio
     async def test_single_step_saga_always_valid(self):
         """Test that single step saga is always valid."""
-        saga = ClassicSaga(name="single")
+        saga = ImperativeSaga(name="single")
 
         async def action(ctx):
             return "only"
@@ -902,7 +936,7 @@ class TestConnectedGraphValidation:
     @pytest.mark.asyncio
     async def test_sequential_saga_always_valid(self):
         """Test that sequential saga (no explicit deps) is always valid."""
-        saga = ClassicSaga(name="sequential")
+        saga = ImperativeSaga(name="sequential")
 
         async def action1(ctx):
             return "1"
@@ -924,7 +958,7 @@ class TestConnectedGraphValidation:
     @pytest.mark.asyncio
     async def test_three_component_disjoint_saga_shows_groups(self):
         """Test that error message shows all disconnected groups."""
-        saga = ClassicSaga(name="three_groups")
+        saga = ImperativeSaga(name="three_groups")
 
         async def action(ctx):
             return "done"
@@ -946,7 +980,7 @@ class TestConnectedGraphValidation:
     @pytest.mark.asyncio
     async def test_linear_chain_is_connected(self):
         """Test that a linear chain A -> B -> C -> D is connected."""
-        saga = ClassicSaga(name="chain")
+        saga = ImperativeSaga(name="chain")
 
         async def action(ctx):
             return "done"
@@ -967,7 +1001,7 @@ class TestConnectedGraphValidation:
         #   B   C
         #    \ /
         #     D
-        saga = ClassicSaga(name="diamond")
+        saga = ImperativeSaga(name="diamond")
 
         async def action(ctx):
             return "done"

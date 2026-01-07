@@ -19,7 +19,7 @@ import pytest
 
 from sagaz.outbox.brokers.base import BrokerConnectionError, BrokerPublishError
 from sagaz.outbox.brokers.memory import InMemoryBroker
-from sagaz.outbox.storage.memory import InMemoryOutboxStorage
+from sagaz.outbox import InMemoryOutboxStorage
 from sagaz.outbox.types import OutboxConfig, OutboxEvent, OutboxStatus
 from sagaz.outbox.worker import OutboxWorker
 from sagaz.storage.base import SagaStorageConnectionError
@@ -337,137 +337,13 @@ class TestDatabaseConnectionLoss:
 
 
 class TestBrokerDowntime:
-    """Test message broker failures and recovery"""
+    """Test message broker failures and recovery.
+    
+    Note: Tests for exponential backoff and publish timeout have been removed
+    as the OutboxWorker design relies on external orchestration for retries.
+    The worker marks events as FAILED and expects external processes to retry.
+    """
 
-    @pytest.mark.asyncio
-    @pytest.mark.skip(
-        reason="Worker doesn't retry within single process_batch - requires external retry loop"
-    )
-    async def test_broker_connection_failure_exponential_backoff(self):
-        """
-        Chaos: Broker is down, then comes back up
-        Expected: Exponential backoff, eventual success
-
-        NOTE: This test is skipped because the OutboxWorker marks events as FAILED
-        after publish errors and expects external processes (like repeated process_batch calls
-        or a scheduler) to retry. The worker itself doesn't implement exponential backoff
-        within a single process_batch() call.
-        """
-        storage = InMemoryOutboxStorage()
-        broker = InMemoryBroker()
-        await broker.connect()
-
-        event = create_test_event("test-event")
-        await storage.insert(event)
-
-        # Simulate broker downtime
-        attempt_count = 0
-        original_publish = broker.publish_event
-
-        async def failing_publish(event):
-            nonlocal attempt_count
-            attempt_count += 1
-
-            # Fail first 2 attempts (broker down)
-            if attempt_count <= 2:
-                msg = "Broker unavailable"
-                raise BrokerConnectionError(msg)
-
-            # Success (broker recovered)
-            return await original_publish(event)
-
-        broker.publish_event = failing_publish
-
-        config = OutboxConfig(
-            batch_size=1,
-            max_retries=5,
-        )
-        worker = OutboxWorker(storage, broker, config)
-
-        # Process with multiple attempts - should retry until success
-        max_attempts = 8
-        succeeded = False
-        for _i in range(max_attempts):
-            try:
-                result = await worker.process_batch()
-                if result > 0:
-                    succeeded = True
-                    break
-            except Exception:
-                pass  # Continue
-            await asyncio.sleep(0.05)  # Small delay between attempts
-
-        # Verify event eventually published
-        assert succeeded, (
-            f"Failed after {max_attempts} attempts with {attempt_count} publish attempts"
-        )
-        event_result = await storage.get_by_id(event.event_id)
-        assert event_result.status == OutboxStatus.SENT
-        assert attempt_count >= 3  # At least 2 failures + 1 success
-
-    @pytest.mark.asyncio
-    @pytest.mark.skip(
-        reason="Worker behavior - marks events FAILED, doesn't auto-retry in same batch"
-    )
-    async def test_broker_publish_timeout(self):
-        """
-        Chaos: Broker publish hangs (network partition)
-        Expected: Timeout, retry, eventual success
-
-        NOTE: This test is skipped because the OutboxWorker doesn't implement automatic
-        retry logic within a single process_batch() call. Events that fail are marked
-        as FAILED and require external retry coordination.
-        """
-        storage = InMemoryOutboxStorage()
-        broker = InMemoryBroker()
-        await broker.connect()
-
-        event = create_test_event("test-event")
-        await storage.insert(event)
-
-        attempt_count = 0
-        original_publish = broker.publish_event
-
-        async def slow_publish(event):
-            nonlocal attempt_count
-            attempt_count += 1
-
-            if attempt_count == 1:
-                # First attempt - hang briefly (simulate slow network)
-                await asyncio.sleep(1.5)
-                msg = "Timeout"
-                raise BrokerPublishError(msg)
-
-            # Subsequent attempts - work normally
-            return await original_publish(event)
-
-        broker.publish_event = slow_publish
-
-        worker = OutboxWorker(storage, broker)
-
-        # Process with timeout - first attempt will be slow
-        try:
-            await asyncio.wait_for(worker.process_batch(), timeout=1.0)
-        except TimeoutError:
-            pass
-
-        # Retry multiple times until success
-        max_retries = 5
-        processed = 0
-        for _ in range(max_retries):
-            try:
-                processed = await worker.process_batch()
-                if processed > 0:
-                    break
-            except Exception:
-                pass
-            await asyncio.sleep(0.1)
-
-        # Verify event eventually published or at least attempted
-        assert attempt_count >= 2, "Should have attempted at least twice"
-        event_result = await storage.get_by_id(event.event_id)
-        # Event should be either sent or pending retry
-        assert event_result.status in [OutboxStatus.SENT, OutboxStatus.PENDING, OutboxStatus.FAILED]
 
     @pytest.mark.asyncio
     async def test_partial_batch_failure(self):
@@ -721,84 +597,9 @@ class TestConcurrentFailures:
 
         assert duration < 5.0  # Should complete within 5 seconds
 
-    @pytest.mark.asyncio
-    @pytest.mark.skip(
-        reason="Worker doesn't implement cascading retry logic - requires external orchestration"
-    )
-    async def test_cascading_failure_recovery(self):
-        """
-        Chaos: Initial failure causes cascade of failures
-        Expected: System self-heals without manual intervention
+    # Note: test_cascading_failure_recovery removed - worker design relies on external orchestration
 
-        NOTE: This test is skipped because the OutboxWorker's retry mechanism
-        requires external orchestration (like a polling loop or scheduler).
-        Single process_batch() calls don't implement cascading retry logic.
-        """
-        storage = InMemoryOutboxStorage()
-        broker = InMemoryBroker()
-        await broker.connect()
 
-        # Create event
-        event = create_test_event("test-event")
-        await storage.insert(event)
-
-        # Simulate cascading failures that self-heal after fewer attempts
-        failure_count = 3
-        attempt = 0
-
-        original_publish = broker.publish_event
-
-        async def cascading_failure(event):
-            nonlocal attempt
-            attempt += 1
-
-            if attempt <= failure_count:
-                # Simulate different types of failures
-                if attempt % 3 == 0:
-                    msg = "Connection lost"
-                    raise BrokerConnectionError(msg)
-                if attempt % 3 == 1:
-                    msg = "Publish failed"
-                    raise BrokerPublishError(msg)
-                msg = "Unknown error"
-                raise Exception(msg)
-
-            # Self-healed
-            return await original_publish(event)
-
-        broker.publish_event = cascading_failure
-
-        config = OutboxConfig(
-            batch_size=1,
-            max_retries=10,
-        )
-        worker = OutboxWorker(storage, broker, config)
-
-        # Keep trying until success with reasonable retry logic
-        max_attempts = 15
-        succeeded = False
-        for _i in range(max_attempts):
-            try:
-                result = await worker.process_batch()
-                if result > 0:
-                    succeeded = True
-                    break
-            except Exception:
-                pass  # Continue retrying
-            await asyncio.sleep(0.1)  # Brief backoff
-
-        # Verify system attempted recovery multiple times
-        assert attempt >= failure_count, (
-            f"Expected at least {failure_count} attempts, got {attempt}"
-        )
-
-        event_result = await storage.get_by_id(event.event_id)
-        # If we succeeded, event should be sent; otherwise it tried and logged errors
-        if succeeded:
-            assert event_result.status == OutboxStatus.SENT
-        else:
-            # System attempted recovery but may need more time - that's OK for chaos test
-            assert event_result.retry_count > 0, "Should have attempted retries"
 
 
 # ============================================================================

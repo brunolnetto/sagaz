@@ -1,7 +1,7 @@
 # ADR Dependencies Update - Complete ✅
 
-**Date**: 2026-01-05  
-**Status**: All 15 ADRs updated with dependency information
+**Date**: 2026-01-07  
+**Status**: All 16 ADRs updated with dependency information
 
 ---
 
@@ -17,41 +17,45 @@ Every ADR now includes a **Dependencies** section showing:
 ## Updated ADRs by Phase
 
 ### Phase 1: Foundation (v1.2.0)
-- ✅ **ADR-016**: Unified Storage Layer - *No prerequisites, enables 4 others*
-- ✅ **ADR-022**: Compensation Result Passing - *No prerequisites, enables ADR-023*
+- ✅ **ADR-016**: Unified Storage Layer - **IMPLEMENTED**
+- ✅ **ADR-022**: Compensation Result Passing - *Enables ADR-023*
 
 ### Phase 2: Production Features (v1.3.0)
-- ✅ **ADR-023**: Pivot/Irreversible Steps - *Requires ADR-022*
-- ✅ **ADR-025**: Event-Driven Triggers - *No prerequisites*
-- ✅ **ADR-019**: Dry Run Mode - *No prerequisites*
+- ✅ **ADR-023**: Pivot/Irreversible Steps - **IMPLEMENTED** (`sagaz/pivot.py`)
+- 🟡 **ADR-025**: Event-Driven Triggers - *No prerequisites*
+- 🟡 **ADR-019**: Dry Run Mode - *No prerequisites*
+- 🟡 **ADR-027**: Project CLI - *No prerequisites*
+- ✅ **ADR-028**: Framework Integration - **EXAMPLES CREATED** (FastAPI, Django, Flask)
 
 ### Phase 3: Scalability (v1.4.0)
-- ✅ **ADR-021**: Context Streaming - *Requires ADR-016*
-- ✅ **ADR-020**: Multi-Tenancy - *Requires ADR-016*
-- ✅ **ADR-017**: Chaos Engineering - *No prerequisites*
+- 🟡 **ADR-021**: Context Streaming - *Requires ADR-016*
+- 🟡 **ADR-020**: Multi-Tenancy - *Requires ADR-016*
+- 🟡 **ADR-017**: Chaos Engineering - *No prerequisites*
+- ✅ **ADR-026**: Industry Examples Expansion - **COMPLETE (24 examples)**
 
 ### Phase 4: Advanced (v2.0.0)
-- ✅ **ADR-024**: Saga Replay - *Requires ADR-016*
-- ✅ **ADR-018**: Saga Versioning - *Optional: ADR-024*
-- ✅ **ADR-014**: Schema Registry - *No prerequisites (Deferred)*
+- 🟡 **ADR-024**: Saga Replay - *Requires ADR-016*
+- 🟡 **ADR-018**: Saga Versioning - *Optional: ADR-024*
+- 🟢 **ADR-014**: Schema Registry - *No prerequisites (Deferred)*
 
 ### Phase 5: Optional (Future)
-- ✅ **ADR-011**: CDC Support - *Requires ADR-016*
-- ✅ **ADR-013**: Fluss Analytics - *Requires ADR-021, ADR-025*
+- 🟢 **ADR-011**: CDC Support - *Requires ADR-016*
+- 🟢 **ADR-013**: Fluss Analytics - *Requires ADR-021, ADR-025*
 
 ---
 
 ## Key Insights
 
-### Critical Path (Must Do First)
+### Critical Path (Complete! ✅)
 ```
-ADR-016 (Storage)
+ADR-016 (Storage) ✅
     ├─→ ADR-021 (Streaming)
     ├─→ ADR-024 (Replay)
     └─→ ADR-020 (Multi-Tenancy)
 
-ADR-022 (Compensation)
-    └─→ ADR-023 (Pivots)
+ADR-022 (Compensation) ✅
+    └─→ ADR-023 (Pivots) ✅
+           └─→ ADR-026 (Industry Examples) ✅
 ```
 
 ### Independent Features (Can Do Anytime)
@@ -80,6 +84,12 @@ ADR-022 (Compensation)
 10. **ADR-018** - Versioning (3-4 weeks)
 
 **Total for top 10**: ~38 weeks (9 months)
+
+### Industry Examples (v1.4.0-v1.6.0)
+11. **ADR-026** - Examples expansion (phased over 3 releases)
+    - Phase 1: 6 priority examples (~9 days)
+    - Phase 2: 12 more examples (~15 days)
+    - Phase 3: 6 final examples + community (~10 days)
 
 ---
 

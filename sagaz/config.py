@@ -6,8 +6,30 @@ Provides a single, type-safe configuration object that wires together:
 - Message broker (for outbox pattern)
 - Observability (metrics, tracing, logging)
 
-Example:
-    >>> from sagaz import SagaConfig, Saga
+IMPORTANT: You must choose ONE storage approach:
+  - Option 1: Use `storage_manager` for unified saga + outbox storage
+  - Option 2: Use `storage` and optionally `outbox_storage` separately
+  Mixing both approaches will raise a ValueError.
+
+Example (Option 1 - unified StorageManager, RECOMMENDED):
+    >>> from sagaz import SagaConfig, configure
+    >>> from sagaz.storage import create_storage_manager
+    >>>
+    >>> # StorageManager provides unified access to saga + outbox storage
+    >>> # with shared connection pooling
+    >>> manager = create_storage_manager("postgresql://localhost/db")
+    >>> await manager.initialize()
+    >>>
+    >>> config = SagaConfig(
+    ...     storage_manager=manager,  # Replaces storage + outbox_storage
+    ...     broker=KafkaBroker(bootstrap_servers="localhost:9092"),
+    ...     metrics=True,
+    ... )
+    >>>
+    >>> configure(config)
+
+Example (Option 2 - separate storage instances):
+    >>> from sagaz import SagaConfig, configure
     >>> from sagaz.storage import PostgreSQLSagaStorage
     >>> from sagaz.outbox.brokers import KafkaBroker
     >>>
@@ -15,16 +37,11 @@ Example:
     ...     storage=PostgreSQLSagaStorage("postgresql://localhost/db"),
     ...     broker=KafkaBroker(bootstrap_servers="localhost:9092"),
     ...     metrics=True,
-    ...     tracing=True,
-    ...     logging=True,
     ... )
     >>>
-    >>> Saga.configure(config)
-    >>>
-    >>> class OrderSaga(Saga):
-    ...     saga_name = "order-processing"
-    ...     # Storage and listeners automatically configured!
+    >>> configure(config)
 """
+
 
 from __future__ import annotations
 
@@ -78,6 +95,10 @@ class SagaConfig:
     # Outbox storage - defaults to same as saga storage for transactional guarantees
     outbox_storage: Any | None = None  # OutboxStorage, but avoiding circular import
 
+    # NEW: StorageManager for unified storage access (alternative to storage + outbox_storage)
+    # If provided, storage and outbox_storage are extracted from the manager
+    storage_manager: Any | None = None  # StorageManager, avoiding circular import
+
     # Message broker for outbox pattern (optional)
     broker: BaseBroker | None = None
 
@@ -94,21 +115,65 @@ class SagaConfig:
     # Internal: cached listeners list
     _listeners: list[SagaListener] = field(default_factory=list, repr=False)
     _derived_outbox_storage: Any = field(default=None, repr=False)
+    _storage_manager: Any = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         """Initialize storage and build listeners list."""
-        # Default to in-memory storage if not specified
-        if self.storage is None:
-            from sagaz.storage.memory import InMemorySagaStorage
+        # Validate: cannot mix storage_manager with storage/outbox_storage
+        if self.storage_manager is not None:
+            if self.storage is not None:
+                raise ValueError(
+                    "Cannot specify both 'storage_manager' and 'storage'. "
+                    "Use storage_manager for unified storage, or storage/outbox_storage separately."
+                )
+            if self.outbox_storage is not None:
+                raise ValueError(
+                    "Cannot specify both 'storage_manager' and 'outbox_storage'. "
+                    "Use storage_manager for unified storage, or storage/outbox_storage separately."
+                )
+            self._setup_from_manager()
+        else:
+            # Default to in-memory storage if not specified
+            if self.storage is None:
+                from sagaz.storage.memory import InMemorySagaStorage
 
-            self.storage = InMemorySagaStorage()
-            logger.debug("Using default InMemorySagaStorage")
+                self.storage = InMemorySagaStorage()
+                logger.debug("Using default InMemorySagaStorage")
 
         # Handle outbox storage derivation
         self._derive_outbox_storage()
 
         # Build listeners list from config
         self._listeners = self._build_listeners()
+
+    def _setup_from_manager(self) -> None:
+        """Extract storage instances from StorageManager."""
+        manager = self.storage_manager
+        
+        # Check if manager is initialized
+        try:
+            self.storage = manager.saga
+            if self.outbox_storage is None:
+                self.outbox_storage = manager.outbox
+            self._storage_manager = manager
+            logger.info("Using StorageManager for unified storage access")
+        except RuntimeError:
+            # Manager not initialized - store reference and use lazy access
+            # Manager not initialized - store reference and use lazy access
+            import warnings
+            
+            warnings.warn(
+                "StorageManager provided but not initialized. "
+                "Call await storage_manager.initialize() before using Saga.",
+                RuntimeWarning,
+                stacklevel=2
+            )
+            self._storage_manager = manager
+            # Fall back to defaults for now
+            if self.storage is None:
+                from sagaz.storage.memory import InMemorySagaStorage
+                self.storage = InMemorySagaStorage()
+
 
     def _derive_outbox_storage(self) -> None:
         """
@@ -131,7 +196,7 @@ class SagaConfig:
 
         if storage_type == "PostgreSQLSagaStorage":
             # Derive PostgreSQL outbox storage from same connection
-            from sagaz.outbox.storage.postgresql import PostgreSQLOutboxStorage
+            from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
             conn_string = getattr(self.storage, "connection_string", None)
             if conn_string:
@@ -155,7 +220,7 @@ class SagaConfig:
 
     def _use_memory_outbox_with_warning(self) -> None:
         """Use in-memory outbox storage with a warning."""
-        from sagaz.outbox.storage.memory import InMemoryOutboxStorage
+        from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
 
         self._derived_outbox_storage = InMemoryOutboxStorage()
         logger.warning(

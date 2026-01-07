@@ -462,7 +462,7 @@ class TestOutboxMemoryStorage:
     @pytest.mark.asyncio
     async def test_memory_storage_get_nonexistent_event(self):
         """Test getting nonexistent event returns None"""
-        from sagaz.outbox.storage.memory import InMemoryOutboxStorage
+        from sagaz.outbox import InMemoryOutboxStorage
 
         storage = InMemoryOutboxStorage()
 
@@ -473,8 +473,8 @@ class TestOutboxMemoryStorage:
     @pytest.mark.asyncio
     async def test_memory_storage_update_nonexistent_raises(self):
         """Test updating nonexistent event raises error"""
-        from sagaz.outbox.storage.base import OutboxStorageError
-        from sagaz.outbox.storage.memory import InMemoryOutboxStorage
+        from sagaz.storage.interfaces.outbox import OutboxStorageError
+        from sagaz.outbox import InMemoryOutboxStorage
         from sagaz.outbox.types import OutboxStatus
 
         storage = InMemoryOutboxStorage()
@@ -485,7 +485,7 @@ class TestOutboxMemoryStorage:
     @pytest.mark.asyncio
     async def test_memory_storage_claim_empty(self):
         """Test claiming events when none available"""
-        from sagaz.outbox.storage.memory import InMemoryOutboxStorage
+        from sagaz.outbox import InMemoryOutboxStorage
 
         storage = InMemoryOutboxStorage()
 
@@ -496,7 +496,7 @@ class TestOutboxMemoryStorage:
     @pytest.mark.asyncio
     async def test_memory_storage_insert_and_claim(self):
         """Test inserting and claiming events"""
-        from sagaz.outbox.storage.memory import InMemoryOutboxStorage
+        from sagaz.outbox import InMemoryOutboxStorage
         from sagaz.outbox.types import OutboxEvent, OutboxStatus
 
         storage = InMemoryOutboxStorage()
@@ -516,7 +516,7 @@ class TestOutboxMemoryStorage:
     @pytest.mark.asyncio
     async def test_memory_storage_get_pending_count(self):
         """Test getting pending event count"""
-        from sagaz.outbox.storage.memory import InMemoryOutboxStorage
+        from sagaz.outbox import InMemoryOutboxStorage
         from sagaz.outbox.types import OutboxEvent
 
         storage = InMemoryOutboxStorage()
@@ -533,7 +533,7 @@ class TestOutboxMemoryStorage:
     @pytest.mark.asyncio
     async def test_memory_storage_clear(self):
         """Test clearing all events"""
-        from sagaz.outbox.storage.memory import InMemoryOutboxStorage
+        from sagaz.outbox import InMemoryOutboxStorage
         from sagaz.outbox.types import OutboxEvent
 
         storage = InMemoryOutboxStorage()
@@ -625,9 +625,9 @@ class TestRabbitMQBrokerMocked:
 class TestCompensationGraph:
     def test_compensation_graph_empty(self):
         """Test compensation graph with no nodes"""
-        from sagaz.compensation_graph import SagaCompensationGraph
+        from sagaz.execution_graph import SagaExecutionGraph
 
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
 
         order = graph.get_compensation_order()
 
@@ -635,12 +635,12 @@ class TestCompensationGraph:
 
     def test_compensation_graph_single_step(self):
         """Test compensation graph with single registered step"""
-        from sagaz.compensation_graph import CompensationType, SagaCompensationGraph
+        from sagaz.execution_graph import CompensationType, SagaExecutionGraph
 
         async def compensate(ctx):
             pass
 
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
         graph.register_compensation(
             "step1", compensate, compensation_type=CompensationType.MECHANICAL
         )
@@ -653,12 +653,12 @@ class TestCompensationGraph:
 
     def test_compensation_graph_multiple_independent(self):
         """Test compensation graph with independent steps"""
-        from sagaz.compensation_graph import SagaCompensationGraph
+        from sagaz.execution_graph import SagaExecutionGraph
 
         async def compensate(ctx):
             pass
 
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
         graph.register_compensation("step1", compensate)
         graph.register_compensation("step2", compensate)
         graph.register_compensation("step3", compensate)
@@ -674,13 +674,14 @@ class TestCompensationGraph:
 
     def test_compensation_graph_repr(self):
         """Test compensation graph string representation"""
-        from sagaz.compensation_graph import SagaCompensationGraph
+        from sagaz.execution_graph import SagaExecutionGraph
 
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
 
         repr_str = repr(graph)
 
-        assert "SagaCompensationGraph" in repr_str
+        # SagaExecutionGraph is an alias for SagaExecutionGraph (ADR-022)
+        assert "SagaExecutionGraph" in repr_str or "SagaExecutionGraph" in repr_str
         assert "nodes=0" in repr_str
 
 

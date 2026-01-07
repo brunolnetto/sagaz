@@ -319,7 +319,7 @@ class TestBuiltInListeners:
         """OutboxSagaListener should publish events to storage."""
         from sagaz.decorators import Saga, step
         from sagaz.listeners import OutboxSagaListener
-        from sagaz.outbox.storage.memory import InMemoryOutboxStorage
+        from sagaz.outbox import InMemoryOutboxStorage
 
         storage = InMemoryOutboxStorage()
         listener = OutboxSagaListener(storage=storage)

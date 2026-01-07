@@ -28,7 +28,7 @@ from collections.abc import Awaitable, Callable
 
 from sagaz.outbox.brokers.base import BrokerError, MessageBroker
 from sagaz.outbox.state_machine import OutboxStateMachine
-from sagaz.outbox.storage.base import OutboxStorage
+from sagaz.storage.interfaces.outbox import OutboxStorage
 from sagaz.outbox.types import OutboxConfig, OutboxEvent, OutboxStatus
 
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -460,7 +460,7 @@ def get_storage():
         logger.error("DATABASE_URL environment variable is required")
         sys.exit(1)
 
-    from sagaz.outbox.storage.postgresql import PostgreSQLOutboxStorage
+    from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
     return PostgreSQLOutboxStorage(connection_string=database_url)
 

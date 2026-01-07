@@ -246,9 +246,9 @@ class TestCompensationGraphCycleEdgeCases:
 
     def test_find_cycle_with_already_visited_node(self):
         """Test _find_cycle when a node is already in visited set but not in path."""
-        from sagaz.compensation_graph import SagaCompensationGraph
+        from sagaz.execution_graph import SagaExecutionGraph
 
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
 
         async def noop(ctx):
             pass
@@ -269,12 +269,12 @@ class TestCompensationGraphCycleEdgeCases:
 
     def test_circular_dependency_raises_error(self):
         """Test that circular dependencies raise CircularDependencyError."""
-        from sagaz.compensation_graph import (
+        from sagaz.execution_graph import (
             CircularDependencyError,
-            SagaCompensationGraph,
+            SagaExecutionGraph,
         )
 
-        graph = SagaCompensationGraph()
+        graph = SagaExecutionGraph()
 
         async def noop(ctx):
             pass

@@ -40,7 +40,7 @@ class TestPostgreSQLStorageImportError:
     def test_asyncpg_not_available_import_error(self):
         """Test that PostgreSQLSagaStorage raises MissingDependencyError when asyncpg not available"""
         with patch.dict("sys.modules", {"asyncpg": None}):
-            with patch("sagaz.storage.postgresql.ASYNCPG_AVAILABLE", False):
+            with patch("sagaz.storage.backends.postgresql.saga.ASYNCPG_AVAILABLE", False):
                 from sagaz.storage.postgresql import PostgreSQLSagaStorage
 
                 with pytest.raises(MissingDependencyError):
@@ -53,8 +53,8 @@ class TestPostgreSQLSagaStorageUnit:
     @pytest.mark.asyncio
     async def test_postgresql_initialization(self):
         """Test PostgreSQL storage initialization"""
-        with patch("sagaz.storage.postgresql.ASYNCPG_AVAILABLE", True):
-            with patch("sagaz.storage.postgresql.asyncpg"):
+        with patch("sagaz.storage.backends.postgresql.saga.ASYNCPG_AVAILABLE", True):
+            with patch("sagaz.storage.backends.postgresql.saga.asyncpg"):
                 from sagaz.storage.postgresql import PostgreSQLSagaStorage
 
                 storage = PostgreSQLSagaStorage(connection_string="postgresql://localhost/test")
@@ -64,8 +64,8 @@ class TestPostgreSQLSagaStorageUnit:
     @pytest.mark.asyncio
     async def test_postgresql_connection_error_handling(self):
         """Test PostgreSQL connection error handling"""
-        with patch("sagaz.storage.postgresql.ASYNCPG_AVAILABLE", True):
-            with patch("sagaz.storage.postgresql.asyncpg") as mock_asyncpg:
+        with patch("sagaz.storage.backends.postgresql.saga.ASYNCPG_AVAILABLE", True):
+            with patch("sagaz.storage.backends.postgresql.saga.asyncpg") as mock_asyncpg:
                 mock_asyncpg.create_pool = AsyncMock(side_effect=Exception("Connection refused"))
 
                 from sagaz.storage.postgresql import PostgreSQLSagaStorage
@@ -84,7 +84,7 @@ class TestPostgreSQLStorageEdgeCases:
     @pytest.mark.asyncio
     async def test_postgresql_step_result_parsing(self):
         """Test that PostgreSQL properly parses step results"""
-        with patch("sagaz.storage.postgresql.ASYNCPG_AVAILABLE", True):
+        with patch("sagaz.storage.backends.postgresql.saga.ASYNCPG_AVAILABLE", True):
             from sagaz.storage.postgresql import PostgreSQLSagaStorage
 
             # Mock storage with step that has result
@@ -115,7 +115,7 @@ class TestPostgreSQLStorageEdgeCases:
     @pytest.mark.asyncio
     async def test_postgresql_step_with_timestamps(self):
         """Test PostgreSQL step with executed_at and compensated_at timestamps"""
-        with patch("sagaz.storage.postgresql.ASYNCPG_AVAILABLE", True):
+        with patch("sagaz.storage.backends.postgresql.saga.ASYNCPG_AVAILABLE", True):
             from sagaz.storage.postgresql import PostgreSQLSagaStorage
 
             now = datetime.now(UTC)
@@ -192,7 +192,7 @@ class TestPostgreSQLSagaStorageMocked:
     @pytest.mark.asyncio
     async def test_save_saga_state(self, mock_pool):
         """Test saving saga state."""
-        with patch("sagaz.storage.postgresql.ASYNCPG_AVAILABLE", True):
+        with patch("sagaz.storage.backends.postgresql.saga.ASYNCPG_AVAILABLE", True):
             from sagaz.storage.postgresql import PostgreSQLSagaStorage
 
             pool, conn = mock_pool
@@ -214,7 +214,7 @@ class TestPostgreSQLSagaStorageMocked:
     @pytest.mark.asyncio
     async def test_load_saga_state(self, mock_pool):
         """Test loading saga state."""
-        with patch("sagaz.storage.postgresql.ASYNCPG_AVAILABLE", True):
+        with patch("sagaz.storage.backends.postgresql.saga.ASYNCPG_AVAILABLE", True):
             from sagaz.storage.postgresql import PostgreSQLSagaStorage
 
             pool, conn = mock_pool
@@ -254,7 +254,7 @@ class TestPostgreSQLSagaStorageMocked:
     @pytest.mark.asyncio
     async def test_update_step_state(self, mock_pool):
         """Test updating step state."""
-        with patch("sagaz.storage.postgresql.ASYNCPG_AVAILABLE", True):
+        with patch("sagaz.storage.backends.postgresql.saga.ASYNCPG_AVAILABLE", True):
             from sagaz.storage.postgresql import PostgreSQLSagaStorage
 
             pool, conn = mock_pool
@@ -275,7 +275,7 @@ class TestPostgreSQLSagaStorageMocked:
     @pytest.mark.asyncio
     async def test_cleanup_completed_sagas(self, mock_pool):
         """Test cleaning up completed sagas."""
-        with patch("sagaz.storage.postgresql.ASYNCPG_AVAILABLE", True):
+        with patch("sagaz.storage.backends.postgresql.saga.ASYNCPG_AVAILABLE", True):
             from sagaz.storage.postgresql import PostgreSQLSagaStorage
 
             pool, conn = mock_pool
@@ -292,7 +292,7 @@ class TestPostgreSQLSagaStorageMocked:
     @pytest.mark.asyncio
     async def test_health_check_healthy(self, mock_pool):
         """Test health check when healthy."""
-        with patch("sagaz.storage.postgresql.ASYNCPG_AVAILABLE", True):
+        with patch("sagaz.storage.backends.postgresql.saga.ASYNCPG_AVAILABLE", True):
             from sagaz.storage.postgresql import PostgreSQLSagaStorage
 
             pool, conn = mock_pool
@@ -307,7 +307,7 @@ class TestPostgreSQLSagaStorageMocked:
 
     def test_format_bytes(self):
         """Test bytes formatting helper."""
-        with patch("sagaz.storage.postgresql.ASYNCPG_AVAILABLE", True):
+        with patch("sagaz.storage.backends.postgresql.saga.ASYNCPG_AVAILABLE", True):
             from sagaz.storage.postgresql import PostgreSQLSagaStorage
 
             storage = PostgreSQLSagaStorage("postgresql://localhost/test")

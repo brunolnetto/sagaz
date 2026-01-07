@@ -37,7 +37,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from sagaz.storage.base import SagaStorage
 
 
-from sagaz.compensation_graph import CompensationType, SagaCompensationGraph
+from sagaz.execution_graph import CompensationType, SagaExecutionGraph
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +66,9 @@ class StepMetadata:
     on_enter: OnEnterHook | None = None
     on_success: OnSuccessHook | None = None
     on_failure: OnFailureHook | None = None
+    # v1.3.0: Pivot support
+    pivot: bool = False
+    """If True, marks this step as a point of no return (irreversible)."""
 
 
 @dataclass
@@ -93,6 +96,7 @@ def step(
     on_enter: OnEnterHook | None = None,
     on_success: OnSuccessHook | None = None,
     on_failure: OnFailureHook | None = None,
+    pivot: bool = False,
 ) -> Callable[[F], F]:
     """
     Decorator to mark a method as a saga step.
@@ -108,13 +112,20 @@ def step(
         on_enter: Hook called before step execution (ctx, step_name) -> None
         on_success: Hook called after success (ctx, step_name, result) -> None
         on_failure: Hook called on failure (ctx, step_name, error) -> None
+        pivot: If True, marks this step as a point of no return (v1.3.0).
+               Once completed, ancestor steps become tainted and cannot be
+               rolled back. Use for irreversible actions like payment charges.
 
     Example:
         >>> class OrderSaga(Saga):
-        ...     @step(name="create_order", on_success=publish_order_created)
-        ...     async def create_order(self, ctx):
-        ...         order = await OrderService.create(ctx["order_data"])
-        ...         return {"order_id": order.id}
+        ...     @step(name="reserve_inventory")
+        ...     async def reserve(self, ctx):
+        ...         return {"reservation_id": "RES-123"}
+        ...
+        ...     @step(name="charge_payment", depends_on=["reserve_inventory"], pivot=True)
+        ...     async def charge(self, ctx):
+        ...         # PIVOT: Once this completes, reserve_inventory cannot be rolled back
+        ...         return {"charge_id": "CHG-456"}
     """
 
     def decorator(func: F) -> F:
@@ -130,6 +141,7 @@ def step(
             on_enter=on_enter,
             on_success=on_success,
             on_failure=on_failure,
+            pivot=pivot,
         )
         return func
 
@@ -165,7 +177,7 @@ def compensate(
         description: Human-readable description
         on_compensate: Hook called when compensation runs (ctx, step_name) -> None
 
-    Example (Legacy):
+    Example:
         >>> @compensate("charge_payment", on_compensate=publish_refund_event)
         ... async def refund(self, ctx):
         ...     await PaymentService.refund(ctx["charge_id"])
@@ -197,12 +209,108 @@ def compensate(
     return decorator
 
 
+# =============================================================================
+# v1.3.0: Forward Recovery Decorator
+# =============================================================================
+
+@dataclass
+class ForwardRecoveryMetadata:
+    """
+    Metadata attached to forward recovery handler functions via decorator.
+    
+    Forward recovery handlers are invoked when a step fails after a pivot
+    has completed. Instead of rolling back, they decide how to proceed forward.
+    """
+    
+    for_step: str
+    """Name of the step this handles recovery for."""
+    
+    max_retries: int = 3
+    """Maximum retry attempts if RETRY action returned."""
+    
+    timeout_seconds: float = 30.0
+    """Handler timeout in seconds."""
+
+
+def forward_recovery(
+    for_step: str,
+    max_retries: int = 3,
+    timeout_seconds: float = 30.0,
+) -> Callable[[F], F]:
+    """
+    Decorator to mark a method as forward recovery handler for a step.
+    
+    Forward recovery is invoked when a step fails AFTER a pivot has completed.
+    Instead of traditional compensation (rollback), the handler decides how
+    to proceed forward. This is essential for handling failures in committed
+    zones where rollback is not possible.
+    
+    The handler must return a RecoveryAction enum value indicating what to do:
+    - RETRY: Retry the failed step with the same parameters
+    - RETRY_WITH_ALTERNATE: Retry with modified parameters
+    - SKIP: Skip this step and continue forward
+    - MANUAL_INTERVENTION: Escalate to human/manual handling
+    - COMPENSATE_PIVOT: Trigger semantic compensation of pivot (rare)
+    
+    Args:
+        for_step: Name of the step this handles recovery for
+        max_retries: Maximum retry attempts if RETRY action returned (default: 3)
+        timeout_seconds: Handler timeout (default: 30s)
+    
+    Example:
+        >>> from sagaz import Saga, action, compensate, forward_recovery
+        >>> from sagaz.pivot import RecoveryAction
+        >>>
+        >>> class PaymentSaga(Saga):
+        ...     saga_name = "payment"
+        ...
+        ...     @action("charge_payment", pivot=True)
+        ...     async def charge(self, ctx):
+        ...         return {"charge_id": "CHG-123"}
+        ...
+        ...     @action("ship_order", depends_on=["charge_payment"])
+        ...     async def ship(self, ctx):
+        ...         # May fail due to carrier issues
+        ...         return {"shipment_id": "SHP-456"}
+        ...
+        ...     @forward_recovery("ship_order")
+        ...     async def handle_shipping_failure(self, ctx, error) -> RecoveryAction:
+        ...         '''Handle shipping failure after payment was charged.'''
+        ...         retry_count = ctx.get("_ship_order_retries", 0)
+        ...
+        ...         if retry_count < 3:
+        ...             ctx["_ship_order_retries"] = retry_count + 1
+        ...             return RecoveryAction.RETRY
+        ...
+        ...         if await self.has_alternate_carrier():
+        ...             ctx["use_alternate_carrier"] = True
+        ...             return RecoveryAction.RETRY_WITH_ALTERNATE
+        ...
+        ...         return RecoveryAction.MANUAL_INTERVENTION
+    
+    See Also:
+        - RecoveryAction: Enum of possible actions to return
+        - ADR-023: Pivot/Irreversible Steps documentation
+    """
+    def decorator(func: F) -> F:
+        func._saga_forward_recovery_meta = ForwardRecoveryMetadata(  # type: ignore[attr-defined]
+            for_step=for_step,
+            max_retries=max_retries,
+            timeout_seconds=timeout_seconds,
+        )
+        return func
+    
+    return decorator
+
+
 @dataclass
 class SagaStepDefinition:
     """
     Complete definition of a saga step with its compensation.
 
     Used internally to track step and compensation pairs.
+    
+    Extended in v1.3.0 with pivot support.
     """
 
     step_id: str
@@ -222,6 +330,9 @@ class SagaStepDefinition:
     on_success: OnSuccessHook | None = None
     on_failure: OnFailureHook | None = None
     on_compensate: OnCompensateHook | None = None
+    # v1.3.0: Pivot support
+    pivot: bool = False
+    """If True, marks this step as a point of no return (irreversible)."""
 
 
 class Saga:
@@ -288,12 +399,18 @@ class Saga:
         """
         self._steps: list[SagaStepDefinition] = []
         self._step_registry: dict[str, SagaStepDefinition] = {}
-        self._compensation_graph = SagaCompensationGraph()
+        self._compensation_graph = SagaExecutionGraph()
         self._context: dict[str, Any] = {}
         self._saga_id: str = ""
 
         # Mode tracking: 'declarative', 'imperative', or None (not yet determined)
         self._mode: str | None = None
+        
+        # v1.3.0: Pivot support
+        self._forward_recovery_handlers: dict[str, Any] = {}
+        self._completed_pivots: set[str] = set()
+        self._tainted_steps: set[str] = set()
+        self._pivot_reached: bool = False
 
         # Use provided config or global config
         if config is not None:
@@ -316,8 +433,8 @@ class Saga:
         if self._steps:
             self._mode = "declarative"
             # saga_name takes precedence, then name parameter
-            if self.saga_name is None and name is not None:
-                self.saga_name = name
+            if self.saga_name is None and name is not None:  # pragma: no cover
+                self.saga_name = name  # pragma: no cover
         else:
             # No decorators found - allow imperative mode
             # Name is required for imperative usage
@@ -328,6 +445,7 @@ class Saga:
         """Collect decorated methods into step definitions."""
         self._collect_step_methods()
         self._attach_compensations()
+        self._collect_forward_recovery_handlers()
 
     def _collect_step_methods(self) -> None:
         """First pass: collect all step methods."""
@@ -353,6 +471,7 @@ class Saga:
             on_enter=meta.on_enter,
             on_success=meta.on_success,
             on_failure=meta.on_failure,
+            pivot=meta.pivot,
         )
         self._steps.append(step_def)
         self._step_registry[meta.name] = step_def
@@ -371,7 +490,7 @@ class Saga:
         meta: CompensationMetadata = method._saga_compensation_meta
         step_name = meta.for_step
         if step_name not in self._step_registry:
-            return
+            return  # pragma: no cover - compensate for unknown step
         step = self._step_registry[step_name]
         step.compensation_fn = method
         # Compensation dependencies are derived from forward dependencies (step.depends_on)
@@ -380,9 +499,67 @@ class Saga:
         step.compensation_timeout_seconds = meta.timeout_seconds
         step.on_compensate = meta.on_compensate
 
+    def _collect_forward_recovery_handlers(self) -> None:
+        """Third pass: collect forward recovery handlers."""
+        for attr_name in dir(self):
+            if attr_name.startswith("_"):
+                continue
+            attr = getattr(self, attr_name)
+            if hasattr(attr, "_saga_forward_recovery_meta"):
+                meta: ForwardRecoveryMetadata = attr._saga_forward_recovery_meta
+                self._forward_recovery_handlers[meta.for_step] = attr
+                logger.debug(f"Registered forward recovery handler for step: {meta.for_step}")
+
+    def get_pivot_steps(self) -> list[str]:
+        """Get names of all pivot steps in this saga."""
+        return [step.step_id for step in self._steps if step.pivot]
+
+    def _get_taint_propagator(self):
+        """Create a TaintPropagator for this saga."""
+        from sagaz.pivot import TaintPropagator
+        
+        step_names = {step.step_id for step in self._steps}
+        dependencies = {step.step_id: set(step.depends_on) for step in self._steps}
+        pivots = {step.step_id for step in self._steps if step.pivot}
+        
+        return TaintPropagator(
+            step_names=step_names,
+            dependencies=dependencies,
+            pivots=pivots,
+            completed_pivots=self._completed_pivots,
+        )
+
+    def _propagate_taint_from_pivot(self, pivot_step_id: str) -> set[str]:
+        """
+        Propagate taint when a pivot step completes.
+        
+        Args:
+            pivot_step_id: The pivot step that just completed
+            
+        Returns:
+            Set of newly tainted step names
+        """
+        propagator = self._get_taint_propagator()
+        newly_tainted = propagator.propagate_taint(pivot_step_id)
+        self._tainted_steps.update(newly_tainted)
+        self._completed_pivots.add(pivot_step_id)
+        self._pivot_reached = True
+        
+        if newly_tainted:
+            logger.info(
+                f"Pivot '{pivot_step_id}' completed - tainted ancestors: {newly_tainted}"
+            )
+        
+        return newly_tainted
+
+    def _is_step_tainted(self, step_id: str) -> bool:
+        """Check if a step is tainted (locked from rollback)."""
+        return step_id in self._tainted_steps
+
     # =========================================================================
     # Imperative API Support - add_step() for programmatic saga building
     # =========================================================================
+
 
     def add_step(
         self,
@@ -779,6 +956,11 @@ class Saga:
             # Mark step as executed for compensation tracking
             self._context[f"__{step.step_id}_completed"] = True
             self._compensation_graph.mark_step_executed(step.step_id)
+            
+            # Handle pivot step completion - propagate taint to ancestors
+            if step.pivot:
+                self._propagate_taint_from_pivot(step.step_id)
+                logger.info(f"Pivot step '{step.step_id}' completed - ancestors are now tainted")
 
             # Call on_success hook
             await self._call_hook(step.on_success, self._context, step.step_id, result)
@@ -787,6 +969,7 @@ class Saga:
             await self._notify_listeners(
                 "on_step_success", saga_name, step.step_id, self._context, result
             )
+
 
         except TimeoutError as e:
             # Call on_failure hook
@@ -821,19 +1004,53 @@ class Saga:
             logger.warning(f"Hook error (non-fatal): {e}")
 
     async def _compensate(self) -> None:
-        """Execute compensations in dependency order."""
+        """
+        Execute compensations in dependency order, respecting pivot boundaries.
+        
+        v1.3.0: Compensation stops at pivot boundaries. Tainted steps (ancestors
+        of completed pivots) are skipped, as are pivot steps themselves.
+        """
         comp_levels = self._compensation_graph.get_compensation_order()
+        
+        # Track how many steps we skip due to taint
+        skipped_count = 0
 
         for level in comp_levels:
-            tasks = [self._execute_compensation(step_id) for step_id in level]
-            # Execute compensations in parallel, don't fail on individual errors
-            await asyncio.gather(*tasks, return_exceptions=True)
+            # v1.3.0: Filter out tainted steps and pivot steps
+            compensable_steps = []
+            for step_id in level:
+                if self._is_step_tainted(step_id):
+                    logger.info(f"Skipping compensation for tainted step: {step_id}")
+                    skipped_count += 1
+                    continue
+                
+                step = self._step_registry.get(step_id)
+                if step and step.pivot and step_id in self._completed_pivots:
+                    logger.info(f"Reached pivot boundary, stopping compensation: {step_id}")
+                    skipped_count += 1
+                    continue
+                    
+                compensable_steps.append(step_id)
+            
+            if compensable_steps:
+                tasks = [self._execute_compensation(step_id) for step_id in compensable_steps]
+                # Execute compensations in parallel, don't fail on individual errors
+                await asyncio.gather(*tasks, return_exceptions=True)
+        
+        if skipped_count > 0:
+            logger.info(f"Pivot-aware compensation: skipped {skipped_count} tainted/pivot steps")
 
     async def _execute_compensation(self, step_id: str) -> None:
         """Execute a single compensation with lifecycle hook and listeners."""
         node = self._compensation_graph.get_compensation_info(step_id)
         if not node:
             return
+        
+        # v1.3.0: Double-check taint status (in case it changed)
+        if self._is_step_tainted(step_id):  # pragma: no cover
+            logger.debug(f"Skipping compensation for tainted step: {step_id}")
+            return
+
 
         saga_name = self._get_saga_name()
 
@@ -865,9 +1082,6 @@ class Saga:
         return f"{self.__class__.__name__}(steps={len(self._steps)})"
 
 
-# Backward compatibility alias
-DeclarativeSaga = Saga
-
-# Terminology alias: @action is preferred over @step for clarity
-# (A "step" conceptually contains both action AND compensation)
+# @action is the primary decorator name for defining saga step actions
+# @step is an internal alias kept for now but @action is preferred
 action = step

@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-**Last Updated**: 2026-01-05
+**Last Updated**: 2026-01-07
 
 This directory contains Architecture Decision Records (ADRs) documenting significant technical decisions for Sagaz.
 
@@ -12,6 +12,7 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 |-----|-------|---------|------|
 | [ADR-012](adr-012-synchronous-orchestration-model.md) | Synchronous Orchestration Model | v1.0.0 | 2024-12 |
 | [ADR-015](adr-015-unified-saga-api.md) | Unified Saga API | v1.0.3 | 2024-12 |
+| [ADR-016](adr-016-unified-storage-layer.md) | Unified Storage Layer | v1.2.0 | 2026-01 |
 
 ---
 
@@ -29,9 +30,10 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | ADR | Title | Target | Description |
 |-----|-------|--------|-------------|
 | [ADR-013](adr-013-fluss-iceberg-analytics.md) | Fluss Analytics | Q3 2026 | Real-time + historical analytics with Iceberg |
-| [ADR-016](adr-016-saga-replay.md) | Saga Replay | Q3 2026 | Replay failed sagas and time-travel queries |
+| [ADR-024](adr-024-saga-replay.md) | Saga Replay | Q3 2026 | Replay failed sagas and time-travel queries |
 | [ADR-019](adr-019-dry-run-mode.md) | Dry-Run Mode | Q2 2026 | Validate and preview saga execution |
 | [ADR-023](adr-023-pivot-irreversible-steps.md) | Pivot Steps | Q3 2026 | Irreversible steps and forward recovery |
+| [ADR-026](adr-026-industry-examples-expansion.md) | Industry Examples | Q4 2026 | 24 new examples across 10 industries |
 
 ### Low Priority / Future
 

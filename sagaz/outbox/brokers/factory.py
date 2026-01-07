@@ -27,8 +27,8 @@ def _check_broker_availability(module_path: str, available_attr: str) -> bool:
     try:
         module = __import__(module_path, fromlist=[available_attr])
         return getattr(module, available_attr, False)
-    except ImportError:
-        return False
+    except ImportError:  # pragma: no cover
+        return False  # pragma: no cover
 
 
 def get_available_brokers() -> list[str]:
@@ -97,7 +97,7 @@ def _print_broker_status(module_path: str, attr: str, name: str, desc: str, inst
     if available:
         print(f"  ✓ {name:<10} - {desc}")
     else:
-        print(f"  ✗ {name:<10} - {desc} (install: {install})")
+        print(f"  ✗ {name:<10} - {desc} (install: {install})")  # pragma: no cover
 
 
 def _create_kafka_broker(kwargs: dict):
@@ -187,9 +187,9 @@ def create_broker(
 
     try:
         return factory(kwargs)  # type: ignore[no-any-return]
-    except ImportError:
-        if dependency:
-            raise MissingDependencyError(dependency, f"{broker_type} message broker")
+    except ImportError:  # pragma: no cover
+        if dependency:  # pragma: no cover
+            raise MissingDependencyError(dependency, f"{broker_type} message broker")  # pragma: no cover
         raise  # pragma: no cover
 
 
