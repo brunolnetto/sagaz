@@ -118,8 +118,8 @@ class TestSagaZones:
             committed={"step_after_pivot"}
         )
         # Should return pivot associated with committed step (simplified logic returns first pivot)
-        assert zones.get_effective_pivot("step_after_pivot") == "pivot1"
-        assert zones.get_effective_pivot("unknown") is None
+        assert zones.get_rollback_boundary("step_after_pivot") == "pivot1"
+        assert zones.get_rollback_boundary("unknown") is None
 
 
 

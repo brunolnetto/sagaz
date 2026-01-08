@@ -38,8 +38,10 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 from sagaz.execution_graph import CompensationType, SagaExecutionGraph
+from sagaz.types import SagaStatus
 
-logger = logging.getLogger(__name__)
+from sagaz.logger import get_logger
+logger = get_logger(__name__)
 
 # Type for saga step functions
 F = TypeVar("F", bound=Callable[..., Awaitable[Any]])
@@ -368,6 +370,21 @@ class Saga:
     # Class-level attributes (override in subclass)
     saga_name: str | None = None
     listeners: list | None = None  # List of SagaListener instances (None = use config)
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        
+        # Auto-register triggers
+        # Import inside method to avoid circular imports
+        from sagaz.triggers.registry import TriggerRegistry
+        
+        for name, method in inspect.getmembers(cls, predicate=inspect.isfunction):
+            if hasattr(method, "_trigger_metadata"):
+                TriggerRegistry.register(
+                    cls,
+                    name,
+                    method._trigger_metadata
+                )
 
     def __init__(self, name: str | None = None, config=None):
         """
@@ -861,14 +878,56 @@ class Saga:
         name = self._get_saga_name()
         self._register_compensations()
 
+        # Persist start
+        storage = self._config.storage if self._config else None
+        if storage:
+            try:
+                await storage.save_saga_state(
+                    self._saga_id,
+                    name,
+                    SagaStatus.EXECUTING,
+                    [],  # TODO: Track steps
+                    self._context
+                )
+            except Exception as e:
+                logger.warning(f"Failed to persist saga start: {e}")
+
         try:
             await self._notify_listeners("on_saga_start", name, self._saga_id, self._context)
             await self._execute_all_levels()
             await self._notify_listeners("on_saga_complete", name, self._saga_id, self._context)
+            
+            # Persist completion
+            if storage:
+                try:
+                    await storage.save_saga_state(
+                        self._saga_id,
+                        name,
+                        SagaStatus.COMPLETED,
+                        [],
+                        self._context
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to persist saga completion: {e}")
+
             return self._context
         except Exception as e:
             await self._compensate()
             await self._notify_listeners("on_saga_failed", name, self._saga_id, self._context, e)
+            
+            # Persist failure
+            if storage:
+                try:
+                    await storage.save_saga_state(
+                        self._saga_id,
+                        name,
+                        SagaStatus.ROLLED_BACK,
+                        [],
+                        self._context
+                    )
+                except Exception as e_storage:
+                    logger.warning(f"Failed to persist saga failure: {e_storage}")
+
             raise
 
     def _initialize_run(self, initial_context: dict[str, Any], saga_id: str | None) -> None:

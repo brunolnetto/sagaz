@@ -27,6 +27,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
+    # Use the native Sagaz middleware for correlation ID propagation
+    'sagaz.integrations.django.SagaDjangoMiddleware',  # <-- Native middleware!
 ]
 
 ROOT_URLCONF = 'config.urls'

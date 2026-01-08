@@ -43,7 +43,7 @@ from sagaz.listeners import (
     OutboxSagaListener,
 )
 from sagaz.monitoring.prometheus import PrometheusMetrics, start_metrics_server
-from sagaz.outbox.storage.postgresql import PostgreSQLOutboxStorage
+from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
 from sagaz.outbox.worker import OutboxWorker
 from sagaz.outbox.types import OutboxConfig

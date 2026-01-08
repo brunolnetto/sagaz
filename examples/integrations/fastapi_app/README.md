@@ -1,13 +1,16 @@
 # FastAPI Integration Example
 
-Demonstrates how to integrate Sagaz with FastAPI for building transactional APIs.
+Demonstrates how to integrate Sagaz with FastAPI using the **native `sagaz.integrations.fastapi` module**.
 
 ## Features
 
-- **Lifespan Management**: Automatic storage initialization/cleanup
-- **Dependency Injection**: Clean `Depends()` pattern for saga instances
-- **Background Execution**: Fire-and-forget saga execution via `BackgroundTasks`
-- **Correlation IDs**: Request tracing with middleware
+This example showcases:
+
+- **`create_lifespan(config)`** - Lifespan context manager for resource initialization/cleanup
+- **`saga_factory(SagaClass)`** - Dependency injection factory for saga instances
+- **`run_saga_background()`** - Fire-and-forget background saga execution
+- **`SagaContextMiddleware`** - Automatic correlation ID propagation
+- **`get_config()`** - Dependency to access current SagaConfig
 
 ## Quick Start
 
@@ -15,69 +18,64 @@ Demonstrates how to integrate Sagaz with FastAPI for building transactional APIs
 # Install dependencies
 pip install -r requirements.txt
 
-# Run the server
+# Run the app
 uvicorn main:app --reload
-
-# Open API docs
-open http://localhost:8000/docs
 ```
 
-## API Endpoints
+## Usage
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Health check |
-| POST | `/orders` | Create order (sync) |
-| POST | `/orders/async` | Create order (background) |
-| GET | `/orders/{id}/diagram` | Get saga Mermaid diagram |
-
-## Example Request
-
-```bash
-curl -X POST http://localhost:8000/orders \
-  -H "Content-Type: application/json" \
-  -H "X-Correlation-ID: my-trace-123" \
-  -d '{
-    "order_id": "ORD-001",
-    "user_id": "USER-123",
-    "items": [{"id": "ITEM-1", "name": "Widget", "quantity": 2}],
-    "amount": 99.99
-  }'
-```
-
-## Key Patterns
-
-### Saga Dependency Injection
+### Native Integration Module
 
 ```python
-from fastapi import Depends
+from sagaz.integrations.fastapi import (
+    create_lifespan,
+    saga_factory,
+    run_saga_background,
+    SagaContextMiddleware,
+)
 
-def create_saga(saga_class: type):
-    def factory(config: SagaConfig = Depends(get_saga_config)):
-        return saga_class(config=config)
-    return factory
+# Create FastAPI app with Sagaz lifespan
+app = FastAPI(lifespan=create_lifespan(config))
 
+# Add correlation ID middleware
+app.add_middleware(SagaContextMiddleware)
+
+# Use dependency injection in routes
 @app.post("/orders")
-async def create_order(saga: OrderSaga = Depends(create_saga(OrderSaga))):
-    result = await saga.run(context)
-    return {"saga_id": result["saga_id"]}
+async def create_order(saga: OrderSaga = Depends(saga_factory(OrderSaga))):
+    result = await saga.run({"order_id": "123"})
+    return result
 ```
 
-### Background Execution
+### Background Saga Execution
 
 ```python
 @app.post("/orders/async")
 async def create_order_async(
     background_tasks: BackgroundTasks,
-    saga: OrderSaga = Depends(create_saga(OrderSaga)),
+    saga: OrderSaga = Depends(saga_factory(OrderSaga)),
 ):
-    saga_id = await run_saga_in_background(background_tasks, saga, context)
+    saga_id = await run_saga_background(
+        background_tasks,
+        saga,
+        {"order_id": "123"},
+        on_success=lambda r: print("Completed!"),
+        on_failure=lambda e: print(f"Failed: {e}"),
+    )
     return {"saga_id": saga_id, "status": "accepted"}
 ```
 
-## Production Considerations
+## API Endpoints
 
-1. **Use StorageManager**: Enable PostgreSQL/Redis storage for persistence
-2. **Outbox Worker**: For reliability, use the outbox pattern instead of BackgroundTasks
-3. **Timeouts**: Configure appropriate timeouts for saga steps
-4. **Monitoring**: Enable Prometheus metrics and OpenTelemetry tracing
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Health check |
+| `/orders` | POST | Create order synchronously |
+| `/orders/async` | POST | Create order in background |
+| `/orders/{order_id}/diagram` | GET | Get saga Mermaid diagram |
+
+## API Docs
+
+When running, visit:
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc

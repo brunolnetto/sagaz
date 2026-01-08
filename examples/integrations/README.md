@@ -1,54 +1,62 @@
 # Web Framework Integration Examples
 
-This directory contains example applications demonstrating how to integrate Sagaz with popular Python web frameworks.
+This directory contains examples demonstrating how to integrate Sagaz with popular Python web frameworks, using **event-driven triggers**.
+
+## Trigger Pattern
+
+All examples use the same pattern:
+
+```
+POST /webhooks/{source}
+  → fire_event(source, payload)
+    → @trigger(source=...) on matching Saga
+      → transformer method(payload) → saga context
+        → saga.run(context)
+```
+
+**The trigger decorator replaces traditional route handlers** - you define triggers on your sagas instead of writing endpoint code.
+
+## Example: FastAPI
+
+```python
+from sagaz import Saga, action
+from sagaz.triggers import trigger
+from sagaz.integrations.fastapi import create_webhook_router
+
+class OrderSaga(Saga):
+    @trigger(
+        source="order_created",  # POST /webhooks/order_created
+        idempotency_key="order_id",
+        max_concurrent=10
+    )
+    def handle_order(self, event: dict) -> dict | None:
+        if not event.get("order_id"):
+            return None  # Skip invalid events
+        return {"order_id": event["order_id"], ...}  # Saga context
+
+    @action("process")
+    async def process_order(self, ctx): ...
+
+# In your app
+app.include_router(create_webhook_router("/webhooks"))
+```
 
 ## Available Examples
 
-| Framework | Directory | Description |
-|-----------|-----------|-------------|
-| **FastAPI** | [`fastapi_app/`](fastapi_app/) | Async-first integration with dependency injection |
-| **Django** | [`django_app/`](django_app/) | AppConfig integration with sync views |
-| **Flask** | [`flask_app/`](flask_app/) | Extension pattern with sync wrapper |
+| Framework | Directory | Webhook Setup |
+|-----------|-----------|---------------|
+| **FastAPI** | [`fastapi_app/`](fastapi_app/) | `app.include_router(create_webhook_router())` |
+| **Flask** | [`flask_app/`](flask_app/) | `sagaz.register_webhook_blueprint()` |
+| **Django** | [`django_app/`](django_app/) | `path('webhooks/<source>/', csrf_exempt(sagaz_webhook_view))` |
 
-## Quick Comparison
+## Key Features
 
-| Feature | FastAPI | Django | Flask |
-|---------|---------|--------|-------|
-| Async Native | ✅ Yes | ⚠️ Partial | ❌ No |
-| DI Pattern | `Depends()` | - | Extension |
-| Background Tasks | `BackgroundTasks` | Celery | Celery |
-| Lifespan | `@asynccontextmanager` | `AppConfig.ready()` | `init_app()` |
-| Best For | APIs, Microservices | Full-stack, Enterprise | Simple APIs |
-
-## Architecture Pattern
-
-All examples follow the same core pattern:
-
-```
-┌──────────────────────────────────────────┐
-│              Web Framework               │
-│  (FastAPI / Django / Flask)              │
-└──────────────────────────────────────────┘
-                    │
-         ┌──────────┴──────────┐
-         ▼                     ▼
-┌─────────────────┐  ┌─────────────────────┐
-│  Initialization │  │   Request Handler   │
-│  (Lifespan/App) │  │  (Route/View)       │
-└─────────────────┘  └─────────────────────┘
-         │                     │
-         ▼                     ▼
-┌──────────────────────────────────────────┐
-│           Sagaz SagaConfig               │
-│  (Storage, Broker, Metrics, Logging)     │
-└──────────────────────────────────────────┘
-                    │
-                    ▼
-┌──────────────────────────────────────────┐
-│            Saga Execution                │
-│  (OrderSaga, PaymentSaga, etc.)          │
-└──────────────────────────────────────────┘
-```
+| Feature | Description |
+|---------|-------------|
+| **Fire-and-forget** | Webhooks return 202 Accepted immediately |
+| **Idempotency** | Duplicate events (same idempotency_key) are skipped |
+| **Concurrency limits** | `max_concurrent` controls parallel saga runs |
+| **Background processing** | Sagas run asynchronously after webhook returns |
 
 ## Running the Examples
 
@@ -56,84 +64,51 @@ All examples follow the same core pattern:
 
 ```bash
 cd fastapi_app
-pip install -r requirements.txt
+pip install fastapi uvicorn sagaz
 uvicorn main:app --reload
-# Visit http://localhost:8000/docs
-```
 
-### Django
-
-```bash
-cd django_app
-pip install -r requirements.txt
-python manage.py runserver 0.0.0.0:8000
-# Visit http://localhost:8000/health/
+# Test trigger
+curl -X POST http://localhost:8000/webhooks/order_created \
+  -H "Content-Type: application/json" \
+  -d '{"order_id": "ORD-123", "user_id": "USR-1", "amount": 99.99}'
 ```
 
 ### Flask
 
 ```bash
 cd flask_app
-pip install -r requirements.txt
+pip install flask sagaz
 python main.py
-# Visit http://localhost:5000/health
+
+# Test trigger
+curl -X POST http://localhost:5000/webhooks/order_created \
+  -H "Content-Type: application/json" \
+  -d '{"order_id": "ORD-123", "user_id": "USR-1", "amount": 99.99}'
 ```
 
-## Common API Endpoints
-
-All examples expose the same API:
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/health` | Health check |
-| `POST` | `/orders` | Create an order (runs saga) |
-| `GET` | `/orders/{id}/diagram` | Get Mermaid diagram |
-
-### Test Request
+### Django
 
 ```bash
-curl -X POST http://localhost:8000/orders \
+cd django_app
+pip install django sagaz
+python manage.py runserver 0.0.0.0:8000
+
+# Test trigger
+curl -X POST http://localhost:8000/webhooks/order_created/ \
   -H "Content-Type: application/json" \
-  -H "X-Correlation-ID: test-123" \
-  -d '{
-    "order_id": "ORD-001",
-    "user_id": "USER-123",
-    "items": [{"id": "ITEM-1", "name": "Widget", "quantity": 2}],
-    "amount": 99.99
-  }'
+  -d '{"order_id": "ORD-123", "user_id": "USR-1", "amount": 99.99}'
 ```
 
-## Production Considerations
+## Response Format
 
-### Storage Configuration
+All webhook endpoints return:
 
-```python
-# Use PostgreSQL for production
-SAGAZ_STORAGE_URL=postgresql://user:pass@host:5432/sagaz
-
-# Or Redis
-SAGAZ_STORAGE_URL=redis://localhost:6379/0
+```json
+{
+  "status": "accepted",
+  "source": "order_created",
+  "message": "Event queued for processing"
+}
 ```
 
-### Reliability
-
-- **Short Sagas**: Execute inline in request handlers
-- **Long Sagas**: Use Outbox Pattern + Worker (recommended)
-- **Background Tasks**: Only for best-effort scenarios
-
-### Monitoring
-
-```python
-config = SagaConfig(
-    storage=...,
-    metrics=True,     # Prometheus /metrics
-    tracing=True,     # OpenTelemetry traces
-    logging=True,     # Structured logs
-)
-```
-
-## Related Documentation
-
-- [ADR-028: Framework Integration](../../docs/architecture/adr/adr-028-framework-integration.md)
-- [Implementation Plan](../../docs/architecture/implementation-plans/framework-integration-implementation-plan.md)
-- [Sagaz Configuration Guide](../../docs/configuration.md)
+Status code: `202 Accepted` (the saga runs in background)

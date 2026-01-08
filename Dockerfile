@@ -1,6 +1,6 @@
-# Dockerfile forsagaz Outbox Worker
+# Dockerfile for sagaz Outbox Worker
 # Build: docker build -tsagaz-outbox-worker:latest .
-# Run: docker run -e DATABASE_URL=...sagaz-outbox-worker:latest
+# Run: docker run -e DATABASE_URL=... sagaz-outbox-worker:latest
 
 FROM python:3.12-slim
 
@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy project files
 COPY pyproject.toml ./
-COPYsagaz/ ./sage/
+COPY sagaz/ ./sage/
 
 # Install the package with postgres and kafka extras
 # Use non-editable install for production

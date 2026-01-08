@@ -94,6 +94,36 @@ sagaz benchmark
 sagaz benchmark --profile stress
 ```
 
+### CLI Examples Browser
+
+Explore and run built-in examples directly from the CLI:
+
+```bash
+# List all available examples
+sagaz examples list
+
+# Filter by category
+sagaz examples list --category fintech
+sagaz examples list -c iot
+
+# Run a specific example
+sagaz examples run ecommerce/order_processing
+sagaz examples run monitoring
+
+# Interactive selection menu
+sagaz examples select
+sagaz examples select --category ml
+```
+
+**Available Categories:**
+- `ecommerce` - Order processing workflows
+- `fintech` - Payment & trading systems  
+- `healthcare` - Patient onboarding
+- `iot` - Device orchestration, smart grid
+- `logistics` - Drone delivery
+- `ml` - Training pipelines, federated learning
+- `monitoring` - Metrics and observability
+- `travel` - Booking systems
 
 ---
 
@@ -197,21 +227,33 @@ result = await inbox.process_idempotent(
 
 ### Unified Configuration
 
-```python
-from sagaz import SagaConfig, configure
+### Unified Configuration
 
-# One config for everything
+```python
+from sagaz import SagaConfig, configure, create_storage_manager  
+
+# NEW: Unified StorageManager (recommended)
+# Manages connection pooling for both saga and outbox storage
+manager = create_storage_manager("postgresql://localhost/db")
+await manager.initialize()
+
 config = SagaConfig(
-    storage=PostgreSQLSagaStorage("postgresql://localhost/db"),
+    storage_manager=manager,
     broker=KafkaBroker(bootstrap_servers="localhost:9092"),
     metrics=True,
-    tracing=True,
-    logging=True,
 )
-configure(config)  # All sagas now inherit this config!
+configure(config)
+
+# OR: Traditional separate configuration
+config = SagaConfig(
+    storage=PostgreSQLSagaStorage("postgresql://localhost/db"),
+    broker=KafkaBroker(...),
+    metrics=True,
+)
+configure(config)
 
 # Or from environment variables (12-factor app)
-config = SagaConfig.from_env()  # Reads SAGAZ_STORAGE_URL, SAGAZ_BROKER_URL, etc.
+config = SagaConfig.from_env()  # Reads SAGAZ_STORAGE_URL, etc.
 ```
 
 ### Mermaid Diagram Visualization
@@ -413,9 +455,15 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Project Status
 
-**Current Version**: 1.0.3 (December 2024)
+**Current Version**: 1.0.4 (January 2026)
 
-**Recent Updates** (v1.0.3):
+**Recent Updates** (v1.0.4):
+- **Unified StorageManager** - Shared connection pooling for saga + outbox
+- **SagaConfig Integration** - Simplified configuration with StorageManager
+- Refactored internal storage architecture
+- Fixed CLI interactive menu hangs in tests
+
+**v1.0.3 Features:**
 - Mermaid diagram generation with state markers
 - `to_mermaid_with_execution()` - Auto-fetch trail from storage
 - Connected graph validation for DAG sagas
