@@ -9,26 +9,22 @@ Requires:
     - testcontainers[postgres,kafka] installed
 
 Run with:
-    RUN_INTEGRATION=1 pytest tests/test_integration_containers.py -v
+    pytest -m integration tests/test_integration_containers.py -v
 
 Skip during regular runs (default):
-    pytest tests/  # These tests are skipped by default
+    pytest tests/  # These tests are excluded by default
 """
 
 import asyncio
-import os
+import uuid
 
 import pytest
 
-# Skip all tests in this module unless RUN_INTEGRATION env var is set
-if not os.environ.get("RUN_INTEGRATION"):
-    pytest.skip(
-        "Skipping integration tests (set RUN_INTEGRATION=1 to run)", allow_module_level=True
-    )
-
-
 # Skip if testcontainers not available
 pytest.importorskip("testcontainers")
+
+# Mark all tests in this module as integration tests (excluded by default)
+pytestmark = pytest.mark.integration
 
 
 # ============================================
@@ -37,15 +33,10 @@ pytest.importorskip("testcontainers")
 
 
 class TestPostgreSQLOutboxStorageIntegration:
-    """Integration tests for PostgreSQL outbox storage using testcontainers."""
+    """Integration tests for PostgreSQL outbox storage using testcontainers.
 
-    @pytest.fixture
-    def postgres_container(self):
-        """Start a PostgreSQL container for testing."""
-        from testcontainers.postgres import PostgresContainer
-
-        with PostgresContainer("postgres:15") as postgres:
-            yield postgres
+    Uses session-scoped postgres_container fixture from conftest.py for efficiency.
+    """
 
     @pytest.mark.asyncio
     async def test_postgresql_storage_lifecycle(self, postgres_container):
@@ -125,8 +116,11 @@ class TestPostgreSQLOutboxStorageIntegration:
     @pytest.mark.asyncio
     async def test_postgresql_concurrent_claim(self, postgres_container):
         """Test that concurrent claims work correctly with FOR UPDATE SKIP LOCKED."""
-        from sagaz.storage.backends.postgresql.outbox import ASYNCPG_AVAILABLE, PostgreSQLOutboxStorage
         from sagaz.outbox.types import OutboxEvent
+        from sagaz.storage.backends.postgresql.outbox import (
+            ASYNCPG_AVAILABLE,
+            PostgreSQLOutboxStorage,
+        )
 
         if not ASYNCPG_AVAILABLE:
             pytest.skip("asyncpg not installed")
@@ -172,8 +166,11 @@ class TestPostgreSQLOutboxStorageIntegration:
     @pytest.mark.asyncio
     async def test_postgresql_stuck_events(self, postgres_container):
         """Test stuck event detection and release."""
-        from sagaz.storage.backends.postgresql.outbox import ASYNCPG_AVAILABLE, PostgreSQLOutboxStorage
         from sagaz.outbox.types import OutboxEvent, OutboxStatus
+        from sagaz.storage.backends.postgresql.outbox import (
+            ASYNCPG_AVAILABLE,
+            PostgreSQLOutboxStorage,
+        )
 
         if not ASYNCPG_AVAILABLE:
             pytest.skip("asyncpg not installed")
@@ -213,7 +210,10 @@ class TestPostgreSQLOutboxStorageIntegration:
     async def test_postgresql_inbox_deduplication(self, postgres_container):
         """Test consumer inbox deduplication pattern."""
 
-        from sagaz.storage.backends.postgresql.outbox import ASYNCPG_AVAILABLE, PostgreSQLOutboxStorage
+        from sagaz.storage.backends.postgresql.outbox import (
+            ASYNCPG_AVAILABLE,
+            PostgreSQLOutboxStorage,
+        )
 
         if not ASYNCPG_AVAILABLE:
             pytest.skip("asyncpg not installed")
@@ -228,8 +228,9 @@ class TestPostgreSQLOutboxStorageIntegration:
             await storage.initialize()
 
             # First insert - should not be duplicate
+            evt_id_1 = str(uuid.uuid4())
             is_duplicate = await storage.check_and_insert_inbox(
-                event_id="evt-001",
+                event_id=evt_id_1,
                 consumer_name="order-service",
                 source_topic="orders",
                 event_type="OrderCreated",
@@ -239,7 +240,7 @@ class TestPostgreSQLOutboxStorageIntegration:
 
             # Second insert with same event_id - should be duplicate
             is_duplicate = await storage.check_and_insert_inbox(
-                event_id="evt-001",
+                event_id=evt_id_1,
                 consumer_name="order-service",
                 source_topic="orders",
                 event_type="OrderCreated",
@@ -249,7 +250,7 @@ class TestPostgreSQLOutboxStorageIntegration:
 
             # Different event_id - should not be duplicate
             is_duplicate = await storage.check_and_insert_inbox(
-                event_id="evt-002",
+                event_id=str(uuid.uuid4()),
                 consumer_name="order-service",
                 source_topic="orders",
                 event_type="OrderCreated",
@@ -264,7 +265,10 @@ class TestPostgreSQLOutboxStorageIntegration:
     async def test_postgresql_inbox_with_connection(self, postgres_container):
         """Test inbox insert with provided connection (transactional)."""
 
-        from sagaz.storage.backends.postgresql.outbox import ASYNCPG_AVAILABLE, PostgreSQLOutboxStorage
+        from sagaz.storage.backends.postgresql.outbox import (
+            ASYNCPG_AVAILABLE,
+            PostgreSQLOutboxStorage,
+        )
 
         if not ASYNCPG_AVAILABLE:
             pytest.skip("asyncpg not installed")
@@ -279,9 +283,10 @@ class TestPostgreSQLOutboxStorageIntegration:
             await storage.initialize()
 
             # Use a connection from the pool
+            evt_id_tx = str(uuid.uuid4())
             async with storage._pool.acquire() as conn, conn.transaction():
                 is_duplicate = await storage.check_and_insert_inbox(
-                    event_id="evt-transactional",
+                    event_id=evt_id_tx,
                     consumer_name="payment-service",
                     source_topic="payments",
                     event_type="PaymentProcessed",
@@ -292,7 +297,7 @@ class TestPostgreSQLOutboxStorageIntegration:
 
             # Verify it was committed
             is_duplicate = await storage.check_and_insert_inbox(
-                event_id="evt-transactional",
+                event_id=evt_id_tx,
                 consumer_name="payment-service",
                 source_topic="payments",
                 event_type="PaymentProcessed",
@@ -306,7 +311,10 @@ class TestPostgreSQLOutboxStorageIntegration:
     @pytest.mark.asyncio
     async def test_postgresql_update_inbox_duration(self, postgres_container):
         """Test updating processing duration for inbox events."""
-        from sagaz.storage.backends.postgresql.outbox import ASYNCPG_AVAILABLE, PostgreSQLOutboxStorage
+        from sagaz.storage.backends.postgresql.outbox import (
+            ASYNCPG_AVAILABLE,
+            PostgreSQLOutboxStorage,
+        )
 
         if not ASYNCPG_AVAILABLE:
             pytest.skip("asyncpg not installed")
@@ -321,8 +329,9 @@ class TestPostgreSQLOutboxStorageIntegration:
             await storage.initialize()
 
             # Insert an event first
+            evt_id_dur = str(uuid.uuid4())
             await storage.check_and_insert_inbox(
-                event_id="evt-duration",
+                event_id=evt_id_dur,
                 consumer_name="notification-service",
                 source_topic="notifications",
                 event_type="NotificationSent",
@@ -330,7 +339,7 @@ class TestPostgreSQLOutboxStorageIntegration:
             )
 
             # Update duration
-            await storage.update_inbox_duration(event_id="evt-duration", duration_ms=250)
+            await storage.update_inbox_duration(event_id=evt_id_dur, duration_ms=250)
 
             # Verify duration was updated (would require query to check)
             # For now, just verify no exception was raised
@@ -341,7 +350,10 @@ class TestPostgreSQLOutboxStorageIntegration:
     @pytest.mark.asyncio
     async def test_postgresql_cleanup_inbox(self, postgres_container):
         """Test cleaning up old inbox entries."""
-        from sagaz.storage.backends.postgresql.outbox import ASYNCPG_AVAILABLE, PostgreSQLOutboxStorage
+        from sagaz.storage.backends.postgresql.outbox import (
+            ASYNCPG_AVAILABLE,
+            PostgreSQLOutboxStorage,
+        )
 
         if not ASYNCPG_AVAILABLE:
             pytest.skip("asyncpg not installed")
@@ -358,7 +370,7 @@ class TestPostgreSQLOutboxStorageIntegration:
             # Insert some events
             for i in range(3):
                 await storage.check_and_insert_inbox(
-                    event_id=f"evt-cleanup-{i}",
+                    event_id=str(uuid.uuid4()),
                     consumer_name="cleanup-service",
                     source_topic="cleanup",
                     event_type="TestEvent",
@@ -387,23 +399,10 @@ class TestPostgreSQLOutboxStorageIntegration:
 
 
 class TestKafkaBrokerIntegration:
-    """Integration tests for Kafka broker using testcontainers."""
+    """Integration tests for Kafka broker using testcontainers.
 
-    @pytest.fixture
-    def kafka_container(self):
-        """Start a Kafka container for testing."""
-        from testcontainers.kafka import KafkaContainer
-
-        # Use the standard KafkaContainer with increased timeout
-        kafka = KafkaContainer("confluentinc/cp-kafka:7.5.0")
-
-        # The KafkaContainer class already has good defaults, but we can extend the startup timeout
-        kafka.with_env("KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR", "1")
-        kafka.with_env("KAFKA_TRANSACTION_STATE_LOG_MIN_ISR", "1")
-        kafka.with_env("KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR", "1")
-
-        with kafka:
-            yield kafka
+    Uses session-scoped kafka_container fixture from conftest.py for efficiency.
+    """
 
     @pytest.mark.asyncio
     async def test_kafka_broker_publish(self, kafka_container):
@@ -476,21 +475,10 @@ class TestKafkaBrokerIntegration:
 
 
 class TestRabbitMQBrokerIntegration:
-    """Integration tests for RabbitMQ broker using testcontainers."""
+    """Integration tests for RabbitMQ broker using testcontainers.
 
-    @pytest.fixture
-    def rabbitmq_container(self):
-        """Start a RabbitMQ container for testing."""
-        try:
-            from testcontainers.rabbitmq import RabbitMqContainer
-        except ImportError:
-            pytest.skip("testcontainers[rabbitmq] not installed")
-
-        # Use standard RabbitMQ container with management plugin
-        rabbitmq = RabbitMqContainer("rabbitmq:3.12-management")
-
-        with rabbitmq:
-            yield rabbitmq
+    Uses session-scoped rabbitmq_container fixture from conftest.py for efficiency.
+    """
 
     @pytest.mark.asyncio
     async def test_rabbitmq_broker_publish(self, rabbitmq_container):
@@ -553,23 +541,21 @@ class TestRabbitMQBrokerIntegration:
 
 
 class TestOutboxWorkerIntegration:
-    """Integration tests for the complete outbox worker flow."""
+    """Integration tests for the complete outbox worker flow.
 
-    @pytest.fixture
-    def postgres_container(self):
-        """Start a PostgreSQL container for testing."""
-        from testcontainers.postgres import PostgresContainer
-
-        with PostgresContainer("postgres:15") as postgres:
-            yield postgres
+    Uses session-scoped postgres_container fixture from conftest.py for efficiency.
+    """
 
     @pytest.mark.asyncio
     async def test_worker_process_batch(self, postgres_container):
         """Test worker processing a batch of events."""
         from sagaz.outbox.brokers.memory import InMemoryBroker
-        from sagaz.storage.backends.postgresql.outbox import ASYNCPG_AVAILABLE, PostgreSQLOutboxStorage
         from sagaz.outbox.types import OutboxConfig, OutboxEvent
         from sagaz.outbox.worker import OutboxWorker
+        from sagaz.storage.backends.postgresql.outbox import (
+            ASYNCPG_AVAILABLE,
+            PostgreSQLOutboxStorage,
+        )
 
         if not ASYNCPG_AVAILABLE:
             pytest.skip("asyncpg not installed")
@@ -584,6 +570,10 @@ class TestOutboxWorkerIntegration:
         try:
             await storage.initialize()
             await broker.connect()
+
+            # Clean up any leftover events from previous tests (shared container)
+            async with storage._pool.acquire() as conn:
+                await conn.execute("TRUNCATE TABLE saga_outbox")
 
             # Insert events
             for i in range(3):

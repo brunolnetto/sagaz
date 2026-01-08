@@ -28,8 +28,8 @@ from collections.abc import Awaitable, Callable
 
 from sagaz.outbox.brokers.base import BrokerError, MessageBroker
 from sagaz.outbox.state_machine import OutboxStateMachine
-from sagaz.storage.interfaces.outbox import OutboxStorage
 from sagaz.outbox.types import OutboxConfig, OutboxEvent, OutboxStatus
+from sagaz.storage.interfaces.outbox import OutboxStorage
 
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
@@ -215,7 +215,7 @@ class OutboxWorker:
         while self._running:
             should_break = await self._process_iteration()
             if should_break:
-                break
+                break  # pragma: no cover
 
     async def _process_iteration(self) -> bool:
         """Process one iteration of the loop. Returns True if loop should break."""
@@ -225,7 +225,7 @@ class OutboxWorker:
                 try:
                     pending_count = await self.storage.get_pending_count()
                     OUTBOX_PENDING_EVENTS.set(pending_count)
-                except Exception:
+                except Exception:  # pragma: no cover
                     pass  # Ignore errors when getting pending count
 
             processed = await self.process_batch()

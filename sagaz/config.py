@@ -122,14 +122,20 @@ class SagaConfig:
         # Validate: cannot mix storage_manager with storage/outbox_storage
         if self.storage_manager is not None:
             if self.storage is not None:
-                raise ValueError(
+                msg = (
                     "Cannot specify both 'storage_manager' and 'storage'. "
                     "Use storage_manager for unified storage, or storage/outbox_storage separately."
                 )
-            if self.outbox_storage is not None:
                 raise ValueError(
+                    msg
+                )
+            if self.outbox_storage is not None:
+                msg = (
                     "Cannot specify both 'storage_manager' and 'outbox_storage'. "
                     "Use storage_manager for unified storage, or storage/outbox_storage separately."
+                )
+                raise ValueError(
+                    msg
                 )
             self._setup_from_manager()
         else:
@@ -149,7 +155,7 @@ class SagaConfig:
     def _setup_from_manager(self) -> None:
         """Extract storage instances from StorageManager."""
         manager = self.storage_manager
-        
+
         # Check if manager is initialized
         try:
             self.storage = manager.saga
@@ -161,7 +167,7 @@ class SagaConfig:
             # Manager not initialized - store reference and use lazy access
             # Manager not initialized - store reference and use lazy access
             import warnings
-            
+
             warnings.warn(
                 "StorageManager provided but not initialized. "
                 "Call await storage_manager.initialize() before using Saga.",

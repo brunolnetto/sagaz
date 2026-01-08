@@ -2,19 +2,21 @@
 Tests for sagaz.storage.interfaces module.
 """
 
-import pytest
-from datetime import datetime, timezone
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from datetime import UTC, datetime, timezone
+from typing import Any
 
+import pytest
+
+from sagaz.outbox.types import OutboxEvent, OutboxStatus
 from sagaz.storage.interfaces import (
-    SagaStorage,
-    SagaStepState,
     OutboxStorage,
     OutboxStorageError,
+    SagaStepState,
+    SagaStorage,
     Transferable,
 )
 from sagaz.types import SagaStatus, SagaStepStatus
-from sagaz.outbox.types import OutboxEvent, OutboxStatus
 
 
 class TestSagaStorageInterface:
@@ -30,25 +32,25 @@ class TestSagaStorageInterface:
         class MinimalSagaStorage(SagaStorage):
             async def save_saga_state(self, saga_id, saga_name, status, steps, context, metadata=None):
                 pass
-            
+
             async def load_saga_state(self, saga_id):
                 return None
-            
+
             async def delete_saga_state(self, saga_id):
                 return False
-            
+
             async def list_sagas(self, status=None, saga_name=None, limit=100, offset=0):
                 return []
-            
+
             async def update_step_state(self, saga_id, step_name, status, result=None, error=None, executed_at=None):
                 pass
-            
+
             async def get_saga_statistics(self):
                 return {}
-            
+
             async def cleanup_completed_sagas(self, older_than, statuses=None):
                 return 0
-            
+
             async def health_check(self):
                 return {"status": "healthy"}
 
@@ -69,7 +71,7 @@ class TestSagaStorageInterface:
             async def health_check(self): return {}
 
         storage = MinimalSagaStorage()
-        
+
         with pytest.raises(NotImplementedError):
             async for _ in storage.export_all():
                 pass
@@ -88,7 +90,7 @@ class TestSagaStorageInterface:
             async def health_check(self): return {}
 
         storage = MinimalSagaStorage()
-        
+
         with pytest.raises(NotImplementedError):
             await storage.import_record({"saga_id": "test"})
 
@@ -108,7 +110,7 @@ class TestSagaStorageInterface:
 
         storage = CountingSagaStorage()
         count = await storage.count()
-        
+
         assert count == 3
 
     @pytest.mark.asyncio
@@ -154,15 +156,15 @@ class TestSagaStepState:
             status=SagaStepStatus.COMPLETED,
             result={"items": 5},
         )
-        
+
         assert state.name == "reserve_inventory"
         assert state.status == SagaStepStatus.COMPLETED
         assert state.result == {"items": 5}
 
     def test_to_dict(self):
         """Test converting to dictionary."""
-        now = datetime.now(timezone.utc)
-        
+        now = datetime.now(UTC)
+
         state = SagaStepState(
             name="charge_payment",
             status=SagaStepStatus.COMPLETED,
@@ -170,9 +172,9 @@ class TestSagaStepState:
             executed_at=now,
             retry_count=2,
         )
-        
+
         data = state.to_dict()
-        
+
         assert data["name"] == "charge_payment"
         assert data["status"] == "completed"
         assert data["result"] == {"amount": 99.99}
@@ -185,9 +187,9 @@ class TestSagaStepState:
             name="test",
             status=SagaStepStatus.PENDING,
         )
-        
+
         data = state.to_dict()
-        
+
         assert data["result"] is None
         assert data["error"] is None
         assert data["executed_at"] is None
@@ -204,9 +206,9 @@ class TestSagaStepState:
             "compensated_at": None,
             "retry_count": 0,
         }
-        
+
         state = SagaStepState.from_dict(data)
-        
+
         assert state.name == "process_order"
         assert state.status == SagaStepStatus.COMPLETED
         assert state.result == {"order_id": "123"}
@@ -218,9 +220,9 @@ class TestSagaStepState:
             "name": "test",
             "status": "pending",
         }
-        
+
         state = SagaStepState.from_dict(data)
-        
+
         assert state.name == "test"
         assert state.status == SagaStepStatus.PENDING
         assert state.retry_count == 0
@@ -232,9 +234,9 @@ class TestSagaStepState:
             "status": "compensated",
             "compensated_at": "2024-01-15T11:00:00+00:00",
         }
-        
+
         state = SagaStepState.from_dict(data)
-        
+
         assert state.compensated_at is not None
 
 
@@ -251,28 +253,28 @@ class TestOutboxStorageInterface:
         class MinimalOutboxStorage(OutboxStorage):
             async def insert(self, event, connection=None):
                 return event
-            
+
             async def get_by_id(self, event_id):
                 return None
-            
+
             async def update_status(self, event_id, status, error_message=None, connection=None):
                 return OutboxEvent(saga_id="test", event_type="test", payload={})
-            
+
             async def claim_batch(self, worker_id, batch_size=100, older_than_seconds=0.0):
                 return []
-            
+
             async def get_events_by_saga(self, saga_id):
                 return []
-            
+
             async def get_stuck_events(self, claimed_older_than_seconds=300.0):
                 return []
-            
+
             async def release_stuck_events(self, claimed_older_than_seconds=300.0):
                 return 0
-            
+
             async def get_pending_count(self):
                 return 0
-            
+
             async def get_dead_letter_events(self, limit=100):
                 return []
 
@@ -285,7 +287,7 @@ class TestOutboxStorageInterface:
         class MinimalOutboxStorage(OutboxStorage):
             async def insert(self, event, connection=None): return event
             async def get_by_id(self, event_id): return None
-            async def update_status(self, *args, **kwargs): 
+            async def update_status(self, *args, **kwargs):
                 return OutboxEvent(saga_id="test", event_type="test", payload={})
             async def claim_batch(self, *args, **kwargs): return []
             async def get_events_by_saga(self, saga_id): return []
@@ -296,7 +298,7 @@ class TestOutboxStorageInterface:
 
         storage = MinimalOutboxStorage()
         result = await storage.health_check()
-        
+
         assert result.is_healthy
         assert result.details["pending_count"] == 5
 
@@ -306,7 +308,7 @@ class TestOutboxStorageInterface:
         class FailingOutboxStorage(OutboxStorage):
             async def insert(self, event, connection=None): return event
             async def get_by_id(self, event_id): return None
-            async def update_status(self, *args, **kwargs): 
+            async def update_status(self, *args, **kwargs):
                 return OutboxEvent(saga_id="test", event_type="test", payload={})
             async def claim_batch(self, *args, **kwargs): return []
             async def get_events_by_saga(self, saga_id): return []
@@ -317,7 +319,7 @@ class TestOutboxStorageInterface:
 
         storage = FailingOutboxStorage()
         result = await storage.health_check()
-        
+
         assert not result.is_healthy
         assert "DB error" in result.message
 
@@ -327,7 +329,7 @@ class TestOutboxStorageInterface:
         class MinimalOutboxStorage(OutboxStorage):
             async def insert(self, event, connection=None): return event
             async def get_by_id(self, event_id): return None
-            async def update_status(self, *args, **kwargs): 
+            async def update_status(self, *args, **kwargs):
                 return OutboxEvent(saga_id="test", event_type="test", payload={})
             async def claim_batch(self, *args, **kwargs): return []
             async def get_events_by_saga(self, saga_id): return []
@@ -338,7 +340,7 @@ class TestOutboxStorageInterface:
 
         storage = MinimalOutboxStorage()
         stats = await storage.get_statistics()
-        
+
         assert stats.pending_records == 10
 
     @pytest.mark.asyncio
@@ -347,7 +349,7 @@ class TestOutboxStorageInterface:
         class MinimalOutboxStorage(OutboxStorage):
             async def insert(self, event, connection=None): return event
             async def get_by_id(self, event_id): return None
-            async def update_status(self, *args, **kwargs): 
+            async def update_status(self, *args, **kwargs):
                 return OutboxEvent(saga_id="test", event_type="test", payload={})
             async def claim_batch(self, *args, **kwargs): return []
             async def get_events_by_saga(self, saga_id): return []
@@ -357,7 +359,7 @@ class TestOutboxStorageInterface:
             async def get_dead_letter_events(self, *args): return []
 
         storage = MinimalOutboxStorage()
-        
+
         with pytest.raises(NotImplementedError):
             async for _ in storage.export_all():
                 pass
@@ -368,7 +370,7 @@ class TestOutboxStorageInterface:
         class MinimalOutboxStorage(OutboxStorage):
             async def insert(self, event, connection=None): return event
             async def get_by_id(self, event_id): return None
-            async def update_status(self, *args, **kwargs): 
+            async def update_status(self, *args, **kwargs):
                 return OutboxEvent(saga_id="test", event_type="test", payload={})
             async def claim_batch(self, *args, **kwargs): return []
             async def get_events_by_saga(self, saga_id): return []
@@ -378,7 +380,7 @@ class TestOutboxStorageInterface:
             async def get_dead_letter_events(self, *args): return []
 
         storage = MinimalOutboxStorage()
-        
+
         with pytest.raises(NotImplementedError):
             await storage.import_record({})
 
@@ -388,7 +390,7 @@ class TestOutboxStorageInterface:
         class MinimalOutboxStorage(OutboxStorage):
             async def insert(self, event, connection=None): return event
             async def get_by_id(self, event_id): return None
-            async def update_status(self, *args, **kwargs): 
+            async def update_status(self, *args, **kwargs):
                 return OutboxEvent(saga_id="test", event_type="test", payload={})
             async def claim_batch(self, *args, **kwargs): return []
             async def get_events_by_saga(self, saga_id): return []
@@ -399,7 +401,7 @@ class TestOutboxStorageInterface:
 
         storage = MinimalOutboxStorage()
         count = await storage.count()
-        
+
         assert count == 42
 
     @pytest.mark.asyncio
@@ -408,7 +410,7 @@ class TestOutboxStorageInterface:
         class MinimalOutboxStorage(OutboxStorage):
             async def insert(self, event, connection=None): return event
             async def get_by_id(self, event_id): return None
-            async def update_status(self, *args, **kwargs): 
+            async def update_status(self, *args, **kwargs):
                 return OutboxEvent(saga_id="test", event_type="test", payload={})
             async def claim_batch(self, *args, **kwargs): return []
             async def get_events_by_saga(self, saga_id): return []
@@ -418,7 +420,7 @@ class TestOutboxStorageInterface:
             async def get_dead_letter_events(self, *args): return []
 
         storage = MinimalOutboxStorage()
-        
+
         with pytest.raises(NotImplementedError):
             await storage.archive_events()
 
@@ -428,7 +430,7 @@ class TestOutboxStorageInterface:
         class MinimalOutboxStorage(OutboxStorage):
             async def insert(self, event, connection=None): return event
             async def get_by_id(self, event_id): return None
-            async def update_status(self, *args, **kwargs): 
+            async def update_status(self, *args, **kwargs):
                 return OutboxEvent(saga_id="test", event_type="test", payload={})
             async def claim_batch(self, *args, **kwargs): return []
             async def get_events_by_saga(self, saga_id): return []
@@ -446,7 +448,7 @@ class TestOutboxStorageInterface:
         class MinimalOutboxStorage(OutboxStorage):
             async def insert(self, event, connection=None): return event
             async def get_by_id(self, event_id): return None
-            async def update_status(self, *args, **kwargs): 
+            async def update_status(self, *args, **kwargs):
                 return OutboxEvent(saga_id="test", event_type="test", payload={})
             async def claim_batch(self, *args, **kwargs): return []
             async def get_events_by_saga(self, saga_id): return []
@@ -477,10 +479,10 @@ class TestTransferableProtocol:
         class ImplementsTransferable:
             async def export_all(self):
                 yield {}
-            
+
             async def import_record(self, record):
                 pass
-            
+
             async def count(self):
                 return 0
 

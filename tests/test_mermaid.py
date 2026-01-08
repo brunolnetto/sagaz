@@ -12,7 +12,6 @@ from sagaz.core import Saga as ImperativeSaga
 from sagaz.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
 
-
 class TestMermaidGeneratorEdgeCases:
     """Test edge cases and additional coverage for MermaidGenerator."""
 
@@ -568,20 +567,20 @@ class TestMermaidGeneration:
     @pytest.mark.asyncio
     async def test_declarative_saga_to_mermaid_with_execution(self):
         """Test to_mermaid_with_execution with declarative saga."""
-        
+
         class MySaga(Saga):
             saga_name = "my_saga"
-            
+
             @action("step1")
             async def step1(self, ctx):
                 return {}
-            
+
             @compensate("step1")
             async def undo1(self, ctx):
                 pass
-                
+
         saga = MySaga()
-        
+
         # Mock storage
         mock_data = {
             "steps": [
@@ -590,9 +589,9 @@ class TestMermaidGeneration:
         }
         mock_storage = MagicMock()
         mock_storage.load_saga_state = AsyncMock(return_value=mock_data)
-        
+
         mermaid = await saga.to_mermaid_with_execution("saga-1", mock_storage)
-        
+
         # Should show step1 as success (because it completed to be compensated)
         # And comp_step1 as compensation
         assert "class step1 success" in mermaid

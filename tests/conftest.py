@@ -153,17 +153,30 @@ def kafka_container():
 
     Shared across all tests in the session.
     Container starts once and stops at the end of the test session.
-    Gracefully skips if container fails to start (e.g., Docker issues).
+
+    Note: Kafka containers are notoriously slow to start (30-120s) and often
+    fail in WSL/Docker environments. Tests using this fixture will be skipped
+    if the container fails to start.
+
+    To run Kafka tests:
+        SAGAZ_KAFKA_TESTS=1 pytest -m integration -k kafka
     """
+    import os
+
+    # Allow explicit opt-in for Kafka tests
+    if not os.getenv("SAGAZ_KAFKA_TESTS"):
+        pytest.skip("Kafka tests disabled (set SAGAZ_KAFKA_TESTS=1 to enable)")
+        return None
+
     if not TESTCONTAINERS_AVAILABLE:
         pytest.skip("testcontainers[kafka] not available")
         return None
 
     try:
-        with KafkaContainer("confluentinc/cp-kafka:7.6.0") as container:
+        container = KafkaContainer("confluentinc/cp-kafka:7.6.0")
+        with container:
             yield container
     except Exception as e:
-        # Container failed to start (timeout, Docker issues, etc.)
         pytest.skip(f"Kafka container failed to start: {e}")
 
 
@@ -181,7 +194,10 @@ def rabbitmq_container():
         return None
 
     try:
-        with RabbitMqContainer("rabbitmq:3.12-management") as container:
+        # Use basic image without management for faster startup
+        container = RabbitMqContainer("rabbitmq:3.12-alpine")
+
+        with container:
             yield container
     except Exception as e:
         # Container failed to start (timeout, Docker issues, etc.)

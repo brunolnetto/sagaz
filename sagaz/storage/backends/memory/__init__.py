@@ -1,4 +1,4 @@
-from .saga import InMemorySagaStorage
 from .outbox import InMemoryOutboxStorage
+from .saga import InMemorySagaStorage
 
-__all__ = ["InMemorySagaStorage", "InMemoryOutboxStorage"]
+__all__ = ["InMemoryOutboxStorage", "InMemorySagaStorage"]

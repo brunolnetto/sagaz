@@ -16,8 +16,8 @@ from sagaz.listeners import (
     SagaListener,
     TracingSagaListener,
 )
-from sagaz.outbox.brokers.memory import InMemoryBroker
 from sagaz.outbox import InMemoryOutboxStorage
+from sagaz.outbox.brokers.memory import InMemoryBroker
 from sagaz.storage.memory import InMemorySagaStorage
 
 

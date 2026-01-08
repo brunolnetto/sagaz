@@ -21,8 +21,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
 
 from sagaz.exceptions import MissingDependencyError
-from sagaz.storage.interfaces.outbox import OutboxStorage, OutboxStorageError
 from sagaz.outbox.types import OutboxEvent, OutboxStatus
+from sagaz.storage.interfaces.outbox import OutboxStorage, OutboxStorageError
 
 # Check for asyncpg availability
 try:
@@ -547,7 +547,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
             )
             # Parse "DELETE N" to get count
             return int(result.split()[-1]) if result.startswith("DELETE") else 0
-    
+
     async def count(self) -> int:
         """Count total events."""
         if not self._pool:
@@ -555,7 +555,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
             # Assuming initialized for now as it's required for other ops
              msg = "Storage not initialized"
              raise OutboxStorageError(msg)
-             
+
         async with self._pool.acquire() as conn:
             return await conn.fetchval("SELECT COUNT(*) FROM saga_outbox")
 
@@ -564,7 +564,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
         if not self._pool:
              msg = "Storage not initialized"
              raise OutboxStorageError(msg)
-             
+
         async with self._pool.acquire() as conn:
             async with conn.transaction():
                 try:  # pragma: no cover

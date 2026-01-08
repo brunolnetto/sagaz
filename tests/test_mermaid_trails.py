@@ -1,5 +1,6 @@
 
 import pytest
+
 from sagaz.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
 
@@ -20,23 +21,23 @@ class TestMermaidTrails:
             total_duration="150ms",
             step_durations={"step1": "50ms", "step2": "50ms", "step3": "50ms"},
         )
-        
+
         generator = MermaidGenerator(basic_steps, highlight_trail=trail)
         diagram = generator.generate()
-        
+
         # Check nodes are present with durations
         assert "step1" in diagram
         assert "50ms" in diagram
-        
+
         # Check success edge styling
         assert "linkStyle" in diagram
         assert "stroke:#28a745" in diagram  # Green for success
-        
+
         # Check start -> step1
         assert "START" in diagram
         assert "SUCCESS" in diagram
         assert "150ms" in diagram  # Total duration in success node
-        
+
         # Should NOT have failure markers
         # Note: The color definition is always present in classDef, so we can't check for color code absence.
         # We check that no node is assigned the 'failure' class.
@@ -53,24 +54,24 @@ class TestMermaidTrails:
             step_durations={"step1": "50ms", "step2": "30ms"},
             comp_durations={"step1": "40ms"}
         )
-        
+
         generator = MermaidGenerator(basic_steps, highlight_trail=trail)
         diagram = generator.generate()
-        
+
         # Check failed step is marked red
         assert "class step2 failure" in diagram
-        
+
         # Check rolled back markers
         assert "ROLLED_BACK" in diagram
         assert "120ms" in diagram
-        
+
         # Check compensation nodes
         assert "comp_step1" in diagram
         assert "undo step1<br/>40ms" in diagram
-        
+
         # Check compensation edges (yellow/orange)
         assert "stroke:#ffc107" in diagram
-        
+
         # step3 should NOT be in the diagram
         # Logic: _add_step_nodes skips non-executed steps if trail exists
         assert "step3" not in diagram
@@ -82,25 +83,25 @@ class TestMermaidTrails:
             StepInfo(name="step1", has_compensation=False),
             StepInfo(name="step2", has_compensation=True, depends_on={"step1"}),
         ]
-        
+
         trail = HighlightTrail(
             completed={"step1"},
             failed_step="step2",
             compensated=set(),  # No compensations
         )
-        
+
         generator = MermaidGenerator(steps, highlight_trail=trail)
         diagram = generator.generate()
-        
+
         # step2 failed
         assert "class step2 failure" in diagram
-        
+
         # ROLLED_BACK usually appears if markers are on
         assert "ROLLED_BACK" in diagram
-        
+
         # NO compensation nodes should be visible
         assert "comp_step1" not in diagram
-        
+
         # Link from step2 to ROLLED_BACK (unlinked directly usually, checks markers)
         # Note: step2 doesn't link to ROLLED_BACK automatically unless it's a compensation root.
         # But failure style is applied.
@@ -115,9 +116,9 @@ class TestMermaidTrails:
             "comp_durations": {"b": "5ms"},
             "total_duration": "100ms"
         }
-        
+
         trail = HighlightTrail.from_dict(data)
-        
+
         assert trail.completed == {"a", "b"}
         assert trail.failed_step == "c"
         assert trail.compensated == {"a", "b"}
@@ -138,15 +139,15 @@ class TestMermaidTrails:
             StepInfo(name="A", has_compensation=False),
             StepInfo(name="B", has_compensation=False),
         ]
-        
+
         trail = HighlightTrail(completed={"A", "B"})
         generator = MermaidGenerator(steps, highlight_trail=trail)
         diagram = generator.generate()
-        
+
         # Both start from START
         assert "START --> A" in diagram
         assert "START --> B" in diagram
-        
+
         # Both end at SUCCESS
         assert "A --> SUCCESS" in diagram
         assert "B --> SUCCESS" in diagram
@@ -158,14 +159,14 @@ class TestMermaidTrails:
             StepInfo(name="B", has_compensation=False, depends_on={"A"}),
             StepInfo(name="C", has_compensation=False, depends_on={"B"}),
         ]
-        
+
         # Trail only shows A completed, likely halted or just incomplete snapshot
         # If failed_step is set to A, then B and C are skipped.
         trail = HighlightTrail(completed=set(), failed_step="A")
-        
+
         generator = MermaidGenerator(steps, highlight_trail=trail)
         diagram = generator.generate()
-        
+
         assert "A" in diagram
         # "B" might be in "TB" (flowchart TB), so check for node B definition or usage
         assert "    B" not in diagram

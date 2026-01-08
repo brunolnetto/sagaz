@@ -159,11 +159,11 @@ class InMemoryOutboxStorage(OutboxStorage):
     def clear(self) -> None:
         """Clear all events (for testing)."""
         self._events.clear()
-    
+
     async def count(self) -> int:
         """Count total events."""
         return len(self._events)
-    
+
     async def export_all(self):
         """Export all records for transfer."""
         # Sort by ID

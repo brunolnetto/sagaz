@@ -8,7 +8,7 @@ Example:
         @trigger(source="webhook", idempotency_key="order_id")
         def on_order(self, event):
             return {"order_id": event["id"]}
-        
+
         @action("process")
         async def process(self, ctx):
             ...
@@ -17,23 +17,23 @@ Example:
     await fire_event("webhook", {"id": "123"})
 """
 
-from sagaz.triggers.decorators import trigger, TriggerMetadata
-from sagaz.triggers.registry import TriggerRegistry, RegisteredTrigger
-from sagaz.triggers.engine import fire_event, TriggerEngine
+from sagaz.triggers.decorators import TriggerMetadata, trigger
+from sagaz.triggers.engine import TriggerEngine, fire_event
+from sagaz.triggers.registry import RegisteredTrigger, TriggerRegistry
+from sagaz.triggers.sources.broker import BrokerTriggerConsumer
 
 # Phase 3: Sources
 from sagaz.triggers.sources.cron import CronScheduler
-from sagaz.triggers.sources.broker import BrokerTriggerConsumer
 
 __all__ = [
-    # Core
-    "trigger",
-    "TriggerMetadata",
-    "TriggerRegistry",
-    "RegisteredTrigger",
-    "fire_event",
-    "TriggerEngine",
+    "BrokerTriggerConsumer",
     # Sources
     "CronScheduler",
-    "BrokerTriggerConsumer",
+    "RegisteredTrigger",
+    "TriggerEngine",
+    "TriggerMetadata",
+    "TriggerRegistry",
+    "fire_event",
+    # Core
+    "trigger",
 ]

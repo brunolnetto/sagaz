@@ -71,8 +71,8 @@ class TestSagaConfigCoverage:
         """Test config falls back to memory when PostgreSQL storage lacks conn string (line 144)."""
         from unittest.mock import MagicMock
 
-        from sagaz.outbox.brokers.memory import InMemoryBroker
         from sagaz.outbox import InMemoryOutboxStorage
+        from sagaz.outbox.brokers.memory import InMemoryBroker
 
         # Mock PostgreSQLSagaStorage without connection_string attribute
         mock_storage = MagicMock()

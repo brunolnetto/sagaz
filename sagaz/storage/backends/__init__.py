@@ -13,18 +13,18 @@ Available backends:
 # These are imported lazily to avoid import errors when dependencies are missing
 
 __all__ = [
+    "InMemoryOutboxStorage",
     # Memory
     "InMemorySagaStorage",
-    "InMemoryOutboxStorage",
-    # Redis
-    "RedisSagaStorage",
-    "RedisOutboxStorage",
+    "PostgreSQLOutboxStorage",
     # PostgreSQL
     "PostgreSQLSagaStorage",
-    "PostgreSQLOutboxStorage",
+    "RedisOutboxStorage",
+    # Redis
+    "RedisSagaStorage",
+    "SQLiteOutboxStorage",
     # SQLite
     "SQLiteSagaStorage",
-    "SQLiteOutboxStorage",
 ]
 
 
@@ -34,34 +34,35 @@ def __getattr__(name: str):
     if name == "InMemorySagaStorage":
         from .memory import InMemorySagaStorage
         return InMemorySagaStorage
-    
+
     if name == "InMemoryOutboxStorage":
         from .memory import InMemoryOutboxStorage
         return InMemoryOutboxStorage
-    
+
     if name == "RedisSagaStorage":
         from .redis import RedisSagaStorage
         return RedisSagaStorage
-    
+
     if name == "RedisOutboxStorage":
         from .redis import RedisOutboxStorage
         return RedisOutboxStorage
-    
+
     if name == "PostgreSQLSagaStorage":
         from .postgresql import PostgreSQLSagaStorage
         return PostgreSQLSagaStorage
-    
+
     if name == "PostgreSQLOutboxStorage":
         from .postgresql import PostgreSQLOutboxStorage
         return PostgreSQLOutboxStorage
-    
+
     if name == "SQLiteSagaStorage":
         from .sqlite import SQLiteSagaStorage
         return SQLiteSagaStorage
-    
+
     if name == "SQLiteOutboxStorage":
         from .sqlite import SQLiteOutboxStorage
         return SQLiteOutboxStorage
-    
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+    msg = f"module {__name__!r} has no attribute {name!r}"
+    raise AttributeError(msg)
 

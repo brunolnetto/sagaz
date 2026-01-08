@@ -322,6 +322,7 @@ class TestPostgreSQLSagaStorageMocked:
 # ============================================
 
 
+@pytest.mark.integration
 @pytest.mark.skipif(not TESTCONTAINERS_AVAILABLE, reason="testcontainers not available")
 @pytest.mark.skipif(not ASYNCPG_AVAILABLE, reason="asyncpg not installed")
 @pytest.mark.xdist_group(name="postgres")

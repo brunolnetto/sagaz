@@ -16,7 +16,7 @@ Usage:
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Any
 
 try:
@@ -32,8 +32,8 @@ from sagaz.storage.core import (
     HealthCheckResult,
     HealthStatus,
     StorageStatistics,
-    serialize,
     deserialize,
+    serialize,
 )
 
 logger = logging.getLogger(__name__)
@@ -42,12 +42,12 @@ logger = logging.getLogger(__name__)
 class SQLiteOutboxStorage:
     """
     SQLite-based outbox storage.
-    
+
     Provides lightweight, embedded storage for outbox events.
-    
+
     Attributes:
         db_path: Path to SQLite database file (or ":memory:" for in-memory)
-    
+
     Example:
         >>> storage = SQLiteOutboxStorage("./outbox.db")
         >>> async with storage:
@@ -58,17 +58,18 @@ class SQLiteOutboxStorage:
         ...     )
         ...     await storage.insert(event)
     """
-    
+
     def __init__(self, db_path: str = ":memory:"):
         """
         Initialize SQLite outbox storage.
-        
+
         Args:
             db_path: Path to SQLite database file, or ":memory:" for in-memory
         """
         if not AIOSQLITE_AVAILABLE:  # pragma: no cover
-            raise MissingDependencyError("aiosqlite", "SQLite storage")
-        
+            msg = "aiosqlite"
+            raise MissingDependencyError(msg, "SQLite storage")
+
         self.db_path = db_path
         self._conn: aiosqlite.Connection | None = None
         self._initialized = False
@@ -76,19 +77,19 @@ class SQLiteOutboxStorage:
     async def initialize(self) -> None:
         """Initialize storage (create connection and schema)."""
         await self._get_connection()
-    
+
     async def _get_connection(self) -> aiosqlite.Connection:
         """Get or create database connection."""
         if self._conn is None:
             self._conn = await aiosqlite.connect(self.db_path)
             self._conn.row_factory = aiosqlite.Row
-        
+
         if not self._initialized:
             await self._init_schema()
             self._initialized = True
-        
+
         return self._conn
-    
+
     async def _init_schema(self) -> None:
         """Initialize database schema."""
         conn = self._conn
@@ -111,34 +112,34 @@ class SQLiteOutboxStorage:
                 routing_key TEXT,
                 partition_key TEXT
             );
-            
+
             CREATE INDEX IF NOT EXISTS idx_outbox_status ON outbox_events(status);
             CREATE INDEX IF NOT EXISTS idx_outbox_saga_id ON outbox_events(saga_id);
             CREATE INDEX IF NOT EXISTS idx_outbox_claimed_at ON outbox_events(claimed_at);
         """)
         await conn.commit()
-    
+
     async def __aenter__(self):
         """Async context manager entry."""
         await self._get_connection()
         return self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
         await self.close()
-    
+
     async def close(self) -> None:
         """Close database connection."""
         if self._conn:
             await self._conn.close()
             self._conn = None
             self._initialized = False
-    
+
     async def insert(self, event: OutboxEvent, connection=None) -> OutboxEvent:
         """Insert an outbox event."""
         conn = await self._get_connection()
-        now = datetime.now(timezone.utc).isoformat()
-        
+        now = datetime.now(UTC).isoformat()
+
         await conn.execute(
             """
             INSERT INTO outbox_events (
@@ -161,24 +162,24 @@ class SQLiteOutboxStorage:
             ),
         )
         await conn.commit()
-        
+
         return event
-    
+
     async def get_by_id(self, event_id: str) -> OutboxEvent | None:
         """Get event by ID."""
         conn = await self._get_connection()
-        
+
         cursor = await conn.execute(
             "SELECT * FROM outbox_events WHERE event_id = ?",
             (event_id,),
         )
         row = await cursor.fetchone()
-        
+
         if row is None:
             return None
-        
+
         return self._row_to_event(row)
-    
+
     def _row_to_event(self, row: aiosqlite.Row) -> OutboxEvent:
         """Convert database row to OutboxEvent."""
         return OutboxEvent(
@@ -199,7 +200,7 @@ class SQLiteOutboxStorage:
             routing_key=row["routing_key"],
             partition_key=row["partition_key"],
         )
-    
+
     async def update_status(
         self,
         event_id: str,
@@ -209,10 +210,10 @@ class SQLiteOutboxStorage:
     ) -> OutboxEvent | None:
         """Update event status."""
         conn = await self._get_connection()
-        now = datetime.now(timezone.utc).isoformat()
-        
+        now = datetime.now(UTC).isoformat()
+
         sent_at = now if status == OutboxStatus.SENT else None
-        
+
         await conn.execute(
             """
             UPDATE outbox_events
@@ -222,9 +223,9 @@ class SQLiteOutboxStorage:
             (status.value, error_message, sent_at, event_id),
         )
         await conn.commit()
-        
+
         return await self.get_by_id(event_id)
-    
+
     async def claim_batch(
         self,
         worker_id: str,
@@ -233,8 +234,8 @@ class SQLiteOutboxStorage:
     ) -> list[OutboxEvent]:
         """Claim a batch of pending events."""
         conn = await self._get_connection()
-        now = datetime.now(timezone.utc)
-        
+        now = datetime.now(UTC)
+
         # First, select events to claim
         cursor = await conn.execute(
             """
@@ -245,13 +246,13 @@ class SQLiteOutboxStorage:
             (batch_size,),
         )
         rows = await cursor.fetchall()
-        
+
         if not rows:
             return []
-        
+
         event_ids = [row["event_id"] for row in rows]
         placeholders = ",".join("?" * len(event_ids))
-        
+
         # Update to claimed
         await conn.execute(
             f"""
@@ -262,36 +263,36 @@ class SQLiteOutboxStorage:
             (worker_id, now.isoformat(), *event_ids),
         )
         await conn.commit()
-        
+
         # Fetch the claimed events
         cursor = await conn.execute(
             f"SELECT * FROM outbox_events WHERE event_id IN ({placeholders})",
             event_ids,
         )
         rows = await cursor.fetchall()
-        
+
         return [self._row_to_event(row) for row in rows]
-    
+
     async def get_events_by_saga(self, saga_id: str) -> list[OutboxEvent]:
         """Get all events for a saga."""
         conn = await self._get_connection()
-        
+
         cursor = await conn.execute(
             "SELECT * FROM outbox_events WHERE saga_id = ? ORDER BY created_at",
             (saga_id,),
         )
         rows = await cursor.fetchall()
-        
+
         return [self._row_to_event(row) for row in rows]
-    
+
     async def get_stuck_events(
         self,
         claimed_older_than_seconds: float = 300.0,
     ) -> list[OutboxEvent]:
         """Get events stuck in claimed state."""
         conn = await self._get_connection()
-        cutoff = datetime.now(timezone.utc)
-        
+        datetime.now(UTC)
+
         cursor = await conn.execute(
             """
             SELECT * FROM outbox_events
@@ -301,16 +302,16 @@ class SQLiteOutboxStorage:
             (f"-{int(claimed_older_than_seconds)} seconds",),
         )
         rows = await cursor.fetchall()
-        
+
         return [self._row_to_event(row) for row in rows]
-    
+
     async def release_stuck_events(
         self,
         claimed_older_than_seconds: float = 300.0,
     ) -> int:
         """Release events stuck in claimed state back to pending."""
         conn = await self._get_connection()
-        
+
         cursor = await conn.execute(
             """
             UPDATE outbox_events
@@ -322,24 +323,24 @@ class SQLiteOutboxStorage:
             (f"-{int(claimed_older_than_seconds)} seconds",),
         )
         await conn.commit()
-        
+
         return cursor.rowcount
-    
+
     async def get_pending_count(self) -> int:
         """Get count of pending events."""
         conn = await self._get_connection()
-        
+
         cursor = await conn.execute(
             "SELECT COUNT(*) FROM outbox_events WHERE status = 'pending'"
         )
         row = await cursor.fetchone()
-        
+
         return row[0] if row else 0
-    
+
     async def get_dead_letter_events(self, limit: int = 100) -> list[OutboxEvent]:
         """Get events in dead letter status."""
         conn = await self._get_connection()
-        
+
         cursor = await conn.execute(
             """
             SELECT * FROM outbox_events
@@ -350,22 +351,22 @@ class SQLiteOutboxStorage:
             (limit,),
         )
         rows = await cursor.fetchall()
-        
+
         return [self._row_to_event(row) for row in rows]
-    
+
     async def health_check(self) -> HealthCheckResult:
         """Check storage health."""
         import time
         start = time.monotonic()
-        
+
         try:
             conn = await self._get_connection()
             cursor = await conn.execute("SELECT 1")
             await cursor.fetchone()
-            
+
             pending = await self.get_pending_count()
             latency_ms = (time.monotonic() - start) * 1000
-            
+
             return HealthCheckResult(
                 status=HealthStatus.HEALTHY,
                 latency_ms=latency_ms,
@@ -383,13 +384,13 @@ class SQLiteOutboxStorage:
                 latency_ms=latency_ms,
                 message=f"SQLite outbox storage error: {e}",
             )
-    
+
     async def get_statistics(self) -> StorageStatistics:
         """Get storage statistics."""
         conn = await self._get_connection()
-        
+
         cursor = await conn.execute("""
-            SELECT 
+            SELECT
                 COUNT(*) as total,
                 SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
                 SUM(CASE WHEN status = 'sent' THEN 1 ELSE 0 END) as sent,
@@ -398,24 +399,24 @@ class SQLiteOutboxStorage:
             FROM outbox_events
         """)
         row = await cursor.fetchone()
-        
+
         return StorageStatistics(
             total_records=row["total"] or 0,
             pending_records=row["pending"] or 0,
         )
-    
+
     async def count(self) -> int:
         """Count total events."""
         conn = await self._get_connection()
         cursor = await conn.execute("SELECT COUNT(*) FROM outbox_events")
         row = await cursor.fetchone()
         return row[0] if row else 0
-    
+
     async def export_all(self):
         """Export all records for transfer."""
         conn = await self._get_connection()
         cursor = await conn.execute("SELECT * FROM outbox_events ORDER BY event_id")
-        
+
         async for row in cursor:
             event = self._row_to_event(row)
             yield {
@@ -426,7 +427,7 @@ class SQLiteOutboxStorage:
                 "status": event.status.value,
                 "created_at": event.created_at.isoformat() if event.created_at else None,
             }
-    
+
     async def import_record(self, record: dict[str, Any]) -> None:
         """Import a single record from transfer."""
         event = OutboxEvent(

@@ -13,11 +13,11 @@ Usage:
     >>> outbox_storage = SQLiteOutboxStorage("./outbox.db")
 """
 
-from .saga import SQLiteSagaStorage, AIOSQLITE_AVAILABLE
 from .outbox import SQLiteOutboxStorage
+from .saga import AIOSQLITE_AVAILABLE, SQLiteSagaStorage
 
 __all__ = [
-    "SQLiteSagaStorage",
-    "SQLiteOutboxStorage",
     "AIOSQLITE_AVAILABLE",
+    "SQLiteOutboxStorage",
+    "SQLiteSagaStorage",
 ]

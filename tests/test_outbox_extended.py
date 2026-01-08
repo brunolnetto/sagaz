@@ -473,9 +473,9 @@ class TestOutboxMemoryStorage:
     @pytest.mark.asyncio
     async def test_memory_storage_update_nonexistent_raises(self):
         """Test updating nonexistent event raises error"""
-        from sagaz.storage.interfaces.outbox import OutboxStorageError
         from sagaz.outbox import InMemoryOutboxStorage
         from sagaz.outbox.types import OutboxStatus
+        from sagaz.storage.interfaces.outbox import OutboxStorageError
 
         storage = InMemoryOutboxStorage()
 
