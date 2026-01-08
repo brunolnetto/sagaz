@@ -12,20 +12,20 @@ This module tests the pivot functionality including:
 import pytest
 
 from sagaz import (
-    RecoveryAction,
-    StepZone,
-    SagaZones,
-    TaintPropagator,
     PivotInfo,
+    RecoveryAction,
+    SagaResult,
     SagaStatus,
     SagaStepStatus,
-    SagaResult,
+    SagaZones,
+    StepZone,
+    TaintPropagator,
 )
 from sagaz.core import SagaStep
 from sagaz.decorators import (
-    StepMetadata,
-    SagaStepDefinition,
     ForwardRecoveryMetadata,
+    SagaStepDefinition,
+    StepMetadata,
 )
 
 
@@ -139,7 +139,7 @@ class TestTaintPropagator:
             dependencies=dependencies,
             pivots=set(),
         )
-        
+
         assert propagator.get_ancestors("step1") == set()
         assert propagator.get_ancestors("step2") == {"step1"}
         assert propagator.get_ancestors("step3") == {"step1", "step2"}
@@ -162,7 +162,7 @@ class TestTaintPropagator:
             dependencies=dependencies,
             pivots=set(),
         )
-        
+
         assert propagator.get_ancestors("step4") == {"step1", "step2", "step3"}
 
     def test_get_descendants_simple(self):
@@ -177,7 +177,7 @@ class TestTaintPropagator:
             dependencies=dependencies,
             pivots=set(),
         )
-        
+
         assert propagator.get_descendants("step3") == set()
         assert propagator.get_descendants("step2") == {"step3"}
         assert propagator.get_descendants("step1") == {"step2", "step3"}
@@ -195,13 +195,13 @@ class TestTaintPropagator:
             dependencies=dependencies,
             pivots={"charge"},
         )
-        
+
         # Before propagation
         assert not propagator.is_tainted("reserve")
-        
+
         # Propagate taint from charge pivot
         newly_tainted = propagator.propagate_taint("charge")
-        
+
         # After propagation
         assert newly_tainted == {"reserve"}
         assert propagator.is_tainted("reserve")
@@ -222,9 +222,9 @@ class TestTaintPropagator:
             pivots={"charge"},
             completed_pivots={"charge"},  # Pivot completed
         )
-        
+
         zones = propagator.calculate_zones()
-        
+
         # Verify zones
         assert zones.pivots == {"charge"}
         assert zones.tainted == {"reserve"}
@@ -244,10 +244,10 @@ class TestTaintPropagator:
             pivots={"charge"},
             completed_pivots={"charge"},
         )
-        
+
         # Step after pivot - boundary is the pivot
         assert propagator.get_rollback_boundary("ship") == "charge"
-        
+
         # Step before pivot - no boundary (haven't committed anything)
         propagator2 = TaintPropagator(
             step_names={"reserve", "charge", "ship"},
@@ -270,13 +270,13 @@ class TestTaintPropagator:
             pivots={"charge"},
             completed_pivots={"charge"},
         )
-        
+
         # Propagate taint
         propagator.propagate_taint("charge")
-        
+
         # Tainted step cannot be compensated
         assert not propagator.can_compensate("reserve")
-        
+
         # Non-tainted steps can be compensated
         assert propagator.can_compensate("ship")
 
@@ -493,52 +493,53 @@ class TestPivotSagaIntegration:
     async def test_pivot_step_taints_ancestors(self):
         """Test that pivot step completion taints ancestors."""
         from sagaz import Saga, action, compensate
-        
+
         compensation_calls = []
-        
+
         class PaymentSaga(Saga):
             saga_name = "payment"
-            
+
             @action("reserve_funds")
             async def reserve(self, ctx):
                 return {"reservation_id": "RES-123"}
-            
+
             @compensate("reserve_funds")
             async def unreserve(self, ctx):
                 compensation_calls.append("reserve_funds")
-            
+
             @action("charge_payment", depends_on=["reserve_funds"], pivot=True)
             async def charge(self, ctx):
                 return {"charge_id": "CHG-456"}
-            
+
             @compensate("charge_payment")
             async def refund(self, ctx):
                 compensation_calls.append("charge_payment")
-            
+
             @action("ship_order", depends_on=["charge_payment"])
             async def ship(self, ctx):
                 # This will fail
-                raise ValueError("Shipping failed!")
-            
+                msg = "Shipping failed!"
+                raise ValueError(msg)
+
             @compensate("ship_order")
             async def cancel_ship(self, ctx):
                 compensation_calls.append("ship_order")
-        
+
         saga = PaymentSaga()
-        
+
         # Verify pivot step is detected
         assert saga.get_pivot_steps() == ["charge_payment"]
-        
+
         # Run the saga (it will fail at ship_order)
         with pytest.raises(ValueError, match="Shipping failed!"):
             await saga.run({"amount": 100})
-        
+
         # Verify pivot was reached
         assert saga._pivot_reached is True
-        
+
         # Verify ancestors were tainted
         assert "reserve_funds" in saga._tainted_steps
-        
+
         # Verify compensation behavior:
         # - ship_order: never completed, so nothing to compensate
         # - charge_payment: pivot step, compensation skipped
@@ -554,24 +555,24 @@ class TestPivotSagaIntegration:
         """Test that forward recovery handlers are collected."""
         from sagaz import Saga, action, forward_recovery
         from sagaz.pivot import RecoveryAction
-        
+
         class PaymentSaga(Saga):
             saga_name = "payment"
-            
+
             @action("charge_payment", pivot=True)
             async def charge(self, ctx):
                 return {"charge_id": "CHG-456"}
-            
+
             @action("ship_order", depends_on=["charge_payment"])
             async def ship(self, ctx):
                 return {"shipment_id": "SHP-789"}
-            
+
             @forward_recovery("ship_order")
             async def handle_ship_failure(self, ctx, error):
                 return RecoveryAction.RETRY
-        
+
         saga = PaymentSaga()
-        
+
         # Verify forward recovery handler was collected
         assert "ship_order" in saga._forward_recovery_handlers
         assert saga._forward_recovery_handlers["ship_order"] == saga.handle_ship_failure
@@ -580,83 +581,84 @@ class TestPivotSagaIntegration:
     async def test_saga_without_pivot_full_rollback(self):
         """Test that saga without pivots performs full rollback."""
         from sagaz import Saga, action, compensate
-        
+
         compensation_calls = []
-        
+
         class SimpleSaga(Saga):
             saga_name = "simple"
-            
+
             @action("step1")
             async def step1(self, ctx):
                 return {"value": 1}
-            
+
             @compensate("step1")
             async def comp1(self, ctx):
                 compensation_calls.append("step1")
-            
+
             @action("step2", depends_on=["step1"])
             async def step2(self, ctx):
                 return {"value": 2}
-            
+
             @compensate("step2")
             async def comp2(self, ctx):
                 compensation_calls.append("step2")
-            
+
             @action("step3", depends_on=["step2"])
             async def step3(self, ctx):
-                raise ValueError("Step 3 failed!")
-        
+                msg = "Step 3 failed!"
+                raise ValueError(msg)
+
         saga = SimpleSaga()
-        
+
         # No pivots
         assert saga.get_pivot_steps() == []
-        
+
         with pytest.raises(ValueError):
             await saga.run({})
-        
+
         # All completed steps should be compensated (full rollback)
         assert "step2" in compensation_calls
         assert "step1" in compensation_calls
 
-    @pytest.mark.asyncio  
+    @pytest.mark.asyncio
     async def test_pivot_success_no_compensation(self):
         """Test that successful saga with pivots doesn't compensate."""
         from sagaz import Saga, action, compensate
-        
+
         compensation_calls = []
-        
+
         class SuccessSaga(Saga):
             saga_name = "success"
-            
+
             @action("reserve")
             async def reserve(self, ctx):
                 return {"reserved": True}
-            
+
             @compensate("reserve")
             async def unreserve(self, ctx):
                 compensation_calls.append("reserve")
-            
+
             @action("charge", depends_on=["reserve"], pivot=True)
             async def charge(self, ctx):
                 return {"charged": True}
-            
+
             @compensate("charge")
             async def refund(self, ctx):
                 compensation_calls.append("charge")
-            
+
             @action("complete", depends_on=["charge"])
             async def complete(self, ctx):
                 return {"completed": True}
-        
+
         saga = SuccessSaga()
         result = await saga.run({})
-        
+
         # Saga succeeded
         assert result["completed"] is True
-        
+
         # No compensations should have been called
         assert compensation_calls == []
-        
+
         # Pivot was still marked as reached
         assert saga._pivot_reached is True
         assert "reserve" in saga._tainted_steps
@@ -668,18 +670,19 @@ class TestImperativeSagaPivot:
     @pytest.mark.asyncio
     async def test_add_step_with_pivot(self):
         """Test adding step with pivot=True in imperative API."""
-        from sagaz.core import Saga as ImperativeSaga, SagaContext
-        
+        from sagaz.core import Saga as ImperativeSaga
+        from sagaz.core import SagaContext
+
         async def charge_action(ctx):
             ctx.set("charged", True)
             return {"charge_id": "CHG-123"}
-        
+
         async def refund_comp(result, ctx):
             pass
-        
+
         saga = ImperativeSaga(name="test")
         await saga.add_step("charge", charge_action, refund_comp, pivot=True)
-        
+
         # Verify step was added with pivot flag
         step = saga.steps[0]
         assert step.pivot is True
@@ -696,38 +699,38 @@ class TestMermaidPivotVisualization:
     def test_step_info_pivot_fields(self):
         """Test that StepInfo has pivot and tainted fields."""
         from sagaz.mermaid import StepInfo
-        
+
         # Default values
         step = StepInfo(name="test", has_compensation=True)
         assert step.pivot is False
         assert step.tainted is False
-        
+
         # Custom values
         pivot_step = StepInfo(name="charge", has_compensation=True, pivot=True)
         assert pivot_step.pivot is True
-        
+
         tainted_step = StepInfo(name="reserve", has_compensation=True, tainted=True)
         assert tainted_step.tainted is True
 
     def test_mermaid_generator_with_pivot_zones(self):
         """Test that MermaidGenerator applies zone styles when pivots exist."""
         from sagaz.mermaid import MermaidGenerator, StepInfo
-        
+
         steps = [
             StepInfo(name="reserve", has_compensation=True),
             StepInfo(name="charge", has_compensation=True, pivot=True, depends_on={"reserve"}),
             StepInfo(name="ship", has_compensation=False, depends_on={"charge"}),
         ]
-        
+
         generator = MermaidGenerator(steps, show_pivot_zones=True)
         diagram = generator.generate()
-        
+
         # Should contain pivot zone class definitions
         assert "classDef reversible" in diagram
         assert "classDef pivot" in diagram
         assert "classDef committed" in diagram
         assert "classDef tainted" in diagram
-        
+
         # Reserve should be reversible (before pivot)
         assert "class reserve reversible" in diagram
         # Charge should be pivot
@@ -738,52 +741,52 @@ class TestMermaidPivotVisualization:
     def test_mermaid_generator_with_tainted_steps(self):
         """Test that tainted steps get the tainted style."""
         from sagaz.mermaid import MermaidGenerator, StepInfo
-        
+
         steps = [
             StepInfo(name="reserve", has_compensation=True, tainted=True),
             StepInfo(name="charge", has_compensation=True, pivot=True, depends_on={"reserve"}),
             StepInfo(name="ship", has_compensation=False, depends_on={"charge"}),
         ]
-        
+
         generator = MermaidGenerator(steps, show_pivot_zones=True)
         diagram = generator.generate()
-        
+
         # Reserve should be tainted (ancestor of completed pivot)
         assert "class reserve tainted" in diagram
 
     def test_mermaid_generator_without_pivot_zones(self):
         """Test that zone styles are not applied when show_pivot_zones=False."""
         from sagaz.mermaid import MermaidGenerator, StepInfo
-        
+
         steps = [
             StepInfo(name="reserve", has_compensation=True),
             StepInfo(name="charge", has_compensation=True, pivot=True, depends_on={"reserve"}),
         ]
-        
+
         generator = MermaidGenerator(steps, show_pivot_zones=False)
         diagram = generator.generate()
-        
+
         # Should NOT contain pivot zone class definitions
         assert "classDef reversible" not in diagram
         assert "classDef pivot" not in diagram
-        
+
         # Should use default success style
         assert "class reserve,charge success" in diagram
 
     def test_mermaid_generator_no_pivots(self):
         """Test that zone styles are not applied when no pivots exist."""
         from sagaz.mermaid import MermaidGenerator, StepInfo
-        
+
         steps = [
             StepInfo(name="step1", has_compensation=True),
             StepInfo(name="step2", has_compensation=True, depends_on={"step1"}),
         ]
-        
+
         generator = MermaidGenerator(steps, show_pivot_zones=True)
         diagram = generator.generate()
-        
+
         # Should NOT contain pivot zone styles (no pivots)
         assert "classDef reversible" not in diagram
-        
+
         # Should use default success style
         assert "class step1,step2 success" in diagram

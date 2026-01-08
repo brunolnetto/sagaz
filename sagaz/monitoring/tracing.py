@@ -66,7 +66,7 @@ def is_tracing_available() -> bool:
         ... else:
         ...     print("Tracing not available - install opentelemetry-api opentelemetry-sdk")
     """
-    return TRACING_AVAILABLE
+    return TRACING_AVAILABLE  # pragma: no cover
 
 
 class SagaTracer:

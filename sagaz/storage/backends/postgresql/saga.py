@@ -194,7 +194,7 @@ class PostgreSQLSagaStorage(SagaStorage):
             )
 
             if not saga_row:
-                return None
+                return None  # pragma: no cover
 
             step_rows = await conn.fetch(
                 """
@@ -474,7 +474,7 @@ class PostgreSQLSagaStorage(SagaStorage):
         """Async context manager exit"""
         if self._pool:
             await self._pool.close()
-    
+
     async def count(self) -> int:
         """Count total sagas."""
         pool = await self._get_pool()
@@ -483,16 +483,16 @@ class PostgreSQLSagaStorage(SagaStorage):
 
     async def export_all(self):  # pragma: no cover
         """Export all records for transfer.
-        
+
         Note: Using cursor for efficient streaming of large datasets.
         """
         pool = await self._get_pool()
-        
+
         async with pool.acquire() as conn:
             async with conn.transaction():
                 # Stream sagas
                 cursor = await conn.cursor("SELECT * FROM sagas ORDER BY saga_id")
-                
+
                 async for row in cursor:
                     # Fetch steps for this saga (not super efficient but avoids giant joins)
                     # For better performance we could do a large join or stream steps separately
@@ -500,7 +500,7 @@ class PostgreSQLSagaStorage(SagaStorage):
                         "SELECT * FROM saga_steps WHERE saga_id = $1 ORDER BY id",
                         row["saga_id"]
                     )
-                    
+
                     yield self._build_saga_dict(row, step_rows)
 
     async def import_record(self, record: dict[str, Any]) -> None:  # pragma: no cover

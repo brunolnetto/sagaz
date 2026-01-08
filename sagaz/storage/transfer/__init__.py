@@ -25,10 +25,10 @@ from .service import (
 )
 
 __all__ = [
-    "TransferService",
     "TransferConfig",
+    "TransferErrorPolicy",
     "TransferProgress",
     "TransferResult",
-    "TransferErrorPolicy",
+    "TransferService",
     "transfer_data",
 ]

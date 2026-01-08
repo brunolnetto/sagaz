@@ -1,4 +1,4 @@
-from .saga import RedisSagaStorage, REDIS_AVAILABLE, redis
 from .outbox import RedisOutboxStorage
+from .saga import REDIS_AVAILABLE, RedisSagaStorage, redis
 
-__all__ = ["RedisSagaStorage", "RedisOutboxStorage", "REDIS_AVAILABLE", "redis"]
+__all__ = ["REDIS_AVAILABLE", "RedisOutboxStorage", "RedisSagaStorage", "redis"]

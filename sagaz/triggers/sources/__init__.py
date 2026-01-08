@@ -6,10 +6,10 @@ Available sources:
 - BrokerTriggerConsumer: Message broker integration
 """
 
-from sagaz.triggers.sources.cron import CronScheduler
 from sagaz.triggers.sources.broker import BrokerTriggerConsumer
+from sagaz.triggers.sources.cron import CronScheduler
 
 __all__ = [
-    "CronScheduler",
     "BrokerTriggerConsumer",
+    "CronScheduler",
 ]

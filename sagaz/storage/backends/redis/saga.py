@@ -446,13 +446,12 @@ class RedisSagaStorage(SagaStorage):
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit"""
         await self.close()
-    
+
     async def count(self) -> int:  # pragma: no cover
         """Count total sagas."""
         redis_client = await self._get_redis()
         # This is expensive in Redis, better use a counter key or scan
         # For simplicity in this tool, using scan loop or keys
-        pattern = f"{self.key_prefix}*"
         # Keys approach (not recommended for prod but ok/common for smaller setups)
         # Better: sum of status set cardinalities
         count = 0
@@ -465,8 +464,8 @@ class RedisSagaStorage(SagaStorage):
         """Export all records for transfer."""
         redis_client = await self._get_redis()
         saga_ids = await self._get_all_saga_ids(redis_client)
-        
-        for saga_id in sorted(list(saga_ids)):
+
+        for saga_id in sorted(saga_ids):
             saga_data = await self.load_saga_state(saga_id)
             if saga_data:
                 yield saga_data

@@ -11,7 +11,7 @@ from typing import Any
 class StorageError(Exception):
     """
     Base exception for all storage operations.
-    
+
     All storage backends raise subclasses of this exception,
     making it easy to catch storage-related errors.
     """
@@ -30,7 +30,7 @@ class StorageError(Exception):
 class ConnectionError(StorageError):
     """
     Failed to connect to storage backend.
-    
+
     Raised when:
     - Initial connection fails
     - Connection pool exhausted
@@ -65,7 +65,7 @@ class ConnectionError(StorageError):
 class NotFoundError(StorageError):
     """
     Requested item not found in storage.
-    
+
     Raised when:
     - Saga state not found by ID
     - Outbox event not found
@@ -90,7 +90,7 @@ class NotFoundError(StorageError):
 class SerializationError(StorageError):
     """
     Failed to serialize or deserialize data.
-    
+
     Raised when:
     - JSON encoding/decoding fails
     - Data type conversion fails
@@ -115,7 +115,7 @@ class SerializationError(StorageError):
 class TransferError(StorageError):
     """
     Failed to transfer data between backends.
-    
+
     Raised when:
     - Source/target incompatible
     - Transfer interrupted
@@ -150,7 +150,7 @@ class TransferError(StorageError):
 class TransactionError(StorageError):
     """
     Transaction operation failed.
-    
+
     Raised when:
     - Transaction commit fails
     - Rollback fails
@@ -173,7 +173,7 @@ class TransactionError(StorageError):
 class ConcurrencyError(StorageError):
     """
     Concurrent modification detected.
-    
+
     Raised when:
     - Optimistic locking fails
     - Version mismatch
@@ -205,7 +205,7 @@ class ConcurrencyError(StorageError):
 class CapacityError(StorageError):
     """
     Storage capacity exceeded.
-    
+
     Raised when:
     - Memory limit reached
     - Disk space exhausted

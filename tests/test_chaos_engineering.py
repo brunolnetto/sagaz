@@ -17,9 +17,9 @@ from datetime import UTC, datetime
 
 import pytest
 
+from sagaz.outbox import InMemoryOutboxStorage
 from sagaz.outbox.brokers.base import BrokerConnectionError, BrokerPublishError
 from sagaz.outbox.brokers.memory import InMemoryBroker
-from sagaz.outbox import InMemoryOutboxStorage
 from sagaz.outbox.types import OutboxConfig, OutboxEvent, OutboxStatus
 from sagaz.outbox.worker import OutboxWorker
 from sagaz.storage.base import SagaStorageConnectionError
@@ -338,7 +338,7 @@ class TestDatabaseConnectionLoss:
 
 class TestBrokerDowntime:
     """Test message broker failures and recovery.
-    
+
     Note: Tests for exponential backoff and publish timeout have been removed
     as the OutboxWorker design relies on external orchestration for retries.
     The worker marks events as FAILED and expects external processes to retry.

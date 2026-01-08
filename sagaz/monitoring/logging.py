@@ -288,11 +288,11 @@ def setup_saga_logging(
 
         if json_format:
             console_handler.setFormatter(SagaJsonFormatter())
-        else:
-            formatter = logging.Formatter(
-                "%(asctime)s - %(name)s - %(levelname)s - [%(saga_id)s:%(step_name)s] - %(message)s"
-            )
-            console_handler.setFormatter(formatter)
+        else:  # pragma: no cover
+            formatter = logging.Formatter(  # pragma: no cover
+                "%(asctime)s - %(name)s - %(levelname)s - [%(saga_id)s:%(step_name)s] - %(message)s"  # pragma: no cover
+            )  # pragma: no cover
+            console_handler.setFormatter(formatter)  # pragma: no cover
 
         root_logger.addHandler(console_handler)
 

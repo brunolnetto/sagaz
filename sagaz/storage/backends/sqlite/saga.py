@@ -22,7 +22,7 @@ Usage:
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -39,8 +39,8 @@ from sagaz.storage.core import (
     HealthCheckResult,
     HealthStatus,
     StorageStatistics,
-    serialize,
     deserialize,
+    serialize,
 )
 from sagaz.types import SagaStatus, SagaStepStatus
 
@@ -50,12 +50,12 @@ logger = logging.getLogger(__name__)
 class SQLiteSagaStorage(SagaStorage):
     """
     SQLite-based saga storage.
-    
+
     Provides lightweight, embedded storage with ACID compliance.
-    
+
     Attributes:
         db_path: Path to SQLite database file (or ":memory:" for in-memory)
-    
+
     Example:
         >>> storage = SQLiteSagaStorage("./sagas.db")
         >>> async with storage:
@@ -67,17 +67,18 @@ class SQLiteSagaStorage(SagaStorage):
         ...         context={"order_id": "123"}
         ...     )
     """
-    
+
     def __init__(self, db_path: str = ":memory:"):
         """
         Initialize SQLite saga storage.
-        
+
         Args:
             db_path: Path to SQLite database file, or ":memory:" for in-memory
         """
         if not AIOSQLITE_AVAILABLE:  # pragma: no cover
-            raise MissingDependencyError("aiosqlite", "SQLite storage")
-        
+            msg = "aiosqlite"
+            raise MissingDependencyError(msg, "SQLite storage")
+
         self.db_path = db_path
         self._conn: aiosqlite.Connection | None = None
         self._initialized = False
@@ -85,19 +86,19 @@ class SQLiteSagaStorage(SagaStorage):
     async def initialize(self) -> None:
         """Initialize storage (create connection and schema)."""
         await self._get_connection()
-    
+
     async def _get_connection(self) -> aiosqlite.Connection:
         """Get or create database connection."""
         if self._conn is None:
             self._conn = await aiosqlite.connect(self.db_path)
             self._conn.row_factory = aiosqlite.Row
-        
+
         if not self._initialized:
             await self._init_schema()
             self._initialized = True
-        
+
         return self._conn
-    
+
     async def _init_schema(self) -> None:
         """Initialize database schema."""
         conn = self._conn
@@ -112,29 +113,29 @@ class SQLiteSagaStorage(SagaStorage):
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
-            
+
             CREATE INDEX IF NOT EXISTS idx_sagas_status ON sagas(status);
             CREATE INDEX IF NOT EXISTS idx_sagas_name ON sagas(saga_name);
             CREATE INDEX IF NOT EXISTS idx_sagas_updated_at ON sagas(updated_at);
         """)
         await conn.commit()
-    
+
     async def __aenter__(self):
         """Async context manager entry."""
         await self._get_connection()
         return self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
         await self.close()
-    
+
     async def close(self) -> None:
         """Close database connection."""
         if self._conn:
             await self._conn.close()
             self._conn = None
             self._initialized = False
-    
+
     async def save_saga_state(
         self,
         saga_id: str,
@@ -146,10 +147,10 @@ class SQLiteSagaStorage(SagaStorage):
     ) -> None:
         """Save or update saga state."""
         conn = await self._get_connection()
-        now = datetime.now(timezone.utc).isoformat()
-        
+        now = datetime.now(UTC).isoformat()
+
         status_str = status.value if isinstance(status, SagaStatus) else status
-        
+
         await conn.execute(
             """
             INSERT INTO sagas (saga_id, saga_name, status, steps, context, metadata, created_at, updated_at)
@@ -174,22 +175,22 @@ class SQLiteSagaStorage(SagaStorage):
             ),
         )
         await conn.commit()
-    
+
     async def load_saga_state(self, saga_id: str) -> dict[str, Any] | None:
         """Load saga state by ID."""
         conn = await self._get_connection()
-        
+
         cursor = await conn.execute(
             "SELECT * FROM sagas WHERE saga_id = ?",
             (saga_id,),
         )
         row = await cursor.fetchone()
-        
+
         if row is None:
             return None
-        
+
         return self._row_to_dict(row)
-    
+
     def _row_to_dict(self, row: aiosqlite.Row) -> dict[str, Any]:
         """Convert database row to dictionary."""
         return {
@@ -202,19 +203,19 @@ class SQLiteSagaStorage(SagaStorage):
             "created_at": row["created_at"],
             "updated_at": row["updated_at"],
         }
-    
+
     async def delete_saga_state(self, saga_id: str) -> bool:
         """Delete saga state by ID."""
         conn = await self._get_connection()
-        
+
         cursor = await conn.execute(
             "DELETE FROM sagas WHERE saga_id = ?",
             (saga_id,),
         )
         await conn.commit()
-        
+
         return cursor.rowcount > 0
-    
+
     async def list_sagas(
         self,
         status: SagaStatus | None = None,
@@ -224,26 +225,26 @@ class SQLiteSagaStorage(SagaStorage):
     ) -> list[dict[str, Any]]:
         """List sagas with optional filtering."""
         conn = await self._get_connection()
-        
+
         query = "SELECT * FROM sagas WHERE 1=1"
         params: list[Any] = []
-        
+
         if status:
             query += " AND status = ?"
             params.append(status.value if isinstance(status, SagaStatus) else status)
-        
+
         if saga_name:
             query += " AND saga_name = ?"
             params.append(saga_name)
-        
+
         query += " ORDER BY updated_at DESC LIMIT ? OFFSET ?"
         params.extend([limit, offset])
-        
+
         cursor = await conn.execute(query, params)
         rows = await cursor.fetchall()
-        
+
         return [self._row_to_dict(row) for row in rows]
-    
+
     async def update_step_state(
         self,
         saga_id: str,
@@ -257,10 +258,10 @@ class SQLiteSagaStorage(SagaStorage):
         saga = await self.load_saga_state(saga_id)
         if saga is None:
             return
-        
+
         steps = saga.get("steps", [])
         status_str = status.value if isinstance(status, SagaStepStatus) else status
-        
+
         # Find and update the step
         for step in steps:
             if step.get("name") == step_name:
@@ -272,7 +273,7 @@ class SQLiteSagaStorage(SagaStorage):
                 if executed_at:
                     step["executed_at"] = executed_at.isoformat()
                 break
-        
+
         # Save updated saga
         await self.save_saga_state(
             saga_id=saga_id,
@@ -282,13 +283,13 @@ class SQLiteSagaStorage(SagaStorage):
             context=saga["context"],
             metadata=saga.get("metadata"),
         )
-    
+
     async def get_saga_statistics(self) -> dict[str, Any]:
         """Get statistics about stored sagas."""
         conn = await self._get_connection()
-        
+
         cursor = await conn.execute("""
-            SELECT 
+            SELECT
                 COUNT(*) as total,
                 SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
                 SUM(CASE WHEN status = 'rolled_back' THEN 1 ELSE 0 END) as rolled_back,
@@ -297,7 +298,7 @@ class SQLiteSagaStorage(SagaStorage):
             FROM sagas
         """)
         row = await cursor.fetchone()
-        
+
         return {
             "total": row["total"] or 0,
             "by_status": {
@@ -307,7 +308,7 @@ class SQLiteSagaStorage(SagaStorage):
                 "executing": row["executing"] or 0,
             },
         }
-    
+
     async def cleanup_completed_sagas(
         self,
         older_than: datetime,
@@ -315,32 +316,32 @@ class SQLiteSagaStorage(SagaStorage):
     ) -> int:
         """Clean up old completed sagas."""
         conn = await self._get_connection()
-        
+
         if statuses is None:
             statuses = [SagaStatus.COMPLETED, SagaStatus.ROLLED_BACK]
-        
+
         status_values = [s.value for s in statuses]
         placeholders = ",".join("?" * len(status_values))
-        
+
         cursor = await conn.execute(
             f"""
-            DELETE FROM sagas 
+            DELETE FROM sagas
             WHERE status IN ({placeholders})
             AND updated_at < ?
             """,
             (*status_values, older_than.isoformat()),
         )
         await conn.commit()
-        
+
         return cursor.rowcount
-    
+
     async def health_check(self) -> dict[str, Any]:
         """Check storage health."""
         try:
             conn = await self._get_connection()
             cursor = await conn.execute("SELECT 1")
             await cursor.fetchone()
-            
+
             return {
                 "status": "healthy",
                 "backend": "sqlite",
@@ -352,22 +353,22 @@ class SQLiteSagaStorage(SagaStorage):
                 "error": str(e),
                 "backend": "sqlite",
             }
-    
+
     async def count(self) -> int:
         """Count total sagas."""
         conn = await self._get_connection()
         cursor = await conn.execute("SELECT COUNT(*) FROM sagas")
         row = await cursor.fetchone()
         return row[0] if row else 0
-    
+
     async def export_all(self):
         """Export all records for transfer."""
         conn = await self._get_connection()
         cursor = await conn.execute("SELECT * FROM sagas ORDER BY saga_id")
-        
+
         async for row in cursor:
             yield self._row_to_dict(row)
-    
+
     async def import_record(self, record: dict[str, Any]) -> None:
         """Import a single record from transfer."""
         await self.save_saga_state(

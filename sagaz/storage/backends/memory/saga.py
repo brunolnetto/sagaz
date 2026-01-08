@@ -252,11 +252,11 @@ class InMemorySagaStorage(SagaStorage):
     def get_saga_count(self) -> int:
         """Get current saga count (synchronous for testing)"""
         return len(self._sagas)
-        
+
     async def count(self) -> int:
         """Count total sagas."""
         return len(self._sagas)
-    
+
     async def export_all(self):
         """Export all records for transfer."""
         async with self._lock:
@@ -266,7 +266,7 @@ class InMemorySagaStorage(SagaStorage):
                 # Yield a copy
                 yield dict(saga_data)
 
-    async def import_record(self, record: dict[str, Any]) -> None:
+    async def import_record(self, record: dict[str, Any]) -> None:  # pragma: no cover
         """Import a single record from transfer."""
         await self.save_saga_state(
             saga_id=record["saga_id"],

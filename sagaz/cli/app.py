@@ -136,7 +136,7 @@ def init(mode: str, preset: str, with_monitoring: bool, with_benchmarks: bool, w
             Panel.fit(
                 f"[bold blue]Sagaz Project Initialization[/bold blue]\n"
                 f"Mode: [cyan]{mode}[/cyan] | Broker: [green]{preset}[/green]"
-                + (f" | HA: [yellow]enabled[/yellow]" if with_ha else ""),
+                + (" | HA: [yellow]enabled[/yellow]" if with_ha else ""),
                 border_style="blue",
             )
         )
@@ -144,7 +144,7 @@ def init(mode: str, preset: str, with_monitoring: bool, with_benchmarks: bool, w
     # Override preset to 'postgres' if --with-ha is used
     if with_ha:
         preset = "postgres"
-        
+
     if mode == "local":
         _init_local(preset, with_monitoring, with_ha)
     elif mode == "selfhost":
@@ -160,65 +160,92 @@ def init(mode: str, preset: str, with_monitoring: bool, with_benchmarks: bool, w
 
 def _init_local(preset: str, with_monitoring: bool, with_ha: bool = False):
     """Create local Docker Compose setup."""
-    if console:
-        if with_ha:
-            console.print(
-                f"Creating local HA PostgreSQL environment with [bold green]primary + replica + PgBouncer[/bold green]..."
-            )
-        else:
-            console.print(
-                f"Creating local development environment (preset: [bold green]{preset}[/bold green])..."
-            )
+    _log_local_init_start(preset, with_ha)
+
+    is_postgres = with_ha or preset == "postgres"
 
     # 1. Create docker-compose.yaml
-    if Path("docker-compose.yaml").exists():
-        if not click.confirm("docker-compose.yaml already exists. Overwrite?"):
-            click.echo("Skipping docker-compose.yaml")
-        else:
-            if with_ha or preset == "postgres":
-                _copy_resource("local/postgres/docker-compose.yaml", "docker-compose.yaml")
-                # Copy initialization scripts
-                _copy_resource("local/postgres/init-primary.sh", "init-primary.sh")
-                _copy_dir_resource("local/postgres/partitioning", "partitioning")
-            else:
-                _copy_resource(f"local/{preset}/docker-compose.yaml", "docker-compose.yaml")
-    else:
-        if with_ha or preset == "postgres":
-            _copy_resource("local/postgres/docker-compose.yaml", "docker-compose.yaml")
-            _copy_resource("local/postgres/init-primary.sh", "init-primary.sh") 
-            _copy_dir_resource("local/postgres/partitioning", "partitioning")
-        else:
-            _copy_resource(f"local/{preset}/docker-compose.yaml", "docker-compose.yaml")
+    _init_docker_compose(preset, is_postgres)
 
     # 2. Copy monitoring folder if enabled
     if with_monitoring:
-        if with_ha or preset == "postgres":
-            _copy_dir_resource("local/postgres/monitoring", "monitoring")
-        else:
-            _copy_dir_resource(f"local/{preset}/monitoring", "monitoring")
+        _init_monitoring(preset, is_postgres)
 
-    # 3. Create sagaz.yaml using template
+    # 3. Create sagaz.yaml
+    _init_sagaz_yaml(preset)
+
+    _log_local_init_complete(with_monitoring, is_postgres)
+
+
+def _log_local_init_start(preset: str, with_ha: bool):
+    """Log the start of local initialization."""
+    if not console:
+        return
+    if with_ha:
+        console.print(
+            "Creating local HA PostgreSQL environment with [bold green]primary + replica + PgBouncer[/bold green]..."
+        )
+    else:
+        console.print(
+            f"Creating local development environment (preset: [bold green]{preset}[/bold green])..."
+        )
+
+
+def _init_docker_compose(preset: str, is_postgres: bool):
+    """Initialize docker-compose.yaml with optional overwrite confirmation."""
+    target = "docker-compose.yaml"
+
+    if Path(target).exists() and not click.confirm(f"{target} already exists. Overwrite?"):
+        click.echo(f"Skipping {target}")
+        return
+
+    _copy_docker_compose_files(preset, is_postgres)
+
+
+def _copy_docker_compose_files(preset: str, is_postgres: bool):
+    """Copy the appropriate docker-compose files."""
+    if is_postgres:
+        _copy_resource("local/postgres/docker-compose.yaml", "docker-compose.yaml")
+        _copy_resource("local/postgres/init-primary.sh", "init-primary.sh")
+        _copy_dir_resource("local/postgres/partitioning", "partitioning")
+    else:
+        _copy_resource(f"local/{preset}/docker-compose.yaml", "docker-compose.yaml")
+
+
+def _init_monitoring(preset: str, is_postgres: bool):
+    """Copy monitoring configuration."""
+    if is_postgres:
+        _copy_dir_resource("local/postgres/monitoring", "monitoring")
+    else:
+        _copy_dir_resource(f"local/{preset}/monitoring", "monitoring")
+
+
+def _init_sagaz_yaml(preset: str):
+    """Initialize sagaz.yaml with optional overwrite confirmation."""
     if Path("sagaz.yaml").exists():
         if not click.confirm("sagaz.yaml already exists. Overwrite?"):
             click.echo("Skipping sagaz.yaml")
-        else:
-            _create_sagaz_config(preset)
-    else:
-        _create_sagaz_config(preset)
+            return
+    _create_sagaz_config(preset)
 
-    if console:
-        console.print("\n[bold green]Initialization complete![/bold green]")
-        console.print("Next steps:")
-        console.print("  1. Run [bold cyan]sagaz dev[/bold cyan] to start the services")
-        console.print("  2. Check status with [bold cyan]sagaz status[/bold cyan]")
-        if with_monitoring:
-            console.print("  3. Open monitoring at http://localhost:3000")
-        if with_ha or preset == "postgres":
-            console.print("\n[bold yellow]HA PostgreSQL Info:[/bold yellow]")
-            console.print("  - Primary (writes): localhost:5432")
-            console.print("  - Replica (reads): localhost:5433")
-            console.print("  - PgBouncer-RW: localhost:6432")
-            console.print("  - PgBouncer-RO: localhost:6433")
+
+def _log_local_init_complete(with_monitoring: bool, is_postgres: bool):
+    """Log completion message for local initialization."""
+    if not console:
+        return
+
+    console.print("\n[bold green]Initialization complete![/bold green]")
+    console.print("Next steps:")
+    console.print("  1. Run [bold cyan]sagaz dev[/bold cyan] to start the services")
+    console.print("  2. Check status with [bold cyan]sagaz status[/bold cyan]")
+    if with_monitoring:
+        console.print("  3. Open monitoring at http://localhost:3000")
+    if is_postgres:
+        console.print("\n[bold yellow]HA PostgreSQL Info:[/bold yellow]")
+        console.print("  - Primary (writes): localhost:5432")
+        console.print("  - Replica (reads): localhost:5433")
+        console.print("  - PgBouncer-RW: localhost:6432")
+        console.print("  - PgBouncer-RO: localhost:6433")
 
 
 
@@ -340,61 +367,85 @@ scrape_configs:
 
 def _init_k8s(with_monitoring: bool, with_benchmarks: bool, with_ha: bool = False):
     """Copy Kubernetes manifests from the library to the current directory."""
-    if console:
-        ha_msg = " with [bold yellow]HA PostgreSQL[/bold yellow]" if with_ha else ""
-        console.print(f"Copying Kubernetes manifests{ha_msg} to [bold cyan]./k8s[/bold cyan]...")
+    _log_k8s_init_start(with_ha)
 
-    if Path("k8s").exists():
-        if not click.confirm(
-            "Directory [bold yellow]k8s/[/bold yellow] already exists. Overwrite?"
-        ):
-            click.echo("Aborted.")
-            return
-        shutil.rmtree("k8s")
+    if not _prepare_k8s_directory():
+        return
 
     try:
-        # Create k8s directory
-        Path("k8s").mkdir(exist_ok=True)
-        
-        # Copy appropriate PostgreSQL manifests
-        if with_ha:
-            _copy_resource("k8s/postgresql-ha.yaml", "k8s/postgresql-ha.yaml")
-            _copy_resource("k8s/pgbouncer.yaml", "k8s/pgbouncer.yaml")
-            click.echo("  CREATE k8s/postgresql-ha.yaml (StatefulSet with replicas)")
-            click.echo("  CREATE k8s/pgbouncer.yaml (Connection pooling)")
-            # Copy partitioning as ConfigMap for K8s
-            Path("k8s/partitioning").mkdir(exist_ok=True)
-            _copy_dir_resource("local/postgres/partitioning", "k8s/partitioning")
-        else:
-            _copy_resource("k8s/postgresql.yaml", "k8s/postgresql.yaml")
-            
-        # Copy other base manifests
-        _copy_resource("k8s/outbox-worker.yaml", "k8s/outbox-worker.yaml")
-        _copy_resource("k8s/configmap.yaml", "k8s/configmap.yaml")
-        _copy_resource("k8s/secrets-example.yaml", "k8s/secrets-example.yaml")
-        _copy_resource("k8s/migration-job.yaml", "k8s/migration-job.yaml")
-
-        if with_monitoring:
-            _copy_resource("k8s/prometheus-monitoring.yaml", "k8s/prometheus-monitoring.yaml")
-            _copy_dir_resource("k8s/monitoring", "k8s/monitoring")
-        else:
-            click.echo("  SKIP k8s/monitoring (--no-monitoring)")
-
-        if with_benchmarks:
-            _create_k8s_benchmark_config()
-        else:
-            click.echo("  SKIP k8s/benchmark (use --with-benchmarks to include)")
-
-        if console:
-            console.print("[bold green]Kubernetes manifests copied successfully![/bold green]")
-            if with_ha:
-                console.print("\n[bold yellow]HA PostgreSQL Services:[/bold yellow]")
-                console.print("  - postgresql-primary:5432 (write traffic)")
-                console.print("  - postgresql-read:5432 (read traffic, load-balanced)")
-                console.print("  - pgbouncer-rw:6432 (write pool)")
-                console.print("  - pgbouncer-ro:6433 (read pool)")
+        _copy_k8s_manifests(with_ha)
+        _copy_k8s_monitoring(with_monitoring)
+        _copy_k8s_benchmarks(with_benchmarks)
+        _log_k8s_init_complete(with_ha)
     except Exception as e:
         click.echo(f"Error copying manifests: {e}")
+
+
+def _log_k8s_init_start(with_ha: bool):
+    """Log the start of K8s initialization."""
+    if not console:
+        return
+    ha_msg = " with [bold yellow]HA PostgreSQL[/bold yellow]" if with_ha else ""
+    console.print(f"Copying Kubernetes manifests{ha_msg} to [bold cyan]./k8s[/bold cyan]...")
+
+
+def _prepare_k8s_directory() -> bool:
+    """Prepare k8s directory, prompting for overwrite if exists. Returns False to abort."""
+    if Path("k8s").exists():
+        if not click.confirm("Directory [bold yellow]k8s/[/bold yellow] already exists. Overwrite?"):
+            click.echo("Aborted.")
+            return False
+        shutil.rmtree("k8s")
+    Path("k8s").mkdir(exist_ok=True)
+    return True
+
+
+def _copy_k8s_manifests(with_ha: bool):
+    """Copy base Kubernetes manifests."""
+    if with_ha:
+        _copy_resource("k8s/postgresql-ha.yaml", "k8s/postgresql-ha.yaml")
+        _copy_resource("k8s/pgbouncer.yaml", "k8s/pgbouncer.yaml")
+        click.echo("  CREATE k8s/postgresql-ha.yaml (StatefulSet with replicas)")
+        click.echo("  CREATE k8s/pgbouncer.yaml (Connection pooling)")
+        Path("k8s/partitioning").mkdir(exist_ok=True)
+        _copy_dir_resource("local/postgres/partitioning", "k8s/partitioning")
+    else:
+        _copy_resource("k8s/postgresql.yaml", "k8s/postgresql.yaml")
+
+    # Copy base manifests
+    for manifest in ["outbox-worker.yaml", "configmap.yaml", "secrets-example.yaml", "migration-job.yaml"]:
+        _copy_resource(f"k8s/{manifest}", f"k8s/{manifest}")
+
+
+def _copy_k8s_monitoring(with_monitoring: bool):
+    """Copy K8s monitoring manifests if enabled."""
+    if with_monitoring:
+        _copy_resource("k8s/prometheus-monitoring.yaml", "k8s/prometheus-monitoring.yaml")
+        _copy_dir_resource("k8s/monitoring", "k8s/monitoring")
+    else:
+        click.echo("  SKIP k8s/monitoring (--no-monitoring)")
+
+
+def _copy_k8s_benchmarks(with_benchmarks: bool):
+    """Copy K8s benchmark configs if enabled."""
+    if with_benchmarks:
+        _create_k8s_benchmark_config()
+    else:
+        click.echo("  SKIP k8s/benchmark (use --with-benchmarks to include)")
+
+
+def _log_k8s_init_complete(with_ha: bool):
+    """Log completion message for K8s initialization."""
+    if not console:
+        return
+
+    console.print("[bold green]Kubernetes manifests copied successfully![/bold green]")
+    if with_ha:
+        console.print("\n[bold yellow]HA PostgreSQL Services:[/bold yellow]")
+        console.print("  - postgresql-primary:5432 (write traffic)")
+        console.print("  - postgresql-read:5432 (read traffic, load-balanced)")
+        console.print("  - pgbouncer-rw:6432 (write pool)")
+        console.print("  - pgbouncer-ro:6433 (read pool)")
 
 
 def _create_k8s_benchmark_config():

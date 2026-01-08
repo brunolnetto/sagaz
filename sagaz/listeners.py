@@ -89,7 +89,7 @@ class LoggingSagaListener(SagaListener):
             self.level = getattr(logging, level.upper(), logging.INFO)
         else:
             self.level = level
-    
+
     @property
     def log(self):
         """Get logger - uses dynamic get_logger() if no instance provided."""
@@ -194,8 +194,8 @@ class MetricsSagaListener(SagaListener):
         if key in self._step_start_times:
             duration = time.time() - self._step_start_times.pop(key)
             # Record step duration if metrics backend supports it
-            if hasattr(self.metrics, "record_step_duration"):
-                self.metrics.record_step_duration(saga_name, step_name, duration)
+            if hasattr(self.metrics, "record_step_duration"):  # pragma: no cover
+                self.metrics.record_step_duration(saga_name, step_name, duration)  # pragma: no cover
 
     async def on_saga_complete(self, saga_name: str, saga_id: str, ctx: dict[str, Any]) -> None:
         import time

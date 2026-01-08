@@ -2,12 +2,13 @@
 Tests for SQLite storage backends.
 """
 
-import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
-from sagaz.types import SagaStatus, SagaStepStatus
+import pytest
+
 from sagaz.outbox.types import OutboxEvent, OutboxStatus
+from sagaz.types import SagaStatus, SagaStepStatus
 
 # Skip all tests if aiosqlite is not installed
 try:
@@ -29,7 +30,7 @@ class TestSQLiteSagaStorage:
     async def storage(self):
         """Create an in-memory SQLite saga storage."""
         from sagaz.storage.backends.sqlite import SQLiteSagaStorage
-        
+
         storage = SQLiteSagaStorage(":memory:")
         async with storage:
             yield storage
@@ -44,9 +45,9 @@ class TestSQLiteSagaStorage:
             steps=[{"name": "step1", "status": "pending"}],
             context={"order_id": "123"},
         )
-        
+
         saga = await storage.load_saga_state("test-saga-1")
-        
+
         assert saga is not None
         assert saga["saga_id"] == "test-saga-1"
         assert saga["saga_name"] == "OrderSaga"
@@ -69,7 +70,7 @@ class TestSQLiteSagaStorage:
             steps=[],
             context={},
         )
-        
+
         # Update the saga
         await storage.save_saga_state(
             saga_id="test-saga-1",
@@ -78,9 +79,9 @@ class TestSQLiteSagaStorage:
             steps=[{"name": "step1", "status": "completed"}],
             context={"result": "success"},
         )
-        
+
         saga = await storage.load_saga_state("test-saga-1")
-        
+
         assert saga["status"] == "completed"
         assert saga["context"]["result"] == "success"
 
@@ -94,10 +95,10 @@ class TestSQLiteSagaStorage:
             steps=[],
             context={},
         )
-        
+
         result = await storage.delete_saga_state("test-saga-1")
         assert result is True
-        
+
         saga = await storage.load_saga_state("test-saga-1")
         assert saga is None
 
@@ -118,10 +119,10 @@ class TestSQLiteSagaStorage:
                 steps=[],
                 context={},
             )
-        
+
         all_sagas = await storage.list_sagas()
         assert len(all_sagas) == 5
-        
+
         completed_sagas = await storage.list_sagas(status=SagaStatus.COMPLETED)
         assert len(completed_sagas) == 3
 
@@ -142,7 +143,7 @@ class TestSQLiteSagaStorage:
             steps=[],
             context={},
         )
-        
+
         order_sagas = await storage.list_sagas(saga_name="OrderSaga")
         assert len(order_sagas) == 1
         assert order_sagas[0]["saga_name"] == "OrderSaga"
@@ -157,14 +158,14 @@ class TestSQLiteSagaStorage:
             steps=[{"name": "step1", "status": "pending"}],
             context={},
         )
-        
+
         await storage.update_step_state(
             saga_id="saga-1",
             step_name="step1",
             status=SagaStepStatus.COMPLETED,
             result={"data": "success"},
         )
-        
+
         saga = await storage.load_saga_state("saga-1")
         step = saga["steps"][0]
         assert step["status"] == "completed"
@@ -187,9 +188,9 @@ class TestSQLiteSagaStorage:
             steps=[],
             context={},
         )
-        
+
         stats = await storage.get_saga_statistics()
-        
+
         assert stats["total"] == 2
         assert stats["by_status"]["completed"] == 1
         assert stats["by_status"]["failed"] == 1
@@ -205,20 +206,20 @@ class TestSQLiteSagaStorage:
             steps=[],
             context={},
         )
-        
+
         # Cleanup with a far future date should delete all
         deleted = await storage.cleanup_completed_sagas(
-            older_than=datetime.now(timezone.utc) + timedelta(hours=1),
+            older_than=datetime.now(UTC) + timedelta(hours=1),
             statuses=[SagaStatus.COMPLETED, SagaStatus.ROLLED_BACK],
         )
-        
+
         assert deleted >= 1
 
     @pytest.mark.asyncio
     async def test_health_check(self, storage):
         """Test health check."""
         health = await storage.health_check()
-        
+
         assert health["status"] == "healthy"
         assert health["backend"] == "sqlite"
 
@@ -233,7 +234,7 @@ class TestSQLiteSagaStorage:
                 steps=[],
                 context={},
             )
-        
+
         count = await storage.count()
         assert count == 3
 
@@ -248,11 +249,11 @@ class TestSQLiteSagaStorage:
                 steps=[],
                 context={},
             )
-        
+
         exported = []
         async for record in storage.export_all():
             exported.append(record)
-        
+
         assert len(exported) == 3
 
     @pytest.mark.asyncio
@@ -265,7 +266,7 @@ class TestSQLiteSagaStorage:
             "steps": [],
             "context": {"imported": True},
         })
-        
+
         saga = await storage.load_saga_state("imported-saga")
         assert saga is not None
         assert saga["saga_name"] == "ImportedSaga"
@@ -278,7 +279,7 @@ class TestSQLiteOutboxStorage:
     async def storage(self):
         """Create an in-memory SQLite outbox storage."""
         from sagaz.storage.backends.sqlite import SQLiteOutboxStorage
-        
+
         storage = SQLiteOutboxStorage(":memory:")
         async with storage:
             yield storage
@@ -298,9 +299,9 @@ class TestSQLiteOutboxStorage:
     async def test_insert_and_get_event(self, storage, sample_event):
         """Test inserting and retrieving an event."""
         await storage.insert(sample_event)
-        
+
         retrieved = await storage.get_by_id(sample_event.event_id)
-        
+
         assert retrieved is not None
         assert retrieved.saga_id == "order-123"
         assert retrieved.event_type == "OrderCreated"
@@ -316,12 +317,12 @@ class TestSQLiteOutboxStorage:
     async def test_update_status(self, storage, sample_event):
         """Test updating event status."""
         await storage.insert(sample_event)
-        
+
         updated = await storage.update_status(
             sample_event.event_id,
             OutboxStatus.SENT,
         )
-        
+
         assert updated is not None
         assert updated.status == OutboxStatus.SENT
         assert updated.sent_at is not None
@@ -337,10 +338,10 @@ class TestSQLiteOutboxStorage:
                 payload={"index": i},
             )
             await storage.insert(event)
-        
+
         # Claim a batch
         claimed = await storage.claim_batch("worker-1", batch_size=3)
-        
+
         assert len(claimed) == 3
         for event in claimed:
             assert event.status == OutboxStatus.CLAIMED
@@ -350,9 +351,9 @@ class TestSQLiteOutboxStorage:
     async def test_get_events_by_saga(self, storage, sample_event):
         """Test getting events by saga ID."""
         await storage.insert(sample_event)
-        
+
         events = await storage.get_events_by_saga("order-123")
-        
+
         assert len(events) == 1
         assert events[0].saga_id == "order-123"
 
@@ -366,7 +367,7 @@ class TestSQLiteOutboxStorage:
                 payload={},
             )
             await storage.insert(event)
-        
+
         count = await storage.get_pending_count()
         assert count == 3
 
@@ -375,9 +376,9 @@ class TestSQLiteOutboxStorage:
         """Test getting dead letter events."""
         await storage.insert(sample_event)
         await storage.update_status(sample_event.event_id, OutboxStatus.DEAD_LETTER)
-        
+
         dead_letters = await storage.get_dead_letter_events()
-        
+
         assert len(dead_letters) == 1
         assert dead_letters[0].status == OutboxStatus.DEAD_LETTER
 
@@ -385,7 +386,7 @@ class TestSQLiteOutboxStorage:
     async def test_health_check(self, storage):
         """Test health check."""
         result = await storage.health_check()
-        
+
         assert result.is_healthy
         assert "pending_count" in result.details
 
@@ -399,9 +400,9 @@ class TestSQLiteOutboxStorage:
                 payload={},
             )
             await storage.insert(event)
-        
+
         stats = await storage.get_statistics()
-        
+
         assert stats.total_records == 3
         assert stats.pending_records == 3
 
@@ -415,7 +416,7 @@ class TestSQLiteOutboxStorage:
                 payload={},
             )
             await storage.insert(event)
-        
+
         count = await storage.count()
         assert count == 4
 
@@ -429,11 +430,11 @@ class TestSQLiteOutboxStorage:
                 payload={},
             )
             await storage.insert(event)
-        
+
         exported = []
         async for record in storage.export_all():
             exported.append(record)
-        
+
         assert len(exported) == 2
 
     @pytest.mark.asyncio
@@ -445,7 +446,7 @@ class TestSQLiteOutboxStorage:
             "payload": {"imported": True},
             "status": "pending",
         })
-        
+
         count = await storage.count()
         assert count == 1
 
@@ -458,7 +459,7 @@ class TestSQLiteStorageFactory:
         """Test creating SQLite saga storage via factory."""
         from sagaz.storage import create_storage
         from sagaz.storage.backends.sqlite import SQLiteSagaStorage
-        
+
         storage = create_storage("sqlite", storage_type="saga")
         assert isinstance(storage, SQLiteSagaStorage)
 
@@ -467,7 +468,7 @@ class TestSQLiteStorageFactory:
         """Test creating SQLite outbox storage via factory."""
         from sagaz.storage import create_storage
         from sagaz.storage.backends.sqlite import SQLiteOutboxStorage
-        
+
         storage = create_storage("sqlite", storage_type="outbox")
         assert isinstance(storage, SQLiteOutboxStorage)
 
@@ -475,10 +476,10 @@ class TestSQLiteStorageFactory:
     async def test_create_sqlite_both_storages(self):
         """Test creating both SQLite storages via factory."""
         from sagaz.storage import create_storage
-        from sagaz.storage.backends.sqlite import SQLiteSagaStorage, SQLiteOutboxStorage
-        
+        from sagaz.storage.backends.sqlite import SQLiteOutboxStorage, SQLiteSagaStorage
+
         saga, outbox = create_storage("sqlite", storage_type="both")
-        
+
         assert isinstance(saga, SQLiteSagaStorage)
         assert isinstance(outbox, SQLiteOutboxStorage)
 
@@ -486,11 +487,11 @@ class TestSQLiteStorageFactory:
     async def test_create_sqlite_with_db_path(self, tmp_path):
         """Test creating SQLite storage with custom db_path."""
         from sagaz.storage import create_storage
-        
+
         db_file = tmp_path / "test.db"
-        
+
         storage = create_storage("sqlite", db_path=str(db_file))
-        
+
         async with storage:
             await storage.save_saga_state(
                 saga_id="test-1",
@@ -499,16 +500,16 @@ class TestSQLiteStorageFactory:
                 steps=[],
                 context={},
             )
-        
+
         # Verify file was created
         assert db_file.exists()
 
     def test_sqlite_in_available_backends(self):
         """Test SQLite appears in available backends."""
         from sagaz.storage import get_available_backends
-        
+
         backends = get_available_backends()
-        
+
         assert "sqlite" in backends
         assert backends["sqlite"]["available"] is True
 
@@ -521,7 +522,7 @@ class TestSQLiteTransfer:
         """Test transferring data from memory to SQLite."""
         from sagaz.storage import create_storage
         from sagaz.storage.transfer import transfer_data
-        
+
         # Create source with data
         source = create_storage("memory")
         await source.save_saga_state(
@@ -531,16 +532,16 @@ class TestSQLiteTransfer:
             steps=[],
             context={"data": "test"},
         )
-        
+
         # Create target
         target = create_storage("sqlite")
         async with target:
             # Transfer
             result = await transfer_data(source, target, validate=False)
-            
+
             assert result.transferred == 1
             assert result.success
-            
+
             # Verify data
             saga = await target.load_saga_state("saga-1")
             assert saga is not None

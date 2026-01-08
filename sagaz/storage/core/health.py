@@ -7,14 +7,14 @@ with support for Prometheus metrics and Kubernetes probes.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from enum import Enum
 from typing import Any
 
 
 class HealthStatus(Enum):
     """Storage health status."""
-    
+
     HEALTHY = "healthy"
     DEGRADED = "degraded"  # Working but with issues
     UNHEALTHY = "unhealthy"
@@ -25,7 +25,7 @@ class HealthStatus(Enum):
 class HealthCheckResult:
     """
     Result of a health check operation.
-    
+
     Attributes:
         status: Overall health status
         latency_ms: Time taken for health check in milliseconds
@@ -33,18 +33,18 @@ class HealthCheckResult:
         details: Additional backend-specific details
         checked_at: Timestamp of the check
     """
-    
+
     status: HealthStatus
     latency_ms: float
     message: str = ""
     details: dict[str, Any] = field(default_factory=dict)
-    checked_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    
+    checked_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+
     @property
     def is_healthy(self) -> bool:
         """Check if status is healthy or degraded (still operational)."""
         return self.status in (HealthStatus.HEALTHY, HealthStatus.DEGRADED)
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API responses."""
         return {
@@ -61,7 +61,7 @@ class HealthCheckResult:
 class StorageStatistics:
     """
     Storage usage statistics.
-    
+
     Attributes:
         total_records: Total number of records
         pending_records: Records in pending/processing state
@@ -71,7 +71,7 @@ class StorageStatistics:
         oldest_record: Timestamp of oldest record
         newest_record: Timestamp of newest record
     """
-    
+
     total_records: int = 0
     pending_records: int = 0
     completed_records: int = 0
@@ -79,7 +79,7 @@ class StorageStatistics:
     storage_bytes: int | None = None
     oldest_record: datetime | None = None
     newest_record: datetime | None = None
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API responses."""
         return {
@@ -96,31 +96,31 @@ class StorageStatistics:
 class HealthCheckable(ABC):
     """
     Mixin for health-checkable storage backends.
-    
+
     All storage implementations should implement this interface
     to provide consistent health monitoring.
     """
-    
+
     @abstractmethod
     async def health_check(self) -> HealthCheckResult:
         """
         Perform a health check on the storage backend.
-        
+
         Should check:
         - Connection is alive
         - Can read/write
         - Resource usage is acceptable
-        
+
         Returns:
             HealthCheckResult with status and details
         """
         ...
-    
+
     @abstractmethod
     async def get_statistics(self) -> StorageStatistics:
         """
         Get current storage statistics.
-        
+
         Returns:
             StorageStatistics with usage information
         """
@@ -133,26 +133,25 @@ async def check_health_with_timeout(
 ) -> HealthCheckResult:
     """
     Perform health check with timeout protection.
-    
+
     Args:
         checker: The health checkable instance
         timeout_seconds: Maximum time to wait
-        
+
     Returns:
         HealthCheckResult (UNHEALTHY if timeout)
     """
     import asyncio
     import time
-    
+
     start = time.perf_counter()
-    
+
     try:
-        result = await asyncio.wait_for(
+        return await asyncio.wait_for(
             checker.health_check(),
             timeout=timeout_seconds,
         )
-        return result
-    except asyncio.TimeoutError:
+    except TimeoutError:
         elapsed_ms = (time.perf_counter() - start) * 1000
         return HealthCheckResult(
             status=HealthStatus.UNHEALTHY,

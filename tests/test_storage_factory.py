@@ -100,7 +100,7 @@ class TestCreateStorage:
         """Test invalid storage_type raises ValueError"""
         with pytest.raises(ValueError) as exc_info:
             create_storage("memory", storage_type="invalid")
-        
+
         assert "storage_type" in str(exc_info.value)
         assert "invalid" in str(exc_info.value)
 
@@ -116,28 +116,28 @@ class TestCreateStorageTypes:
     def test_create_memory_outbox_storage(self):
         """Test creating outbox storage."""
         from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
-        
+
         storage = create_storage("memory", storage_type="outbox")
         assert isinstance(storage, InMemoryOutboxStorage)
 
     def test_create_memory_both_storages(self):
         """Test creating both storages at once."""
         from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
-        
+
         saga, outbox = create_storage("memory", storage_type="both")
-        
+
         assert isinstance(saga, InMemorySagaStorage)
         assert isinstance(outbox, InMemoryOutboxStorage)
 
     def test_create_redis_outbox_storage(self):
         """Test creating Redis outbox storage."""
         from sagaz.storage.backends.redis.saga import REDIS_AVAILABLE
-        
+
         if not REDIS_AVAILABLE:
             pytest.skip("Redis not available")
-        
+
         from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
-        
+
         storage = create_storage(
             "redis",
             storage_type="outbox",
@@ -148,19 +148,19 @@ class TestCreateStorageTypes:
     def test_create_redis_both_storages(self):
         """Test creating both Redis storages."""
         from sagaz.storage.backends.redis.saga import REDIS_AVAILABLE
-        
+
         if not REDIS_AVAILABLE:
             pytest.skip("Redis not available")
-        
-        from sagaz.storage.redis import RedisSagaStorage
+
         from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
-        
+        from sagaz.storage.redis import RedisSagaStorage
+
         saga, outbox = create_storage(
             "redis",
             storage_type="both",
             redis_url="redis://localhost:6379",
         )
-        
+
         assert isinstance(saga, RedisSagaStorage)
         assert isinstance(outbox, RedisOutboxStorage)
 
@@ -173,12 +173,12 @@ class TestCreateStorageTypes:
     def test_create_postgresql_outbox_storage(self):
         """Test creating PostgreSQL outbox storage."""
         from sagaz.storage.backends.postgresql.saga import ASYNCPG_AVAILABLE
-        
+
         if not ASYNCPG_AVAILABLE:
             pytest.skip("asyncpg not available")
-        
+
         from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
-        
+
         storage = create_storage(
             "postgresql",
             storage_type="outbox",

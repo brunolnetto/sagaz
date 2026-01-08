@@ -8,7 +8,8 @@ and health check support.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING, Any
 
 from sagaz.storage.core import HealthCheckResult, StorageStatistics
 
@@ -19,23 +20,23 @@ if TYPE_CHECKING:
 class OutboxStorage(ABC):
     """
     Abstract storage interface for outbox events.
-    
+
     Implementations must ensure atomic operations for:
     - Inserting events with saga state (within transaction)
     - Claiming events with SKIP LOCKED for concurrency
     - Updating event status
-    
+
     All implementations should support:
     - CRUD operations for outbox events
     - Batch claiming with worker assignment
     - Stuck event detection and recovery
     - Dead letter queue access
-    
+
     Optional (for transfer support):
     - export_all() for exporting records
-    - import_record() for importing records  
+    - import_record() for importing records
     - count() for getting total count
-    
+
     Usage:
         >>> storage = PostgreSQLOutboxStorage(pool)
         >>>
@@ -50,7 +51,7 @@ class OutboxStorage(ABC):
         ...     batch_size=100
         ... )
     """
-    
+
     # ==========================================================================
     # Core Event Operations
     # ==========================================================================
@@ -63,14 +64,14 @@ class OutboxStorage(ABC):
     ) -> OutboxEvent:
         """
         Insert a new outbox event.
-        
+
         Args:
             event: The event to insert
             connection: Optional database connection (for transactions)
-            
+
         Returns:
             The inserted event with any generated fields
-            
+
         Raises:
             OutboxStorageError: If insert fails
         """
@@ -80,10 +81,10 @@ class OutboxStorage(ABC):
     async def get_by_id(self, event_id: str) -> OutboxEvent | None:
         """
         Get an event by its ID.
-        
+
         Args:
             event_id: The event ID
-            
+
         Returns:
             The event if found, None otherwise
         """
@@ -99,21 +100,21 @@ class OutboxStorage(ABC):
     ) -> OutboxEvent:
         """
         Update the status of an event.
-        
+
         Args:
             event_id: ID of the event to update
             status: New status
             error_message: Optional error message (for FAILED status)
             connection: Optional database connection (for transactions)
-            
+
         Returns:
             Updated event
-            
+
         Raises:
             OutboxStorageError: If update fails
         """
         ...
-    
+
     # ==========================================================================
     # Batch Operations
     # ==========================================================================
@@ -127,18 +128,18 @@ class OutboxStorage(ABC):
     ) -> list[OutboxEvent]:
         """
         Claim a batch of pending events for processing.
-        
+
         Uses FOR UPDATE SKIP LOCKED (or equivalent) to prevent
         concurrent claims.
-        
+
         Args:
             worker_id: ID of the claiming worker
             batch_size: Maximum events to claim
             older_than_seconds: Only claim events older than this (for backoff)
-            
+
         Returns:
             List of claimed events
-            
+
         Raises:
             OutboxStorageError: If claim fails
         """
@@ -148,15 +149,15 @@ class OutboxStorage(ABC):
     async def get_events_by_saga(self, saga_id: str) -> list[OutboxEvent]:
         """
         Get all events for a saga.
-        
+
         Args:
             saga_id: The saga ID
-            
+
         Returns:
             List of events for the saga
         """
         ...
-    
+
     # ==========================================================================
     # Stuck Event Recovery
     # ==========================================================================
@@ -168,10 +169,10 @@ class OutboxStorage(ABC):
     ) -> list[OutboxEvent]:
         """
         Get events that appear to be stuck (claimed but not processed).
-        
+
         Args:
             claimed_older_than_seconds: Consider stuck if claimed longer ago
-            
+
         Returns:
             List of stuck events
         """
@@ -184,15 +185,15 @@ class OutboxStorage(ABC):
     ) -> int:
         """
         Release stuck events back to PENDING status.
-        
+
         Args:
             claimed_older_than_seconds: Release if claimed longer ago
-            
+
         Returns:
             Number of events released
         """
         ...
-    
+
     # ==========================================================================
     # Statistics and Queue Management
     # ==========================================================================
@@ -209,22 +210,22 @@ class OutboxStorage(ABC):
     ) -> list[OutboxEvent]:
         """Get events in dead letter queue."""
         ...
-    
+
     # ==========================================================================
     # Health Check (Optional but Recommended)
     # ==========================================================================
-    
+
     async def health_check(self) -> HealthCheckResult:
         """
         Check storage health.
-        
+
         Override to provide backend-specific health checks.
-        
+
         Returns:
             HealthCheckResult with status and details
         """
         from sagaz.storage.core import HealthStatus
-        
+
         try:
             count = await self.get_pending_count()
             return HealthCheckResult(
@@ -239,13 +240,13 @@ class OutboxStorage(ABC):
                 latency_ms=0,
                 message=str(e),
             )
-    
+
     async def get_statistics(self) -> StorageStatistics:
         """
         Get storage statistics.
-        
+
         Override for backend-specific statistics.
-        
+
         Returns:
             StorageStatistics with usage information
         """
@@ -253,57 +254,63 @@ class OutboxStorage(ABC):
         return StorageStatistics(
             pending_records=pending,
         )
-    
+
     # ==========================================================================
     # Transfer Support (Optional - Not Required)
     # ==========================================================================
-    
+
     async def export_all(self) -> AsyncIterator[dict[str, Any]]:
         """
         Export all outbox events as dictionaries.
-        
+
         Override to enable data transfer from this backend.
-        
+
         Yields:
             Dict representation of each outbox event
         """
-        raise NotImplementedError(
+        msg = (
             f"{self.__class__.__name__} does not support export. "
             "Implement export_all() to enable data transfer."
+        )
+        raise NotImplementedError(
+            msg
         )
         # Make it a generator
         if False:
             yield {}
-    
+
     async def import_record(self, record: dict[str, Any]) -> None:
         """
         Import a single outbox event record.
-        
+
         Override to enable data transfer to this backend.
-        
+
         Args:
             record: Dict representation of outbox event
         """
-        raise NotImplementedError(
+        msg = (
             f"{self.__class__.__name__} does not support import. "
             "Implement import_record() to enable data transfer."
         )
-    
+        raise NotImplementedError(
+            msg
+        )
+
     async def count(self) -> int:
         """
         Get total event count.
-        
+
         Override for efficient counting (used for transfer progress).
-        
+
         Returns:
             Number of events in storage
         """
         return await self.get_pending_count()
-    
+
     # ==========================================================================
     # Archival (Optional)
     # ==========================================================================
-    
+
     async def archive_events(
         self,
         older_than_days: int = 30,
@@ -311,40 +318,39 @@ class OutboxStorage(ABC):
     ) -> int:
         """
         Archive old events (move to archive table or delete).
-        
+
         Override if your backend supports archival.
-        
+
         Args:
             older_than_days: Archive events older than this
             statuses: Only archive events with these statuses
                       (default: PUBLISHED)
-                      
+
         Returns:
             Number of events archived
         """
+        msg = f"{self.__class__.__name__} does not support archival."
         raise NotImplementedError(
-            f"{self.__class__.__name__} does not support archival."
+            msg
         )
-    
+
     # ==========================================================================
     # Context Manager Support
     # ==========================================================================
 
-    async def __aenter__(self) -> "OutboxStorage":
+    async def __aenter__(self) -> OutboxStorage:
         """Async context manager entry."""
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         """Async context manager exit."""
-        pass
-    
+
     async def close(self) -> None:
         """
         Close the storage and release resources.
-        
+
         Override if your backend needs cleanup.
         """
-        pass
 
 
 # ==========================================================================
@@ -353,4 +359,3 @@ class OutboxStorage(ABC):
 
 class OutboxStorageError(Exception):
     """Base exception for outbox storage errors."""
-    pass

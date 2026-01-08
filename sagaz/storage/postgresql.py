@@ -1,3 +1,3 @@
-from sagaz.storage.backends.postgresql import PostgreSQLSagaStorage, ASYNCPG_AVAILABLE, asyncpg
+from sagaz.storage.backends.postgresql import ASYNCPG_AVAILABLE, PostgreSQLSagaStorage, asyncpg
 
-__all__ = ["PostgreSQLSagaStorage", "ASYNCPG_AVAILABLE", "asyncpg"]
+__all__ = ["ASYNCPG_AVAILABLE", "PostgreSQLSagaStorage", "asyncpg"]

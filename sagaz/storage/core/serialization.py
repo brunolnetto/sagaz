@@ -18,7 +18,7 @@ from .errors import SerializationError
 class StorageEncoder(json.JSONEncoder):
     """
     JSON encoder for storage data.
-    
+
     Handles:
     - datetime -> ISO format string
     - UUID -> string
@@ -44,26 +44,26 @@ class StorageEncoder(json.JSONEncoder):
             return {"__type__": "set", "value": list(obj)}
         if isinstance(obj, frozenset):
             return {"__type__": "frozenset", "value": list(obj)}
-        
+
         # Try to serialize as dict
         if hasattr(obj, "__dict__"):
-            return obj.__dict__
-        
+            return obj.__dict__  # pragma: no cover
+
         return super().default(obj)  # pragma: no cover
 
 
 def storage_decoder(obj: dict[str, Any]) -> Any:
     """
     JSON decoder hook for storage data.
-    
+
     Reverses StorageEncoder transformations.
     """
     if "__type__" not in obj:
         return obj
-    
+
     type_name = obj["__type__"]
     value = obj.get("value")
-    
+
     if type_name == "datetime":
         return datetime.fromisoformat(value)
     if type_name == "uuid":
@@ -81,20 +81,20 @@ def storage_decoder(obj: dict[str, Any]) -> Any:
         # We can't restore the exact enum without the class
         # Return the value for compatibility
         return value
-    
+
     return obj
 
 
 def serialize(data: Any) -> str:
     """
     Serialize data to JSON string.
-    
+
     Args:
         data: Any JSON-serializable data
-        
+
     Returns:
         JSON string
-        
+
     Raises:
         SerializationError: If serialization fails
     """
@@ -111,19 +111,19 @@ def serialize(data: Any) -> str:
 def deserialize(data: str | bytes) -> Any:
     """
     Deserialize JSON string to Python object.
-    
+
     Args:
         data: JSON string or bytes
-        
+
     Returns:
         Deserialized Python object
-        
+
     Raises:
         SerializationError: If deserialization fails
     """
     if isinstance(data, bytes):
         data = data.decode("utf-8")
-    
+
     try:
         return json.loads(data, object_hook=storage_decoder)
     except (json.JSONDecodeError, ValueError) as e:
@@ -136,10 +136,10 @@ def deserialize(data: str | bytes) -> Any:
 def serialize_for_redis(data: dict[str, Any]) -> dict[str, str]:
     """
     Serialize dict values for Redis HSET (all values must be strings).
-    
+
     Args:
         data: Dictionary with any values
-        
+
     Returns:
         Dictionary with all string values
     """
@@ -169,49 +169,59 @@ def deserialize_from_redis(
 ) -> dict[str, Any]:
     """
     Deserialize Redis HGETALL result.
-    
+
     Args:
         data: Redis hash data (may have bytes keys/values)
         schema: Optional type hints for conversion
-        
+
     Returns:
         Dictionary with typed values
     """
     result = {}
     schema = schema or {}
-    
+
     for key, value in data.items():
-        # Decode bytes to string
-        if isinstance(key, bytes):
-            key = key.decode("utf-8")
-        if isinstance(value, bytes):
-            value = value.decode("utf-8")
-        
-        # Empty string -> None
-        if value == "":
-            result[key] = None
-            continue
-        
-        # Use schema hint if available
-        expected_type = schema.get(key)
-        
-        if expected_type == int:
-            result[key] = int(value)
-        elif expected_type == float:
-            result[key] = float(value)
-        elif expected_type == bool:
-            result[key] = value.lower() in ("true", "1", "yes")
-        elif expected_type == datetime:
-            result[key] = datetime.fromisoformat(value)
-        elif expected_type == UUID:
-            result[key] = UUID(value)
-        elif value.startswith(("{", "[")):
-            # Looks like JSON
-            try:
-                result[key] = deserialize(value)
-            except SerializationError:
-                result[key] = value
-        else:
-            result[key] = value
-    
+        key, value = _decode_redis_kv(key, value)
+        result[key] = _convert_redis_value(key, value, schema)
+
     return result
+
+
+def _decode_redis_kv(key: bytes | str, value: bytes | str) -> tuple[str, str]:
+    """Decode Redis bytes to strings."""
+    if isinstance(key, bytes):
+        key = key.decode("utf-8")
+    if isinstance(value, bytes):
+        value = value.decode("utf-8")
+    return key, value
+
+
+# Type converters for Redis deserialization
+_REDIS_TYPE_CONVERTERS: dict[type, Any] = {
+    int: int,
+    float: float,
+    bool: lambda v: v.lower() in ("true", "1", "yes"),
+    datetime: datetime.fromisoformat,
+    UUID: UUID,
+}
+
+
+def _convert_redis_value(key: str, value: str, schema: dict[str, type]) -> Any:
+    """Convert a Redis value to the appropriate Python type."""
+    if value == "":
+        return None
+
+    expected_type = schema.get(key)
+
+    # Use type converter if available
+    if expected_type in _REDIS_TYPE_CONVERTERS:
+        return _REDIS_TYPE_CONVERTERS[expected_type](value)
+
+    # Check for JSON
+    if value.startswith(("{", "[")):
+        try:
+            return deserialize(value)
+        except SerializationError:
+            pass
+
+    return value

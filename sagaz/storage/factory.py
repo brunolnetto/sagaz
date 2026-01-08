@@ -8,13 +8,13 @@ Supports both saga storage and outbox storage from a unified interface.
 
 Usage:
     >>> from sagaz.storage import create_storage
-    
+
     # Create saga storage
     >>> saga_storage = create_storage("redis", storage_type="saga")
-    
+
     # Create outbox storage
     >>> outbox_storage = create_storage("redis", storage_type="outbox")
-    
+
     # Create both at once
     >>> saga, outbox = create_storage("postgresql", storage_type="both")
 """
@@ -22,9 +22,8 @@ Usage:
 from typing import Any, Literal
 
 from sagaz.exceptions import MissingDependencyError
-from sagaz.storage.base import SagaStorage
 from sagaz.storage.backends.memory import InMemorySagaStorage
-
+from sagaz.storage.base import SagaStorage
 
 StorageType = Literal["saga", "outbox", "both"]
 
@@ -217,9 +216,12 @@ def create_storage(
 
     # Validate storage_type
     if storage_type not in ("saga", "outbox", "both"):
-        raise ValueError(
+        msg = (
             f"Unknown storage_type: '{storage_type}'. "
             f"Valid options: 'saga', 'outbox', 'both'"
+        )
+        raise ValueError(
+            msg
         )
 
     # Build kwargs dict for factory
@@ -239,12 +241,12 @@ def create_storage(
     try:
         if storage_type == "saga":
             return _SAGA_STORAGE_REGISTRY[backend](factory_kwargs)
-        elif storage_type == "outbox":
+        if storage_type == "outbox":
             return _OUTBOX_STORAGE_REGISTRY[backend](factory_kwargs)
-        else:  # both
-            saga_storage = _SAGA_STORAGE_REGISTRY[backend](factory_kwargs)
-            outbox_storage = _OUTBOX_STORAGE_REGISTRY[backend](factory_kwargs)
-            return saga_storage, outbox_storage
+        # both
+        saga_storage = _SAGA_STORAGE_REGISTRY[backend](factory_kwargs)
+        outbox_storage = _OUTBOX_STORAGE_REGISTRY[backend](factory_kwargs)
+        return saga_storage, outbox_storage
     except MissingDependencyError:
         raise  # pragma: no cover
 

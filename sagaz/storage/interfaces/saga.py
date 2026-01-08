@@ -6,8 +6,9 @@ and health check support.
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 from datetime import datetime
-from typing import Any, AsyncIterator, Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from sagaz.storage.core import (
     HealthCheckResult,
@@ -20,19 +21,19 @@ from sagaz.types import SagaStatus, SagaStepStatus
 class Transferable(Protocol):
     """
     Protocol for storages that support data transfer.
-    
+
     Implementations can transfer data between backends,
     enabling migrations and hybrid deployments.
     """
-    
+
     async def export_all(self) -> AsyncIterator[dict[str, Any]]:
         """Export all records as dictionaries."""
         ...
-    
+
     async def import_record(self, record: dict[str, Any]) -> None:
         """Import a single record."""
         ...
-    
+
     async def count(self) -> int:
         """Get total record count."""
         ...
@@ -41,26 +42,26 @@ class Transferable(Protocol):
 class SagaStorage(ABC):
     """
     Abstract base class for saga state persistence.
-    
+
     Provides interface for storing and retrieving saga execution state,
     enabling saga recovery and state inspection across restarts.
-    
+
     All implementations should support:
     - CRUD operations for saga state
     - Filtering and listing sagas
     - Step state updates
     - Health checks and statistics
-    
+
     Optional (for transfer support):
     - export_all() for exporting records
     - import_record() for importing records
     - count() for getting total count
     """
-    
+
     # ==========================================================================
     # Core CRUD Operations
     # ==========================================================================
-    
+
     @abstractmethod
     async def save_saga_state(
         self,
@@ -73,7 +74,7 @@ class SagaStorage(ABC):
     ) -> None:
         """
         Save saga state to persistent storage.
-        
+
         Args:
             saga_id: Unique saga identifier
             saga_name: Human-readable saga name
@@ -88,10 +89,10 @@ class SagaStorage(ABC):
     async def load_saga_state(self, saga_id: str) -> dict[str, Any] | None:
         """
         Load saga state from persistent storage.
-        
+
         Args:
             saga_id: Unique saga identifier
-            
+
         Returns:
             Saga state dictionary or None if not found
         """
@@ -101,15 +102,15 @@ class SagaStorage(ABC):
     async def delete_saga_state(self, saga_id: str) -> bool:
         """
         Delete saga state from persistent storage.
-        
+
         Args:
             saga_id: Unique saga identifier
-            
+
         Returns:
             True if deleted, False if not found
         """
         ...
-    
+
     # ==========================================================================
     # Query Operations
     # ==========================================================================
@@ -124,13 +125,13 @@ class SagaStorage(ABC):
     ) -> list[dict[str, Any]]:
         """
         List sagas with optional filtering.
-        
+
         Args:
             status: Filter by saga status
             saga_name: Filter by saga name pattern
             limit: Maximum number of results
             offset: Pagination offset
-            
+
         Returns:
             List of saga state summaries
         """
@@ -148,7 +149,7 @@ class SagaStorage(ABC):
     ) -> None:
         """
         Update individual step state.
-        
+
         Args:
             saga_id: Unique saga identifier
             step_name: Name of the step to update
@@ -158,7 +159,7 @@ class SagaStorage(ABC):
             executed_at: Timestamp of execution
         """
         ...
-    
+
     # ==========================================================================
     # Statistics and Maintenance
     # ==========================================================================
@@ -167,7 +168,7 @@ class SagaStorage(ABC):
     async def get_saga_statistics(self) -> dict[str, Any]:
         """
         Get storage statistics.
-        
+
         Returns:
             Dictionary with storage statistics (counts by status, etc.)
         """
@@ -181,12 +182,12 @@ class SagaStorage(ABC):
     ) -> int:
         """
         Clean up old completed sagas.
-        
+
         Args:
             older_than: Delete sagas completed before this timestamp
             statuses: Only delete sagas with these statuses
                       (default: COMPLETED, ROLLED_BACK)
-                      
+
         Returns:
             Number of sagas deleted
         """
@@ -196,61 +197,67 @@ class SagaStorage(ABC):
     async def health_check(self) -> dict[str, Any]:
         """
         Check storage health.
-        
+
         Returns:
             Health status information
         """
         ...
-    
+
     # ==========================================================================
     # Transfer Support (Optional - Not Required)
     # ==========================================================================
-    
+
     async def export_all(self) -> AsyncIterator[dict[str, Any]]:
         """
         Export all saga states as dictionaries.
-        
+
         Override to enable data transfer from this backend.
-        
+
         Yields:
             Dict representation of each saga state
         """
-        raise NotImplementedError(
+        msg = (
             f"{self.__class__.__name__} does not support export. "
             "Implement export_all() to enable data transfer."
+        )
+        raise NotImplementedError(
+            msg
         )
         # Make it a generator
         if False:
             yield {}
-    
+
     async def import_record(self, record: dict[str, Any]) -> None:
         """
         Import a single saga state record.
-        
+
         Override to enable data transfer to this backend.
-        
+
         Args:
             record: Dict representation of saga state
         """
-        raise NotImplementedError(
+        msg = (
             f"{self.__class__.__name__} does not support import. "
             "Implement import_record() to enable data transfer."
         )
-    
+        raise NotImplementedError(
+            msg
+        )
+
     async def count(self) -> int:
         """
         Get total saga count.
-        
+
         Override for efficient counting (used for transfer progress).
         Default implementation uses list_sagas which may be slow.
-        
+
         Returns:
             Number of sagas in storage
         """
         # Default: use list_sagas (may be slow for large datasets)
         sagas = await self.list_sagas(limit=1000000)
         return len(sagas)
-    
+
     # ==========================================================================
     # Context Manager Support
     # ==========================================================================
@@ -261,15 +268,13 @@ class SagaStorage(ABC):
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         """Async context manager exit."""
-        pass
-    
+
     async def close(self) -> None:
         """
         Close the storage and release resources.
-        
+
         Override if your backend needs cleanup.
         """
-        pass
 
 
 # ==========================================================================

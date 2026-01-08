@@ -450,8 +450,8 @@ class TestOutboxMemoryTo100:
     @pytest.mark.asyncio
     async def test_memory_outbox_insert_and_claim(self):
         """Test inserting events and claiming them"""
-        from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
         from sagaz.outbox.types import OutboxEvent, OutboxStatus
+        from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
 
         storage = InMemoryOutboxStorage()
 

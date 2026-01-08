@@ -19,11 +19,11 @@ from .outbox import OutboxStorage, OutboxStorageError
 from .saga import SagaStepState, SagaStorage, Transferable
 
 __all__ = [
-    # Saga
-    "SagaStorage",
-    "SagaStepState",
-    "Transferable",
     # Outbox
     "OutboxStorage",
     "OutboxStorageError",
+    "SagaStepState",
+    # Saga
+    "SagaStorage",
+    "Transferable",
 ]

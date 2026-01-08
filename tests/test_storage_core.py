@@ -3,7 +3,7 @@ Tests for sagaz.storage.core module.
 """
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from decimal import Decimal
 from uuid import UUID
 
@@ -148,10 +148,10 @@ class TestSerialization:
 
     def test_serialize_datetime(self):
         """Test datetime serialization."""
-        dt = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+        dt = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
         data = {"timestamp": dt}
         result = serialize(data)
-        
+
         # Deserialize and verify
         parsed = deserialize(result)
         assert parsed["timestamp"] == dt
@@ -161,7 +161,7 @@ class TestSerialization:
         uid = UUID("12345678-1234-5678-1234-567812345678")
         data = {"id": uid}
         result = serialize(data)
-        
+
         parsed = deserialize(result)
         assert parsed["id"] == uid
 
@@ -169,7 +169,7 @@ class TestSerialization:
         """Test Decimal serialization."""
         data = {"amount": Decimal("123.45")}
         result = serialize(data)
-        
+
         parsed = deserialize(result)
         assert parsed["amount"] == Decimal("123.45")
 
@@ -177,7 +177,7 @@ class TestSerialization:
         """Test bytes serialization."""
         data = {"binary": b"hello world"}
         result = serialize(data)
-        
+
         parsed = deserialize(result)
         assert parsed["binary"] == b"hello world"
 
@@ -185,13 +185,13 @@ class TestSerialization:
         """Test set serialization."""
         data = {"tags": {1, 2, 3}}
         result = serialize(data)
-        
+
         parsed = deserialize(result)
         assert parsed["tags"] == {1, 2, 3}
 
     def test_serialize_nested(self):
         """Test nested structure serialization."""
-        dt = datetime(2024, 1, 15, tzinfo=timezone.utc)
+        dt = datetime(2024, 1, 15, tzinfo=UTC)
         data = {
             "outer": {
                 "inner": {
@@ -202,21 +202,21 @@ class TestSerialization:
         }
         result = serialize(data)
         parsed = deserialize(result)
-        
+
         assert parsed["outer"]["inner"]["timestamp"] == dt
 
     def test_deserialize_invalid_json(self):
         """Test deserializing invalid JSON raises SerializationError."""
         with pytest.raises(SerializationError) as exc_info:
             deserialize("not valid json")
-        
+
         assert exc_info.value.operation == "deserialize"
 
     def test_serialize_bytes_input(self):
         """Test deserializing bytes input."""
         data = {"key": "value"}
         serialized = serialize(data).encode("utf-8")
-        
+
         parsed = deserialize(serialized)
         assert parsed == data
 
@@ -268,7 +268,7 @@ class TestHealthCheck:
             details={"connections": 5},
         )
         data = result.to_dict()
-        
+
         assert data["status"] == "healthy"
         assert data["is_healthy"] is True
         assert data["latency_ms"] == 5.12  # Rounded
@@ -283,7 +283,7 @@ class TestHealthCheck:
             failed_records=50,
         )
         assert stats.total_records == 1000
-        
+
         data = stats.to_dict()
         assert data["pending_records"] == 50
 
@@ -294,7 +294,7 @@ class TestConnectionConfig:
     def test_connection_config_defaults(self):
         """Test ConnectionConfig default values."""
         config = ConnectionConfig(url="redis://localhost")
-        
+
         assert config.url == "redis://localhost"
         assert config.min_size == 1
         assert config.max_size == 10
@@ -311,7 +311,7 @@ class TestConnectionConfig:
             timeout_seconds=60.0,
             options={"ssl": True},
         )
-        
+
         assert config.min_size == 5
         assert config.max_size == 20
         assert config.options["ssl"] is True

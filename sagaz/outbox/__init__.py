@@ -108,7 +108,8 @@ def __getattr__(name: str):
     if name == "PostgreSQLOutboxStorage":
         from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
         return PostgreSQLOutboxStorage
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    msg = f"module {__name__!r} has no attribute {name!r}"
+    raise AttributeError(msg)
 
 
 __all__ = [

@@ -3,12 +3,14 @@ Tests for sagaz.storage.transfer module.
 """
 
 import asyncio
-from datetime import datetime, timezone
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from datetime import UTC, datetime, timezone
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from sagaz.storage.core import TransferError
 from sagaz.storage.transfer import (
     TransferConfig,
     TransferErrorPolicy,
@@ -17,43 +19,43 @@ from sagaz.storage.transfer import (
     TransferService,
     transfer_data,
 )
-from sagaz.storage.core import TransferError
 
 
 class MockExportableStorage:
     """Mock storage that supports export."""
-    
+
     def __init__(self, records: list[dict] | None = None):
         self.records = records or []
         self.imported = []
-    
+
     async def export_all(self) -> AsyncIterator[dict[str, Any]]:
         for record in self.records:
             yield record
-    
+
     async def count(self) -> int:
         return len(self.records)
 
 
 class MockImportableStorage:
     """Mock storage that supports import."""
-    
+
     def __init__(self, fail_on: list[str] | None = None):
         self.imported = []
         self.fail_on = fail_on or []
-    
+
     async def import_record(self, record: dict[str, Any]) -> None:
         record_id = record.get("saga_id") or record.get("event_id") or record.get("id")
         if record_id in self.fail_on:
-            raise Exception(f"Failed to import {record_id}")
+            msg = f"Failed to import {record_id}"
+            raise Exception(msg)
         self.imported.append(record)
-    
+
     async def load_saga_state(self, saga_id: str) -> dict | None:
         for record in self.imported:
             if record.get("saga_id") == saga_id:
                 return record
         return None
-    
+
     async def get_by_id(self, event_id: str) -> dict | None:
         for record in self.imported:
             if record.get("event_id") == event_id:
@@ -67,7 +69,7 @@ class TestTransferConfig:
     def test_default_values(self):
         """Test default configuration values."""
         config = TransferConfig()
-        
+
         assert config.batch_size == 100
         assert config.validate is True
         assert config.on_error == TransferErrorPolicy.SKIP
@@ -86,7 +88,7 @@ class TestTransferConfig:
             retry_delay_seconds=2.0,
             progress_callback=callback,
         )
-        
+
         assert config.batch_size == 50
         assert config.validate is False
         assert config.on_error == TransferErrorPolicy.ABORT
@@ -105,7 +107,7 @@ class TestTransferProgress:
     def test_default_values(self):
         """Test default progress values."""
         progress = TransferProgress()
-        
+
         assert progress.total == 0
         assert progress.transferred == 0
         assert progress.failed == 0
@@ -134,9 +136,9 @@ class TestTransferProgress:
 
     def test_elapsed_seconds(self):
         """Test elapsed time calculation."""
-        start = datetime.now(timezone.utc)
+        start = datetime.now(UTC)
         progress = TransferProgress(started_at=start)
-        
+
         # Should be very small but positive
         assert progress.elapsed_seconds >= 0
 
@@ -166,9 +168,9 @@ class TestTransferProgress:
             skipped=2,
             current_batch=3,
         )
-        
+
         data = progress.to_dict()
-        
+
         assert data["total"] == 100
         assert data["transferred"] == 50
         assert data["failed"] == 5
@@ -185,7 +187,7 @@ class TestTransferResult:
     def test_default_values(self):
         """Test default result values."""
         result = TransferResult()
-        
+
         assert result.transferred == 0
         assert result.failed == 0
         assert result.skipped == 0
@@ -217,9 +219,9 @@ class TestTransferResult:
             target="TargetStorage",
             errors=["error1", "error2"],
         )
-        
+
         data = result.to_dict()
-        
+
         assert data["transferred"] == 100
         assert data["failed"] == 5
         assert data["total_processed"] == 115
@@ -251,9 +253,9 @@ class TestTransferService:
     async def test_transfer_all_success(self, source_storage, target_storage):
         """Test successful transfer of all records."""
         service = TransferService(source_storage, target_storage)
-        
+
         result = await service.transfer_all()
-        
+
         assert result.transferred == 3
         assert result.failed == 0
         assert result.success is True
@@ -264,9 +266,9 @@ class TestTransferService:
         """Test transfer with custom config."""
         config = TransferConfig(batch_size=2, validate=False)
         service = TransferService(source_storage, target_storage, config)
-        
+
         result = await service.transfer_all()
-        
+
         assert result.transferred == 3
         assert len(target_storage.imported) == 3
 
@@ -275,9 +277,9 @@ class TestTransferService:
         """Test transfer with empty source."""
         source = MockExportableStorage([])
         service = TransferService(source, target_storage)
-        
+
         result = await service.transfer_all()
-        
+
         assert result.transferred == 0
         assert result.success is True
 
@@ -290,12 +292,12 @@ class TestTransferService:
             {"saga_id": "saga-3", "name": "Shipping"},
         ])
         target = MockImportableStorage(fail_on=["saga-2"])
-        
+
         config = TransferConfig(on_error=TransferErrorPolicy.SKIP)
         service = TransferService(source, target, config)
-        
+
         result = await service.transfer_all()
-        
+
         assert result.transferred == 2
         assert result.skipped == 1
         assert result.failed == 0
@@ -309,10 +311,10 @@ class TestTransferService:
             {"saga_id": "saga-2", "name": "Payment"},
         ])
         target = MockImportableStorage(fail_on=["saga-1"])
-        
+
         config = TransferConfig(on_error=TransferErrorPolicy.ABORT)
         service = TransferService(source, target, config)
-        
+
         with pytest.raises(Exception):
             await service.transfer_all()
 
@@ -324,16 +326,16 @@ class TestTransferService:
             {"saga_id": "saga-2", "name": "Payment"},
         ])
         target = MockImportableStorage(fail_on=["saga-2"])
-        
+
         config = TransferConfig(
             on_error=TransferErrorPolicy.RETRY,
             max_retries=2,
             retry_delay_seconds=0.01,  # Fast for tests
         )
         service = TransferService(source, target, config)
-        
+
         result = await service.transfer_all()
-        
+
         # saga-2 should fail after retries
         assert result.transferred == 1
         assert result.failed == 1
@@ -342,15 +344,15 @@ class TestTransferService:
     async def test_transfer_with_progress_callback(self, source_storage, target_storage):
         """Test transfer with progress callback."""
         progress_calls = []
-        
+
         def on_progress(transferred, failed, total):
             progress_calls.append((transferred, failed, total))
-        
+
         config = TransferConfig(batch_size=2, progress_callback=on_progress)
         service = TransferService(source_storage, target_storage, config)
-        
+
         await service.transfer_all()
-        
+
         # Should have been called for each batch
         assert len(progress_calls) >= 1
 
@@ -358,12 +360,12 @@ class TestTransferService:
     async def test_transfer_progress_property(self, source_storage, target_storage):
         """Test progress property during transfer."""
         service = TransferService(source_storage, target_storage)
-        
+
         # Before transfer
         assert service.progress.transferred == 0
-        
+
         await service.transfer_all()
-        
+
         # After transfer
         assert service.progress.transferred == 3
 
@@ -376,28 +378,28 @@ class TestTransferService:
                 for i in range(50):
                     await asyncio.sleep(0.05)  # Slow down export
                     yield {"saga_id": f"saga-{i}"}
-            
+
             async def count(self):
                 return 50
-        
+
         source = SlowSource()
-        
+
         # Batch size 1 ensures frequent checks for cancellation
         config = TransferConfig(batch_size=1)
         service = TransferService(source, target_storage, config)
-        
+
         # Start transfer in background
         async def run_transfer():
             return await service.transfer_all()
-        
+
         transfer_task = asyncio.create_task(run_transfer())
-        
+
         # Wait a bit then cancel
         await asyncio.sleep(0.1)
         service.cancel()
-        
+
         result = await transfer_task
-        
+
         # Should have transferred some but not all
         assert result.transferred < 50
         assert result.transferred > 0
@@ -407,14 +409,14 @@ class TestTransferService:
         """Test with source that doesn't support export."""
         source = MagicMock()
         del source.export_all  # Remove export_all method
-        
+
         # With ABORT policy, it should raise TransferError
         config = TransferConfig(on_error=TransferErrorPolicy.ABORT)
         service = TransferService(source, target_storage, config)
-        
+
         with pytest.raises(TransferError) as exc_info:
             await service.transfer_all()
-        
+
         assert "does not support export" in str(exc_info.value)
 
     @pytest.mark.asyncio
@@ -422,11 +424,11 @@ class TestTransferService:
         """Test with target that doesn't support import."""
         target = MagicMock()
         del target.import_record  # Remove import_record method
-        
+
         # Need to handle the error during batch transfer
         config = TransferConfig(on_error=TransferErrorPolicy.ABORT)
         service = TransferService(source_storage, target, config)
-        
+
         with pytest.raises(Exception):
             await service.transfer_all()
 
@@ -435,9 +437,9 @@ class TestTransferService:
         """Test transfer with validation enabled."""
         config = TransferConfig(validate=True)
         service = TransferService(source_storage, target_storage, config)
-        
+
         result = await service.transfer_all()
-        
+
         assert result.transferred == 3
         assert result.success is True
 
@@ -448,16 +450,16 @@ class TestTransferService:
         class BrokenTarget:
             async def import_record(self, record):
                 pass  # Doesn't actually store
-            
+
             async def load_saga_state(self, saga_id):
                 return None  # Always returns None
-        
+
         target = BrokenTarget()
         config = TransferConfig(validate=True, on_error=TransferErrorPolicy.SKIP)
         service = TransferService(source_storage, target, config)
-        
+
         result = await service.transfer_all()
-        
+
         # All records should be skipped due to validation failure
         assert result.skipped == 3
 
@@ -468,13 +470,13 @@ class TestTransferService:
             {"event_id": "evt-1", "type": "OrderCreated"},
             {"event_id": "evt-2", "type": "PaymentProcessed"},
         ])
-        
+
         # Disable validation to avoid needing load_saga_state for event_id records
         config = TransferConfig(validate=False)
         service = TransferService(source, target_storage, config)
-        
+
         result = await service.transfer_all()
-        
+
         assert result.transferred == 2
         assert len(target_storage.imported) == 2
 
@@ -484,26 +486,27 @@ class TestTransferService:
         class NoCountStorage:
             async def export_all(self):
                 yield {"saga_id": "saga-1"}
-        
+
         source = NoCountStorage()
         service = TransferService(source, target_storage)
-        
+
         result = await service.transfer_all()
-        
+
         assert result.transferred == 1
 
     @pytest.mark.asyncio
     async def test_progress_callback_exception(self, source_storage, target_storage):
         """Test that progress callback exceptions are handled."""
         def bad_callback(a, b, c):
-            raise Exception("Callback error")
-        
+            msg = "Callback error"
+            raise Exception(msg)
+
         config = TransferConfig(progress_callback=bad_callback)
         service = TransferService(source_storage, target_storage, config)
-        
+
         # Should not raise despite callback error
         result = await service.transfer_all()
-        
+
         assert result.transferred == 3
 
 
@@ -517,9 +520,9 @@ class TestTransferDataFunction:
             {"saga_id": "saga-1", "name": "Test"},
         ])
         target = MockImportableStorage()
-        
+
         result = await transfer_data(source, target)
-        
+
         assert result.transferred == 1
         assert result.success is True
 
@@ -531,7 +534,7 @@ class TestTransferDataFunction:
             {"saga_id": "saga-2"},
         ])
         target = MockImportableStorage(fail_on=["saga-1"])
-        
+
         result = await transfer_data(
             source,
             target,
@@ -539,7 +542,7 @@ class TestTransferDataFunction:
             validate=False,
             on_error="skip",
         )
-        
+
         assert result.transferred == 1
         assert result.skipped == 1
 
@@ -566,7 +569,7 @@ class TestTransferProgressEdgeCases:
     def test_progress_with_high_transferred(self):
         """Test progress properties with high transfer count."""
         import time
-        start = datetime.now(timezone.utc)
+        start = datetime.now(UTC)
         # Add tiny delay to ensure elapsed > 0
         time.sleep(0.01)
         progress = TransferProgress(
@@ -576,7 +579,7 @@ class TestTransferProgressEdgeCases:
             skipped=50,
             started_at=start,
         )
-        
+
         assert progress.elapsed_seconds > 0
         assert progress.records_per_second > 0
         assert progress.estimated_remaining_seconds >= 0
@@ -584,30 +587,30 @@ class TestTransferProgressEdgeCases:
     def test_progress_rate_with_transfers(self):
         """Test rate calculation with real elapsed time."""
         import time
-        start = datetime.now(timezone.utc)
+        start = datetime.now(UTC)
         time.sleep(0.01)  # Ensure elapsed > 0
-        
+
         progress = TransferProgress(
             total=100,
             transferred=50,
             started_at=start,
         )
-        
+
         rate = progress.records_per_second
         assert rate > 0
 
     def test_estimated_remaining_with_rate(self):
         """Test estimated remaining with positive rate."""
         import time
-        start = datetime.now(timezone.utc)
+        start = datetime.now(UTC)
         time.sleep(0.01)
-        
+
         progress = TransferProgress(
             total=100,
             transferred=10,
             started_at=start,
         )
-        
+
         # Should estimate remaining time
         remaining = progress.estimated_remaining_seconds
         assert remaining >= 0
@@ -621,19 +624,20 @@ class TestTransferServiceEdgeCases:
         """Test when source.count() raises exception."""
         class FailingCountStorage:
             async def count(self):
-                raise Exception("Count not available")
-            
+                msg = "Count not available"
+                raise Exception(msg)
+
             async def export_all(self):
                 yield {"saga_id": "saga-1"}
-        
+
         source = FailingCountStorage()
         target = MockImportableStorage()
-        
+
         config = TransferConfig(validate=False)
         service = TransferService(source, target, config)
-        
+
         result = await service.transfer_all()
-        
+
         assert result.transferred == 1
 
     @pytest.mark.asyncio
@@ -644,12 +648,12 @@ class TestTransferServiceEdgeCases:
             {"data": "value2"},
         ])
         target = MockImportableStorage()
-        
+
         config = TransferConfig(validate=True)
         service = TransferService(source, target, config)
-        
+
         result = await service.transfer_all()
-        
+
         # Should succeed (validation skipped for records without IDs)
         assert result.transferred == 2
 
@@ -659,24 +663,24 @@ class TestTransferServiceEdgeCases:
         source = MockExportableStorage([
             {"event_id": "evt-1", "type": "Created"},
         ])
-        
+
         class EventStorage:
             def __init__(self):
                 self.events = {}
-            
+
             async def import_record(self, record):
                 self.events[record["event_id"]] = record
-            
+
             async def get_by_id(self, event_id):
                 return self.events.get(event_id)
-        
+
         target = EventStorage()
-        
+
         config = TransferConfig(validate=True)
         service = TransferService(source, target, config)
-        
+
         result = await service.transfer_all()
-        
+
         assert result.transferred == 1
 
     @pytest.mark.asyncio
@@ -687,22 +691,21 @@ class TestTransferServiceEdgeCases:
             {"saga_id": "saga-2"},
         ])
         target = MockImportableStorage(fail_on=["saga-1"])
-        
+
         # Manually set an unusual policy state
         config = TransferConfig()
         service = TransferService(source, target, config)
-        
+
         # Patch the config to simulate unknown policy (edge case)
-        old_policy = service.config.on_error
-        
+
         # Create a mock policy that's none of the known ones
         class UnknownPolicy:
             value = "unknown"
-        
+
         service.config.on_error = UnknownPolicy()
-        
+
         result = await service.transfer_all()
-        
+
         # Should fall through to failed count
         assert result.failed >= 1
 
@@ -716,24 +719,24 @@ class TestTransferValidationEdgeCases:
         source = MockExportableStorage([
             {"id": "record-1", "data": "test"},
         ])
-        
+
         class IdStorage:
             def __init__(self):
                 self.records = {}
-            
+
             async def import_record(self, record):
                 self.records[record["id"]] = record
-            
+
             async def load_saga_state(self, record_id):
                 return self.records.get(record_id)
-        
+
         target = IdStorage()
-        
+
         config = TransferConfig(validate=True)
         service = TransferService(source, target, config)
-        
+
         result = await service.transfer_all()
-        
+
         assert result.transferred == 1
 
     @pytest.mark.asyncio
@@ -742,21 +745,21 @@ class TestTransferValidationEdgeCases:
         source = MockExportableStorage([
             {"event_id": "evt-1"},
         ])
-        
+
         class BrokenEventStorage:
             async def import_record(self, record):
                 pass  # Doesn't store
-            
+
             async def get_by_id(self, event_id):
                 return None  # Always fails
-        
+
         target = BrokenEventStorage()
-        
+
         config = TransferConfig(validate=True, on_error=TransferErrorPolicy.SKIP)
         service = TransferService(source, target, config)
-        
+
         result = await service.transfer_all()
-        
+
         # Should skip due to validation failure
         assert result.skipped == 1
 

@@ -13,14 +13,14 @@ try:
 except ImportError:
     TESTCONTAINERS_AVAILABLE = False
 
-
+# Mark all tests in this module as integration tests (excluded by default)
+pytestmark = pytest.mark.integration
 
 @pytest.mark.xdist_group(name="containers")
 class TestKafkaBrokerIntegration:
     """Integration tests for KafkaBroker with real Kafka container."""
 
     @pytest.mark.asyncio
-    @pytest.mark.skip
     async def test_kafka_full_lifecycle(self, kafka_container):
         """Test complete Kafka broker lifecycle: connect, publish, health_check, close."""
         from sagaz.outbox.brokers.kafka import (
@@ -31,7 +31,7 @@ class TestKafkaBrokerIntegration:
 
         if not KAFKA_AVAILABLE:
             pytest.skip("aiokafka not installed")
-        
+
         if kafka_container is None:
              pytest.skip("Kafka container not available")
 
@@ -119,7 +119,6 @@ class TestRabbitMQBrokerIntegration:
             return f"amqp://guest:guest@{host}:{port}/"
 
     @pytest.mark.asyncio
-    @pytest.mark.skip
     async def test_rabbitmq_full_lifecycle(self, rabbitmq_container):
         """Test complete RabbitMQ broker lifecycle: connect, publish, health_check, close."""
         from sagaz.outbox.brokers.rabbitmq import (

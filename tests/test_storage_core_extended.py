@@ -3,7 +3,7 @@ Additional tests for sagaz.storage.core modules to improve coverage.
 """
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from decimal import Decimal
 from enum import Enum
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -15,8 +15,8 @@ from sagaz.storage.core import (
     BaseStorage,
     ConnectionConfig,
     ConnectionManager,
-    HealthCheckResult,
     HealthCheckable,
+    HealthCheckResult,
     HealthStatus,
     SingleConnectionManager,
     StorageStatistics,
@@ -45,10 +45,10 @@ class TestBaseStorageExtended:
                 self._closed = True
 
         storage = ConcreteStorage()
-        
+
         async with storage:
             assert not storage.is_closed
-        
+
         assert storage.is_closed
 
     @pytest.mark.asyncio
@@ -60,7 +60,7 @@ class TestBaseStorageExtended:
 
         storage = ConcreteStorage()
         await storage.close()
-        
+
         result = await storage.health_check()
         assert result.status == HealthStatus.UNHEALTHY
         assert "closed" in result.message.lower()
@@ -74,14 +74,14 @@ class TestBaseStorageExtended:
             latency_ms=5.0,
             message="OK",
         )
-        
+
         class ConcreteStorage(BaseStorage):
             async def close(self):
                 pass
 
         storage = ConcreteStorage(connection_manager=mock_manager)
         result = await storage.health_check()
-        
+
         assert result.status == HealthStatus.HEALTHY
         mock_manager.health_check.assert_called_once()
 
@@ -94,7 +94,7 @@ class TestBaseStorageExtended:
 
         storage = ConcreteStorage()
         stats = await storage.get_statistics()
-        
+
         assert isinstance(stats, StorageStatistics)
         assert stats.total_records == 0
 
@@ -118,18 +118,18 @@ class TestTransferableStorageExtended:
         class ConcreteTransferable(TransferableStorage):
             async def close(self):
                 pass
-            
+
             async def export_all(self):
                 yield {}
-            
+
             async def import_record(self, record):
                 pass
-            
+
             async def count(self):
                 return 0
 
         storage = ConcreteTransferable()
-        
+
         with pytest.raises(NotImplementedError):
             await storage.clear()
 
@@ -156,10 +156,10 @@ class TestSerializationExtended:
         class Color(Enum):
             RED = "red"
             BLUE = "blue"
-        
+
         data = {"color": Color.RED}
         result = serialize(data)
-        
+
         # Should contain enum value
         assert "red" in result
 
@@ -168,7 +168,7 @@ class TestSerializationExtended:
         data = {"tags": frozenset([1, 2, 3])}
         result = serialize(data)
         parsed = deserialize(result)
-        
+
         assert parsed["tags"] == frozenset([1, 2, 3])
 
     def test_serialize_object_with_dict(self):
@@ -177,10 +177,10 @@ class TestSerializationExtended:
             def __init__(self):
                 self.name = "test"
                 self.value = 42
-        
+
         data = {"obj": Simple()}
         result = serialize(data)
-        
+
         # Should serialize the __dict__
         assert "test" in result
         assert "42" in result
@@ -200,7 +200,7 @@ class TestSerializationExtended:
 
     def test_serialize_for_redis_datetime(self):
         """Test Redis serialization handles datetime."""
-        dt = datetime(2024, 1, 15, 10, 30, tzinfo=timezone.utc)
+        dt = datetime(2024, 1, 15, 10, 30, tzinfo=UTC)
         data = {"timestamp": dt}
         result = serialize_for_redis(data)
         assert "2024-01-15" in result["timestamp"]
@@ -230,9 +230,9 @@ class TestSerializationExtended:
         """Test Redis deserialization with type schema."""
         data = {"count": "42", "enabled": "true", "rate": "3.14"}
         schema = {"count": int, "enabled": bool, "rate": float}
-        
+
         result = deserialize_from_redis(data, schema=schema)
-        
+
         assert result["count"] == 42
         assert result["enabled"] is True
         assert result["rate"] == 3.14
@@ -241,43 +241,43 @@ class TestSerializationExtended:
         """Test Redis deserialization with datetime schema."""
         data = {"timestamp": "2024-01-15T10:30:00+00:00"}
         schema = {"timestamp": datetime}
-        
+
         result = deserialize_from_redis(data, schema=schema)
-        
+
         assert isinstance(result["timestamp"], datetime)
 
     def test_deserialize_from_redis_uuid_schema(self):
         """Test Redis deserialization with UUID schema."""
         data = {"id": "12345678-1234-5678-1234-567812345678"}
         schema = {"id": UUID}
-        
+
         result = deserialize_from_redis(data, schema=schema)
-        
+
         assert isinstance(result["id"], UUID)
 
     def test_deserialize_from_redis_json_value(self):
         """Test Redis deserialization of JSON values."""
         data = {"nested": '{"key": "value"}'}
-        
+
         result = deserialize_from_redis(data)
-        
+
         assert result["nested"] == {"key": "value"}
 
     def test_deserialize_from_redis_invalid_json(self):
         """Test Redis deserialization handles invalid JSON."""
         data = {"value": "{not valid json"}
-        
+
         result = deserialize_from_redis(data)
-        
+
         # Should return as string
         assert result["value"] == "{not valid json"
 
     def test_deserialize_from_redis_empty_string(self):
         """Test Redis deserialization handles empty string as None."""
         data = {"value": ""}
-        
+
         result = deserialize_from_redis(data)
-        
+
         assert result["value"] is None
 
 
@@ -294,13 +294,13 @@ class TestHealthCheckExtended:
                     latency_ms=5.0,
                     message="OK",
                 )
-            
+
             async def get_statistics(self):
                 return StorageStatistics()
 
         checker = MockHealthCheckable()
         result = await check_health_with_timeout(checker, timeout_seconds=5.0)
-        
+
         assert result.status == HealthStatus.HEALTHY
 
     @pytest.mark.asyncio
@@ -313,13 +313,13 @@ class TestHealthCheckExtended:
                     status=HealthStatus.HEALTHY,
                     latency_ms=0,
                 )
-            
+
             async def get_statistics(self):
                 return StorageStatistics()
 
         checker = SlowHealthCheckable()
         result = await check_health_with_timeout(checker, timeout_seconds=0.1)
-        
+
         assert result.status == HealthStatus.UNHEALTHY
         assert "timed out" in result.message.lower()
 
@@ -328,14 +328,15 @@ class TestHealthCheckExtended:
         """Test health check with timeout handles exception."""
         class FailingHealthCheckable(HealthCheckable):
             async def health_check(self):
-                raise Exception("Connection failed")
-            
+                msg = "Connection failed"
+                raise Exception(msg)
+
             async def get_statistics(self):
                 return StorageStatistics()
 
         checker = FailingHealthCheckable()
         result = await check_health_with_timeout(checker, timeout_seconds=5.0)
-        
+
         assert result.status == HealthStatus.UNHEALTHY
         assert "Connection failed" in result.message
 
@@ -347,31 +348,31 @@ class TestSingleConnectionManagerExtended:
     async def test_single_connection_manager_lifecycle(self):
         """Test single connection manager lifecycle."""
         mock_conn = MagicMock()
-        
+
         class ConcreteSingle(SingleConnectionManager):
             async def _create_connection(self):
                 return mock_conn
-            
+
             async def _close_connection(self, conn):
                 pass
-            
+
             async def _is_connection_valid(self, conn):
                 return True
 
         config = ConnectionConfig(url="test://localhost")
         manager = ConcreteSingle(config)
-        
+
         # Initialize
         await manager.initialize()
         assert manager._initialized is True
-        
+
         # Acquire
         conn = await manager._acquire()
         assert conn == mock_conn
-        
+
         # Release (no-op for single connection)
         await manager._release(conn)
-        
+
         # Close
         await manager.close()
         assert manager._initialized is False
@@ -380,27 +381,27 @@ class TestSingleConnectionManagerExtended:
     async def test_single_connection_manager_reconnect(self):
         """Test reconnection when connection is invalid."""
         connection_count = [0]
-        
+
         class ReconnectingSingle(SingleConnectionManager):
             async def _create_connection(self):
                 connection_count[0] += 1
                 return MagicMock()
-            
+
             async def _close_connection(self, conn):
                 pass
-            
+
             async def _is_connection_valid(self, conn):
                 # First call returns False to trigger reconnect
                 return connection_count[0] > 1
 
         config = ConnectionConfig(url="test://localhost")
         manager = ReconnectingSingle(config)
-        
+
         await manager.initialize()
-        
+
         # First acquire, connection invalid, should reconnect
         await manager._acquire()
-        
+
         # Should have created 2 connections
         assert connection_count[0] == 2
 
@@ -410,20 +411,20 @@ class TestSingleConnectionManagerExtended:
         class ConcreteSingle(SingleConnectionManager):
             async def _create_connection(self):
                 return MagicMock()
-            
+
             async def _close_connection(self, conn):
                 pass
-            
+
             async def _is_connection_valid(self, conn):
                 return True
 
         config = ConnectionConfig(url="test://localhost")
         manager = ConcreteSingle(config)
-        
+
         # Before init
         status = manager.get_pool_status()
         assert status.size == 0
-        
+
         # After init
         await manager.initialize()
         status = manager.get_pool_status()
@@ -436,16 +437,16 @@ class TestSingleConnectionManagerExtended:
         class ConcreteSingle(SingleConnectionManager):
             async def _create_connection(self):
                 return MagicMock()
-            
+
             async def _close_connection(self, conn):
                 pass
-            
+
             async def _is_connection_valid(self, conn):
                 return True
 
         config = ConnectionConfig(url="test://localhost")
         manager = ConcreteSingle(config)
-        
+
         result = await manager.health_check()
         assert result.status == HealthStatus.UNHEALTHY
         assert "No connection" in result.message
@@ -456,17 +457,17 @@ class TestSingleConnectionManagerExtended:
         class InvalidSingle(SingleConnectionManager):
             async def _create_connection(self):
                 return MagicMock()
-            
+
             async def _close_connection(self, conn):
                 pass
-            
+
             async def _is_connection_valid(self, conn):
                 return False
 
         config = ConnectionConfig(url="test://localhost")
         manager = InvalidSingle(config)
         await manager.initialize()
-        
+
         result = await manager.health_check()
         assert result.status == HealthStatus.UNHEALTHY
 
@@ -476,17 +477,18 @@ class TestSingleConnectionManagerExtended:
         class FailingSingle(SingleConnectionManager):
             async def _create_connection(self):
                 return MagicMock()
-            
+
             async def _close_connection(self, conn):
                 pass
-            
+
             async def _is_connection_valid(self, conn):
-                raise Exception("Check failed")
+                msg = "Check failed"
+                raise Exception(msg)
 
         config = ConnectionConfig(url="test://localhost")
         manager = FailingSingle(config)
         await manager.initialize()
-        
+
         result = await manager.health_check()
         assert result.status == HealthStatus.UNHEALTHY
         assert "Check failed" in result.message
@@ -497,15 +499,15 @@ class TestSingleConnectionManagerExtended:
         class ConcreteSingle(SingleConnectionManager):
             async def _create_connection(self):
                 return MagicMock()
-            
+
             async def _close_connection(self, conn):
                 pass
-            
+
             async def _is_connection_valid(self, conn):
                 return True
 
         config = ConnectionConfig(url="test://localhost")
-        
+
         async with ConcreteSingle(config) as manager:
             assert manager._initialized
 
@@ -515,15 +517,15 @@ class TestSingleConnectionManagerExtended:
         class ConcreteSingle(SingleConnectionManager):
             async def _create_connection(self):
                 return "test_connection"
-            
+
             async def _close_connection(self, conn):
                 pass
-            
+
             async def _is_connection_valid(self, conn):
                 return True
 
         config = ConnectionConfig(url="test://localhost")
         manager = ConcreteSingle(config)
-        
+
         async with manager.acquire() as conn:
             assert conn == "test_connection"
