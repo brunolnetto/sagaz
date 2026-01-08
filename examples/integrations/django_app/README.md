@@ -1,31 +1,15 @@
 # Django Integration Example
 
-Demonstrates how to integrate Sagaz with Django.
+Demonstrates how to integrate Sagaz with Django using the **native `sagaz.integrations.django` module**.
 
 ## Features
 
-- **AppConfig Integration**: Initialize Sagaz on Django startup
-- **Settings Bridge**: Configure via `settings.SAGAZ`
-- **Sync Views**: Run async sagas in sync Django views
-- **Correlation IDs**: Request tracing via headers
+This example showcases:
 
-## Project Structure
-
-```
-django_app/
-├── manage.py
-├── config/
-│   ├── __init__.py
-│   ├── settings.py     # Django settings + SAGAZ config
-│   ├── urls.py
-│   └── wsgi.py
-└── orders/
-    ├── __init__.py
-    ├── apps.py          # AppConfig initializes Sagaz
-    ├── sagas.py         # Saga definitions
-    ├── views.py         # API views
-    └── urls.py
-```
+- **`SagaDjangoMiddleware`** - Automatic correlation ID propagation
+- **`run_saga_sync(saga, context)`** - Synchronous wrapper for async sagas
+- **`create_saga(SagaClass)`** - Create saga with correlation ID injected
+- **`get_sagaz_config()`** - Read config from Django settings
 
 ## Quick Start
 
@@ -33,76 +17,98 @@ django_app/
 # Install dependencies
 pip install -r requirements.txt
 
-# Run the server
-python manage.py runserver 0.0.0.0:8000
+# Run the app
+python manage.py runserver
 ```
 
-## API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health/` | Health check |
-| POST | `/orders/` | Create order |
-| GET | `/orders/{id}/diagram/` | Get saga Mermaid diagram |
-
-## Example Request
-
-```bash
-curl -X POST http://localhost:8000/orders/ \
-  -H "Content-Type: application/json" \
-  -H "X-Correlation-ID: my-trace-123" \
-  -d '{
-    "order_id": "ORD-001",
-    "user_id": "USER-123",
-    "items": [{"id": "ITEM-1", "name": "Widget", "quantity": 2}],
-    "amount": 99.99
-  }'
-```
-
-## Key Patterns
-
-### AppConfig Initialization
-
-```python
-# orders/apps.py
-class OrdersConfig(AppConfig):
-    name = 'orders'
-    
-    def ready(self):
-        from sagaz import SagaConfig, configure
-        from django.conf import settings
-        
-        sagaz_settings = getattr(settings, 'SAGAZ', {})
-        config = SagaConfig(
-            metrics=sagaz_settings.get('METRICS', False),
-        )
-        configure(config)
-```
+## Usage
 
 ### Settings Configuration
 
 ```python
-# config/settings.py
+# settings.py
+
+INSTALLED_APPS = [
+    ...
+    'orders',  # Your app using sagas
+]
+
+MIDDLEWARE = [
+    'django.middleware.common.CommonMiddleware',
+    'sagaz.integrations.django.SagaDjangoMiddleware',  # <-- Native middleware!
+]
+
+# Sagaz configuration
 SAGAZ = {
-    'STORAGE_URL': os.environ.get('SAGAZ_STORAGE_URL', 'memory://'),
-    'BROKER_URL': os.environ.get('SAGAZ_BROKER_URL', None),
+    'STORAGE_BACKEND': 'postgresql',
+    'STORAGE_DSN': 'postgresql://user:pass@localhost/sagaz',
     'METRICS': True,
     'LOGGING': True,
 }
 ```
 
-### Sync Saga Execution
+### Views
 
 ```python
-# orders/views.py
-def run_saga_sync(saga, context):
-    loop = asyncio.get_event_loop()
-    return loop.run_until_complete(saga.run(context))
+# views.py
+from sagaz.integrations.django import run_saga_sync, create_saga
+from sagaz.integrations._base import SagaContextManager
+
+def create_order(request):
+    # Correlation ID is set by middleware
+    correlation_id = SagaContextManager.get("correlation_id")
+    
+    # Create saga with correlation ID injected
+    saga = create_saga(OrderSaga)
+    
+    # Run async saga synchronously
+    result = run_saga_sync(saga, {
+        "order_id": "123",
+        "correlation_id": correlation_id,
+    })
+    
+    return JsonResponse(result)
 ```
 
-## Production Considerations
+## API Endpoints
 
-1. **Use PostgreSQL**: Enable proper storage for production
-2. **Celery Integration**: Dispatch long sagas to Celery workers
-3. **Transaction Atomicity**: Use `transaction.atomic()` with outbox writes
-4. **Gunicorn/uWSGI**: Run with production WSGI server
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health/` | GET | Health check |
+| `/orders/` | POST | Create order |
+| `/orders/<order_id>/` | GET | Get saga diagram |
+
+## Correlation ID
+
+The `SagaDjangoMiddleware` automatically:
+
+1. Extracts `X-Correlation-ID` from incoming request headers
+2. Generates a new UUID if not present
+3. Stores it in `SagaContextManager` and on `request.saga_correlation_id`
+4. Includes it in response headers
+5. Clears context after each request
+
+## Project Structure
+
+```
+django_app/
+├── config/
+│   ├── __init__.py
+│   ├── settings.py      # Django settings with SAGAZ config
+│   ├── urls.py          # URL routing
+│   └── wsgi.py
+├── orders/
+│   ├── __init__.py
+│   ├── apps.py          # App configuration
+│   ├── sagas.py         # OrderSaga definition
+│   ├── urls.py          # Order URLs
+│   └── views.py         # Views using native module
+├── manage.py
+└── requirements.txt
+```
+
+## Notes
+
+- Django is synchronous by default, so `run_saga_sync()` is required
+- The middleware clears context after each request for isolation
+- For async Django (ASGI), consider using `async def` views with `await saga.run()`

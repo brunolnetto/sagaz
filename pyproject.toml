@@ -17,6 +17,7 @@ sagaz = "sagaz.cli:main"
 cli = [
     "click>=8.1.0",
     "rich>=13.0.0",
+    "simple-term-menu>=1.6.0",  # Interactive arrow key menu for `sagaz examples select`
 ]
 storage = [
     # Storage backends (optional - install as needed)
@@ -49,6 +50,14 @@ prometheus = [
 ]
 
 [dependency-groups]
+ai = [
+    "langchain-openai>=1.1.7",
+    "pydantic>=2.12.5",
+    "pydantic-ai>=0.8.1",
+]
+cli = [
+    "click>=8.3.1",
+]
 dev = [
     # Testing
     "pytest==9.0.2",
@@ -81,6 +90,15 @@ dev = [
     "aiokafka>=0.12.0",
     "aio-pika>=9.0.0",
     "prometheus-client>=0.23.1",
+]
+fastapi = [
+    "fastapi>=0.128.0",
+]
+flask = [
+    "flask>=3.1.2",
+]
+sqlite = [
+    "aiosqlite>=0.22.1",
 ]
 
 # ============================================================================
@@ -260,6 +278,7 @@ exclude = [
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]

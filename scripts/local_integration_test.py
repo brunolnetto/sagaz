@@ -180,13 +180,13 @@ async def test_postgresql_outbox_storage():
     test_name = "PostgreSQL Outbox Storage"
     
     try:
-        from sagaz.outbox.storage.postgresql import ASYNCPG_AVAILABLE
+        from sagaz.storage.backends.postgresql.outbox import ASYNCPG_AVAILABLE
         
         if not ASYNCPG_AVAILABLE:
             record_result(test_name, False, "asyncpg not installed - skipping")
             return
         
-        from sagaz.outbox.storage.postgresql import PostgreSQLOutboxStorage
+        from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
         from sagaz.outbox.types import OutboxEvent
         
         # Connect to local PostgreSQL (from docker-compose)
@@ -295,7 +295,7 @@ async def test_outbox_pattern():
     test_name = "Outbox Pattern E2E"
     
     try:
-        from sagaz.outbox.storage.postgresql import ASYNCPG_AVAILABLE
+        from sagaz.storage.backends.postgresql.outbox import ASYNCPG_AVAILABLE
         from sagaz.outbox.brokers.redis import REDIS_AVAILABLE
         
         if not ASYNCPG_AVAILABLE:
@@ -306,7 +306,7 @@ async def test_outbox_pattern():
             record_result(test_name, False, "redis not installed - skipping")
             return
         
-        from sagaz.outbox.storage.postgresql import PostgreSQLOutboxStorage
+        from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
         from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
         from sagaz.outbox.types import OutboxEvent, OutboxConfig
         from sagaz.outbox.worker import OutboxWorker

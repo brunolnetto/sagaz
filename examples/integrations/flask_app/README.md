@@ -1,13 +1,15 @@
 # Flask Integration Example
 
-Demonstrates how to integrate Sagaz with Flask using the extension pattern.
+Demonstrates how to integrate Sagaz with Flask using the **native `sagaz.integrations.flask` module**.
 
 ## Features
 
-- **Extension Pattern**: Standard Flask extension initialization
-- **Sync Wrapper**: `run_sync()` for blocking saga execution
-- **Correlation IDs**: Request tracing via headers
-- **Simple Structure**: Minimal boilerplate
+This example showcases:
+
+- **`SagaFlask(app, config)`** - Flask extension for lifecycle management
+- **`run_saga_sync(saga, context)`** - Synchronous wrapper for async sagas
+- **Automatic correlation ID** - Propagated via request hooks
+- **`create_saga(SagaClass)`** - Create saga with correlation ID injected
 
 ## Quick Start
 
@@ -15,67 +17,63 @@ Demonstrates how to integrate Sagaz with Flask using the extension pattern.
 # Install dependencies
 pip install -r requirements.txt
 
-# Run the server
+# Run the app
 flask run --reload
 
 # Or directly
 python main.py
 ```
 
-## API Endpoints
+## Usage
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Health check |
-| POST | `/orders` | Create order |
-| GET | `/orders/{id}/diagram` | Get saga Mermaid diagram |
-
-## Example Request
-
-```bash
-curl -X POST http://localhost:5000/orders \
-  -H "Content-Type: application/json" \
-  -H "X-Correlation-ID: my-trace-123" \
-  -d '{
-    "order_id": "ORD-001",
-    "user_id": "USER-123",
-    "items": [{"id": "ITEM-1", "name": "Widget", "quantity": 2}],
-    "amount": 99.99
-  }'
-```
-
-## Key Patterns
-
-### Extension Initialization
+### Native Integration Module
 
 ```python
-from flask import Flask
-from main import SagazExtension
+from sagaz.integrations.flask import SagaFlask, run_saga_sync
 
+# Create Flask app with Sagaz extension
 app = Flask(__name__)
-app.config["SAGAZ_STORAGE_URL"] = "postgresql://..."
+config = SagaConfig(metrics=True, logging=True)
+sagaz = SagaFlask(app, config)  # <-- Native extension!
 
-sagaz = SagazExtension(app)
-```
-
-### Sync Saga Execution
-
-```python
 @app.route("/orders", methods=["POST"])
 def create_order():
     saga = sagaz.create_saga(OrderSaga)
-    result = sagaz.run_sync(saga, context)  # Blocking call
-    return jsonify({"saga_id": result["saga_id"]})
+    result = sagaz.run_sync(saga, {"order_id": "123"})
+    return jsonify(result)
 ```
 
-## Limitations
+### Standalone Function
 
-- **Sync Only**: Flask is typically sync; async sagas are wrapped
-- **Blocking**: Long sagas block request threads
-- **No BackgroundTasks**: Use Celery or similar for async workloads
+```python
+from sagaz.integrations.flask import run_saga_sync
 
-## Production Considerations
+# Works without the extension
+saga = OrderSaga()
+result = run_saga_sync(saga, {"order_id": "123"})
+```
 
-1. **Use Celery**: For long-running sagas, dispatch to Celery workers
-2. **Connection Pools**: Enable PostgreSQL/Redis connection pooling
-3. **Gunicorn**: Run with multiple workers for concurrency
+## API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Health check |
+| `/orders` | POST | Create order using extension |
+| `/orders/standalone` | POST | Create order using standalone function |
+| `/orders/<order_id>/diagram` | GET | Get saga Mermaid diagram |
+
+## Correlation ID
+
+The `SagaFlask` extension automatically:
+
+1. Extracts `X-Correlation-ID` from incoming request headers
+2. Generates a new UUID if not present
+3. Stores it in `flask.g.saga_correlation_id`
+4. Includes it in response headers
+5. Injects it into sagas created via `create_saga()`
+
+## Notes
+
+- `run_sync()` blocks the request thread - keep sagas short
+- For long-running sagas, consider using Celery
+- Flask's sync nature means one saga per request thread

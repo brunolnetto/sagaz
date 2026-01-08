@@ -21,7 +21,9 @@ import logging
 from abc import ABC
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from sagaz.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class SagaListener(ABC):
@@ -81,9 +83,19 @@ class LoggingSagaListener(SagaListener):
         ...     listeners = [LoggingSagaListener(level=logging.DEBUG)]
     """
 
-    def __init__(self, logger_instance: logging.Logger | None = None, level: int = logging.INFO):
-        self.log = logger_instance or logger
-        self.level = level
+    def __init__(self, logger_instance=None, level: int | str = logging.INFO):
+        self._logger_instance = logger_instance
+        if isinstance(level, str):
+            self.level = getattr(logging, level.upper(), logging.INFO)
+        else:
+            self.level = level
+    
+    @property
+    def log(self):
+        """Get logger - uses dynamic get_logger() if no instance provided."""
+        if self._logger_instance is not None:
+            return self._logger_instance
+        return get_logger(__name__)
 
     async def on_saga_start(self, saga_name: str, saga_id: str, ctx: dict[str, Any]) -> None:
         self.log.log(self.level, f"[SAGA] Starting: {saga_name} (id={saga_id})")
