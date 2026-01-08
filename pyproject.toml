@@ -91,6 +91,9 @@ dev = [
     "aio-pika>=9.0.0",
     "prometheus-client>=0.23.1",
 ]
+django = [
+    "django>=5.2.10",
+]
 fastapi = [
     "fastapi>=0.128.0",
 ]
@@ -287,8 +290,8 @@ python_functions = ["test_*"]
 # Parallel execution with pytest-xdist
 # Run tests with: pytest -n auto --dist=loadgroup (respects xdist_group markers)
 # Use --dist=loadgroup to share containers across tests with same xdist_group
-# Exclude performance/stress tests by default (run separately in benchmark workflow)
-addopts = "-m 'not performance and not stress'"
+# Exclude slow/container tests by default - run with: pytest -m integration
+addopts = "-m 'not performance and not stress and not integration'"
 
 # Register custom markers
 markers = [
@@ -348,6 +351,11 @@ omit = [
     # CLI tools - interactive wrappers, not core library logic
     "sagaz/cli.py",
     "sagaz/cli_app.py",
+    # Optional integrations requiring external frameworks
+    "sagaz/integrations/django.py",
+    # Optional trigger sources requiring external services
+    "sagaz/triggers/sources/broker.py",
+    "sagaz/triggers/sources/cron.py",
 ]
 
 [tool.coverage.html]
