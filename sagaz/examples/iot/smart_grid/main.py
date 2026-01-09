@@ -206,7 +206,7 @@ class SmartGridEnergySaga(Saga):
 
         logger.info(
             f"   ✅ Monitored: {monitoring_result['actual_reduction_mw']:.2f} MW reduction "
-            f"({(monitoring_result['actual_reduction_mw']/target_reduction_mw)*100:.1f}% of target)"
+            f"({(monitoring_result['actual_reduction_mw'] / target_reduction_mw) * 100:.1f}% of target)"
         )
         return monitoring_result
 
@@ -347,7 +347,6 @@ async def main():
 
     await saga.run(success_data)
 
-
     # Scenario 2: Communication failure with automatic rollback
 
     failure_data = {
@@ -363,8 +362,6 @@ async def main():
         await saga.run(failure_data)
     except Exception:
         pass
-
-
 
 
 if __name__ == "__main__":

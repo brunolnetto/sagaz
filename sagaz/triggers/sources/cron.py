@@ -75,11 +75,11 @@ def _matches_cron(expression: str, dt: datetime) -> bool:
     try:
         cron = _parse_cron(expression)
         return (
-            _matches_field(cron["minute"], dt.minute) and
-            _matches_field(cron["hour"], dt.hour) and
-            _matches_field(cron["day"], dt.day) and
-            _matches_field(cron["month"], dt.month) and
-            _matches_field(cron["weekday"], dt.weekday())
+            _matches_field(cron["minute"], dt.minute)
+            and _matches_field(cron["hour"], dt.hour)
+            and _matches_field(cron["day"], dt.day)
+            and _matches_field(cron["month"], dt.month)
+            and _matches_field(cron["weekday"], dt.weekday())
         )
     except Exception as e:
         logger.error(f"Error parsing cron expression '{expression}': {e}")
@@ -175,7 +175,9 @@ class CronScheduler:
                     "trigger_name": trigger.method_name,
                 }
 
-                logger.debug(f"Cron trigger matched: {trigger.saga_class.__name__}.{trigger.method_name}")
+                logger.debug(
+                    f"Cron trigger matched: {trigger.saga_class.__name__}.{trigger.method_name}"
+                )
 
                 # Fire event (will trigger the saga)
                 ids = await fire_event("cron", event_data)

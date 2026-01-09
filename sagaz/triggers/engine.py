@@ -50,8 +50,7 @@ class TriggerEngine:
         logger.info(f"Processing event from '{source}' for {len(triggers)} triggers")
 
         results = await asyncio.gather(
-            *[self._process_trigger(t, payload) for t in triggers],
-            return_exceptions=True
+            *[self._process_trigger(t, payload) for t in triggers], return_exceptions=True
         )
 
         # Filter out None and exceptions
@@ -101,7 +100,9 @@ class TriggerEngine:
             return False
         return True
 
-    async def _resolve_saga_id(self, metadata: TriggerMetadata, payload: Any, saga_class) -> tuple[str | None, bool]:
+    async def _resolve_saga_id(
+        self, metadata: TriggerMetadata, payload: Any, saga_class
+    ) -> tuple[str | None, bool]:
         """
         Resolve saga ID with idempotency check.
 
@@ -207,8 +208,7 @@ class TriggerEngine:
 
         try:
             running = await self.storage.list_sagas(
-                saga_name=saga_name,
-                status=SagaStatus.EXECUTING
+                saga_name=saga_name, status=SagaStatus.EXECUTING
             )
             current_count = len(running) if running else 0
             return current_count < max_concurrent

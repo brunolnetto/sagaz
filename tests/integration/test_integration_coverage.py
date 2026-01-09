@@ -271,16 +271,18 @@ class TestRedisOutboxStorageIntegration:
                 consumer_group="import-workers",
             ) as storage2:
                 # Provide full record to ensure no fields are None that Redis doesn't like
-                await storage2.import_record({
-                    "event_id": "imported-event-id",
-                    "saga_id": "imported-saga",
-                    "event_type": "imported.event",
-                    "payload": {"imported": True},
-                    "aggregate_id": "imported-saga",  # Explicitly provide to avoid None
-                    "aggregate_type": "saga",
-                    "status": "pending",
-                    "retry_count": 0,
-                })
+                await storage2.import_record(
+                    {
+                        "event_id": "imported-event-id",
+                        "saga_id": "imported-saga",
+                        "event_type": "imported.event",
+                        "payload": {"imported": True},
+                        "aggregate_id": "imported-saga",  # Explicitly provide to avoid None
+                        "aggregate_type": "saga",
+                        "status": "pending",
+                        "retry_count": 0,
+                    }
+                )
 
                 # Verify import
                 count = await storage2.count()
@@ -349,7 +351,9 @@ class TestPostgreSQLSagaStorageIntegration:
 
         async with PostgreSQLSagaStorage(connection_string=conn_string) as storage:
             # Insert sagas with different statuses
-            for i, status in enumerate([SagaStatus.COMPLETED, SagaStatus.ROLLED_BACK, SagaStatus.FAILED]):
+            for i, status in enumerate(
+                [SagaStatus.COMPLETED, SagaStatus.ROLLED_BACK, SagaStatus.FAILED]
+            ):
                 await storage.save_saga_state(
                     saga_id=f"saga-filter-{i}",
                     saga_name=f"FilterTest{i}",

@@ -294,7 +294,9 @@ def _build_example_menu_entries(sorted_examples: list) -> list[str]:  # pragma: 
     return menu_entries
 
 
-def _handle_menu_selection(menu_entries: list[str], sorted_examples: list) -> str:  # pragma: no cover
+def _handle_menu_selection(
+    menu_entries: list[str], sorted_examples: list
+) -> str:  # pragma: no cover
     """Handle menu selection. Returns 'back', 'exit', or 'continue'."""
     menu = TerminalMenu(
         menu_entries,

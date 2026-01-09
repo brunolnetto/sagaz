@@ -109,10 +109,8 @@ class SagaFlask:
             thread = threading.Thread(target=process_in_thread, daemon=True)
             thread.start()
 
-            return jsonify({
-                "status": "accepted",
-                "source": source,
-                "message": "Event queued for processing"
-            }), 202  # Accepted
+            return jsonify(
+                {"status": "accepted", "source": source, "message": "Event queued for processing"}
+            ), 202  # Accepted
 
         self.app.register_blueprint(bp)

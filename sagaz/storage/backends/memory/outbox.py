@@ -17,12 +17,14 @@ if TYPE_CHECKING:  # pragma: no cover
 def _get_outbox_status():
     """Lazy import of OutboxStatus to avoid circular imports."""
     from sagaz.outbox.types import OutboxStatus
+
     return OutboxStatus
 
 
 def _get_outbox_event():
     """Lazy import of OutboxEvent to avoid circular imports."""
     from sagaz.outbox.types import OutboxEvent
+
     return OutboxEvent
 
 
@@ -153,7 +155,9 @@ class InMemoryOutboxStorage(OutboxStorage):
         """Get dead letter events."""
         outbox_status_cls = _get_outbox_status()
         return [
-            e for e in list(self._events.values())[:limit] if e.status == outbox_status_cls.DEAD_LETTER
+            e
+            for e in list(self._events.values())[:limit]
+            if e.status == outbox_status_cls.DEAD_LETTER
         ]
 
     def clear(self) -> None:

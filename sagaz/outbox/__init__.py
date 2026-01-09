@@ -98,15 +98,19 @@ def __getattr__(name: str):
     """Lazy import for storage classes to avoid circular imports."""
     if name == "InMemoryOutboxStorage":
         from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
+
         return InMemoryOutboxStorage
     if name == "OutboxStorage":
         from sagaz.storage.interfaces.outbox import OutboxStorage
+
         return OutboxStorage
     if name == "OutboxStorageError":
         from sagaz.storage.interfaces.outbox import OutboxStorageError
+
         return OutboxStorageError
     if name == "PostgreSQLOutboxStorage":
         from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
+
         return PostgreSQLOutboxStorage
     msg = f"module {__name__!r} has no attribute {name!r}"
     raise AttributeError(msg)

@@ -184,7 +184,6 @@ async def main():
     saga = OrderSaga()
     storage = InMemorySagaStorage()
 
-
     # CASE 0: Overall Saga Structure (static diagram, no execution trail)
     diagram_overall = saga.to_mermaid()
 
@@ -276,7 +275,6 @@ async def main():
 
     with Path("saga_failure_with_duration.mmd").open("w", encoding="utf-8") as f:
         f.write(f"```mermaid\n{diagram_fail_with_duration}\n```")
-
 
 
 if __name__ == "__main__":

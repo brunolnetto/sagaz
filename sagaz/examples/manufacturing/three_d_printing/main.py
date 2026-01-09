@@ -93,15 +93,15 @@ class ThreeDPrintingSaga(Saga):
 
 
 async def main():
-
     saga = ThreeDPrintingSaga()
-    await saga.run({
-        "job_id": "PRINT-2026-001",
-        "model_file": "widget_v2.stl",
-        "printer_id": "PRUSA-MK4-01",
-        "material": "PLA",
-    })
-
+    await saga.run(
+        {
+            "job_id": "PRINT-2026-001",
+            "model_file": "widget_v2.stl",
+            "printer_id": "PRUSA-MK4-01",
+            "material": "PLA",
+        }
+    )
 
 
 if __name__ == "__main__":

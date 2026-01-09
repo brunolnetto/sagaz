@@ -17,6 +17,7 @@ import pytest
 # Check redis availability upfront
 try:
     import redis.asyncio
+
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
@@ -142,24 +143,26 @@ class TestRedisOutboxStorageCoverage:
         """Test get_by_id() method."""
         from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
 
-        mock_redis.hgetall = AsyncMock(return_value={
-            b"event_id": b"evt-123",
-            b"saga_id": b"saga-456",
-            b"aggregate_type": b"saga",
-            b"aggregate_id": b"",
-            b"event_type": b"TestEvent",
-            b"payload": b'{"data": "test"}',
-            b"headers": b"{}",
-            b"status": b"pending",
-            b"retry_count": b"0",
-            b"created_at": b"2024-01-01T00:00:00+00:00",
-            b"claimed_at": b"",
-            b"sent_at": b"",
-            b"last_error": b"",
-            b"worker_id": b"",
-            b"routing_key": b"",
-            b"partition_key": b"",
-        })
+        mock_redis.hgetall = AsyncMock(
+            return_value={
+                b"event_id": b"evt-123",
+                b"saga_id": b"saga-456",
+                b"aggregate_type": b"saga",
+                b"aggregate_id": b"",
+                b"event_type": b"TestEvent",
+                b"payload": b'{"data": "test"}',
+                b"headers": b"{}",
+                b"status": b"pending",
+                b"retry_count": b"0",
+                b"created_at": b"2024-01-01T00:00:00+00:00",
+                b"claimed_at": b"",
+                b"sent_at": b"",
+                b"last_error": b"",
+                b"worker_id": b"",
+                b"routing_key": b"",
+                b"partition_key": b"",
+            }
+        )
 
         with patch("redis.asyncio.from_url", return_value=mock_redis):
             storage = RedisOutboxStorage()
@@ -194,24 +197,26 @@ class TestRedisOutboxStorageCoverage:
 
         mock_redis.hset = AsyncMock()
         mock_redis.hdel = AsyncMock()
-        mock_redis.hgetall = AsyncMock(return_value={
-            b"event_id": b"evt-123",
-            b"saga_id": b"saga-456",
-            b"event_type": b"TestEvent",
-            b"payload": b"{}",
-            b"headers": b"{}",
-            b"status": b"sent",
-            b"retry_count": b"0",
-            b"created_at": b"",
-            b"claimed_at": b"",
-            b"sent_at": b"2024-01-01T00:00:00+00:00",
-            b"last_error": b"",
-            b"worker_id": b"",
-            b"routing_key": b"",
-            b"partition_key": b"",
-            b"aggregate_type": b"saga",
-            b"aggregate_id": b"",
-        })
+        mock_redis.hgetall = AsyncMock(
+            return_value={
+                b"event_id": b"evt-123",
+                b"saga_id": b"saga-456",
+                b"event_type": b"TestEvent",
+                b"payload": b"{}",
+                b"headers": b"{}",
+                b"status": b"sent",
+                b"retry_count": b"0",
+                b"created_at": b"",
+                b"claimed_at": b"",
+                b"sent_at": b"2024-01-01T00:00:00+00:00",
+                b"last_error": b"",
+                b"worker_id": b"",
+                b"routing_key": b"",
+                b"partition_key": b"",
+                b"aggregate_type": b"saga",
+                b"aggregate_id": b"",
+            }
+        )
 
         with patch("redis.asyncio.from_url", return_value=mock_redis):
             storage = RedisOutboxStorage()
@@ -230,33 +235,33 @@ class TestRedisOutboxStorageCoverage:
 
         mock_redis.hset = AsyncMock()
         mock_redis.hdel = AsyncMock()
-        mock_redis.hgetall = AsyncMock(return_value={
-            b"event_id": b"evt-123",
-            b"saga_id": b"saga-456",
-            b"event_type": b"TestEvent",
-            b"payload": b"{}",
-            b"headers": b"{}",
-            b"status": b"failed",
-            b"retry_count": b"1",
-            b"created_at": b"",
-            b"claimed_at": b"",
-            b"sent_at": b"",
-            b"last_error": b"Connection refused",
-            b"worker_id": b"",
-            b"routing_key": b"",
-            b"partition_key": b"",
-            b"aggregate_type": b"saga",
-            b"aggregate_id": b"",
-        })
+        mock_redis.hgetall = AsyncMock(
+            return_value={
+                b"event_id": b"evt-123",
+                b"saga_id": b"saga-456",
+                b"event_type": b"TestEvent",
+                b"payload": b"{}",
+                b"headers": b"{}",
+                b"status": b"failed",
+                b"retry_count": b"1",
+                b"created_at": b"",
+                b"claimed_at": b"",
+                b"sent_at": b"",
+                b"last_error": b"Connection refused",
+                b"worker_id": b"",
+                b"routing_key": b"",
+                b"partition_key": b"",
+                b"aggregate_type": b"saga",
+                b"aggregate_id": b"",
+            }
+        )
 
         with patch("redis.asyncio.from_url", return_value=mock_redis):
             storage = RedisOutboxStorage()
             await storage.initialize()
 
             event = await storage.update_status(
-                "evt-123",
-                OutboxStatus.FAILED,
-                error_message="Connection refused"
+                "evt-123", OutboxStatus.FAILED, error_message="Connection refused"
             )
 
             assert event.status == OutboxStatus.FAILED
@@ -297,29 +302,33 @@ class TestRedisOutboxStorageCoverage:
         from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
 
         # Mock scan to return keys
-        mock_redis.scan = AsyncMock(side_effect=[
-            (0, [b"sagaz:outbox:meta:evt-1"]),
-        ])
+        mock_redis.scan = AsyncMock(
+            side_effect=[
+                (0, [b"sagaz:outbox:meta:evt-1"]),
+            ]
+        )
 
         # Mock hgetall to return matching event
-        mock_redis.hgetall = AsyncMock(return_value={
-            b"event_id": b"evt-1",
-            b"saga_id": b"saga-target",
-            b"event_type": b"TestEvent",
-            b"payload": b"{}",
-            b"headers": b"{}",
-            b"status": b"pending",
-            b"retry_count": b"0",
-            b"created_at": b"",
-            b"claimed_at": b"",
-            b"sent_at": b"",
-            b"last_error": b"",
-            b"worker_id": b"",
-            b"routing_key": b"",
-            b"partition_key": b"",
-            b"aggregate_type": b"saga",
-            b"aggregate_id": b"",
-        })
+        mock_redis.hgetall = AsyncMock(
+            return_value={
+                b"event_id": b"evt-1",
+                b"saga_id": b"saga-target",
+                b"event_type": b"TestEvent",
+                b"payload": b"{}",
+                b"headers": b"{}",
+                b"status": b"pending",
+                b"retry_count": b"0",
+                b"created_at": b"",
+                b"claimed_at": b"",
+                b"sent_at": b"",
+                b"last_error": b"",
+                b"worker_id": b"",
+                b"routing_key": b"",
+                b"partition_key": b"",
+                b"aggregate_type": b"saga",
+                b"aggregate_id": b"",
+            }
+        )
 
         with patch("redis.asyncio.from_url", return_value=mock_redis):
             storage = RedisOutboxStorage()
@@ -437,27 +446,31 @@ class TestRedisOutboxStorageCoverage:
         """Test get_stuck_events() method."""
         from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
 
-        mock_redis.xpending_range = AsyncMock(return_value=[
-            {"time_since_delivered": 400000, "message_id": b"msg-1"},
-        ])
-        mock_redis.hgetall = AsyncMock(return_value={
-            b"event_id": b"evt-1",
-            b"saga_id": b"saga-1",
-            b"event_type": b"TestEvent",
-            b"payload": b"{}",
-            b"headers": b"{}",
-            b"status": b"claimed",
-            b"retry_count": b"0",
-            b"created_at": b"",
-            b"claimed_at": b"",
-            b"sent_at": b"",
-            b"last_error": b"",
-            b"worker_id": b"",
-            b"routing_key": b"",
-            b"partition_key": b"",
-            b"aggregate_type": b"saga",
-            b"aggregate_id": b"",
-        })
+        mock_redis.xpending_range = AsyncMock(
+            return_value=[
+                {"time_since_delivered": 400000, "message_id": b"msg-1"},
+            ]
+        )
+        mock_redis.hgetall = AsyncMock(
+            return_value={
+                b"event_id": b"evt-1",
+                b"saga_id": b"saga-1",
+                b"event_type": b"TestEvent",
+                b"payload": b"{}",
+                b"headers": b"{}",
+                b"status": b"claimed",
+                b"retry_count": b"0",
+                b"created_at": b"",
+                b"claimed_at": b"",
+                b"sent_at": b"",
+                b"last_error": b"",
+                b"worker_id": b"",
+                b"routing_key": b"",
+                b"partition_key": b"",
+                b"aggregate_type": b"saga",
+                b"aggregate_id": b"",
+            }
+        )
 
         with patch("redis.asyncio.from_url", return_value=mock_redis):
             storage = RedisOutboxStorage()
@@ -487,9 +500,11 @@ class TestRedisOutboxStorageCoverage:
         """Test release_stuck_events() method."""
         from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
 
-        mock_redis.xpending_range = AsyncMock(return_value=[
-            {"time_since_delivered": 400000, "message_id": b"msg-1"},
-        ])
+        mock_redis.xpending_range = AsyncMock(
+            return_value=[
+                {"time_since_delivered": 400000, "message_id": b"msg-1"},
+            ]
+        )
         mock_redis.xclaim = AsyncMock()
 
         with patch("redis.asyncio.from_url", return_value=mock_redis):
@@ -520,27 +535,31 @@ class TestRedisOutboxStorageCoverage:
         """Test get_dead_letter_events() method."""
         from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
 
-        mock_redis.xrange = AsyncMock(return_value=[
-            (b"msg-1", {b"event_id": b"evt-1"}),
-        ])
-        mock_redis.hgetall = AsyncMock(return_value={
-            b"event_id": b"evt-1",
-            b"saga_id": b"saga-1",
-            b"event_type": b"TestEvent",
-            b"payload": b"{}",
-            b"headers": b"{}",
-            b"status": b"dead_letter",
-            b"retry_count": b"10",
-            b"created_at": b"",
-            b"claimed_at": b"",
-            b"sent_at": b"",
-            b"last_error": b"Max retries exceeded",
-            b"worker_id": b"",
-            b"routing_key": b"",
-            b"partition_key": b"",
-            b"aggregate_type": b"saga",
-            b"aggregate_id": b"",
-        })
+        mock_redis.xrange = AsyncMock(
+            return_value=[
+                (b"msg-1", {b"event_id": b"evt-1"}),
+            ]
+        )
+        mock_redis.hgetall = AsyncMock(
+            return_value={
+                b"event_id": b"evt-1",
+                b"saga_id": b"saga-1",
+                b"event_type": b"TestEvent",
+                b"payload": b"{}",
+                b"headers": b"{}",
+                b"status": b"dead_letter",
+                b"retry_count": b"10",
+                b"created_at": b"",
+                b"claimed_at": b"",
+                b"sent_at": b"",
+                b"last_error": b"Max retries exceeded",
+                b"worker_id": b"",
+                b"routing_key": b"",
+                b"partition_key": b"",
+                b"aggregate_type": b"saga",
+                b"aggregate_id": b"",
+            }
+        )
 
         with patch("redis.asyncio.from_url", return_value=mock_redis):
             storage = RedisOutboxStorage()
@@ -573,6 +592,7 @@ class TestRedisOutboxStorageCoverage:
 # Check aiosqlite availability
 try:
     import aiosqlite
+
     AIOSQLITE_AVAILABLE = True
 except ImportError:
     AIOSQLITE_AVAILABLE = False
@@ -746,13 +766,15 @@ class TestSQLiteSagaStorageCoverage:
         from sagaz.storage.backends.sqlite.saga import SQLiteSagaStorage
 
         async with SQLiteSagaStorage(":memory:") as storage:
-            await storage.import_record({
-                "saga_id": "imported-saga",
-                "saga_name": "ImportedSaga",
-                "status": "completed",
-                "steps": [{"name": "step1"}],
-                "context": {"data": "test"},
-            })
+            await storage.import_record(
+                {
+                    "saga_id": "imported-saga",
+                    "saga_name": "ImportedSaga",
+                    "status": "completed",
+                    "steps": [{"name": "step1"}],
+                    "context": {"data": "test"},
+                }
+            )
 
             saga = await storage.load_saga_state("imported-saga")
 
@@ -887,13 +909,15 @@ class TestSQLiteOutboxStorageCoverage:
         from sagaz.storage.backends.sqlite.outbox import SQLiteOutboxStorage
 
         async with SQLiteOutboxStorage(":memory:") as storage:
-            await storage.import_record({
-                "event_id": "evt-imported",
-                "saga_id": "imported-saga",
-                "event_type": "ImportedEvent",
-                "payload": {"data": "test"},
-                "status": "pending",
-            })
+            await storage.import_record(
+                {
+                    "event_id": "evt-imported",
+                    "saga_id": "imported-saga",
+                    "event_type": "ImportedEvent",
+                    "payload": {"data": "test"},
+                    "status": "pending",
+                }
+            )
 
             event = await storage.get_by_id("evt-imported")
 
@@ -970,6 +994,7 @@ class TestSQLiteOutboxStorageCoverage:
 # Check asyncpg availability
 try:
     import asyncpg
+
     ASYNCPG_AVAILABLE = True
 except ImportError:
     ASYNCPG_AVAILABLE = False
@@ -1035,13 +1060,15 @@ class TestPostgreSQLOutboxStorageCoverage:
         # Mock insert method
         storage.insert = AsyncMock()
 
-        await storage.import_record({
-            "event_id": "evt-123",
-            "saga_id": "saga-456",
-            "event_type": "TestEvent",
-            "payload": {"data": "test"},
-            "status": "pending",
-        })
+        await storage.import_record(
+            {
+                "event_id": "evt-123",
+                "saga_id": "saga-456",
+                "event_type": "TestEvent",
+                "payload": {"data": "test"},
+                "status": "pending",
+            }
+        )
 
         storage.insert.assert_called_once()
         call_args = storage.insert.call_args[0][0]
@@ -1090,13 +1117,15 @@ class TestInMemoryOutboxStorageCoverage:
 
         storage = InMemoryOutboxStorage()
 
-        await storage.import_record({
-            "event_id": "evt-imported",
-            "saga_id": "imported-saga",
-            "event_type": "ImportedEvent",
-            "payload": {"data": "test"},
-            "status": "pending",
-        })
+        await storage.import_record(
+            {
+                "event_id": "evt-imported",
+                "saga_id": "imported-saga",
+                "event_type": "ImportedEvent",
+                "payload": {"data": "test"},
+                "status": "pending",
+            }
+        )
 
         event = await storage.get_by_id("evt-imported")
 
@@ -1227,4 +1256,3 @@ class TestLazyGetAttrCompatModules:
         assert PostgreSQLOutboxStorage is not None
         assert OutboxStorage is not None
         assert OutboxStorageError is not None
-

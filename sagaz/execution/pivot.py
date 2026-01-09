@@ -249,10 +249,7 @@ class SagaZones:
 
 
 # Type aliases for forward recovery handlers
-ForwardRecoveryHandler = Callable[
-    [dict[str, Any], Exception],
-    Awaitable[RecoveryAction]
-]
+ForwardRecoveryHandler = Callable[[dict[str, Any], Exception], Awaitable[RecoveryAction]]
 """
 Type alias for forward recovery handler functions.
 
@@ -399,7 +396,11 @@ class TaintPropagator:
 
         # Everything else before pivots is reversible
         for step_name in self.step_names:
-            if step_name not in zones.pivots and step_name not in zones.tainted and step_name not in zones.committed:
+            if (
+                step_name not in zones.pivots
+                and step_name not in zones.tainted
+                and step_name not in zones.committed
+            ):
                 zones.reversible.add(step_name)
 
         return zones

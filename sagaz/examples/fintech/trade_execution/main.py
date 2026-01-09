@@ -79,9 +79,7 @@ class TradeExecutionSaga(Saga):
         quantity = ctx.get("quantity")
         price = ctx.get("price")
 
-        logger.info(
-            f"Executing trade {trade_id}: {symbol} x{quantity} @ ${price}"
-        )
+        logger.info(f"Executing trade {trade_id}: {symbol} x{quantity} @ ${price}")
         await asyncio.sleep(0.3)
 
         return {
@@ -228,25 +226,27 @@ async def main():
     saga = TradeExecutionSaga()
 
     # Execute first trade
-    await saga.run({
-        "trade_id": 12345,
-        "symbol": "AAPL",
-        "quantity": 100,
-        "price": 150.00,
-        "user_id": 789,
-    })
-
+    await saga.run(
+        {
+            "trade_id": 12345,
+            "symbol": "AAPL",
+            "quantity": 100,
+            "price": 150.00,
+            "user_id": 789,
+        }
+    )
 
     # Demonstrate reusability - same saga, different trade
 
-    await saga.run({
-        "trade_id": 67890,
-        "symbol": "GOOGL",
-        "quantity": 50,
-        "price": 175.00,
-        "user_id": 789,
-    })
-
+    await saga.run(
+        {
+            "trade_id": 67890,
+            "symbol": "GOOGL",
+            "quantity": 50,
+            "price": 175.00,
+            "user_id": 789,
+        }
+    )
 
 
 if __name__ == "__main__":

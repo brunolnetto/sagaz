@@ -205,7 +205,9 @@ class HealthcarePatientOnboardingSaga(Saga):
             "location": "Main Street Clinic - Room 3",
         }
 
-        logger.info(f"   ✅ Appointment scheduled for {appointment['date']} at {appointment['time']}")
+        logger.info(
+            f"   ✅ Appointment scheduled for {appointment['date']} at {appointment['time']}"
+        )
         return appointment
 
     @compensate("schedule_initial_appointment")
@@ -270,7 +272,6 @@ async def main():
 
     await saga.run(patient_data_success)
 
-
     # Scenario 2: EHR system failure with automatic PHI purging
 
     patient_data_failure = {
@@ -288,8 +289,6 @@ async def main():
         await saga.run(patient_data_failure)
     except Exception:
         pass
-
-
 
 
 if __name__ == "__main__":

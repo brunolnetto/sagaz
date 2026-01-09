@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 # Simulation Helpers
 # =============================================================================
 
+
 class MESSimulator:
     """Manufacturing Execution System (MES) simulator."""
 
@@ -90,6 +91,7 @@ class MESSimulator:
 
         # Simulate quality results
         import random
+
         passed = random.random() > 0.15  # 15% failure rate
 
         return {
@@ -125,6 +127,7 @@ class MESSimulator:
 # =============================================================================
 # Saga Definition
 # =============================================================================
+
 
 class ManufacturingProductionSaga(Saga):
     """
@@ -220,8 +223,7 @@ class ManufacturingProductionSaga(Saga):
         result = await MESSimulator.schedule_machine(machine_id, estimated_hours)
 
         logger.info(
-            f"✅ [{work_order_id}] Machine scheduled: {result['schedule_id']} "
-            f"(~{estimated_hours}h)"
+            f"✅ [{work_order_id}] Machine scheduled: {result['schedule_id']} (~{estimated_hours}h)"
         )
 
         return {
@@ -262,8 +264,7 @@ class ManufacturingProductionSaga(Saga):
         result = await MESSimulator.start_production_run(machine_id, product_sku, quantity)
 
         logger.info(
-            f"✅ [{work_order_id}] Production started! "
-            f"Run ID: {result['production_run_id']}"
+            f"✅ [{work_order_id}] Production started! Run ID: {result['production_run_id']}"
         )
 
         return {
@@ -306,9 +307,7 @@ class ManufacturingProductionSaga(Saga):
         }
 
     @forward_recovery("run_quality_check")
-    async def handle_quality_failure(
-        self, ctx: SagaContext, error: Exception
-    ) -> RecoveryAction:
+    async def handle_quality_failure(self, ctx: SagaContext, error: Exception) -> RecoveryAction:
         """
         Forward recovery for quality check failures.
 
@@ -360,10 +359,7 @@ class ManufacturingProductionSaga(Saga):
 
         result = await MESSimulator.ship_to_warehouse(package_id)
 
-        logger.info(
-            f"✅ [{work_order_id}] Shipped! "
-            f"Destination: {result['destination']}"
-        )
+        logger.info(f"✅ [{work_order_id}] Shipped! Destination: {result['destination']}")
 
         return {
             "shipment_id": result["shipment_id"],
@@ -376,6 +372,7 @@ class ManufacturingProductionSaga(Saga):
 # Demo Scenarios
 # =============================================================================
 
+
 async def main():
     """Run the manufacturing production saga demo."""
 
@@ -383,29 +380,29 @@ async def main():
 
     # Scenario 1: Successful production run
 
-    await saga.run({
-        "work_order_id": "WO-2026-001",
-        "product_sku": "WIDGET-PRO-X1",
-        "quantity": 10,
-        "materials": [
-            {"sku": "STEEL-304", "quantity": 5, "lot": "LOT-A1"},
-            {"sku": "BEARING-6205", "quantity": 10, "lot": "LOT-B2"},
-        ],
-        "machine_id": "CNC-MILL-01",
-        "operator_id": "OP-123",
-        "quality_specs": {
-            "tolerance_mm": 0.05,
-            "surface_finish": "Ra 0.8",
-        },
-    })
-
+    await saga.run(
+        {
+            "work_order_id": "WO-2026-001",
+            "product_sku": "WIDGET-PRO-X1",
+            "quantity": 10,
+            "materials": [
+                {"sku": "STEEL-304", "quantity": 5, "lot": "LOT-A1"},
+                {"sku": "BEARING-6205", "quantity": 10, "lot": "LOT-B2"},
+            ],
+            "machine_id": "CNC-MILL-01",
+            "operator_id": "OP-123",
+            "quality_specs": {
+                "tolerance_mm": 0.05,
+                "surface_finish": "Ra 0.8",
+            },
+        }
+    )
 
     # Scenario 2: Pre-pivot failure
 
     # This would be simulated by making the MES return an error
 
     # Scenario 3: Post-pivot forward recovery
-
 
 
 if __name__ == "__main__":

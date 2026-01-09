@@ -24,8 +24,7 @@ from sagaz import Saga, action, compensate
 from sagaz.exceptions import SagaStepError
 
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -97,13 +96,8 @@ class DataQualityGateSaga(Saga):
         if random.random() < 0.05:  # 5% schema failure
             actual_columns.remove("user_id")
             missing = set(expected_columns) - set(actual_columns)
-            msg = (
-                f"Schema validation failed. Missing columns: {missing}. "
-                f"Data will be quarantined."
-            )
-            raise SagaStepError(
-                msg
-            )
+            msg = f"Schema validation failed. Missing columns: {missing}. Data will be quarantined."
+            raise SagaStepError(msg)
 
         logger.info(f"✅ Schema valid: {len(expected_columns)} columns match")
 
@@ -151,9 +145,7 @@ class DataQualityGateSaga(Saga):
                 f"Null check failed: {null_ratio:.2%} nulls exceeds {null_threshold:.1%} threshold. "
                 f"Breakdown: {null_counts}"
             )
-            raise SagaStepError(
-                msg
-            )
+            raise SagaStepError(msg)
 
         logger.info(f"✅ Null check passed: {null_ratio:.2%} nulls (below {null_threshold:.1%})")
 
@@ -195,9 +187,7 @@ class DataQualityGateSaga(Saga):
                 f"Duplicate check failed: {duplicate_ratio:.2%} duplicates exceeds "
                 f"{duplicate_threshold:.1%} threshold ({duplicate_count:,} records)"
             )
-            raise SagaStepError(
-                msg
-            )
+            raise SagaStepError(msg)
 
         logger.info(f"✅ Duplicate check passed: {duplicate_ratio:.2%} duplicates")
 
@@ -256,11 +246,11 @@ class DataQualityGateSaga(Saga):
                 f"Business rules failed: {violation_ratio:.2%} violations exceeds "
                 f"{max_violation_ratio:.1%} threshold. Details: {violations}"
             )
-            raise SagaStepError(
-                msg
-            )
+            raise SagaStepError(msg)
 
-        logger.info(f"✅ Business rules passed: {len(rules_applied)} rules, {total_violations:,} minor violations")
+        logger.info(
+            f"✅ Business rules passed: {len(rules_applied)} rules, {total_violations:,} minor violations"
+        )
 
         return {
             "business_rules_passed": True,
@@ -348,16 +338,17 @@ async def successful_quality_gate_demo():
 
     saga = DataQualityGateSaga()
 
-    await saga.run({
-        "dataset_path": "/incoming/sales_events_20260106.parquet",
-        "target_table": "production.sales_events",
-        "quality_rules": {
-            "null_threshold": 0.10,       # Allow up to 10% nulls
-            "duplicate_threshold": 0.05,   # Allow up to 5% duplicates
-            "max_violation_ratio": 0.03,   # Allow up to 3% rule violations
-        },
-    })
-
+    await saga.run(
+        {
+            "dataset_path": "/incoming/sales_events_20260106.parquet",
+            "target_table": "production.sales_events",
+            "quality_rules": {
+                "null_threshold": 0.10,  # Allow up to 10% nulls
+                "duplicate_threshold": 0.05,  # Allow up to 5% duplicates
+                "max_violation_ratio": 0.03,  # Allow up to 3% rule violations
+            },
+        }
+    )
 
 
 async def failed_quality_gate_demo():
@@ -367,15 +358,17 @@ async def failed_quality_gate_demo():
 
     # Strict quality rules that are likely to fail
     try:
-        await saga.run({
-            "dataset_path": "/incoming/user_events_messy.parquet",
-            "target_table": "production.user_events",
-            "quality_rules": {
-                "null_threshold": 0.01,        # Very strict: 1% nulls
-                "duplicate_threshold": 0.005,  # Very strict: 0.5% duplicates
-                "max_violation_ratio": 0.001,  # Very strict: 0.1% violations
-            },
-        })
+        await saga.run(
+            {
+                "dataset_path": "/incoming/user_events_messy.parquet",
+                "target_table": "production.user_events",
+                "quality_rules": {
+                    "null_threshold": 0.01,  # Very strict: 1% nulls
+                    "duplicate_threshold": 0.005,  # Very strict: 0.5% duplicates
+                    "max_violation_ratio": 0.001,  # Very strict: 0.1% violations
+                },
+            }
+        )
     except SagaStepError:
         pass
 
@@ -384,7 +377,6 @@ async def main():
     """Run data quality gate demos."""
     await successful_quality_gate_demo()
     await failed_quality_gate_demo()
-
 
 
 if __name__ == "__main__":

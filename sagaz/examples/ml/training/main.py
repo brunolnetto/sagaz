@@ -18,8 +18,7 @@ from sagaz import Saga, action, compensate
 from sagaz.exceptions import SagaStepError
 
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -109,7 +108,9 @@ class MLTrainingPipelineSaga(Saga):
         transformer_path.write_text("# Pickle transformer here")
 
         feature_list_path = feature_dir / "features.txt"
-        feature_list_path.write_text("\n".join([f"feature_{i}" for i in range(engineered_features)]))
+        feature_list_path.write_text(
+            "\n".join([f"feature_{i}" for i in range(engineered_features)])
+        )
 
         logger.info(f"✅ Feature engineering complete: {engineered_features} features")
 
@@ -163,7 +164,9 @@ class MLTrainingPipelineSaga(Saga):
             validation_losses.append(val_loss)
 
             if epoch % 3 == 0:
-                logger.info(f"Epoch {epoch+1}/{epochs} - train_loss: {train_loss:.4f}, val_loss: {val_loss:.4f}")
+                logger.info(
+                    f"Epoch {epoch + 1}/{epochs} - train_loss: {train_loss:.4f}, val_loss: {val_loss:.4f}"
+                )
 
         await asyncio.sleep(0.5)  # Simulate training time
 
@@ -229,9 +232,7 @@ class MLTrainingPipelineSaga(Saga):
                 f"Model accuracy {accuracy:.4f} below threshold {accuracy_threshold:.4f}. "
                 f"Training failed - automatic rollback initiated."
             )
-            raise SagaStepError(
-                msg
-            )
+            raise SagaStepError(msg)
 
         logger.info(f"✅ Model evaluation passed: {accuracy:.4f} >= {accuracy_threshold:.4f}")
 
@@ -347,20 +348,21 @@ async def successful_pipeline_demo():
     # Instantiate reusable saga
     saga = MLTrainingPipelineSaga()
 
-    await saga.run({
-        "experiment_id": "exp-20240115-001",
-        "dataset_path": "/data/training/customer_churn.parquet",
-        "model_name": "churn-predictor",
-        "accuracy_threshold": 0.80,  # Lenient threshold for demo
-        "hyperparameters": {
-            "learning_rate": 0.001,
-            "batch_size": 64,
-            "epochs": 15,
-            "optimizer": "adam",
-            "dropout": 0.3,
+    await saga.run(
+        {
+            "experiment_id": "exp-20240115-001",
+            "dataset_path": "/data/training/customer_churn.parquet",
+            "model_name": "churn-predictor",
+            "accuracy_threshold": 0.80,  # Lenient threshold for demo
+            "hyperparameters": {
+                "learning_rate": 0.001,
+                "batch_size": 64,
+                "epochs": 15,
+                "optimizer": "adam",
+                "dropout": 0.3,
+            },
         }
-    })
-
+    )
 
 
 async def failed_pipeline_demo():
@@ -369,18 +371,20 @@ async def failed_pipeline_demo():
     saga = MLTrainingPipelineSaga()
 
     try:
-        await saga.run({
-            "experiment_id": "exp-20240115-002",
-            "dataset_path": "/data/training/customer_churn.parquet",
-            "model_name": "churn-predictor",
-            "accuracy_threshold": 0.95,  # Very high threshold - likely to fail
-            "hyperparameters": {
-                "learning_rate": 0.01,  # High learning rate - may cause instability
-                "batch_size": 32,
-                "epochs": 5,  # Too few epochs
-                "optimizer": "sgd",
+        await saga.run(
+            {
+                "experiment_id": "exp-20240115-002",
+                "dataset_path": "/data/training/customer_churn.parquet",
+                "model_name": "churn-predictor",
+                "accuracy_threshold": 0.95,  # Very high threshold - likely to fail
+                "hyperparameters": {
+                    "learning_rate": 0.01,  # High learning rate - may cause instability
+                    "batch_size": 32,
+                    "epochs": 5,  # Too few epochs
+                    "optimizer": "sgd",
+                },
             }
-        })
+        )
     except SagaStepError:
         pass
 
@@ -392,7 +396,6 @@ async def main():
 
     # Run failed pipeline with automatic rollback
     await failed_pipeline_demo()
-
 
 
 if __name__ == "__main__":

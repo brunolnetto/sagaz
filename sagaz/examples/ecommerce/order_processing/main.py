@@ -14,8 +14,7 @@ from sagaz import Saga, SagaContext, action, compensate
 from sagaz.exceptions import SagaStepError
 
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -50,11 +49,13 @@ class OrderProcessingSaga(Saga):
             if item["quantity"] > 100:
                 msg = f"Insufficient inventory for {item['id']}"
                 raise SagaStepError(msg)
-            reserved_items.append({
-                "item_id": item["id"],
-                "quantity": item["quantity"],
-                "reservation_id": f"RES-{item['id']}",
-            })
+            reserved_items.append(
+                {
+                    "item_id": item["id"],
+                    "quantity": item["quantity"],
+                    "reservation_id": f"RES-{item['id']}",
+                }
+            )
 
         return {"reservations": reserved_items, "timestamp": datetime.now().isoformat()}
 
@@ -150,28 +151,30 @@ async def main():
     saga = OrderProcessingSaga()
 
     # Pass order data through the run() method
-    await saga.run({
-        "order_id": "ORD-12345",
-        "user_id": "USER-789",
-        "items": [
-            {"id": "ITEM-1", "name": "Laptop", "quantity": 1},
-            {"id": "ITEM-2", "name": "Mouse", "quantity": 2},
-        ],
-        "total_amount": 1059.97,
-    })
-
+    await saga.run(
+        {
+            "order_id": "ORD-12345",
+            "user_id": "USER-789",
+            "items": [
+                {"id": "ITEM-1", "name": "Laptop", "quantity": 1},
+                {"id": "ITEM-2", "name": "Mouse", "quantity": 2},
+            ],
+            "total_amount": 1059.97,
+        }
+    )
 
     # Demonstrate reusability - same saga, different order
 
-    await saga.run({
-        "order_id": "ORD-67890",
-        "user_id": "USER-456",
-        "items": [
-            {"id": "ITEM-3", "name": "Keyboard", "quantity": 1},
-        ],
-        "total_amount": 149.99,
-    })
-
+    await saga.run(
+        {
+            "order_id": "ORD-67890",
+            "user_id": "USER-456",
+            "items": [
+                {"id": "ITEM-3", "name": "Keyboard", "quantity": 1},
+            ],
+            "total_amount": 149.99,
+        }
+    )
 
 
 if __name__ == "__main__":

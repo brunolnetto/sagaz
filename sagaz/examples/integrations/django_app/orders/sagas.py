@@ -30,7 +30,7 @@ class OrderSaga(Saga):
     @trigger(
         source="order_created",  # Matches POST /webhooks/order_created
         idempotency_key="order_id",  # Prevents duplicate processing
-        max_concurrent=5  # Limit concurrent orders
+        max_concurrent=5,  # Limit concurrent orders
     )
     def on_order_created(self, event: dict) -> dict | None:
         """

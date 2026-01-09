@@ -521,7 +521,10 @@ class TestStorageFactoryEdgeCases:
 
     def test_storage_factory_redis_defaults(self):
         """Test Redis creation with default URL"""
-        with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True), patch("sagaz.storage.backends.redis.saga.redis"):
+        with (
+            patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True),
+            patch("sagaz.storage.backends.redis.saga.redis"),
+        ):
             from sagaz.storage.factory import create_storage
 
             storage = create_storage("redis")

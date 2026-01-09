@@ -216,13 +216,8 @@ def create_storage(
 
     # Validate storage_type
     if storage_type not in ("saga", "outbox", "both"):
-        msg = (
-            f"Unknown storage_type: '{storage_type}'. "
-            f"Valid options: 'saga', 'outbox', 'both'"
-        )
-        raise ValueError(
-            msg
-        )
+        msg = f"Unknown storage_type: '{storage_type}'. Valid options: 'saga', 'outbox', 'both'"
+        raise ValueError(msg)
 
     # Build kwargs dict for factory
     factory_kwargs = {
@@ -360,4 +355,3 @@ def print_available_backends() -> None:
             print(f"                   Install: {info['install']}")  # pragma: no cover
 
     print()
-

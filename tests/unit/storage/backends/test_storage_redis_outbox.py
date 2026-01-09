@@ -217,8 +217,15 @@ class TestRedisOutboxStorageUnit:
             (
                 b"test:outbox:events",
                 [
-                    (b"1234567890-0", {b"event_id": b"evt-123", b"saga_id": b"saga-456", b"event_type": b"OrderCreated"}),
-                ]
+                    (
+                        b"1234567890-0",
+                        {
+                            b"event_id": b"evt-123",
+                            b"saga_id": b"saga-456",
+                            b"event_type": b"OrderCreated",
+                        },
+                    ),
+                ],
             )
         ]
 
@@ -447,6 +454,7 @@ class TestRedisOutboxStorageIntegration:
 
         # Flush DB first to ensure clean state
         import redis.asyncio as redis
+
         temp_client = redis.from_url(redis_url)
         await temp_client.flushdb()
         await temp_client.aclose()
@@ -503,11 +511,13 @@ class TestRedisOutboxStorageIntegration:
         """Test that multiple workers don't claim same events."""
         # Insert multiple events
         for i in range(10):
-            await storage.insert(OutboxEvent(
-                saga_id="saga-123",
-                event_type="TestEvent",
-                payload={"index": i},
-            ))
+            await storage.insert(
+                OutboxEvent(
+                    saga_id="saga-123",
+                    event_type="TestEvent",
+                    payload={"index": i},
+                )
+            )
 
         # Two workers claim concurrently
         claims1 = await storage.claim_batch("worker-1", batch_size=5)

@@ -86,15 +86,15 @@ class CourseEnrollmentSaga(Saga):
 
 
 async def main():
-
     saga = CourseEnrollmentSaga()
-    await saga.run({
-        "enrollment_id": "ENROLL-2026-001",
-        "student_id": "STU-12345",
-        "course_id": "CS-301",
-        "semester": "Fall 2026",
-    })
-
+    await saga.run(
+        {
+            "enrollment_id": "ENROLL-2026-001",
+            "student_id": "STU-12345",
+            "course_id": "CS-301",
+            "semester": "Fall 2026",
+        }
+    )
 
 
 if __name__ == "__main__":

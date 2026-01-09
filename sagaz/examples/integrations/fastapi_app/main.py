@@ -54,6 +54,7 @@ configure(config)
 # Saga Definition with Trigger
 # =============================================================================
 
+
 class OrderSaga(Saga):
     """
     E-commerce order processing saga.
@@ -72,7 +73,7 @@ class OrderSaga(Saga):
     @trigger(
         source="order_created",  # POST /webhooks/order_created triggers this
         idempotency_key="order_id",
-        max_concurrent=10
+        max_concurrent=10,
     )
     def handle_order_created(self, event: dict) -> dict | None:
         """
@@ -135,6 +136,7 @@ class OrderSaga(Saga):
 # FastAPI Application
 # =============================================================================
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Composable lifespan with Sagaz hooks."""
@@ -152,15 +154,13 @@ app = FastAPI(
 
 # This creates POST /webhooks/{source} endpoint
 # POST /webhooks/order_created → triggers OrderSaga
-app.include_router(
-    create_webhook_router("/webhooks"),
-    tags=["webhooks"]
-)
+app.include_router(create_webhook_router("/webhooks"), tags=["webhooks"])
 
 
 # =============================================================================
 # Additional Endpoints (optional)
 # =============================================================================
+
 
 @app.get("/health")
 async def health_check():
@@ -185,6 +185,5 @@ async def get_order_diagram(order_id: str):
 
 if __name__ == "__main__":
     import uvicorn
-
 
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -17,8 +17,7 @@ from sagaz import Saga, action, compensate
 from sagaz.exceptions import SagaStepError
 
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -57,7 +56,9 @@ class FeatureStoreSaga(Saga):
         data_size_mb = random.uniform(10.0, 1000.0)
 
         # Create staging area
-        staging_location = f"s3://feature-staging/{feature_group_name}/{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        staging_location = (
+            f"s3://feature-staging/{feature_group_name}/{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        )
 
         logger.info("✅ Data ingested successfully")
         logger.info(f"Records: {records_ingested:,}")
@@ -102,7 +103,9 @@ class FeatureStoreSaga(Saga):
             feature_name = feature_def.get("name", f"feature_{i}")
             feature_type = feature_def.get("type", "numeric")
 
-            logger.info(f"Computing feature [{i+1}/{len(feature_definitions)}]: {feature_name} ({feature_type})")
+            logger.info(
+                f"Computing feature [{i + 1}/{len(feature_definitions)}]: {feature_name} ({feature_type})"
+            )
             await asyncio.sleep(0.1)  # Simulate computation
 
             # Simulate feature statistics
@@ -113,17 +116,21 @@ class FeatureStoreSaga(Saga):
             max_unique = records_ingested // 10
             unique_values = random.randint(min_unique, max(min_unique, max_unique))
 
-            computed_features.append({
-                "name": feature_name,
-                "type": feature_type,
-                "null_count": null_count,
-                "unique_values": unique_values,
-                "mean": random.uniform(-10, 10) if feature_type == "numeric" else None,
-                "std": random.uniform(0, 5) if feature_type == "numeric" else None,
-            })
+            computed_features.append(
+                {
+                    "name": feature_name,
+                    "type": feature_type,
+                    "null_count": null_count,
+                    "unique_values": unique_values,
+                    "mean": random.uniform(-10, 10) if feature_type == "numeric" else None,
+                    "std": random.uniform(0, 5) if feature_type == "numeric" else None,
+                }
+            )
 
         # Save computed features
-        feature_location = f"s3://feature-computed/{feature_group_name}/{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        feature_location = (
+            f"s3://feature-computed/{feature_group_name}/{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        )
 
         logger.info("✅ Feature computation complete")
         logger.info(f"Features computed: {len(computed_features)}")
@@ -181,7 +188,12 @@ class FeatureStoreSaga(Saga):
             unique_check_passed = unique_ratio >= unique_threshold
 
             # Schema validation
-            schema_check_passed = feature.get("type") in ["numeric", "categorical", "text", "timestamp"]
+            schema_check_passed = feature.get("type") in [
+                "numeric",
+                "categorical",
+                "text",
+                "timestamp",
+            ]
 
             validation_result = {
                 "feature": feature_name,
@@ -205,9 +217,7 @@ class FeatureStoreSaga(Saga):
                 f"Feature validation failed for: {', '.join(failed_validations)}. "
                 f"Cannot publish to feature store."
             )
-            raise SagaStepError(
-                msg
-            )
+            raise SagaStepError(msg)
 
         logger.info("✅ All feature validations passed")
 
@@ -336,11 +346,10 @@ async def successful_pipeline_demo():
             "schema_validation": True,
         },
         "target_store": "feast",
-        "pipeline_id": f"pipeline-{datetime.now().strftime('%Y%m%d')}"
+        "pipeline_id": f"pipeline-{datetime.now().strftime('%Y%m%d')}",
     }
 
     await saga.run(pipeline_data)
-
 
 
 async def failed_pipeline_demo():
@@ -361,11 +370,11 @@ async def failed_pipeline_demo():
         "feature_definitions": feature_definitions,
         "validation_rules": {
             "null_threshold": 0.001,  # Very strict - 0.1% max nulls
-            "unique_threshold": 0.1,   # Require high uniqueness
+            "unique_threshold": 0.1,  # Require high uniqueness
             "schema_validation": True,
         },
         "target_store": "tecton",
-        "pipeline_id": f"pipeline-exp-{datetime.now().strftime('%Y%m%d')}"
+        "pipeline_id": f"pipeline-exp-{datetime.now().strftime('%Y%m%d')}",
     }
 
     try:
@@ -381,7 +390,6 @@ async def main():
 
     # Failed pipeline with rollback
     await failed_pipeline_demo()
-
 
 
 if __name__ == "__main__":

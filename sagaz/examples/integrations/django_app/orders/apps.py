@@ -22,4 +22,3 @@ class OrdersConfig(AppConfig):
             logging=sagaz_settings.get("LOGGING", False),
         )
         configure(config)
-

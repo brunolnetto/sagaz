@@ -230,7 +230,6 @@ class TestRabbitMQBrokerNotConnected:
         assert healthy is False
 
 
-
 class TestInMemoryBroker:
     """Tests for InMemoryBroker."""
 

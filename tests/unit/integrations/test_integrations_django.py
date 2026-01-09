@@ -91,6 +91,7 @@ class TestSagaDjangoMiddleware:
 
     def test_middleware_sets_correlation_id(self):
         """Test that middleware sets correlation ID."""
+
         def get_response(request):
             # Simulate view response
             response = MagicMock()
@@ -113,6 +114,7 @@ class TestSagaDjangoMiddleware:
 
     def test_middleware_propagates_incoming_correlation_id(self):
         """Test that middleware propagates incoming correlation ID."""
+
         def get_response(request):
             response = MagicMock()
             response.__setitem__ = MagicMock()
@@ -132,6 +134,7 @@ class TestSagaDjangoMiddleware:
 
     def test_middleware_adds_header_to_response(self):
         """Test that middleware adds correlation ID to response."""
+
         def get_response(request):
             return {}
 

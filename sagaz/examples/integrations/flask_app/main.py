@@ -46,6 +46,7 @@ configure(config)
 # Saga Definition with Trigger
 # =============================================================================
 
+
 class OrderSaga(Saga):
     """
     E-commerce order processing saga.
@@ -56,11 +57,7 @@ class OrderSaga(Saga):
 
     saga_name = "flask-order"
 
-    @trigger(
-        source="order_created",
-        idempotency_key="order_id",
-        max_concurrent=5
-    )
+    @trigger(source="order_created", idempotency_key="order_id", max_concurrent=5)
     def handle_order_created(self, event: dict) -> dict | None:
         """Transform webhook payload into saga context."""
         if not event.get("order_id"):
@@ -120,11 +117,13 @@ def health_check():
 @app.route("/orders/<order_id>/diagram")
 def get_order_diagram(order_id: str):
     saga = OrderSaga()
-    return jsonify({
-        "order_id": order_id,
-        "diagram": saga.to_mermaid(),
-        "format": "mermaid",
-    })
+    return jsonify(
+        {
+            "order_id": order_id,
+            "diagram": saga.to_mermaid(),
+            "format": "mermaid",
+        }
+    )
 
 
 # =============================================================================
@@ -132,5 +131,4 @@ def get_order_diagram(order_id: str):
 # =============================================================================
 
 if __name__ == "__main__":
-
     app.run(host="0.0.0.0", port=5000, debug=True)

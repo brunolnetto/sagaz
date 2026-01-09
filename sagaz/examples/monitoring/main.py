@@ -14,8 +14,7 @@ from sagaz import Saga, SagaContext, action, compensate
 from sagaz.exceptions import SagaStepError
 
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -132,7 +131,6 @@ class SimulatedOperationSaga(Saga):
 
 
 async def main():
-
     orchestrator = MonitoredSagaOrchestrator()
 
     # 1. Run successful sagas
@@ -147,7 +145,7 @@ async def main():
     for i in range(2):
         saga = SimulatedOperationSaga()
         try:
-            await orchestrator.execute_saga(saga, {"id": i+5, "simulate_failure": True})
+            await orchestrator.execute_saga(saga, {"id": i + 5, "simulate_failure": True})
         except Exception:
             pass
 

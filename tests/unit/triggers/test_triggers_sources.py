@@ -5,6 +5,7 @@ Covers:
 - Cron scheduler for periodic saga triggering
 - Broker integration for message-driven triggers
 """
+
 import asyncio
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -20,6 +21,7 @@ from sagaz.triggers.registry import TriggerRegistry
 # Fixtures
 # =============================================================================
 
+
 @pytest.fixture(autouse=True)
 def reset_registry():
     """Clear the trigger registry before each test."""
@@ -32,6 +34,7 @@ def reset_registry():
 def memory_storage():
     """Provide fresh memory storage for each test."""
     from sagaz.storage import InMemorySagaStorage
+
     storage = InMemorySagaStorage()
     config = SagaConfig(storage=storage)
     configure(config)
@@ -42,11 +45,13 @@ def memory_storage():
 # Cron Scheduler Tests
 # =============================================================================
 
+
 class TestCronScheduler:
     """Tests for the cron scheduler."""
 
     def test_cron_trigger_decorator(self):
         """@trigger with cron source stores schedule config."""
+
         class CronSaga(Saga):
             @trigger(source="cron", schedule="*/5 * * * *")  # Every 5 minutes
             def on_schedule(self, event):
@@ -62,6 +67,7 @@ class TestCronScheduler:
 
     def test_cron_trigger_with_timezone(self):
         """Cron trigger can specify timezone."""
+
         class TzCronSaga(Saga):
             @trigger(source="cron", schedule="0 9 * * *", timezone="America/New_York")
             def on_daily(self, event):
@@ -145,11 +151,13 @@ class TestCronScheduler:
 # Broker Integration Tests
 # =============================================================================
 
+
 class TestBrokerIntegration:
     """Tests for message broker integration."""
 
     def test_broker_trigger_decorator(self):
         """@trigger with broker source stores topic config."""
+
         class BrokerSaga(Saga):
             @trigger(source="broker", topic="orders.created")
             def on_order(self, event):
@@ -274,11 +282,13 @@ class TestBrokerIntegration:
 # Combined Source Tests
 # =============================================================================
 
+
 class TestMultipleSources:
     """Tests for sagas that respond to multiple event sources."""
 
     def test_saga_with_multiple_sources(self):
         """Single saga can listen to multiple sources."""
+
         class MultiSourceSaga(Saga):
             saga_name = "multi"
 

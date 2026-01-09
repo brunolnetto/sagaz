@@ -344,7 +344,6 @@ class TestBrokerDowntime:
     The worker marks events as FAILED and expects external processes to retry.
     """
 
-
     @pytest.mark.asyncio
     async def test_partial_batch_failure(self):
         """
@@ -598,8 +597,6 @@ class TestConcurrentFailures:
         assert duration < 5.0  # Should complete within 5 seconds
 
     # Note: test_cascading_failure_recovery removed - worker design relies on external orchestration
-
-
 
 
 # ============================================================================

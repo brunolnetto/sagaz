@@ -26,6 +26,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 try:
     import aiosqlite
+
     AIOSQLITE_AVAILABLE = True
 except ImportError:  # pragma: no cover
     AIOSQLITE_AVAILABLE = False
@@ -335,9 +336,7 @@ class SQLiteOutboxStorage:
         """Get count of pending events."""
         conn = await self._get_connection()
 
-        cursor = await conn.execute(
-            "SELECT COUNT(*) FROM outbox_events WHERE status = 'pending'"
-        )
+        cursor = await conn.execute("SELECT COUNT(*) FROM outbox_events WHERE status = 'pending'")
         row = await cursor.fetchone()
 
         return row[0] if row else 0
@@ -362,6 +361,7 @@ class SQLiteOutboxStorage:
     async def health_check(self) -> HealthCheckResult:
         """Check storage health."""
         import time
+
         start = time.monotonic()
 
         try:

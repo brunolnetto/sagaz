@@ -69,7 +69,9 @@ class SWIFTSimulator:
         amount: Decimal,
     ) -> dict:
         await asyncio.sleep(0.1)
-        rate = Decimal("1.08") if from_currency == "USD" and to_currency == "EUR" else Decimal("1.0")
+        rate = (
+            Decimal("1.08") if from_currency == "USD" and to_currency == "EUR" else Decimal("1.0")
+        )
         return {
             "fx_rate": str(rate),
             "rate_id": f"FX-{uuid.uuid4().hex[:8].upper()}",
@@ -131,7 +133,9 @@ class CrossBorderWireTransferSaga(Saga):
 
         logger.info(f"🔍 [{transfer_id}] Validating transfer...")
         result = await SWIFTSimulator.validate_transfer(sender_account, receiver_bic, amount)
-        logger.info(f"✅ [{transfer_id}] Transfer validated, sanctions check: {result['sanctions_check']}")
+        logger.info(
+            f"✅ [{transfer_id}] Transfer validated, sanctions check: {result['sanctions_check']}"
+        )
         return result
 
     @compensate("validate_transfer")
@@ -209,20 +213,20 @@ class CrossBorderWireTransferSaga(Saga):
 
 
 async def main():
-
     saga = CrossBorderWireTransferSaga()
 
-    await saga.run({
-        "transfer_id": "WIRE-2026-001",
-        "sender_account": "ACCT-SENDER-001",
-        "receiver_account": "ACCT-RECEIVER-001",
-        "sender_bic": "BOFAUS3N",
-        "receiver_bic": "DEUTDEFF",
-        "amount": Decimal("50000"),
-        "from_currency": "USD",
-        "to_currency": "EUR",
-    })
-
+    await saga.run(
+        {
+            "transfer_id": "WIRE-2026-001",
+            "sender_account": "ACCT-SENDER-001",
+            "receiver_account": "ACCT-RECEIVER-001",
+            "sender_bic": "BOFAUS3N",
+            "receiver_bic": "DEUTDEFF",
+            "amount": Decimal("50000"),
+            "from_currency": "USD",
+            "to_currency": "EUR",
+        }
+    )
 
 
 if __name__ == "__main__":

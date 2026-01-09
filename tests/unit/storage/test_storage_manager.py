@@ -424,7 +424,6 @@ class TestHybridMode:
             await manager.close()
 
 
-
 class TestSagaConfigIntegration:
     """Tests for SagaConfig integration with StorageManager."""
 
@@ -550,6 +549,7 @@ class TestSagaConfigIntegration:
         finally:
             # Reset global config
             from sagaz.core.config import _global_config
+
             if _global_config is config:
                 configure(SagaConfig())  # Reset to default
             await manager.close()
@@ -563,4 +563,3 @@ from contextlib import contextmanager, nullcontext
 def nullcontext():
     """No-op context manager for fallback."""
     yield
-

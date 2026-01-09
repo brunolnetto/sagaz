@@ -101,16 +101,16 @@ class TournamentMatchSaga(Saga):
 
 
 async def main():
-
     saga = TournamentMatchSaga()
-    await saga.run({
-        "match_id": "MATCH-2026-FINAL",
-        "tournament_id": "TOURN-001",
-        "team_a": "Team Alpha",
-        "team_b": "Team Beta",
-        "prize_pool": 5000,
-    })
-
+    await saga.run(
+        {
+            "match_id": "MATCH-2026-FINAL",
+            "tournament_id": "TOURN-001",
+            "team_a": "Team Alpha",
+            "team_b": "Team Beta",
+            "prize_pool": 5000,
+        }
+    )
 
 
 if __name__ == "__main__":

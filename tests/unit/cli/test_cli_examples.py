@@ -169,9 +169,7 @@ class TestListExamplesCmd:
     @patch("sagaz.cli.examples.Table")
     def test_examples_listed(self, mock_table_class, mock_console, mock_discover):
         """Test examples are listed in table."""
-        mock_discover.return_value = {
-            "test/example": Path("/tmp/test/example/main.py")
-        }
+        mock_discover.return_value = {"test/example": Path("/tmp/test/example/main.py")}
         mock_table = MagicMock()
         mock_table_class.return_value = mock_table
         mock_console.print = MagicMock()
@@ -212,9 +210,7 @@ class TestRunExampleCmd:
     @patch("click.echo")
     def test_example_executed(self, mock_echo, mock_execute, mock_discover):
         """Test example is executed when found."""
-        mock_discover.return_value = {
-            "test/example": Path("/tmp/test/example/main.py")
-        }
+        mock_discover.return_value = {"test/example": Path("/tmp/test/example/main.py")}
 
         run_example_cmd("test/example")
 
@@ -242,6 +238,7 @@ class TestExecuteExample:
     def test_handles_subprocess_error(self, mock_echo, mock_run):
         """Test handles subprocess failure."""
         import subprocess
+
         mock_run.side_effect = subprocess.CalledProcessError(1, "python")
 
         _execute_example(Path("/tmp/test/main.py"))
@@ -327,7 +324,9 @@ class TestFallbackInteractive:
     @patch("click.echo")
     @patch("sagaz.cli.examples.get_example_description")
     @patch("sagaz.cli.examples._execute_example")
-    def test_selects_example(self, mock_execute, mock_desc, mock_echo, mock_prompt, mock_input, mock_discover):
+    def test_selects_example(
+        self, mock_execute, mock_desc, mock_echo, mock_prompt, mock_input, mock_discover
+    ):
         """Test user can select an example."""
         mock_discover.return_value = {"test/example": Path("/tmp/test/main.py")}
         # First return 1 (select), then 0 to exit loop
@@ -370,4 +369,3 @@ class TestFallbackInteractive:
         _fallback_interactive_simple()
 
         mock_echo.assert_called()
-

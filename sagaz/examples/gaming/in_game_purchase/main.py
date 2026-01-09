@@ -94,15 +94,15 @@ class InGamePurchaseSaga(Saga):
 
 
 async def main():
-
     saga = InGamePurchaseSaga()
-    await saga.run({
-        "order_id": "ORDER-2026-001",
-        "player_id": "PLAYER-12345",
-        "items": ["skin_rare", "emote_epic", "boost_xp"],
-        "amount": Decimal("14.99"),
-    })
-
+    await saga.run(
+        {
+            "order_id": "ORDER-2026-001",
+            "player_id": "PLAYER-12345",
+            "items": ["skin_rare", "emote_epic", "boost_xp"],
+            "amount": Decimal("14.99"),
+        }
+    )
 
 
 if __name__ == "__main__":

@@ -42,7 +42,6 @@ Example (Option 2 - separate storage instances):
     >>> configure(config)
 """
 
-
 from __future__ import annotations
 
 import logging
@@ -126,17 +125,13 @@ class SagaConfig:
                     "Cannot specify both 'storage_manager' and 'storage'. "
                     "Use storage_manager for unified storage, or storage/outbox_storage separately."
                 )
-                raise ValueError(
-                    msg
-                )
+                raise ValueError(msg)
             if self.outbox_storage is not None:
                 msg = (
                     "Cannot specify both 'storage_manager' and 'outbox_storage'. "
                     "Use storage_manager for unified storage, or storage/outbox_storage separately."
                 )
-                raise ValueError(
-                    msg
-                )
+                raise ValueError(msg)
             self._setup_from_manager()
         else:
             # Default to in-memory storage if not specified
@@ -172,14 +167,14 @@ class SagaConfig:
                 "StorageManager provided but not initialized. "
                 "Call await storage_manager.initialize() before using Saga.",
                 RuntimeWarning,
-                stacklevel=2
+                stacklevel=2,
             )
             self._storage_manager = manager
             # Fall back to defaults for now
             if self.storage is None:
                 from sagaz.storage.memory import InMemorySagaStorage
-                self.storage = InMemorySagaStorage()
 
+                self.storage = InMemorySagaStorage()
 
     def _derive_outbox_storage(self) -> None:
         """

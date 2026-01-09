@@ -250,7 +250,6 @@ def _log_local_init_complete(with_monitoring: bool, is_postgres: bool):
         console.print("  - PgBouncer-RO: localhost:6433")
 
 
-
 def _init_selfhost(preset: str, with_monitoring: bool):
     """Create self-hosted/on-premise server setup."""
     if console:
@@ -394,7 +393,9 @@ def _log_k8s_init_start(with_ha: bool):
 def _prepare_k8s_directory() -> bool:
     """Prepare k8s directory, prompting for overwrite if exists. Returns False to abort."""
     if Path("k8s").exists():
-        if not click.confirm("Directory [bold yellow]k8s/[/bold yellow] already exists. Overwrite?"):
+        if not click.confirm(
+            "Directory [bold yellow]k8s/[/bold yellow] already exists. Overwrite?"
+        ):
             click.echo("Aborted.")
             return False
         shutil.rmtree("k8s")
@@ -415,7 +416,12 @@ def _copy_k8s_manifests(with_ha: bool):
         _copy_resource("k8s/postgresql.yaml", "k8s/postgresql.yaml")
 
     # Copy base manifests
-    for manifest in ["outbox-worker.yaml", "configmap.yaml", "secrets-example.yaml", "migration-job.yaml"]:
+    for manifest in [
+        "outbox-worker.yaml",
+        "configmap.yaml",
+        "secrets-example.yaml",
+        "migration-job.yaml",
+    ]:
         _copy_resource(f"k8s/{manifest}", f"k8s/{manifest}")
 
 

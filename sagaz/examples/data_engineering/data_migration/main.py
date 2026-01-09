@@ -25,8 +25,7 @@ from sagaz import Saga, action, compensate
 from sagaz.exceptions import SagaStepError
 
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -118,7 +117,9 @@ class DataMigrationSaga(Saga):
 
             logger.info(f"   {table}: {record_count:,} records (checksum: {checksum})")
 
-        logger.info(f"✅ Export complete: {total_records:,} total records from {len(tables)} tables")
+        logger.info(
+            f"✅ Export complete: {total_records:,} total records from {len(tables)} tables"
+        )
 
         return {
             "export_results": export_results,
@@ -271,7 +272,9 @@ class DataMigrationSaga(Saga):
 
             if not is_match:
                 count_mismatches.append(table)
-                logger.error(f"   ❌ {table}: {source_count:,} → {target_count:,} (variance: {variance:.2%})")
+                logger.error(
+                    f"   ❌ {table}: {source_count:,} → {target_count:,} (variance: {variance:.2%})"
+                )
             else:
                 logger.info(f"   ✅ {table}: {source_count:,} ≈ {target_count:,}")
 
@@ -280,9 +283,7 @@ class DataMigrationSaga(Saga):
                 f"Row count verification failed for tables: {count_mismatches}. "
                 f"Migration will be rolled back."
             )
-            raise SagaStepError(
-                msg
-            )
+            raise SagaStepError(msg)
 
         logger.info("✅ All row counts verified")
 
@@ -338,9 +339,7 @@ class DataMigrationSaga(Saga):
                 f"Checksum verification failed for tables: {checksum_mismatches}. "
                 f"Data integrity compromised - rolling back migration."
             )
-            raise SagaStepError(
-                msg
-            )
+            raise SagaStepError(msg)
 
         logger.info("✅ All checksums verified")
 
@@ -402,12 +401,14 @@ async def successful_migration_demo():
     try:
         # Disable checksum verification for reliable "successful" demo
         # (Checksum verification is demonstrated in the failure demo)
-        await saga.run({
-            "source_system": "legacy_mysql",
-            "target_system": "new_postgres",
-            "tables": ["customers", "orders", "order_items"],
-            "verify_checksums": False,  # Skip for reliable demo
-        })
+        await saga.run(
+            {
+                "source_system": "legacy_mysql",
+                "target_system": "new_postgres",
+                "tables": ["customers", "orders", "order_items"],
+                "verify_checksums": False,  # Skip for reliable demo
+            }
+        )
 
     except SagaStepError:
         pass
@@ -421,12 +422,20 @@ async def failed_migration_demo():
     # Multiple tables increase chance of checksum failure
     for _attempt in range(3):
         try:
-            await saga.run({
-                "source_system": "old_warehouse",
-                "target_system": "new_lakehouse",
-                "tables": ["fact_sales", "dim_customers", "dim_products", "dim_dates", "fact_inventory"],
-                "verify_checksums": True,
-            })
+            await saga.run(
+                {
+                    "source_system": "old_warehouse",
+                    "target_system": "new_lakehouse",
+                    "tables": [
+                        "fact_sales",
+                        "dim_customers",
+                        "dim_products",
+                        "dim_dates",
+                        "fact_inventory",
+                    ],
+                    "verify_checksums": True,
+                }
+            )
         except SagaStepError:
             break
 
@@ -435,7 +444,6 @@ async def main():
     """Run data migration demos."""
     await successful_migration_demo()
     await failed_migration_demo()
-
 
 
 if __name__ == "__main__":

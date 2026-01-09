@@ -33,6 +33,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 try:
     import aiosqlite
+
     AIOSQLITE_AVAILABLE = True
 except ImportError:  # pragma: no cover
     AIOSQLITE_AVAILABLE = False

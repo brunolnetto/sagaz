@@ -272,9 +272,7 @@ class OutboxStorage(ABC):
             f"{self.__class__.__name__} does not support export. "
             "Implement export_all() to enable data transfer."
         )
-        raise NotImplementedError(
-            msg
-        )
+        raise NotImplementedError(msg)
         # Make it a generator
         if False:
             yield {}
@@ -292,9 +290,7 @@ class OutboxStorage(ABC):
             f"{self.__class__.__name__} does not support import. "
             "Implement import_record() to enable data transfer."
         )
-        raise NotImplementedError(
-            msg
-        )
+        raise NotImplementedError(msg)
 
     async def count(self) -> int:
         """
@@ -330,9 +326,7 @@ class OutboxStorage(ABC):
             Number of events archived
         """
         msg = f"{self.__class__.__name__} does not support archival."
-        raise NotImplementedError(
-            msg
-        )
+        raise NotImplementedError(msg)
 
     # ==========================================================================
     # Context Manager Support
@@ -356,6 +350,7 @@ class OutboxStorage(ABC):
 # ==========================================================================
 # Errors
 # ==========================================================================
+
 
 class OutboxStorageError(Exception):
     """Base exception for outbox storage errors."""

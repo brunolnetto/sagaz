@@ -553,8 +553,8 @@ class PostgreSQLOutboxStorage(OutboxStorage):
         if not self._pool:
             # If not initialized, maybe zero? Or raise error?
             # Assuming initialized for now as it's required for other ops
-             msg = "Storage not initialized"
-             raise OutboxStorageError(msg)
+            msg = "Storage not initialized"
+            raise OutboxStorageError(msg)
 
         async with self._pool.acquire() as conn:
             return await conn.fetchval("SELECT COUNT(*) FROM saga_outbox")
@@ -562,8 +562,8 @@ class PostgreSQLOutboxStorage(OutboxStorage):
     async def export_all(self):
         """Export all records for transfer."""
         if not self._pool:
-             msg = "Storage not initialized"
-             raise OutboxStorageError(msg)
+            msg = "Storage not initialized"
+            raise OutboxStorageError(msg)
 
         async with self._pool.acquire() as conn:  # pragma: no cover
             async with conn.transaction():  # pragma: no cover
@@ -577,11 +577,13 @@ class PostgreSQLOutboxStorage(OutboxStorage):
                             "event_type": event.event_type,
                             "payload": event.payload,
                             "status": event.status.value,
-                            "created_at": event.created_at.isoformat() if event.created_at else None,
+                            "created_at": event.created_at.isoformat()
+                            if event.created_at
+                            else None,
                         }
                 except Exception:  # pragma: no cover
-                     # Transaction rollback is automatic with context manager
-                     raise  # pragma: no cover
+                    # Transaction rollback is automatic with context manager
+                    raise  # pragma: no cover
 
     async def import_record(self, record: dict[str, Any]) -> None:
         """Import a single record from transfer."""

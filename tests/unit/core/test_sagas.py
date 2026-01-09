@@ -168,9 +168,7 @@ class TestFailFastWithGraceStrategy:
     @pytest.mark.asyncio
     async def test_fail_fast_grace_waits_for_inflight(self):
         """Test FAIL_FAST_WITH_GRACE waits for in-flight tasks"""
-        saga = Saga(
-            "FailFastGrace", failure_strategy=ParallelFailureStrategy.FAIL_FAST_WITH_GRACE
-        )
+        saga = Saga("FailFastGrace", failure_strategy=ParallelFailureStrategy.FAIL_FAST_WITH_GRACE)
         completed = []
 
         async def fast_fail(ctx):

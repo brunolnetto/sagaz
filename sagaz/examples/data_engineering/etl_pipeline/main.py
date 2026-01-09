@@ -20,8 +20,7 @@ from sagaz import Saga, action, compensate
 from sagaz.exceptions import SagaStepError
 
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -190,9 +189,7 @@ class ETLPipelineSaga(Saga):
                 "Data validation failed: Unexpected nulls in required columns. "
                 "Automatic rollback initiated - staging tables will be cleaned up."
             )
-            raise SagaStepError(
-                msg
-            )
+            raise SagaStepError(msg)
 
         if not row_count_valid:
             msg = "Data validation failed: Zero records after transformation"
@@ -288,18 +285,19 @@ async def successful_etl_demo():
 
     saga = ETLPipelineSaga()
 
-    await saga.run({
-        "source_table": "raw_events.clickstream",
-        "target_table": "warehouse.fact_events",
-        "batch_date": "2026-01-06",
-        "transform_config": {
-            "deduplicate": True,
-            "null_handling": "drop",
-            "normalize_dates": True,
-            "timezone": "UTC",
-        },
-    })
-
+    await saga.run(
+        {
+            "source_table": "raw_events.clickstream",
+            "target_table": "warehouse.fact_events",
+            "batch_date": "2026-01-06",
+            "transform_config": {
+                "deduplicate": True,
+                "null_handling": "drop",
+                "normalize_dates": True,
+                "timezone": "UTC",
+            },
+        }
+    )
 
 
 async def failed_etl_demo():
@@ -310,11 +308,13 @@ async def failed_etl_demo():
     # Run multiple times to demonstrate failure handling
     for attempt in range(3):
         try:
-            await saga.run({
-                "source_table": "raw_events.user_actions",
-                "target_table": "warehouse.dim_users",
-                "batch_date": f"2026-01-0{attempt + 1}",
-            })
+            await saga.run(
+                {
+                    "source_table": "raw_events.user_actions",
+                    "target_table": "warehouse.dim_users",
+                    "batch_date": f"2026-01-0{attempt + 1}",
+                }
+            )
         except SagaStepError:
             break
 
@@ -323,7 +323,6 @@ async def main():
     """Run ETL pipeline demos."""
     await successful_etl_demo()
     await failed_etl_demo()
-
 
 
 if __name__ == "__main__":

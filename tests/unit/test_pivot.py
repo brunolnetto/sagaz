@@ -107,20 +107,18 @@ class TestSagaZones:
             tainted={"step3"},
         )
         assert zones.is_rollback_allowed("step1") is True
-        assert zones.is_rollback_allowed("step2") is True  # Committed can compensate backward to pivot
+        assert (
+            zones.is_rollback_allowed("step2") is True
+        )  # Committed can compensate backward to pivot
         assert zones.is_rollback_allowed("pivot_step") is False
         assert zones.is_rollback_allowed("step3") is False
 
     def test_get_effective_pivot(self):
         """Test finding effective pivot for committed step."""
-        zones = SagaZones(
-            pivots={"pivot1"},
-            committed={"step_after_pivot"}
-        )
+        zones = SagaZones(pivots={"pivot1"}, committed={"step_after_pivot"})
         # Should return pivot associated with committed step (simplified logic returns first pivot)
         assert zones.get_rollback_boundary("step_after_pivot") == "pivot1"
         assert zones.get_rollback_boundary("unknown") is None
-
 
 
 class TestTaintPropagator:
@@ -287,12 +285,11 @@ class TestTaintPropagator:
             step_names={"pre_step", "pivot"},
             dependencies=dependencies,
             pivots={"pivot"},
-            completed_pivots=set()
+            completed_pivots=set(),
         )
         zones = propagator.calculate_zones()
         assert "pre_step" in zones.reversible
         assert "pivot" not in zones.reversible
-
 
 
 class TestSagaStepPivot:
@@ -486,6 +483,7 @@ class TestNewSagaStepStatuses:
 # Integration Tests - Full Saga Execution with Pivots
 # =============================================================================
 
+
 class TestPivotSagaIntegration:
     """Integration tests for pivot behavior in declarative sagas."""
 
@@ -548,7 +546,6 @@ class TestPivotSagaIntegration:
         assert "ship_order" not in compensation_calls  # Never completed
         assert "charge_payment" not in compensation_calls  # Pivot step - skipped
         assert "reserve_funds" not in compensation_calls  # Tainted - skipped
-
 
     @pytest.mark.asyncio
     async def test_forward_recovery_handler_collection(self):
@@ -692,6 +689,7 @@ class TestImperativeSagaPivot:
 # =============================================================================
 # Mermaid Visualization Tests
 # =============================================================================
+
 
 class TestMermaidPivotVisualization:
     """Tests for Mermaid diagram generation with pivot zones."""

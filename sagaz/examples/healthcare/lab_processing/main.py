@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 # Simulation Helpers
 # =============================================================================
 
+
 class LIMSSimulator:
     """Laboratory Information Management System (LIMS) simulator."""
 
@@ -90,6 +91,7 @@ class LIMSSimulator:
 
         # Simulate occasional issues
         import random
+
         if random.random() < 0.05:  # 5% failure rate
             msg = "Sample hemolyzed during centrifugation"
             raise SagaStepError(msg)
@@ -181,6 +183,7 @@ class LIMSSimulator:
 # Saga Definition
 # =============================================================================
 
+
 class LabTestProcessingSaga(Saga):
     """
     Lab test processing saga with consumable resource pivot.
@@ -248,8 +251,7 @@ class LabTestProcessingSaga(Saga):
             raise SagaStepError(msg)
 
         logger.info(
-            f"✅ [{sample_id}] Requisition verified, "
-            f"tests: {', '.join(result['tests_ordered'])}"
+            f"✅ [{sample_id}] Requisition verified, tests: {', '.join(result['tests_ordered'])}"
         )
 
         return {
@@ -352,9 +354,7 @@ class LabTestProcessingSaga(Saga):
         }
 
     @forward_recovery("run_analysis")
-    async def handle_analysis_failure(
-        self, ctx: SagaContext, error: Exception
-    ) -> RecoveryAction:
+    async def handle_analysis_failure(self, ctx: SagaContext, error: Exception) -> RecoveryAction:
         """
         Forward recovery for analysis failures.
 
@@ -385,9 +385,7 @@ class LabTestProcessingSaga(Saga):
         result = await LIMSSimulator.validate_results(analysis_id, results)
 
         if result["critical_flags"]:
-            logger.warning(
-                f"⚠️ [{sample_id}] CRITICAL VALUES: {result['critical_flags']}"
-            )
+            logger.warning(f"⚠️ [{sample_id}] CRITICAL VALUES: {result['critical_flags']}")
         else:
             logger.info(f"✅ [{sample_id}] Results validated by {result['validated_by']}")
 
@@ -424,6 +422,7 @@ class LabTestProcessingSaga(Saga):
 # Demo Scenarios
 # =============================================================================
 
+
 async def main():
     """Run the lab test processing saga demo."""
 
@@ -431,14 +430,15 @@ async def main():
 
     # Scenario 1: Successful lab processing
 
-    result = await saga.run({
-        "sample_id": "SAMP-2026-001",
-        "patient_id": "PAT-12345",
-        "sample_type": "blood",
-        "ordering_provider": "DR-SMITH",
-        "tests_ordered": ["CBC", "CMP", "LIPID"],
-    })
-
+    result = await saga.run(
+        {
+            "sample_id": "SAMP-2026-001",
+            "patient_id": "PAT-12345",
+            "sample_type": "blood",
+            "ordering_provider": "DR-SMITH",
+            "tests_ordered": ["CBC", "CMP", "LIPID"],
+        }
+    )
 
     # Display some results
     results = result.get("results", {})
@@ -450,7 +450,6 @@ async def main():
     # Scenario 2: Pre-pivot failure
 
     # Scenario 3: Post-pivot scenarios
-
 
 
 if __name__ == "__main__":

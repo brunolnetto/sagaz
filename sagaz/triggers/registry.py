@@ -7,8 +7,9 @@ from sagaz.triggers.decorators import TriggerMetadata
 @dataclass
 class RegisteredTrigger:
     """A fully registered trigger."""
+
     saga_class: type[Any]  # The Saga class
-    method_name: str       # The method name (e.g. "on_order")
+    method_name: str  # The method name (e.g. "on_order")
     metadata: TriggerMetadata
 
 

@@ -59,6 +59,7 @@ class ConnectionError(StorageError):
             return None
         # Mask password in URL like postgresql://user:pass@host/db
         import re
+
         return re.sub(r"://([^:]+):([^@]+)@", r"://\1:***@", url)
 
 
