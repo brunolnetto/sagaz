@@ -23,9 +23,9 @@ logger = logging.getLogger(__name__)
 class EdgeFederatedLearningSaga(Saga):
     """
     Federated learning orchestration across distributed edge devices.
-    
+
     This saga is stateless - all data is passed through the context via the run() method.
-    
+
     Expected context:
         - training_round_id: str
         - model_name: str
@@ -43,7 +43,7 @@ class EdgeFederatedLearningSaga(Saga):
         """Select participating edge nodes based on availability and resources."""
         training_round_id = ctx.get("training_round_id")
         min_participating_nodes = ctx.get("min_participating_nodes", 10)
-        
+
         logger.info(f"📱 Selecting edge nodes for training round {training_round_id}")
         await asyncio.sleep(0.15)
 
@@ -90,7 +90,7 @@ class EdgeFederatedLearningSaga(Saga):
         """Distribute current global model weights to all edge nodes."""
         model_name = ctx.get("model_name")
         model_version = ctx.get("model_version")
-        
+
         logger.info(f"📤 Distributing model weights for {model_name} v{model_version}")
         await asyncio.sleep(0.2)
 
@@ -118,7 +118,7 @@ class EdgeFederatedLearningSaga(Saga):
     @compensate("distribute_model_weights")
     async def revoke_model_weights(self, ctx: SagaContext) -> None:
         """Revoke model weights from edge nodes (privacy/security)."""
-        logger.warning(f"📤 Revoking model weights from edge nodes")
+        logger.warning("📤 Revoking model weights from edge nodes")
 
         nodes_received = ctx.get("nodes_received", 0)
         logger.info(f"   Revoking weights from {nodes_received} nodes")
@@ -131,13 +131,14 @@ class EdgeFederatedLearningSaga(Saga):
         """Coordinate local training rounds on edge devices."""
         training_rounds = ctx.get("training_rounds", 5)
         simulate_failure = ctx.get("simulate_failure", False)
-        
+
         logger.info(f"🧠 Coordinating {training_rounds} training rounds on edge nodes")
         await asyncio.sleep(0.3)
 
         if simulate_failure:
+            msg = "Insufficient edge nodes completed training - network connectivity issues"
             raise SagaStepError(
-                "Insufficient edge nodes completed training - network connectivity issues"
+                msg
             )
 
         nodes = ctx.get("nodes", [])
@@ -168,7 +169,7 @@ class EdgeFederatedLearningSaga(Saga):
     @compensate("coordinate_local_training")
     async def stop_local_training(self, ctx: SagaContext) -> None:
         """Stop ongoing local training on edge nodes."""
-        logger.warning(f"🧠 Stopping local training on edge nodes")
+        logger.warning("🧠 Stopping local training on edge nodes")
 
         participating_nodes = ctx.get("participating_nodes", 0)
         logger.info(f"   Stopping training on {participating_nodes} nodes")
@@ -182,7 +183,7 @@ class EdgeFederatedLearningSaga(Saga):
         model_name = ctx.get("model_name")
         training_round_id = ctx.get("training_round_id")
         model_version = ctx.get("model_version")
-        
+
         logger.info(f"🔄 Aggregating model updates for {model_name}")
         await asyncio.sleep(0.2)
 
@@ -223,7 +224,7 @@ class EdgeFederatedLearningSaga(Saga):
         """Validate aggregated global model accuracy on holdout dataset."""
         model_name = ctx.get("model_name")
         target_accuracy = ctx.get("target_accuracy", 0.0)
-        
+
         logger.info(f"✅ Validating global model for {model_name}")
         await asyncio.sleep(0.2)
 
@@ -238,7 +239,7 @@ class EdgeFederatedLearningSaga(Saga):
             "recall": 0.86,
             "f1_score": 0.865,
             "target_accuracy": target_accuracy,
-            "accuracy_achieved": 0.89 >= target_accuracy,
+            "accuracy_achieved": target_accuracy <= 0.89,
             "previous_accuracy": 0.82,
             "improvement": 0.07,
         }
@@ -267,7 +268,7 @@ class EdgeFederatedLearningSaga(Saga):
     @action("deploy_updated_model", depends_on=["validate_global_model"])
     async def deploy_updated_model(self, ctx: SagaContext) -> dict[str, Any]:
         """Deploy updated model to edge fleet (idempotent)."""
-        logger.info(f"🚀 Deploying updated model to edge fleet")
+        logger.info("🚀 Deploying updated model to edge fleet")
         await asyncio.sleep(0.25)
 
         new_model_version = ctx.get("new_model_version")
@@ -297,16 +298,11 @@ class EdgeFederatedLearningSaga(Saga):
 
 async def main():
     """Run the edge federated learning saga demo."""
-    print("=" * 80)
-    print("Edge Computing Federated Learning Saga Demo - Distributed ML Training")
-    print("=" * 80)
 
     # Reusable saga instance
     saga = EdgeFederatedLearningSaga()
 
     # Scenario 1: Successful federated learning round
-    print("\n🟢 Scenario 1: Successful Federated Learning Round")
-    print("-" * 80)
 
     success_data = {
         "training_round_id": "FL-ROUND-042",
@@ -318,17 +314,10 @@ async def main():
         "simulate_failure": False,
     }
 
-    result_success = await saga.run(success_data)
+    await saga.run(success_data)
 
-    print(f"\n{'✅' if result_success.get('saga_id') else '❌'} Federated Learning Result:")
-    print(f"   Saga ID: {result_success.get('saga_id')}")
-    print(f"   Training Round: {result_success.get('training_round_id')}")
-    print(f"   Model: {success_data['model_name']} v{success_data['model_version']}")
-    print("   Status: Model trained, validated, and deployed to edge fleet")
 
     # Scenario 2: Insufficient node participation with rollback
-    print("\n\n🔴 Scenario 2: Insufficient Node Participation")
-    print("-" * 80)
 
     failure_data = {
         "training_round_id": "FL-ROUND-043",
@@ -341,26 +330,11 @@ async def main():
     }
 
     try:
-        result_failure = await saga.run(failure_data)
+        await saga.run(failure_data)
     except Exception:
-        result_failure = {}
+        pass
 
-    print(f"\n{'❌' if not result_failure.get('saga_id') else '✅'} Rollback Result:")
-    print(f"   Saga ID: {result_failure.get('saga_id', 'N/A')}")
-    print(f"   Training Round: {failure_data['training_round_id']}")
-    print("   Status: Failed - training stopped, model weights revoked")
-    print("   Actions: Edge nodes released, previous model version remains active")
 
-    print("\n" + "=" * 80)
-    print("Key Features Demonstrated:")
-    print("  ✅ Privacy-preserving ML (data stays on device)")
-    print("  ✅ Partial participation handling (88% completion rate)")
-    print("  ✅ Federated averaging (FedAvg) aggregation")
-    print("  ✅ Differential privacy guarantees")
-    print("  ✅ Model validation before deployment")
-    print("  ✅ Bandwidth-efficient updates (8.5 MB compressed)")
-    print("  ✅ Graceful rollback to previous model version")
-    print("=" * 80)
 
 
 if __name__ == "__main__":

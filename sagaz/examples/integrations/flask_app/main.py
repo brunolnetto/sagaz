@@ -21,13 +21,13 @@ from typing import Any
 from flask import Flask, jsonify
 
 from sagaz import Saga, SagaConfig, action, compensate, configure
+
+# Import Flask integration
+from sagaz.integrations.flask import SagaFlask
 from sagaz.storage import InMemorySagaStorage
 
 # Import trigger decorator
 from sagaz.triggers import trigger
-
-# Import Flask integration
-from sagaz.integrations.flask import SagaFlask
 
 # =============================================================================
 # Configuration
@@ -49,13 +49,13 @@ configure(config)
 class OrderSaga(Saga):
     """
     E-commerce order processing saga.
-    
+
     Triggered via:
     - POST /webhooks/order_created
     """
-    
+
     saga_name = "flask-order"
-    
+
     @trigger(
         source="order_created",
         idempotency_key="order_id",
@@ -65,7 +65,7 @@ class OrderSaga(Saga):
         """Transform webhook payload into saga context."""
         if not event.get("order_id"):
             return None
-        
+
         return {
             "order_id": event["order_id"],
             "user_id": event.get("user_id", "unknown"),
@@ -75,29 +75,27 @@ class OrderSaga(Saga):
 
     @action("reserve_inventory")
     async def reserve_inventory(self, ctx: dict) -> dict[str, Any]:
-        print(f"[{ctx['order_id']}] Reserving inventory...")
         await asyncio.sleep(0.1)
         return {"reservation_id": f"RES-{ctx['order_id']}"}
 
     @compensate("reserve_inventory")
     async def release_inventory(self, ctx: dict) -> None:
-        print(f"Releasing reservation: {ctx.get('reservation_id')}")
+        pass
 
     @action("charge_payment", depends_on=["reserve_inventory"])
     async def charge_payment(self, ctx: dict) -> dict[str, Any]:
-        print(f"[{ctx['order_id']}] Charging ${ctx.get('amount', 0)}...")
         await asyncio.sleep(0.2)
         if ctx.get("amount", 0) > 1000:
-            raise ValueError("Payment declined")
+            msg = "Payment declined"
+            raise ValueError(msg)
         return {"transaction_id": f"TXN-{ctx['order_id']}"}
 
     @compensate("charge_payment")
     async def refund_payment(self, ctx: dict) -> None:
-        print(f"Refunding: {ctx.get('transaction_id')}")
+        pass
 
     @action("ship_order", depends_on=["charge_payment"])
     async def ship_order(self, ctx: dict) -> dict[str, Any]:
-        print(f"[{ctx['order_id']}] Shipping...")
         return {"tracking": f"TRACK-{ctx['order_id']}"}
 
 
@@ -134,16 +132,5 @@ def get_order_diagram(order_id: str):
 # =============================================================================
 
 if __name__ == "__main__":
-    print("🚀 Sagaz Flask Example")
-    print("=" * 60)
-    print()
-    print("📡 Trigger endpoint:")
-    print("   POST /webhooks/order_created")
-    print()
-    print("🔗 Example:")
-    print('   curl -X POST http://localhost:5000/webhooks/order_created \\')
-    print('     -H "Content-Type: application/json" \\')
-    print('     -d \'{"order_id": "ORD-123", "user_id": "USR-1", "amount": 99.99}\'')
-    print()
-    
+
     app.run(host="0.0.0.0", port=5000, debug=True)

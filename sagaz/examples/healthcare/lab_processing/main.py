@@ -21,8 +21,8 @@ from datetime import datetime
 from typing import Any
 
 from sagaz import Saga, SagaContext, action, compensate, forward_recovery
-from sagaz.pivot import RecoveryAction
 from sagaz.exceptions import SagaStepError
+from sagaz.pivot import RecoveryAction
 
 logging.basicConfig(
     level=logging.INFO,
@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 class LIMSSimulator:
     """Laboratory Information Management System (LIMS) simulator."""
-    
+
     @staticmethod
     async def receive_sample(
         sample_id: str,
@@ -52,7 +52,7 @@ class LIMSSimulator:
             "sample_type": sample_type,
             "condition": "acceptable",
         }
-    
+
     @staticmethod
     async def verify_requisition(
         accession_number: str,
@@ -66,7 +66,7 @@ class LIMSSimulator:
             "priority": "routine",
             "insurance_auth": "AUTH-12345",
         }
-    
+
     @staticmethod
     async def queue_for_testing(
         accession_number: str,
@@ -79,7 +79,7 @@ class LIMSSimulator:
             "estimated_completion": "2 hours",
             "assigned_analyzer": "CHEM-01",
         }
-    
+
     @staticmethod
     async def process_sample(
         accession_number: str,
@@ -87,12 +87,13 @@ class LIMSSimulator:
     ) -> dict:
         """Process the sample (centrifuge, aliquot) - CONSUMES THE SAMPLE."""
         await asyncio.sleep(0.3)
-        
+
         # Simulate occasional issues
         import random
         if random.random() < 0.05:  # 5% failure rate
-            raise SagaStepError("Sample hemolyzed during centrifugation")
-        
+            msg = "Sample hemolyzed during centrifugation"
+            raise SagaStepError(msg)
+
         return {
             "processing_id": f"PROC-{accession_number}",
             "aliquots_created": 3,
@@ -100,7 +101,7 @@ class LIMSSimulator:
             "sample_consumed": True,
             "processed_at": datetime.now().isoformat(),
         }
-    
+
     @staticmethod
     async def run_analysis(
         processing_id: str,
@@ -108,7 +109,7 @@ class LIMSSimulator:
     ) -> dict:
         """Run laboratory analysis on processed sample."""
         await asyncio.sleep(0.4)
-        
+
         # Simulate test results
         results = {
             "CBC": {
@@ -132,14 +133,14 @@ class LIMSSimulator:
                 "LDL": 110,
             },
         }
-        
+
         return {
             "analysis_id": f"ANAL-{processing_id}",
             "results": {t: results.get(t, {}) for t in tests},
             "analyzer": "CHEM-01",
             "completed_at": datetime.now().isoformat(),
         }
-    
+
     @staticmethod
     async def validate_results(
         analysis_id: str,
@@ -147,12 +148,12 @@ class LIMSSimulator:
     ) -> dict:
         """Validate results against reference ranges and previous values."""
         await asyncio.sleep(0.1)
-        
+
         # Check if any values are critical
         critical_flags = []
         if results.get("CMP", {}).get("POTASSIUM", 4.0) > 6.0:
             critical_flags.append("CRITICAL_POTASSIUM")
-        
+
         return {
             "validation_id": f"VAL-{analysis_id}",
             "validated": True,
@@ -160,7 +161,7 @@ class LIMSSimulator:
             "critical_flags": critical_flags,
             "delta_check_passed": True,
         }
-    
+
     @staticmethod
     async def report_to_provider(
         validation_id: str,
@@ -183,11 +184,11 @@ class LIMSSimulator:
 class LabTestProcessingSaga(Saga):
     """
     Lab test processing saga with consumable resource pivot.
-    
+
     This saga demonstrates the irreversibility of consuming biological samples.
     Once a sample is processed (centrifuged, aliquoted), it cannot be restored.
     If subsequent tests fail, a new sample must be collected from the patient.
-    
+
     Expected context:
         - sample_id: str - Unique sample identifier
         - patient_id: str - Patient identifier
@@ -195,109 +196,110 @@ class LabTestProcessingSaga(Saga):
         - ordering_provider: str - Provider who ordered tests
         - tests_ordered: list[str] - Tests to perform
     """
-    
+
     saga_name = "lab-test-processing"
-    
+
     # === REVERSIBLE ZONE ===
-    
+
     @action("receive_sample")
     async def receive_sample(self, ctx: SagaContext) -> dict[str, Any]:
         """Log sample receipt in LIMS."""
         sample_id = ctx.get("sample_id")
         patient_id = ctx.get("patient_id")
         sample_type = ctx.get("sample_type", "blood")
-        
+
         logger.info(f"🧪 [{sample_id}] Receiving {sample_type} sample from {patient_id}...")
-        
+
         result = await LIMSSimulator.receive_sample(sample_id, patient_id, sample_type)
-        
+
         logger.info(
             f"✅ [{sample_id}] Sample received: {result['accession_number']}, "
             f"condition: {result['condition']}"
         )
-        
+
         return {
             "accession_number": result["accession_number"],
             "sample_condition": result["condition"],
             "received_at": result["received_at"],
         }
-    
+
     @compensate("receive_sample")
     async def reject_sample(self, ctx: SagaContext) -> None:
         """Log sample rejection."""
         sample_id = ctx.get("sample_id")
         accession_number = ctx.get("accession_number")
-        
+
         logger.warning(f"↩️ [{sample_id}] Rejecting sample {accession_number}...")
         await asyncio.sleep(0.05)
-    
+
     @action("verify_requisition", depends_on=["receive_sample"])
     async def verify_requisition(self, ctx: SagaContext) -> dict[str, Any]:
         """Verify test requisition and insurance authorization."""
         sample_id = ctx.get("sample_id")
         accession_number = ctx.get("accession_number")
         ordering_provider = ctx.get("ordering_provider", "DR-001")
-        
+
         logger.info(f"📋 [{sample_id}] Verifying requisition from {ordering_provider}...")
-        
+
         result = await LIMSSimulator.verify_requisition(accession_number, ordering_provider)
-        
+
         if not result["verified"]:
-            raise SagaStepError("Requisition verification failed")
-        
+            msg = "Requisition verification failed"
+            raise SagaStepError(msg)
+
         logger.info(
             f"✅ [{sample_id}] Requisition verified, "
             f"tests: {', '.join(result['tests_ordered'])}"
         )
-        
+
         return {
             "tests_ordered": result["tests_ordered"],
             "insurance_auth": result["insurance_auth"],
             "priority": result["priority"],
         }
-    
+
     @compensate("verify_requisition")
     async def cancel_requisition(self, ctx: SagaContext) -> None:
         """Cancel requisition verification."""
         sample_id = ctx.get("sample_id")
         logger.warning(f"↩️ [{sample_id}] Cancelling requisition...")
         await asyncio.sleep(0.05)
-    
+
     @action("queue_for_testing", depends_on=["verify_requisition"])
     async def queue_for_testing(self, ctx: SagaContext) -> dict[str, Any]:
         """Add sample to testing queue."""
         sample_id = ctx.get("sample_id")
         accession_number = ctx.get("accession_number")
         tests_ordered = ctx.get("tests_ordered", [])
-        
+
         logger.info(f"📥 [{sample_id}] Queueing for {len(tests_ordered)} tests...")
-        
+
         result = await LIMSSimulator.queue_for_testing(accession_number, tests_ordered)
-        
+
         logger.info(
             f"✅ [{sample_id}] Queued at position {result['queue_position']}, "
             f"ETA: {result['estimated_completion']}"
         )
-        
+
         return {
             "queue_position": result["queue_position"],
             "assigned_analyzer": result["assigned_analyzer"],
         }
-    
+
     @compensate("queue_for_testing")
     async def remove_from_queue(self, ctx: SagaContext) -> None:
         """Remove sample from testing queue."""
         sample_id = ctx.get("sample_id")
         logger.warning(f"↩️ [{sample_id}] Removing from queue...")
         await asyncio.sleep(0.05)
-    
+
     # === PIVOT STEP ===
-    
+
     @action("process_sample", depends_on=["queue_for_testing"], pivot=True)
     async def process_sample(self, ctx: SagaContext) -> dict[str, Any]:
         """
         🔒 PIVOT STEP: Process the sample (centrifuge, aliquot).
-        
+
         Once this step completes, the sample has been CONSUMED.
         The original sample cannot be restored. If subsequent
         tests fail, a new sample must be collected from the patient.
@@ -305,18 +307,18 @@ class LabTestProcessingSaga(Saga):
         sample_id = ctx.get("sample_id")
         accession_number = ctx.get("accession_number")
         sample_type = ctx.get("sample_type", "blood")
-        
+
         logger.info(f"🔒 [{sample_id}] PIVOT: Processing sample...")
-        logger.info(f"   ⚠️ Sample will be consumed (centrifuged, aliquoted)")
-        
+        logger.info("   ⚠️ Sample will be consumed (centrifuged, aliquoted)")
+
         result = await LIMSSimulator.process_sample(accession_number, sample_type)
-        
+
         logger.info(
             f"✅ [{sample_id}] Sample processed! "
             f"{result['aliquots_created']} aliquots, "
             f"{result['serum_volume_ml']}mL serum"
         )
-        
+
         return {
             "processing_id": result["processing_id"],
             "aliquots_created": result["aliquots_created"],
@@ -324,93 +326,93 @@ class LabTestProcessingSaga(Saga):
             "sample_consumed": result["sample_consumed"],
             "pivot_reached": True,  # Point of no return
         }
-    
+
     # Note: No compensation for process_sample - it's a pivot step!
     # The biological sample has been consumed. Cannot restore.
-    
+
     # === COMMITTED ZONE (Forward Recovery Only) ===
-    
+
     @action("run_analysis", depends_on=["process_sample"])
     async def run_analysis(self, ctx: SagaContext) -> dict[str, Any]:
         """Run laboratory analysis on processed sample."""
         sample_id = ctx.get("sample_id")
         processing_id = ctx.get("processing_id")
         tests_ordered = ctx.get("tests_ordered", [])
-        
+
         logger.info(f"🔬 [{sample_id}] Running {len(tests_ordered)} tests...")
-        
+
         result = await LIMSSimulator.run_analysis(processing_id, tests_ordered)
-        
+
         logger.info(f"✅ [{sample_id}] Analysis complete: {result['analysis_id']}")
-        
+
         return {
             "analysis_id": result["analysis_id"],
             "results": result["results"],
             "analyzer": result["analyzer"],
         }
-    
+
     @forward_recovery("run_analysis")
     async def handle_analysis_failure(
         self, ctx: SagaContext, error: Exception
     ) -> RecoveryAction:
         """
         Forward recovery for analysis failures.
-        
+
         Strategies:
         1. RETRY - Use remaining aliquot if available
         2. MANUAL_INTERVENTION - Schedule patient recollection
         """
         aliquots_remaining = ctx.get("aliquots_created", 0) - 1
-        
+
         if aliquots_remaining > 0:
             ctx.set("aliquots_created", aliquots_remaining)
             logger.info(f"🧪 Using backup aliquot ({aliquots_remaining} remaining)")
             return RecoveryAction.RETRY
-        
+
         # No more aliquots - need new sample
         logger.warning("❌ No remaining aliquots. Scheduling patient recollection.")
         return RecoveryAction.MANUAL_INTERVENTION
-    
+
     @action("validate_results", depends_on=["run_analysis"])
     async def validate_results(self, ctx: SagaContext) -> dict[str, Any]:
         """Validate results against reference ranges."""
         sample_id = ctx.get("sample_id")
         analysis_id = ctx.get("analysis_id")
         results = ctx.get("results", {})
-        
+
         logger.info(f"✔️ [{sample_id}] Validating results...")
-        
+
         result = await LIMSSimulator.validate_results(analysis_id, results)
-        
+
         if result["critical_flags"]:
             logger.warning(
                 f"⚠️ [{sample_id}] CRITICAL VALUES: {result['critical_flags']}"
             )
         else:
             logger.info(f"✅ [{sample_id}] Results validated by {result['validated_by']}")
-        
+
         return {
             "validation_id": result["validation_id"],
             "validated": result["validated"],
             "critical_flags": result["critical_flags"],
         }
-    
+
     @action("report_to_provider", depends_on=["validate_results"])
     async def report_to_provider(self, ctx: SagaContext) -> dict[str, Any]:
         """Send results to ordering provider."""
         sample_id = ctx.get("sample_id")
         validation_id = ctx.get("validation_id")
         ordering_provider = ctx.get("ordering_provider", "DR-001")
-        
+
         logger.info(f"📤 [{sample_id}] Reporting to {ordering_provider}...")
-        
+
         result = await LIMSSimulator.report_to_provider(validation_id, ordering_provider)
-        
+
         logger.info(
             f"✅ [{sample_id}] Results reported: {result['report_id']}, "
             f"via {result['delivery_method']}"
         )
-        
+
         return {
             "report_id": result["report_id"],
             "report_sent_at": result["sent_at"],
@@ -424,19 +426,11 @@ class LabTestProcessingSaga(Saga):
 
 async def main():
     """Run the lab test processing saga demo."""
-    print("=" * 80)
-    print("🧪 Lab Test Processing Saga Demo")
-    print("=" * 80)
-    print("\nThis example demonstrates consumable resources as a pivot point.")
-    print("Once a sample is processed, it cannot be restored - only forward recovery.\n")
-    
+
     saga = LabTestProcessingSaga()
-    
+
     # Scenario 1: Successful lab processing
-    print("\n" + "=" * 80)
-    print("🟢 Scenario 1: Successful Lab Test Processing")
-    print("=" * 80)
-    
+
     result = await saga.run({
         "sample_id": "SAMP-2026-001",
         "patient_id": "PAT-12345",
@@ -444,58 +438,19 @@ async def main():
         "ordering_provider": "DR-SMITH",
         "tests_ordered": ["CBC", "CMP", "LIPID"],
     })
-    
-    print(f"\n{'✅' if result.get('saga_id') else '❌'} Lab Test Result:")
-    print(f"   Saga ID: {result.get('saga_id')}")
-    print(f"   Accession: {result.get('accession_number', 'N/A')}")
-    print(f"   Sample Consumed: {result.get('sample_consumed', 'N/A')}")
-    print(f"   Pivot Reached: {result.get('pivot_reached', False)}")
-    print(f"   Report ID: {result.get('report_id', 'N/A')}")
-    
+
+
     # Display some results
     results = result.get("results", {})
     if results:
-        print("\n   📊 Test Results:")
-        for test, values in results.items():
-            print(f"      {test}:")
-            for key, value in list(values.items())[:3]:
-                print(f"        {key}: {value}")
-    
+        for _test, values in results.items():
+            for _key, _value in list(values.items())[:3]:
+                pass
+
     # Scenario 2: Pre-pivot failure
-    print("\n" + "=" * 80)
-    print("🟡 Scenario 2: Pre-Pivot Failure (Invalid Requisition)")
-    print("=" * 80)
-    print("If requisition verification fails before processing:\n")
-    print("  → Sample receipt cancelled (sample returned)")
-    print("  → No sample consumed")
-    print("  → Patient can provide new sample if needed")
-    
+
     # Scenario 3: Post-pivot scenarios
-    print("\n" + "=" * 80)
-    print("🔴 Scenario 3: Post-Pivot Failure (Analysis Failed)")
-    print("=" * 80)
-    print("""
-In a real implementation (when ADR-023 is complete), analysis failures
-after sample processing would use forward recovery:
 
-1. If aliquots remain:
-   → RETRY - Use backup aliquot for re-analysis
-   
-2. If all aliquots consumed:
-   → MANUAL_INTERVENTION - Schedule patient recollection
-   → Notify ordering provider
-   → Flag sample for QA review
-
-Key insight: We cannot "un-process" a biological sample.
-The original blood draw is consumed. Recovery options:
-- Use remaining aliquots (if any)
-- Request new sample collection
-- Partial result reporting
-""")
-    
-    print("\n" + "=" * 80)
-    print("Demo Complete!")
-    print("=" * 80)
 
 
 if __name__ == "__main__":

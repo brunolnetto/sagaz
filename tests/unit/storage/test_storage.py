@@ -7,9 +7,9 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from sagaz.core.types import SagaStatus, SagaStepStatus
 from sagaz.storage.base import SagaStepState, SagaStorageError
 from sagaz.storage.memory import InMemorySagaStorage
-from sagaz.core.types import SagaStatus, SagaStepStatus
 
 
 class TestSagaStepState:

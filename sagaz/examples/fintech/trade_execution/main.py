@@ -21,10 +21,10 @@ logger = logging.getLogger(__name__)
 class TradeExecutionSaga(Saga):
     """
     Production-ready saga for executing trades with multi-step validation and compensation.
-    
+
     This saga is stateless - all trade data is passed through the context
     via the run() method. The same saga instance can execute multiple trades.
-    
+
     Expected context:
         - trade_id: int - Unique trade identifier
         - symbol: str - Stock/asset symbol
@@ -42,7 +42,7 @@ class TradeExecutionSaga(Saga):
         user_id = ctx.get("user_id")
         quantity = ctx.get("quantity", 0)
         price = ctx.get("price", 0)
-        
+
         amount = quantity * price
         logger.info(f"Reserving ${amount} for user {user_id}")
         await asyncio.sleep(0.1)
@@ -78,7 +78,7 @@ class TradeExecutionSaga(Saga):
         symbol = ctx.get("symbol")
         quantity = ctx.get("quantity")
         price = ctx.get("price")
-        
+
         logger.info(
             f"Executing trade {trade_id}: {symbol} x{quantity} @ ${price}"
         )
@@ -111,7 +111,7 @@ class TradeExecutionSaga(Saga):
     async def update_position(self, ctx: SagaContext) -> dict[str, Any]:
         """Update position in database."""
         trade_id = ctx.get("trade_id")
-        
+
         logger.info(f"Updating position for trade {trade_id}")
         await asyncio.sleep(0.05)
 
@@ -137,7 +137,7 @@ class TradeExecutionSaga(Saga):
 class StrategyActivationSaga(Saga):
     """
     Strategy activation saga for trading systems.
-    
+
     Expected context:
         - strategy_id: int - Strategy to activate
         - user_id: int - User activating the strategy
@@ -149,7 +149,7 @@ class StrategyActivationSaga(Saga):
     async def validate_strategy(self, ctx: SagaContext) -> dict[str, Any]:
         """Validate the strategy."""
         strategy_id = ctx.get("strategy_id")
-        
+
         logger.info(f"Validating strategy {strategy_id}")
         await asyncio.sleep(0.05)
         return {"valid": True, "strategy_id": strategy_id}
@@ -158,7 +158,7 @@ class StrategyActivationSaga(Saga):
     async def validate_funds(self, ctx: SagaContext) -> dict[str, Any]:
         """Validate sufficient funds."""
         user_id = ctx.get("user_id")
-        
+
         logger.info(f"Validating funds for user {user_id}")
         await asyncio.sleep(0.05)
         return {"sufficient": True, "user_id": user_id}
@@ -167,7 +167,7 @@ class StrategyActivationSaga(Saga):
     async def activate_strategy(self, ctx: SagaContext) -> dict[str, Any]:
         """Activate the strategy."""
         strategy_id = ctx.get("strategy_id")
-        
+
         logger.info(f"Activating strategy {strategy_id}")
         await asyncio.sleep(0.1)
         return {"strategy_id": strategy_id, "active": True}
@@ -177,7 +177,7 @@ class StrategyActivationSaga(Saga):
         """Deactivate the strategy."""
         strategy_id = ctx.get("strategy_id")
         logger.warning(f"Deactivating strategy {strategy_id}")
-        
+
         if strategy_id:
             logger.info(f"Deactivated strategy {strategy_id}")
         await asyncio.sleep(0.05)
@@ -186,7 +186,7 @@ class StrategyActivationSaga(Saga):
     async def publish_event(self, ctx: SagaContext) -> dict[str, Any]:
         """Publish activation event."""
         strategy_id = ctx.get("strategy_id")
-        
+
         logger.info(f"Publishing activation event for strategy {strategy_id}")
         await asyncio.sleep(0.05)
         return {"event_id": f"evt_{strategy_id}", "published": True}
@@ -223,15 +223,12 @@ class SagaOrchestrator:
 
 async def main():
     """Run the trade execution saga demo."""
-    print("=" * 60)
-    print("Trade Execution Saga Demo")
-    print("=" * 60)
 
     # Create a reusable saga instance
     saga = TradeExecutionSaga()
 
     # Execute first trade
-    result1 = await saga.run({
+    await saga.run({
         "trade_id": 12345,
         "symbol": "AAPL",
         "quantity": 100,
@@ -239,14 +236,10 @@ async def main():
         "user_id": 789,
     })
 
-    print(f"\n{'✅' if result1.get('saga_id') else '❌'} First Trade Result:")
-    print(f"   Saga ID: {result1.get('saga_id')}")
-    print(f"   Trade ID: {result1.get('trade_id')}")
-    
+
     # Demonstrate reusability - same saga, different trade
-    print("\n--- Executing second trade with same saga instance ---\n")
-    
-    result2 = await saga.run({
+
+    await saga.run({
         "trade_id": 67890,
         "symbol": "GOOGL",
         "quantity": 50,
@@ -254,9 +247,6 @@ async def main():
         "user_id": 789,
     })
 
-    print(f"\n{'✅' if result2.get('saga_id') else '❌'} Second Trade Result:")
-    print(f"   Saga ID: {result2.get('saga_id')}")
-    print(f"   Trade ID: {result2.get('trade_id')}")
 
 
 if __name__ == "__main__":

@@ -14,11 +14,11 @@ import pytest
 
 from sagaz import Saga, SagaConfig, action
 from sagaz.core.config import configure, get_config
+from sagaz.core.types import SagaStatus
 from sagaz.triggers import fire_event, trigger
 from sagaz.triggers.decorators import TriggerMetadata
 from sagaz.triggers.engine import TriggerEngine
 from sagaz.triggers.registry import RegisteredTrigger, TriggerRegistry
-from sagaz.core.types import SagaStatus
 
 # =============================================================================
 # Fixtures

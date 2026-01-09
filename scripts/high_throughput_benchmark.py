@@ -18,17 +18,13 @@ Usage:
     python scripts/high_throughput_benchmark.py --events 100000 --workers 20
 """
 
-import asyncio
 import argparse
+import asyncio
 import json
 import sys
 import time
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
-from io import StringIO
-from concurrent.futures import ThreadPoolExecutor
-import threading
+from datetime import UTC, datetime
 
 try:
     import asyncpg
@@ -38,10 +34,10 @@ except ImportError:
 
 try:
     from rich.console import Console
-    from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeRemainingColumn
-    from rich.table import Table
-    from rich.panel import Panel
     from rich.live import Live
+    from rich.panel import Panel
+    from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeRemainingColumn
+    from rich.table import Table
 
     RICH_AVAILABLE = True
 except ImportError:
@@ -65,7 +61,7 @@ class HighThroughputBenchmark:
         self.database_url = database_url
         self.num_workers = num_workers
         self.batch_size = batch_size
-        self.pool: Optional[asyncpg.Pool] = None
+        self.pool: asyncpg.Pool | None = None
 
         # Stats
         self.events_inserted = 0
@@ -130,7 +126,7 @@ class HighThroughputBenchmark:
                         {
                             "index": batch_start + i,
                             "data": f"Event {batch_start + i}",
-                            "ts": datetime.now(timezone.utc).isoformat(),
+                            "ts": datetime.now(UTC).isoformat(),
                         }
                     )
                     headers = json.dumps({"batch": batch_start // batch_size})
@@ -145,7 +141,7 @@ class HighThroughputBenchmark:
                             payload,
                             headers,
                             "pending",
-                            datetime.now(timezone.utc),
+                            datetime.now(UTC),
                             0,  # retry_count
                         )
                     )
@@ -178,8 +174,7 @@ class HighThroughputBenchmark:
                         f"[green]Rate:[/green] {rate:,.0f}/sec"
                     )
 
-        insert_time = time.time() - self.insert_start_time
-        return insert_time
+        return time.time() - self.insert_start_time
 
     async def process_batch_worker(self, worker_id: int):
         """
@@ -195,7 +190,7 @@ class HighThroughputBenchmark:
                 events = await conn.fetch(
                     """
                     UPDATE saga_outbox
-                    SET status = 'claimed', 
+                    SET status = 'claimed',
                         worker_id = $1,
                         claimed_at = NOW()
                     WHERE event_id IN (
@@ -303,8 +298,7 @@ class HighThroughputBenchmark:
         # Stop workers
         await self._stop_workers(workers)
 
-        process_time = time.time() - self.process_start_time
-        return process_time
+        return time.time() - self.process_start_time
 
     async def get_stats(self) -> dict:
         """Get current outbox statistics."""
@@ -337,7 +331,7 @@ async def run_benchmark(
             )
         )
     else:
-        print(f"\n=== High-Throughput Benchmark ===")
+        print("\n=== High-Throughput Benchmark ===")
         print(f"Events: {num_events:,} | Workers: {num_workers} | Batch: {batch_size}")
 
     benchmark = HighThroughputBenchmark(
@@ -429,7 +423,7 @@ async def run_benchmark(
             )
 
         else:
-            print(f"\n=== Results ===")
+            print("\n=== Results ===")
             print(f"Insert: {insert_time:.2f}s ({insert_rate:,.0f}/sec)")
             print(f"Process: {process_time:.2f}s ({process_rate:,.0f}/sec)")
             print(f"Total: {total_time:.2f}s ({overall_rate:,.0f}/sec)")

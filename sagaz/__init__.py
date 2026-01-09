@@ -55,11 +55,6 @@ Note: You cannot mix both approaches. Once you use decorators,
 # Configuration
 # =============================================================================
 from sagaz.core.config import SagaConfig, configure, get_config
-
-# =============================================================================
-# Core Saga Classes
-# =============================================================================
-from sagaz.core.saga import SagaContext, SagaStep
 from sagaz.core.decorators import (
     Saga,
     SagaStepDefinition,
@@ -81,6 +76,24 @@ from sagaz.core.exceptions import (
 )
 
 # =============================================================================
+# Listeners (observability and side effects)
+# =============================================================================
+from sagaz.core.listeners import (
+    LoggingSagaListener,
+    MetricsSagaListener,
+    OutboxSagaListener,
+    SagaListener,
+    TracingSagaListener,
+    default_listeners,
+)
+
+# =============================================================================
+# Core Saga Classes
+# =============================================================================
+from sagaz.core.saga import SagaContext, SagaStep
+from sagaz.core.types import ParallelFailureStrategy, SagaResult, SagaStatus, SagaStepStatus
+
+# =============================================================================
 # Execution Graph (compensation and dependency management)
 # =============================================================================
 from sagaz.execution.graph import (
@@ -92,18 +105,6 @@ from sagaz.execution.graph import (
     CompensationType,
     SagaCompensationContext,
     SagaExecutionGraph,
-)
-
-# =============================================================================
-# Listeners (observability and side effects)
-# =============================================================================
-from sagaz.core.listeners import (
-    LoggingSagaListener,
-    MetricsSagaListener,
-    OutboxSagaListener,
-    SagaListener,
-    TracingSagaListener,
-    default_listeners,
 )
 
 # =============================================================================
@@ -121,7 +122,6 @@ from sagaz.execution.pivot import (
     StepZone,
     TaintPropagator,
 )
-from sagaz.core.types import ParallelFailureStrategy, SagaResult, SagaStatus, SagaStepStatus
 
 __all__ = [
     "CircularDependencyError",

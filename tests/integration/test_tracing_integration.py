@@ -159,8 +159,8 @@ class TestOTLPCollectorIntegration:
     @pytest.mark.skipif(not TESTCONTAINERS_AVAILABLE, reason="testcontainers not installed")
     def test_saga_tracer_with_real_collector(self, otel_collector):
         """Test SagaTracer integration with real OTLP collector."""
-        from sagaz.monitoring.tracing import TRACING_AVAILABLE, SagaTracer
         from sagaz.core.types import SagaStatus, SagaStepStatus
+        from sagaz.monitoring.tracing import TRACING_AVAILABLE, SagaTracer
 
         if not TRACING_AVAILABLE:
             pytest.skip("Tracing module not available")
@@ -221,8 +221,8 @@ class TestTracingWithMockedCollector:
     @pytest.mark.skipif(not OTEL_AVAILABLE, reason="OpenTelemetry not installed")
     def test_tracer_handles_connection_failure_gracefully(self):
         """Test that tracer handles connection failures gracefully."""
-        from sagaz.monitoring.tracing import TRACING_AVAILABLE, SagaTracer
         from sagaz.core.types import SagaStatus
+        from sagaz.monitoring.tracing import TRACING_AVAILABLE, SagaTracer
 
         if not TRACING_AVAILABLE:
             pytest.skip("Tracing not available")

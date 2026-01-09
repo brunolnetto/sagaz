@@ -191,8 +191,8 @@ class TestStorageTo100:
     @pytest.mark.asyncio
     async def test_memory_storage_list_sagas_pagination(self):
         """Test memory storage list with pagination"""
-        from sagaz.storage.memory import InMemorySagaStorage
         from sagaz.core.types import SagaStatus
+        from sagaz.storage.memory import InMemorySagaStorage
 
         storage = InMemorySagaStorage()
 
@@ -311,8 +311,8 @@ class TestMonitoringTo100:
 
     def test_metrics_record_execution(self):
         """Test metrics record_execution method"""
-        from sagaz.monitoring.metrics import SagaMetrics
         from sagaz.core.types import SagaStatus
+        from sagaz.monitoring.metrics import SagaMetrics
 
         metrics = SagaMetrics()
 

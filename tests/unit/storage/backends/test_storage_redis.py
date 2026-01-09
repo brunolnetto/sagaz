@@ -11,8 +11,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from sagaz.core.exceptions import MissingDependencyError
-from sagaz.storage.base import SagaNotFoundError, SagaStorageConnectionError, SagaStorageError
 from sagaz.core.types import SagaStatus, SagaStepStatus
+from sagaz.storage.base import SagaNotFoundError, SagaStorageConnectionError, SagaStorageError
 
 # Check availability of dependencies
 try:

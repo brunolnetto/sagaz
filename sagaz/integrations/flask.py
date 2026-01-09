@@ -10,12 +10,12 @@ Provides:
 import threading
 from typing import Any
 
+from sagaz.core.logger import get_logger
 from sagaz.integrations._base import (
     SagaContextManager,
     generate_correlation_id,
     get_correlation_id,
 )
-from sagaz.core.logger import get_logger
 
 logger = get_logger(__name__)
 

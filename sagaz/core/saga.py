@@ -69,8 +69,8 @@ from sagaz.core.exceptions import (
     SagaStepError,
     SagaTimeoutError,
 )
-from sagaz.execution.state_machine import SagaStateMachine
 from sagaz.core.types import ParallelFailureStrategy, SagaResult, SagaStatus, SagaStepStatus
+from sagaz.execution.state_machine import SagaStateMachine
 
 # Configure logging
 logger = logging.getLogger(__name__)

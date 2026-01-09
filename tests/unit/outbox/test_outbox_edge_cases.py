@@ -296,8 +296,8 @@ class TestRedisSagaStorageEdgeCases:
     async def test_list_sagas_with_both_status_and_name_filters(self, mock_redis):
         """Test listing sagas with both status and name filters (intersection)."""
         with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
-            from sagaz.storage.redis import RedisSagaStorage
             from sagaz.core.types import SagaStatus
+            from sagaz.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
             storage = RedisSagaStorage("redis://localhost:6379")
@@ -378,8 +378,8 @@ class TestRedisSagaStorageEdgeCases:
     async def test_update_step_with_executed_at_timestamp(self, mock_redis):
         """Test updating step with executed_at timestamp."""
         with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
-            from sagaz.storage.redis import RedisSagaStorage
             from sagaz.core.types import SagaStepStatus
+            from sagaz.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
             storage = RedisSagaStorage("redis://localhost:6379")

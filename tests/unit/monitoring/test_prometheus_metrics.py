@@ -6,13 +6,13 @@ These tests cover the PrometheusMetrics class and related functionality.
 
 import pytest
 
+from sagaz.core.types import SagaStatus
 from sagaz.monitoring.prometheus import (
     PROMETHEUS_AVAILABLE,
     PrometheusMetrics,
     is_prometheus_available,
     start_metrics_server,
 )
-from sagaz.core.types import SagaStatus
 
 
 @pytest.fixture

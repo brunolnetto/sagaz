@@ -27,10 +27,10 @@ logger = logging.getLogger(__name__)
 class MLTrainingPipelineSaga(Saga):
     """
     Production ML training pipeline with automatic rollback.
-    
+
     This saga is stateless - all training configuration is passed through the context
     via the run() method.
-    
+
     Expected context:
         - experiment_id: str
         - dataset_path: str
@@ -46,7 +46,7 @@ class MLTrainingPipelineSaga(Saga):
         """Validate dataset quality, schema, and availability."""
         dataset_path = ctx.get("dataset_path")
         experiment_id = ctx.get("experiment_id")
-        
+
         logger.info(f"🔍 Validating dataset: {dataset_path}")
         await asyncio.sleep(0.2)  # Simulate I/O
 
@@ -56,7 +56,8 @@ class MLTrainingPipelineSaga(Saga):
         missing_ratio = random.uniform(0.0, 0.1)
 
         if missing_ratio > 0.15:
-            raise SagaStepError(f"Dataset has {missing_ratio:.1%} missing values (threshold: 15%)")
+            msg = f"Dataset has {missing_ratio:.1%} missing values (threshold: 15%)"
+            raise SagaStepError(msg)
 
         # Create temporary validation artifacts
         temp_dir = Path("/tmp") / f"ml_validation_{experiment_id}"
@@ -139,7 +140,7 @@ class MLTrainingPipelineSaga(Saga):
         feature_count = ctx.get("engineered_feature_count", 0)
         model_name = ctx.get("model_name")
         experiment_id = ctx.get("experiment_id")
-        
+
         hyperparameters = ctx.get("hyperparameters") or {
             "learning_rate": 0.001,
             "batch_size": 32,
@@ -224,9 +225,12 @@ class MLTrainingPipelineSaga(Saga):
 
         # Check accuracy threshold
         if accuracy < accuracy_threshold:
-            raise SagaStepError(
+            msg = (
                 f"Model accuracy {accuracy:.4f} below threshold {accuracy_threshold:.4f}. "
                 f"Training failed - automatic rollback initiated."
+            )
+            raise SagaStepError(
+                msg
             )
 
         logger.info(f"✅ Model evaluation passed: {accuracy:.4f} >= {accuracy_threshold:.4f}")
@@ -339,14 +343,11 @@ class MLTrainingPipelineSaga(Saga):
 
 async def successful_pipeline_demo():
     """Demonstrate successful ML pipeline execution."""
-    print("\n" + "=" * 80)
-    print("🤖 ML Training Pipeline - Successful Training Demo")
-    print("=" * 80)
 
     # Instantiate reusable saga
     saga = MLTrainingPipelineSaga()
 
-    result = await saga.run({
+    await saga.run({
         "experiment_id": "exp-20240115-001",
         "dataset_path": "/data/training/customer_churn.parquet",
         "model_name": "churn-predictor",
@@ -360,25 +361,15 @@ async def successful_pipeline_demo():
         }
     })
 
-    print(f"\n{'✅' if result.get('saga_id') else '❌'} Training Pipeline Result:")
-    print(f"   Saga ID:        {result.get('saga_id')}")
-    print(f"   Experiment ID:  {result.get('experiment_id')}")
-    print(f"   Accuracy:       {result.get('accuracy', 0.0):.4f}")
-    print(f"   Model Version:  {result.get('model_version')}")
-    print(f"   Endpoint URL:   {result.get('endpoint_url')}")
-    print(f"   Deployed At:    {result.get('deployed_at')}")
 
 
 async def failed_pipeline_demo():
     """Demonstrate pipeline failure and automatic rollback."""
-    print("\n" + "=" * 80)
-    print("⚠️  ML Training Pipeline - Failed Training with Rollback Demo")
-    print("=" * 80)
 
     saga = MLTrainingPipelineSaga()
 
     try:
-        result = await saga.run({
+        await saga.run({
             "experiment_id": "exp-20240115-002",
             "dataset_path": "/data/training/customer_churn.parquet",
             "model_name": "churn-predictor",
@@ -390,13 +381,8 @@ async def failed_pipeline_demo():
                 "optimizer": "sgd",
             }
         })
-        print(f"✅ Unexpectedly succeeded: {result.get('saga_id')}")
-    except SagaStepError as e:
-        print(f"\n❌ Pipeline failed as expected: {e}")
-        print("✅ Automatic compensation completed successfully")
-        print("   All resources cleaned up")
-        print("   Model artifacts removed")
-        print("   Ready for retry with adjusted parameters")
+    except SagaStepError:
+        pass
 
 
 async def main():
@@ -407,15 +393,6 @@ async def main():
     # Run failed pipeline with automatic rollback
     await failed_pipeline_demo()
 
-    print("\n" + "=" * 80)
-    print("📚 MLOps Pipeline Demo Complete")
-    print("=" * 80)
-    print("\nKey Takeaways:")
-    print("  ✅ Automatic resource cleanup on failure")
-    print("  ✅ Model registry consistency maintained")
-    print("  ✅ Deployment rollback to previous version")
-    print("  ✅ GPU/artifact cleanup prevents resource leaks")
-    print("  ✅ Full observability with structured logging")
 
 
 if __name__ == "__main__":

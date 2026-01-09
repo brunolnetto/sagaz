@@ -21,12 +21,12 @@ from sagaz import (
     StepZone,
     TaintPropagator,
 )
-from sagaz.core.saga import SagaStep
 from sagaz.core.decorators import (
     ForwardRecoveryMetadata,
     SagaStepDefinition,
     StepMetadata,
 )
+from sagaz.core.saga import SagaStep
 
 
 class TestRecoveryAction:

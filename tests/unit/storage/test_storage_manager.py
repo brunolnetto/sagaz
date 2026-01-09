@@ -80,8 +80,8 @@ class TestInMemoryStorageManager:
     @pytest.mark.asyncio
     async def test_saga_operations(self):
         """Test saga storage operations through manager."""
-        from sagaz.storage.manager import StorageManager
         from sagaz.core.types import SagaStatus
+        from sagaz.storage.manager import StorageManager
 
         async with StorageManager(url="memory://") as manager:
             await manager.saga.save_saga_state(
@@ -271,9 +271,9 @@ class TestSQLiteStorageManager:
         """Test SQLite :memory: storage operations."""
         pytest.importorskip("aiosqlite")
 
+        from sagaz.core.types import SagaStatus
         from sagaz.outbox.types import OutboxEvent
         from sagaz.storage.manager import StorageManager
-        from sagaz.core.types import SagaStatus
 
         async with StorageManager(url="sqlite://:memory:") as manager:
             # Test saga operations
@@ -387,9 +387,9 @@ class TestHybridMode:
         """Test hybrid mode with SQLite for both (but separate URLs triggers hybrid path)."""
         pytest.importorskip("aiosqlite")
 
+        from sagaz.core.types import SagaStatus
         from sagaz.outbox.types import OutboxEvent
         from sagaz.storage.manager import StorageManager
-        from sagaz.core.types import SagaStatus
 
         manager = StorageManager(
             saga_url="sqlite://:memory:",
@@ -524,8 +524,8 @@ class TestSagaConfigIntegration:
         """Test running a saga with StorageManager configuration."""
         from sagaz import Saga, action, configure
         from sagaz.core.config import SagaConfig
-        from sagaz.storage.manager import StorageManager
         from sagaz.core.types import SagaStatus
+        from sagaz.storage.manager import StorageManager
 
         manager = StorageManager(url="memory://")
         await manager.initialize()

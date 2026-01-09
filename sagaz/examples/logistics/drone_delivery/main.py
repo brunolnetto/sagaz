@@ -23,9 +23,9 @@ logger = logging.getLogger(__name__)
 class SupplyChainDroneDeliverySaga(Saga):
     """
     Autonomous drone delivery with airspace coordination and regulatory compliance.
-    
+
     This saga is stateless - all data is passed through the context via the run() method.
-    
+
     Expected context:
         - delivery_id: str
         - package_id: str
@@ -44,7 +44,7 @@ class SupplyChainDroneDeliverySaga(Saga):
         """Reserve available drone from fleet based on package weight and range."""
         delivery_id = ctx.get("delivery_id")
         warehouse_id = ctx.get("warehouse_id")
-        
+
         logger.info(f"🚁 Reserving drone from fleet for delivery {delivery_id}")
         await asyncio.sleep(0.15)
 
@@ -86,7 +86,7 @@ class SupplyChainDroneDeliverySaga(Saga):
         delivery_id = ctx.get("delivery_id")
         destination_lat = ctx.get("destination_lat")
         destination_lon = ctx.get("destination_lon")
-        
+
         logger.info(f"🗺️  Planning flight path for delivery {delivery_id}")
         await asyncio.sleep(0.2)
 
@@ -126,13 +126,14 @@ class SupplyChainDroneDeliverySaga(Saga):
         """Request FAA airspace authorization (LAANC/UAS)."""
         delivery_id = ctx.get("delivery_id")
         simulate_failure = ctx.get("simulate_failure", False)
-        
+
         logger.info(f"✈️  Requesting airspace authorization for delivery {delivery_id}")
         await asyncio.sleep(0.25)
 
         if simulate_failure:
+            msg = "Airspace authorization denied - temporary flight restriction (TFR) in effect"
             raise SagaStepError(
-                "Airspace authorization denied - temporary flight restriction (TFR) in effect"
+                msg
             )
 
         # Simulate LAANC (Low Altitude Authorization and Notification Capability)
@@ -168,7 +169,7 @@ class SupplyChainDroneDeliverySaga(Saga):
         package_id = ctx.get("package_id")
         warehouse_id = ctx.get("warehouse_id")
         package_weight_kg = ctx.get("package_weight_kg")
-        
+
         logger.info(f"📦 Picking up package {package_id} from {warehouse_id}")
         await asyncio.sleep(0.15)
 
@@ -244,7 +245,7 @@ class SupplyChainDroneDeliverySaga(Saga):
         """Confirm delivery with photo and customer signature."""
         delivery_id = ctx.get("delivery_id")
         package_id = ctx.get("package_id")
-        
+
         logger.info(f"📸 Confirming delivery for {delivery_id}")
         await asyncio.sleep(0.15)
 
@@ -259,7 +260,7 @@ class SupplyChainDroneDeliverySaga(Saga):
             "proof_of_delivery": "https://cdn.example.com/delivery-proof.jpg",
         }
 
-        logger.info(f"   ✅ Delivery confirmed with photo proof")
+        logger.info("   ✅ Delivery confirmed with photo proof")
         return confirmation
 
     @compensate("confirm_delivery")
@@ -298,16 +299,11 @@ class SupplyChainDroneDeliverySaga(Saga):
 
 async def main():
     """Run the supply chain drone delivery saga demo."""
-    print("=" * 80)
-    print("Supply Chain Drone Delivery Saga Demo - Autonomous Delivery Orchestration")
-    print("=" * 80)
 
     # Reusable saga instance
     saga = SupplyChainDroneDeliverySaga()
 
     # Scenario 1: Successful drone delivery
-    print("\n🟢 Scenario 1: Successful Drone Delivery")
-    print("-" * 80)
 
     success_data = {
         "delivery_id": "DEL-2026-001",
@@ -320,17 +316,10 @@ async def main():
         "simulate_failure": False,
     }
 
-    result_success = await saga.run(success_data)
+    await saga.run(success_data)
 
-    print(f"\n{'✅' if result_success.get('saga_id') else '❌'} Drone Delivery Result:")
-    print(f"   Saga ID: {result_success.get('saga_id')}")
-    print(f"   Delivery ID: {result_success.get('delivery_id')}")
-    print(f"   Package: {success_data['package_id']} ({success_data['package_weight_kg']} kg)")
-    print("   Status: Successfully delivered with photo proof")
 
     # Scenario 2: Airspace authorization denied with automatic rollback
-    print("\n\n🔴 Scenario 2: Airspace Authorization Denied (TFR Active)")
-    print("-" * 80)
 
     failure_data = {
         "delivery_id": "DEL-2026-002",
@@ -344,26 +333,11 @@ async def main():
     }
 
     try:
-        result_failure = await saga.run(failure_data)
+        await saga.run(failure_data)
     except Exception:
-        result_failure = {}
+        pass
 
-    print(f"\n{'❌' if not result_failure.get('saga_id') else '✅'} Rollback Result:")
-    print(f"   Saga ID: {result_failure.get('saga_id', 'N/A')}")
-    print(f"   Delivery ID: {failure_data['delivery_id']}")
-    print(f"   Package: {failure_data['package_id']}")
-    print("   Status: Failed - airspace authorization denied")
-    print("   Actions: Drone released, flight plan canceled, package available for retry")
 
-    print("\n" + "=" * 80)
-    print("Key Features Demonstrated:")
-    print("  ✅ Real-time airspace coordination (FAA LAANC)")
-    print("  ✅ Battery and range management")
-    print("  ✅ Weather condition checks")
-    print("  ✅ Regulatory compliance (FAA Part 107)")
-    print("  ✅ Automatic rerouting on failure")
-    print("  ✅ Proof of delivery (photo + signature)")
-    print("=" * 80)
 
 
 if __name__ == "__main__":

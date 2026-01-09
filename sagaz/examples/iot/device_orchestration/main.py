@@ -23,9 +23,9 @@ logger = logging.getLogger(__name__)
 class IoTDeviceOrchestrationSaga(Saga):
     """
     Smart home 'Leaving Home' routine with multi-device coordination.
-    
+
     This saga is stateless - all data is passed through the context via the run() method.
-    
+
     Expected context:
         - routine_id: str
         - home_id: str
@@ -40,7 +40,7 @@ class IoTDeviceOrchestrationSaga(Saga):
     async def lock_doors(self, ctx: SagaContext) -> dict[str, Any]:
         """Lock all doors using Z-Wave protocol."""
         home_id = ctx.get("home_id")
-        
+
         logger.info(f"🚪 Locking all doors for home {home_id}")
         await asyncio.sleep(0.15)
 
@@ -73,7 +73,7 @@ class IoTDeviceOrchestrationSaga(Saga):
     async def set_thermostat_away(self, ctx: SagaContext) -> dict[str, Any]:
         """Set thermostat to away mode (energy saving)."""
         home_id = ctx.get("home_id")
-        
+
         logger.info(f"🌡️  Setting thermostat to away mode for home {home_id}")
         await asyncio.sleep(0.1)
 
@@ -107,7 +107,7 @@ class IoTDeviceOrchestrationSaga(Saga):
         home_id = ctx.get("home_id")
         device_count = ctx.get("device_count", 100)
         simulate_failure = ctx.get("simulate_failure", False)
-        
+
         logger.info(f"💡 Turning off all lights for home {home_id}")
         await asyncio.sleep(0.2)
 
@@ -124,7 +124,8 @@ class IoTDeviceOrchestrationSaga(Saga):
         ]
 
         if simulate_failure:
-            raise SagaStepError("Communication failure with lighting controller hub")
+            msg = "Communication failure with lighting controller hub"
+            raise SagaStepError(msg)
 
         logger.info(f"   ✅ Turned off {len(lights_off)} lights")
         return {"lights": lights_off, "total_count": len(lights_off)}
@@ -147,7 +148,7 @@ class IoTDeviceOrchestrationSaga(Saga):
         """Arm security system with motion detection."""
         home_id = ctx.get("home_id")
         routine_id = ctx.get("routine_id")
-        
+
         logger.info(f"🔐 Arming security system for home {home_id}")
         await asyncio.sleep(0.15)
 
@@ -179,7 +180,7 @@ class IoTDeviceOrchestrationSaga(Saga):
         user_id = ctx.get("user_id")
         home_id = ctx.get("home_id")
         device_count = ctx.get("device_count", 0)
-        
+
         logger.info(f"📱 Sending notification to user {user_id}")
         await asyncio.sleep(0.05)
 
@@ -196,16 +197,11 @@ class IoTDeviceOrchestrationSaga(Saga):
 
 async def main():
     """Run the IoT device orchestration saga demo."""
-    print("=" * 80)
-    print("IoT Device Orchestration Saga Demo - Smart Home 'Leaving Home' Routine")
-    print("=" * 80)
 
     # Reusable saga instance
     saga = IoTDeviceOrchestrationSaga()
 
     # Scenario 1: Successful execution
-    print("\n🟢 Scenario 1: Successful Leaving Home Routine")
-    print("-" * 80)
 
     success_data = {
         "routine_id": "ROUTINE-001",
@@ -215,16 +211,10 @@ async def main():
         "simulate_failure": False,
     }
 
-    result_success = await saga.run(success_data)
+    await saga.run(success_data)
 
-    print(f"\n{'✅' if result_success.get('saga_id') else '❌'} Leaving Home Routine Result:")
-    print(f"   Saga ID: {result_success.get('saga_id')}")
-    print(f"   Routine ID: {result_success.get('routine_id')}")
-    print(f"   Status: All {success_data['device_count']} devices secured")
 
     # Scenario 2: Failure with automatic rollback
-    print("\n\n🔴 Scenario 2: Device Failure with Automatic Rollback")
-    print("-" * 80)
 
     failure_data = {
         "routine_id": "ROUTINE-002",
@@ -235,24 +225,11 @@ async def main():
     }
 
     try:
-        result_failure = await saga.run(failure_data)
+        await saga.run(failure_data)
     except Exception:
-        result_failure = {}
+        pass
 
-    print(f"\n{'❌' if not result_failure.get('saga_id') else '✅'} Rollback Result:")
-    print(f"   Saga ID: {result_failure.get('saga_id', 'N/A')}")
-    print(f"   Routine ID: {failure_data['routine_id']}")
-    print("   Status: Failed and rolled back - home returned to safe state")
-    print("   Safety: Doors unlocked, thermostat restored for occupant comfort")
 
-    print("\n" + "=" * 80)
-    print("Key Features Demonstrated:")
-    print("  ✅ Multi-device coordination (100+ devices)")
-    print("  ✅ Multiple protocol support (Z-Wave, Zigbee, MQTT)")
-    print("  ✅ Automatic rollback maintains safe state")
-    print("  ✅ No partial execution - all or nothing")
-    print("  ✅ Emergency access preserved (doors unlock on failure)")
-    print("=" * 80)
 
 
 if __name__ == "__main__":

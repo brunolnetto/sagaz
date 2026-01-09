@@ -183,8 +183,8 @@ class TestTracingSpanRecording:
 
     def test_record_saga_completion_not_recording(self):
         """Test record_saga_completion when span is not recording."""
-        from sagaz.monitoring.tracing import SagaTracer
         from sagaz.core.types import SagaStatus
+        from sagaz.monitoring.tracing import SagaTracer
 
         tracer = SagaTracer("test-service")
 
@@ -210,8 +210,8 @@ class TestTracingSpanRecording:
 
     def test_record_step_completion_failure_with_error(self):
         """Test record_step_completion for failed step with error."""
-        from sagaz.monitoring.tracing import SagaTracer
         from sagaz.core.types import SagaStepStatus
+        from sagaz.monitoring.tracing import SagaTracer
 
         tracer = SagaTracer("test-service")
 
@@ -304,8 +304,8 @@ class TestStatusBranchCoverage:
     async def test_to_mermaid_with_execution_compensating_status(self):
         """Test Mermaid diagram with 'compensating' status."""
         from sagaz.core.saga import Saga
-        from sagaz.storage.memory import InMemorySagaStorage
         from sagaz.core.types import SagaStatus
+        from sagaz.storage.memory import InMemorySagaStorage
 
         storage = InMemorySagaStorage()
 
@@ -354,8 +354,8 @@ class TestDecoratorStatusBranches:
     async def test_saga_compensated_status_handling(self):
         """Test saga with compensated status."""
         from sagaz.core.saga import Saga
-        from sagaz.storage.memory import InMemorySagaStorage
         from sagaz.core.types import SagaStatus
+        from sagaz.storage.memory import InMemorySagaStorage
 
         storage = InMemorySagaStorage()
 
@@ -425,8 +425,8 @@ class TestTracingUnavailableFallbacks:
         """Test SagaTracer methods when tracing is unavailable."""
         with patch("sagaz.monitoring.tracing.TRACING_AVAILABLE", False):
             # Re-import to get fresh instance with TRACING_AVAILABLE=False
-            from sagaz.monitoring import tracing
             from sagaz.core.types import SagaStatus, SagaStepStatus
+            from sagaz.monitoring import tracing
 
             # Override the module-level flag
             original = tracing.TRACING_AVAILABLE

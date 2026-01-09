@@ -183,14 +183,12 @@ async def main():
     saga = OrderSaga()
     storage = InMemorySagaStorage()
 
-    print("Generating Mermaid Diagrams...")
 
     # CASE 0: Overall Saga Structure (static diagram, no execution trail)
     diagram_overall = saga.to_mermaid()
 
     with open("saga_overall.mmd", "w", encoding="utf-8") as f:
         f.write(f"```mermaid\n{diagram_overall}\n```")
-    print(f"✅ Generated 'saga_overall.mmd' (Overall Saga Structure)")
 
     # CASE 1: Successful Execution
     success_id = str(uuid4())
@@ -200,7 +198,6 @@ async def main():
 
     with open("saga_success.mmd", "w", encoding="utf-8") as f:
         f.write(f"```mermaid\n{diagram_success}\n```")
-    print(f"✅ Generated 'saga_success.mmd' (Success Scenario)")
 
     # CASE 2: Failed Execution with Compensation
     fail_id = str(uuid4())
@@ -210,7 +207,6 @@ async def main():
 
     with open("saga_failure.mmd", "w", encoding="utf-8") as f:
         f.write(f"```mermaid\n{diagram_fail}\n```")
-    print(f"✅ Generated 'saga_failure.mmd' (Failure & Compensation Scenario)")
 
     # CASE 3: Success with Duration Display (manual highlight_trail)
     diagram_with_duration = saga.to_mermaid(
@@ -241,7 +237,6 @@ async def main():
 
     with open("saga_success_with_duration.mmd", "w", encoding="utf-8") as f:
         f.write(f"```mermaid\n{diagram_with_duration}\n```")
-    print(f"✅ Generated 'saga_success_with_duration.mmd' (Success with Duration)")
 
     # CASE 4: Failure with Duration Display including compensation times
     diagram_fail_with_duration = saga.to_mermaid(
@@ -280,9 +275,7 @@ async def main():
 
     with open("saga_failure_with_duration.mmd", "w", encoding="utf-8") as f:
         f.write(f"```mermaid\n{diagram_fail_with_duration}\n```")
-    print(f"✅ Generated 'saga_failure_with_duration.mmd' (Failure with Compensation Duration)")
 
-    print("\nPaste the contents of .mmd files into https://mermaid.live to view.")
 
 
 if __name__ == "__main__":

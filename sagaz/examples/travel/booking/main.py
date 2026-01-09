@@ -12,7 +12,7 @@ from typing import Any
 from sagaz import Saga, SagaContext, action, compensate
 
 logging.basicConfig(
-    level=logging.INFO, 
+    level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
@@ -21,10 +21,10 @@ logger = logging.getLogger(__name__)
 class TravelBookingSaga(Saga):
     """
     Travel booking across multiple services (flight + hotel + car rental).
-    
+
     This saga is stateless - all booking data is passed through the context
     via the run() method. The same saga instance can process multiple bookings.
-    
+
     Expected context:
         - booking_id: str - Unique booking identifier
         - user_id: str - Customer identifier
@@ -32,7 +32,7 @@ class TravelBookingSaga(Saga):
         - hotel_details: dict - Hotel info with 'hotel_name', 'nights'
         - car_details: dict | None - Optional car rental info with 'car_type', 'days'
     """
-    
+
     saga_name = "travel-booking"
 
     @action("book_flight")
@@ -41,7 +41,7 @@ class TravelBookingSaga(Saga):
         booking_id = ctx.get("booking_id")
         user_id = ctx.get("user_id")
         flight_details = ctx.get("flight_details", {})
-        
+
         logger.info(f"Booking flight for {user_id}")
         await asyncio.sleep(0.3)
 
@@ -56,13 +56,13 @@ class TravelBookingSaga(Saga):
         """Cancel flight booking using booking data from context."""
         booking_id = ctx.get("booking_id")
         logger.warning(f"Canceling flight for booking {booking_id}")
-        
+
         # Access flight booking result from context
         booking_reference = ctx.get("flight_booking_reference")
         confirmation = ctx.get("flight_confirmation")
         if booking_reference:
             logger.info(f"Canceling flight booking {booking_reference} (confirmation: {confirmation})")
-        
+
         await asyncio.sleep(0.2)
 
     @action("book_hotel", depends_on=["book_flight"])
@@ -71,7 +71,7 @@ class TravelBookingSaga(Saga):
         booking_id = ctx.get("booking_id")
         user_id = ctx.get("user_id")
         hotel_details = ctx.get("hotel_details", {})
-        
+
         logger.info(f"Booking hotel for {user_id}")
         await asyncio.sleep(0.3)
 
@@ -86,13 +86,13 @@ class TravelBookingSaga(Saga):
         """Cancel hotel booking using booking data from context."""
         booking_id = ctx.get("booking_id")
         logger.warning(f"Canceling hotel for booking {booking_id}")
-        
-        # Access hotel booking result from context  
+
+        # Access hotel booking result from context
         booking_reference = ctx.get("hotel_booking_reference")
         hotel_name = ctx.get("hotel_name")
         if booking_reference:
             logger.info(f"Canceling hotel {hotel_name} booking {booking_reference}")
-        
+
         await asyncio.sleep(0.2)
 
     @action("book_car", depends_on=["book_hotel"])
@@ -101,10 +101,10 @@ class TravelBookingSaga(Saga):
         booking_id = ctx.get("booking_id")
         user_id = ctx.get("user_id")
         car_details = ctx.get("car_details")
-        
+
         if not car_details:
             return {"car_skipped": True}
-            
+
         logger.info(f"Booking car for {user_id}")
         await asyncio.sleep(0.2)
 
@@ -119,13 +119,13 @@ class TravelBookingSaga(Saga):
         """Cancel car booking using booking data from context."""
         booking_id = ctx.get("booking_id")
         logger.warning(f"Canceling car for booking {booking_id}")
-        
+
         # Access car booking result from context (may not exist if skipped)
         booking_reference = ctx.get("car_booking_reference")
         car_type = ctx.get("car_type")
         if booking_reference and not ctx.get("car_skipped"):
             logger.info(f"Canceling {car_type} rental booking {booking_reference}")
-        
+
         await asyncio.sleep(0.1)
 
     @action("send_itinerary", depends_on=["book_car"])
@@ -133,7 +133,7 @@ class TravelBookingSaga(Saga):
         """Send complete itinerary to user."""
         booking_id = ctx.get("booking_id")
         user_id = ctx.get("user_id")
-        
+
         logger.info(f"Sending itinerary to {user_id}")
         await asyncio.sleep(0.1)
 
@@ -145,15 +145,12 @@ class TravelBookingSaga(Saga):
 
 async def main():
     """Run the travel booking saga demo."""
-    print("=" * 60)
-    print("Travel Booking Saga Demo")
-    print("=" * 60)
 
     # Create a reusable saga instance
     saga = TravelBookingSaga()
 
     # Book first trip - with car rental
-    result1 = await saga.run({
+    await saga.run({
         "booking_id": "BOOK-456",
         "user_id": "USER-123",
         "flight_details": {"flight_number": "AA123", "from": "NYC", "to": "LAX"},
@@ -161,14 +158,10 @@ async def main():
         "car_details": {"car_type": "Sedan", "days": 3},
     })
 
-    print(f"\n{'✅' if result1.get('saga_id') else '❌'} Travel Booking Result:")
-    print(f"   Saga ID: {result1.get('saga_id')}")
-    print(f"   Booking ID: {result1.get('booking_id')}")
-    
+
     # Demonstrate reusability - same saga, different booking (no car)
-    print("\n--- Booking second trip (no car) with same saga instance ---\n")
-    
-    result2 = await saga.run({
+
+    await saga.run({
         "booking_id": "BOOK-789",
         "user_id": "USER-456",
         "flight_details": {"flight_number": "UA456", "from": "SFO", "to": "JFK"},
@@ -176,9 +169,6 @@ async def main():
         "car_details": None,  # No car rental
     })
 
-    print(f"\n{'✅' if result2.get('saga_id') else '❌'} Second Booking Result:")
-    print(f"   Saga ID: {result2.get('saga_id')}")
-    print(f"   Booking ID: {result2.get('booking_id')}")
 
 
 if __name__ == "__main__":
