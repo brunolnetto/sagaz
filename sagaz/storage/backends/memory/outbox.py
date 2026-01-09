@@ -59,7 +59,7 @@ class InMemoryOutboxStorage(OutboxStorage):
         older_than_seconds: float = 0.0,
     ) -> list[OutboxEvent]:
         """Claim batch of pending events."""
-        OutboxStatus = _get_outbox_status()
+        outbox_status_cls = _get_outbox_status()
         now = datetime.now(UTC)
         cutoff = now - timedelta(seconds=older_than_seconds)
 
@@ -68,8 +68,8 @@ class InMemoryOutboxStorage(OutboxStorage):
             if len(claimed) >= batch_size:
                 break
 
-            if event.status == OutboxStatus.PENDING and event.created_at <= cutoff:
-                event.status = OutboxStatus.CLAIMED
+            if event.status == outbox_status_cls.PENDING and event.created_at <= cutoff:
+                event.status = outbox_status_cls.CLAIMED
                 event.worker_id = worker_id
                 event.claimed_at = now
                 claimed.append(event)
@@ -84,7 +84,7 @@ class InMemoryOutboxStorage(OutboxStorage):
         connection: Any | None = None,
     ) -> OutboxEvent:
         """Update event status."""
-        OutboxStatus = _get_outbox_status()
+        outbox_status_cls = _get_outbox_status()
         event = self._events.get(event_id)
         if not event:
             msg = f"Event {event_id} not found"
@@ -92,12 +92,12 @@ class InMemoryOutboxStorage(OutboxStorage):
 
         event.status = status
 
-        if status == OutboxStatus.SENT:
+        if status == outbox_status_cls.SENT:
             event.sent_at = datetime.now(UTC)
-        elif status == OutboxStatus.FAILED:
+        elif status == outbox_status_cls.FAILED:
             event.retry_count += 1
             event.last_error = error_message
-        elif status == OutboxStatus.PENDING:
+        elif status == outbox_status_cls.PENDING:
             event.worker_id = None
             event.claimed_at = None
 
@@ -116,14 +116,14 @@ class InMemoryOutboxStorage(OutboxStorage):
         claimed_older_than_seconds: float = 300.0,
     ) -> list[OutboxEvent]:
         """Get stuck events."""
-        OutboxStatus = _get_outbox_status()
+        outbox_status_cls = _get_outbox_status()
         now = datetime.now(UTC)
         cutoff = now - timedelta(seconds=claimed_older_than_seconds)
 
         return [
             e
             for e in self._events.values()
-            if e.status == OutboxStatus.CLAIMED and e.claimed_at and e.claimed_at < cutoff
+            if e.status == outbox_status_cls.CLAIMED and e.claimed_at and e.claimed_at < cutoff
         ]
 
     async def release_stuck_events(
@@ -131,11 +131,11 @@ class InMemoryOutboxStorage(OutboxStorage):
         claimed_older_than_seconds: float = 300.0,
     ) -> int:
         """Release stuck events."""
-        OutboxStatus = _get_outbox_status()
+        outbox_status_cls = _get_outbox_status()
         stuck = await self.get_stuck_events(claimed_older_than_seconds)
 
         for event in stuck:
-            event.status = OutboxStatus.PENDING
+            event.status = outbox_status_cls.PENDING
             event.worker_id = None
             event.claimed_at = None
 
@@ -143,17 +143,17 @@ class InMemoryOutboxStorage(OutboxStorage):
 
     async def get_pending_count(self) -> int:
         """Get count of pending events."""
-        OutboxStatus = _get_outbox_status()
-        return sum(1 for e in self._events.values() if e.status == OutboxStatus.PENDING)
+        outbox_status_cls = _get_outbox_status()
+        return sum(1 for e in self._events.values() if e.status == outbox_status_cls.PENDING)
 
     async def get_dead_letter_events(
         self,
         limit: int = 100,
     ) -> list[OutboxEvent]:
         """Get dead letter events."""
-        OutboxStatus = _get_outbox_status()
+        outbox_status_cls = _get_outbox_status()
         return [
-            e for e in list(self._events.values())[:limit] if e.status == OutboxStatus.DEAD_LETTER
+            e for e in list(self._events.values())[:limit] if e.status == outbox_status_cls.DEAD_LETTER
         ]
 
     def clear(self) -> None:
@@ -180,13 +180,13 @@ class InMemoryOutboxStorage(OutboxStorage):
 
     async def import_record(self, record: dict[str, Any]) -> None:
         """Import a single record from transfer."""
-        OutboxEvent = _get_outbox_event()
-        OutboxStatus = _get_outbox_status()
-        event = OutboxEvent(
+        outbox_event_cls = _get_outbox_event()
+        outbox_status_cls = _get_outbox_status()
+        event = outbox_event_cls(
             event_id=record.get("event_id"),
             saga_id=record["saga_id"],
             event_type=record["event_type"],
             payload=record.get("payload", {}),
-            status=OutboxStatus(record.get("status", "pending")),
+            status=outbox_status_cls(record.get("status", "pending")),
         )
         await self.insert(event)

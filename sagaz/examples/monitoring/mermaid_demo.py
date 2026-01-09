@@ -8,6 +8,7 @@ automatic trail highlighting.
 
 import asyncio
 from datetime import datetime
+from pathlib import Path
 from uuid import uuid4
 
 from sagaz import Saga, action, compensate
@@ -187,7 +188,7 @@ async def main():
     # CASE 0: Overall Saga Structure (static diagram, no execution trail)
     diagram_overall = saga.to_mermaid()
 
-    with open("saga_overall.mmd", "w", encoding="utf-8") as f:
+    with Path("saga_overall.mmd").open("w", encoding="utf-8") as f:
         f.write(f"```mermaid\n{diagram_overall}\n```")
 
     # CASE 1: Successful Execution
@@ -196,7 +197,7 @@ async def main():
 
     diagram_success = await saga.to_mermaid_with_execution(success_id, storage)
 
-    with open("saga_success.mmd", "w", encoding="utf-8") as f:
+    with Path("saga_success.mmd").open("w", encoding="utf-8") as f:
         f.write(f"```mermaid\n{diagram_success}\n```")
 
     # CASE 2: Failed Execution with Compensation
@@ -205,7 +206,7 @@ async def main():
 
     diagram_fail = await saga.to_mermaid_with_execution(fail_id, storage)
 
-    with open("saga_failure.mmd", "w", encoding="utf-8") as f:
+    with Path("saga_failure.mmd").open("w", encoding="utf-8") as f:
         f.write(f"```mermaid\n{diagram_fail}\n```")
 
     # CASE 3: Success with Duration Display (manual highlight_trail)
@@ -235,7 +236,7 @@ async def main():
         }
     )
 
-    with open("saga_success_with_duration.mmd", "w", encoding="utf-8") as f:
+    with Path("saga_success_with_duration.mmd").open("w", encoding="utf-8") as f:
         f.write(f"```mermaid\n{diagram_with_duration}\n```")
 
     # CASE 4: Failure with Duration Display including compensation times
@@ -250,10 +251,10 @@ async def main():
             ],
             "failed_step": "process_payment",
             "compensated_steps": [
-                "validate_order",
-                "check_inventory",
-                "fraud_check",
                 "reserve_inventory",
+                "fraud_check",
+                "check_inventory",
+                "validate_order",
             ],
             "step_durations": {
                 "validate_order": "45ms",
@@ -273,7 +274,7 @@ async def main():
         }
     )
 
-    with open("saga_failure_with_duration.mmd", "w", encoding="utf-8") as f:
+    with Path("saga_failure_with_duration.mmd").open("w", encoding="utf-8") as f:
         f.write(f"```mermaid\n{diagram_fail_with_duration}\n```")
 
 

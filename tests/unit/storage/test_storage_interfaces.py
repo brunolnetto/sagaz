@@ -314,7 +314,9 @@ class TestOutboxStorageInterface:
             async def get_events_by_saga(self, saga_id): return []
             async def get_stuck_events(self, *args): return []
             async def release_stuck_events(self, *args): return 0
-            async def get_pending_count(self): raise Exception("DB error")
+            async def get_pending_count(self):
+                msg = "DB error"
+                raise Exception(msg)
             async def get_dead_letter_events(self, *args): return []
 
         storage = FailingOutboxStorage()

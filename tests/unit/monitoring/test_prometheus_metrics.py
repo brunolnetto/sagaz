@@ -146,9 +146,9 @@ class TestMetricsDisabled:
         # Temporarily make prometheus unavailable
         with patch("sagaz.monitoring.prometheus.PROMETHEUS_AVAILABLE", False):
             # Import and recreate metrics
-            from sagaz.monitoring.prometheus import PrometheusMetrics as PM
+            from sagaz.monitoring.prometheus import PrometheusMetrics
 
-            metrics = PM()
+            metrics = PrometheusMetrics()
 
             # All these should not raise
             metrics.record_execution("Test", SagaStatus.COMPLETED, 1.0)

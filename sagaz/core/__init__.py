@@ -42,7 +42,7 @@ from sagaz.core.listeners import (
     default_listeners,
 )
 from sagaz.core.logger import NullLogger, get_logger, set_logger
-from sagaz.core.saga import SagaContext, SagaResult, SagaStep
+from sagaz.core.saga import SagaContext, SagaStep
 from sagaz.core.types import ParallelFailureStrategy, SagaResult, SagaStatus, SagaStepStatus
 
 __all__ = [

@@ -34,7 +34,6 @@ except ImportError:
 
 try:
     from rich.console import Console
-    from rich.live import Live
     from rich.panel import Panel
     from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeRemainingColumn
     from rich.table import Table

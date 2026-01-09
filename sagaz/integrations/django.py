@@ -10,7 +10,7 @@ Provides:
 import asyncio
 import json
 import threading
-from typing import Any, Type
+from typing import Any
 
 from sagaz.core.logger import get_logger
 from sagaz.integrations._base import (
