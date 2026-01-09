@@ -344,33 +344,43 @@ class StorageManager(BaseStorageManager):
             return cast("SagaStorage", InMemorySagaStorage())
 
         if backend_type == "postgresql":  # pragma: no cover
-            from sagaz.storage.backends.postgresql.saga import PostgreSQLSagaStorage
-
-            assert url is not None
-            storage = PostgreSQLSagaStorage(url)
-            # PostgreSQLSagaStorage doesn't have initialize(), it uses _get_pool() on demand
-            return cast("SagaStorage", storage)
+            return self._create_postgresql_saga(url)
 
         if backend_type == "redis":  # pragma: no cover
-            from sagaz.storage.backends.redis.saga import RedisSagaStorage
-
-            assert url is not None
-            r_storage = RedisSagaStorage(url)
-            # RedisSagaStorage doesn't have initialize(), uses different initialization
-            return cast("SagaStorage", r_storage)
+            return self._create_redis_saga(url)
 
         if backend_type == "sqlite":  # pragma: no cover
-            from sagaz.storage.backends.sqlite.saga import SQLiteSagaStorage
-
-            db_path = url[9:] if url and url.startswith("sqlite://") else (url or ":memory:")
-            assert url is not None
-            db_path = url[9:] if url and url.startswith("sqlite://") else (url or ":memory:")
-            s_storage = SQLiteSagaStorage(db_path)
-            await s_storage.initialize()
-            return cast("SagaStorage", s_storage)
+            return await self._create_sqlite_saga(url)
 
         msg = f"Unknown saga backend: {backend_type}"  # pragma: no cover
         raise ValueError(msg)  # pragma: no cover
+
+    def _create_postgresql_saga(self, url: str | None) -> "SagaStorage":
+        """Create PostgreSQL saga storage."""
+        from sagaz.storage.backends.postgresql.saga import PostgreSQLSagaStorage
+
+        assert url is not None
+        storage = PostgreSQLSagaStorage(url)
+        # PostgreSQLSagaStorage doesn't have initialize(), it uses _get_pool() on demand
+        return cast("SagaStorage", storage)
+
+    def _create_redis_saga(self, url: str | None) -> "SagaStorage":
+        """Create Redis saga storage."""
+        from sagaz.storage.backends.redis.saga import RedisSagaStorage
+
+        assert url is not None
+        r_storage = RedisSagaStorage(url)
+        # RedisSagaStorage doesn't have initialize(), uses different initialization
+        return cast("SagaStorage", r_storage)
+
+    async def _create_sqlite_saga(self, url: str | None) -> "SagaStorage":
+        """Create and initialize SQLite saga storage."""
+        from sagaz.storage.backends.sqlite.saga import SQLiteSagaStorage
+
+        db_path = url[9:] if url and url.startswith("sqlite://") else (url or ":memory:")
+        s_storage = SQLiteSagaStorage(db_path)
+        await s_storage.initialize()
+        return cast("SagaStorage", s_storage)
 
     async def _create_outbox_storage(self, backend_type: str, url: str | None) -> "OutboxStorage":
         """Create and initialize outbox storage for a backend type."""
@@ -382,33 +392,43 @@ class StorageManager(BaseStorageManager):
             return cast("OutboxStorage", InMemoryOutboxStorage())  # pragma: no cover
 
         if backend_type == "postgresql":  # pragma: no cover
-            from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
-
-            assert url is not None
-            storage = PostgreSQLOutboxStorage(url)
-            await storage.initialize()
-            return cast("OutboxStorage", storage)
+            return await self._create_postgresql_outbox(url)
 
         if backend_type == "redis":  # pragma: no cover
-            from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
-
-            assert url is not None
-            r_storage = RedisOutboxStorage(url)
-            await r_storage.initialize()
-            return cast("OutboxStorage", r_storage)
+            return await self._create_redis_outbox(url)
 
         if backend_type == "sqlite":  # pragma: no cover
-            from sagaz.storage.backends.sqlite.outbox import SQLiteOutboxStorage
-
-            db_path = url[9:] if url and url.startswith("sqlite://") else (url or ":memory:")
-            assert url is not None
-            db_path = url[9:] if url and url.startswith("sqlite://") else (url or ":memory:")
-            s_storage = SQLiteOutboxStorage(db_path)
-            await s_storage.initialize()
-            return cast("OutboxStorage", s_storage)
+            return await self._create_sqlite_outbox(url)
 
         msg = f"Unknown outbox backend: {backend_type}"  # pragma: no cover
         raise ValueError(msg)  # pragma: no cover
+
+    async def _create_postgresql_outbox(self, url: str | None) -> "OutboxStorage":
+        """Create and initialize PostgreSQL outbox storage."""
+        from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
+
+        assert url is not None
+        storage = PostgreSQLOutboxStorage(url)
+        await storage.initialize()
+        return cast("OutboxStorage", storage)
+
+    async def _create_redis_outbox(self, url: str | None) -> "OutboxStorage":
+        """Create and initialize Redis outbox storage."""
+        from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
+
+        assert url is not None
+        r_storage = RedisOutboxStorage(url)
+        await r_storage.initialize()
+        return cast("OutboxStorage", r_storage)
+
+    async def _create_sqlite_outbox(self, url: str | None) -> "OutboxStorage":
+        """Create and initialize SQLite outbox storage."""
+        from sagaz.storage.backends.sqlite.outbox import SQLiteOutboxStorage
+
+        db_path = url[9:] if url and url.startswith("sqlite://") else (url or ":memory:")
+        s_storage = SQLiteOutboxStorage(db_path)
+        await s_storage.initialize()
+        return cast("OutboxStorage", s_storage)
 
     async def close(self) -> None:
         """Close all connections."""
