@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
+from sagaz.core.types import SagaStatus, SagaStepStatus
 from sagaz.monitoring.tracing import (
     TRACING_AVAILABLE,
     SagaTracer,
@@ -16,7 +17,6 @@ from sagaz.monitoring.tracing import (
     trace_saga_action,
     trace_saga_compensation,
 )
-from sagaz.core.types import SagaStatus, SagaStepStatus
 
 
 class TestSagaTracerWithoutOTel:

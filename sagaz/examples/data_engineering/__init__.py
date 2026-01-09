@@ -8,14 +8,11 @@
 #   - data_migration: Cross-database migration saga
 #   - lakehouse_ingestion: Bronze/Silver/Gold pipeline
 
-from . import etl_pipeline
-from . import data_quality_gate
-from . import data_migration
-from . import lakehouse_ingestion
+from . import data_migration, data_quality_gate, etl_pipeline, lakehouse_ingestion
 
 __all__ = [
-    "etl_pipeline",
-    "data_quality_gate",
     "data_migration",
+    "data_quality_gate",
+    "etl_pipeline",
     "lakehouse_ingestion",
 ]

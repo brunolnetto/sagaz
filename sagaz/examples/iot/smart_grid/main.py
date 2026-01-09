@@ -23,9 +23,9 @@ logger = logging.getLogger(__name__)
 class SmartGridEnergySaga(Saga):
     """
     Demand response event orchestration for grid stabilization.
-    
+
     This saga is stateless - all data is passed through the context via the run() method.
-    
+
     Expected context:
         - event_id: str
         - grid_operator_id: str
@@ -42,7 +42,7 @@ class SmartGridEnergySaga(Saga):
         """Forecast energy demand for the event period."""
         event_id = ctx.get("event_id")
         event_duration_hours = ctx.get("event_duration_hours", 4)
-        
+
         logger.info(f"📊 Forecasting energy demand for event {event_id}")
         await asyncio.sleep(0.15)
 
@@ -127,7 +127,7 @@ class SmartGridEnergySaga(Saga):
     @compensate("identify_participants")
     async def notify_participants_cancellation(self, ctx: SagaContext) -> None:
         """Notify participants that demand response event is canceled."""
-        logger.warning(f"🏢 Notifying participants of event cancellation")
+        logger.warning("🏢 Notifying participants of event cancellation")
 
         total_participants = ctx.get("total_participants", 0)
         logger.info(f"   Sending cancellation to {total_participants} participants")
@@ -141,12 +141,13 @@ class SmartGridEnergySaga(Saga):
         target_reduction_mw = ctx.get("target_reduction_mw")
         event_duration_hours = ctx.get("event_duration_hours")
         simulate_failure = ctx.get("simulate_failure", False)
-        
+
         logger.info(f"📨 Sending reduction requests for event {event_id}")
         await asyncio.sleep(0.2)
 
         if simulate_failure:
-            raise SagaStepError("Communication failure with demand response management system")
+            msg = "Communication failure with demand response management system"
+            raise SagaStepError(msg)
 
         # Simulate sending requests via OpenADR (Open Automated Demand Response)
         request_result = {
@@ -184,7 +185,7 @@ class SmartGridEnergySaga(Saga):
         event_id = ctx.get("event_id")
         target_reduction_mw = ctx.get("target_reduction_mw", 0)
         event_duration_hours = ctx.get("event_duration_hours", 4)
-        
+
         logger.info(f"📡 Monitoring real-time consumption for event {event_id}")
         await asyncio.sleep(0.25)
 
@@ -225,7 +226,7 @@ class SmartGridEnergySaga(Saga):
         """Verify that reduction targets were met."""
         event_id = ctx.get("event_id")
         target_reduction_mw = ctx.get("target_reduction_mw", 0)
-        
+
         logger.info(f"✅ Verifying reduction targets for event {event_id}")
         await asyncio.sleep(0.1)
 
@@ -263,7 +264,7 @@ class SmartGridEnergySaga(Saga):
         event_id = ctx.get("event_id")
         event_duration_hours = ctx.get("event_duration_hours", 4)
         incentive_rate_per_kwh = ctx.get("incentive_rate_per_kwh", 0)
-        
+
         logger.info(f"💰 Calculating incentive payments for event {event_id}")
         await asyncio.sleep(0.15)
 
@@ -308,7 +309,7 @@ class SmartGridEnergySaga(Saga):
         """Settle financial transactions with grid operator (idempotent)."""
         event_id = ctx.get("event_id")
         grid_operator_id = ctx.get("grid_operator_id")
-        
+
         logger.info(f"🏦 Settling with grid operator for event {event_id}")
         await asyncio.sleep(0.15)
 
@@ -329,16 +330,11 @@ class SmartGridEnergySaga(Saga):
 
 async def main():
     """Run the smart grid energy management saga demo."""
-    print("=" * 80)
-    print("Smart Grid Energy Management Saga Demo - Demand Response Event")
-    print("=" * 80)
 
     # Reusable saga instance
     saga = SmartGridEnergySaga()
 
     # Scenario 1: Successful demand response event
-    print("\n🟢 Scenario 1: Successful Demand Response Event")
-    print("-" * 80)
 
     success_data = {
         "event_id": "DR-2026-HEATWAVE-001",
@@ -349,18 +345,10 @@ async def main():
         "simulate_failure": False,
     }
 
-    result_success = await saga.run(success_data)
+    await saga.run(success_data)
 
-    print(f"\n{'✅' if result_success.get('saga_id') else '❌'} Demand Response Result:")
-    print(f"   Saga ID: {result_success.get('saga_id')}")
-    print(f"   Event ID: {result_success.get('event_id')}")
-    print(f"   Target Reduction: {success_data['target_reduction_mw']} MW")
-    print(f"   Duration: {success_data['event_duration_hours']} hours")
-    print("   Status: Grid stabilized, participants compensated")
 
     # Scenario 2: Communication failure with automatic rollback
-    print("\n\n🔴 Scenario 2: Communication Failure with Demand Response System")
-    print("-" * 80)
 
     failure_data = {
         "event_id": "DR-2026-HEATWAVE-002",
@@ -372,25 +360,11 @@ async def main():
     }
 
     try:
-        result_failure = await saga.run(failure_data)
+        await saga.run(failure_data)
     except Exception:
-        result_failure = {}
+        pass
 
-    print(f"\n{'❌' if not result_failure.get('saga_id') else '✅'} Rollback Result:")
-    print(f"   Saga ID: {result_failure.get('saga_id', 'N/A')}")
-    print(f"   Event ID: {failure_data['event_id']}")
-    print("   Status: Failed - all participants notified of cancellation")
-    print("   Actions: Monitoring stopped, no payments issued")
 
-    print("\n" + "=" * 80)
-    print("Key Features Demonstrated:")
-    print("  ✅ Real-time grid balancing and load forecasting")
-    print("  ✅ Distributed energy resource coordination (28 participants)")
-    print("  ✅ OpenADR 2.0b protocol communication")
-    print("  ✅ Smart meter monitoring (15-second intervals)")
-    print("  ✅ Automatic incentive calculation and payment")
-    print("  ✅ Grid operator settlement")
-    print("=" * 80)
 
 
 if __name__ == "__main__":

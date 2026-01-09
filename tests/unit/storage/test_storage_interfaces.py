@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 
+from sagaz.core.types import SagaStatus, SagaStepStatus
 from sagaz.outbox.types import OutboxEvent, OutboxStatus
 from sagaz.storage.interfaces import (
     OutboxStorage,
@@ -16,7 +17,6 @@ from sagaz.storage.interfaces import (
     SagaStorage,
     Transferable,
 )
-from sagaz.core.types import SagaStatus, SagaStepStatus
 
 
 class TestSagaStorageInterface:

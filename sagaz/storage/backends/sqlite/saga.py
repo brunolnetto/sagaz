@@ -39,6 +39,7 @@ except ImportError:  # pragma: no cover
     aiosqlite = None  # type: ignore[assignment]
 
 from sagaz.core.exceptions import MissingDependencyError
+from sagaz.core.types import SagaStatus, SagaStepStatus
 from sagaz.storage.base import SagaStorage
 from sagaz.storage.core import (
     HealthCheckResult,
@@ -47,7 +48,6 @@ from sagaz.storage.core import (
     deserialize,
     serialize,
 )
-from sagaz.core.types import SagaStatus, SagaStepStatus
 
 logger = logging.getLogger(__name__)
 

@@ -14,6 +14,7 @@ from io import StringIO
 import pytest
 
 from sagaz.core.saga import Saga, SagaContext
+from sagaz.core.types import SagaStatus
 from sagaz.monitoring.logging import (
     SagaContextFilter,
     SagaJsonFormatter,
@@ -23,7 +24,6 @@ from sagaz.monitoring.logging import (
 )
 from sagaz.monitoring.metrics import SagaMetrics
 from sagaz.monitoring.tracing import SagaTracer, trace_saga_action, trace_saga_compensation
-from sagaz.core.types import SagaStatus
 
 
 class TestSagaJsonFormatter:

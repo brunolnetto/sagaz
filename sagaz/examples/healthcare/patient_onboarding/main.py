@@ -24,10 +24,10 @@ logger = logging.getLogger(__name__)
 class HealthcarePatientOnboardingSaga(Saga):
     """
     HIPAA-compliant patient registration with audit trail and PHI protection.
-    
+
     This saga is stateless - all patient data is passed through the context
     via the run() method.
-    
+
     Expected context:
         - patient_id: str
         - first_name: str
@@ -47,7 +47,7 @@ class HealthcarePatientOnboardingSaga(Saga):
         first_name = ctx.get("first_name")
         last_name = ctx.get("last_name")
         patient_id = ctx.get("patient_id")
-        
+
         logger.info(f"🔍 Verifying identity for {first_name} {last_name}")
         await asyncio.sleep(0.2)
 
@@ -80,12 +80,13 @@ class HealthcarePatientOnboardingSaga(Saga):
         """Create Electronic Health Record (EHR) with encrypted PHI."""
         patient_id = ctx.get("patient_id")
         simulate_failure = ctx.get("simulate_failure", False)
-        
+
         logger.info(f"📁 Creating EHR for patient {patient_id}")
         await asyncio.sleep(0.25)
 
         if simulate_failure:
-            raise SagaStepError("EHR system temporarily unavailable - database connection timeout")
+            msg = "EHR system temporarily unavailable - database connection timeout"
+            raise SagaStepError(msg)
 
         # Simulate EHR creation (Epic, Cerner, Allscripts, etc.)
         ehr_record = {
@@ -154,7 +155,7 @@ class HealthcarePatientOnboardingSaga(Saga):
         """Create patient portal account for online access."""
         email = ctx.get("email")
         patient_id = ctx.get("patient_id")
-        
+
         logger.info(f"🖥️  Setting up patient portal for {email}")
         await asyncio.sleep(0.2)
 
@@ -250,16 +251,11 @@ class HealthcarePatientOnboardingSaga(Saga):
 
 async def main():
     """Run the healthcare patient onboarding saga demo."""
-    print("=" * 80)
-    print("Healthcare Patient Onboarding Saga Demo - HIPAA-Compliant Registration")
-    print("=" * 80)
 
     # Reusable saga instance
     saga = HealthcarePatientOnboardingSaga()
 
     # Scenario 1: Successful patient onboarding
-    print("\n🟢 Scenario 1: Successful Patient Registration")
-    print("-" * 80)
 
     patient_data_success = {
         "patient_id": "PAT-2026-001",
@@ -272,17 +268,10 @@ async def main():
         "simulate_failure": False,
     }
 
-    result_success = await saga.run(patient_data_success)
+    await saga.run(patient_data_success)
 
-    print(f"\n{'✅' if result_success.get('saga_id') else '❌'} Patient Onboarding Result:")
-    print(f"   Saga ID: {result_success.get('saga_id')}")
-    print(f"   Patient ID: {result_success.get('patient_id')}")
-    print(f"   Patient: {patient_data_success['first_name']} {patient_data_success['last_name']}")
-    print("   Status: Successfully onboarded with complete EHR setup")
 
     # Scenario 2: EHR system failure with automatic PHI purging
-    print("\n\n🔴 Scenario 2: EHR System Failure with Automatic Data Purging")
-    print("-" * 80)
 
     patient_data_failure = {
         "patient_id": "PAT-2026-002",
@@ -296,26 +285,11 @@ async def main():
     }
 
     try:
-        result_failure = await saga.run(patient_data_failure)
+        await saga.run(patient_data_failure)
     except Exception:
-        result_failure = {}
+        pass
 
-    print(f"\n{'❌' if not result_failure.get('saga_id') else '✅'} Rollback Result:")
-    print(f"   Saga ID: {result_failure.get('saga_id', 'N/A')}")
-    print(f"   Patient ID: {patient_data_failure['patient_id']}")
-    print(f"   Patient: {patient_data_failure['first_name']} {patient_data_failure['last_name']}")
-    print("   Status: Failed - all PHI securely purged per HIPAA requirements")
-    print("   Audit Trail: Preserved for compliance review")
 
-    print("\n" + "=" * 80)
-    print("Key Features Demonstrated:")
-    print("  ✅ HIPAA-compliant data handling")
-    print("  ✅ Complete audit trail for all operations")
-    print("  ✅ Automatic PHI purging on failure")
-    print("  ✅ Encrypted patient data (PHI)")
-    print("  ✅ No orphaned records in systems")
-    print("  ✅ Secure patient portal with MFA")
-    print("=" * 80)
 
 
 if __name__ == "__main__":

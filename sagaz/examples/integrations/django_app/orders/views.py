@@ -6,9 +6,9 @@ which triggers sagas registered with @trigger(source=...).
 """
 
 from django.http import JsonResponse
+from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
 
 from .sagas import OrderSaga
 
@@ -18,10 +18,10 @@ def health_check(request):
     return JsonResponse({"status": "healthy"})
 
 
-@method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(csrf_exempt, name="dispatch")
 class OrderDiagramView(View):
     """Get saga diagram."""
-    
+
     def get(self, request, order_id):
         saga = OrderSaga()
         return JsonResponse({

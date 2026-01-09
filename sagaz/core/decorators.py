@@ -37,9 +37,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from sagaz.storage.base import SagaStorage
 
 
-from sagaz.execution.graph import CompensationType, SagaExecutionGraph
 from sagaz.core.logger import get_logger
 from sagaz.core.types import SagaStatus
+from sagaz.execution.graph import CompensationType, SagaExecutionGraph
 
 logger = get_logger(__name__)
 

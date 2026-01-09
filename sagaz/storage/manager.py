@@ -340,7 +340,9 @@ class StorageManager(BaseStorageManager):
     async def _create_outbox_storage(self, backend_type: str, url: str | None) -> "OutboxStorage":
         """Create and initialize outbox storage for a backend type."""
         if backend_type == "memory":  # pragma: no cover
-            from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage  # pragma: no cover
+            from sagaz.storage.backends.memory.outbox import (
+                InMemoryOutboxStorage,  # pragma: no cover
+            )
             return InMemoryOutboxStorage()  # pragma: no cover
 
         if backend_type == "postgresql":  # pragma: no cover

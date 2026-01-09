@@ -19,14 +19,13 @@ Run:
 import asyncio
 import os
 from datetime import datetime
-from typing import Annotated, Literal, TypedDict
 from operator import add
+from typing import Annotated, Literal, TypedDict
 
 from sagaz import Saga, action, compensate
-from sagaz.triggers import trigger, fire_event
 from sagaz.config import SagaConfig, configure
 from sagaz.storage import InMemorySagaStorage
-
+from sagaz.triggers import fire_event, trigger
 
 # =============================================================================
 # LangGraph State Definition
@@ -57,10 +56,10 @@ class SupportTicketState(TypedDict):
 # =============================================================================
 
 try:
-    from langgraph.graph import StateGraph, START, END
+    from langchain_core.messages import HumanMessage, SystemMessage
     from langchain_openai import ChatOpenAI
-    from langchain_core.messages import SystemMessage, HumanMessage
-    
+    from langgraph.graph import END, START, StateGraph
+
     LANGGRAPH_AVAILABLE = True
 
 except ImportError:
@@ -70,7 +69,7 @@ except ImportError:
 def create_support_graph():
     """
     Create the LangGraph support agent workflow.
-    
+
     Flow:
     START -> analyze -> generate_response -> attempt_resolution -> route
               |
@@ -85,11 +84,12 @@ def create_support_graph():
               END  END
     """
     if not LANGGRAPH_AVAILABLE:
-        raise RuntimeError("langgraph not installed")
-    
+        msg = "langgraph not installed"
+        raise RuntimeError(msg)
+
     # Initialize LLM
     llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
-    
+
     # Define nodes
     async def analyze_node(state: SupportTicketState) -> dict:
         """Analyze the support ticket."""
@@ -99,41 +99,41 @@ def create_support_graph():
                 - Category: billing, technical, account, shipping, or other
                 - Priority: low, medium, high, or critical
                 - Sentiment: positive, neutral, frustrated, or angry
-                
+
                 Format: category|priority|sentiment
             """),
             HumanMessage(content=f"Customer issue: {state['issue']}")
         ]
-        
+
         response = await llm.ainvoke(messages)
         parts = response.content.strip().split("|")
-        
+
         return {
             "category": parts[0] if len(parts) > 0 else "other",
             "priority": parts[1] if len(parts) > 1 else "medium",
             "sentiment": parts[2] if len(parts) > 2 else "neutral",
             "messages": [{"role": "system", "content": "Ticket analyzed"}]
         }
-    
+
     async def generate_response_node(state: SupportTicketState) -> dict:
         """Generate an AI response to the customer."""
         messages = [
             SystemMessage(content=f"""
                 You are a helpful support agent. The customer has a {state['category']} issue.
                 Their sentiment is {state['sentiment']}. Priority: {state['priority']}.
-                
+
                 Provide a helpful, empathetic response. Be professional and solution-oriented.
             """),
             HumanMessage(content=f"Customer: {state['issue']}")
         ]
-        
+
         response = await llm.ainvoke(messages)
-        
+
         return {
             "ai_response": response.content,
             "messages": [{"role": "agent", "content": response.content[:100] + "..."}]
         }
-    
+
     async def attempt_resolution_node(state: SupportTicketState) -> dict:
         """Attempt to resolve the issue automatically."""
         messages = [
@@ -143,7 +143,7 @@ def create_support_graph():
                 - Is this a common issue with a known solution?
                 - Does it require account access or manual intervention?
                 - Is the customer too frustrated for automated handling?
-                
+
                 Respond with just: YES or NO
             """),
             HumanMessage(content=f"""
@@ -153,50 +153,50 @@ def create_support_graph():
                 Issue: {state['issue']}
             """)
         ]
-        
+
         response = await llm.ainvoke(messages)
         can_resolve = "YES" in response.content.upper()
-        
+
         return {
             "resolution_attempted": True,
             "resolution_success": can_resolve,
             "messages": [{"role": "system", "content": f"Resolution: {'success' if can_resolve else 'escalate'}"}]
         }
-    
+
     async def resolve_node(state: SupportTicketState) -> dict:
         """Successfully resolve the ticket."""
         return {
             "escalated": False,
             "messages": [{"role": "system", "content": "Ticket resolved automatically"}]
         }
-    
+
     async def escalate_node(state: SupportTicketState) -> dict:
         """Escalate to human agent."""
         # In production, this would integrate with your ticketing system
         agent_id = f"agent-{hash(state['ticket_id']) % 100:03d}"
-        
+
         return {
             "escalated": True,
             "human_agent_id": agent_id,
             "messages": [{"role": "system", "content": f"Escalated to {agent_id}"}]
         }
-    
+
     def route_after_resolution(state: SupportTicketState) -> Literal["resolve", "escalate"]:
         """Route based on resolution success."""
         if state.get("resolution_success"):
             return "resolve"
         return "escalate"
-    
+
     # Build the graph
     graph = StateGraph(SupportTicketState)
-    
+
     # Add nodes
     graph.add_node("analyze", analyze_node)
     graph.add_node("generate_response", generate_response_node)
     graph.add_node("attempt_resolution", attempt_resolution_node)
     graph.add_node("resolve", resolve_node)
     graph.add_node("escalate", escalate_node)
-    
+
     # Add edges
     graph.add_edge(START, "analyze")
     graph.add_edge("analyze", "generate_response")
@@ -208,7 +208,7 @@ def create_support_graph():
     )
     graph.add_edge("resolve", END)
     graph.add_edge("escalate", END)
-    
+
     return graph.compile()
 
 
@@ -219,20 +219,20 @@ def create_support_graph():
 class CustomerSupportSaga(Saga):
     """
     AI-powered customer support saga using LangGraph.
-    
+
     The saga wraps a LangGraph workflow, providing:
     - Compensation if the graph fails
     - Persistence of saga state
     - Trigger-based activation
     - Concurrency control
     """
-    
+
     saga_name = "customer_support"
-    
+
     # ==========================================================================
     # TRIGGER: Support Ticket
     # ==========================================================================
-    
+
     @trigger(
         source="support_ticket",
         idempotency_key="ticket_id",
@@ -242,7 +242,7 @@ class CustomerSupportSaga(Saga):
         """Process incoming support tickets."""
         if not event.get("issue"):
             return None
-        
+
         return {
             "ticket_id": event.get("ticket_id", f"TKT-{datetime.now().timestamp()}"),
             "customer_id": event.get("customer_id", "unknown"),
@@ -250,27 +250,27 @@ class CustomerSupportSaga(Saga):
             "channel": event.get("channel", "web"),
             "received_at": datetime.now().isoformat()
         }
-    
+
     # ==========================================================================
     # STEP 1: Run LangGraph Workflow
     # ==========================================================================
-    
+
     @action("run_support_graph")
     async def run_langgraph_workflow(self, ctx: dict) -> dict:
         """
         Execute the LangGraph support workflow.
-        
+
         This step runs the entire graph as a single saga action,
         allowing for proper compensation if it fails.
         """
-        print(f"🎫 Processing ticket {ctx['ticket_id']}...")
-        
+
         if not LANGGRAPH_AVAILABLE:
-            raise RuntimeError("langgraph not installed")
-        
+            msg = "langgraph not installed"
+            raise RuntimeError(msg)
+
         # Create the graph
         graph = create_support_graph()
-        
+
         # Prepare initial state
         initial_state: SupportTicketState = {
             "ticket_id": ctx["ticket_id"],
@@ -286,18 +286,14 @@ class CustomerSupportSaga(Saga):
             "human_agent_id": "",
             "messages": []
         }
-        
+
         # Run the graph
         final_state = await graph.ainvoke(initial_state)
-        
-        print(f"   📋 Category: {final_state['category']}")
-        print(f"   🎯 Priority: {final_state['priority']}")
-        print(f"   💭 Sentiment: {final_state['sentiment']}")
-        print(f"   ✅ Resolved: {not final_state['escalated']}")
-        
-        if final_state['escalated']:
-            print(f"   👤 Escalated to: {final_state['human_agent_id']}")
-        
+
+
+        if final_state["escalated"]:
+            pass
+
         return {
             "graph_result": {
                 "category": final_state["category"],
@@ -309,26 +305,23 @@ class CustomerSupportSaga(Saga):
                 "resolution_success": final_state["resolution_success"]
             }
         }
-    
+
     @compensate("run_support_graph")
     async def handle_graph_failure(self, ctx: dict) -> None:
         """Handle graph failure - always escalate to human."""
-        print(f"   ⚠️ Graph failed for ticket {ctx['ticket_id']}")
-        print(f"   👤 Auto-escalating to human support")
-    
+
     # ==========================================================================
     # STEP 2: Finalize Ticket
     # ==========================================================================
-    
+
     @action("finalize_ticket", depends_on=["run_support_graph"])
     async def finalize_ticket(self, ctx: dict) -> dict:
         """Finalize the ticket processing."""
         result = ctx["graph_result"]
-        
+
         status = "resolved" if result["resolution_success"] else "escalated"
-        
-        print(f"📝 Ticket {ctx['ticket_id']} finalized: {status}")
-        
+
+
         return {
             "status": status,
             "completed_at": datetime.now().isoformat(),
@@ -348,27 +341,20 @@ class CustomerSupportSaga(Saga):
 
 async def run_demo():
     """Run the customer support demo."""
-    
+
     # Check requirements
     if not LANGGRAPH_AVAILABLE:
-        print("❌ langgraph is required. Install with:")
-        print("   pip install langgraph langchain-openai")
         return
-    
+
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        print("❌ API key required:")
-        print("   export OPENAI_API_KEY='your-key'")
         return
-    
+
     # Configure Sagaz
     config = SagaConfig(storage=InMemorySagaStorage())
     configure(config)
-    
-    print("🎧 Customer Support Agent Saga (LangGraph)")
-    print("=" * 50)
-    print()
-    
+
+
     # Sample tickets
     tickets = [
         {
@@ -384,23 +370,17 @@ async def run_demo():
             "channel": "email"
         }
     ]
-    
+
     for ticket in tickets:
-        print(f"📨 Ticket: {ticket['ticket_id']}")
-        print(f"   Issue: {ticket['issue'][:60]}...")
-        print()
-        
+
         saga_ids = await fire_event("support_ticket", ticket)
-        
+
         if saga_ids:
-            print(f"   🚀 Saga started: {saga_ids[0]}")
-        
+            pass
+
         # Wait between tickets
         await asyncio.sleep(10)
-        print()
-    
-    print("=" * 50)
-    print("✅ All tickets processed!")
+
 
 
 if __name__ == "__main__":

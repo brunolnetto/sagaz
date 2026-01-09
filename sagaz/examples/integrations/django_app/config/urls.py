@@ -1,7 +1,7 @@
 """URL configuration for the Django example."""
 
-from django.urls import path, include
+from django.urls import include, path
 
 urlpatterns = [
-    path('', include('orders.urls')),
+    path("", include("orders.urls")),
 ]

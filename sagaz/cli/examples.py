@@ -31,18 +31,18 @@ except ImportError:  # pragma: no cover
 def get_examples_dir() -> Path:
     """
     Get the directory containing examples.
-    
+
     Priority:
     1. Current working directory (for development)
     2. Packaged examples inside sagaz.examples
     """
     import importlib.resources as pkg_resources
-    
+
     # First check CWD for development
     cwd_examples = Path.cwd() / "examples"
     if cwd_examples.exists() and cwd_examples.is_dir():
         return cwd_examples  # pragma: no cover
-    
+
     # Fall back to packaged examples
     try:
         return Path(str(pkg_resources.files("sagaz.examples")))

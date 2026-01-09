@@ -99,7 +99,7 @@ class MonitoredSagaOrchestrator:
 
 class SimulatedOperationSaga(Saga):
     """A saga that simulates operations for monitoring demo."""
-    
+
     saga_name = "simulated-operation"
 
     @action("step_a")
@@ -119,10 +119,11 @@ class SimulatedOperationSaga(Saga):
         should_fail = ctx.get("simulate_failure", False)
         logger.info(f"Executing Step B (fail={should_fail})")
         await asyncio.sleep(random.uniform(0.01, 0.05))
-        
+
         if should_fail:
-            raise SagaStepError("Simulated failure in Step B")
-            
+            msg = "Simulated failure in Step B"
+            raise SagaStepError(msg)
+
         return {"step_b": "complete"}
 
     @compensate("step_b")
@@ -131,40 +132,30 @@ class SimulatedOperationSaga(Saga):
 
 
 async def main():
-    print("=" * 60)
-    print("📊 Saga Monitoring & Metrics Demo")
-    print("=" * 60)
 
     orchestrator = MonitoredSagaOrchestrator()
-    
+
     # 1. Run successful sagas
-    print("\n--- Running Successful Sagas ---")
     for i in range(5):
         saga = SimulatedOperationSaga()
         try:
             await orchestrator.execute_saga(saga, {"id": i, "simulate_failure": False})
-            print(f"✅ Saga {i} completed")
-        except Exception as e:
-            print(f"❌ Saga {i} failed: {e}")
+        except Exception:
+            pass
 
     # 2. Run failing sagas
-    print("\n--- Running Failing Sagas ---")
     for i in range(2):
         saga = SimulatedOperationSaga()
         try:
             await orchestrator.execute_saga(saga, {"id": i+5, "simulate_failure": True})
-            print(f"✅ Saga {i+5} completed")
-        except Exception as e:
-            print(f"❌ Saga {i+5} failed as expected: {e}")
+        except Exception:
+            pass
 
     # 3. Report Metrics
-    print("\n" + "=" * 60)
-    print("📈 Final Metrics Report")
-    print("=" * 60)
-    
+
     metrics = orchestrator.get_metrics()
-    for key, value in metrics.items():
-        print(f"{key.replace('_', ' ').title():<25}: {value}")
+    for _key, _value in metrics.items():
+        pass
 
 
 if __name__ == "__main__":

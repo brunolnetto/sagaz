@@ -26,10 +26,10 @@ logger = logging.getLogger(__name__)
 class FeatureStoreSaga(Saga):
     """
     Feature engineering pipeline with transactional semantics.
-    
+
     This saga is stateless - all pipeline configuration is passed through the context
     via the run() method.
-    
+
     Expected context:
         - feature_group_name: str
         - data_source: str
@@ -45,7 +45,7 @@ class FeatureStoreSaga(Saga):
         """Ingest raw data from data lake."""
         data_source = ctx.get("data_source")
         feature_group_name = ctx.get("feature_group_name")
-        
+
         logger.info(f"📥 Ingesting data from: {data_source}")
         logger.info(f"Feature group: {feature_group_name}")
 
@@ -201,9 +201,12 @@ class FeatureStoreSaga(Saga):
 
         # Check if critical validations failed
         if failed_validations:
-            raise SagaStepError(
+            msg = (
                 f"Feature validation failed for: {', '.join(failed_validations)}. "
                 f"Cannot publish to feature store."
+            )
+            raise SagaStepError(
+                msg
             )
 
         logger.info("✅ All feature validations passed")
@@ -308,10 +311,7 @@ class FeatureStoreSaga(Saga):
 
 async def successful_pipeline_demo():
     """Demonstrate successful feature pipeline execution."""
-    print("\n" + "=" * 80)
-    print("📊 Feature Store Pipeline - Successful Feature Publishing Demo")
-    print("=" * 80)
-    
+
     # Reusable saga instance
     saga = FeatureStoreSaga()
 
@@ -325,7 +325,7 @@ async def successful_pipeline_demo():
         {"name": "engagement_score", "type": "numeric"},
         {"name": "churn_probability", "type": "numeric"},
     ]
-    
+
     pipeline_data = {
         "feature_group_name": "customer_features",
         "data_source": "s3://data-lake/raw/customers/2024-01-15/",
@@ -339,25 +339,12 @@ async def successful_pipeline_demo():
         "pipeline_id": f"pipeline-{datetime.now().strftime('%Y%m%d')}"
     }
 
-    result = await saga.run(pipeline_data)
+    await saga.run(pipeline_data)
 
-    print(f"\n{'✅' if result.get('saga_id') else '❌'} Feature Pipeline Result:")
-    print(f"   Saga ID:               {result.get('saga_id')}")
-    print(f"   Feature Group:         {pipeline_data['feature_group_name']}")
-    print(f"   Version:               v{result.get('feature_group_version')}")
-    print(f"   Records Ingested:      {result.get('records_ingested', 0):,}")
-    print(f"   Features Computed:     {result.get('feature_count')}")
-    print(f"   Validation Status:     {result.get('validation_passed')}")
-    print(f"   Online Store Updated:  {result.get('online_store_updated')}")
-    print(f"   Offline Store Updated: {result.get('offline_store_updated')}")
-    print(f"   Commit ID:             {result.get('commit_id')}")
 
 
 async def failed_pipeline_demo():
     """Demonstrate pipeline failure with automatic rollback."""
-    print("\n" + "=" * 80)
-    print("⚠️  Feature Store Pipeline - Failed Pipeline with Rollback Demo")
-    print("=" * 80)
 
     # Use very strict validation rules to increase failure probability
     feature_definitions = [
@@ -367,7 +354,7 @@ async def failed_pipeline_demo():
     ]
 
     saga = FeatureStoreSaga()
-    
+
     pipeline_data = {
         "feature_group_name": "experimental_features",
         "data_source": "s3://data-lake/raw/experiments/2024-01-15/",
@@ -382,16 +369,9 @@ async def failed_pipeline_demo():
     }
 
     try:
-        result = await saga.run(pipeline_data)
-        print(f"✅ Unexpectedly succeeded: {result.get('saga_id')}")
-        print("   (Validation rules were lenient enough to pass)")
-    except SagaStepError as e:
-        print(f"\n❌ Pipeline failed as expected: {e}")
-        print("✅ Automatic compensation completed successfully")
-        print("   Staged data cleaned up")
-        print("   Computed features removed")
-        print("   Feature store not updated (consistency maintained)")
-        print("   Ready for retry with adjusted validation rules")
+        await saga.run(pipeline_data)
+    except SagaStepError:
+        pass
 
 
 async def main():
@@ -402,16 +382,6 @@ async def main():
     # Failed pipeline with rollback
     await failed_pipeline_demo()
 
-    print("\n" + "=" * 80)
-    print("📚 Feature Store Pipeline Demo Complete")
-    print("=" * 80)
-    print("\nKey Benefits:")
-    print("  ✅ Transactional guarantees for feature updates")
-    print("  ✅ Automatic cleanup of staging data on failure")
-    print("  ✅ Data quality validation prevents bad features")
-    print("  ✅ Consistent online/offline feature stores")
-    print("  ✅ Full lineage tracking for reproducibility")
-    print("  ✅ Rollback maintains feature store consistency")
 
 
 if __name__ == "__main__":

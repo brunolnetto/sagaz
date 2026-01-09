@@ -20,17 +20,16 @@ Run:
 
 import asyncio
 import os
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
-from dataclasses import dataclass
 
 from pydantic import BaseModel, Field
 
 from sagaz import Saga, action, compensate
-from sagaz.triggers import trigger, fire_event
 from sagaz.config import SagaConfig, configure
 from sagaz.storage import InMemorySagaStorage
-
+from sagaz.triggers import fire_event, trigger
 
 # =============================================================================
 # Pydantic Models for Structured AI Outputs
@@ -70,8 +69,8 @@ class ResearchDeps:
     """Dependencies injected into research agents."""
     topic: str
     depth: str  # "quick", "standard", "comprehensive"
-    outline: Optional[dict] = None
-    findings: Optional[dict] = None
+    outline: dict | None = None
+    findings: dict | None = None
 
 
 # =============================================================================
@@ -94,21 +93,22 @@ except ImportError:
 def _initialize_agents():
     """Initialize agents lazily (only when actually used)."""
     global _agents_initialized, outline_agent, findings_agent, report_agent
-    
+
     if _agents_initialized:
         return
-    
+
     if not PYDANTIC_AI_AVAILABLE:
-        raise RuntimeError("pydantic-ai not installed. Install with: pip install pydantic-ai")
-    
+        msg = "pydantic-ai not installed. Install with: pip install pydantic-ai"
+        raise RuntimeError(msg)
+
     # Outline Planning Agent
     outline_agent = Agent(
-        'openai:gpt-4o-mini',
+        "openai:gpt-4o-mini",
         deps_type=ResearchDeps,
         output_type=ResearchOutline,
         system_prompt="""
-        You are a research planning assistant. Given a topic, create a structured 
-        research outline. Be specific and actionable. Consider the requested depth 
+        You are a research planning assistant. Given a topic, create a structured
+        research outline. Be specific and actionable. Consider the requested depth
         level when determining complexity.
         """
     )
@@ -120,7 +120,7 @@ def _initialize_agents():
 
     # Findings Agent
     findings_agent = Agent(
-        'openai:gpt-4o-mini',
+        "openai:gpt-4o-mini",
         deps_type=ResearchDeps,
         output_type=ResearchFindings,
         system_prompt="""
@@ -139,7 +139,7 @@ def _initialize_agents():
 
     # Report Agent
     report_agent = Agent(
-        'openai:gpt-4o-mini',
+        "openai:gpt-4o-mini",
         deps_type=ResearchDeps,
         output_type=FinalReport,
         system_prompt="""
@@ -147,7 +147,7 @@ def _initialize_agents():
         the outline and findings provided. Be professional and actionable.
         """
     )
-    
+
     _agents_initialized = True
 
 
@@ -158,20 +158,20 @@ def _initialize_agents():
 class AIResearchSaga(Saga):
     """
     AI-powered research assistant saga using Pydantic AI.
-    
+
     Workflow:
     1. Plan research outline (pydantic-ai agent)
     2. Gather findings (pydantic-ai agent)
     3. Synthesize report (pydantic-ai agent)
     4. Quality validation
     """
-    
+
     saga_name = "ai_research"
-    
+
     # ==========================================================================
     # TRIGGER: Research Request
     # ==========================================================================
-    
+
     @trigger(
         source="research_request",
         idempotency_key="request_id",
@@ -181,7 +181,7 @@ class AIResearchSaga(Saga):
         """Handle incoming research requests."""
         if not event.get("topic"):
             return None
-        
+
         return {
             "request_id": event.get("request_id", f"req-{datetime.now().timestamp()}"),
             "topic": event["topic"],
@@ -189,134 +189,121 @@ class AIResearchSaga(Saga):
             "requester": event.get("requester", "anonymous"),
             "started_at": datetime.now().isoformat()
         }
-    
+
     # ==========================================================================
     # STEP 1: Plan Research Outline
     # ==========================================================================
-    
+
     @action("plan_outline")
     async def plan_research_outline(self, ctx: dict) -> dict:
         """Use Pydantic AI agent to create research outline."""
-        print(f"🎯 Planning research outline for: {ctx['topic']}")
-        
+
         _initialize_agents()  # Lazy init
-        
+
         deps = ResearchDeps(topic=ctx["topic"], depth=ctx["depth"])
-        
+
         result = await outline_agent.run(
             f"Create a research outline for: {ctx['topic']}. Depth level: {ctx['depth']}",
             deps=deps
         )
-        
+
         outline = result.output
-        
-        print(f"   📋 Questions: {len(outline.key_questions)}")
-        print(f"   📊 Areas: {len(outline.research_areas)}")
-        print(f"   ⚙️  Complexity: {outline.estimated_complexity}")
-        
+
+
         return {
             "outline": outline.model_dump(),
             "outline_created": True
         }
-    
+
     @compensate("plan_outline")
     async def cancel_outline(self, ctx: dict) -> None:
         """Log cancelled outline."""
-        print(f"   🔄 Research outline cancelled for {ctx.get('topic')}")
-    
+
     # ==========================================================================
     # STEP 2: Gather Findings
     # ==========================================================================
-    
+
     @action("gather_findings", depends_on=["plan_outline"])
     async def gather_research_findings(self, ctx: dict) -> dict:
         """Use Pydantic AI agent to gather research findings."""
-        print(f"🔍 Gathering research findings...")
-        
+
         _initialize_agents()  # Lazy init
-        
+
         deps = ResearchDeps(
             topic=ctx["topic"],
             depth=ctx["depth"],
             outline=ctx["outline"]
         )
-        
+
         prompt = f"""
         Research topic: {ctx['topic']}
-        
+
         Based on this outline:
         - Key questions: {ctx['outline']['key_questions']}
         - Research areas: {ctx['outline']['research_areas']}
-        
+
         Provide comprehensive research findings.
         """
-        
+
         result = await findings_agent.run(prompt, deps=deps)
         findings = result.output
-        
-        print(f"   📊 Confidence: {findings.confidence_score:.0%}")
-        print(f"   📌 Key points: {len(findings.key_points)}")
-        
+
+
         return {
             "findings": findings.model_dump(),
             "findings_gathered": True
         }
-    
+
     @compensate("gather_findings")
     async def discard_findings(self, ctx: dict) -> None:
         """Discard findings on failure."""
-        print(f"   🔄 Discarding research findings")
-    
+
     # ==========================================================================
     # STEP 3: Synthesize Report
     # ==========================================================================
-    
+
     @action("synthesize_report", depends_on=["gather_findings"])
     async def synthesize_final_report(self, ctx: dict) -> dict:
         """Use Pydantic AI agent to synthesize final report."""
-        print(f"📝 Synthesizing final report...")
-        
+
         _initialize_agents()  # Lazy init
-        
+
         deps = ResearchDeps(
             topic=ctx["topic"],
             depth=ctx["depth"],
             outline=ctx["outline"],
             findings=ctx["findings"]
         )
-        
+
         prompt = f"""
         Create a research report for: {ctx['topic']}
-        
+
         Outline: {ctx['outline']}
         Findings: {ctx['findings']}
-        
+
         Provide a comprehensive, actionable report.
         """
-        
+
         result = await report_agent.run(prompt, deps=deps)
         report = result.output
-        
-        print(f"   📄 Title: {report.title}")
-        print(f"   ✅ Conclusions: {len(report.conclusions)}")
-        
+
+
         return {
             "report": report.model_dump(),
             "report_ready": True
         }
-    
+
     # ==========================================================================
     # STEP 4: Quality Validation
     # ==========================================================================
-    
+
     @action("quality_check", depends_on=["synthesize_report"])
     async def validate_quality(self, ctx: dict) -> dict:
         """Validate report quality."""
-        print(f"✅ Validating report quality...")
-        
+
         report = ctx["report"]
         findings = ctx["findings"]
-        
+
         checks = {
             "has_summary": bool(report.get("executive_summary")),
             "has_conclusions": len(report.get("conclusions", [])) > 0,
@@ -324,12 +311,11 @@ class AIResearchSaga(Saga):
             "confidence_threshold": findings["confidence_score"] >= 0.6,
             "sufficient_findings": len(findings.get("key_points", [])) >= 2
         }
-        
+
         passed = sum(checks.values())
         total = len(checks)
-        
-        print(f"   Checks: {passed}/{total} passed")
-        
+
+
         return {
             "quality_checks": checks,
             "quality_passed": passed == total,
@@ -343,28 +329,20 @@ class AIResearchSaga(Saga):
 
 async def run_demo():
     """Run the AI research demo."""
-    
+
     # Check requirements
     if not PYDANTIC_AI_AVAILABLE:
-        print("❌ pydantic-ai is required. Install with:")
-        print("   pip install pydantic-ai")
         return
-    
+
     api_key = os.environ.get("OPENAI_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
-        print("❌ API key required. Set one of:")
-        print("   export OPENAI_API_KEY='your-key'")
-        print("   export ANTHROPIC_API_KEY='your-key'")
         return
-    
+
     # Configure Sagaz
     config = SagaConfig(storage=InMemorySagaStorage())
     configure(config)
-    
-    print("🤖 AI Research Assistant Saga (Pydantic AI)")
-    print("=" * 50)
-    print()
-    
+
+
     # Fire research request
     request = {
         "request_id": "demo-001",
@@ -372,21 +350,16 @@ async def run_demo():
         "depth": "comprehensive",
         "requester": "demo_user"
     }
-    
-    print(f"📨 Research request: {request['topic'][:50]}...")
-    print()
-    
+
+
     saga_ids = await fire_event("research_request", request)
-    
+
     if saga_ids:
-        print(f"🚀 Research saga started: {saga_ids[0]}")
-    
+        pass
+
     # Wait for completion
     await asyncio.sleep(15)  # AI calls take time
-    
-    print()
-    print("=" * 50)
-    print("✅ Research completed!")
+
 
 
 if __name__ == "__main__":

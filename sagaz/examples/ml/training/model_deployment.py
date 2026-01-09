@@ -26,10 +26,10 @@ logger = logging.getLogger(__name__)
 class ModelDeploymentSaga(Saga):
     """
     Production model deployment with blue/green strategy and automatic rollback.
-    
+
     This saga is stateless - all deployment configuration is passed through the context
     via the run() method.
-    
+
     Expected context:
         - model_name: str
         - model_version: int
@@ -46,7 +46,7 @@ class ModelDeploymentSaga(Saga):
         """Create backup snapshot of current production model."""
         model_name = ctx.get("model_name")
         model_version = ctx.get("model_version")
-        
+
         logger.info(f"💾 Backing up current production model: {model_name}")
         await asyncio.sleep(0.2)  # Simulate backup operation
 
@@ -89,7 +89,7 @@ class ModelDeploymentSaga(Saga):
         model_name = ctx.get("model_name")
         model_version = ctx.get("model_version")
         registry_uri = ctx.get("registry_uri")
-        
+
         logger.info(f"🚀 Deploying model v{model_version} to staging")
         logger.info(f"Registry: {registry_uri}")
 
@@ -106,8 +106,9 @@ class ModelDeploymentSaga(Saga):
         health_check_passed = random.random() > 0.05  # 95% success rate
 
         if not health_check_passed:
+            msg = f"Staging deployment health check failed for {staging_deployment_id}"
             raise SagaStepError(
-                f"Staging deployment health check failed for {staging_deployment_id}"
+                msg
             )
 
         logger.info("✅ Staging deployment successful")
@@ -171,9 +172,12 @@ class ModelDeploymentSaga(Saga):
 
         # Check if critical tests failed
         if failed_tests:
-            raise SagaStepError(
+            msg = (
                 f"Smoke tests failed: {', '.join(failed_tests)}. "
                 f"Model v{model_version} cannot be deployed to production."
+            )
+            raise SagaStepError(
+                msg
             )
 
         # Performance metrics
@@ -202,7 +206,7 @@ class ModelDeploymentSaga(Saga):
         model_version = ctx.get("model_version")
         canary_percentage = ctx.get("canary_percentage", 10)
         previous_version = ctx.get("previous_version", 0)
-        
+
         logger.info("🔄 Initiating blue/green deployment")
         logger.info(f"Model: {model_name} v{model_version}")
         logger.info(f"Strategy: Canary with {canary_percentage}% traffic")
@@ -226,8 +230,9 @@ class ModelDeploymentSaga(Saga):
 
         # Check canary health
         if canary_error_rate > 0.05:  # 5% threshold
+            msg = f"Canary deployment failed: error rate {canary_error_rate:.2%} exceeds 5% threshold"
             raise SagaStepError(
-                f"Canary deployment failed: error rate {canary_error_rate:.2%} exceeds 5% threshold"
+                msg
             )
 
         # Gradual traffic increase
@@ -322,13 +327,10 @@ class ModelDeploymentSaga(Saga):
 
 async def successful_deployment_demo():
     """Demonstrate successful model deployment."""
-    print("\n" + "=" * 80)
-    print("🚀 Model Deployment - Successful Blue/Green Deployment Demo")
-    print("=" * 80)
 
     # Reusable saga instance
     saga = ModelDeploymentSaga()
-    
+
     deployment_data = {
         "model_name": "fraud-detector",
         "model_version": 15,
@@ -339,27 +341,15 @@ async def successful_deployment_demo():
         "deployment_id": "deploy-15"
     }
 
-    result = await saga.run(deployment_data)
+    await saga.run(deployment_data)
 
-    print(f"\n{'✅' if result.get('saga_id') else '❌'} Deployment Result:")
-    print(f"   Saga ID:           {result.get('saga_id')}")
-    print(f"   Model Version:     v{result.get('previous_version')} → v{deployment_data['model_version']}")
-    print(f"   Endpoint:          {result.get('green_endpoint')}")
-    print(f"   Traffic:           {result.get('traffic_distribution')}")
-    print(f"   Health Status:     {result.get('health_status')}")
-    print(f"   Avg Error Rate:    {result.get('avg_error_rate', 0):.2%}")
-    print(f"   Avg Latency:       {result.get('avg_latency', 0):.3f}s")
 
 
 async def failed_deployment_demo():
     """Demonstrate deployment failure with automatic rollback."""
-    print("\n" + "=" * 80)
-    print("⚠️  Model Deployment - Failed Deployment with Rollback Demo")
-    print("=" * 80)
-    print("(This demo may succeed - smoke tests have 95% pass rate)")
 
     saga = ModelDeploymentSaga()
-    
+
     base_data = {
         "model_name": "recommendation-engine",
         "model_version": 42,
@@ -371,25 +361,18 @@ async def failed_deployment_demo():
 
     # Run multiple times to potentially trigger failure
     for attempt in range(1, 4):
-        print(f"\n--- Deployment Attempt {attempt} ---")
         try:
             data = base_data.copy()
             data["deployment_id"] = f"deploy-42-attempt{attempt}"
-            
-            result = await saga.run(data)
-            print(f"✅ Deployment succeeded on attempt {attempt}")
-            print(f"   Endpoint: {result.get('green_endpoint')}")
+
+            await saga.run(data)
             break
-        except SagaStepError as e:
-            print(f"❌ Deployment failed: {e}")
-            print("✅ Automatic rollback completed")
-            print("   Traffic remains on previous stable version")
+        except SagaStepError:
 
             if attempt < 3:
-                print("   Retrying with adjusted parameters...")
                 await asyncio.sleep(1)
             else:
-                print("   Maximum retry attempts reached")
+                pass
 
 
 async def main():
@@ -400,15 +383,6 @@ async def main():
     # Failed deployment with rollback
     await failed_deployment_demo()
 
-    print("\n" + "=" * 80)
-    print("📚 Model Deployment Demo Complete")
-    print("=" * 80)
-    print("\nKey Capabilities:")
-    print("  ✅ Blue/green deployment with zero downtime")
-    print("  ✅ Canary releases with gradual traffic shifting")
-    print("  ✅ Automatic rollback on health check failure")
-    print("  ✅ Smoke tests prevent bad deployments")
-    print("  ✅ Production monitoring and alerting")
 
 
 if __name__ == "__main__":

@@ -26,14 +26,13 @@ Scenarios:
     all         - Run all tests sequentially
 """
 
+import argparse
 import asyncio
 import json
 import sys
 import time
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
-import argparse
+from datetime import UTC, datetime
 
 try:
     import asyncpg
@@ -42,11 +41,11 @@ except ImportError:
     sys.exit(1)
 
 try:
-    from rich.console import Console
-    from rich.table import Table
-    from rich.progress import Progress, SpinnerColumn, TextColumn
-    from rich.panel import Panel
     from rich import print as rprint
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+    from rich.table import Table
 
     RICH_AVAILABLE = True
 except ImportError:
@@ -89,7 +88,7 @@ class OutboxTester:
 
     def __init__(self, database_url: str = DATABASE_URL):
         self.database_url = database_url
-        self.pool: Optional[asyncpg.Pool] = None
+        self.pool: asyncpg.Pool | None = None
 
     async def connect(self):
         """Connect to the database."""
@@ -117,8 +116,8 @@ class OutboxTester:
         event_type: str,
         payload: dict,
         aggregate_type: str = "test",
-        aggregate_id: Optional[str] = None,
-        saga_id: Optional[str] = None,
+        aggregate_id: str | None = None,
+        saga_id: str | None = None,
     ) -> str:
         """Insert a single event into the outbox."""
         event_id = str(uuid.uuid4())
@@ -140,7 +139,7 @@ class OutboxTester:
                 event_type,
                 json.dumps(payload),
                 json.dumps(
-                    {"source": "k8s-test", "timestamp": datetime.now(timezone.utc).isoformat()}
+                    {"source": "k8s-test", "timestamp": datetime.now(UTC).isoformat()}
                 ),
             )
 
@@ -167,7 +166,7 @@ class OutboxTester:
                     payload = {
                         "batch_index": i + j,
                         "data": f"Test event {i + j}",
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "timestamp": datetime.now(UTC).isoformat(),
                     }
 
                     values.append(
@@ -319,9 +318,8 @@ async def test_basic(tester: OutboxTester):
     if processed:
         success("✓ Basic event processing test PASSED")
         return True
-    else:
-        error("✗ Basic event processing test FAILED - events not processed in time")
-        return False
+    error("✗ Basic event processing test FAILED - events not processed in time")
+    return False
 
 
 async def test_bulk(tester: OutboxTester):
@@ -341,7 +339,7 @@ async def test_bulk(tester: OutboxTester):
     info("Inserting 100 events in batch...")
     start_time = time.time()
 
-    event_ids = await tester.insert_events_batch(
+    await tester.insert_events_batch(
         count=100,
         event_type="BulkTestEvent",
     )
@@ -368,9 +366,8 @@ async def test_bulk(tester: OutboxTester):
             f"✓ Bulk test PASSED - Processed {events_processed} events in {process_time:.2f}s ({events_processed / process_time:.0f} events/sec)"
         )
         return True
-    else:
-        warning(f"Bulk test completed with {events_processed}/100 events processed")
-        return events_processed >= 90  # Allow some tolerance
+    warning(f"Bulk test completed with {events_processed}/100 events processed")
+    return events_processed >= 90  # Allow some tolerance
 
 
 def _print_stress_progress(current_sent: int, pending: int, claimed: int, rate: float):
@@ -427,7 +424,7 @@ async def test_stress(tester: OutboxTester):
     warning("⚡ STRESS TEST: Inserting 1000 events rapidly...")
     start_time = time.time()
 
-    event_ids = await tester.insert_events_batch(
+    await tester.insert_events_batch(
         count=1000,
         event_type="StressTestEvent",
         batch_size=200,
@@ -487,12 +484,11 @@ def _evaluate_stress_result(events_processed: int) -> bool:
     if events_processed >= 950:
         success("✓ Stress test PASSED")
         return True
-    elif events_processed >= 800:
+    if events_processed >= 800:
         warning("⚠ Stress test PARTIAL - some events still pending")
         return True
-    else:
-        error("✗ Stress test FAILED - too many events not processed")
-        return False
+    error("✗ Stress test FAILED - too many events not processed")
+    return False
 
 
 async def test_monitor(tester: OutboxTester):

@@ -16,10 +16,10 @@ Forward Recovery:
 
 import asyncio
 import logging
+import uuid
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
-import uuid
 
 from sagaz import Saga, SagaContext, action, compensate
 from sagaz.exceptions import SagaStepError
@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 class SWIFTSimulator:
     """Simulates SWIFT banking network interactions."""
-    
+
     @staticmethod
     async def validate_transfer(
         sender_account: str,
@@ -47,7 +47,7 @@ class SWIFTSimulator:
             "receiver_bic_valid": True,
             "sanctions_check": "passed",
         }
-    
+
     @staticmethod
     async def run_compliance_check(
         sender_account: str,
@@ -61,7 +61,7 @@ class SWIFTSimulator:
             "ofac_cleared": True,
             "compliance_id": f"COMP-{uuid.uuid4().hex[:8].upper()}",
         }
-    
+
     @staticmethod
     async def reserve_fx_rate(
         from_currency: str,
@@ -76,7 +76,7 @@ class SWIFTSimulator:
             "valid_until": "15 minutes",
             "converted_amount": str(amount / rate),
         }
-    
+
     @staticmethod
     async def submit_swift_mt103(
         transfer_id: str,
@@ -91,7 +91,7 @@ class SWIFTSimulator:
             "status": "sent",
             "sent_at": datetime.now().isoformat(),
         }
-    
+
     @staticmethod
     async def debit_account(account: str, amount: Decimal) -> dict:
         await asyncio.sleep(0.2)
@@ -101,7 +101,7 @@ class SWIFTSimulator:
             "new_balance": str(Decimal("100000") - amount),
             "debited_at": datetime.now().isoformat(),
         }
-    
+
     @staticmethod
     async def notify_parties(parties: list[str]) -> dict:
         await asyncio.sleep(0.1)
@@ -114,31 +114,31 @@ class SWIFTSimulator:
 class CrossBorderWireTransferSaga(Saga):
     """
     Cross-border wire transfer saga with SWIFT messaging pivot.
-    
+
     Demonstrates international money transfer with multiple pivot points
     where the SWIFT message submission and account debit commit the
     transaction to the global banking network.
     """
-    
+
     saga_name = "cross-border-wire-transfer"
-    
+
     @action("validate_transfer")
     async def validate_transfer(self, ctx: SagaContext) -> dict[str, Any]:
         transfer_id = ctx.get("transfer_id")
         sender_account = ctx.get("sender_account")
         receiver_bic = ctx.get("receiver_bic")
         amount = Decimal(str(ctx.get("amount", 10000)))
-        
+
         logger.info(f"🔍 [{transfer_id}] Validating transfer...")
         result = await SWIFTSimulator.validate_transfer(sender_account, receiver_bic, amount)
         logger.info(f"✅ [{transfer_id}] Transfer validated, sanctions check: {result['sanctions_check']}")
         return result
-    
+
     @compensate("validate_transfer")
     async def cancel_validation(self, ctx: SagaContext) -> None:
         logger.warning(f"↩️ [{ctx.get('transfer_id')}] Cancelling validation...")
         await asyncio.sleep(0.05)
-    
+
     @action("compliance_check", depends_on=["validate_transfer"])
     async def compliance_check(self, ctx: SagaContext) -> dict[str, Any]:
         transfer_id = ctx.get("transfer_id")
@@ -150,12 +150,12 @@ class CrossBorderWireTransferSaga(Saga):
         )
         logger.info(f"✅ [{transfer_id}] Compliance passed: {result['compliance_id']}")
         return result
-    
+
     @compensate("compliance_check")
     async def cancel_compliance(self, ctx: SagaContext) -> None:
         logger.warning(f"↩️ [{ctx.get('transfer_id')}] Cancelling compliance hold...")
         await asyncio.sleep(0.05)
-    
+
     @action("reserve_fx_rate", depends_on=["compliance_check"])
     async def reserve_fx_rate(self, ctx: SagaContext) -> dict[str, Any]:
         transfer_id = ctx.get("transfer_id")
@@ -167,12 +167,12 @@ class CrossBorderWireTransferSaga(Saga):
         )
         logger.info(f"✅ [{transfer_id}] FX rate locked: {result['fx_rate']}")
         return result
-    
+
     @compensate("reserve_fx_rate")
     async def release_fx_rate(self, ctx: SagaContext) -> None:
         logger.warning(f"↩️ [{ctx.get('transfer_id')}] Releasing FX rate lock...")
         await asyncio.sleep(0.05)
-    
+
     @action("submit_swift_message", depends_on=["reserve_fx_rate"])
     async def submit_swift_message(self, ctx: SagaContext) -> dict[str, Any]:
         """🔒 PIVOT STEP 1: Submit SWIFT MT103 message."""
@@ -186,7 +186,7 @@ class CrossBorderWireTransferSaga(Saga):
         )
         logger.info(f"✅ [{transfer_id}] SWIFT sent! UETR: {result['uetr'][:8]}...")
         return {"pivot_1_reached": True, **result}
-    
+
     @action("debit_source_account", depends_on=["submit_swift_message"])
     async def debit_source_account(self, ctx: SagaContext) -> dict[str, Any]:
         """🔒 PIVOT STEP 2: Debit funds from sender."""
@@ -198,7 +198,7 @@ class CrossBorderWireTransferSaga(Saga):
         )
         logger.info(f"✅ [{transfer_id}] Funds debited: {result['debit_id']}")
         return {"pivot_2_reached": True, **result}
-    
+
     @action("notify_parties", depends_on=["debit_source_account"])
     async def notify_parties(self, ctx: SagaContext) -> dict[str, Any]:
         transfer_id = ctx.get("transfer_id")
@@ -209,13 +209,10 @@ class CrossBorderWireTransferSaga(Saga):
 
 
 async def main():
-    print("=" * 80)
-    print("🌍 Cross-Border Wire Transfer Saga Demo")
-    print("=" * 80)
-    
+
     saga = CrossBorderWireTransferSaga()
-    
-    result = await saga.run({
+
+    await saga.run({
         "transfer_id": "WIRE-2026-001",
         "sender_account": "ACCT-SENDER-001",
         "receiver_account": "ACCT-RECEIVER-001",
@@ -225,12 +222,7 @@ async def main():
         "from_currency": "USD",
         "to_currency": "EUR",
     })
-    
-    print(f"\n✅ Transfer Result:")
-    print(f"   UETR: {result.get('uetr', 'N/A')}")
-    print(f"   Pivot 1 (SWIFT): {result.get('pivot_1_reached', False)}")
-    print(f"   Pivot 2 (Debit): {result.get('pivot_2_reached', False)}")
-    print("=" * 80)
+
 
 
 if __name__ == "__main__":

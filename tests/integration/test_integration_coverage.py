@@ -302,8 +302,8 @@ class TestPostgreSQLSagaStorageIntegration:
         if postgres_container is None:
             pytest.skip("PostgreSQL container not available")
 
-        from sagaz.storage.backends.postgresql.saga import ASYNCPG_AVAILABLE, PostgreSQLSagaStorage
         from sagaz.core.types import SagaStatus
+        from sagaz.storage.backends.postgresql.saga import ASYNCPG_AVAILABLE, PostgreSQLSagaStorage
 
         if not ASYNCPG_AVAILABLE:
             pytest.skip("asyncpg not installed")
@@ -337,8 +337,8 @@ class TestPostgreSQLSagaStorageIntegration:
         if postgres_container is None:
             pytest.skip("PostgreSQL container not available")
 
-        from sagaz.storage.backends.postgresql.saga import ASYNCPG_AVAILABLE, PostgreSQLSagaStorage
         from sagaz.core.types import SagaStatus
+        from sagaz.storage.backends.postgresql.saga import ASYNCPG_AVAILABLE, PostgreSQLSagaStorage
 
         if not ASYNCPG_AVAILABLE:
             pytest.skip("asyncpg not installed")
@@ -376,8 +376,8 @@ class TestPostgreSQLSagaStorageIntegration:
         if postgres_container is None:
             pytest.skip("PostgreSQL container not available")
 
-        from sagaz.storage.backends.postgresql.saga import ASYNCPG_AVAILABLE, PostgreSQLSagaStorage
         from sagaz.core.types import SagaStatus, SagaStepStatus
+        from sagaz.storage.backends.postgresql.saga import ASYNCPG_AVAILABLE, PostgreSQLSagaStorage
 
         if not ASYNCPG_AVAILABLE:
             pytest.skip("asyncpg not installed")
@@ -421,8 +421,8 @@ class TestPostgreSQLSagaStorageIntegration:
         if postgres_container is None:
             pytest.skip("PostgreSQL container not available")
 
-        from sagaz.storage.backends.postgresql.saga import ASYNCPG_AVAILABLE, PostgreSQLSagaStorage
         from sagaz.core.types import SagaStatus
+        from sagaz.storage.backends.postgresql.saga import ASYNCPG_AVAILABLE, PostgreSQLSagaStorage
 
         if not ASYNCPG_AVAILABLE:
             pytest.skip("asyncpg not installed")
@@ -460,8 +460,8 @@ class TestStorageManagerTransferIntegration:
     @pytest.mark.asyncio
     async def test_storage_manager_memory_to_memory_transfer(self):
         """Test transferring data between memory storages."""
-        from sagaz.storage.backends.memory.saga import InMemorySagaStorage
         from sagaz.core.types import SagaStatus
+        from sagaz.storage.backends.memory.saga import InMemorySagaStorage
 
         # Source storage with data
         source = InMemorySagaStorage()
@@ -493,9 +493,9 @@ class TestStorageManagerTransferIntegration:
     @pytest.mark.asyncio
     async def test_storage_manager_backup_restore(self):
         """Test backup and restore functionality using memory storage."""
+        from sagaz.core.types import SagaStatus
         from sagaz.storage.backends.memory.saga import InMemorySagaStorage
         from sagaz.storage.transfer.service import TransferConfig, TransferService
-        from sagaz.core.types import SagaStatus
 
         source = InMemorySagaStorage()
         backup = InMemorySagaStorage()
@@ -531,9 +531,9 @@ class TestStorageManagerTransferIntegration:
     @pytest.mark.asyncio
     async def test_storage_transfer_with_validation(self):
         """Test transfer with post-validation using memory storage."""
+        from sagaz.core.types import SagaStatus
         from sagaz.storage.backends.memory.saga import InMemorySagaStorage
         from sagaz.storage.transfer.service import TransferConfig, TransferService
-        from sagaz.core.types import SagaStatus
 
         source = InMemorySagaStorage()
         target = InMemorySagaStorage()
@@ -567,9 +567,9 @@ class TestStorageManagerTransferIntegration:
         """Test transfer cancellation handling using memory storage."""
         import asyncio
 
+        from sagaz.core.types import SagaStatus
         from sagaz.storage.backends.memory.saga import InMemorySagaStorage
         from sagaz.storage.transfer.service import TransferConfig, TransferService
-        from sagaz.core.types import SagaStatus
 
         # Create a slow target to allow cancellation to take effect
         class SlowMemoryStorage(InMemorySagaStorage):
@@ -628,8 +628,8 @@ class TestRedisSagaStorageIntegration:
         if redis_container is None:
             pytest.skip("Redis container not available")
 
-        from sagaz.storage.backends.redis.saga import RedisSagaStorage
         from sagaz.core.types import SagaStatus, SagaStepStatus
+        from sagaz.storage.backends.redis.saga import RedisSagaStorage
 
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)
@@ -684,8 +684,8 @@ class TestRedisSagaStorageIntegration:
         if redis_container is None:
             pytest.skip("Redis container not available")
 
-        from sagaz.storage.backends.redis.saga import RedisSagaStorage
         from sagaz.core.types import SagaStatus
+        from sagaz.storage.backends.redis.saga import RedisSagaStorage
 
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)
