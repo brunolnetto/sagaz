@@ -735,9 +735,9 @@ class SagaExecutionGraph:
                 raise
 
         # Should not reach here, but satisfy type checker
-        if last_error:
+        if last_error:  # pragma: no cover
             raise last_error  # pragma: no cover
-        return None
+        return None  # pragma: no cover
 
     def _should_skip_step(
         self,

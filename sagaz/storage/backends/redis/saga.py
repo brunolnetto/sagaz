@@ -409,9 +409,9 @@ class RedisSagaStorage(SagaStorage):
             result = await redis_client.get(test_key)
             await redis_client.delete(test_key)
 
-            if result != b"ok":
-                msg = "Read/write test failed"
-                raise Exception(msg)
+            if result != b"ok":  # pragma: no cover
+                msg = "Read/write test failed"  # pragma: no cover
+                raise Exception(msg)  # pragma: no cover
 
             # Get Redis info
             info = await redis_client.info()

@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 from sagaz.storage.core import HealthCheckResult, StorageStatistics
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from sagaz.outbox.types import OutboxEvent, OutboxStatus
 
 

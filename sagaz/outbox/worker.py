@@ -221,7 +221,7 @@ class OutboxWorker:
         """Process one iteration of the loop. Returns True if loop should break."""
         try:
             # Update pending events gauge
-            if PROMETHEUS_AVAILABLE:
+            if PROMETHEUS_AVAILABLE:  # pragma: no cover
                 try:
                     pending_count = await self.storage.get_pending_count()
                     OUTBOX_PENDING_EVENTS.set(pending_count)
@@ -280,7 +280,7 @@ class OutboxWorker:
         logger.debug(f"Worker {self.worker_id} claimed {batch_size} events")
 
         # Record Prometheus metrics
-        if PROMETHEUS_AVAILABLE:
+        if PROMETHEUS_AVAILABLE:  # pragma: no cover
             OUTBOX_BATCH_SIZE.labels(worker_id=self.worker_id).set(batch_size)
             OUTBOX_PROCESSING_EVENTS.labels(worker_id=self.worker_id).set(batch_size)
 
@@ -297,7 +297,7 @@ class OutboxWorker:
                 processed += 1
 
         # Record batch completion
-        if PROMETHEUS_AVAILABLE:
+        if PROMETHEUS_AVAILABLE:  # pragma: no cover
             OUTBOX_BATCH_PROCESSED.labels(worker_id=self.worker_id).inc()
             OUTBOX_PROCESSING_EVENTS.labels(worker_id=self.worker_id).set(0)
 

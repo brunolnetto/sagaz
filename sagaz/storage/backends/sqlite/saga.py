@@ -28,7 +28,7 @@ from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     import aiosqlite as aiosqlite_types
 
 try:
