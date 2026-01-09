@@ -23,17 +23,6 @@ import json
 import logging
 import signal
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
-)
-logger = logging.getLogger("sagaz.e2e_demo")
-
-# ============================================================================
-# Imports from the actual Sagaz library
-# ============================================================================
-
 from sagaz import Saga, SagaStepError, action, compensate
 from sagaz.listeners import (
     LoggingSagaListener,
@@ -45,6 +34,13 @@ from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
 from sagaz.outbox.types import OutboxConfig
 from sagaz.outbox.worker import OutboxWorker
 from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+)
+logger = logging.getLogger("sagaz.e2e_demo")
 
 # ============================================================================
 # Configuration
@@ -196,7 +192,7 @@ async def run_consumer():
 
                     try:
                         payload = json.loads(payload_bytes.decode())
-                    except:
+                    except Exception:
                         payload = {"raw": payload_bytes.decode()}
 
                     events_consumed += 1
@@ -326,9 +322,13 @@ This demo shows the complete Sagaz architecture:
     print("\nPress Ctrl+C to stop")
     print("=" * 70 + "\n")
 
+    background_tasks = set()
+
     # Handle shutdown signal
     def signal_handler(sig, frame):
-        asyncio.create_task(shutdown())
+        task = asyncio.create_task(shutdown())
+        background_tasks.add(task)
+        task.add_done_callback(background_tasks.discard)
 
     signal.signal(signal.SIGINT, signal_handler)
 

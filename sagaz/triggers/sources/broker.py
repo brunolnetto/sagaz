@@ -57,6 +57,7 @@ class BrokerTriggerConsumer:
         self._broker = broker
         self._running = False
         self._task: asyncio.Task | None = None
+        self._background_tasks = set()
 
     @property
     def is_running(self) -> bool:
@@ -162,7 +163,9 @@ class BrokerTriggerConsumer:
                 # Create and run saga
                 execution_saga = trigger.saga_class()
                 loop = asyncio.get_running_loop()
-                loop.create_task(execution_saga.run(context, saga_id=saga_id))
+                task = loop.create_task(execution_saga.run(context, saga_id=saga_id))
+                self._background_tasks.add(task)
+                task.add_done_callback(self._background_tasks.discard)
 
                 triggered_ids.append(saga_id)
 

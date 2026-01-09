@@ -105,7 +105,7 @@ def discover_examples(category: str | None = None) -> dict[str, Path]:
 def get_example_description(path: Path) -> str:
     """Extract description from example's main.py docstring."""
     try:
-        with open(path) as f:
+        with path.open() as f:
             first_line = f.readline().strip()
             if first_line.startswith(('"""', "'''")):
                 desc = first_line.strip("\"'- ").strip()

@@ -41,10 +41,8 @@ except ImportError:
     sys.exit(1)
 
 try:
-    from rich import print as rprint
     from rich.console import Console
     from rich.panel import Panel
-    from rich.progress import Progress, SpinnerColumn, TextColumn
     from rich.table import Table
 
     RICH_AVAILABLE = True
@@ -76,7 +74,7 @@ def error(message: str):
 
 
 def info(message: str):
-    log(f"ℹ️  {message}", "blue")
+    log(f"[i] {message}", "blue")
 
 
 def warning(message: str):

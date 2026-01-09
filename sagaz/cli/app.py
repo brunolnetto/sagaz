@@ -225,10 +225,9 @@ def _init_monitoring(preset: str, is_postgres: bool):
 
 def _init_sagaz_yaml(preset: str):
     """Initialize sagaz.yaml with optional overwrite confirmation."""
-    if Path("sagaz.yaml").exists():
-        if not click.confirm("sagaz.yaml already exists. Overwrite?"):
-            click.echo("Skipping sagaz.yaml")
-            return
+    if Path("sagaz.yaml").exists() and not click.confirm("sagaz.yaml already exists. Overwrite?"):
+        click.echo("Skipping sagaz.yaml")
+        return
     _create_sagaz_config(preset)
 
 

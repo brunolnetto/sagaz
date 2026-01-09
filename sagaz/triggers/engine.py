@@ -24,7 +24,7 @@ class TriggerEngine:
     """
 
     def __init__(self):
-        pass
+        self._background_tasks = set()
 
     @property
     def storage(self):
@@ -226,7 +226,9 @@ class TriggerEngine:
         """
         saga_instance = saga_class()
         # Run in background - don't await completion
-        asyncio.create_task(saga_instance.run(context, saga_id=saga_id))
+        task = asyncio.create_task(saga_instance.run(context, saga_id=saga_id))
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
 
 
 # Singleton instance

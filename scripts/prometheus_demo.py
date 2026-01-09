@@ -19,17 +19,16 @@ import asyncio
 import logging
 import random
 
+from sagaz import Saga, SagaStepError, action, compensate
+from sagaz.listeners import LoggingSagaListener, MetricsSagaListener
+from sagaz.monitoring.prometheus import PrometheusMetrics, start_metrics_server
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
 )
 logger = logging.getLogger("sagaz.demo")
-
-# Import from the actual Sagaz library
-from sagaz import Saga, SagaStepError, action, compensate
-from sagaz.listeners import LoggingSagaListener, MetricsSagaListener
-from sagaz.monitoring.prometheus import PrometheusMetrics, start_metrics_server
 
 # Create a global Prometheus metrics instance
 prometheus_metrics = PrometheusMetrics()
