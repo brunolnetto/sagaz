@@ -27,7 +27,7 @@ from sagaz import (
     SagaStatus,
     SagaTimeoutError,
 )
-from sagaz.core import Saga
+from sagaz.core.saga import Saga
 
 # ============================================
 # TEST FIXTURES
@@ -2348,7 +2348,7 @@ class TestStepExecutor:
     @pytest.mark.asyncio
     async def test_step_executor_compensate_no_compensation(self):
         """Test _StepExecutor.compensate when step has no compensation function"""
-        from sagaz.core import SagaStep, _StepExecutor
+        from sagaz.core.saga import SagaStep, _StepExecutor
 
         # Create a step with no compensation
         step = SagaStep(name="test_step", action=lambda ctx: "result", compensation=None)
@@ -2363,7 +2363,7 @@ class TestStepExecutor:
     @pytest.mark.asyncio
     async def test_step_executor_compensate_with_compensation(self):
         """Test _StepExecutor.compensate when step has compensation function"""
-        from sagaz.core import SagaStep, _StepExecutor
+        from sagaz.core.saga import SagaStep, _StepExecutor
 
         compensation_called = []
 
@@ -2385,7 +2385,7 @@ class TestStepExecutor:
 
     def test_step_executor_name_property(self):
         """Test _StepExecutor.name property"""
-        from sagaz.core import SagaStep, _StepExecutor
+        from sagaz.core.saga import SagaStep, _StepExecutor
 
         step = SagaStep(name="my_unique_step", action=lambda ctx: None)
 
@@ -2460,7 +2460,7 @@ class TestSagaStepHash:
 
     def test_saga_step_hash(self):
         """Test that SagaStep can be hashed using idempotency_key"""
-        from sagaz.core import SagaStep
+        from sagaz.core.saga import SagaStep
 
         step1 = SagaStep(name="step1", action=lambda ctx: None, idempotency_key="key-123")
 

@@ -3,8 +3,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from sagaz.listeners import LoggingSagaListener
-from sagaz.logger import NullLogger, get_logger, set_logger
+from sagaz.core.listeners import LoggingSagaListener
+from sagaz.core.logger import NullLogger, get_logger, set_logger
 
 
 class MockLogger:
@@ -68,7 +68,7 @@ def test_null_logger():
 
 def test_config_logging_usage():
     """Test that sagaz modules use the configured logger."""
-    from sagaz.config import logger as config_logger
+    from sagaz.core.config import logger as config_logger
     from sagaz.integrations.fastapi import get_logger as get_fastapi_logger
 
     mock_logger = MockLogger()

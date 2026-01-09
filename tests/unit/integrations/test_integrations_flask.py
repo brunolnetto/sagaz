@@ -11,7 +11,7 @@ flask_pkg = pytest.importorskip("flask")
 
 from unittest.mock import MagicMock, patch
 
-from sagaz.decorators import Saga, action
+from sagaz.core.decorators import Saga, action
 from sagaz.integrations.flask import (
     SagaContextManager,
     SagaFlask,

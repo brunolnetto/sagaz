@@ -9,7 +9,7 @@ from unittest import mock
 
 import pytest
 
-from sagaz.config import SagaConfig, configure, get_config
+from sagaz.core.config import SagaConfig, configure, get_config
 
 # Check for optional dependencies
 try:
@@ -46,7 +46,7 @@ class TestSagaConfigCoverage:
 
     def test_config_with_custom_listener_instances(self):
         """Test config with custom listener instances (lines 186, 192)."""
-        from sagaz.listeners import (
+        from sagaz.core.listeners import (
             LoggingSagaListener,
             MetricsSagaListener,
             TracingSagaListener,
@@ -237,7 +237,7 @@ class TestSagaStateMachineCoverage:
     @pytest.mark.asyncio
     async def test_state_machine_without_saga(self):
         """Test SagaStateMachine without saga instance (line 36)."""
-        from sagaz.state_machine import SagaStateMachine
+        from sagaz.execution.state_machine import SagaStateMachine
 
         sm = SagaStateMachine(saga=None)
 
@@ -248,7 +248,7 @@ class TestSagaStateMachineCoverage:
     @pytest.mark.asyncio
     async def test_state_machine_callbacks_without_saga_methods(self):
         """Test callbacks when saga doesn't have the callback methods (lines 128, 133, 138, 143)."""
-        from sagaz.state_machine import SagaStateMachine
+        from sagaz.execution.state_machine import SagaStateMachine
 
         # Create a minimal saga-like object without callback methods
         class MinimalSaga:
@@ -268,7 +268,7 @@ class TestSagaStateMachineCoverage:
     @pytest.mark.asyncio
     async def test_state_machine_on_exit_executing(self):
         """Test on_exit_executing callback (line 155)."""
-        from sagaz.state_machine import SagaStateMachine
+        from sagaz.execution.state_machine import SagaStateMachine
 
         class SagaWithExit:
             steps = ["step1"]
@@ -348,7 +348,7 @@ class TestCompensationGraphCoverage:
 
     def test_compensation_graph_edge_cases(self):
         """Test compensation graph edge cases (lines 285, 296-297, 304)."""
-        from sagaz.execution_graph import SagaExecutionGraph
+        from sagaz.execution.graph import SagaExecutionGraph
 
         graph = SagaExecutionGraph()
 
@@ -372,7 +372,7 @@ class TestMermaidAdditionalCoverage:
 
     def test_mermaid_add_start_to_roots_skips_unexecuted(self):
         """Test _add_start_to_roots skips unexecuted steps (line 249)."""
-        from sagaz.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+        from sagaz.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
         steps = [
             StepInfo(name="root_a", has_compensation=True),
@@ -391,7 +391,7 @@ class TestMermaidAdditionalCoverage:
 
     def test_mermaid_add_leaves_to_success_skips_unexecuted(self):
         """Test _add_leaves_to_success skips unexecuted steps (line 280)."""
-        from sagaz.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+        from sagaz.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
         steps = [
             StepInfo(name="leaf_a", has_compensation=True),
@@ -410,7 +410,7 @@ class TestMermaidAdditionalCoverage:
 
     def test_mermaid_failure_edges_no_compensable_steps(self):
         """Test _add_failure_edges with no compensable steps (line 293)."""
-        from sagaz.mermaid import MermaidGenerator, StepInfo
+        from sagaz.visualization.mermaid import MermaidGenerator, StepInfo
 
         steps = [
             StepInfo(name="step_a", has_compensation=False),
@@ -424,7 +424,7 @@ class TestMermaidAdditionalCoverage:
 
     def test_mermaid_dag_compensation_chain_skip_non_compensated(self):
         """Test _add_dag_compensation_chain skips non-compensated steps (lines 368, 385)."""
-        from sagaz.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+        from sagaz.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
         steps = [
             StepInfo(name="root", has_compensation=True),
@@ -450,7 +450,7 @@ class TestGlobalConfigFunctions:
 
     def test_get_config_creates_default(self):
         """Test get_config creates default config when none exists."""
-        import sagaz.config as config_module
+        import sagaz.core.config as config_module
 
         # Reset global config
         config_module._global_config = None
@@ -464,7 +464,7 @@ class TestGlobalConfigFunctions:
 
     def test_configure_sets_global_config(self):
         """Test configure sets global config."""
-        import sagaz.config as config_module
+        import sagaz.core.config as config_module
 
         new_config = SagaConfig()
         configure(new_config)

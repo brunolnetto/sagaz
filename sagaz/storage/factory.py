@@ -21,7 +21,7 @@ Usage:
 
 from typing import Any, Literal
 
-from sagaz.exceptions import MissingDependencyError
+from sagaz.core.exceptions import MissingDependencyError
 from sagaz.storage.backends.memory import InMemorySagaStorage
 from sagaz.storage.base import SagaStorage
 

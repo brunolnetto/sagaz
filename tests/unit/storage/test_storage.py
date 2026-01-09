@@ -9,7 +9,7 @@ import pytest
 
 from sagaz.storage.base import SagaStepState, SagaStorageError
 from sagaz.storage.memory import InMemorySagaStorage
-from sagaz.types import SagaStatus, SagaStepStatus
+from sagaz.core.types import SagaStatus, SagaStepStatus
 
 
 class TestSagaStepState:

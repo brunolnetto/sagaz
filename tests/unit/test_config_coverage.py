@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from sagaz.config import SagaConfig, configure, get_config
+from sagaz.core.config import SagaConfig, configure, get_config
 
 
 class TestSagaConfigFromFile:
@@ -262,7 +262,7 @@ class TestGlobalConfig:
     def test_get_config_returns_default(self):
         """Test get_config() returns default config."""
         # Reset global config
-        import sagaz.config as config_module
+        import sagaz.core.config as config_module
 
         config_module._global_config = None
 

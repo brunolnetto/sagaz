@@ -334,7 +334,7 @@ class TestRedisBrokerFactory:
 
     def test_create_redis_raises_when_unavailable(self):
         """Test that Redis broker raises when redis-py not installed."""
-        from sagaz.exceptions import MissingDependencyError
+        from sagaz.core.exceptions import MissingDependencyError
         from sagaz.outbox import create_broker
 
         with patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", False):

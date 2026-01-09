@@ -24,7 +24,7 @@ from sagaz.outbox.types import OutboxConfig, OutboxEvent, OutboxStatus
 from sagaz.outbox.worker import OutboxWorker
 from sagaz.storage.base import SagaStorageConnectionError
 from sagaz.storage.memory import InMemorySagaStorage
-from sagaz.types import SagaStatus
+from sagaz.core.types import SagaStatus
 
 pytestmark = pytest.mark.chaos
 

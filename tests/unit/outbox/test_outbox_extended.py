@@ -169,7 +169,7 @@ class TestSagaStateMachine:
     @pytest.mark.asyncio
     async def test_state_machine_with_saga_with_steps(self):
         """Test state machine has_steps guard with saga that has steps"""
-        from sagaz.state_machine import SagaStateMachine
+        from sagaz.execution.state_machine import SagaStateMachine
 
         # Mock saga with steps
         mock_saga = Mock()
@@ -183,7 +183,7 @@ class TestSagaStateMachine:
     @pytest.mark.asyncio
     async def test_state_machine_with_saga_no_steps(self):
         """Test state machine has_steps guard with saga without steps"""
-        from sagaz.state_machine import SagaStateMachine
+        from sagaz.execution.state_machine import SagaStateMachine
 
         # Mock saga without steps
         mock_saga = Mock()
@@ -197,7 +197,7 @@ class TestSagaStateMachine:
     @pytest.mark.asyncio
     async def test_state_machine_has_completed_steps_true(self):
         """Test has_completed_steps guard returns True when steps completed"""
-        from sagaz.state_machine import SagaStateMachine
+        from sagaz.execution.state_machine import SagaStateMachine
 
         mock_saga = Mock()
         mock_saga.steps = [Mock()]
@@ -210,7 +210,7 @@ class TestSagaStateMachine:
     @pytest.mark.asyncio
     async def test_state_machine_has_completed_steps_false(self):
         """Test has_completed_steps guard returns False when no steps completed"""
-        from sagaz.state_machine import SagaStateMachine
+        from sagaz.execution.state_machine import SagaStateMachine
 
         mock_saga = Mock()
         mock_saga.steps = [Mock()]
@@ -223,7 +223,7 @@ class TestSagaStateMachine:
     @pytest.mark.asyncio
     async def test_state_machine_callbacks_with_saga(self):
         """Test state machine callbacks invoke saga methods"""
-        from sagaz.state_machine import SagaStateMachine
+        from sagaz.execution.state_machine import SagaStateMachine
 
         # Mock saga with callback methods
         mock_saga = Mock()
@@ -245,7 +245,7 @@ class TestSagaStateMachine:
     @pytest.mark.asyncio
     async def test_state_machine_callback_saga_without_method(self):
         """Test state machine handles saga without callback methods gracefully"""
-        from sagaz.state_machine import SagaStateMachine
+        from sagaz.execution.state_machine import SagaStateMachine
 
         # Mock saga without callback methods - use spec to strictly control attributes
         mock_saga = Mock(spec=["steps", "completed_steps"])
@@ -261,7 +261,7 @@ class TestSagaStateMachine:
 
     def test_validate_state_transition_valid(self):
         """Test validate_state_transition with valid transitions"""
-        from sagaz.state_machine import validate_state_transition
+        from sagaz.execution.state_machine import validate_state_transition
 
         assert validate_state_transition("Pending", "Executing") is True
         assert validate_state_transition("Executing", "Completed") is True
@@ -272,7 +272,7 @@ class TestSagaStateMachine:
 
     def test_validate_state_transition_invalid(self):
         """Test validate_state_transition with invalid transitions"""
-        from sagaz.state_machine import validate_state_transition
+        from sagaz.execution.state_machine import validate_state_transition
 
         assert validate_state_transition("Pending", "Completed") is False
         assert validate_state_transition("Completed", "Executing") is False
@@ -281,7 +281,7 @@ class TestSagaStateMachine:
 
     def test_get_valid_next_states(self):
         """Test get_valid_next_states returns correct states"""
-        from sagaz.state_machine import get_valid_next_states
+        from sagaz.execution.state_machine import get_valid_next_states
 
         assert get_valid_next_states("Pending") == ["Executing"]
         assert set(get_valid_next_states("Executing")) == {"Completed", "Compensating", "Failed"}
@@ -292,7 +292,7 @@ class TestSagaStateMachine:
 
     def test_get_valid_next_states_unknown(self):
         """Test get_valid_next_states with unknown state"""
-        from sagaz.state_machine import get_valid_next_states
+        from sagaz.execution.state_machine import get_valid_next_states
 
         assert get_valid_next_states("Unknown") == []
 
@@ -301,7 +301,7 @@ class TestSagaStepStateMachine:
     @pytest.mark.asyncio
     async def test_step_state_machine_initialization(self):
         """Test step state machine initializes correctly"""
-        from sagaz.state_machine import SagaStepStateMachine
+        from sagaz.execution.state_machine import SagaStepStateMachine
 
         sm = SagaStepStateMachine(step_name="test_step")
         await sm.activate_initial_state()
@@ -312,7 +312,7 @@ class TestSagaStepStateMachine:
     @pytest.mark.asyncio
     async def test_step_state_machine_full_success_path(self):
         """Test step state machine through success path"""
-        from sagaz.state_machine import SagaStepStateMachine
+        from sagaz.execution.state_machine import SagaStepStateMachine
 
         sm = SagaStepStateMachine(step_name="payment")
         await sm.activate_initial_state()
@@ -326,7 +326,7 @@ class TestSagaStepStateMachine:
     @pytest.mark.asyncio
     async def test_step_state_machine_failure_path(self):
         """Test step state machine through failure path"""
-        from sagaz.state_machine import SagaStepStateMachine
+        from sagaz.execution.state_machine import SagaStepStateMachine
 
         sm = SagaStepStateMachine(step_name="failing_step")
         await sm.activate_initial_state()
@@ -339,7 +339,7 @@ class TestSagaStepStateMachine:
     @pytest.mark.asyncio
     async def test_step_state_machine_compensation_path(self):
         """Test step state machine through compensation path"""
-        from sagaz.state_machine import SagaStepStateMachine
+        from sagaz.execution.state_machine import SagaStepStateMachine
 
         sm = SagaStepStateMachine(step_name="compensated_step")
         await sm.activate_initial_state()
@@ -356,7 +356,7 @@ class TestSagaStepStateMachine:
     @pytest.mark.asyncio
     async def test_step_state_machine_compensation_failure(self):
         """Test step compensation failure transitions to failed"""
-        from sagaz.state_machine import SagaStepStateMachine
+        from sagaz.execution.state_machine import SagaStepStateMachine
 
         sm = SagaStepStateMachine(step_name="comp_fail_step")
         await sm.activate_initial_state()
@@ -625,7 +625,7 @@ class TestRabbitMQBrokerMocked:
 class TestCompensationGraph:
     def test_compensation_graph_empty(self):
         """Test compensation graph with no nodes"""
-        from sagaz.execution_graph import SagaExecutionGraph
+        from sagaz.execution.graph import SagaExecutionGraph
 
         graph = SagaExecutionGraph()
 
@@ -635,7 +635,7 @@ class TestCompensationGraph:
 
     def test_compensation_graph_single_step(self):
         """Test compensation graph with single registered step"""
-        from sagaz.execution_graph import CompensationType, SagaExecutionGraph
+        from sagaz.execution.graph import CompensationType, SagaExecutionGraph
 
         async def compensate(ctx):
             pass
@@ -653,7 +653,7 @@ class TestCompensationGraph:
 
     def test_compensation_graph_multiple_independent(self):
         """Test compensation graph with independent steps"""
-        from sagaz.execution_graph import SagaExecutionGraph
+        from sagaz.execution.graph import SagaExecutionGraph
 
         async def compensate(ctx):
             pass
@@ -674,7 +674,7 @@ class TestCompensationGraph:
 
     def test_compensation_graph_repr(self):
         """Test compensation graph string representation"""
-        from sagaz.execution_graph import SagaExecutionGraph
+        from sagaz.execution.graph import SagaExecutionGraph
 
         graph = SagaExecutionGraph()
 
@@ -694,7 +694,7 @@ class TestDeclarativeSaga:
     @pytest.mark.asyncio
     async def test_saga_empty_run(self):
         """Test running saga with no steps"""
-        from sagaz.decorators import Saga
+        from sagaz.core.decorators import Saga
 
         class EmptySaga(Saga):
             pass
@@ -710,7 +710,7 @@ class TestDeclarativeSaga:
     @pytest.mark.asyncio
     async def test_saga_step_with_no_compensation(self):
         """Test saga step without compensation defined"""
-        from sagaz.decorators import Saga, step
+        from sagaz.core.decorators import Saga, step
 
         class NoCompSaga(Saga):
             @step(name="action_only")

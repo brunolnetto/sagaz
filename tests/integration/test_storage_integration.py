@@ -79,7 +79,7 @@ class TestPostgreSQLIntegration:
     @pytest.mark.asyncio
     async def test_save_and_load_saga(self, pg_storage):
         """Test saving and loading saga state."""
-        from sagaz.types import SagaStatus
+        from sagaz.core.types import SagaStatus
 
         saga_id = f"test-saga-{datetime.now().timestamp()}"
 
@@ -107,7 +107,7 @@ class TestPostgreSQLIntegration:
     @pytest.mark.asyncio
     async def test_update_saga_state(self, pg_storage):
         """Test updating saga state."""
-        from sagaz.types import SagaStatus
+        from sagaz.core.types import SagaStatus
 
         saga_id = f"update-saga-{datetime.now().timestamp()}"
 
@@ -137,7 +137,7 @@ class TestPostgreSQLIntegration:
     @pytest.mark.asyncio
     async def test_delete_saga(self, pg_storage):
         """Test deleting saga state."""
-        from sagaz.types import SagaStatus
+        from sagaz.core.types import SagaStatus
 
         saga_id = f"delete-saga-{datetime.now().timestamp()}"
 
@@ -158,7 +158,7 @@ class TestPostgreSQLIntegration:
     @pytest.mark.asyncio
     async def test_list_sagas(self, pg_storage):
         """Test listing sagas."""
-        from sagaz.types import SagaStatus
+        from sagaz.core.types import SagaStatus
 
         # Create some sagas
         for i in range(3):
@@ -235,7 +235,7 @@ class TestRedisIntegration:
     @pytest.mark.asyncio
     async def test_save_and_load_saga(self, redis_storage):
         """Test saving and loading saga state."""
-        from sagaz.types import SagaStatus
+        from sagaz.core.types import SagaStatus
 
         saga_id = f"redis-saga-{datetime.now().timestamp()}"
 
@@ -259,7 +259,7 @@ class TestRedisIntegration:
     @pytest.mark.asyncio
     async def test_update_step_state(self, redis_storage):
         """Test updating step state."""
-        from sagaz.types import SagaStatus, SagaStepStatus
+        from sagaz.core.types import SagaStatus, SagaStepStatus
 
         saga_id = f"step-update-{datetime.now().timestamp()}"
 
@@ -286,7 +286,7 @@ class TestRedisIntegration:
     @pytest.mark.asyncio
     async def test_delete_saga(self, redis_storage):
         """Test deleting saga state."""
-        from sagaz.types import SagaStatus
+        from sagaz.core.types import SagaStatus
 
         saga_id = f"delete-redis-{datetime.now().timestamp()}"
 

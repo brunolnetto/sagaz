@@ -11,7 +11,7 @@ import asyncio
 import pytest
 
 from sagaz import ParallelFailureStrategy, SagaStatus
-from sagaz.core import Saga
+from sagaz.core.saga import Saga
 from sagaz.monitoring.metrics import SagaMetrics
 
 

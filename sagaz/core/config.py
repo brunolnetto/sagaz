@@ -51,7 +51,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:  # pragma: no cover
-    from sagaz.listeners import SagaListener
+    from sagaz.core.listeners import SagaListener
     from sagaz.outbox.brokers.base import BaseBroker
     from sagaz.storage.base import SagaStorage
 
@@ -237,7 +237,7 @@ class SagaConfig:
 
     def _build_listeners(self) -> list[SagaListener]:
         """Build listeners list from configuration."""
-        from sagaz.listeners import (
+        from sagaz.core.listeners import (
             LoggingSagaListener,
             MetricsSagaListener,
             OutboxSagaListener,

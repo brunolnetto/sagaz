@@ -231,7 +231,7 @@ class StorageManager(BaseStorageManager):
 
     async def _initialize_postgresql_unified(self) -> None:
         """Initialize PostgreSQL with shared connection pool."""
-        from sagaz.exceptions import MissingDependencyError
+        from sagaz.core.exceptions import MissingDependencyError
 
         try:
             import asyncpg
@@ -265,7 +265,7 @@ class StorageManager(BaseStorageManager):
 
     async def _initialize_redis_unified(self) -> None:
         """Initialize Redis with shared connection."""
-        from sagaz.exceptions import MissingDependencyError
+        from sagaz.core.exceptions import MissingDependencyError
 
         try:
             import redis.asyncio as redis

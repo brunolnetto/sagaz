@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from sagaz import Saga, SagaConfig, action
-from sagaz.config import configure, get_config
+from sagaz.core.config import configure, get_config
 from sagaz.triggers import fire_event, trigger
 from sagaz.triggers.registry import TriggerRegistry
 

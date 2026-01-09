@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from sagaz.outbox.types import OutboxEvent, OutboxStatus
-from sagaz.types import SagaStatus, SagaStepStatus
+from sagaz.core.types import SagaStatus, SagaStepStatus
 
 # Skip all tests if aiosqlite is not installed
 try:

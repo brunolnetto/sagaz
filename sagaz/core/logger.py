@@ -6,12 +6,12 @@ By default, uses Python's standard logging with the 'sagaz' namespace.
 
 Usage:
     # Use default logger
-    from sagaz.logger import get_logger
+    from sagaz.core.logger import get_logger
     logger = get_logger(__name__)
     logger.info("Message")
 
     # Set custom logger (e.g., structlog, loguru)
-    from sagaz.logger import set_logger
+    from sagaz.core.logger import set_logger
     import structlog
     set_logger(structlog.get_logger())
 """
@@ -44,7 +44,7 @@ def set_logger(logger: Any) -> None:
 
     Example:
         import structlog
-        from sagaz.logger import set_logger
+        from sagaz.core.logger import set_logger
         set_logger(structlog.get_logger())
     """
     global _custom_logger

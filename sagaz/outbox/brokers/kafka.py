@@ -14,7 +14,7 @@ Usage:
 import logging
 from dataclasses import dataclass
 
-from sagaz.exceptions import MissingDependencyError
+from sagaz.core.exceptions import MissingDependencyError
 from sagaz.outbox.brokers.base import (
     BaseBroker,
     BrokerConfig,

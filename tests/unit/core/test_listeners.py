@@ -16,8 +16,8 @@ class TestSagaListenerBasic:
     @pytest.mark.asyncio
     async def test_listener_receives_saga_start_event(self):
         """Listener should receive event when saga starts."""
-        from sagaz.decorators import Saga, step
-        from sagaz.listeners import SagaListener
+        from sagaz.core.decorators import Saga, step
+        from sagaz.core.listeners import SagaListener
 
         received_events = []
 
@@ -46,8 +46,8 @@ class TestSagaListenerBasic:
     @pytest.mark.asyncio
     async def test_listener_receives_step_enter_event(self):
         """Listener should receive event when step starts."""
-        from sagaz.decorators import Saga, step
-        from sagaz.listeners import SagaListener
+        from sagaz.core.decorators import Saga, step
+        from sagaz.core.listeners import SagaListener
 
         received_events = []
 
@@ -77,8 +77,8 @@ class TestSagaListenerBasic:
     @pytest.mark.asyncio
     async def test_listener_receives_step_success_event(self):
         """Listener should receive event when step succeeds."""
-        from sagaz.decorators import Saga, step
-        from sagaz.listeners import SagaListener
+        from sagaz.core.decorators import Saga, step
+        from sagaz.core.listeners import SagaListener
 
         received_events = []
 
@@ -106,8 +106,8 @@ class TestSagaListenerBasic:
     @pytest.mark.asyncio
     async def test_listener_receives_step_failure_event(self):
         """Listener should receive event when step fails."""
-        from sagaz.decorators import Saga, step
-        from sagaz.listeners import SagaListener
+        from sagaz.core.decorators import Saga, step
+        from sagaz.core.listeners import SagaListener
 
         received_events = []
 
@@ -140,8 +140,8 @@ class TestSagaListenerBasic:
     @pytest.mark.asyncio
     async def test_listener_receives_saga_complete_event(self):
         """Listener should receive event when saga completes."""
-        from sagaz.decorators import Saga, step
-        from sagaz.listeners import SagaListener
+        from sagaz.core.decorators import Saga, step
+        from sagaz.core.listeners import SagaListener
 
         received_events = []
 
@@ -173,8 +173,8 @@ class TestSagaListenerBasic:
     @pytest.mark.asyncio
     async def test_listener_receives_saga_failed_event(self):
         """Listener should receive event when saga fails."""
-        from sagaz.decorators import Saga, step
-        from sagaz.listeners import SagaListener
+        from sagaz.core.decorators import Saga, step
+        from sagaz.core.listeners import SagaListener
 
         received_events = []
 
@@ -208,8 +208,8 @@ class TestSagaListenerCompensation:
     @pytest.mark.asyncio
     async def test_listener_receives_compensation_events(self):
         """Listener should receive events during compensation."""
-        from sagaz.decorators import Saga, compensate, step
-        from sagaz.listeners import SagaListener
+        from sagaz.core.decorators import Saga, compensate, step
+        from sagaz.core.listeners import SagaListener
 
         received_events = []
 
@@ -257,8 +257,8 @@ class TestMultipleListeners:
     @pytest.mark.asyncio
     async def test_multiple_listeners_all_receive_events(self):
         """All listeners should receive events."""
-        from sagaz.decorators import Saga, step
-        from sagaz.listeners import SagaListener
+        from sagaz.core.decorators import Saga, step
+        from sagaz.core.listeners import SagaListener
 
         listener1_events = []
         listener2_events = []
@@ -292,8 +292,8 @@ class TestBuiltInListeners:
     @pytest.mark.asyncio
     async def test_metrics_listener_records_execution(self):
         """MetricsSagaListener should record saga metrics."""
-        from sagaz.decorators import Saga, step
-        from sagaz.listeners import MetricsSagaListener
+        from sagaz.core.decorators import Saga, step
+        from sagaz.core.listeners import MetricsSagaListener
         from sagaz.monitoring.metrics import SagaMetrics
 
         metrics = SagaMetrics()
@@ -317,8 +317,8 @@ class TestBuiltInListeners:
     @pytest.mark.asyncio
     async def test_outbox_listener_publishes_events(self):
         """OutboxSagaListener should publish events to storage."""
-        from sagaz.decorators import Saga, step
-        from sagaz.listeners import OutboxSagaListener
+        from sagaz.core.decorators import Saga, step
+        from sagaz.core.listeners import OutboxSagaListener
         from sagaz.outbox import InMemoryOutboxStorage
 
         storage = InMemoryOutboxStorage()
@@ -350,8 +350,8 @@ class TestListenerErrorHandling:
     @pytest.mark.asyncio
     async def test_listener_error_does_not_break_saga(self):
         """Errors in listeners should be logged but not break execution."""
-        from sagaz.decorators import Saga, step
-        from sagaz.listeners import SagaListener
+        from sagaz.core.decorators import Saga, step
+        from sagaz.core.listeners import SagaListener
 
         step_executed = False
 

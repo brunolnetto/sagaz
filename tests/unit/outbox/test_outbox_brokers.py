@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from sagaz.exceptions import MissingDependencyError
+from sagaz.core.exceptions import MissingDependencyError
 from sagaz.outbox import (
     InMemoryBroker,
     create_broker,

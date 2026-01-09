@@ -17,7 +17,7 @@ from sagaz.integrations._base import (
     generate_correlation_id,
     get_correlation_id,
 )
-from sagaz.logger import get_logger
+from sagaz.core.logger import get_logger
 
 logger = get_logger(__name__)
 

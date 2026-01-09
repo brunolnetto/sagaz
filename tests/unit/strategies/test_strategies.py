@@ -10,7 +10,7 @@ import asyncio
 
 import pytest
 
-from sagaz.exceptions import SagaStepError
+from sagaz.core.exceptions import SagaStepError
 from sagaz.strategies.base import ParallelExecutionStrategy
 from sagaz.strategies.fail_fast import FailFastStrategy
 from sagaz.strategies.fail_fast_grace import FailFastWithGraceStrategy

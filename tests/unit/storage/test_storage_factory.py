@@ -4,7 +4,7 @@ Tests for the storage factory module
 
 import pytest
 
-from sagaz.exceptions import MissingDependencyError
+from sagaz.core.exceptions import MissingDependencyError
 from sagaz.storage.factory import create_storage, get_available_backends, print_available_backends
 from sagaz.storage.memory import InMemorySagaStorage
 

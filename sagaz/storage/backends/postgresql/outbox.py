@@ -20,7 +20,7 @@ import json
 from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
 
-from sagaz.exceptions import MissingDependencyError
+from sagaz.core.exceptions import MissingDependencyError
 from sagaz.outbox.types import OutboxEvent, OutboxStatus
 from sagaz.storage.interfaces.outbox import OutboxStorage, OutboxStorageError
 

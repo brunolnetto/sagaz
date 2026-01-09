@@ -16,7 +16,7 @@ from sagaz.monitoring.tracing import (
     trace_saga_action,
     trace_saga_compensation,
 )
-from sagaz.types import SagaStatus, SagaStepStatus
+from sagaz.core.types import SagaStatus, SagaStepStatus
 
 
 class TestSagaTracerWithoutOTel:

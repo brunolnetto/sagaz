@@ -21,8 +21,8 @@ from sagaz import (
     StepZone,
     TaintPropagator,
 )
-from sagaz.core import SagaStep
-from sagaz.decorators import (
+from sagaz.core.saga import SagaStep
+from sagaz.core.decorators import (
     ForwardRecoveryMetadata,
     SagaStepDefinition,
     StepMetadata,
@@ -554,7 +554,7 @@ class TestPivotSagaIntegration:
     async def test_forward_recovery_handler_collection(self):
         """Test that forward recovery handlers are collected."""
         from sagaz import Saga, action, forward_recovery
-        from sagaz.pivot import RecoveryAction
+        from sagaz.execution.pivot import RecoveryAction
 
         class PaymentSaga(Saga):
             saga_name = "payment"
@@ -670,8 +670,8 @@ class TestImperativeSagaPivot:
     @pytest.mark.asyncio
     async def test_add_step_with_pivot(self):
         """Test adding step with pivot=True in imperative API."""
-        from sagaz.core import Saga as ImperativeSaga
-        from sagaz.core import SagaContext
+        from sagaz.core.saga import Saga as ImperativeSaga
+        from sagaz.core.saga import SagaContext
 
         async def charge_action(ctx):
             ctx.set("charged", True)
@@ -698,7 +698,7 @@ class TestMermaidPivotVisualization:
 
     def test_step_info_pivot_fields(self):
         """Test that StepInfo has pivot and tainted fields."""
-        from sagaz.mermaid import StepInfo
+        from sagaz.visualization.mermaid import StepInfo
 
         # Default values
         step = StepInfo(name="test", has_compensation=True)
@@ -714,7 +714,7 @@ class TestMermaidPivotVisualization:
 
     def test_mermaid_generator_with_pivot_zones(self):
         """Test that MermaidGenerator applies zone styles when pivots exist."""
-        from sagaz.mermaid import MermaidGenerator, StepInfo
+        from sagaz.visualization.mermaid import MermaidGenerator, StepInfo
 
         steps = [
             StepInfo(name="reserve", has_compensation=True),
@@ -740,7 +740,7 @@ class TestMermaidPivotVisualization:
 
     def test_mermaid_generator_with_tainted_steps(self):
         """Test that tainted steps get the tainted style."""
-        from sagaz.mermaid import MermaidGenerator, StepInfo
+        from sagaz.visualization.mermaid import MermaidGenerator, StepInfo
 
         steps = [
             StepInfo(name="reserve", has_compensation=True, tainted=True),
@@ -756,7 +756,7 @@ class TestMermaidPivotVisualization:
 
     def test_mermaid_generator_without_pivot_zones(self):
         """Test that zone styles are not applied when show_pivot_zones=False."""
-        from sagaz.mermaid import MermaidGenerator, StepInfo
+        from sagaz.visualization.mermaid import MermaidGenerator, StepInfo
 
         steps = [
             StepInfo(name="reserve", has_compensation=True),
@@ -775,7 +775,7 @@ class TestMermaidPivotVisualization:
 
     def test_mermaid_generator_no_pivots(self):
         """Test that zone styles are not applied when no pivots exist."""
-        from sagaz.mermaid import MermaidGenerator, StepInfo
+        from sagaz.visualization.mermaid import MermaidGenerator, StepInfo
 
         steps = [
             StepInfo(name="step1", has_compensation=True),

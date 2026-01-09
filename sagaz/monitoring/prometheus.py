@@ -18,7 +18,7 @@ Quick Start:
     >>> metrics = PrometheusMetrics()
     >>>
     >>> # Use with MetricsSagaListener
-    >>> from sagaz.listeners import MetricsSagaListener
+    >>> from sagaz.core.listeners import MetricsSagaListener
     >>> class OrderSaga(Saga):
     ...     listeners = [MetricsSagaListener(metrics=metrics)]
 
@@ -30,7 +30,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:  # pragma: no cover
-    from sagaz.types import SagaStatus
+    from sagaz.core.types import SagaStatus
 
 # Check if prometheus_client is installed
 try:
@@ -61,7 +61,7 @@ class PrometheusMetrics:
 
     Example:
         >>> from sagaz.monitoring.prometheus import PrometheusMetrics
-        >>> from sagaz.listeners import MetricsSagaListener
+        >>> from sagaz.core.listeners import MetricsSagaListener
         >>>
         >>> metrics = PrometheusMetrics()
         >>>

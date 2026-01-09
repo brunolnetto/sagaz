@@ -24,7 +24,7 @@ Example:
 import asyncio
 from typing import Any
 
-from sagaz.logger import get_logger
+from sagaz.core.logger import get_logger
 from sagaz.triggers import fire_event
 from sagaz.triggers.registry import TriggerRegistry
 

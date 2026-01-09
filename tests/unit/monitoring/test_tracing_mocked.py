@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from sagaz.types import SagaStatus, SagaStepStatus
+from sagaz.core.types import SagaStatus, SagaStepStatus
 
 
 class TestTracingWithMockedOTel:

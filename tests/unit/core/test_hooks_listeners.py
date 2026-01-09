@@ -24,7 +24,7 @@ class TestHookDecorators:
 
     def test_on_step_enter_is_passthrough(self):
         """Test on_step_enter decorator just returns the function."""
-        from sagaz.hooks import on_step_enter
+        from sagaz.core.hooks import on_step_enter
 
         async def my_hook(ctx, step_name):
             pass
@@ -34,7 +34,7 @@ class TestHookDecorators:
 
     def test_on_step_success_is_passthrough(self):
         """Test on_step_success decorator just returns the function."""
-        from sagaz.hooks import on_step_success
+        from sagaz.core.hooks import on_step_success
 
         async def my_hook(ctx, step_name, result):
             pass
@@ -44,7 +44,7 @@ class TestHookDecorators:
 
     def test_on_step_failure_is_passthrough(self):
         """Test on_step_failure decorator just returns the function."""
-        from sagaz.hooks import on_step_failure
+        from sagaz.core.hooks import on_step_failure
 
         async def my_hook(ctx, step_name, error):
             pass
@@ -54,7 +54,7 @@ class TestHookDecorators:
 
     def test_on_step_compensate_is_passthrough(self):
         """Test on_step_compensate decorator just returns the function."""
-        from sagaz.hooks import on_step_compensate
+        from sagaz.core.hooks import on_step_compensate
 
         async def my_hook(ctx, step_name):
             pass
@@ -69,7 +69,7 @@ class TestPublishOnSuccess:
     @pytest.mark.asyncio
     async def test_publish_on_success_with_dict_result(self):
         """Test publishing success event with dict result."""
-        from sagaz.hooks import publish_on_success
+        from sagaz.core.hooks import publish_on_success
 
         mock_storage = AsyncMock()
 
@@ -90,7 +90,7 @@ class TestPublishOnSuccess:
     @pytest.mark.asyncio
     async def test_publish_on_success_with_non_dict_result(self):
         """Test publishing success event with non-dict result."""
-        from sagaz.hooks import publish_on_success
+        from sagaz.core.hooks import publish_on_success
 
         mock_storage = AsyncMock()
 
@@ -107,7 +107,7 @@ class TestPublishOnSuccess:
     @pytest.mark.asyncio
     async def test_publish_on_success_with_custom_payload_builder(self):
         """Test publishing success event with custom payload builder."""
-        from sagaz.hooks import publish_on_success
+        from sagaz.core.hooks import publish_on_success
 
         mock_storage = AsyncMock()
 
@@ -129,7 +129,7 @@ class TestPublishOnSuccess:
     @pytest.mark.asyncio
     async def test_publish_on_success_handles_storage_error(self):
         """Test that storage errors are logged but don't raise."""
-        from sagaz.hooks import publish_on_success
+        from sagaz.core.hooks import publish_on_success
 
         mock_storage = AsyncMock()
         mock_storage.insert.side_effect = Exception("Storage error")
@@ -145,7 +145,7 @@ class TestPublishOnSuccess:
     @pytest.mark.asyncio
     async def test_publish_on_success_uses_saga_id_as_aggregate_fallback(self):
         """Test that saga_id is used as aggregate_id fallback."""
-        from sagaz.hooks import publish_on_success
+        from sagaz.core.hooks import publish_on_success
 
         mock_storage = AsyncMock()
 
@@ -166,7 +166,7 @@ class TestPublishOnFailure:
     @pytest.mark.asyncio
     async def test_publish_on_failure_with_error(self):
         """Test publishing failure event with error details."""
-        from sagaz.hooks import publish_on_failure
+        from sagaz.core.hooks import publish_on_failure
 
         mock_storage = AsyncMock()
 
@@ -186,7 +186,7 @@ class TestPublishOnFailure:
     @pytest.mark.asyncio
     async def test_publish_on_failure_without_error_details(self):
         """Test publishing failure event without error details."""
-        from sagaz.hooks import publish_on_failure
+        from sagaz.core.hooks import publish_on_failure
 
         mock_storage = AsyncMock()
 
@@ -206,7 +206,7 @@ class TestPublishOnFailure:
     @pytest.mark.asyncio
     async def test_publish_on_failure_handles_storage_error(self):
         """Test that storage errors are logged but don't raise."""
-        from sagaz.hooks import publish_on_failure
+        from sagaz.core.hooks import publish_on_failure
 
         mock_storage = AsyncMock()
         mock_storage.insert.side_effect = Exception("Storage error")
@@ -226,7 +226,7 @@ class TestPublishOnCompensate:
     @pytest.mark.asyncio
     async def test_publish_on_compensate(self):
         """Test publishing compensation event."""
-        from sagaz.hooks import publish_on_compensate
+        from sagaz.core.hooks import publish_on_compensate
 
         mock_storage = AsyncMock()
 
@@ -244,7 +244,7 @@ class TestPublishOnCompensate:
     @pytest.mark.asyncio
     async def test_publish_on_compensate_handles_storage_error(self):
         """Test that storage errors are logged but don't raise."""
-        from sagaz.hooks import publish_on_compensate
+        from sagaz.core.hooks import publish_on_compensate
 
         mock_storage = AsyncMock()
         mock_storage.insert.side_effect = Exception("Storage error")
@@ -263,7 +263,7 @@ class TestLogStepLifecycle:
     @pytest.mark.asyncio
     async def test_log_step_lifecycle_returns_hooks(self):
         """Test that log_step_lifecycle returns all expected hooks."""
-        from sagaz.hooks import log_step_lifecycle
+        from sagaz.core.hooks import log_step_lifecycle
 
         hooks = log_step_lifecycle()
 
@@ -274,7 +274,7 @@ class TestLogStepLifecycle:
     @pytest.mark.asyncio
     async def test_log_step_lifecycle_on_enter(self):
         """Test on_enter hook logs step start."""
-        from sagaz.hooks import log_step_lifecycle
+        from sagaz.core.hooks import log_step_lifecycle
 
         mock_logger = MagicMock()
         hooks = log_step_lifecycle(logger_instance=mock_logger)
@@ -287,7 +287,7 @@ class TestLogStepLifecycle:
     @pytest.mark.asyncio
     async def test_log_step_lifecycle_on_success(self):
         """Test on_success hook logs step success."""
-        from sagaz.hooks import log_step_lifecycle
+        from sagaz.core.hooks import log_step_lifecycle
 
         mock_logger = MagicMock()
         hooks = log_step_lifecycle(logger_instance=mock_logger)
@@ -300,7 +300,7 @@ class TestLogStepLifecycle:
     @pytest.mark.asyncio
     async def test_log_step_lifecycle_on_failure(self):
         """Test on_failure hook logs step failure."""
-        from sagaz.hooks import log_step_lifecycle
+        from sagaz.core.hooks import log_step_lifecycle
 
         mock_logger = MagicMock()
         hooks = log_step_lifecycle(logger_instance=mock_logger)
@@ -323,7 +323,7 @@ class TestSagaListenerBase:
     @pytest.mark.asyncio
     async def test_base_listener_methods_are_noops(self):
         """Test that base listener methods are no-ops."""
-        from sagaz.listeners import SagaListener
+        from sagaz.core.listeners import SagaListener
 
         listener = SagaListener()
 
@@ -344,7 +344,7 @@ class TestLoggingSagaListener:
     @pytest.mark.asyncio
     async def test_on_saga_start_logs(self):
         """Test saga start is logged."""
-        from sagaz.listeners import LoggingSagaListener
+        from sagaz.core.listeners import LoggingSagaListener
 
         mock_logger = MagicMock()
         listener = LoggingSagaListener(logger_instance=mock_logger)
@@ -359,7 +359,7 @@ class TestLoggingSagaListener:
     @pytest.mark.asyncio
     async def test_on_step_enter_logs(self):
         """Test step enter is logged."""
-        from sagaz.listeners import LoggingSagaListener
+        from sagaz.core.listeners import LoggingSagaListener
 
         mock_logger = MagicMock()
         listener = LoggingSagaListener(logger_instance=mock_logger)
@@ -372,7 +372,7 @@ class TestLoggingSagaListener:
     @pytest.mark.asyncio
     async def test_on_step_success_logs(self):
         """Test step success is logged."""
-        from sagaz.listeners import LoggingSagaListener
+        from sagaz.core.listeners import LoggingSagaListener
 
         mock_logger = MagicMock()
         listener = LoggingSagaListener(logger_instance=mock_logger)
@@ -385,7 +385,7 @@ class TestLoggingSagaListener:
     @pytest.mark.asyncio
     async def test_on_step_failure_logs_error(self):
         """Test step failure is logged at error level."""
-        from sagaz.listeners import LoggingSagaListener
+        from sagaz.core.listeners import LoggingSagaListener
 
         mock_logger = MagicMock()
         listener = LoggingSagaListener(logger_instance=mock_logger)
@@ -399,7 +399,7 @@ class TestLoggingSagaListener:
     @pytest.mark.asyncio
     async def test_on_compensation_start_logs(self):
         """Test compensation start is logged."""
-        from sagaz.listeners import LoggingSagaListener
+        from sagaz.core.listeners import LoggingSagaListener
 
         mock_logger = MagicMock()
         listener = LoggingSagaListener(logger_instance=mock_logger)
@@ -412,7 +412,7 @@ class TestLoggingSagaListener:
     @pytest.mark.asyncio
     async def test_on_compensation_complete_logs(self):
         """Test compensation complete is logged."""
-        from sagaz.listeners import LoggingSagaListener
+        from sagaz.core.listeners import LoggingSagaListener
 
         mock_logger = MagicMock()
         listener = LoggingSagaListener(logger_instance=mock_logger)
@@ -425,7 +425,7 @@ class TestLoggingSagaListener:
     @pytest.mark.asyncio
     async def test_on_saga_complete_logs(self):
         """Test saga complete is logged."""
-        from sagaz.listeners import LoggingSagaListener
+        from sagaz.core.listeners import LoggingSagaListener
 
         mock_logger = MagicMock()
         listener = LoggingSagaListener(logger_instance=mock_logger)
@@ -438,7 +438,7 @@ class TestLoggingSagaListener:
     @pytest.mark.asyncio
     async def test_on_saga_failed_logs_error(self):
         """Test saga failed is logged at error level."""
-        from sagaz.listeners import LoggingSagaListener
+        from sagaz.core.listeners import LoggingSagaListener
 
         mock_logger = MagicMock()
         listener = LoggingSagaListener(logger_instance=mock_logger)
@@ -450,7 +450,7 @@ class TestLoggingSagaListener:
 
     def test_custom_log_level(self):
         """Test LoggingSagaListener with custom log level."""
-        from sagaz.listeners import LoggingSagaListener
+        from sagaz.core.listeners import LoggingSagaListener
 
         listener = LoggingSagaListener(level=logging.DEBUG)
 
@@ -463,7 +463,7 @@ class TestMetricsSagaListener:
     @pytest.mark.asyncio
     async def test_on_saga_start_records_time(self):
         """Test saga start records start time."""
-        from sagaz.listeners import MetricsSagaListener
+        from sagaz.core.listeners import MetricsSagaListener
 
         mock_metrics = MagicMock()
         listener = MetricsSagaListener(metrics=mock_metrics)
@@ -475,8 +475,8 @@ class TestMetricsSagaListener:
     @pytest.mark.asyncio
     async def test_on_saga_complete_records_duration(self):
         """Test saga complete records execution duration."""
-        from sagaz.listeners import MetricsSagaListener
-        from sagaz.types import SagaStatus
+        from sagaz.core.listeners import MetricsSagaListener
+        from sagaz.core.types import SagaStatus
 
         mock_metrics = MagicMock()
         listener = MetricsSagaListener(metrics=mock_metrics)
@@ -492,8 +492,8 @@ class TestMetricsSagaListener:
     @pytest.mark.asyncio
     async def test_on_saga_failed_records_duration(self):
         """Test saga failed records execution duration."""
-        from sagaz.listeners import MetricsSagaListener
-        from sagaz.types import SagaStatus
+        from sagaz.core.listeners import MetricsSagaListener
+        from sagaz.core.types import SagaStatus
 
         mock_metrics = MagicMock()
         listener = MetricsSagaListener(metrics=mock_metrics)
@@ -507,7 +507,7 @@ class TestMetricsSagaListener:
 
     def test_creates_default_metrics_if_not_provided(self):
         """Test MetricsSagaListener creates default metrics."""
-        from sagaz.listeners import MetricsSagaListener
+        from sagaz.core.listeners import MetricsSagaListener
         from sagaz.monitoring.metrics import SagaMetrics
 
         listener = MetricsSagaListener()
@@ -521,7 +521,7 @@ class TestTracingSagaListener:
     @pytest.mark.asyncio
     async def test_on_saga_start_starts_trace(self):
         """Test saga start begins tracing."""
-        from sagaz.listeners import TracingSagaListener
+        from sagaz.core.listeners import TracingSagaListener
 
         mock_tracer = MagicMock()
         listener = TracingSagaListener(tracer=mock_tracer)
@@ -534,7 +534,7 @@ class TestTracingSagaListener:
     @pytest.mark.asyncio
     async def test_on_step_enter_starts_step_trace(self):
         """Test step enter starts step trace."""
-        from sagaz.listeners import TracingSagaListener
+        from sagaz.core.listeners import TracingSagaListener
 
         mock_tracer = MagicMock()
         listener = TracingSagaListener(tracer=mock_tracer)
@@ -549,7 +549,7 @@ class TestTracingSagaListener:
     @pytest.mark.asyncio
     async def test_on_compensation_start_starts_compensation_trace(self):
         """Test compensation start starts compensation trace."""
-        from sagaz.listeners import TracingSagaListener
+        from sagaz.core.listeners import TracingSagaListener
 
         mock_tracer = MagicMock()
         listener = TracingSagaListener(tracer=mock_tracer)
@@ -568,7 +568,7 @@ class TestOutboxSagaListener:
     @pytest.mark.asyncio
     async def test_on_step_success_publishes_event(self):
         """Test step success publishes to outbox."""
-        from sagaz.listeners import OutboxSagaListener
+        from sagaz.core.listeners import OutboxSagaListener
 
         mock_storage = AsyncMock()
         listener = OutboxSagaListener(storage=mock_storage)
@@ -583,7 +583,7 @@ class TestOutboxSagaListener:
     @pytest.mark.asyncio
     async def test_on_step_success_skipped_when_disabled(self):
         """Test step success doesn't publish when disabled."""
-        from sagaz.listeners import OutboxSagaListener
+        from sagaz.core.listeners import OutboxSagaListener
 
         mock_storage = AsyncMock()
         listener = OutboxSagaListener(storage=mock_storage, publish_step_events=False)
@@ -596,7 +596,7 @@ class TestOutboxSagaListener:
     @pytest.mark.asyncio
     async def test_on_step_failure_publishes_event(self):
         """Test step failure publishes to outbox."""
-        from sagaz.listeners import OutboxSagaListener
+        from sagaz.core.listeners import OutboxSagaListener
 
         mock_storage = AsyncMock()
         listener = OutboxSagaListener(storage=mock_storage)
@@ -612,7 +612,7 @@ class TestOutboxSagaListener:
     @pytest.mark.asyncio
     async def test_on_saga_complete_publishes_event(self):
         """Test saga complete publishes to outbox."""
-        from sagaz.listeners import OutboxSagaListener
+        from sagaz.core.listeners import OutboxSagaListener
 
         mock_storage = AsyncMock()
         listener = OutboxSagaListener(storage=mock_storage)
@@ -625,7 +625,7 @@ class TestOutboxSagaListener:
     @pytest.mark.asyncio
     async def test_on_saga_failed_publishes_event(self):
         """Test saga failed publishes to outbox."""
-        from sagaz.listeners import OutboxSagaListener
+        from sagaz.core.listeners import OutboxSagaListener
 
         mock_storage = AsyncMock()
         listener = OutboxSagaListener(storage=mock_storage)
@@ -640,7 +640,7 @@ class TestOutboxSagaListener:
     @pytest.mark.asyncio
     async def test_on_compensation_complete_publishes_event(self):
         """Test compensation complete publishes to outbox."""
-        from sagaz.listeners import OutboxSagaListener
+        from sagaz.core.listeners import OutboxSagaListener
 
         mock_storage = AsyncMock()
         listener = OutboxSagaListener(storage=mock_storage)
@@ -654,7 +654,7 @@ class TestOutboxSagaListener:
     @pytest.mark.asyncio
     async def test_publish_event_handles_storage_error(self):
         """Test that storage errors are caught."""
-        from sagaz.listeners import OutboxSagaListener
+        from sagaz.core.listeners import OutboxSagaListener
 
         mock_storage = AsyncMock()
         mock_storage.insert.side_effect = Exception("Storage error")
@@ -670,7 +670,7 @@ class TestDefaultListeners:
 
     def test_default_listeners_with_all_options(self):
         """Test creating listeners with all options enabled."""
-        from sagaz.listeners import (
+        from sagaz.core.listeners import (
             LoggingSagaListener,
             MetricsSagaListener,
             OutboxSagaListener,
@@ -695,7 +695,7 @@ class TestDefaultListeners:
 
     def test_default_listeners_with_no_options(self):
         """Test creating listeners with all options disabled."""
-        from sagaz.listeners import default_listeners
+        from sagaz.core.listeners import default_listeners
 
         listeners = default_listeners(
             metrics=False,
@@ -708,7 +708,7 @@ class TestDefaultListeners:
 
     def test_default_listeners_defaults(self):
         """Test default_listeners has sensible defaults."""
-        from sagaz.listeners import LoggingSagaListener, MetricsSagaListener, default_listeners
+        from sagaz.core.listeners import LoggingSagaListener, MetricsSagaListener, default_listeners
 
         listeners = default_listeners()
 

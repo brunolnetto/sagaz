@@ -11,7 +11,7 @@ import uuid
 from contextlib import contextmanager
 from typing import Any
 
-from sagaz.logger import get_logger
+from sagaz.core.logger import get_logger
 
 logger = get_logger(__name__)
 

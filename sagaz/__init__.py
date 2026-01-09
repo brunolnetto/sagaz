@@ -41,7 +41,7 @@ Usage Mode 2 - Imperative (via instance + add_step):
     >>> result = await saga.run({"order_id": "123"})
 
 With Listeners (Metrics, Logging, Outbox):
-    >>> from sagaz.listeners import MetricsSagaListener, OutboxSagaListener
+    >>> from sagaz.core.listeners import MetricsSagaListener, OutboxSagaListener
     >>>
     >>> class OrderSaga(Saga):
     ...     saga_name = "order-processing"
@@ -52,18 +52,15 @@ Note: You cannot mix both approaches. Once you use decorators,
 """
 
 # =============================================================================
-# Execution Graph (compensation and dependency management)
-# =============================================================================
-# =============================================================================
 # Configuration
 # =============================================================================
-from sagaz.config import SagaConfig, configure, get_config
+from sagaz.core.config import SagaConfig, configure, get_config
 
 # =============================================================================
 # Core Saga Classes
 # =============================================================================
-from sagaz.core import SagaContext, SagaStep
-from sagaz.decorators import (
+from sagaz.core.saga import SagaContext, SagaStep
+from sagaz.core.decorators import (
     Saga,
     SagaStepDefinition,
     action,
@@ -74,7 +71,7 @@ from sagaz.decorators import (
 # =============================================================================
 # Exceptions
 # =============================================================================
-from sagaz.exceptions import (
+from sagaz.core.exceptions import (
     MissingDependencyError,
     SagaCompensationError,
     SagaError,
@@ -82,7 +79,11 @@ from sagaz.exceptions import (
     SagaStepError,
     SagaTimeoutError,
 )
-from sagaz.execution_graph import (
+
+# =============================================================================
+# Execution Graph (compensation and dependency management)
+# =============================================================================
+from sagaz.execution.graph import (
     CircularDependencyError,
     CompensationFailureStrategy,
     CompensationGraphError,
@@ -96,7 +97,7 @@ from sagaz.execution_graph import (
 # =============================================================================
 # Listeners (observability and side effects)
 # =============================================================================
-from sagaz.listeners import (
+from sagaz.core.listeners import (
     LoggingSagaListener,
     MetricsSagaListener,
     OutboxSagaListener,
@@ -108,19 +109,19 @@ from sagaz.listeners import (
 # =============================================================================
 # Orchestrator and Types
 # =============================================================================
-from sagaz.orchestrator import SagaOrchestrator
+from sagaz.execution.orchestrator import SagaOrchestrator
 
 # =============================================================================
 # Pivot/Irreversible Steps (v1.3.0)
 # =============================================================================
-from sagaz.pivot import (
+from sagaz.execution.pivot import (
     PivotInfo,
     RecoveryAction,
     SagaZones,
     StepZone,
     TaintPropagator,
 )
-from sagaz.types import ParallelFailureStrategy, SagaResult, SagaStatus, SagaStepStatus
+from sagaz.core.types import ParallelFailureStrategy, SagaResult, SagaStatus, SagaStepStatus
 
 __all__ = [
     "CircularDependencyError",
@@ -186,3 +187,12 @@ __all__ = [
     "get_config",
 ]
 
+
+# =============================================================================
+# Backward Compatibility Aliases
+# =============================================================================
+# These imports allow existing code using the old module paths to continue working.
+# For example: `from sagaz.core.config import SagaConfig` will still work.
+
+# Re-export cli_examples for backward compatibility
+from sagaz.cli import examples as cli_examples

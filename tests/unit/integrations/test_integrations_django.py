@@ -19,8 +19,8 @@ django.setup()
 
 from unittest.mock import MagicMock, patch
 
-from sagaz.config import SagaConfig
-from sagaz.decorators import Saga, action
+from sagaz.core.config import SagaConfig
+from sagaz.core.decorators import Saga, action
 from sagaz.integrations._base import SagaContextManager
 from sagaz.integrations.django import (
     SagaDjangoMiddleware,

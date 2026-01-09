@@ -303,7 +303,7 @@ class TestPostgreSQLSagaStorageIntegration:
             pytest.skip("PostgreSQL container not available")
 
         from sagaz.storage.backends.postgresql.saga import ASYNCPG_AVAILABLE, PostgreSQLSagaStorage
-        from sagaz.types import SagaStatus
+        from sagaz.core.types import SagaStatus
 
         if not ASYNCPG_AVAILABLE:
             pytest.skip("asyncpg not installed")
@@ -338,7 +338,7 @@ class TestPostgreSQLSagaStorageIntegration:
             pytest.skip("PostgreSQL container not available")
 
         from sagaz.storage.backends.postgresql.saga import ASYNCPG_AVAILABLE, PostgreSQLSagaStorage
-        from sagaz.types import SagaStatus
+        from sagaz.core.types import SagaStatus
 
         if not ASYNCPG_AVAILABLE:
             pytest.skip("asyncpg not installed")
@@ -377,7 +377,7 @@ class TestPostgreSQLSagaStorageIntegration:
             pytest.skip("PostgreSQL container not available")
 
         from sagaz.storage.backends.postgresql.saga import ASYNCPG_AVAILABLE, PostgreSQLSagaStorage
-        from sagaz.types import SagaStatus, SagaStepStatus
+        from sagaz.core.types import SagaStatus, SagaStepStatus
 
         if not ASYNCPG_AVAILABLE:
             pytest.skip("asyncpg not installed")
@@ -422,7 +422,7 @@ class TestPostgreSQLSagaStorageIntegration:
             pytest.skip("PostgreSQL container not available")
 
         from sagaz.storage.backends.postgresql.saga import ASYNCPG_AVAILABLE, PostgreSQLSagaStorage
-        from sagaz.types import SagaStatus
+        from sagaz.core.types import SagaStatus
 
         if not ASYNCPG_AVAILABLE:
             pytest.skip("asyncpg not installed")
@@ -461,7 +461,7 @@ class TestStorageManagerTransferIntegration:
     async def test_storage_manager_memory_to_memory_transfer(self):
         """Test transferring data between memory storages."""
         from sagaz.storage.backends.memory.saga import InMemorySagaStorage
-        from sagaz.types import SagaStatus
+        from sagaz.core.types import SagaStatus
 
         # Source storage with data
         source = InMemorySagaStorage()
@@ -495,7 +495,7 @@ class TestStorageManagerTransferIntegration:
         """Test backup and restore functionality using memory storage."""
         from sagaz.storage.backends.memory.saga import InMemorySagaStorage
         from sagaz.storage.transfer.service import TransferConfig, TransferService
-        from sagaz.types import SagaStatus
+        from sagaz.core.types import SagaStatus
 
         source = InMemorySagaStorage()
         backup = InMemorySagaStorage()
@@ -533,7 +533,7 @@ class TestStorageManagerTransferIntegration:
         """Test transfer with post-validation using memory storage."""
         from sagaz.storage.backends.memory.saga import InMemorySagaStorage
         from sagaz.storage.transfer.service import TransferConfig, TransferService
-        from sagaz.types import SagaStatus
+        from sagaz.core.types import SagaStatus
 
         source = InMemorySagaStorage()
         target = InMemorySagaStorage()
@@ -569,7 +569,7 @@ class TestStorageManagerTransferIntegration:
 
         from sagaz.storage.backends.memory.saga import InMemorySagaStorage
         from sagaz.storage.transfer.service import TransferConfig, TransferService
-        from sagaz.types import SagaStatus
+        from sagaz.core.types import SagaStatus
 
         # Create a slow target to allow cancellation to take effect
         class SlowMemoryStorage(InMemorySagaStorage):
@@ -629,7 +629,7 @@ class TestRedisSagaStorageIntegration:
             pytest.skip("Redis container not available")
 
         from sagaz.storage.backends.redis.saga import RedisSagaStorage
-        from sagaz.types import SagaStatus, SagaStepStatus
+        from sagaz.core.types import SagaStatus, SagaStepStatus
 
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)
@@ -685,7 +685,7 @@ class TestRedisSagaStorageIntegration:
             pytest.skip("Redis container not available")
 
         from sagaz.storage.backends.redis.saga import RedisSagaStorage
-        from sagaz.types import SagaStatus
+        from sagaz.core.types import SagaStatus
 
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)

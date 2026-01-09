@@ -437,7 +437,7 @@ class TestCompensationGraphEdgeCases:
     @pytest.mark.asyncio
     async def test_compensation_graph_multiple_dependencies(self):
         """Test compensation with multiple dependencies"""
-        from sagaz.execution_graph import SagaExecutionGraph
+        from sagaz.execution.graph import SagaExecutionGraph
 
         graph = SagaExecutionGraph()
 
@@ -475,7 +475,7 @@ class TestStateElMachineEdgeCases:
     @pytest.mark.asyncio
     async def test_step_state_machine_failure_path(self):
         """Test step state machine failure path"""
-        from sagaz.state_machine import SagaStepStateMachine
+        from sagaz.execution.state_machine import SagaStepStateMachine
 
         sm = SagaStepStateMachine(step_name="test_step")
         await sm.activate_initial_state()
@@ -491,7 +491,7 @@ class TestStateElMachineEdgeCases:
     @pytest.mark.asyncio
     async def test_step_state_machine_compensation_failure(self):
         """Test step state machine compensation failure"""
-        from sagaz.state_machine import SagaStepStateMachine
+        from sagaz.execution.state_machine import SagaStepStateMachine
 
         sm = SagaStepStateMachine(step_name="test_step")
         await sm.activate_initial_state()

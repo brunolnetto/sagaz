@@ -12,7 +12,7 @@ starlette = pytest.importorskip("starlette")
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from sagaz.decorators import Saga, action
+from sagaz.core.decorators import Saga, action
 from sagaz.integrations.fastapi import (
     SagaContextManager,
     create_webhook_router,

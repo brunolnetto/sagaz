@@ -43,7 +43,7 @@ except ImportError:  # pragma: no cover
     StatusCode = None  # type: ignore[assignment, misc]
 
 
-from sagaz.types import SagaStatus, SagaStepStatus
+from sagaz.core.types import SagaStatus, SagaStepStatus
 
 P = ParamSpec("P")
 T = TypeVar("T")

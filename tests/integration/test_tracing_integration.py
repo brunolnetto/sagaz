@@ -160,7 +160,7 @@ class TestOTLPCollectorIntegration:
     def test_saga_tracer_with_real_collector(self, otel_collector):
         """Test SagaTracer integration with real OTLP collector."""
         from sagaz.monitoring.tracing import TRACING_AVAILABLE, SagaTracer
-        from sagaz.types import SagaStatus, SagaStepStatus
+        from sagaz.core.types import SagaStatus, SagaStepStatus
 
         if not TRACING_AVAILABLE:
             pytest.skip("Tracing module not available")
@@ -222,7 +222,7 @@ class TestTracingWithMockedCollector:
     def test_tracer_handles_connection_failure_gracefully(self):
         """Test that tracer handles connection failures gracefully."""
         from sagaz.monitoring.tracing import TRACING_AVAILABLE, SagaTracer
-        from sagaz.types import SagaStatus
+        from sagaz.core.types import SagaStatus
 
         if not TRACING_AVAILABLE:
             pytest.skip("Tracing not available")

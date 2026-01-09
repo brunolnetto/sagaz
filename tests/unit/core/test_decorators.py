@@ -6,13 +6,13 @@ import asyncio
 
 import pytest
 
-from sagaz.decorators import (
+from sagaz.core.decorators import (
     Saga,
     SagaStepDefinition,
     compensate,
     step,
 )
-from sagaz.execution_graph import CompensationType
+from sagaz.execution.graph import CompensationType
 
 
 class TestStepDecorator:

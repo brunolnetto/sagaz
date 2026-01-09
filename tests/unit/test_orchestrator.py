@@ -10,9 +10,9 @@ import asyncio
 
 import pytest
 
-from sagaz.core import Saga, SagaContext
-from sagaz.orchestrator import SagaOrchestrator
-from sagaz.types import SagaStatus
+from sagaz.core.saga import Saga, SagaContext
+from sagaz.execution.orchestrator import SagaOrchestrator
+from sagaz.core.types import SagaStatus
 
 
 class SimpleSaga(Saga):
