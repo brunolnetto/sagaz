@@ -14,17 +14,22 @@ Usage:
     >>> storage = SQLiteOutboxStorage(":memory:")
 """
 
+from __future__ import annotations
+
 import json
 import logging
 from datetime import UTC, datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import aiosqlite as aiosqlite_types
 
 try:
     import aiosqlite
     AIOSQLITE_AVAILABLE = True
 except ImportError:  # pragma: no cover
     AIOSQLITE_AVAILABLE = False
-    aiosqlite = None
+    aiosqlite = None  # type: ignore[assignment]
 
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.outbox.types import OutboxEvent, OutboxStatus

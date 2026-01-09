@@ -20,18 +20,23 @@ Usage:
     >>> storage = SQLiteSagaStorage(":memory:")
 """
 
+from __future__ import annotations
+
 import json
 import logging
 from datetime import UTC, datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import aiosqlite as aiosqlite_types
 
 try:
     import aiosqlite
     AIOSQLITE_AVAILABLE = True
 except ImportError:  # pragma: no cover
     AIOSQLITE_AVAILABLE = False
-    aiosqlite = None
+    aiosqlite = None  # type: ignore[assignment]
 
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.storage.base import SagaStorage
