@@ -4,8 +4,10 @@ version = "1.0.3"
 description = "Production-ready Saga pattern with DAG support"
 readme = "README.md"
 dependencies = [
-    "asyncpg>=0.31.0",
+    "click>=8.1.0",
     "python-statemachine>=2.1.0",
+    "rich>=13.0.0",
+    "simple-term-menu>=1.6.0",
 ]
 requires-python = ">=3.11"
 
@@ -14,11 +16,6 @@ requires-python = ">=3.11"
 sagaz = "sagaz.cli:main"
 
 [project.optional-dependencies]
-cli = [
-    "click>=8.1.0",
-    "rich>=13.0.0",
-    "simple-term-menu>=1.6.0",  # Interactive arrow key menu for `sagaz examples select`
-]
 storage = [
     # Storage backends (optional - install as needed)
     "asyncpg>=0.30.0",  # PostgreSQL storage
