@@ -136,9 +136,7 @@ class OutboxTester:
                 aggregate_id,
                 event_type,
                 json.dumps(payload),
-                json.dumps(
-                    {"source": "k8s-test", "timestamp": datetime.now(UTC).isoformat()}
-                ),
+                json.dumps({"source": "k8s-test", "timestamp": datetime.now(UTC).isoformat()}),
             )
 
         return event_id

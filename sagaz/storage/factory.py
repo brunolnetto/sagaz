@@ -19,7 +19,7 @@ Usage:
     >>> saga, outbox = create_storage("postgresql", storage_type="both")
 """
 
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.storage.backends.memory import InMemorySagaStorage
@@ -235,9 +235,9 @@ def create_storage(
 
     try:
         if storage_type == "saga":
-            return _SAGA_STORAGE_REGISTRY[backend](factory_kwargs)
+            return cast(SagaStorage, _SAGA_STORAGE_REGISTRY[backend](factory_kwargs))
         if storage_type == "outbox":
-            return _OUTBOX_STORAGE_REGISTRY[backend](factory_kwargs)
+            return cast("tuple[Any, ...]", _OUTBOX_STORAGE_REGISTRY[backend](factory_kwargs))
         # both
         saga_storage = _SAGA_STORAGE_REGISTRY[backend](factory_kwargs)
         outbox_storage = _OUTBOX_STORAGE_REGISTRY[backend](factory_kwargs)

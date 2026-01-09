@@ -37,8 +37,7 @@ from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
 )
 logger = logging.getLogger("sagaz.e2e_demo")
 
@@ -62,6 +61,7 @@ running = True
 # ============================================================================
 # Define Sagaz sagas with Outbox publishing
 # ============================================================================
+
 
 class OrderProcessingSaga(Saga):
     """
@@ -89,6 +89,7 @@ class OrderProcessingSaga(Saga):
     async def validate_order(self, ctx):
         """Validate the order data."""
         import random
+
         await asyncio.sleep(random.uniform(0.01, 0.05))
         order_id = f"ORD-{random.randint(1000, 9999)}"
         return {"order_id": order_id, "validated": True}
@@ -97,6 +98,7 @@ class OrderProcessingSaga(Saga):
     async def reserve_inventory(self, ctx):
         """Reserve items in inventory."""
         import random
+
         await asyncio.sleep(random.uniform(0.02, 0.08))
         return {"inventory_reserved": True, "items": ctx.get("item_count", 3)}
 
@@ -104,6 +106,7 @@ class OrderProcessingSaga(Saga):
     async def release_inventory(self, ctx):
         """Release reserved inventory on failure."""
         import random
+
         await asyncio.sleep(random.uniform(0.01, 0.03))
         logger.info(f"  🔄 COMPENSATION: Released inventory for {ctx.get('order_id')}")
 
@@ -111,6 +114,7 @@ class OrderProcessingSaga(Saga):
     async def charge_payment(self, ctx):
         """Charge customer payment."""
         import random
+
         await asyncio.sleep(random.uniform(0.05, 0.15))
         # Simulate occasional payment failures
         if random.random() < 0.2:  # 20% failure rate for demo
@@ -122,6 +126,7 @@ class OrderProcessingSaga(Saga):
     async def refund_payment(self, ctx):
         """Refund the payment on failure."""
         import random
+
         await asyncio.sleep(random.uniform(0.02, 0.05))
         logger.info(f"  🔄 COMPENSATION: Refunded payment {ctx.get('payment_id')}")
 
@@ -129,6 +134,7 @@ class OrderProcessingSaga(Saga):
     async def ship_order(self, ctx):
         """Initiate order shipment."""
         import random
+
         await asyncio.sleep(random.uniform(0.03, 0.1))
         return {"tracking_id": f"TRACK-{random.randint(10000, 99999)}"}
 
@@ -136,6 +142,7 @@ class OrderProcessingSaga(Saga):
 # ============================================================================
 # Outbox Worker - processes events and publishes to Redis
 # ============================================================================
+
 
 async def run_outbox_worker():
     """Background task that processes the outbox and publishes to Redis."""
@@ -148,10 +155,7 @@ async def run_outbox_worker():
     )
 
     outbox_worker = OutboxWorker(
-        storage=outbox_storage,
-        broker=redis_broker,
-        config=config,
-        worker_id="demo-worker-1"
+        storage=outbox_storage, broker=redis_broker, config=config, worker_id="demo-worker-1"
     )
 
     logger.info("📤 Outbox Worker started - processing events...")
@@ -170,6 +174,7 @@ async def run_outbox_worker():
 # ============================================================================
 # Consumer - reads events from Redis Streams
 # ============================================================================
+
 
 async def run_consumer():
     """Background task that consumes events from Redis Streams."""
@@ -215,6 +220,7 @@ async def run_consumer():
 # Saga execution loop
 # ============================================================================
 
+
 async def run_saga_loop():
     """Run sagas periodically to generate events."""
     import random
@@ -234,7 +240,9 @@ async def run_saga_loop():
         try:
             result = await saga.run(initial_context)
             logger.info(f"[Saga {iteration}] ✅ Completed successfully!")
-            logger.info(f"    Order: {result.get('order_id')}, Tracking: {result.get('tracking_id')}")
+            logger.info(
+                f"    Order: {result.get('order_id')}, Tracking: {result.get('tracking_id')}"
+            )
         except Exception as e:
             logger.warning(f"[Saga {iteration}] ❌ Failed: {e}")
 
@@ -245,6 +253,7 @@ async def run_saga_loop():
 # ============================================================================
 # Main
 # ============================================================================
+
 
 async def initialize():
     """Initialize all components."""
@@ -258,12 +267,14 @@ async def initialize():
     logger.info("  ✅ PostgreSQL outbox storage initialized")
 
     # Initialize Redis broker
-    redis_broker = RedisBroker(RedisBrokerConfig(
-        url=REDIS_URL,
-        stream_name=REDIS_STREAM,
-        consumer_group="sagaz-demo-consumers",
-        consumer_name="consumer-1",
-    ))
+    redis_broker = RedisBroker(
+        RedisBrokerConfig(
+            url=REDIS_URL,
+            stream_name=REDIS_STREAM,
+            consumer_group="sagaz-demo-consumers",
+            consumer_name="consumer-1",
+        )
+    )
     await redis_broker.connect()
     logger.info("  ✅ Redis broker connected")
 

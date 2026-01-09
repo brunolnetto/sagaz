@@ -479,7 +479,7 @@ class PostgreSQLSagaStorage(SagaStorage):
         """Count total sagas."""
         pool = await self._get_pool()
         async with pool.acquire() as conn:
-            return await conn.fetchval("SELECT COUNT(*) FROM sagas")
+            return int(await conn.fetchval("SELECT COUNT(*) FROM sagas"))
 
     async def export_all(self):  # pragma: no cover
         """Export all records for transfer.

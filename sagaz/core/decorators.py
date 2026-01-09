@@ -563,7 +563,7 @@ class Saga:
         if newly_tainted:
             logger.info(f"Pivot '{pivot_step_id}' completed - tainted ancestors: {newly_tainted}")
 
-        return newly_tainted
+        return set(newly_tainted)
 
     def _is_step_tainted(self, step_id: str) -> bool:
         """Check if a step is tainted (locked from rollback)."""

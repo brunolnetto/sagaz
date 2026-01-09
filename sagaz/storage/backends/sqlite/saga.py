@@ -108,6 +108,9 @@ class SQLiteSagaStorage(SagaStorage):
     async def _init_schema(self) -> None:
         """Initialize database schema."""
         conn = self._conn
+        if conn is None:
+            msg = "Connection not initialized"
+            raise RuntimeError(msg)
         await conn.executescript("""
             CREATE TABLE IF NOT EXISTS sagas (
                 saga_id TEXT PRIMARY KEY,
@@ -140,7 +143,7 @@ class SQLiteSagaStorage(SagaStorage):
         if self._conn:
             await self._conn.close()
             self._conn = None
-            self._initialized = False
+        self._initialized = False
 
     async def save_saga_state(
         self,
@@ -304,6 +307,11 @@ class SQLiteSagaStorage(SagaStorage):
             FROM sagas
         """)
         row = await cursor.fetchone()
+        if not row:
+            return {
+                "total": 0,
+                "by_status": {"completed": 0, "rolled_back": 0, "failed": 0, "executing": 0},
+            }
 
         return {
             "total": row["total"] or 0,

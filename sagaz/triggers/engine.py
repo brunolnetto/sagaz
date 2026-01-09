@@ -82,6 +82,8 @@ class TriggerEngine:
                 return None
 
             # 4. Run saga
+            if context is None:
+                context = {}
             await self._run_saga(saga_class, saga_id, context)
             return saga_id
 
@@ -144,8 +146,10 @@ class TriggerEngine:
         transformer = getattr(saga_instance, method_name)
 
         if asyncio.iscoroutinefunction(transformer):
-            return await transformer(payload)
-        return transformer(payload)
+            result = await transformer(payload)
+            return dict(result) if result else None
+        result = transformer(payload)
+        return dict(result) if result else None
 
     def _derive_saga_id(self, metadata: TriggerMetadata, payload: Any) -> str | None:
         """Derive deterministic Saga ID if idempotency key logic is provided."""

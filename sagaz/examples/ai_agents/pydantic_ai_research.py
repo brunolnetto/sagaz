@@ -184,7 +184,7 @@ class AIResearchSaga(Saga):
     def on_research_request(self, event: dict) -> dict:
         """Handle incoming research requests."""
         if not event.get("topic"):
-            return None
+            return None  # type: ignore[return-value]
 
         return {
             "request_id": event.get("request_id", f"req-{datetime.now().timestamp()}"),
@@ -206,7 +206,7 @@ class AIResearchSaga(Saga):
 
         deps = ResearchDeps(topic=ctx["topic"], depth=ctx["depth"])
 
-        result = await outline_agent.run(
+        result = await outline_agent.run(  # type: ignore[union-attr]
             f"Create a research outline for: {ctx['topic']}. Depth level: {ctx['depth']}", deps=deps
         )
 
@@ -240,7 +240,7 @@ class AIResearchSaga(Saga):
         Provide comprehensive research findings.
         """
 
-        result = await findings_agent.run(prompt, deps=deps)
+        result = await findings_agent.run(prompt, deps=deps)  # type: ignore[union-attr]
         findings = result.output
 
         return {"findings": findings.model_dump(), "findings_gathered": True}
@@ -272,7 +272,7 @@ class AIResearchSaga(Saga):
         Provide a comprehensive, actionable report.
         """
 
-        result = await report_agent.run(prompt, deps=deps)
+        result = await report_agent.run(prompt, deps=deps)  # type: ignore[union-attr]
         report = result.output
 
         return {"report": report.model_dump(), "report_ready": True}

@@ -49,7 +49,9 @@ def trigger(
     """
 
     def decorator(func: F) -> F:
-        func._trigger_metadata = TriggerMetadata(
+        # Cast to Any to allow setting arbitrary attributes
+        fn_any: Any = func
+        fn_any._trigger_metadata = TriggerMetadata(
             source=source,
             config=kwargs,
             max_concurrent=max_concurrent,

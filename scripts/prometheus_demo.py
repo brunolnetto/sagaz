@@ -25,8 +25,7 @@ from sagaz.monitoring.prometheus import PrometheusMetrics, start_metrics_server
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
 )
 logger = logging.getLogger("sagaz.demo")
 
@@ -38,14 +37,12 @@ prometheus_metrics = PrometheusMetrics()
 # Define real Sagaz sagas using the declarative API
 # ============================================================================
 
+
 class OrderProcessingSaga(Saga):
     """Order processing saga with inventory, payment, and shipping."""
 
     saga_name = "order-processing"
-    listeners = [
-        LoggingSagaListener(),
-        MetricsSagaListener(metrics=prometheus_metrics)
-    ]
+    listeners = [LoggingSagaListener(), MetricsSagaListener(metrics=prometheus_metrics)]
 
     @action("validate_order")
     async def validate_order(self, ctx):
@@ -93,10 +90,7 @@ class PaymentRefundSaga(Saga):
     """Saga for processing refunds."""
 
     saga_name = "payment-refund"
-    listeners = [
-        LoggingSagaListener(),
-        MetricsSagaListener(metrics=prometheus_metrics)
-    ]
+    listeners = [LoggingSagaListener(), MetricsSagaListener(metrics=prometheus_metrics)]
 
     @action("validate_refund_request")
     async def validate_refund(self, ctx):
@@ -122,10 +116,7 @@ class UserOnboardingSaga(Saga):
     """Saga for onboarding new users."""
 
     saga_name = "user-onboarding"
-    listeners = [
-        LoggingSagaListener(),
-        MetricsSagaListener(metrics=prometheus_metrics)
-    ]
+    listeners = [LoggingSagaListener(), MetricsSagaListener(metrics=prometheus_metrics)]
 
     @action("create_user_account")
     async def create_account(self, ctx):
@@ -155,6 +146,7 @@ class UserOnboardingSaga(Saga):
 # ============================================================================
 # Main demo loop
 # ============================================================================
+
 
 async def run_demo_loop():
     """Continuously run saga demos to generate metrics."""

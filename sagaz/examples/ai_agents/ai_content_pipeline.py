@@ -194,7 +194,7 @@ class ContentPipelineSaga(Saga):
     def on_content_request(self, event: dict) -> dict:
         """Handle content generation requests."""
         if not event.get("topic"):
-            return None
+            return None  # type: ignore[return-value]
 
         return {
             "request_id": event.get("request_id", f"content-{datetime.now().timestamp()}"),
@@ -220,7 +220,7 @@ class ContentPipelineSaga(Saga):
             topic=ctx["topic"], audience=ctx["audience"], tone=ctx["tone"], keywords=ctx["keywords"]
         )
 
-        result = await outline_agent.run(
+        result = await outline_agent.run(  # type: ignore[union-attr]
             f"Create an article outline for: {ctx['topic']}. "
             f"Target audience: {ctx['audience']}. Tone: {ctx['tone']}.",
             deps=deps,
@@ -262,7 +262,7 @@ class ContentPipelineSaga(Saga):
         Audience: {ctx["audience"]}
         """
 
-        result = await content_agent.run(prompt, deps=deps)
+        result = await content_agent.run(prompt, deps=deps)  # type: ignore[union-attr]
         content = result.output
 
         return {"content": content.model_dump()}
@@ -297,7 +297,7 @@ class ContentPipelineSaga(Saga):
         Assess readability, structure, and engagement.
         """
 
-        result = await quality_agent.run(prompt, deps=deps)
+        result = await quality_agent.run(prompt, deps=deps)  # type: ignore[union-attr]
         quality = result.output
 
         return {"quality": quality.model_dump(), "meets_threshold": quality.overall_score >= 7.0}
@@ -329,7 +329,7 @@ class ContentPipelineSaga(Saga):
         Provide optimized title, meta, and recommendations.
         """
 
-        result = await seo_agent.run(prompt, deps=deps)
+        result = await seo_agent.run(prompt, deps=deps)  # type: ignore[union-attr]
         seo = result.output
 
         return {"seo": seo.model_dump()}

@@ -25,40 +25,28 @@ logger = logging.getLogger("sagaz.metrics_demo")
 SAGA_TOTAL = Counter(
     "saga_execution_total",  # Note: singular to match dashboard
     "Total saga executions",
-    ["saga_name", "status"]
+    ["saga_name", "status"],
 )
 
-SAGA_COMPENSATIONS = Counter(
-    "saga_compensations_total",
-    "Total saga compensations",
-    ["saga_name"]
-)
+SAGA_COMPENSATIONS = Counter("saga_compensations_total", "Total saga compensations", ["saga_name"])
 
 SAGA_DURATION = Histogram(
     "saga_execution_duration_seconds",
     "Saga execution duration in seconds",
     ["saga_name"],
-    buckets=[.01, .025, .05, .1, .25, .5, 1.0, 2.5, 5.0, 10.0]
+    buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0],
 )
 
 STEP_DURATION = Histogram(
     "saga_step_duration_seconds",
     "Saga step execution duration in seconds",
     ["saga_name", "step_name"],
-    buckets=[.001, .005, .01, .025, .05, .1, .25, .5, 1.0]
+    buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0],
 )
 
-OUTBOX_EVENTS = Counter(
-    "outbox_events_total",
-    "Total outbox events",
-    ["event_type", "status"]
-)
+OUTBOX_EVENTS = Counter("outbox_events_total", "Total outbox events", ["event_type", "status"])
 
-ACTIVE_SAGAS = Gauge(
-    "saga_active_count",
-    "Number of currently running sagas",
-    ["saga_name"]
-)
+ACTIVE_SAGAS = Gauge("saga_active_count", "Number of currently running sagas", ["saga_name"])
 
 
 async def simulate_saga_execution(saga_name: str, steps: list[str], should_fail: bool = False):
