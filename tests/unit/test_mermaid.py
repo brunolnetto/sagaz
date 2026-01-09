@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from sagaz import Saga, action, compensate
-from sagaz.core import Saga as ImperativeSaga
-from sagaz.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+from sagaz.core.saga import Saga as ImperativeSaga
+from sagaz.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
 
 class TestMermaidGeneratorEdgeCases:

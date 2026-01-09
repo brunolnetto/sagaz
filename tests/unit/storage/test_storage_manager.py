@@ -81,7 +81,7 @@ class TestInMemoryStorageManager:
     async def test_saga_operations(self):
         """Test saga storage operations through manager."""
         from sagaz.storage.manager import StorageManager
-        from sagaz.types import SagaStatus
+        from sagaz.core.types import SagaStatus
 
         async with StorageManager(url="memory://") as manager:
             await manager.saga.save_saga_state(
@@ -273,7 +273,7 @@ class TestSQLiteStorageManager:
 
         from sagaz.outbox.types import OutboxEvent
         from sagaz.storage.manager import StorageManager
-        from sagaz.types import SagaStatus
+        from sagaz.core.types import SagaStatus
 
         async with StorageManager(url="sqlite://:memory:") as manager:
             # Test saga operations
@@ -389,7 +389,7 @@ class TestHybridMode:
 
         from sagaz.outbox.types import OutboxEvent
         from sagaz.storage.manager import StorageManager
-        from sagaz.types import SagaStatus
+        from sagaz.core.types import SagaStatus
 
         manager = StorageManager(
             saga_url="sqlite://:memory:",
@@ -431,7 +431,7 @@ class TestSagaConfigIntegration:
     @pytest.mark.asyncio
     async def test_saga_config_with_storage_manager(self):
         """Test SagaConfig accepts storage_manager parameter."""
-        from sagaz.config import SagaConfig
+        from sagaz.core.config import SagaConfig
         from sagaz.storage.manager import StorageManager
 
         manager = StorageManager(url="memory://")
@@ -449,7 +449,7 @@ class TestSagaConfigIntegration:
     @pytest.mark.asyncio
     async def test_saga_config_cannot_mix_manager_with_storage(self):
         """Test SagaConfig raises error if both storage_manager and storage provided."""
-        from sagaz.config import SagaConfig
+        from sagaz.core.config import SagaConfig
         from sagaz.storage.manager import StorageManager
         from sagaz.storage.memory import InMemorySagaStorage
 
@@ -468,7 +468,7 @@ class TestSagaConfigIntegration:
     @pytest.mark.asyncio
     async def test_saga_config_cannot_mix_manager_with_outbox_storage(self):
         """Test SagaConfig raises error if both storage_manager and outbox_storage provided."""
-        from sagaz.config import SagaConfig
+        from sagaz.core.config import SagaConfig
         from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
         from sagaz.storage.manager import StorageManager
 
@@ -487,7 +487,7 @@ class TestSagaConfigIntegration:
     @pytest.mark.asyncio
     async def test_saga_config_manager_not_initialized_warning(self):
         """Test SagaConfig warns if manager not initialized."""
-        from sagaz.config import SagaConfig
+        from sagaz.core.config import SagaConfig
         from sagaz.storage.manager import StorageManager
 
         manager = StorageManager(url="memory://")
@@ -503,7 +503,7 @@ class TestSagaConfigIntegration:
     @pytest.mark.asyncio
     async def test_saga_config_manager_with_broker(self):
         """Test SagaConfig with storage_manager and broker."""
-        from sagaz.config import SagaConfig
+        from sagaz.core.config import SagaConfig
         from sagaz.outbox.brokers.memory import InMemoryBroker
         from sagaz.storage.manager import StorageManager
 
@@ -523,9 +523,9 @@ class TestSagaConfigIntegration:
     async def test_saga_with_storage_manager(self):
         """Test running a saga with StorageManager configuration."""
         from sagaz import Saga, action, configure
-        from sagaz.config import SagaConfig
+        from sagaz.core.config import SagaConfig
         from sagaz.storage.manager import StorageManager
-        from sagaz.types import SagaStatus
+        from sagaz.core.types import SagaStatus
 
         manager = StorageManager(url="memory://")
         await manager.initialize()
@@ -549,7 +549,7 @@ class TestSagaConfigIntegration:
             assert result.get("done") is True
         finally:
             # Reset global config
-            from sagaz.config import _global_config
+            from sagaz.core.config import _global_config
             if _global_config is config:
                 configure(SagaConfig())  # Reset to default
             await manager.close()

@@ -10,7 +10,7 @@ from typing import Any
 import pytest
 
 # We'll import from sagaz.decorators once implemented
-# from sagaz.decorators import Saga, step, compensate, StepHook
+# from sagaz.core.decorators import Saga, step, compensate, StepHook
 
 
 class TestStepHooksBasic:
@@ -19,7 +19,7 @@ class TestStepHooksBasic:
     @pytest.mark.asyncio
     async def test_on_enter_called_before_step_execution(self):
         """Hook on_enter should be called before the step executes."""
-        from sagaz.decorators import Saga, step
+        from sagaz.core.decorators import Saga, step
 
         execution_order = []
 
@@ -40,7 +40,7 @@ class TestStepHooksBasic:
     @pytest.mark.asyncio
     async def test_on_success_called_after_successful_step(self):
         """Hook on_success should be called after step completes successfully."""
-        from sagaz.decorators import Saga, step
+        from sagaz.core.decorators import Saga, step
 
         success_events = []
 
@@ -64,7 +64,7 @@ class TestStepHooksBasic:
     @pytest.mark.asyncio
     async def test_on_failure_called_when_step_fails(self):
         """Hook on_failure should be called when step raises an exception."""
-        from sagaz.decorators import Saga, step
+        from sagaz.core.decorators import Saga, step
 
         failure_events = []
 
@@ -89,7 +89,7 @@ class TestStepHooksBasic:
     @pytest.mark.asyncio
     async def test_on_compensate_called_during_compensation(self):
         """Hook on_compensate should be called when compensation runs."""
-        from sagaz.decorators import Saga, compensate, step
+        from sagaz.core.decorators import Saga, compensate, step
 
         compensate_events = []
 
@@ -126,7 +126,7 @@ class TestStepHooksWithOutbox:
     @pytest.mark.asyncio
     async def test_publish_event_on_success(self):
         """on_success hook can publish events to outbox."""
-        from sagaz.decorators import Saga, step
+        from sagaz.core.decorators import Saga, step
         from sagaz.outbox import InMemoryOutboxStorage
         from sagaz.outbox.types import OutboxEvent
 
@@ -158,7 +158,7 @@ class TestStepHooksWithOutbox:
     @pytest.mark.asyncio
     async def test_publish_event_on_failure(self):
         """on_failure hook can publish failure events."""
-        from sagaz.decorators import Saga, step
+        from sagaz.core.decorators import Saga, step
         from sagaz.outbox import InMemoryOutboxStorage
         from sagaz.outbox.types import OutboxEvent
 
@@ -195,7 +195,7 @@ class TestStepHooksMultiple:
     @pytest.mark.asyncio
     async def test_all_hooks_on_successful_step(self):
         """All applicable hooks should be called in order."""
-        from sagaz.decorators import Saga, step
+        from sagaz.core.decorators import Saga, step
 
         events = []
 
@@ -219,7 +219,7 @@ class TestStepHooksMultiple:
     @pytest.mark.asyncio
     async def test_all_hooks_on_failed_step(self):
         """on_enter and on_failure should be called for failed step."""
-        from sagaz.decorators import Saga, step
+        from sagaz.core.decorators import Saga, step
 
         events = []
 
@@ -257,7 +257,7 @@ class TestStepHooksSyncSupport:
     @pytest.mark.asyncio
     async def test_sync_hook_is_supported(self):
         """Sync functions should work as hooks."""
-        from sagaz.decorators import Saga, step
+        from sagaz.core.decorators import Saga, step
 
         events = []
 
@@ -285,7 +285,7 @@ class TestStepHooksErrorHandling:
     @pytest.mark.asyncio
     async def test_hook_error_does_not_break_saga(self):
         """Errors in hooks should be logged but not break the saga."""
-        from sagaz.decorators import Saga, step
+        from sagaz.core.decorators import Saga, step
 
         step_executed = False
 
@@ -311,7 +311,7 @@ class TestStepHooksErrorHandling:
     @pytest.mark.asyncio
     async def test_on_success_error_does_not_hide_result(self):
         """Error in on_success hook should not hide the step result."""
-        from sagaz.decorators import Saga, step
+        from sagaz.core.decorators import Saga, step
 
         async def failing_success_hook(ctx, step_name, result):
             msg = "Success hook failed!"
@@ -335,8 +335,8 @@ class TestHookHelperDecorators:
     @pytest.mark.asyncio
     async def test_on_step_enter_decorator(self):
         """@on_step_enter decorator should work standalone."""
-        from sagaz.decorators import Saga, step
-        from sagaz.hooks import on_step_enter
+        from sagaz.core.decorators import Saga, step
+        from sagaz.core.hooks import on_step_enter
 
         entered_steps = []
 
@@ -361,8 +361,8 @@ class TestHookHelperDecorators:
     @pytest.mark.asyncio
     async def test_publish_on_success_helper(self):
         """publish_on_success helper creates a hook that publishes events."""
-        from sagaz.decorators import Saga, step
-        from sagaz.hooks import publish_on_success
+        from sagaz.core.decorators import Saga, step
+        from sagaz.core.hooks import publish_on_success
         from sagaz.outbox import InMemoryOutboxStorage
 
         storage = InMemoryOutboxStorage()

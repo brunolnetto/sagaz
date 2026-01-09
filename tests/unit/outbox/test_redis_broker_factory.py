@@ -526,7 +526,7 @@ class TestBrokerFactory:
 
     def test_create_broker_missing_dependency(self):
         """Test creating broker with missing dependency."""
-        from sagaz.exceptions import MissingDependencyError
+        from sagaz.core.exceptions import MissingDependencyError
 
         with patch("sagaz.outbox.brokers.kafka.KAFKA_AVAILABLE", False):
             from sagaz.outbox.brokers.factory import create_broker

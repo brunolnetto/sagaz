@@ -17,7 +17,7 @@ Usage:
 
 from typing import Any
 
-from sagaz.exceptions import MissingDependencyError
+from sagaz.core.exceptions import MissingDependencyError
 from sagaz.outbox.brokers.base import MessageBroker
 from sagaz.outbox.brokers.memory import InMemoryBroker
 

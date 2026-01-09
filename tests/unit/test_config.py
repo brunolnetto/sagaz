@@ -9,7 +9,7 @@ from unittest.mock import patch
 import pytest
 
 from sagaz import Saga, SagaConfig, action, configure, get_config
-from sagaz.listeners import (
+from sagaz.core.listeners import (
     LoggingSagaListener,
     MetricsSagaListener,
     OutboxSagaListener,
@@ -265,9 +265,9 @@ class TestGlobalConfiguration:
     def test_get_config_default(self):
         """Test get_config returns default config."""
         # Reset global config
-        import sagaz.config
+        import sagaz.core.config
 
-        sagaz.config._global_config = None
+        sagaz.core.config._global_config = None
 
         config = get_config()
         assert isinstance(config, SagaConfig)

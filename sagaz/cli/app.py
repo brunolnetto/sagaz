@@ -17,7 +17,7 @@ from pathlib import Path
 
 import click
 
-from sagaz import cli_examples
+from sagaz.cli import examples as cli_examples
 
 try:
     from rich.console import Console

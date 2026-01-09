@@ -1,7 +1,7 @@
 
 import pytest
 
-from sagaz.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+from sagaz.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
 
 @pytest.fixture

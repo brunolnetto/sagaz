@@ -15,7 +15,7 @@ Step State Diagram:
                      ↘ FAILED (unrecoverable)
 
 Usage:
-    >>> from sagaz.state_machine import SagaStateMachine
+    >>> from sagaz.execution.state_machine import SagaStateMachine
     >>>
     >>> class OrderSaga:
     ...     steps = [step1, step2]
@@ -33,7 +33,7 @@ from statemachine import State, StateMachine
 from statemachine.exceptions import TransitionNotAllowed
 
 if TYPE_CHECKING:  # pragma: no cover
-    from sagaz.core import Saga
+    from sagaz.core.saga import Saga
 
 
 class SagaStateMachine(StateMachine):

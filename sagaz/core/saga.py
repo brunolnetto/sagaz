@@ -63,14 +63,14 @@ if TYPE_CHECKING:  # pragma: no cover
 
 from statemachine.exceptions import TransitionNotAllowed
 
-from sagaz.exceptions import (
+from sagaz.core.exceptions import (
     SagaCompensationError,
     SagaExecutionError,
     SagaStepError,
     SagaTimeoutError,
 )
-from sagaz.state_machine import SagaStateMachine
-from sagaz.types import ParallelFailureStrategy, SagaResult, SagaStatus, SagaStepStatus
+from sagaz.execution.state_machine import SagaStateMachine
+from sagaz.core.types import ParallelFailureStrategy, SagaResult, SagaStatus, SagaStepStatus
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -387,7 +387,7 @@ class Saga(ABC):
         Returns:
             Mermaid diagram string that can be rendered in markdown.
         """
-        from sagaz.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+        from sagaz.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
         # Convert steps to StepInfo format
         steps = [

@@ -16,7 +16,7 @@ class TestCompensationGraphTo100:
     @pytest.mark.asyncio
     async def test_compensation_graph_validation_circular(self):
         """Test validate() method detecting circular dependencies"""
-        from sagaz.execution_graph import CircularDependencyError, SagaExecutionGraph
+        from sagaz.execution.graph import CircularDependencyError, SagaExecutionGraph
 
         graph = SagaExecutionGraph()
 
@@ -34,7 +34,7 @@ class TestCompensationGraphTo100:
     @pytest.mark.asyncio
     async def test_compensation_graph_find_cycle_deep(self):
         """Test _find_cycle method with deeper cycle"""
-        from sagaz.execution_graph import CircularDependencyError, SagaExecutionGraph
+        from sagaz.execution.graph import CircularDependencyError, SagaExecutionGraph
 
         graph = SagaExecutionGraph()
 
@@ -63,7 +63,7 @@ class TestCoreTo100:
     async def test_saga_no_completed_steps_compensation_attempt(self):
         """Test compensation when no steps completed"""
         from sagaz import SagaContext
-        from sagaz.core import Saga as ClassicSaga
+        from sagaz.core.saga import Saga as ClassicSaga
 
         saga = ClassicSaga(name="TestSaga")
 
@@ -86,7 +86,7 @@ class TestCoreTo100:
         import asyncio
 
         from sagaz import SagaContext, SagaExecutionError
-        from sagaz.core import Saga as ClassicSaga
+        from sagaz.core.saga import Saga as ClassicSaga
 
         saga = ClassicSaga(name="TestSaga")
 
@@ -118,7 +118,7 @@ class TestDecoratorsTo100:
     @pytest.mark.asyncio
     async def test_saga_execution_order_circular_dependency(self):
         """Test get_execution_order with circular dependency"""
-        from sagaz.decorators import Saga, step
+        from sagaz.core.decorators import Saga, step
 
         class BadSaga(Saga):
             @step(name="step_a", depends_on=["step_b"])
@@ -138,7 +138,7 @@ class TestDecoratorsTo100:
     @pytest.mark.asyncio
     async def test_saga_compensation_error_handling(self):
         """Test compensation errors are logged but don't fail"""
-        from sagaz.decorators import Saga, compensate, step
+        from sagaz.core.decorators import Saga, compensate, step
 
         class CompErrorSaga(Saga):
             @step(name="step1")
@@ -169,7 +169,7 @@ class TestStateMachineTo100:
     async def test_state_machine_transitions(self):
         """Test state machine transition callbacks"""
         from sagaz import SagaContext
-        from sagaz.core import Saga as ClassicSaga
+        from sagaz.core.saga import Saga as ClassicSaga
 
         saga = ClassicSaga(name="TestSaga")
 
@@ -192,7 +192,7 @@ class TestStorageTo100:
     async def test_memory_storage_list_sagas_pagination(self):
         """Test memory storage list with pagination"""
         from sagaz.storage.memory import InMemorySagaStorage
-        from sagaz.types import SagaStatus
+        from sagaz.core.types import SagaStatus
 
         storage = InMemorySagaStorage()
 
@@ -276,8 +276,8 @@ class TestOrchestratorTo100:
         import logging
 
         from sagaz import SagaContext
-        from sagaz.core import Saga as ClassicSaga
-        from sagaz.orchestrator import SagaOrchestrator
+        from sagaz.core.saga import Saga as ClassicSaga
+        from sagaz.execution.orchestrator import SagaOrchestrator
 
         # Create orchestrator with verbose mode
         logger = logging.getLogger("test")
@@ -312,7 +312,7 @@ class TestMonitoringTo100:
     def test_metrics_record_execution(self):
         """Test metrics record_execution method"""
         from sagaz.monitoring.metrics import SagaMetrics
-        from sagaz.types import SagaStatus
+        from sagaz.core.types import SagaStatus
 
         metrics = SagaMetrics()
 

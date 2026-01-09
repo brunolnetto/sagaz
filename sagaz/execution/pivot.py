@@ -13,7 +13,7 @@ rollback is no longer possible or desirable. Examples include:
 
 Usage:
     >>> from sagaz import Saga, action, compensate, forward_recovery
-    >>> from sagaz.pivot import RecoveryAction
+    >>> from sagaz.execution.pivot import RecoveryAction
     >>>
     >>> class PaymentSaga(Saga):
     ...     saga_name = "payment"

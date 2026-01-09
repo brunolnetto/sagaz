@@ -6,7 +6,7 @@ like publishing events to outbox on step success/failure.
 
 Example:
     >>> from sagaz import Saga, step
-    >>> from sagaz.hooks import publish_on_success, on_step_enter
+    >>> from sagaz.core.hooks import publish_on_success, on_step_enter
     >>>
     >>> class OrderSaga(Saga):
     ...     @step(

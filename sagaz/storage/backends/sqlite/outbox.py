@@ -26,7 +26,7 @@ except ImportError:  # pragma: no cover
     AIOSQLITE_AVAILABLE = False
     aiosqlite = None
 
-from sagaz.exceptions import MissingDependencyError
+from sagaz.core.exceptions import MissingDependencyError
 from sagaz.outbox.types import OutboxEvent, OutboxStatus
 from sagaz.storage.core import (
     HealthCheckResult,

@@ -4,7 +4,7 @@ Tests for the compensation graph module.
 
 import pytest
 
-from sagaz.execution_graph import (
+from sagaz.execution.graph import (
     CircularDependencyError,
     CompensationFailureStrategy,
     CompensationNode,

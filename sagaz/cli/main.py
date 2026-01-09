@@ -50,7 +50,7 @@ def main():
         sys.exit(1)
 
     # Import and run the CLI app
-    from sagaz.cli_app import cli
+    from sagaz.cli.app import cli
 
     cli()
 

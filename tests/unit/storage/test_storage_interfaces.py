@@ -16,7 +16,7 @@ from sagaz.storage.interfaces import (
     SagaStorage,
     Transferable,
 )
-from sagaz.types import SagaStatus, SagaStepStatus
+from sagaz.core.types import SagaStatus, SagaStepStatus
 
 
 class TestSagaStorageInterface:

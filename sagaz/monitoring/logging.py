@@ -11,7 +11,7 @@ from contextvars import ContextVar
 from datetime import UTC, datetime
 from typing import Any
 
-from sagaz.types import SagaStatus
+from sagaz.core.types import SagaStatus
 
 # Context variables for propagating saga context
 saga_context: ContextVar[dict[str, Any]] = ContextVar("saga_context", default={})

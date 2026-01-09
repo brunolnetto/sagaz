@@ -214,7 +214,7 @@ class TestPrometheusMetricsConfiguration:
 
     def test_metrics_listener_works_without_custom_metrics(self):
         """Test MetricsSagaListener with default metrics."""
-        from sagaz.listeners import MetricsSagaListener
+        from sagaz.core.listeners import MetricsSagaListener
 
         # Should create with default metrics
         listener = MetricsSagaListener()

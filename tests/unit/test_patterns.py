@@ -184,7 +184,7 @@ class TestTracingSpanRecording:
     def test_record_saga_completion_not_recording(self):
         """Test record_saga_completion when span is not recording."""
         from sagaz.monitoring.tracing import SagaTracer
-        from sagaz.types import SagaStatus
+        from sagaz.core.types import SagaStatus
 
         tracer = SagaTracer("test-service")
 
@@ -211,7 +211,7 @@ class TestTracingSpanRecording:
     def test_record_step_completion_failure_with_error(self):
         """Test record_step_completion for failed step with error."""
         from sagaz.monitoring.tracing import SagaTracer
-        from sagaz.types import SagaStepStatus
+        from sagaz.core.types import SagaStepStatus
 
         tracer = SagaTracer("test-service")
 
@@ -246,7 +246,7 @@ class TestCompensationGraphCycleEdgeCases:
 
     def test_find_cycle_with_already_visited_node(self):
         """Test _find_cycle when a node is already in visited set but not in path."""
-        from sagaz.execution_graph import SagaExecutionGraph
+        from sagaz.execution.graph import SagaExecutionGraph
 
         graph = SagaExecutionGraph()
 
@@ -269,7 +269,7 @@ class TestCompensationGraphCycleEdgeCases:
 
     def test_circular_dependency_raises_error(self):
         """Test that circular dependencies raise CircularDependencyError."""
-        from sagaz.execution_graph import (
+        from sagaz.execution.graph import (
             CircularDependencyError,
             SagaExecutionGraph,
         )
@@ -303,9 +303,9 @@ class TestStatusBranchCoverage:
     @pytest.mark.asyncio
     async def test_to_mermaid_with_execution_compensating_status(self):
         """Test Mermaid diagram with 'compensating' status."""
-        from sagaz.core import Saga
+        from sagaz.core.saga import Saga
         from sagaz.storage.memory import InMemorySagaStorage
-        from sagaz.types import SagaStatus
+        from sagaz.core.types import SagaStatus
 
         storage = InMemorySagaStorage()
 
@@ -353,9 +353,9 @@ class TestDecoratorStatusBranches:
     @pytest.mark.asyncio
     async def test_saga_compensated_status_handling(self):
         """Test saga with compensated status."""
-        from sagaz.core import Saga
+        from sagaz.core.saga import Saga
         from sagaz.storage.memory import InMemorySagaStorage
-        from sagaz.types import SagaStatus
+        from sagaz.core.types import SagaStatus
 
         storage = InMemorySagaStorage()
 
@@ -425,7 +425,7 @@ class TestTracingUnavailableFallbacks:
         with patch("sagaz.monitoring.tracing.TRACING_AVAILABLE", False):
             # Re-import to get fresh instance with TRACING_AVAILABLE=False
             from sagaz.monitoring import tracing
-            from sagaz.types import SagaStatus, SagaStepStatus
+            from sagaz.core.types import SagaStatus, SagaStepStatus
 
             # Override the module-level flag
             original = tracing.TRACING_AVAILABLE

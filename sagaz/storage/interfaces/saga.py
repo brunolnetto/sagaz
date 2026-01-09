@@ -14,7 +14,7 @@ from sagaz.storage.core import (
     HealthCheckResult,
     StorageStatistics,
 )
-from sagaz.types import SagaStatus, SagaStepStatus
+from sagaz.core.types import SagaStatus, SagaStepStatus
 
 
 @runtime_checkable

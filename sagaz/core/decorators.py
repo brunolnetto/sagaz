@@ -37,9 +37,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from sagaz.storage.base import SagaStorage
 
 
-from sagaz.execution_graph import CompensationType, SagaExecutionGraph
-from sagaz.logger import get_logger
-from sagaz.types import SagaStatus
+from sagaz.execution.graph import CompensationType, SagaExecutionGraph
+from sagaz.core.logger import get_logger
+from sagaz.core.types import SagaStatus
 
 logger = get_logger(__name__)
 
@@ -261,7 +261,7 @@ def forward_recovery(
 
     Example:
         >>> from sagaz import Saga, action, compensate, forward_recovery
-        >>> from sagaz.pivot import RecoveryAction
+        >>> from sagaz.execution.pivot import RecoveryAction
         >>>
         >>> class PaymentSaga(Saga):
         ...     saga_name = "payment"
@@ -356,7 +356,7 @@ class Saga:
         listeners: List of SagaListener instances to notify
 
     Example:
-        >>> from sagaz.listeners import LoggingSagaListener, MetricsSagaListener
+        >>> from sagaz.core.listeners import LoggingSagaListener, MetricsSagaListener
         >>>
         >>> class OrderSaga(Saga):
         ...     saga_name = "order-processing"
@@ -433,7 +433,7 @@ class Saga:
         if config is not None:
             self._config = config
         else:
-            from sagaz.config import get_config
+            from sagaz.core.config import get_config
 
             self._config = get_config()
 
@@ -533,7 +533,7 @@ class Saga:
 
     def _get_taint_propagator(self):
         """Create a TaintPropagator for this saga."""
-        from sagaz.pivot import TaintPropagator
+        from sagaz.execution.pivot import TaintPropagator
 
         step_names = {step.step_id for step in self._steps}
         dependencies = {step.step_id: set(step.depends_on) for step in self._steps}
@@ -695,7 +695,7 @@ class Saga:
             ...     "compensated_steps": ["charge", "reserve"]
             ... })
         """
-        from sagaz.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+        from sagaz.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
         # Convert steps to StepInfo format
         steps = [

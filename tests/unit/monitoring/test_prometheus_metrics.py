@@ -12,7 +12,7 @@ from sagaz.monitoring.prometheus import (
     is_prometheus_available,
     start_metrics_server,
 )
-from sagaz.types import SagaStatus
+from sagaz.core.types import SagaStatus
 
 
 @pytest.fixture

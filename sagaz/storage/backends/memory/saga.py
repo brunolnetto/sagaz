@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from sagaz.storage.base import SagaStorage, SagaStorageError
-from sagaz.types import SagaStatus, SagaStepStatus
+from sagaz.core.types import SagaStatus, SagaStepStatus
 
 
 class InMemorySagaStorage(SagaStorage):

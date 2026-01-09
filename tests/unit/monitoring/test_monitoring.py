@@ -13,7 +13,7 @@ from io import StringIO
 
 import pytest
 
-from sagaz.core import Saga, SagaContext
+from sagaz.core.saga import Saga, SagaContext
 from sagaz.monitoring.logging import (
     SagaContextFilter,
     SagaJsonFormatter,
@@ -23,7 +23,7 @@ from sagaz.monitoring.logging import (
 )
 from sagaz.monitoring.metrics import SagaMetrics
 from sagaz.monitoring.tracing import SagaTracer, trace_saga_action, trace_saga_compensation
-from sagaz.types import SagaStatus
+from sagaz.core.types import SagaStatus
 
 
 class TestSagaJsonFormatter:
@@ -433,7 +433,7 @@ class TestSagaTracer:
         tracer = SagaTracer(service_name="step-completion-test")
 
         # Should not raise exception
-        from sagaz.types import SagaStepStatus
+        from sagaz.core.types import SagaStepStatus
 
         tracer.record_step_completion(
             step_name="step1", status=SagaStepStatus.COMPLETED, duration_ms=50.0, retry_count=0
@@ -491,7 +491,7 @@ class TestSagaTracer:
         # Should not raise
 
         # Test recording step error
-        from sagaz.types import SagaStepStatus
+        from sagaz.core.types import SagaStepStatus
 
         tracer.record_step_completion(
             step_name="step1",

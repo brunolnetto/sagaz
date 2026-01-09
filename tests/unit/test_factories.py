@@ -40,8 +40,8 @@ class TestFinalCoverage:
     @pytest.mark.asyncio
     async def test_state_machine_callbacks(self):
         """Test state machine optional callbacks"""
-        from sagaz.core import Saga as ClassicSaga
-        from sagaz.state_machine import SagaStateMachine
+        from sagaz.core.saga import Saga as ClassicSaga
+        from sagaz.execution.state_machine import SagaStateMachine
 
         saga = ClassicSaga(name="TestSaga")
         sm = SagaStateMachine(saga)
@@ -54,7 +54,7 @@ class TestFinalCoverage:
     @pytest.mark.asyncio
     async def test_compensation_graph_reset(self):
         """Test compensation graph reset_execution"""
-        from sagaz.execution_graph import SagaExecutionGraph
+        from sagaz.execution.graph import SagaExecutionGraph
 
         graph = SagaExecutionGraph()
 
@@ -93,7 +93,7 @@ class TestFinalCoverage:
     @pytest.mark.asyncio
     async def test_compensation_graph_unexecuted_steps(self):
         """Test compensation graph with unexecuted steps"""
-        from sagaz.execution_graph import SagaExecutionGraph
+        from sagaz.execution.graph import SagaExecutionGraph
 
         graph = SagaExecutionGraph()
 
@@ -119,7 +119,7 @@ class TestFinalCoverage:
     @pytest.mark.asyncio
     async def test_state_machine_step_lifecycle(self):
         """Test step state machine lifecycle"""
-        from sagaz.state_machine import SagaStepStateMachine
+        from sagaz.execution.state_machine import SagaStepStateMachine
 
         sm = SagaStepStateMachine(step_name="test_step")
 
