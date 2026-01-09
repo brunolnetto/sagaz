@@ -147,9 +147,9 @@ class TriggerEngine:
 
         if asyncio.iscoroutinefunction(transformer):
             result = await transformer(payload)
-            return dict(result) if result else None
+            return dict(result) if result is not None else None
         result = transformer(payload)
-        return dict(result) if result else None
+        return dict(result) if result is not None else None
 
     def _derive_saga_id(self, metadata: TriggerMetadata, payload: Any) -> str | None:
         """Derive deterministic Saga ID if idempotency key logic is provided."""
