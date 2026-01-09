@@ -101,7 +101,7 @@ jobs:
           cache-dependency-glob: "uv.lock"
 
       - name: Install dependencies (with integration test deps)
-        run: uv sync --group dev --group integration-tests
+        run: uv sync --group dev --extra integration-tests
 
       - name: Run integration tests
         run: |
