@@ -36,6 +36,7 @@ logger = logging.getLogger(__name__)
 # Simulation Helpers
 # =============================================================================
 
+
 class StreamingPlatformSimulator:
     """Simulates a live streaming platform (like Twitch, YouTube Live)."""
 
@@ -111,6 +112,7 @@ class StreamingPlatformSimulator:
         await asyncio.sleep(0.2)
 
         import random
+
         # Simulate varying viewer counts and health
         viewer_count = random.randint(5000, 15000)
         dropped_frames = random.randint(0, 5)
@@ -141,6 +143,7 @@ class StreamingPlatformSimulator:
 # =============================================================================
 # Saga Definition
 # =============================================================================
+
 
 class LiveStreamingSaga(Saga):
     """
@@ -178,8 +181,7 @@ class LiveStreamingSaga(Saga):
             raise SagaStepError(msg)
 
         logger.info(
-            f"✅ [{event_id}] Event validated, "
-            f"estimated {result['estimated_viewers']:,} viewers"
+            f"✅ [{event_id}] Event validated, estimated {result['estimated_viewers']:,} viewers"
         )
 
         return {
@@ -315,9 +317,7 @@ class LiveStreamingSaga(Saga):
 
         result = await StreamingPlatformSimulator.start_broadcast(stream_key, title)
 
-        logger.info(
-            f"✅ [{event_id}] LIVE! Broadcast ID: {result['broadcast_id']}"
-        )
+        logger.info(f"✅ [{event_id}] LIVE! Broadcast ID: {result['broadcast_id']}")
         logger.info(f"   📺 Watch at: {result['stream_url']}")
 
         return {
@@ -360,9 +360,7 @@ class LiveStreamingSaga(Saga):
         }
 
     @forward_recovery("monitor_stream")
-    async def handle_stream_failure(
-        self, ctx: SagaContext, error: Exception
-    ) -> RecoveryAction:
+    async def handle_stream_failure(self, ctx: SagaContext, error: Exception) -> RecoveryAction:
         """
         Forward recovery for stream health issues.
 
@@ -413,6 +411,7 @@ class LiveStreamingSaga(Saga):
 # Demo Scenarios
 # =============================================================================
 
+
 async def main():
     """Run the live streaming saga demo."""
 
@@ -420,20 +419,20 @@ async def main():
 
     # Scenario 1: Successful live stream
 
-    await saga.run({
-        "event_id": "EVENT-2026-001",
-        "stream_key": "sk_a1b2c3d4e5f6",
-        "title": "🎮 Epic Gaming Championship Finals",
-        "scheduled_time": datetime.now().isoformat(),
-        "quality_profiles": ["1080p", "720p", "480p", "360p"],
-        "estimated_viewers": 50000,
-    })
-
+    await saga.run(
+        {
+            "event_id": "EVENT-2026-001",
+            "stream_key": "sk_a1b2c3d4e5f6",
+            "title": "🎮 Epic Gaming Championship Finals",
+            "scheduled_time": datetime.now().isoformat(),
+            "quality_profiles": ["1080p", "720p", "480p", "360p"],
+            "estimated_viewers": 50000,
+        }
+    )
 
     # Scenario 2: Pre-pivot failure
 
     # Scenario 3: Post-pivot scenarios
-
 
 
 if __name__ == "__main__":

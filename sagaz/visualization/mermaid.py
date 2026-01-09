@@ -483,7 +483,9 @@ class MermaidGenerator:
         if self.show_pivot_zones and self._has_pivots:
             self._lines.append("    %% Pivot Zone Styles")
             self._lines.append("    classDef reversible fill:#98FB98,stroke:#28a745,color:#155724")
-            self._lines.append("    classDef pivot fill:#FFD700,stroke:#FFA500,color:#8B4513,stroke-width:3px")
+            self._lines.append(
+                "    classDef pivot fill:#FFD700,stroke:#FFA500,color:#8B4513,stroke-width:3px"
+            )
             self._lines.append("    classDef committed fill:#87CEEB,stroke:#4169E1,color:#00008B")
             self._lines.append("    classDef tainted fill:#DDA0DD,stroke:#8B008B,color:#4B0082")
 

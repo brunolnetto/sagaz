@@ -31,9 +31,9 @@ console = Console()
 def main():
     """Main entry point for the sagaz CLI."""
     from sagaz.cli.app import cli
+
     cli()
 
 
 if __name__ == "__main__":
     main()
-

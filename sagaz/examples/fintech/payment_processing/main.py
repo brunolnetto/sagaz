@@ -14,8 +14,7 @@ from sagaz import Saga, SagaContext, action, compensate
 from sagaz.exceptions import SagaStepError
 
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -106,21 +105,23 @@ async def main():
     saga = PaymentProcessingSaga()
 
     # Pass payment data through the run() method
-    await saga.run({
-        "payment_id": "PAY-12345",
-        "amount": 250.00,
-        "providers": ["Stripe", "PayPal", "Square"],
-    })
-
+    await saga.run(
+        {
+            "payment_id": "PAY-12345",
+            "amount": 250.00,
+            "providers": ["Stripe", "PayPal", "Square"],
+        }
+    )
 
     # Demonstrate reusability - same saga, different payment
 
-    await saga.run({
-        "payment_id": "PAY-67890",
-        "amount": 99.99,
-        "providers": ["PayPal", "Stripe"],
-    })
-
+    await saga.run(
+        {
+            "payment_id": "PAY-67890",
+            "amount": 99.99,
+            "providers": ["PayPal", "Stripe"],
+        }
+    )
 
 
 if __name__ == "__main__":

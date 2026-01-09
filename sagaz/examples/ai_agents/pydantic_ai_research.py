@@ -35,8 +35,10 @@ from sagaz.triggers import fire_event, trigger
 # Pydantic Models for Structured AI Outputs
 # =============================================================================
 
+
 class ResearchOutline(BaseModel):
     """Structured output for research planning."""
+
     topic: str = Field(description="The main research topic")
     key_questions: list[str] = Field(description="Key questions to answer in the research")
     research_areas: list[str] = Field(description="Main areas to investigate")
@@ -45,6 +47,7 @@ class ResearchOutline(BaseModel):
 
 class ResearchFindings(BaseModel):
     """Structured output for research findings."""
+
     summary: str = Field(description="Executive summary of findings (2-3 sentences)")
     key_points: list[str] = Field(description="Main findings as bullet points (3-5 items)")
     sources_needed: list[str] = Field(description="Types of additional sources to consult")
@@ -53,6 +56,7 @@ class ResearchFindings(BaseModel):
 
 class FinalReport(BaseModel):
     """Structured output for final research report."""
+
     title: str = Field(description="Report title")
     executive_summary: str = Field(description="Executive summary paragraph")
     key_findings: list[str] = Field(description="Key findings as bullet points")
@@ -64,9 +68,11 @@ class FinalReport(BaseModel):
 # Dependencies for Pydantic AI Agents
 # =============================================================================
 
+
 @dataclass
 class ResearchDeps:
     """Dependencies injected into research agents."""
+
     topic: str
     depth: str  # "quick", "standard", "comprehensive"
     outline: dict | None = None
@@ -85,6 +91,7 @@ report_agent = None
 
 try:
     from pydantic_ai import Agent, RunContext
+
     PYDANTIC_AI_AVAILABLE = True
 except ImportError:
     pass
@@ -110,7 +117,7 @@ def _initialize_agents():
         You are a research planning assistant. Given a topic, create a structured
         research outline. Be specific and actionable. Consider the requested depth
         level when determining complexity.
-        """
+        """,
     )
 
     @outline_agent.tool
@@ -127,7 +134,7 @@ def _initialize_agents():
         You are a research analyst. Based on the provided outline and topic,
         synthesize key findings. Be factual and provide confidence scores
         based on the reliability of the information.
-        """
+        """,
     )
 
     @findings_agent.tool
@@ -145,7 +152,7 @@ def _initialize_agents():
         system_prompt="""
         You are a report writer. Create a comprehensive research report based on
         the outline and findings provided. Be professional and actionable.
-        """
+        """,
     )
 
     _agents_initialized = True
@@ -154,6 +161,7 @@ def _initialize_agents():
 # =============================================================================
 # Research Saga
 # =============================================================================
+
 
 class AIResearchSaga(Saga):
     """
@@ -172,11 +180,7 @@ class AIResearchSaga(Saga):
     # TRIGGER: Research Request
     # ==========================================================================
 
-    @trigger(
-        source="research_request",
-        idempotency_key="request_id",
-        max_concurrent=3
-    )
+    @trigger(source="research_request", idempotency_key="request_id", max_concurrent=3)
     def on_research_request(self, event: dict) -> dict:
         """Handle incoming research requests."""
         if not event.get("topic"):
@@ -187,7 +191,7 @@ class AIResearchSaga(Saga):
             "topic": event["topic"],
             "depth": event.get("depth", "standard"),
             "requester": event.get("requester", "anonymous"),
-            "started_at": datetime.now().isoformat()
+            "started_at": datetime.now().isoformat(),
         }
 
     # ==========================================================================
@@ -203,17 +207,12 @@ class AIResearchSaga(Saga):
         deps = ResearchDeps(topic=ctx["topic"], depth=ctx["depth"])
 
         result = await outline_agent.run(
-            f"Create a research outline for: {ctx['topic']}. Depth level: {ctx['depth']}",
-            deps=deps
+            f"Create a research outline for: {ctx['topic']}. Depth level: {ctx['depth']}", deps=deps
         )
 
         outline = result.output
 
-
-        return {
-            "outline": outline.model_dump(),
-            "outline_created": True
-        }
+        return {"outline": outline.model_dump(), "outline_created": True}
 
     @compensate("plan_outline")
     async def cancel_outline(self, ctx: dict) -> None:
@@ -229,18 +228,14 @@ class AIResearchSaga(Saga):
 
         _initialize_agents()  # Lazy init
 
-        deps = ResearchDeps(
-            topic=ctx["topic"],
-            depth=ctx["depth"],
-            outline=ctx["outline"]
-        )
+        deps = ResearchDeps(topic=ctx["topic"], depth=ctx["depth"], outline=ctx["outline"])
 
         prompt = f"""
-        Research topic: {ctx['topic']}
+        Research topic: {ctx["topic"]}
 
         Based on this outline:
-        - Key questions: {ctx['outline']['key_questions']}
-        - Research areas: {ctx['outline']['research_areas']}
+        - Key questions: {ctx["outline"]["key_questions"]}
+        - Research areas: {ctx["outline"]["research_areas"]}
 
         Provide comprehensive research findings.
         """
@@ -248,11 +243,7 @@ class AIResearchSaga(Saga):
         result = await findings_agent.run(prompt, deps=deps)
         findings = result.output
 
-
-        return {
-            "findings": findings.model_dump(),
-            "findings_gathered": True
-        }
+        return {"findings": findings.model_dump(), "findings_gathered": True}
 
     @compensate("gather_findings")
     async def discard_findings(self, ctx: dict) -> None:
@@ -269,17 +260,14 @@ class AIResearchSaga(Saga):
         _initialize_agents()  # Lazy init
 
         deps = ResearchDeps(
-            topic=ctx["topic"],
-            depth=ctx["depth"],
-            outline=ctx["outline"],
-            findings=ctx["findings"]
+            topic=ctx["topic"], depth=ctx["depth"], outline=ctx["outline"], findings=ctx["findings"]
         )
 
         prompt = f"""
-        Create a research report for: {ctx['topic']}
+        Create a research report for: {ctx["topic"]}
 
-        Outline: {ctx['outline']}
-        Findings: {ctx['findings']}
+        Outline: {ctx["outline"]}
+        Findings: {ctx["findings"]}
 
         Provide a comprehensive, actionable report.
         """
@@ -287,11 +275,7 @@ class AIResearchSaga(Saga):
         result = await report_agent.run(prompt, deps=deps)
         report = result.output
 
-
-        return {
-            "report": report.model_dump(),
-            "report_ready": True
-        }
+        return {"report": report.model_dump(), "report_ready": True}
 
     # ==========================================================================
     # STEP 4: Quality Validation
@@ -309,23 +293,23 @@ class AIResearchSaga(Saga):
             "has_conclusions": len(report.get("conclusions", [])) > 0,
             "has_recommendations": len(report.get("recommendations", [])) > 0,
             "confidence_threshold": findings["confidence_score"] >= 0.6,
-            "sufficient_findings": len(findings.get("key_points", [])) >= 2
+            "sufficient_findings": len(findings.get("key_points", [])) >= 2,
         }
 
         passed = sum(checks.values())
         total = len(checks)
 
-
         return {
             "quality_checks": checks,
             "quality_passed": passed == total,
-            "completed_at": datetime.now().isoformat()
+            "completed_at": datetime.now().isoformat(),
         }
 
 
 # =============================================================================
 # Demo Runner
 # =============================================================================
+
 
 async def run_demo():
     """Run the AI research demo."""
@@ -342,15 +326,13 @@ async def run_demo():
     config = SagaConfig(storage=InMemorySagaStorage())
     configure(config)
 
-
     # Fire research request
     request = {
         "request_id": "demo-001",
         "topic": "Best practices for implementing saga patterns in microservices",
         "depth": "comprehensive",
-        "requester": "demo_user"
+        "requester": "demo_user",
     }
-
 
     saga_ids = await fire_event("research_request", request)
 
@@ -359,7 +341,6 @@ async def run_demo():
 
     # Wait for completion
     await asyncio.sleep(15)  # AI calls take time
-
 
 
 if __name__ == "__main__":

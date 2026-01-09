@@ -160,7 +160,9 @@ class IoTDeviceOrchestrationSaga(Saga):
             "alarm_code": f"ARM-{routine_id}",
         }
 
-        logger.info(f"   ✅ Security armed with {len(security_config['sensors_active'])} sensor types")
+        logger.info(
+            f"   ✅ Security armed with {len(security_config['sensors_active'])} sensor types"
+        )
         return security_config
 
     @compensate("arm_security_system")
@@ -213,7 +215,6 @@ async def main():
 
     await saga.run(success_data)
 
-
     # Scenario 2: Failure with automatic rollback
 
     failure_data = {
@@ -228,8 +229,6 @@ async def main():
         await saga.run(failure_data)
     except Exception:
         pass
-
-
 
 
 if __name__ == "__main__":

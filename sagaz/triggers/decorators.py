@@ -9,6 +9,7 @@ F = TypeVar("F", bound=Callable[..., Any])
 @dataclass
 class TriggerMetadata:
     """Metadata for a saga trigger definition."""
+
     source: str
     config: dict[str, Any]
 
@@ -26,7 +27,7 @@ def trigger(
     max_concurrent: int | None = None,
     rate_limit: float | None = None,
     idempotency_key: str | Callable[[Any], str] | None = None,
-    **kwargs
+    **kwargs,
 ):
     """
     Decorator to mark a Saga method as an event trigger (transformer).
@@ -46,6 +47,7 @@ def trigger(
         def on_order(self, event):
             return {"order_id": event.id}
     """
+
     def decorator(func: F) -> F:
         func._trigger_metadata = TriggerMetadata(
             source=source,
@@ -55,4 +57,5 @@ def trigger(
             idempotency_key=idempotency_key,
         )
         return func
+
     return decorator

@@ -104,14 +104,14 @@ class PowerGridSwitchingSaga(Saga):
 
 
 async def main():
-
     saga = PowerGridSwitchingSaga()
-    await saga.run({
-        "switch_id": "SWITCH-2026-001",
-        "breaker_id": "BR-115KV-001",
-        "substation": "SUB-NORTH",
-    })
-
+    await saga.run(
+        {
+            "switch_id": "SWITCH-2026-001",
+            "breaker_id": "BR-115KV-001",
+            "substation": "SUB-NORTH",
+        }
+    )
 
 
 if __name__ == "__main__":

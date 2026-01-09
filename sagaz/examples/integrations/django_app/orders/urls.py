@@ -15,10 +15,8 @@ from . import views
 urlpatterns = [
     # Health check
     path("health/", views.health_check, name="health"),
-
     # Saga diagram
     path("orders/<str:order_id>/diagram/", views.OrderDiagramView.as_view(), name="order-diagram"),
-
     # Webhook trigger endpoint
     # POST /webhooks/order_created → triggers OrderSaga
     path("webhooks/<str:source>/", csrf_exempt(sagaz_webhook_view), name="webhooks"),

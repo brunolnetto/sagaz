@@ -238,11 +238,13 @@ class TestTransferService:
     @pytest.fixture
     def source_storage(self):
         """Create source storage with test data."""
-        return MockExportableStorage([
-            {"saga_id": "saga-1", "name": "Order", "status": "completed"},
-            {"saga_id": "saga-2", "name": "Payment", "status": "pending"},
-            {"saga_id": "saga-3", "name": "Shipping", "status": "completed"},
-        ])
+        return MockExportableStorage(
+            [
+                {"saga_id": "saga-1", "name": "Order", "status": "completed"},
+                {"saga_id": "saga-2", "name": "Payment", "status": "pending"},
+                {"saga_id": "saga-3", "name": "Shipping", "status": "completed"},
+            ]
+        )
 
     @pytest.fixture
     def target_storage(self):
@@ -286,11 +288,13 @@ class TestTransferService:
     @pytest.mark.asyncio
     async def test_transfer_with_failures_skip_policy(self):
         """Test transfer with failures using skip policy."""
-        source = MockExportableStorage([
-            {"saga_id": "saga-1", "name": "Order"},
-            {"saga_id": "saga-2", "name": "Payment"},
-            {"saga_id": "saga-3", "name": "Shipping"},
-        ])
+        source = MockExportableStorage(
+            [
+                {"saga_id": "saga-1", "name": "Order"},
+                {"saga_id": "saga-2", "name": "Payment"},
+                {"saga_id": "saga-3", "name": "Shipping"},
+            ]
+        )
         target = MockImportableStorage(fail_on=["saga-2"])
 
         config = TransferConfig(on_error=TransferErrorPolicy.SKIP)
@@ -306,10 +310,12 @@ class TestTransferService:
     @pytest.mark.asyncio
     async def test_transfer_with_failures_abort_policy(self):
         """Test transfer with failures using abort policy."""
-        source = MockExportableStorage([
-            {"saga_id": "saga-1", "name": "Order"},
-            {"saga_id": "saga-2", "name": "Payment"},
-        ])
+        source = MockExportableStorage(
+            [
+                {"saga_id": "saga-1", "name": "Order"},
+                {"saga_id": "saga-2", "name": "Payment"},
+            ]
+        )
         target = MockImportableStorage(fail_on=["saga-1"])
 
         config = TransferConfig(on_error=TransferErrorPolicy.ABORT)
@@ -321,10 +327,12 @@ class TestTransferService:
     @pytest.mark.asyncio
     async def test_transfer_with_failures_retry_policy(self):
         """Test transfer with failures using retry policy."""
-        source = MockExportableStorage([
-            {"saga_id": "saga-1", "name": "Order"},
-            {"saga_id": "saga-2", "name": "Payment"},
-        ])
+        source = MockExportableStorage(
+            [
+                {"saga_id": "saga-1", "name": "Order"},
+                {"saga_id": "saga-2", "name": "Payment"},
+            ]
+        )
         target = MockImportableStorage(fail_on=["saga-2"])
 
         config = TransferConfig(
@@ -372,6 +380,7 @@ class TestTransferService:
     @pytest.mark.asyncio
     async def test_transfer_cancel(self, target_storage):
         """Test cancelling transfer."""
+
         # Create a source that yields slowly to ensure cancellation hits
         class SlowSource:
             async def export_all(self):
@@ -446,6 +455,7 @@ class TestTransferService:
     @pytest.mark.asyncio
     async def test_transfer_validation_failure(self, source_storage):
         """Test transfer with validation that fails."""
+
         # Create a target that imports but doesn't store properly
         class BrokenTarget:
             async def import_record(self, record):
@@ -466,10 +476,12 @@ class TestTransferService:
     @pytest.mark.asyncio
     async def test_transfer_with_event_id(self, target_storage):
         """Test transfer with event_id based records."""
-        source = MockExportableStorage([
-            {"event_id": "evt-1", "type": "OrderCreated"},
-            {"event_id": "evt-2", "type": "PaymentProcessed"},
-        ])
+        source = MockExportableStorage(
+            [
+                {"event_id": "evt-1", "type": "OrderCreated"},
+                {"event_id": "evt-2", "type": "PaymentProcessed"},
+            ]
+        )
 
         # Disable validation to avoid needing load_saga_state for event_id records
         config = TransferConfig(validate=False)
@@ -483,6 +495,7 @@ class TestTransferService:
     @pytest.mark.asyncio
     async def test_source_without_count(self, target_storage):
         """Test transfer when source doesn't have count method."""
+
         class NoCountStorage:
             async def export_all(self):
                 yield {"saga_id": "saga-1"}
@@ -497,6 +510,7 @@ class TestTransferService:
     @pytest.mark.asyncio
     async def test_progress_callback_exception(self, source_storage, target_storage):
         """Test that progress callback exceptions are handled."""
+
         def bad_callback(a, b, c):
             msg = "Callback error"
             raise Exception(msg)
@@ -516,9 +530,11 @@ class TestTransferDataFunction:
     @pytest.mark.asyncio
     async def test_transfer_data_basic(self):
         """Test basic transfer_data usage."""
-        source = MockExportableStorage([
-            {"saga_id": "saga-1", "name": "Test"},
-        ])
+        source = MockExportableStorage(
+            [
+                {"saga_id": "saga-1", "name": "Test"},
+            ]
+        )
         target = MockImportableStorage()
 
         result = await transfer_data(source, target)
@@ -529,10 +545,12 @@ class TestTransferDataFunction:
     @pytest.mark.asyncio
     async def test_transfer_data_with_options(self):
         """Test transfer_data with custom options."""
-        source = MockExportableStorage([
-            {"saga_id": "saga-1"},
-            {"saga_id": "saga-2"},
-        ])
+        source = MockExportableStorage(
+            [
+                {"saga_id": "saga-1"},
+                {"saga_id": "saga-2"},
+            ]
+        )
         target = MockImportableStorage(fail_on=["saga-1"])
 
         result = await transfer_data(
@@ -569,6 +587,7 @@ class TestTransferProgressEdgeCases:
     def test_progress_with_high_transferred(self):
         """Test progress properties with high transfer count."""
         import time
+
         start = datetime.now(UTC)
         # Add tiny delay to ensure elapsed > 0
         time.sleep(0.01)
@@ -587,6 +606,7 @@ class TestTransferProgressEdgeCases:
     def test_progress_rate_with_transfers(self):
         """Test rate calculation with real elapsed time."""
         import time
+
         start = datetime.now(UTC)
         time.sleep(0.01)  # Ensure elapsed > 0
 
@@ -602,6 +622,7 @@ class TestTransferProgressEdgeCases:
     def test_estimated_remaining_with_rate(self):
         """Test estimated remaining with positive rate."""
         import time
+
         start = datetime.now(UTC)
         time.sleep(0.01)
 
@@ -622,6 +643,7 @@ class TestTransferServiceEdgeCases:
     @pytest.mark.asyncio
     async def test_transfer_with_count_exception(self):
         """Test when source.count() raises exception."""
+
         class FailingCountStorage:
             async def count(self):
                 msg = "Count not available"
@@ -643,10 +665,12 @@ class TestTransferServiceEdgeCases:
     @pytest.mark.asyncio
     async def test_transfer_records_no_id(self):
         """Test validation with records that have no recognizable ID."""
-        source = MockExportableStorage([
-            {"data": "value1"},  # No saga_id, event_id, or id
-            {"data": "value2"},
-        ])
+        source = MockExportableStorage(
+            [
+                {"data": "value1"},  # No saga_id, event_id, or id
+                {"data": "value2"},
+            ]
+        )
         target = MockImportableStorage()
 
         config = TransferConfig(validate=True)
@@ -660,9 +684,11 @@ class TestTransferServiceEdgeCases:
     @pytest.mark.asyncio
     async def test_transfer_with_event_id_validation(self):
         """Test validation with event_id based records using get_by_id."""
-        source = MockExportableStorage([
-            {"event_id": "evt-1", "type": "Created"},
-        ])
+        source = MockExportableStorage(
+            [
+                {"event_id": "evt-1", "type": "Created"},
+            ]
+        )
 
         class EventStorage:
             def __init__(self):
@@ -686,10 +712,12 @@ class TestTransferServiceEdgeCases:
     @pytest.mark.asyncio
     async def test_unknown_error_policy_falls_through(self):
         """Test behavior with future/unknown error policy value."""
-        source = MockExportableStorage([
-            {"saga_id": "saga-1"},
-            {"saga_id": "saga-2"},
-        ])
+        source = MockExportableStorage(
+            [
+                {"saga_id": "saga-1"},
+                {"saga_id": "saga-2"},
+            ]
+        )
         target = MockImportableStorage(fail_on=["saga-1"])
 
         # Manually set an unusual policy state
@@ -716,9 +744,11 @@ class TestTransferValidationEdgeCases:
     @pytest.mark.asyncio
     async def test_validation_with_id_field(self):
         """Test validation with 'id' field instead of saga_id/event_id."""
-        source = MockExportableStorage([
-            {"id": "record-1", "data": "test"},
-        ])
+        source = MockExportableStorage(
+            [
+                {"id": "record-1", "data": "test"},
+            ]
+        )
 
         class IdStorage:
             def __init__(self):
@@ -742,9 +772,11 @@ class TestTransferValidationEdgeCases:
     @pytest.mark.asyncio
     async def test_get_by_id_validation_failure(self):
         """Test validation failure with get_by_id."""
-        source = MockExportableStorage([
-            {"event_id": "evt-1"},
-        ])
+        source = MockExportableStorage(
+            [
+                {"event_id": "evt-1"},
+            ]
+        )
 
         class BrokenEventStorage:
             async def import_record(self, record):
@@ -762,4 +794,3 @@ class TestTransferValidationEdgeCases:
 
         # Should skip due to validation failure
         assert result.skipped == 1
-

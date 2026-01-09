@@ -31,8 +31,10 @@ from sagaz.triggers import fire_event, trigger
 # LangGraph State Definition
 # =============================================================================
 
+
 class SupportTicketState(TypedDict):
     """State for the support ticket workflow."""
+
     ticket_id: str
     customer_id: str
     issue: str
@@ -94,15 +96,17 @@ def create_support_graph():
     async def analyze_node(state: SupportTicketState) -> dict:
         """Analyze the support ticket."""
         messages = [
-            SystemMessage(content="""
+            SystemMessage(
+                content="""
                 You are a support ticket analyzer. Analyze the customer issue and respond with:
                 - Category: billing, technical, account, shipping, or other
                 - Priority: low, medium, high, or critical
                 - Sentiment: positive, neutral, frustrated, or angry
 
                 Format: category|priority|sentiment
-            """),
-            HumanMessage(content=f"Customer issue: {state['issue']}")
+            """
+            ),
+            HumanMessage(content=f"Customer issue: {state['issue']}"),
         ]
 
         response = await llm.ainvoke(messages)
@@ -112,32 +116,35 @@ def create_support_graph():
             "category": parts[0] if len(parts) > 0 else "other",
             "priority": parts[1] if len(parts) > 1 else "medium",
             "sentiment": parts[2] if len(parts) > 2 else "neutral",
-            "messages": [{"role": "system", "content": "Ticket analyzed"}]
+            "messages": [{"role": "system", "content": "Ticket analyzed"}],
         }
 
     async def generate_response_node(state: SupportTicketState) -> dict:
         """Generate an AI response to the customer."""
         messages = [
-            SystemMessage(content=f"""
-                You are a helpful support agent. The customer has a {state['category']} issue.
-                Their sentiment is {state['sentiment']}. Priority: {state['priority']}.
+            SystemMessage(
+                content=f"""
+                You are a helpful support agent. The customer has a {state["category"]} issue.
+                Their sentiment is {state["sentiment"]}. Priority: {state["priority"]}.
 
                 Provide a helpful, empathetic response. Be professional and solution-oriented.
-            """),
-            HumanMessage(content=f"Customer: {state['issue']}")
+            """
+            ),
+            HumanMessage(content=f"Customer: {state['issue']}"),
         ]
 
         response = await llm.ainvoke(messages)
 
         return {
             "ai_response": response.content,
-            "messages": [{"role": "agent", "content": response.content[:100] + "..."}]
+            "messages": [{"role": "agent", "content": response.content[:100] + "..."}],
         }
 
     async def attempt_resolution_node(state: SupportTicketState) -> dict:
         """Attempt to resolve the issue automatically."""
         messages = [
-            SystemMessage(content="""
+            SystemMessage(
+                content="""
                 You are evaluating if this support issue can be resolved automatically.
                 Consider:
                 - Is this a common issue with a known solution?
@@ -145,13 +152,16 @@ def create_support_graph():
                 - Is the customer too frustrated for automated handling?
 
                 Respond with just: YES or NO
-            """),
-            HumanMessage(content=f"""
-                Category: {state['category']}
-                Priority: {state['priority']}
-                Sentiment: {state['sentiment']}
-                Issue: {state['issue']}
-            """)
+            """
+            ),
+            HumanMessage(
+                content=f"""
+                Category: {state["category"]}
+                Priority: {state["priority"]}
+                Sentiment: {state["sentiment"]}
+                Issue: {state["issue"]}
+            """
+            ),
         ]
 
         response = await llm.ainvoke(messages)
@@ -160,14 +170,19 @@ def create_support_graph():
         return {
             "resolution_attempted": True,
             "resolution_success": can_resolve,
-            "messages": [{"role": "system", "content": f"Resolution: {'success' if can_resolve else 'escalate'}"}]
+            "messages": [
+                {
+                    "role": "system",
+                    "content": f"Resolution: {'success' if can_resolve else 'escalate'}",
+                }
+            ],
         }
 
     async def resolve_node(state: SupportTicketState) -> dict:
         """Successfully resolve the ticket."""
         return {
             "escalated": False,
-            "messages": [{"role": "system", "content": "Ticket resolved automatically"}]
+            "messages": [{"role": "system", "content": "Ticket resolved automatically"}],
         }
 
     async def escalate_node(state: SupportTicketState) -> dict:
@@ -178,7 +193,7 @@ def create_support_graph():
         return {
             "escalated": True,
             "human_agent_id": agent_id,
-            "messages": [{"role": "system", "content": f"Escalated to {agent_id}"}]
+            "messages": [{"role": "system", "content": f"Escalated to {agent_id}"}],
         }
 
     def route_after_resolution(state: SupportTicketState) -> Literal["resolve", "escalate"]:
@@ -202,9 +217,7 @@ def create_support_graph():
     graph.add_edge("analyze", "generate_response")
     graph.add_edge("generate_response", "attempt_resolution")
     graph.add_conditional_edges(
-        "attempt_resolution",
-        route_after_resolution,
-        {"resolve": "resolve", "escalate": "escalate"}
+        "attempt_resolution", route_after_resolution, {"resolve": "resolve", "escalate": "escalate"}
     )
     graph.add_edge("resolve", END)
     graph.add_edge("escalate", END)
@@ -215,6 +228,7 @@ def create_support_graph():
 # =============================================================================
 # Support Saga with LangGraph Integration
 # =============================================================================
+
 
 class CustomerSupportSaga(Saga):
     """
@@ -233,11 +247,7 @@ class CustomerSupportSaga(Saga):
     # TRIGGER: Support Ticket
     # ==========================================================================
 
-    @trigger(
-        source="support_ticket",
-        idempotency_key="ticket_id",
-        max_concurrent=20
-    )
+    @trigger(source="support_ticket", idempotency_key="ticket_id", max_concurrent=20)
     def on_ticket_received(self, event: dict) -> dict:
         """Process incoming support tickets."""
         if not event.get("issue"):
@@ -248,7 +258,7 @@ class CustomerSupportSaga(Saga):
             "customer_id": event.get("customer_id", "unknown"),
             "issue": event["issue"],
             "channel": event.get("channel", "web"),
-            "received_at": datetime.now().isoformat()
+            "received_at": datetime.now().isoformat(),
         }
 
     # ==========================================================================
@@ -284,12 +294,11 @@ class CustomerSupportSaga(Saga):
             "resolution_success": False,
             "escalated": False,
             "human_agent_id": "",
-            "messages": []
+            "messages": [],
         }
 
         # Run the graph
         final_state = await graph.ainvoke(initial_state)
-
 
         if final_state["escalated"]:
             pass
@@ -302,7 +311,7 @@ class CustomerSupportSaga(Saga):
                 "ai_response": final_state["ai_response"],
                 "escalated": final_state["escalated"],
                 "human_agent_id": final_state["human_agent_id"],
-                "resolution_success": final_state["resolution_success"]
+                "resolution_success": final_state["resolution_success"],
             }
         }
 
@@ -321,7 +330,6 @@ class CustomerSupportSaga(Saga):
 
         status = "resolved" if result["resolution_success"] else "escalated"
 
-
         return {
             "status": status,
             "completed_at": datetime.now().isoformat(),
@@ -330,14 +338,15 @@ class CustomerSupportSaga(Saga):
                 "category": result["category"],
                 "priority": result["priority"],
                 "outcome": status,
-                "ai_handled": not result["escalated"]
-            }
+                "ai_handled": not result["escalated"],
+            },
         }
 
 
 # =============================================================================
 # Demo Runner
 # =============================================================================
+
 
 async def run_demo():
     """Run the customer support demo."""
@@ -354,25 +363,23 @@ async def run_demo():
     config = SagaConfig(storage=InMemorySagaStorage())
     configure(config)
 
-
     # Sample tickets
     tickets = [
         {
             "ticket_id": "TKT-001",
             "customer_id": "CUST-123",
             "issue": "I can't login to my account. I've tried resetting my password 3 times but the email never arrives!",
-            "channel": "web"
+            "channel": "web",
         },
         {
             "ticket_id": "TKT-002",
             "customer_id": "CUST-456",
             "issue": "Your service is terrible! I was charged twice for my order and nobody is helping me!",
-            "channel": "email"
-        }
+            "channel": "email",
+        },
     ]
 
     for ticket in tickets:
-
         saga_ids = await fire_event("support_ticket", ticket)
 
         if saga_ids:
@@ -380,7 +387,6 @@ async def run_demo():
 
         # Wait between tickets
         await asyncio.sleep(10)
-
 
 
 if __name__ == "__main__":

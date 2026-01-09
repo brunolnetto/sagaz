@@ -96,9 +96,7 @@ class RedisOutboxStorage(OutboxStorage):
             import redis.asyncio as redis
         except ImportError:  # pragma: no cover
             msg = "redis package required. Install with: pip install redis"
-            raise ImportError(
-                msg
-            )
+            raise ImportError(msg)
 
         self._redis = redis.from_url(self._redis_url, **self._redis_kwargs)
 
@@ -314,18 +312,14 @@ class RedisOutboxStorage(OutboxStorage):
             logger.warning(f"Error reading from stream: {e}")
             return None
 
-    async def _process_claimed_messages(
-        self, response: list, worker_id: str
-    ) -> list[OutboxEvent]:
+    async def _process_claimed_messages(self, response: list, worker_id: str) -> list[OutboxEvent]:
         """Process messages from stream response."""
         events = []
         now = datetime.now(UTC)
 
         for _stream_name, messages in response:
             for message_id, message_data in messages:
-                event = await self._claim_single_message(
-                    message_id, message_data, worker_id, now
-                )
+                event = await self._claim_single_message(message_id, message_data, worker_id, now)
                 if event:
                     events.append(event)
 
@@ -365,11 +359,14 @@ class RedisOutboxStorage(OutboxStorage):
     ) -> None:
         """Update Redis with claim information."""
         meta_key = self._meta_key(event_id)
-        await self._redis.hset(meta_key, mapping={
-            "status": OutboxStatus.CLAIMED.value,
-            "claimed_at": now.isoformat(),
-            "worker_id": worker_id,
-        })
+        await self._redis.hset(
+            meta_key,
+            mapping={
+                "status": OutboxStatus.CLAIMED.value,
+                "claimed_at": now.isoformat(),
+                "worker_id": worker_id,
+            },
+        )
 
         msg_id_str = message_id.decode() if isinstance(message_id, bytes) else message_id
         await self._redis.hset(self._processing_key, event_id, msg_id_str)
@@ -390,7 +387,11 @@ class RedisOutboxStorage(OutboxStorage):
             for key in keys:
                 data = await self._redis.hgetall(key)
                 if data:
-                    decoded_saga_id = data.get(b"saga_id", b"").decode() if isinstance(data.get(b"saga_id"), bytes) else data.get("saga_id", "")
+                    decoded_saga_id = (
+                        data.get(b"saga_id", b"").decode()
+                        if isinstance(data.get(b"saga_id"), bytes)
+                        else data.get("saga_id", "")
+                    )
                     if decoded_saga_id == saga_id:
                         events.append(self._deserialize_event(data))
 
@@ -430,7 +431,11 @@ class RedisOutboxStorage(OutboxStorage):
         for entry in pending:
             idle_time = entry.get("time_since_delivered", 0)
             if idle_time > threshold_ms:
-                event_id = entry.get("message_id", b"").decode() if isinstance(entry.get("message_id"), bytes) else entry.get("message_id", "")
+                event_id = (
+                    entry.get("message_id", b"").decode()
+                    if isinstance(entry.get("message_id"), bytes)
+                    else entry.get("message_id", "")
+                )
                 event = await self.get_by_id(event_id)
                 if event:
                     stuck.append(event)
@@ -507,7 +512,11 @@ class RedisOutboxStorage(OutboxStorage):
         try:
             messages = await self._redis.xrange(self._dlq_key, count=limit)
             for _message_id, data in messages:
-                event_id = data.get(b"event_id", b"").decode() if isinstance(data.get(b"event_id"), bytes) else data.get("event_id", "")
+                event_id = (
+                    data.get(b"event_id", b"").decode()
+                    if isinstance(data.get(b"event_id"), bytes)
+                    else data.get("event_id", "")
+                )
                 event = await self.get_by_id(event_id)
                 if event:
                     events.append(event)
@@ -577,16 +586,16 @@ class RedisOutboxStorage(OutboxStorage):
     async def export_all(self):
         """Export all events."""
         if not self._initialized:  # pragma: no cover
-             await self.initialize()  # pragma: no cover
+            await self.initialize()  # pragma: no cover
 
         pattern = f"{self._prefix}:meta:*"
         cursor = 0
         while True:
             cursor, keys = await self._redis.scan(cursor, match=pattern, count=100)
             for key in keys:
-                 data = await self._redis.hgetall(key)
-                 if data:
-                     yield self._deserialize_event(data)
+                data = await self._redis.hgetall(key)
+                if data:
+                    yield self._deserialize_event(data)
             if cursor == 0:
                 break
 

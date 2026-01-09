@@ -36,8 +36,6 @@ Core Infrastructure (v1.2.0+):
     >>> from sagaz.storage.interfaces import SagaStorage, OutboxStorage, Transferable
 """
 
-
-
 # Core infrastructure (new in v1.2.0)
 # Implementations
 from .backends.memory import InMemorySagaStorage

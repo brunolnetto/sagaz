@@ -120,8 +120,8 @@ def create_webhook_router(url_prefix: str = "/webhooks"):
             content={
                 "status": "accepted",
                 "source": source,
-                "message": "Event queued for processing"
-            }
+                "message": "Event queued for processing",
+            },
         )
 
     return router

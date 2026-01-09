@@ -89,7 +89,9 @@ class RentalApplicationSaga(Saga):
         return {"unit_reserved": True, "move_in_date": "2026-02-01"}
 
     @forward_recovery("reserve_unit")
-    async def handle_reservation_failure(self, ctx: SagaContext, error: Exception) -> RecoveryAction:
+    async def handle_reservation_failure(
+        self, ctx: SagaContext, error: Exception
+    ) -> RecoveryAction:
         """Forward recovery if unit can't be reserved after deposit."""
         retry_count = ctx.get("_reservation_retries", 0)
         if retry_count < 2:
@@ -117,15 +119,15 @@ class RentalApplicationSaga(Saga):
 
 
 async def main():
-
     saga = RentalApplicationSaga()
-    await saga.run({
-        "application_id": "APP-2026-001",
-        "applicant_name": "Jane Smith",
-        "unit_id": "UNIT-A101",
-        "deposit_amount": Decimal("2500"),
-    })
-
+    await saga.run(
+        {
+            "application_id": "APP-2026-001",
+            "applicant_name": "Jane Smith",
+            "unit_id": "UNIT-A101",
+            "deposit_amount": Decimal("2500"),
+        }
+    )
 
 
 if __name__ == "__main__":

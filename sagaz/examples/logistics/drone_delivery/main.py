@@ -106,7 +106,9 @@ class SupplyChainDroneDeliverySaga(Saga):
             "weather_clear": True,
         }
 
-        logger.info(f"   ✅ Flight path planned: {flight_plan['distance_km']} km, {flight_plan['estimated_duration_min']} min")
+        logger.info(
+            f"   ✅ Flight path planned: {flight_plan['distance_km']} km, {flight_plan['estimated_duration_min']} min"
+        )
         return flight_plan
 
     @compensate("plan_flight_path")
@@ -132,9 +134,7 @@ class SupplyChainDroneDeliverySaga(Saga):
 
         if simulate_failure:
             msg = "Airspace authorization denied - temporary flight restriction (TFR) in effect"
-            raise SagaStepError(
-                msg
-            )
+            raise SagaStepError(msg)
 
         # Simulate LAANC (Low Altitude Authorization and Notification Capability)
         authorization = {
@@ -318,7 +318,6 @@ async def main():
 
     await saga.run(success_data)
 
-
     # Scenario 2: Airspace authorization denied with automatic rollback
 
     failure_data = {
@@ -336,8 +335,6 @@ async def main():
         await saga.run(failure_data)
     except Exception:
         pass
-
-
 
 
 if __name__ == "__main__":

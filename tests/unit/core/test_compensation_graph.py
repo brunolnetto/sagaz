@@ -486,7 +486,9 @@ class TestCompensationResultPassing:
         assert "cancel_order" in result.executed
 
         # Verify cancel_order received refund_payment's result
-        assert results_tracker["cancel_order_received"]["refund_payment"]["refund_id"] == "refund-456"
+        assert (
+            results_tracker["cancel_order_received"]["refund_payment"]["refund_id"] == "refund-456"
+        )
         assert result.results["cancel_order"]["referenced_refund"] == "refund-456"
 
     @pytest.mark.asyncio
@@ -552,8 +554,7 @@ class TestFailureStrategies:
         graph.mark_step_executed("step2")
 
         result = await graph.execute_compensations(
-            {},
-            failure_strategy=CompensationFailureStrategy.FAIL_FAST
+            {}, failure_strategy=CompensationFailureStrategy.FAIL_FAST
         )
 
         assert result.success is False
@@ -578,8 +579,7 @@ class TestFailureStrategies:
         graph.mark_step_executed("step2")
 
         result = await graph.execute_compensations(
-            {},
-            failure_strategy=CompensationFailureStrategy.CONTINUE_ON_ERROR
+            {}, failure_strategy=CompensationFailureStrategy.CONTINUE_ON_ERROR
         )
 
         assert result.success is False
@@ -605,8 +605,7 @@ class TestFailureStrategies:
         graph.mark_step_executed("step1")
 
         result = await graph.execute_compensations(
-            {},
-            failure_strategy=CompensationFailureStrategy.RETRY_THEN_CONTINUE
+            {}, failure_strategy=CompensationFailureStrategy.RETRY_THEN_CONTINUE
         )
 
         assert result.success is True
@@ -646,8 +645,7 @@ class TestFailureStrategies:
         graph.mark_step_executed("step3")
 
         result = await graph.execute_compensations(
-            {},
-            failure_strategy=CompensationFailureStrategy.SKIP_DEPENDENTS
+            {}, failure_strategy=CompensationFailureStrategy.SKIP_DEPENDENTS
         )
 
         assert result.success is False
@@ -712,6 +710,7 @@ class TestExecuteCompensationsEdgeCases:
 
         async def slow_comp(ctx, comp_results=None):
             import asyncio
+
             await asyncio.sleep(10)  # Will timeout
 
         graph.register_compensation("step1", slow_comp, timeout_seconds=0.1)
@@ -723,13 +722,13 @@ class TestExecuteCompensationsEdgeCases:
         assert "step1" in result.failed
         assert isinstance(result.errors["step1"], Exception)
 
-
     @pytest.mark.asyncio
     async def test_parallel_execution_in_level(self):
         """Test multiple independent compensations execute in parallel."""
         graph = SagaExecutionGraph()
 
         import asyncio
+
         # Barrier(2) ensures both tasks must be active simultaneously to proceed.
         # If execution was sequential, the first task would wait correctly indefinitely
         # (or timeout), preventing the second task from ever starting.
@@ -767,6 +766,7 @@ class TestExecuteCompensationsEdgeCases:
 
         async def comp(ctx, comp_results=None):
             import asyncio
+
             await asyncio.sleep(0.05)
 
         graph.register_compensation("step1", comp)

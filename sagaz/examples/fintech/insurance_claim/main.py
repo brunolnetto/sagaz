@@ -101,16 +101,16 @@ class InsuranceClaimSaga(Saga):
 
 
 async def main():
-
     saga = InsuranceClaimSaga()
-    await saga.run({
-        "claim_id": "CLAIM-2026-001",
-        "policy_id": "POL-12345",
-        "claimant_id": "CUST-67890",
-        "claim_amount": Decimal("7500"),
-        "incident_type": "auto_collision",
-    })
-
+    await saga.run(
+        {
+            "claim_id": "CLAIM-2026-001",
+            "policy_id": "POL-12345",
+            "claimant_id": "CUST-67890",
+            "claim_amount": Decimal("7500"),
+            "incident_type": "auto_collision",
+        }
+    )
 
 
 if __name__ == "__main__":

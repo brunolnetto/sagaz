@@ -24,8 +24,10 @@ class OrderDiagramView(View):
 
     def get(self, request, order_id):
         saga = OrderSaga()
-        return JsonResponse({
-            "order_id": order_id,
-            "diagram": saga.to_mermaid(),
-            "format": "mermaid",
-        })
+        return JsonResponse(
+            {
+                "order_id": order_id,
+                "diagram": saga.to_mermaid(),
+                "format": "mermaid",
+            }
+        )

@@ -34,11 +34,16 @@ class StorageEncoder(json.JSONEncoder):
         if isinstance(obj, UUID):
             return {"__type__": "uuid", "value": str(obj)}
         if isinstance(obj, Enum):
-            return {"__type__": "enum", "class": f"{obj.__class__.__module__}.{obj.__class__.__name__}", "value": obj.value}
+            return {
+                "__type__": "enum",
+                "class": f"{obj.__class__.__module__}.{obj.__class__.__name__}",
+                "value": obj.value,
+            }
         if isinstance(obj, Decimal):
             return {"__type__": "decimal", "value": str(obj)}
         if isinstance(obj, bytes):
             import base64
+
             return {"__type__": "bytes", "value": base64.b64encode(obj).decode("ascii")}
         if isinstance(obj, set):
             return {"__type__": "set", "value": list(obj)}
@@ -72,6 +77,7 @@ def storage_decoder(obj: dict[str, Any]) -> Any:
         return Decimal(value)
     if type_name == "bytes":
         import base64
+
         return base64.b64decode(value)
     if type_name == "set":
         return set(value)

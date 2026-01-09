@@ -456,8 +456,8 @@ class RedisSagaStorage(SagaStorage):
         # Better: sum of status set cardinalities
         count = 0
         for status in SagaStatus:
-             status_index = self._index_key(f"status:{status.value}")
-             count += await redis_client.scard(status_index)
+            status_index = self._index_key(f"status:{status.value}")
+            count += await redis_client.scard(status_index)
         return count
 
     async def export_all(self):  # pragma: no cover

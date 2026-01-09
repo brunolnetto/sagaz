@@ -33,8 +33,10 @@ from sagaz.triggers import fire_event, trigger
 # Pydantic Models for Content Pipeline
 # =============================================================================
 
+
 class ContentOutline(BaseModel):
     """Outline for content generation."""
+
     title: str = Field(description="Proposed article title")
     sections: list[str] = Field(description="Main section headings")
     key_points: list[str] = Field(description="Key points to cover")
@@ -43,6 +45,7 @@ class ContentOutline(BaseModel):
 
 class GeneratedContent(BaseModel):
     """Generated content output."""
+
     title: str = Field(description="Final article title")
     introduction: str = Field(description="Article introduction paragraph")
     body: str = Field(description="Main article body")
@@ -52,6 +55,7 @@ class GeneratedContent(BaseModel):
 
 class QualityReport(BaseModel):
     """Content quality assessment."""
+
     readability_score: float = Field(ge=0, le=10, description="Readability score 0-10")
     structure_score: float = Field(ge=0, le=10, description="Structure quality 0-10")
     engagement_score: float = Field(ge=0, le=10, description="Engagement potential 0-10")
@@ -61,6 +65,7 @@ class QualityReport(BaseModel):
 
 class SEOOptimization(BaseModel):
     """SEO optimization suggestions."""
+
     optimized_title: str = Field(description="SEO-optimized title")
     primary_keyword: str = Field(description="Primary target keyword")
     secondary_keywords: list[str] = Field(description="Secondary keywords")
@@ -72,9 +77,11 @@ class SEOOptimization(BaseModel):
 # Dependencies
 # =============================================================================
 
+
 @dataclass
 class ContentDeps:
     """Dependencies for content agents."""
+
     topic: str
     audience: str
     tone: str
@@ -96,6 +103,7 @@ seo_agent = None
 
 try:
     from pydantic_ai import Agent, RunContext
+
     PYDANTIC_AI_AVAILABLE = True
 except ImportError:
     pass
@@ -120,7 +128,7 @@ def _initialize_agents():
         system_prompt="""
         You are a content strategist. Create detailed outlines for articles.
         Consider the target audience and ensure logical flow of sections.
-        """
+        """,
     )
 
     # Content Generation Agent
@@ -131,7 +139,7 @@ def _initialize_agents():
         system_prompt="""
         You are an expert content writer. Write engaging, well-structured articles
         based on the provided outline. Match the requested tone and audience.
-        """
+        """,
     )
 
     # Quality Check Agent
@@ -142,7 +150,7 @@ def _initialize_agents():
         system_prompt="""
         You are a content quality analyst. Evaluate articles for readability,
         structure, and engagement. Provide constructive improvement suggestions.
-        """
+        """,
     )
 
     # SEO Agent
@@ -153,7 +161,7 @@ def _initialize_agents():
         system_prompt="""
         You are an SEO expert. Optimize content for search engines while
         maintaining readability. Focus on provided target keywords.
-        """
+        """,
     )
 
     _agents_initialized = True
@@ -162,6 +170,7 @@ def _initialize_agents():
 # =============================================================================
 # Content Pipeline Saga
 # =============================================================================
+
 
 class ContentPipelineSaga(Saga):
     """
@@ -181,11 +190,7 @@ class ContentPipelineSaga(Saga):
     # TRIGGER: Content Request
     # ==========================================================================
 
-    @trigger(
-        source="content_request",
-        idempotency_key="request_id",
-        max_concurrent=5
-    )
+    @trigger(source="content_request", idempotency_key="request_id", max_concurrent=5)
     def on_content_request(self, event: dict) -> dict:
         """Handle content generation requests."""
         if not event.get("topic"):
@@ -198,7 +203,7 @@ class ContentPipelineSaga(Saga):
             "tone": event.get("tone", "professional"),
             "keywords": event.get("keywords", []),
             "requester": event.get("requester", "system"),
-            "started_at": datetime.now().isoformat()
+            "started_at": datetime.now().isoformat(),
         }
 
     # ==========================================================================
@@ -212,20 +217,16 @@ class ContentPipelineSaga(Saga):
         _initialize_agents()  # Lazy init
 
         deps = ContentDeps(
-            topic=ctx["topic"],
-            audience=ctx["audience"],
-            tone=ctx["tone"],
-            keywords=ctx["keywords"]
+            topic=ctx["topic"], audience=ctx["audience"], tone=ctx["tone"], keywords=ctx["keywords"]
         )
 
         result = await outline_agent.run(
             f"Create an article outline for: {ctx['topic']}. "
             f"Target audience: {ctx['audience']}. Tone: {ctx['tone']}.",
-            deps=deps
+            deps=deps,
         )
 
         outline = result.output
-
 
         return {"outline": outline.model_dump()}
 
@@ -248,22 +249,21 @@ class ContentPipelineSaga(Saga):
             audience=ctx["audience"],
             tone=ctx["tone"],
             keywords=ctx["keywords"],
-            outline=ctx["outline"]
+            outline=ctx["outline"],
         )
 
         prompt = f"""
         Write an article based on this outline:
-        Title: {ctx['outline']['title']}
-        Sections: {ctx['outline']['sections']}
-        Key points: {ctx['outline']['key_points']}
+        Title: {ctx["outline"]["title"]}
+        Sections: {ctx["outline"]["sections"]}
+        Key points: {ctx["outline"]["key_points"]}
 
-        Tone: {ctx['tone']}
-        Audience: {ctx['audience']}
+        Tone: {ctx["tone"]}
+        Audience: {ctx["audience"]}
         """
 
         result = await content_agent.run(prompt, deps=deps)
         content = result.output
-
 
         return {"content": content.model_dump()}
 
@@ -286,13 +286,13 @@ class ContentPipelineSaga(Saga):
             audience=ctx["audience"],
             tone=ctx["tone"],
             keywords=ctx["keywords"],
-            content=ctx["content"]
+            content=ctx["content"],
         )
 
         prompt = f"""
         Evaluate this article:
-        Title: {ctx['content']['title']}
-        Content: {ctx['content']['body'][:2000]}...
+        Title: {ctx["content"]["title"]}
+        Content: {ctx["content"]["body"][:2000]}...
 
         Assess readability, structure, and engagement.
         """
@@ -300,11 +300,7 @@ class ContentPipelineSaga(Saga):
         result = await quality_agent.run(prompt, deps=deps)
         quality = result.output
 
-
-        return {
-            "quality": quality.model_dump(),
-            "meets_threshold": quality.overall_score >= 7.0
-        }
+        return {"quality": quality.model_dump(), "meets_threshold": quality.overall_score >= 7.0}
 
     # ==========================================================================
     # STEP 3b: SEO Optimization (parallel)
@@ -321,21 +317,20 @@ class ContentPipelineSaga(Saga):
             audience=ctx["audience"],
             tone=ctx["tone"],
             keywords=ctx["keywords"],
-            content=ctx["content"]
+            content=ctx["content"],
         )
 
         prompt = f"""
         Optimize this article for SEO:
-        Title: {ctx['content']['title']}
-        Meta: {ctx['content']['meta_description']}
-        Target keywords: {ctx['keywords']}
+        Title: {ctx["content"]["title"]}
+        Meta: {ctx["content"]["meta_description"]}
+        Target keywords: {ctx["keywords"]}
 
         Provide optimized title, meta, and recommendations.
         """
 
         result = await seo_agent.run(prompt, deps=deps)
         seo = result.output
-
 
         return {"seo": seo.model_dump()}
 
@@ -360,19 +355,20 @@ class ContentPipelineSaga(Saga):
             "content": content,
             "quality_score": quality["overall_score"],
             "seo_keywords": [seo["primary_keyword"]] + seo["secondary_keywords"],
-            "status": status
+            "status": status,
         }
 
         return {
             "final_content": final_content,
             "status": status,
-            "completed_at": datetime.now().isoformat()
+            "completed_at": datetime.now().isoformat(),
         }
 
 
 # =============================================================================
 # Demo Runner
 # =============================================================================
+
 
 async def run_demo():
     """Run the content pipeline demo."""
@@ -389,16 +385,14 @@ async def run_demo():
     config = SagaConfig(storage=InMemorySagaStorage())
     configure(config)
 
-
     # Content request
     request = {
         "request_id": "content-001",
         "topic": "How to Build Resilient Microservices with Saga Patterns",
         "audience": "software developers",
         "tone": "technical but accessible",
-        "keywords": ["saga pattern", "microservices", "distributed transactions", "compensation"]
+        "keywords": ["saga pattern", "microservices", "distributed transactions", "compensation"],
     }
-
 
     saga_ids = await fire_event("content_request", request)
 
@@ -407,7 +401,6 @@ async def run_demo():
 
     # Wait for completion
     await asyncio.sleep(30)  # AI calls take time
-
 
 
 if __name__ == "__main__":

@@ -17,8 +17,7 @@ from sagaz import Saga, action, compensate
 from sagaz.exceptions import SagaStepError
 
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -107,9 +106,7 @@ class ModelDeploymentSaga(Saga):
 
         if not health_check_passed:
             msg = f"Staging deployment health check failed for {staging_deployment_id}"
-            raise SagaStepError(
-                msg
-            )
+            raise SagaStepError(msg)
 
         logger.info("✅ Staging deployment successful")
         logger.info(f"Endpoint: {staging_endpoint}")
@@ -157,7 +154,7 @@ class ModelDeploymentSaga(Saga):
         failed_tests = []
 
         for i, test_case in enumerate(test_cases):
-            logger.info(f"Running test [{i+1}/{len(test_cases)}]: {test_case}")
+            logger.info(f"Running test [{i + 1}/{len(test_cases)}]: {test_case}")
             await asyncio.sleep(0.1)  # Simulate test execution
 
             # Simulate test result (95% pass rate)
@@ -176,9 +173,7 @@ class ModelDeploymentSaga(Saga):
                 f"Smoke tests failed: {', '.join(failed_tests)}. "
                 f"Model v{model_version} cannot be deployed to production."
             )
-            raise SagaStepError(
-                msg
-            )
+            raise SagaStepError(msg)
 
         # Performance metrics
         avg_latency = sum(t["duration"] for t in test_results.values()) / len(test_results)
@@ -226,14 +221,16 @@ class ModelDeploymentSaga(Saga):
         canary_error_rate = random.uniform(0.0, 0.02)
         canary_latency = random.uniform(0.05, 0.15)
 
-        logger.info(f"Canary metrics - Error rate: {canary_error_rate:.2%}, Latency: {canary_latency:.3f}s")
+        logger.info(
+            f"Canary metrics - Error rate: {canary_error_rate:.2%}, Latency: {canary_latency:.3f}s"
+        )
 
         # Check canary health
         if canary_error_rate > 0.05:  # 5% threshold
-            msg = f"Canary deployment failed: error rate {canary_error_rate:.2%} exceeds 5% threshold"
-            raise SagaStepError(
-                msg
+            msg = (
+                f"Canary deployment failed: error rate {canary_error_rate:.2%} exceeds 5% threshold"
             )
+            raise SagaStepError(msg)
 
         # Gradual traffic increase
         traffic_percentages = [canary_percentage, 25, 50, 75, 100]
@@ -294,16 +291,18 @@ class ModelDeploymentSaga(Saga):
             latency = random.uniform(0.05, 0.20)
             throughput = random.randint(100, 500)
 
-            samples.append({
-                "timestamp": datetime.now().isoformat(),
-                "error_rate": error_rate,
-                "latency": latency,
-                "throughput": throughput,
-            })
+            samples.append(
+                {
+                    "timestamp": datetime.now().isoformat(),
+                    "error_rate": error_rate,
+                    "latency": latency,
+                    "throughput": throughput,
+                }
+            )
 
             if i % 2 == 0:
                 logger.info(
-                    f"Health check [{i+1}/{monitoring_duration}] - "
+                    f"Health check [{i + 1}/{monitoring_duration}] - "
                     f"errors: {error_rate:.2%}, latency: {latency:.3f}s"
                 )
 
@@ -313,7 +312,9 @@ class ModelDeploymentSaga(Saga):
         avg_throughput = sum(s["throughput"] for s in samples) / len(samples)
 
         logger.info("✅ Health monitoring complete")
-        logger.info(f"Averages - Error: {avg_error_rate:.2%}, Latency: {avg_latency:.3f}s, Throughput: {avg_throughput:.0f} req/s")
+        logger.info(
+            f"Averages - Error: {avg_error_rate:.2%}, Latency: {avg_latency:.3f}s, Throughput: {avg_throughput:.0f} req/s"
+        )
 
         return {
             "health_status": "healthy",
@@ -338,11 +339,10 @@ async def successful_deployment_demo():
         "deployment_environment": "production",
         "canary_percentage": 10,
         "smoke_test_timeout": 30.0,
-        "deployment_id": "deploy-15"
+        "deployment_id": "deploy-15",
     }
 
     await saga.run(deployment_data)
-
 
 
 async def failed_deployment_demo():
@@ -368,7 +368,6 @@ async def failed_deployment_demo():
             await saga.run(data)
             break
         except SagaStepError:
-
             if attempt < 3:
                 await asyncio.sleep(1)
             else:
@@ -382,7 +381,6 @@ async def main():
 
     # Failed deployment with rollback
     await failed_deployment_demo()
-
 
 
 if __name__ == "__main__":

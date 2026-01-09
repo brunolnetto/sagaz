@@ -113,7 +113,10 @@ class TestRedisStorageEdgeCases:
     @pytest.mark.asyncio
     async def test_redis_json_decode_error(self):
         """Test that Redis storage handles JSON decode errors"""
-        with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True), patch("sagaz.storage.backends.redis.saga.redis"):
+        with (
+            patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True),
+            patch("sagaz.storage.backends.redis.saga.redis"),
+        ):
             from sagaz.storage.redis import RedisSagaStorage
 
             # This test would need a real Redis instance
@@ -500,7 +503,10 @@ class TestRedisSagaStorageMocked:
 
     def test_key_generation(self):
         """Test Redis key generation helpers."""
-        with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True), patch("sagaz.storage.backends.redis.saga.redis"):
+        with (
+            patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True),
+            patch("sagaz.storage.backends.redis.saga.redis"),
+        ):
             from sagaz.storage.redis import RedisSagaStorage
 
             storage = RedisSagaStorage("redis://localhost:6379", key_prefix="test:")

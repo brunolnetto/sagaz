@@ -130,15 +130,15 @@ class MedicalProcedureSchedulingSaga(Saga):
 
 
 async def main():
-
     saga = MedicalProcedureSchedulingSaga()
-    await saga.run({
-        "case_id": "CASE-2026-001",
-        "patient_id": "PAT-12345",
-        "procedure_code": "27447",
-        "procedure_name": "Total Knee Arthroplasty",
-    })
-
+    await saga.run(
+        {
+            "case_id": "CASE-2026-001",
+            "patient_id": "PAT-12345",
+            "procedure_code": "27447",
+            "procedure_name": "Total Knee Arthroplasty",
+        }
+    )
 
 
 if __name__ == "__main__":

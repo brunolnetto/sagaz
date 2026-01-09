@@ -26,12 +26,23 @@ _custom_logger: Any = None
 class NullLogger:  # pragma: no cover
     """A logger that does nothing (for when logging is disabled)."""
 
-    def debug(self, *args, **kwargs): pass
-    def info(self, *args, **kwargs): pass
-    def warning(self, *args, **kwargs): pass
-    def error(self, *args, **kwargs): pass
-    def exception(self, *args, **kwargs): pass
-    def critical(self, *args, **kwargs): pass
+    def debug(self, *args, **kwargs):
+        pass
+
+    def info(self, *args, **kwargs):
+        pass
+
+    def warning(self, *args, **kwargs):
+        pass
+
+    def error(self, *args, **kwargs):
+        pass
+
+    def exception(self, *args, **kwargs):
+        pass
+
+    def critical(self, *args, **kwargs):
+        pass
 
 
 def set_logger(logger: Any) -> None:
@@ -79,7 +90,7 @@ def get_logger(name: str = "sagaz") -> Any:
 
 def configure_default_logging(  # pragma: no cover
     level: int = logging.INFO,
-    format_string: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    format_string: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 ) -> None:
     """
     Configure basic logging for Sagaz.
@@ -95,4 +106,3 @@ def configure_default_logging(  # pragma: no cover
     # Set sagaz namespace to the specified level
     sagaz_logger = logging.getLogger("sagaz")
     sagaz_logger.setLevel(level)
-

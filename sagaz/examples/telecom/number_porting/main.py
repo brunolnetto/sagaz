@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 # Simulation Helpers
 # =============================================================================
 
+
 class TelecomSimulator:
     """Simulates telecom carrier and regulatory systems."""
 
@@ -79,6 +80,7 @@ class TelecomSimulator:
 
         # Simulate occasional rejections
         import random
+
         if random.random() < 0.05:  # 5% rejection rate
             msg = "Donor carrier rejected: Account balance pending"
             raise SagaStepError(msg)
@@ -100,6 +102,7 @@ class TelecomSimulator:
         await asyncio.sleep(0.3)
 
         import random
+
         return {
             "npac_transaction_id": f"NPAC-{random.randint(1000000, 9999999)}",
             "lrn": f"LRN-{new_carrier[:3].upper()}-{phone_number[-4:]}",
@@ -118,6 +121,7 @@ class TelecomSimulator:
         await asyncio.sleep(0.2)
 
         import random
+
         if random.random() < 0.08:  # 8% provisioning delay
             msg = "Provisioning delay: SIM not yet active"
             raise SagaStepError(msg)
@@ -162,6 +166,7 @@ class TelecomSimulator:
 # =============================================================================
 # Saga Definition
 # =============================================================================
+
 
 class MobileNumberPortingSaga(Saga):
     """
@@ -265,10 +270,7 @@ class MobileNumberPortingSaga(Saga):
             donor_carrier,
         )
 
-        logger.info(
-            f"✅ [{port_id}] Donor verified! "
-            f"PAC: {result['porting_authorization_code']}"
-        )
+        logger.info(f"✅ [{port_id}] Donor verified! PAC: {result['porting_authorization_code']}")
 
         return {
             "donor_verified": result["donor_verified"],
@@ -308,10 +310,7 @@ class MobileNumberPortingSaga(Saga):
             donor_carrier,
         )
 
-        logger.info(
-            f"✅ [{port_id}] PORT COMPLETE! "
-            f"NPAC TX: {result['npac_transaction_id']}"
-        )
+        logger.info(f"✅ [{port_id}] PORT COMPLETE! NPAC TX: {result['npac_transaction_id']}")
 
         return {
             "npac_transaction_id": result["npac_transaction_id"],
@@ -345,9 +344,7 @@ class MobileNumberPortingSaga(Saga):
         }
 
     @forward_recovery("activate_new_carrier")
-    async def handle_activation_failure(
-        self, ctx: SagaContext, error: Exception
-    ) -> RecoveryAction:
+    async def handle_activation_failure(self, ctx: SagaContext, error: Exception) -> RecoveryAction:
         """
         Forward recovery for activation failures.
 
@@ -383,10 +380,7 @@ class MobileNumberPortingSaga(Saga):
 
         result = await TelecomSimulator.update_routing_tables(phone_number, lrn)
 
-        logger.info(
-            f"✅ [{port_id}] Routing updated for: "
-            f"{', '.join(result['routing_regions'])}"
-        )
+        logger.info(f"✅ [{port_id}] Routing updated for: {', '.join(result['routing_regions'])}")
 
         return {
             "routing_updated": result["routing_updated"],
@@ -416,6 +410,7 @@ class MobileNumberPortingSaga(Saga):
 # Demo Scenarios
 # =============================================================================
 
+
 async def main():
     """Run the mobile number porting saga demo."""
 
@@ -423,23 +418,23 @@ async def main():
 
     # Scenario 1: Successful port
 
-    await saga.run({
-        "port_request_id": "PORT-2026-001",
-        "phone_number": "+1-555-123-4567",
-        "customer_name": "John Doe",
-        "account_number": "ACCT-987654",
-        "account_pin": "1234",
-        "donor_carrier": "OldMobile",
-        "new_carrier": "NewTelco",
-        "customer_email": "john.doe@email.com",
-        "sim_iccid": "8901260123456789012",
-    })
-
+    await saga.run(
+        {
+            "port_request_id": "PORT-2026-001",
+            "phone_number": "+1-555-123-4567",
+            "customer_name": "John Doe",
+            "account_number": "ACCT-987654",
+            "account_pin": "1234",
+            "donor_carrier": "OldMobile",
+            "new_carrier": "NewTelco",
+            "customer_email": "john.doe@email.com",
+            "sim_iccid": "8901260123456789012",
+        }
+    )
 
     # Scenario 2: Pre-pivot failure
 
     # Scenario 3: Post-pivot scenarios
-
 
 
 if __name__ == "__main__":

@@ -94,14 +94,14 @@ class ContentPublishingSaga(Saga):
 
 
 async def main():
-
     saga = ContentPublishingSaga()
-    await saga.run({
-        "article_id": "ART-2026-001",
-        "title": "Breaking News: Sagaz Goes Production",
-        "author": "Tech Writer",
-    })
-
+    await saga.run(
+        {
+            "article_id": "ART-2026-001",
+            "title": "Breaking News: Sagaz Goes Production",
+            "author": "Tech Writer",
+        }
+    )
 
 
 if __name__ == "__main__":

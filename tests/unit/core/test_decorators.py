@@ -507,11 +507,7 @@ class TestImperativeSupport:
             return {"imperative": True}
 
         # Add dependencies for imperative step if needed, here we test simple addition
-        saga.add_step(
-            name="imp_step",
-            action=my_action,
-            max_retries=1
-        )
+        saga.add_step(name="imp_step", action=my_action, max_retries=1)
 
         # Step should be in registry and steps list
         assert len(saga._steps) == 1
@@ -542,8 +538,4 @@ class TestImperativeSupport:
         # Mixing declarative and imperative approaches should raise TypeError
         msg = "Cannot use add_step.*with @action/@compensate decorators"
         with pytest.raises(TypeError, match=msg):
-            saga.add_step(
-                name="imp_step",
-                action=imp_step,
-                depends_on=["decl_step"]
-            )
+            saga.add_step(name="imp_step", action=imp_step, depends_on=["decl_step"])

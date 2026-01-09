@@ -24,8 +24,7 @@ from sagaz import Saga, action, compensate
 from sagaz.exceptions import SagaStepError
 
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -141,16 +140,16 @@ class LakehouseIngestionSaga(Saga):
                 f"Silver processing failed: Only {quality_ratio:.1%} data retained. "
                 f"Threshold is 85%. Check source data quality."
             )
-            raise SagaStepError(
-                msg
-            )
+            raise SagaStepError(msg)
 
         silver_path = f"{silver_table}/partition_date={partition_date}"
 
         logger.info(f"   Duplicates removed: {duplicates_removed:,}")
         logger.info(f"   Nulls filled: {nulls_filled:,}")
         logger.info(f"   Invalid records removed: {invalid_removed:,}")
-        logger.info(f"✅ SILVER complete: {silver_record_count:,} records ({quality_ratio:.1%} retained)")
+        logger.info(
+            f"✅ SILVER complete: {silver_record_count:,} records ({quality_ratio:.1%} retained)"
+        )
 
         return {
             "silver_path": silver_path,
@@ -216,9 +215,7 @@ class LakehouseIngestionSaga(Saga):
                 "Gold aggregation failed: Insufficient memory for aggregation. "
                 "Consider increasing cluster resources."
             )
-            raise SagaStepError(
-                msg
-            )
+            raise SagaStepError(msg)
 
         logger.info(f"   Aggregations: {aggregations_computed}")
         logger.info(f"✅ GOLD complete: {gold_record_count:,} aggregated records")
@@ -271,7 +268,11 @@ class LakehouseIngestionSaga(Saga):
         }
 
         # Register partitions
-        for _layer, table in [("bronze", bronze_table), ("silver", silver_table), ("gold", gold_table)]:
+        for _layer, table in [
+            ("bronze", bronze_table),
+            ("silver", silver_table),
+            ("gold", gold_table),
+        ]:
             logger.info(f"   Registered: {table}/partition_date={partition_date}")
 
         logger.info(f"✅ Catalog updated with lineage: {ingestion_id}")
@@ -318,14 +319,15 @@ async def successful_lakehouse_demo():
 
     saga = LakehouseIngestionSaga()
 
-    await saga.run({
-        "source_path": "s3://data-lake-raw/events/clickstream/",
-        "bronze_table": "bronze.raw_clickstream",
-        "silver_table": "silver.cleaned_clickstream",
-        "gold_table": "gold.clickstream_metrics",
-        "partition_date": "2026-01-06",
-    })
-
+    await saga.run(
+        {
+            "source_path": "s3://data-lake-raw/events/clickstream/",
+            "bronze_table": "bronze.raw_clickstream",
+            "silver_table": "silver.cleaned_clickstream",
+            "gold_table": "gold.clickstream_metrics",
+            "partition_date": "2026-01-06",
+        }
+    )
 
 
 async def failed_lakehouse_demo():
@@ -335,13 +337,15 @@ async def failed_lakehouse_demo():
 
     for attempt in range(5):
         try:
-            await saga.run({
-                "source_path": "s3://data-lake-raw/events/user_actions/",
-                "bronze_table": "bronze.raw_user_actions",
-                "silver_table": "silver.cleaned_user_actions",
-                "gold_table": "gold.user_action_metrics",
-                "partition_date": f"2026-01-0{attempt + 1}",
-            })
+            await saga.run(
+                {
+                    "source_path": "s3://data-lake-raw/events/user_actions/",
+                    "bronze_table": "bronze.raw_user_actions",
+                    "silver_table": "silver.cleaned_user_actions",
+                    "gold_table": "gold.user_action_metrics",
+                    "partition_date": f"2026-01-0{attempt + 1}",
+                }
+            )
         except SagaStepError:
             break
 
@@ -350,7 +354,6 @@ async def main():
     """Run lakehouse ingestion demos."""
     await successful_lakehouse_demo()
     await failed_lakehouse_demo()
-
 
 
 if __name__ == "__main__":

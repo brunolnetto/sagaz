@@ -87,15 +87,15 @@ class PrescriptionFulfillmentSaga(Saga):
 
 
 async def main():
-
     saga = PrescriptionFulfillmentSaga()
-    await saga.run({
-        "prescription_id": "RX-2026-12345",
-        "patient_id": "PAT-67890",
-        "medication": "Lisinopril 10mg",
-        "quantity": 30,
-    })
-
+    await saga.run(
+        {
+            "prescription_id": "RX-2026-12345",
+            "patient_id": "PAT-67890",
+            "medication": "Lisinopril 10mg",
+            "quantity": 30,
+        }
+    )
 
 
 if __name__ == "__main__":

@@ -112,8 +112,7 @@ class TestWebhookIntegration:
 
         client = TestClient(app)
         response = client.post(
-            "/webhooks/test",
-            json={"event": "test_event", "data": {"key": "value"}}
+            "/webhooks/test", json={"event": "test_event", "data": {"key": "value"}}
         )
 
         assert response.status_code == 202
@@ -132,9 +131,7 @@ class TestWebhookIntegration:
         client = TestClient(app)
         # Send invalid JSON
         response = client.post(
-            "/webhooks/test",
-            content="not json",
-            headers={"Content-Type": "application/json"}
+            "/webhooks/test", content="not json", headers={"Content-Type": "application/json"}
         )
 
         # Should still return 202 (empty payload will be used)

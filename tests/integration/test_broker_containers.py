@@ -9,12 +9,14 @@ import pytest
 try:
     from testcontainers.kafka import KafkaContainer
     from testcontainers.rabbitmq import RabbitMqContainer
+
     TESTCONTAINERS_AVAILABLE = True
 except ImportError:
     TESTCONTAINERS_AVAILABLE = False
 
 # Mark all tests in this module as integration tests (excluded by default)
 pytestmark = pytest.mark.integration
+
 
 @pytest.mark.xdist_group(name="containers")
 class TestKafkaBrokerIntegration:
@@ -33,7 +35,7 @@ class TestKafkaBrokerIntegration:
             pytest.skip("aiokafka not installed")
 
         if kafka_container is None:
-             pytest.skip("Kafka container not available")
+            pytest.skip("Kafka container not available")
 
         # Get bootstrap server from container
         bootstrap_server = kafka_container.get_bootstrap_server()
@@ -131,7 +133,7 @@ class TestRabbitMQBrokerIntegration:
             pytest.skip("aio-pika not installed")
 
         if rabbitmq_container is None:
-             pytest.skip("RabbitMQ container not available")
+            pytest.skip("RabbitMQ container not available")
 
         amqp_url = self._get_amqp_url(rabbitmq_container)
 

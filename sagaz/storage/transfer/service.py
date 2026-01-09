@@ -37,9 +37,9 @@ logger = logging.getLogger(__name__)
 class TransferErrorPolicy(Enum):
     """Policy for handling transfer errors."""
 
-    ABORT = "abort"       # Stop transfer on first error
-    SKIP = "skip"         # Skip failed records, continue
-    RETRY = "retry"       # Retry failed records
+    ABORT = "abort"  # Stop transfer on first error
+    SKIP = "skip"  # Skip failed records, continue
+    RETRY = "retry"  # Retry failed records
 
 
 @dataclass
@@ -308,9 +308,7 @@ class TransferService:
             result.errors.append(str(e))  # pragma: no cover
 
         # Finalize result
-        result.duration_seconds = (
-            datetime.now(UTC) - start_time
-        ).total_seconds()
+        result.duration_seconds = (datetime.now(UTC) - start_time).total_seconds()
 
         logger.info(
             f"Transfer complete: {result.transferred} transferred, "

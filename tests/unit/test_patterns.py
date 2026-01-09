@@ -389,7 +389,6 @@ class TestDecoratorStatusBranches:
 # ============================================
 
 
-
 class TestSetupTracingImportError:
     """Tests for setup_tracing when OTLP exporter import fails."""
 

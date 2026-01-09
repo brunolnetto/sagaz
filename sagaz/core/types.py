@@ -121,4 +121,3 @@ class SagaResult:
     def needs_intervention(self) -> bool:
         """True if saga requires manual intervention for forward recovery."""
         return self.status == SagaStatus.FORWARD_RECOVERY or self.forward_recovery_needed
-

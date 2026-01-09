@@ -228,7 +228,14 @@ class Saga(ABC):
         """
         self._validate_can_add_step(name)
         step = self._create_step(
-            name, action, compensation, timeout, compensation_timeout, max_retries, idempotency_key, pivot
+            name,
+            action,
+            compensation,
+            timeout,
+            compensation_timeout,
+            max_retries,
+            idempotency_key,
+            pivot,
         )
         self.steps.append(step)
         self._register_dependencies(name, dependencies)
@@ -552,7 +559,10 @@ class Saga(ABC):
         except Exception as e:  # pragma: no cover
             logger.error(f"DAG execution failed for saga {self.name}: {e}")  # pragma: no cover
             return self._build_dag_result(  # pragma: no cover
-                start_time, success=False, status=SagaStatus.FAILED, error=e  # pragma: no cover
+                start_time,
+                success=False,
+                status=SagaStatus.FAILED,
+                error=e,  # pragma: no cover
             )  # pragma: no cover
 
     def _get_parallel_strategy(self):
@@ -1127,4 +1137,3 @@ class SagaStep:
         """Mark this step as tainted (locked from rollback)."""
         self.tainted = True
         self.status = SagaStepStatus.TAINTED
-

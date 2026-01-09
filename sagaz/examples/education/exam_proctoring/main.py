@@ -107,15 +107,15 @@ class ExamProctoringSaga(Saga):
 
 
 async def main():
-
     saga = ExamProctoringSaga()
-    await saga.run({
-        "exam_id": "EXAM-2026-001",
-        "student_id": "STU-12345",
-        "course_id": "CS-301",
-        "duration_minutes": 90,
-    })
-
+    await saga.run(
+        {
+            "exam_id": "EXAM-2026-001",
+            "student_id": "STU-12345",
+            "course_id": "CS-301",
+            "duration_minutes": 90,
+        }
+    )
 
 
 if __name__ == "__main__":

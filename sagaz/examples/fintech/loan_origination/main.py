@@ -49,7 +49,10 @@ class LoanOriginationSaga(Saga):
         credit_score = ctx.get("credit_score", 720)
         logger.info(f"📊 [{app_id}] Running credit check...")
         await asyncio.sleep(0.2)
-        return {"credit_score": credit_score, "credit_tier": "prime" if credit_score >= 700 else "subprime"}
+        return {
+            "credit_score": credit_score,
+            "credit_tier": "prime" if credit_score >= 700 else "subprime",
+        }
 
     @compensate("run_credit_check")
     async def archive_credit_inquiry(self, ctx: SagaContext) -> None:
@@ -73,7 +76,10 @@ class LoanOriginationSaga(Saga):
         app_id = ctx.get("application_id")
         logger.info(f"📄 [{app_id}] Generating loan documents...")
         await asyncio.sleep(0.2)
-        return {"document_package_id": f"DOC-{app_id}", "documents": ["promissory_note", "disclosure", "agreement"]}
+        return {
+            "document_package_id": f"DOC-{app_id}",
+            "documents": ["promissory_note", "disclosure", "agreement"],
+        }
 
     @compensate("generate_loan_documents")
     async def void_documents(self, ctx: SagaContext) -> None:
@@ -103,16 +109,16 @@ class LoanOriginationSaga(Saga):
 
 
 async def main():
-
     saga = LoanOriginationSaga()
-    await saga.run({
-        "application_id": "LOAN-2026-001",
-        "applicant_id": "CUST-12345",
-        "loan_amount": Decimal("35000"),
-        "loan_term_months": 60,
-        "credit_score": 745,
-    })
-
+    await saga.run(
+        {
+            "application_id": "LOAN-2026-001",
+            "applicant_id": "CUST-12345",
+            "loan_amount": Decimal("35000"),
+            "loan_term_months": 60,
+            "credit_score": 745,
+        }
+    )
 
 
 if __name__ == "__main__":

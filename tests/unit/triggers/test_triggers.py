@@ -7,6 +7,7 @@ Tests cover:
 - TriggerEngine (fire_event, transformers, concurrency, idempotency)
 - Declarative Saga persistence integration
 """
+
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -24,6 +25,7 @@ from sagaz.triggers.registry import RegisteredTrigger, TriggerRegistry
 # Fixtures
 # =============================================================================
 
+
 @pytest.fixture(autouse=True)
 def reset_registry():
     """Clear the trigger registry before each test."""
@@ -36,6 +38,7 @@ def reset_registry():
 def memory_storage():
     """Provide fresh memory storage for each test."""
     from sagaz.storage import InMemorySagaStorage
+
     storage = InMemorySagaStorage()
     config = SagaConfig(storage=storage)
     configure(config)
@@ -46,11 +49,13 @@ def memory_storage():
 # @trigger Decorator Tests
 # =============================================================================
 
+
 class TestTriggerDecorator:
     """Tests for the @trigger decorator."""
 
     def test_basic_trigger_attaches_metadata(self):
         """@trigger attaches _trigger_metadata to method."""
+
         @trigger(source="webhook")
         def on_event(self, payload):
             return payload
@@ -61,6 +66,7 @@ class TestTriggerDecorator:
 
     def test_trigger_with_max_concurrent(self):
         """@trigger stores max_concurrent in metadata."""
+
         @trigger(source="kafka", max_concurrent=5)
         def handler(self, payload):
             return payload
@@ -69,6 +75,7 @@ class TestTriggerDecorator:
 
     def test_trigger_with_idempotency_key_string(self):
         """@trigger stores string idempotency_key."""
+
         @trigger(source="api", idempotency_key="request_id")
         def handler(self, payload):
             return payload
@@ -77,6 +84,7 @@ class TestTriggerDecorator:
 
     def test_trigger_with_idempotency_key_callable(self):
         """@trigger stores callable idempotency_key."""
+
         def key_fn(p):
             return f"{p['type']}:{p['id']}"
 
@@ -88,6 +96,7 @@ class TestTriggerDecorator:
 
     def test_trigger_with_extra_config(self):
         """@trigger stores extra config in config dict."""
+
         @trigger(source="kafka", topic="orders", event_type="order.created")
         def handler(self, payload):
             return payload
@@ -99,6 +108,7 @@ class TestTriggerDecorator:
 # =============================================================================
 # TriggerRegistry Tests
 # =============================================================================
+
 
 class TestTriggerRegistry:
     """Tests for TriggerRegistry."""
@@ -149,11 +159,13 @@ class TestTriggerRegistry:
 # Saga Auto-Registration Tests
 # =============================================================================
 
+
 class TestSagaAutoRegistration:
     """Tests for automatic trigger registration via __init_subclass__."""
 
     def test_saga_with_trigger_auto_registers(self):
         """Saga subclass with @trigger auto-registers with registry."""
+
         class AutoRegSaga(Saga):
             @trigger(source="auto_test")
             def on_event(self, payload):
@@ -170,6 +182,7 @@ class TestSagaAutoRegistration:
 
     def test_saga_with_multiple_triggers(self):
         """Saga can have multiple triggers."""
+
         class MultiTriggerSaga(Saga):
             @trigger(source="source_a")
             def on_a(self, payload):
@@ -202,6 +215,7 @@ class TestSagaAutoRegistration:
 # =============================================================================
 # TriggerEngine Tests
 # =============================================================================
+
 
 class TestTriggerEngine:
     """Tests for TriggerEngine.fire()."""
@@ -238,6 +252,7 @@ class TestTriggerEngine:
     @pytest.mark.asyncio
     async def test_fire_skips_if_transformer_returns_none(self, memory_storage):
         """fire_event skips saga if transformer returns None."""
+
         class SkipSaga(Saga):
             saga_name = "skip_test"
 
@@ -255,6 +270,7 @@ class TestTriggerEngine:
     @pytest.mark.asyncio
     async def test_fire_skips_if_transformer_returns_non_dict(self, memory_storage):
         """fire_event skips saga if transformer returns non-dict."""
+
         class BadTransformerSaga(Saga):
             saga_name = "bad_transformer"
 
@@ -272,6 +288,7 @@ class TestTriggerEngine:
     @pytest.mark.asyncio
     async def test_fire_with_async_transformer(self, memory_storage):
         """fire_event supports async transformer methods."""
+
         class AsyncTransformerSaga(Saga):
             saga_name = "async_transformer"
 
@@ -292,12 +309,14 @@ class TestTriggerEngine:
 # Concurrency Control Tests
 # =============================================================================
 
+
 class TestConcurrencyControl:
     """Tests for max_concurrent enforcement."""
 
     @pytest.mark.asyncio
     async def test_concurrency_allows_within_limit(self, memory_storage):
         """Sagas within max_concurrent limit are allowed."""
+
         class TwoAtOnceSaga(Saga):
             saga_name = "two_at_once"
 
@@ -322,6 +341,7 @@ class TestConcurrencyControl:
     @pytest.mark.asyncio
     async def test_concurrency_blocks_over_limit(self, memory_storage):
         """Sagas over max_concurrent limit are blocked."""
+
         class OneAtTimeSaga(Saga):
             saga_name = "one_at_time"
 
@@ -352,6 +372,7 @@ class TestConcurrencyControl:
     @pytest.mark.asyncio
     async def test_concurrency_allows_after_completion(self, memory_storage):
         """Saga allowed after previous completes."""
+
         class QuickSaga(Saga):
             saga_name = "quick_saga"
 
@@ -379,12 +400,14 @@ class TestConcurrencyControl:
 # Idempotency Tests
 # =============================================================================
 
+
 class TestIdempotency:
     """Tests for idempotency_key enforcement."""
 
     @pytest.mark.asyncio
     async def test_idempotency_same_key_returns_same_id(self, memory_storage):
         """Same idempotency key returns same saga ID."""
+
         class IdempotentSaga(Saga):
             saga_name = "idempotent"
 
@@ -411,6 +434,7 @@ class TestIdempotency:
     @pytest.mark.asyncio
     async def test_idempotency_different_keys_create_different_sagas(self, memory_storage):
         """Different idempotency keys create different sagas."""
+
         class DiffKeySaga(Saga):
             saga_name = "diff_key"
 
@@ -432,13 +456,11 @@ class TestIdempotency:
     @pytest.mark.asyncio
     async def test_idempotency_with_callable_key(self, memory_storage):
         """idempotency_key can be a callable."""
+
         class CallableKeySaga(Saga):
             saga_name = "callable_key"
 
-            @trigger(
-                source="callable_source",
-                idempotency_key=lambda p: f"{p['type']}:{p['id']}"
-            )
+            @trigger(source="callable_source", idempotency_key=lambda p: f"{p['type']}:{p['id']}")
             def on_event(self, payload):
                 return {}
 
@@ -456,6 +478,7 @@ class TestIdempotency:
     @pytest.mark.asyncio
     async def test_idempotency_missing_key_field_generates_random_id(self, memory_storage):
         """Missing idempotency key field results in random ID generation."""
+
         class MissingKeySaga(Saga):
             saga_name = "missing_key"
 
@@ -480,12 +503,14 @@ class TestIdempotency:
 # Persistence Tests
 # =============================================================================
 
+
 class TestSagaPersistence:
     """Tests for saga state persistence."""
 
     @pytest.mark.asyncio
     async def test_saga_persists_executing_state(self, memory_storage):
         """Saga persists EXECUTING state on start."""
+
         class PersistSaga(Saga):
             saga_name = "persist_test"
 
@@ -514,6 +539,7 @@ class TestSagaPersistence:
     @pytest.mark.asyncio
     async def test_saga_persists_completed_state(self, memory_storage):
         """Saga persists COMPLETED state on success."""
+
         class CompleteSaga(Saga):
             saga_name = "complete_test"
 
@@ -538,6 +564,7 @@ class TestSagaPersistence:
     @pytest.mark.asyncio
     async def test_saga_persists_rolled_back_state_on_failure(self, memory_storage):
         """Saga persists ROLLED_BACK state on failure."""
+
         class FailSaga(Saga):
             saga_name = "fail_test"
 
@@ -565,12 +592,14 @@ class TestSagaPersistence:
 # Edge Cases
 # =============================================================================
 
+
 class TestEdgeCases:
     """Edge case tests."""
 
     @pytest.mark.asyncio
     async def test_empty_payload(self, memory_storage):
         """fire_event handles empty payload."""
+
         class EmptyPayloadSaga(Saga):
             saga_name = "empty_payload"
 
@@ -588,6 +617,7 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_saga_without_saga_name_attribute(self, memory_storage):
         """Saga without saga_name uses class name."""
+
         class NoNameSaga(Saga):
             # No saga_name defined
 
@@ -605,6 +635,7 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_transformer_exception_handled(self, memory_storage):
         """Exception in transformer is handled gracefully."""
+
         class ExceptionSaga(Saga):
             saga_name = "exception_saga"
 
@@ -624,6 +655,7 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_multiple_sagas_for_same_source(self, memory_storage):
         """Multiple sagas can be triggered by same source."""
+
         class SagaA(Saga):
             saga_name = "saga_a"
 

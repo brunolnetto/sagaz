@@ -185,7 +185,7 @@ class MissingDependencyError(CompensationGraphError):
 
 
 def _detect_compensation_signature(
-    compensation_fn: Callable[[dict[str, Any]], Awaitable[Any]]
+    compensation_fn: Callable[[dict[str, Any]], Awaitable[Any]],
 ) -> bool:
     """
     Detect if compensation function accepts compensation_results parameter.
@@ -579,9 +579,7 @@ class SagaExecutionGraph:
                 steps_to_execute, comp_context, failure_strategy
             )
 
-            self._process_level_results(
-                level_results, comp_context, failure_strategy, tracker
-            )
+            self._process_level_results(level_results, comp_context, failure_strategy, tracker)
 
     def _filter_level_steps(
         self,
@@ -642,14 +640,13 @@ class SagaExecutionGraph:
 
         # Create tasks for all steps in the level
         tasks = {
-            step_id: self._execute_single_compensation(
-                step_id, comp_context, failure_strategy
-            )
+            step_id: self._execute_single_compensation(step_id, comp_context, failure_strategy)
             for step_id in step_ids
         }
 
         # Execute in parallel and gather results
         import asyncio
+
         keys = list(tasks.keys())
         coroutines = list(tasks.values())
 
@@ -711,8 +708,7 @@ class SagaExecutionGraph:
                 if accepts_results:
                     result = await asyncio.wait_for(
                         node.compensation_fn(
-                            comp_context.original_context,
-                            comp_context.compensation_results
+                            comp_context.original_context, comp_context.compensation_results
                         ),
                         timeout=node.timeout_seconds,
                     )

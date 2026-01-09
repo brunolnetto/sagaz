@@ -1,4 +1,3 @@
-
 import pytest
 
 from sagaz.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
@@ -47,12 +46,12 @@ class TestMermaidTrails:
     def test_failure_trail_rendering(self, basic_steps):
         """Test an execution trail that failed and rolled back."""
         trail = HighlightTrail(
-            completed={"step1"},       # step1 succeeded
-            failed_step="step2",       # step2 failed
-            compensated={"step1"},     # step1 was compensated
+            completed={"step1"},  # step1 succeeded
+            failed_step="step2",  # step2 failed
+            compensated={"step1"},  # step1 was compensated
             total_duration="120ms",
             step_durations={"step1": "50ms", "step2": "30ms"},
-            comp_durations={"step1": "40ms"}
+            comp_durations={"step1": "40ms"},
         )
 
         generator = MermaidGenerator(basic_steps, highlight_trail=trail)
@@ -114,7 +113,7 @@ class TestMermaidTrails:
             "compensated_steps": ["b", "a"],
             "step_durations": {"a": "10ms"},
             "comp_durations": {"b": "5ms"},
-            "total_duration": "100ms"
+            "total_duration": "100ms",
         }
 
         trail = HighlightTrail.from_dict(data)
@@ -171,4 +170,3 @@ class TestMermaidTrails:
         # "B" might be in "TB" (flowchart TB), so check for node B definition or usage
         assert "    B" not in diagram
         assert "    C" not in diagram
-

@@ -12,8 +12,7 @@ from typing import Any
 from sagaz import Saga, SagaContext, action, compensate
 
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -61,7 +60,9 @@ class TravelBookingSaga(Saga):
         booking_reference = ctx.get("flight_booking_reference")
         confirmation = ctx.get("flight_confirmation")
         if booking_reference:
-            logger.info(f"Canceling flight booking {booking_reference} (confirmation: {confirmation})")
+            logger.info(
+                f"Canceling flight booking {booking_reference} (confirmation: {confirmation})"
+            )
 
         await asyncio.sleep(0.2)
 
@@ -150,25 +151,27 @@ async def main():
     saga = TravelBookingSaga()
 
     # Book first trip - with car rental
-    await saga.run({
-        "booking_id": "BOOK-456",
-        "user_id": "USER-123",
-        "flight_details": {"flight_number": "AA123", "from": "NYC", "to": "LAX"},
-        "hotel_details": {"hotel_name": "Grand Hotel", "nights": 3},
-        "car_details": {"car_type": "Sedan", "days": 3},
-    })
-
+    await saga.run(
+        {
+            "booking_id": "BOOK-456",
+            "user_id": "USER-123",
+            "flight_details": {"flight_number": "AA123", "from": "NYC", "to": "LAX"},
+            "hotel_details": {"hotel_name": "Grand Hotel", "nights": 3},
+            "car_details": {"car_type": "Sedan", "days": 3},
+        }
+    )
 
     # Demonstrate reusability - same saga, different booking (no car)
 
-    await saga.run({
-        "booking_id": "BOOK-789",
-        "user_id": "USER-456",
-        "flight_details": {"flight_number": "UA456", "from": "SFO", "to": "JFK"},
-        "hotel_details": {"hotel_name": "City Inn", "nights": 2},
-        "car_details": None,  # No car rental
-    })
-
+    await saga.run(
+        {
+            "booking_id": "BOOK-789",
+            "user_id": "USER-456",
+            "flight_details": {"flight_number": "UA456", "from": "SFO", "to": "JFK"},
+            "hotel_details": {"hotel_name": "City Inn", "nights": 2},
+            "car_details": None,  # No car rental
+        }
+    )
 
 
 if __name__ == "__main__":

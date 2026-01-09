@@ -220,9 +220,7 @@ class SagaStorage(ABC):
             f"{self.__class__.__name__} does not support export. "
             "Implement export_all() to enable data transfer."
         )
-        raise NotImplementedError(
-            msg
-        )
+        raise NotImplementedError(msg)
         # Make it a generator
         if False:
             yield {}
@@ -240,9 +238,7 @@ class SagaStorage(ABC):
             f"{self.__class__.__name__} does not support import. "
             "Implement import_record() to enable data transfer."
         )
-        raise NotImplementedError(
-            msg
-        )
+        raise NotImplementedError(msg)
 
     async def count(self) -> int:
         """
@@ -280,6 +276,7 @@ class SagaStorage(ABC):
 # ==========================================================================
 # Helper Classes
 # ==========================================================================
+
 
 class SagaStepState:
     """Helper class for step state representation."""

@@ -137,9 +137,7 @@ class EdgeFederatedLearningSaga(Saga):
 
         if simulate_failure:
             msg = "Insufficient edge nodes completed training - network connectivity issues"
-            raise SagaStepError(
-                msg
-            )
+            raise SagaStepError(msg)
 
         nodes = ctx.get("nodes", [])
 
@@ -162,7 +160,7 @@ class EdgeFederatedLearningSaga(Saga):
 
         logger.info(
             f"   ✅ Training complete: {training_result['completed_nodes']} nodes "
-            f"({(training_result['completed_nodes']/len(nodes))*100:.1f}%)"
+            f"({(training_result['completed_nodes'] / len(nodes)) * 100:.1f}%)"
         )
         return training_result
 
@@ -316,7 +314,6 @@ async def main():
 
     await saga.run(success_data)
 
-
     # Scenario 2: Insufficient node participation with rollback
 
     failure_data = {
@@ -333,8 +330,6 @@ async def main():
         await saga.run(failure_data)
     except Exception:
         pass
-
-
 
 
 if __name__ == "__main__":

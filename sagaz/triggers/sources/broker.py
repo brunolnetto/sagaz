@@ -140,10 +140,7 @@ class BrokerTriggerConsumer:
                 )
 
                 # Prepare event data
-                event_data = {
-                    "topic": topic,
-                    **message
-                }
+                event_data = {"topic": topic, **message}
 
                 # Run transformer
                 saga_instance = trigger.saga_class()

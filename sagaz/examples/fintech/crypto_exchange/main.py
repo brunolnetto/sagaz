@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 # Simulation Helpers
 # =============================================================================
 
+
 class BlockchainSimulator:
     """Simulates blockchain interactions for demo purposes."""
 
@@ -66,6 +67,7 @@ class BlockchainSimulator:
 
         # Simulate occasional failures
         import random
+
         if random.random() < 0.1:  # 10% failure rate
             msg = "Failed to broadcast transaction: Network congestion"
             raise SagaStepError(msg)
@@ -96,6 +98,7 @@ class BlockchainSimulator:
 # =============================================================================
 # Saga Definition
 # =============================================================================
+
 
 class CryptoExchangeSaga(Saga):
     """
@@ -249,10 +252,7 @@ class CryptoExchangeSaga(Saga):
 
         result = await BlockchainSimulator.broadcast_transaction(tx_data, network)
 
-        logger.info(
-            f"✅ [{trade_id}] Transaction broadcast! "
-            f"TX Hash: {result['tx_hash'][:20]}..."
-        )
+        logger.info(f"✅ [{trade_id}] Transaction broadcast! TX Hash: {result['tx_hash'][:20]}...")
 
         return {
             "tx_hash": result["tx_hash"],
@@ -337,6 +337,7 @@ class CryptoExchangeSaga(Saga):
 # Demo Scenarios
 # =============================================================================
 
+
 async def main():
     """Run the crypto exchange saga demo."""
 
@@ -344,34 +345,36 @@ async def main():
 
     # Scenario 1: Successful trade
 
-    await saga.run({
-        "trade_id": "TRADE-001",
-        "user_id": "USER-456",
-        "from_currency": "BTC",
-        "to_currency": "ETH",
-        "amount": Decimal("0.5"),
-        "destination_wallet": "0x742d35Cc6634C0532925a3b844Bc9e7595f2bAcE",
-        "network": "ethereum",
-    })
-
+    await saga.run(
+        {
+            "trade_id": "TRADE-001",
+            "user_id": "USER-456",
+            "from_currency": "BTC",
+            "to_currency": "ETH",
+            "amount": Decimal("0.5"),
+            "destination_wallet": "0x742d35Cc6634C0532925a3b844Bc9e7595f2bAcE",
+            "network": "ethereum",
+        }
+    )
 
     # Scenario 2: Pre-pivot failure (rollback)
 
     try:
-        await saga.run({
-            "trade_id": "TRADE-002",
-            "user_id": "USER-789",
-            "from_currency": "ETH",
-            "to_currency": "BTC",
-            "amount": Decimal("5.0"),
-            "destination_wallet": "invalid-wallet",  # Invalid!
-            "network": "bitcoin",
-        })
+        await saga.run(
+            {
+                "trade_id": "TRADE-002",
+                "user_id": "USER-789",
+                "from_currency": "ETH",
+                "to_currency": "BTC",
+                "amount": Decimal("5.0"),
+                "destination_wallet": "invalid-wallet",  # Invalid!
+                "network": "bitcoin",
+            }
+        )
     except SagaStepError:
         pass
 
     # Scenario 3: Description of post-pivot behavior
-
 
 
 if __name__ == "__main__":

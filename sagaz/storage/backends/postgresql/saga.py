@@ -497,8 +497,7 @@ class PostgreSQLSagaStorage(SagaStorage):
                     # Fetch steps for this saga (not super efficient but avoids giant joins)
                     # For better performance we could do a large join or stream steps separately
                     step_rows = await conn.fetch(
-                        "SELECT * FROM saga_steps WHERE saga_id = $1 ORDER BY id",
-                        row["saga_id"]
+                        "SELECT * FROM saga_steps WHERE saga_id = $1 ORDER BY id", row["saga_id"]
                     )
 
                     yield self._build_saga_dict(row, step_rows)

@@ -41,6 +41,7 @@ def get_sagaz_config() -> dict[str, Any]:
     """
     try:
         from django.conf import settings
+
         return getattr(settings, "SAGAZ", {})
     except ImportError:  # pragma: no cover
         return {}
@@ -101,10 +102,7 @@ class SagaDjangoMiddleware:
 
     def __call__(self, request):
         # Get or generate correlation ID
-        correlation_id = request.META.get(
-            "HTTP_X_CORRELATION_ID",
-            generate_correlation_id()
-        )
+        correlation_id = request.META.get("HTTP_X_CORRELATION_ID", generate_correlation_id())
 
         # Set on request and context
         request.saga_correlation_id = correlation_id
@@ -168,9 +166,7 @@ def sagaz_webhook_view(request, source: str):
     thread = threading.Thread(target=process_in_thread, daemon=True)
     thread.start()
 
-    return JsonResponse({
-        "status": "accepted",
-        "source": source,
-        "message": "Event queued for processing"
-    }, status=202)  # Accepted
-
+    return JsonResponse(
+        {"status": "accepted", "source": source, "message": "Event queued for processing"},
+        status=202,
+    )  # Accepted

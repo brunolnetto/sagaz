@@ -95,6 +95,7 @@ class TestCorrelationId:
 
         # Should be a valid UUID format
         import uuid
+
         parsed = uuid.UUID(correlation_id)
         assert str(parsed) == correlation_id
 
@@ -113,6 +114,7 @@ class TestCorrelationId:
 
         # Should be a valid UUID
         import uuid
+
         uuid.UUID(correlation_id)
 
         # Should now be stored in context

@@ -29,8 +29,11 @@ class TestSagaStorageInterface:
 
     def test_concrete_saga_storage(self):
         """Test a minimal concrete implementation."""
+
         class MinimalSagaStorage(SagaStorage):
-            async def save_saga_state(self, saga_id, saga_name, status, steps, context, metadata=None):
+            async def save_saga_state(
+                self, saga_id, saga_name, status, steps, context, metadata=None
+            ):
                 pass
 
             async def load_saga_state(self, saga_id):
@@ -42,7 +45,9 @@ class TestSagaStorageInterface:
             async def list_sagas(self, status=None, saga_name=None, limit=100, offset=0):
                 return []
 
-            async def update_step_state(self, saga_id, step_name, status, result=None, error=None, executed_at=None):
+            async def update_step_state(
+                self, saga_id, step_name, status, result=None, error=None, executed_at=None
+            ):
                 pass
 
             async def get_saga_statistics(self):
@@ -60,15 +65,31 @@ class TestSagaStorageInterface:
     @pytest.mark.asyncio
     async def test_export_all_not_implemented(self):
         """Test export_all raises NotImplementedError by default."""
+
         class MinimalSagaStorage(SagaStorage):
-            async def save_saga_state(self, *args, **kwargs): pass
-            async def load_saga_state(self, saga_id): return None
-            async def delete_saga_state(self, saga_id): return False
-            async def list_sagas(self, **kwargs): return []
-            async def update_step_state(self, *args, **kwargs): pass
-            async def get_saga_statistics(self): return {}
-            async def cleanup_completed_sagas(self, *args, **kwargs): return 0
-            async def health_check(self): return {}
+            async def save_saga_state(self, *args, **kwargs):
+                pass
+
+            async def load_saga_state(self, saga_id):
+                return None
+
+            async def delete_saga_state(self, saga_id):
+                return False
+
+            async def list_sagas(self, **kwargs):
+                return []
+
+            async def update_step_state(self, *args, **kwargs):
+                pass
+
+            async def get_saga_statistics(self):
+                return {}
+
+            async def cleanup_completed_sagas(self, *args, **kwargs):
+                return 0
+
+            async def health_check(self):
+                return {}
 
         storage = MinimalSagaStorage()
 
@@ -79,15 +100,31 @@ class TestSagaStorageInterface:
     @pytest.mark.asyncio
     async def test_import_record_not_implemented(self):
         """Test import_record raises NotImplementedError by default."""
+
         class MinimalSagaStorage(SagaStorage):
-            async def save_saga_state(self, *args, **kwargs): pass
-            async def load_saga_state(self, saga_id): return None
-            async def delete_saga_state(self, saga_id): return False
-            async def list_sagas(self, **kwargs): return []
-            async def update_step_state(self, *args, **kwargs): pass
-            async def get_saga_statistics(self): return {}
-            async def cleanup_completed_sagas(self, *args, **kwargs): return 0
-            async def health_check(self): return {}
+            async def save_saga_state(self, *args, **kwargs):
+                pass
+
+            async def load_saga_state(self, saga_id):
+                return None
+
+            async def delete_saga_state(self, saga_id):
+                return False
+
+            async def list_sagas(self, **kwargs):
+                return []
+
+            async def update_step_state(self, *args, **kwargs):
+                pass
+
+            async def get_saga_statistics(self):
+                return {}
+
+            async def cleanup_completed_sagas(self, *args, **kwargs):
+                return 0
+
+            async def health_check(self):
+                return {}
 
         storage = MinimalSagaStorage()
 
@@ -97,16 +134,31 @@ class TestSagaStorageInterface:
     @pytest.mark.asyncio
     async def test_count_default_uses_list_sagas(self):
         """Test count uses list_sagas by default."""
+
         class CountingSagaStorage(SagaStorage):
-            async def save_saga_state(self, *args, **kwargs): pass
-            async def load_saga_state(self, saga_id): return None
-            async def delete_saga_state(self, saga_id): return False
+            async def save_saga_state(self, *args, **kwargs):
+                pass
+
+            async def load_saga_state(self, saga_id):
+                return None
+
+            async def delete_saga_state(self, saga_id):
+                return False
+
             async def list_sagas(self, **kwargs):
                 return [{"id": "1"}, {"id": "2"}, {"id": "3"}]
-            async def update_step_state(self, *args, **kwargs): pass
-            async def get_saga_statistics(self): return {}
-            async def cleanup_completed_sagas(self, *args, **kwargs): return 0
-            async def health_check(self): return {}
+
+            async def update_step_state(self, *args, **kwargs):
+                pass
+
+            async def get_saga_statistics(self):
+                return {}
+
+            async def cleanup_completed_sagas(self, *args, **kwargs):
+                return 0
+
+            async def health_check(self):
+                return {}
 
         storage = CountingSagaStorage()
         count = await storage.count()
@@ -116,15 +168,31 @@ class TestSagaStorageInterface:
     @pytest.mark.asyncio
     async def test_context_manager(self):
         """Test context manager support."""
+
         class MinimalSagaStorage(SagaStorage):
-            async def save_saga_state(self, *args, **kwargs): pass
-            async def load_saga_state(self, saga_id): return None
-            async def delete_saga_state(self, saga_id): return False
-            async def list_sagas(self, **kwargs): return []
-            async def update_step_state(self, *args, **kwargs): pass
-            async def get_saga_statistics(self): return {}
-            async def cleanup_completed_sagas(self, *args, **kwargs): return 0
-            async def health_check(self): return {}
+            async def save_saga_state(self, *args, **kwargs):
+                pass
+
+            async def load_saga_state(self, saga_id):
+                return None
+
+            async def delete_saga_state(self, saga_id):
+                return False
+
+            async def list_sagas(self, **kwargs):
+                return []
+
+            async def update_step_state(self, *args, **kwargs):
+                pass
+
+            async def get_saga_statistics(self):
+                return {}
+
+            async def cleanup_completed_sagas(self, *args, **kwargs):
+                return 0
+
+            async def health_check(self):
+                return {}
 
         async with MinimalSagaStorage() as storage:
             assert storage is not None
@@ -132,15 +200,31 @@ class TestSagaStorageInterface:
     @pytest.mark.asyncio
     async def test_close_default(self):
         """Test close does nothing by default."""
+
         class MinimalSagaStorage(SagaStorage):
-            async def save_saga_state(self, *args, **kwargs): pass
-            async def load_saga_state(self, saga_id): return None
-            async def delete_saga_state(self, saga_id): return False
-            async def list_sagas(self, **kwargs): return []
-            async def update_step_state(self, *args, **kwargs): pass
-            async def get_saga_statistics(self): return {}
-            async def cleanup_completed_sagas(self, *args, **kwargs): return 0
-            async def health_check(self): return {}
+            async def save_saga_state(self, *args, **kwargs):
+                pass
+
+            async def load_saga_state(self, saga_id):
+                return None
+
+            async def delete_saga_state(self, saga_id):
+                return False
+
+            async def list_sagas(self, **kwargs):
+                return []
+
+            async def update_step_state(self, *args, **kwargs):
+                pass
+
+            async def get_saga_statistics(self):
+                return {}
+
+            async def cleanup_completed_sagas(self, *args, **kwargs):
+                return 0
+
+            async def health_check(self):
+                return {}
 
         storage = MinimalSagaStorage()
         await storage.close()  # Should not raise
@@ -250,6 +334,7 @@ class TestOutboxStorageInterface:
 
     def test_concrete_outbox_storage(self):
         """Test a minimal concrete implementation."""
+
         class MinimalOutboxStorage(OutboxStorage):
             async def insert(self, event, connection=None):
                 return event
@@ -284,17 +369,34 @@ class TestOutboxStorageInterface:
     @pytest.mark.asyncio
     async def test_health_check_default(self):
         """Test default health_check implementation."""
+
         class MinimalOutboxStorage(OutboxStorage):
-            async def insert(self, event, connection=None): return event
-            async def get_by_id(self, event_id): return None
+            async def insert(self, event, connection=None):
+                return event
+
+            async def get_by_id(self, event_id):
+                return None
+
             async def update_status(self, *args, **kwargs):
                 return OutboxEvent(saga_id="test", event_type="test", payload={})
-            async def claim_batch(self, *args, **kwargs): return []
-            async def get_events_by_saga(self, saga_id): return []
-            async def get_stuck_events(self, *args): return []
-            async def release_stuck_events(self, *args): return 0
-            async def get_pending_count(self): return 5
-            async def get_dead_letter_events(self, *args): return []
+
+            async def claim_batch(self, *args, **kwargs):
+                return []
+
+            async def get_events_by_saga(self, saga_id):
+                return []
+
+            async def get_stuck_events(self, *args):
+                return []
+
+            async def release_stuck_events(self, *args):
+                return 0
+
+            async def get_pending_count(self):
+                return 5
+
+            async def get_dead_letter_events(self, *args):
+                return []
 
         storage = MinimalOutboxStorage()
         result = await storage.health_check()
@@ -305,19 +407,35 @@ class TestOutboxStorageInterface:
     @pytest.mark.asyncio
     async def test_health_check_exception(self):
         """Test health_check handles exception."""
+
         class FailingOutboxStorage(OutboxStorage):
-            async def insert(self, event, connection=None): return event
-            async def get_by_id(self, event_id): return None
+            async def insert(self, event, connection=None):
+                return event
+
+            async def get_by_id(self, event_id):
+                return None
+
             async def update_status(self, *args, **kwargs):
                 return OutboxEvent(saga_id="test", event_type="test", payload={})
-            async def claim_batch(self, *args, **kwargs): return []
-            async def get_events_by_saga(self, saga_id): return []
-            async def get_stuck_events(self, *args): return []
-            async def release_stuck_events(self, *args): return 0
+
+            async def claim_batch(self, *args, **kwargs):
+                return []
+
+            async def get_events_by_saga(self, saga_id):
+                return []
+
+            async def get_stuck_events(self, *args):
+                return []
+
+            async def release_stuck_events(self, *args):
+                return 0
+
             async def get_pending_count(self):
                 msg = "DB error"
                 raise Exception(msg)
-            async def get_dead_letter_events(self, *args): return []
+
+            async def get_dead_letter_events(self, *args):
+                return []
 
         storage = FailingOutboxStorage()
         result = await storage.health_check()
@@ -328,17 +446,34 @@ class TestOutboxStorageInterface:
     @pytest.mark.asyncio
     async def test_get_statistics_default(self):
         """Test default get_statistics implementation."""
+
         class MinimalOutboxStorage(OutboxStorage):
-            async def insert(self, event, connection=None): return event
-            async def get_by_id(self, event_id): return None
+            async def insert(self, event, connection=None):
+                return event
+
+            async def get_by_id(self, event_id):
+                return None
+
             async def update_status(self, *args, **kwargs):
                 return OutboxEvent(saga_id="test", event_type="test", payload={})
-            async def claim_batch(self, *args, **kwargs): return []
-            async def get_events_by_saga(self, saga_id): return []
-            async def get_stuck_events(self, *args): return []
-            async def release_stuck_events(self, *args): return 0
-            async def get_pending_count(self): return 10
-            async def get_dead_letter_events(self, *args): return []
+
+            async def claim_batch(self, *args, **kwargs):
+                return []
+
+            async def get_events_by_saga(self, saga_id):
+                return []
+
+            async def get_stuck_events(self, *args):
+                return []
+
+            async def release_stuck_events(self, *args):
+                return 0
+
+            async def get_pending_count(self):
+                return 10
+
+            async def get_dead_letter_events(self, *args):
+                return []
 
         storage = MinimalOutboxStorage()
         stats = await storage.get_statistics()
@@ -348,17 +483,34 @@ class TestOutboxStorageInterface:
     @pytest.mark.asyncio
     async def test_export_all_not_implemented(self):
         """Test export_all raises NotImplementedError."""
+
         class MinimalOutboxStorage(OutboxStorage):
-            async def insert(self, event, connection=None): return event
-            async def get_by_id(self, event_id): return None
+            async def insert(self, event, connection=None):
+                return event
+
+            async def get_by_id(self, event_id):
+                return None
+
             async def update_status(self, *args, **kwargs):
                 return OutboxEvent(saga_id="test", event_type="test", payload={})
-            async def claim_batch(self, *args, **kwargs): return []
-            async def get_events_by_saga(self, saga_id): return []
-            async def get_stuck_events(self, *args): return []
-            async def release_stuck_events(self, *args): return 0
-            async def get_pending_count(self): return 0
-            async def get_dead_letter_events(self, *args): return []
+
+            async def claim_batch(self, *args, **kwargs):
+                return []
+
+            async def get_events_by_saga(self, saga_id):
+                return []
+
+            async def get_stuck_events(self, *args):
+                return []
+
+            async def release_stuck_events(self, *args):
+                return 0
+
+            async def get_pending_count(self):
+                return 0
+
+            async def get_dead_letter_events(self, *args):
+                return []
 
         storage = MinimalOutboxStorage()
 
@@ -369,17 +521,34 @@ class TestOutboxStorageInterface:
     @pytest.mark.asyncio
     async def test_import_record_not_implemented(self):
         """Test import_record raises NotImplementedError."""
+
         class MinimalOutboxStorage(OutboxStorage):
-            async def insert(self, event, connection=None): return event
-            async def get_by_id(self, event_id): return None
+            async def insert(self, event, connection=None):
+                return event
+
+            async def get_by_id(self, event_id):
+                return None
+
             async def update_status(self, *args, **kwargs):
                 return OutboxEvent(saga_id="test", event_type="test", payload={})
-            async def claim_batch(self, *args, **kwargs): return []
-            async def get_events_by_saga(self, saga_id): return []
-            async def get_stuck_events(self, *args): return []
-            async def release_stuck_events(self, *args): return 0
-            async def get_pending_count(self): return 0
-            async def get_dead_letter_events(self, *args): return []
+
+            async def claim_batch(self, *args, **kwargs):
+                return []
+
+            async def get_events_by_saga(self, saga_id):
+                return []
+
+            async def get_stuck_events(self, *args):
+                return []
+
+            async def release_stuck_events(self, *args):
+                return 0
+
+            async def get_pending_count(self):
+                return 0
+
+            async def get_dead_letter_events(self, *args):
+                return []
 
         storage = MinimalOutboxStorage()
 
@@ -389,17 +558,34 @@ class TestOutboxStorageInterface:
     @pytest.mark.asyncio
     async def test_count_default(self):
         """Test count uses get_pending_count by default."""
+
         class MinimalOutboxStorage(OutboxStorage):
-            async def insert(self, event, connection=None): return event
-            async def get_by_id(self, event_id): return None
+            async def insert(self, event, connection=None):
+                return event
+
+            async def get_by_id(self, event_id):
+                return None
+
             async def update_status(self, *args, **kwargs):
                 return OutboxEvent(saga_id="test", event_type="test", payload={})
-            async def claim_batch(self, *args, **kwargs): return []
-            async def get_events_by_saga(self, saga_id): return []
-            async def get_stuck_events(self, *args): return []
-            async def release_stuck_events(self, *args): return 0
-            async def get_pending_count(self): return 42
-            async def get_dead_letter_events(self, *args): return []
+
+            async def claim_batch(self, *args, **kwargs):
+                return []
+
+            async def get_events_by_saga(self, saga_id):
+                return []
+
+            async def get_stuck_events(self, *args):
+                return []
+
+            async def release_stuck_events(self, *args):
+                return 0
+
+            async def get_pending_count(self):
+                return 42
+
+            async def get_dead_letter_events(self, *args):
+                return []
 
         storage = MinimalOutboxStorage()
         count = await storage.count()
@@ -409,17 +595,34 @@ class TestOutboxStorageInterface:
     @pytest.mark.asyncio
     async def test_archive_events_not_implemented(self):
         """Test archive_events raises NotImplementedError."""
+
         class MinimalOutboxStorage(OutboxStorage):
-            async def insert(self, event, connection=None): return event
-            async def get_by_id(self, event_id): return None
+            async def insert(self, event, connection=None):
+                return event
+
+            async def get_by_id(self, event_id):
+                return None
+
             async def update_status(self, *args, **kwargs):
                 return OutboxEvent(saga_id="test", event_type="test", payload={})
-            async def claim_batch(self, *args, **kwargs): return []
-            async def get_events_by_saga(self, saga_id): return []
-            async def get_stuck_events(self, *args): return []
-            async def release_stuck_events(self, *args): return 0
-            async def get_pending_count(self): return 0
-            async def get_dead_letter_events(self, *args): return []
+
+            async def claim_batch(self, *args, **kwargs):
+                return []
+
+            async def get_events_by_saga(self, saga_id):
+                return []
+
+            async def get_stuck_events(self, *args):
+                return []
+
+            async def release_stuck_events(self, *args):
+                return 0
+
+            async def get_pending_count(self):
+                return 0
+
+            async def get_dead_letter_events(self, *args):
+                return []
 
         storage = MinimalOutboxStorage()
 
@@ -429,17 +632,34 @@ class TestOutboxStorageInterface:
     @pytest.mark.asyncio
     async def test_context_manager(self):
         """Test context manager support."""
+
         class MinimalOutboxStorage(OutboxStorage):
-            async def insert(self, event, connection=None): return event
-            async def get_by_id(self, event_id): return None
+            async def insert(self, event, connection=None):
+                return event
+
+            async def get_by_id(self, event_id):
+                return None
+
             async def update_status(self, *args, **kwargs):
                 return OutboxEvent(saga_id="test", event_type="test", payload={})
-            async def claim_batch(self, *args, **kwargs): return []
-            async def get_events_by_saga(self, saga_id): return []
-            async def get_stuck_events(self, *args): return []
-            async def release_stuck_events(self, *args): return 0
-            async def get_pending_count(self): return 0
-            async def get_dead_letter_events(self, *args): return []
+
+            async def claim_batch(self, *args, **kwargs):
+                return []
+
+            async def get_events_by_saga(self, saga_id):
+                return []
+
+            async def get_stuck_events(self, *args):
+                return []
+
+            async def release_stuck_events(self, *args):
+                return 0
+
+            async def get_pending_count(self):
+                return 0
+
+            async def get_dead_letter_events(self, *args):
+                return []
 
         async with MinimalOutboxStorage() as storage:
             assert storage is not None
@@ -447,17 +667,34 @@ class TestOutboxStorageInterface:
     @pytest.mark.asyncio
     async def test_close_default(self):
         """Test close does nothing by default."""
+
         class MinimalOutboxStorage(OutboxStorage):
-            async def insert(self, event, connection=None): return event
-            async def get_by_id(self, event_id): return None
+            async def insert(self, event, connection=None):
+                return event
+
+            async def get_by_id(self, event_id):
+                return None
+
             async def update_status(self, *args, **kwargs):
                 return OutboxEvent(saga_id="test", event_type="test", payload={})
-            async def claim_batch(self, *args, **kwargs): return []
-            async def get_events_by_saga(self, saga_id): return []
-            async def get_stuck_events(self, *args): return []
-            async def release_stuck_events(self, *args): return 0
-            async def get_pending_count(self): return 0
-            async def get_dead_letter_events(self, *args): return []
+
+            async def claim_batch(self, *args, **kwargs):
+                return []
+
+            async def get_events_by_saga(self, saga_id):
+                return []
+
+            async def get_stuck_events(self, *args):
+                return []
+
+            async def release_stuck_events(self, *args):
+                return 0
+
+            async def get_pending_count(self):
+                return 0
+
+            async def get_dead_letter_events(self, *args):
+                return []
 
         storage = MinimalOutboxStorage()
         await storage.close()  # Should not raise
@@ -478,6 +715,7 @@ class TestTransferableProtocol:
 
     def test_transferable_protocol_check(self):
         """Test that Transferable is a runtime checkable protocol."""
+
         class ImplementsTransferable:
             async def export_all(self):
                 yield {}
@@ -493,6 +731,7 @@ class TestTransferableProtocol:
 
     def test_non_transferable_fails_check(self):
         """Test that non-conforming class fails protocol check."""
+
         class NotTransferable:
             pass
 

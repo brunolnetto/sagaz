@@ -118,14 +118,14 @@ class ChemicalReactorSaga(Saga):
 
 
 async def main():
-
     saga = ChemicalReactorSaga()
-    await saga.run({
-        "batch_id": "BATCH-2026-001",
-        "product_code": "CHEM-X42",
-        "target_temp_c": 85,
-    })
-
+    await saga.run(
+        {
+            "batch_id": "BATCH-2026-001",
+            "product_code": "CHEM-X42",
+            "target_temp_c": 85,
+        }
+    )
 
 
 if __name__ == "__main__":

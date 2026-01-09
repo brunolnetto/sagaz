@@ -94,14 +94,14 @@ class SmartMeterDeploymentSaga(Saga):
 
 
 async def main():
-
     saga = SmartMeterDeploymentSaga()
-    await saga.run({
-        "order_id": "METER-2026-001",
-        "customer_id": "CUST-12345",
-        "service_address": "123 Main St",
-    })
-
+    await saga.run(
+        {
+            "order_id": "METER-2026-001",
+            "customer_id": "CUST-12345",
+            "service_address": "123 Main St",
+        }
+    )
 
 
 if __name__ == "__main__":

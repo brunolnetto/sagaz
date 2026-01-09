@@ -29,6 +29,7 @@ class MockLogger:
     def exception(self, msg, *args, **kwargs):
         self.logs.append(("EXCEPTION", msg))
 
+
 def test_logger_propagation():
     """Test that setting a custom logger propagates to listeners."""
 
@@ -60,11 +61,13 @@ def test_logger_propagation():
     logger3 = get_logger("test")
     assert isinstance(logger3, logging.Logger)
 
+
 def test_null_logger():
     """Test NullLogger works as expected."""
     null_logger = NullLogger()
     null_logger.info("This should not blow up")
     null_logger.error("Neither should this")
+
 
 def test_config_logging_usage():
     """Test that sagaz modules use the configured logger."""

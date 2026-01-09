@@ -170,7 +170,11 @@ class StorageManager(BaseStorageManager):
             return "postgresql"
         if url.startswith("redis://"):
             return "redis"
-        if url.startswith("sqlite://") or url.endswith((".db", ".sqlite", ".sqlite3")) or url == ":memory:":
+        if (
+            url.startswith("sqlite://")
+            or url.endswith((".db", ".sqlite", ".sqlite3"))
+            or url == ":memory:"
+        ):
             return "sqlite"
         return "unknown"
 
@@ -261,6 +265,7 @@ class StorageManager(BaseStorageManager):
         async with self._shared_pool.acquire() as conn:
             await conn.execute(PostgreSQLSagaStorage.CREATE_TABLES_SQL)
             from sagaz.storage.backends.postgresql.outbox import OUTBOX_SCHEMA
+
             await conn.execute(OUTBOX_SCHEMA)
 
     async def _initialize_redis_unified(self) -> None:
@@ -313,22 +318,26 @@ class StorageManager(BaseStorageManager):
         """Create and initialize saga storage for a backend type."""
         if backend_type == "memory":
             from sagaz.storage.backends.memory.saga import InMemorySagaStorage
+
             return InMemorySagaStorage()
 
         if backend_type == "postgresql":  # pragma: no cover
             from sagaz.storage.backends.postgresql.saga import PostgreSQLSagaStorage
+
             storage = PostgreSQLSagaStorage(url)
             await storage.initialize()
             return storage
 
         if backend_type == "redis":  # pragma: no cover
             from sagaz.storage.backends.redis.saga import RedisSagaStorage
+
             storage = RedisSagaStorage(url)
             await storage.initialize()
             return storage
 
         if backend_type == "sqlite":  # pragma: no cover
             from sagaz.storage.backends.sqlite.saga import SQLiteSagaStorage
+
             db_path = url[9:] if url and url.startswith("sqlite://") else (url or ":memory:")
             storage = SQLiteSagaStorage(db_path)
             await storage.initialize()
@@ -343,22 +352,26 @@ class StorageManager(BaseStorageManager):
             from sagaz.storage.backends.memory.outbox import (
                 InMemoryOutboxStorage,  # pragma: no cover
             )
+
             return InMemoryOutboxStorage()  # pragma: no cover
 
         if backend_type == "postgresql":  # pragma: no cover
             from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
+
             storage = PostgreSQLOutboxStorage(url)
             await storage.initialize()
             return storage
 
         if backend_type == "redis":  # pragma: no cover
             from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
+
             storage = RedisOutboxStorage(url)
             await storage.initialize()
             return storage
 
         if backend_type == "sqlite":  # pragma: no cover
             from sagaz.storage.backends.sqlite.outbox import SQLiteOutboxStorage
+
             db_path = url[9:] if url and url.startswith("sqlite://") else (url or ":memory:")
             storage = SQLiteOutboxStorage(db_path)
             await storage.initialize()
@@ -419,9 +432,9 @@ class StorageManager(BaseStorageManager):
         saga_status = saga_health.get("status", "unhealthy")
         outbox_status = outbox_health.get("status", "unhealthy")
 
-        is_healthy = (
-            saga_status in ("healthy", "HEALTHY")
-            and outbox_status in ("healthy", "HEALTHY")
+        is_healthy = saga_status in ("healthy", "HEALTHY") and outbox_status in (
+            "healthy",
+            "HEALTHY",
         )
 
         return {
@@ -441,13 +454,13 @@ class StorageManager(BaseStorageManager):
             return result.to_dict()
         if hasattr(result, "status"):
             # HealthCheckResult object without to_dict
-            status_val = result.status.value if hasattr(result.status, "value") else str(result.status)
+            status_val = (
+                result.status.value if hasattr(result.status, "value") else str(result.status)
+            )
             return {"status": status_val}
         if isinstance(result, dict):
             return result
         return {"status": "healthy"}  # pragma: no cover
-
-
 
 
 # Backend configuration for explicit backend mode
@@ -540,6 +553,4 @@ def _validate_url_scheme(url: str | None) -> None:
             f"Cannot determine backend from URL: {url}. "
             "Use postgresql://, redis://, sqlite://, or memory://"
         )
-        raise ValueError(
-            msg
-        )
+        raise ValueError(msg)

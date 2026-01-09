@@ -95,16 +95,16 @@ class VisaApplicationSaga(Saga):
 
 
 async def main():
-
     saga = VisaApplicationSaga()
-    await saga.run({
-        "application_id": "VISA-2026-001",
-        "applicant_name": "Jane Smith",
-        "passport_number": "AB1234567",
-        "nationality": "Canada",
-        "visa_type": "B1/B2",
-    })
-
+    await saga.run(
+        {
+            "application_id": "VISA-2026-001",
+            "applicant_name": "Jane Smith",
+            "passport_number": "AB1234567",
+            "nationality": "Canada",
+            "visa_type": "B1/B2",
+        }
+    )
 
 
 if __name__ == "__main__":

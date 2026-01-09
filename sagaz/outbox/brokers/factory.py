@@ -189,7 +189,9 @@ def create_broker(
         return factory(kwargs)  # type: ignore[no-any-return]
     except ImportError:  # pragma: no cover
         if dependency:  # pragma: no cover
-            raise MissingDependencyError(dependency, f"{broker_type} message broker")  # pragma: no cover
+            raise MissingDependencyError(
+                dependency, f"{broker_type} message broker"
+            )  # pragma: no cover
         raise  # pragma: no cover
 
 

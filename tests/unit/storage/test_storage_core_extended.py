@@ -40,6 +40,7 @@ class TestBaseStorageExtended:
     @pytest.mark.asyncio
     async def test_base_storage_context_manager(self):
         """Test context manager support."""
+
         class ConcreteStorage(BaseStorage):
             async def close(self):
                 self._closed = True
@@ -54,6 +55,7 @@ class TestBaseStorageExtended:
     @pytest.mark.asyncio
     async def test_base_storage_health_check_closed(self):
         """Test health check returns unhealthy when closed."""
+
         class ConcreteStorage(BaseStorage):
             async def close(self):
                 self._closed = True
@@ -88,6 +90,7 @@ class TestBaseStorageExtended:
     @pytest.mark.asyncio
     async def test_base_storage_get_statistics_default(self):
         """Test default statistics returns empty."""
+
         class ConcreteStorage(BaseStorage):
             async def close(self):
                 pass
@@ -100,6 +103,7 @@ class TestBaseStorageExtended:
 
     def test_log_operation(self):
         """Test logging operation."""
+
         class ConcreteStorage(BaseStorage):
             async def close(self):
                 pass
@@ -115,6 +119,7 @@ class TestTransferableStorageExtended:
     @pytest.mark.asyncio
     async def test_clear_not_implemented(self):
         """Test clear raises NotImplementedError."""
+
         class ConcreteTransferable(TransferableStorage):
             async def close(self):
                 pass
@@ -153,6 +158,7 @@ class TestSerializationExtended:
 
     def test_serialize_enum(self):
         """Test enum serialization."""
+
         class Color(Enum):
             RED = "red"
             BLUE = "blue"
@@ -173,6 +179,7 @@ class TestSerializationExtended:
 
     def test_serialize_object_with_dict(self):
         """Test object with __dict__ serialization."""
+
         class Simple:
             def __init__(self):
                 self.name = "test"
@@ -287,6 +294,7 @@ class TestHealthCheckExtended:
     @pytest.mark.asyncio
     async def test_check_health_with_timeout_success(self):
         """Test health check with timeout succeeds."""
+
         class MockHealthCheckable(HealthCheckable):
             async def health_check(self):
                 return HealthCheckResult(
@@ -306,6 +314,7 @@ class TestHealthCheckExtended:
     @pytest.mark.asyncio
     async def test_check_health_with_timeout_timeout(self):
         """Test health check with timeout times out."""
+
         class SlowHealthCheckable(HealthCheckable):
             async def health_check(self):
                 await asyncio.sleep(10)  # Very slow
@@ -326,6 +335,7 @@ class TestHealthCheckExtended:
     @pytest.mark.asyncio
     async def test_check_health_with_timeout_exception(self):
         """Test health check with timeout handles exception."""
+
         class FailingHealthCheckable(HealthCheckable):
             async def health_check(self):
                 msg = "Connection failed"
@@ -408,6 +418,7 @@ class TestSingleConnectionManagerExtended:
     @pytest.mark.asyncio
     async def test_single_connection_manager_pool_status(self):
         """Test pool status for single connection."""
+
         class ConcreteSingle(SingleConnectionManager):
             async def _create_connection(self):
                 return MagicMock()
@@ -434,6 +445,7 @@ class TestSingleConnectionManagerExtended:
     @pytest.mark.asyncio
     async def test_single_connection_manager_health_check_no_connection(self):
         """Test health check with no connection."""
+
         class ConcreteSingle(SingleConnectionManager):
             async def _create_connection(self):
                 return MagicMock()
@@ -454,6 +466,7 @@ class TestSingleConnectionManagerExtended:
     @pytest.mark.asyncio
     async def test_single_connection_manager_health_check_invalid(self):
         """Test health check when connection is invalid."""
+
         class InvalidSingle(SingleConnectionManager):
             async def _create_connection(self):
                 return MagicMock()
@@ -474,6 +487,7 @@ class TestSingleConnectionManagerExtended:
     @pytest.mark.asyncio
     async def test_single_connection_manager_health_check_exception(self):
         """Test health check handles exception."""
+
         class FailingSingle(SingleConnectionManager):
             async def _create_connection(self):
                 return MagicMock()
@@ -496,6 +510,7 @@ class TestSingleConnectionManagerExtended:
     @pytest.mark.asyncio
     async def test_single_connection_manager_context_manager(self):
         """Test context manager usage."""
+
         class ConcreteSingle(SingleConnectionManager):
             async def _create_connection(self):
                 return MagicMock()
@@ -514,6 +529,7 @@ class TestSingleConnectionManagerExtended:
     @pytest.mark.asyncio
     async def test_connection_manager_acquire_context_manager(self):
         """Test acquire as context manager."""
+
         class ConcreteSingle(SingleConnectionManager):
             async def _create_connection(self):
                 return "test_connection"

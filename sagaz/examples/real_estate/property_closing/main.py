@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 # Simulation Helpers
 # =============================================================================
 
+
 class RealEstateSimulator:
     """Simulates real estate transaction systems."""
 
@@ -118,6 +119,7 @@ class RealEstateSimulator:
 
         # Simulate occasional county office issues
         import random
+
         if random.random() < 0.05:  # 5% chance of recording delay
             msg = "County recorder system temporarily unavailable"
             raise SagaStepError(msg)
@@ -156,6 +158,7 @@ class RealEstateSimulator:
 # =============================================================================
 # Saga Definition
 # =============================================================================
+
 
 class PropertyClosingSaga(Saga):
     """
@@ -224,8 +227,7 @@ class PropertyClosingSaga(Saga):
             raise SagaStepError(msg)
 
         logger.info(
-            f"✅ [{transaction_id}] Appraisal approved: "
-            f"${Decimal(result['appraised_value']):,.2f}"
+            f"✅ [{transaction_id}] Appraisal approved: ${Decimal(result['appraised_value']):,.2f}"
         )
 
         return {
@@ -319,10 +321,7 @@ class PropertyClosingSaga(Saga):
             seller_account,
         )
 
-        logger.info(
-            f"✅ [{transaction_id}] Escrow released! "
-            f"Wire ref: {result['wire_reference']}"
-        )
+        logger.info(f"✅ [{transaction_id}] Escrow released! Wire ref: {result['wire_reference']}")
 
         return {
             "escrow_release_id": result["escrow_release_id"],
@@ -361,12 +360,9 @@ class PropertyClosingSaga(Saga):
         )
 
         logger.info(
-            f"✅ [{transaction_id}] Deed RECORDED! "
-            f"Recording #: {result['recording_number']}"
+            f"✅ [{transaction_id}] Deed RECORDED! Recording #: {result['recording_number']}"
         )
-        logger.info(
-            f"   🏡 {seller_name} → {buyer_name}"
-        )
+        logger.info(f"   🏡 {seller_name} → {buyer_name}")
 
         return {
             "deed_id": result["deed_id"],
@@ -376,9 +372,7 @@ class PropertyClosingSaga(Saga):
         }
 
     @forward_recovery("record_deed")
-    async def handle_recording_failure(
-        self, ctx: SagaContext, error: Exception
-    ) -> RecoveryAction:
+    async def handle_recording_failure(self, ctx: SagaContext, error: Exception) -> RecoveryAction:
         """
         Forward recovery for deed recording failures.
 
@@ -416,8 +410,7 @@ class PropertyClosingSaga(Saga):
         result = await RealEstateSimulator.transfer_keys(property_id, buyer_name)
 
         logger.info(
-            f"✅ [{transaction_id}] Keys transferred! "
-            f"{', '.join(result['keys_transferred'])}"
+            f"✅ [{transaction_id}] Keys transferred! {', '.join(result['keys_transferred'])}"
         )
 
         return {
@@ -458,6 +451,7 @@ class PropertyClosingSaga(Saga):
 # Demo Scenarios
 # =============================================================================
 
+
 async def main():
     """Run the property closing saga demo."""
 
@@ -465,22 +459,22 @@ async def main():
 
     # Scenario 1: Successful closing
 
-    await saga.run({
-        "transaction_id": "CLOSE-2026-001",
-        "property_id": "PROP-123456",
-        "buyer_name": "Alice Johnson",
-        "seller_name": "Bob Smith",
-        "purchase_price": Decimal("550000"),
-        "escrow_amount": Decimal("550000"),
-        "seller_account": "ACCT-SELLER-001",
-        "county": "San Francisco County",
-    })
-
+    await saga.run(
+        {
+            "transaction_id": "CLOSE-2026-001",
+            "property_id": "PROP-123456",
+            "buyer_name": "Alice Johnson",
+            "seller_name": "Bob Smith",
+            "purchase_price": Decimal("550000"),
+            "escrow_amount": Decimal("550000"),
+            "seller_account": "ACCT-SELLER-001",
+            "county": "San Francisco County",
+        }
+    )
 
     # Scenario 2: Pre-pivot failure
 
     # Scenario 3: Between pivots
-
 
 
 if __name__ == "__main__":

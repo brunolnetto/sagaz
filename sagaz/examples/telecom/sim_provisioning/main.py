@@ -59,6 +59,7 @@ class SIMProvisioningSaga(Saga):
         logger.info(f"📱 [{order_id}] Assigning phone number...")
         await asyncio.sleep(0.1)
         import random
+
         msisdn = f"+1-555-{random.randint(100, 999)}-{random.randint(1000, 9999)}"
         return {"msisdn": msisdn, "number_type": "new"}
 
@@ -125,14 +126,14 @@ class SIMProvisioningSaga(Saga):
 
 
 async def main():
-
     saga = SIMProvisioningSaga()
-    await saga.run({
-        "order_id": "SIM-2026-001",
-        "customer_id": "CUST-12345",
-        "plan": "Unlimited Plus",
-    })
-
+    await saga.run(
+        {
+            "order_id": "SIM-2026-001",
+            "customer_id": "CUST-12345",
+            "plan": "Unlimited Plus",
+        }
+    )
 
 
 if __name__ == "__main__":

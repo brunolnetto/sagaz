@@ -215,6 +215,7 @@ def compensate(
 # v1.3.0: Forward Recovery Decorator
 # =============================================================================
 
+
 @dataclass
 class ForwardRecoveryMetadata:
     """
@@ -294,6 +295,7 @@ def forward_recovery(
         - RecoveryAction: Enum of possible actions to return
         - ADR-023: Pivot/Irreversible Steps documentation
     """
+
     def decorator(func: F) -> F:
         func._saga_forward_recovery_meta = ForwardRecoveryMetadata(  # type: ignore[attr-defined]
             for_step=for_step,
@@ -380,11 +382,7 @@ class Saga:
 
         for name, method in inspect.getmembers(cls, predicate=inspect.isfunction):
             if hasattr(method, "_trigger_metadata"):
-                TriggerRegistry.register(
-                    cls,
-                    name,
-                    method._trigger_metadata
-                )
+                TriggerRegistry.register(cls, name, method._trigger_metadata)
 
     def __init__(self, name: str | None = None, config=None):
         """
@@ -563,9 +561,7 @@ class Saga:
         self._pivot_reached = True
 
         if newly_tainted:
-            logger.info(
-                f"Pivot '{pivot_step_id}' completed - tainted ancestors: {newly_tainted}"
-            )
+            logger.info(f"Pivot '{pivot_step_id}' completed - tainted ancestors: {newly_tainted}")
 
         return newly_tainted
 
@@ -576,7 +572,6 @@ class Saga:
     # =========================================================================
     # Imperative API Support - add_step() for programmatic saga building
     # =========================================================================
-
 
     def add_step(
         self,
@@ -755,7 +750,9 @@ class Saga:
 
         if not saga_data:  # pragma: no cover
             # No execution found, return diagram without highlighting
-            return self.to_mermaid(direction, show_compensation, None, show_state_markers)  # pragma: no cover
+            return self.to_mermaid(
+                direction, show_compensation, None, show_state_markers
+            )  # pragma: no cover
 
         # Parse steps to build highlight trail
         steps_data = saga_data.get("steps", [])
@@ -887,7 +884,7 @@ class Saga:
                     name,
                     SagaStatus.EXECUTING,
                     [],  # TODO: Track steps
-                    self._context
+                    self._context,
                 )
             except Exception as e:  # pragma: no cover
                 logger.warning(f"Failed to persist saga start: {e}")  # pragma: no cover
@@ -901,11 +898,7 @@ class Saga:
             if storage:
                 try:
                     await storage.save_saga_state(
-                        self._saga_id,
-                        name,
-                        SagaStatus.COMPLETED,
-                        [],
-                        self._context
+                        self._saga_id, name, SagaStatus.COMPLETED, [], self._context
                     )
                 except Exception as e:  # pragma: no cover
                     logger.warning(f"Failed to persist saga completion: {e}")  # pragma: no cover
@@ -919,14 +912,12 @@ class Saga:
             if storage:
                 try:
                     await storage.save_saga_state(
-                        self._saga_id,
-                        name,
-                        SagaStatus.ROLLED_BACK,
-                        [],
-                        self._context
+                        self._saga_id, name, SagaStatus.ROLLED_BACK, [], self._context
                     )
                 except Exception as e_storage:  # pragma: no cover
-                    logger.warning(f"Failed to persist saga failure: {e_storage}")  # pragma: no cover
+                    logger.warning(
+                        f"Failed to persist saga failure: {e_storage}"
+                    )  # pragma: no cover
 
             raise
 
@@ -1029,7 +1020,6 @@ class Saga:
                 "on_step_success", saga_name, step.step_id, self._context, result
             )
 
-
         except TimeoutError as e:
             # Call on_failure hook
             await self._call_hook(step.on_failure, self._context, step.step_id, e)
@@ -1109,7 +1099,6 @@ class Saga:
         if self._is_step_tainted(step_id):  # pragma: no cover
             logger.debug(f"Skipping compensation for tainted step: {step_id}")
             return
-
 
         saga_name = self._get_saga_name()
 
