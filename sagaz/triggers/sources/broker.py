@@ -57,7 +57,7 @@ class BrokerTriggerConsumer:
         self._broker = broker
         self._running = False
         self._task: asyncio.Task | None = None
-        self._background_tasks = set()
+        self._background_tasks: set[asyncio.Task] = set()
 
     @property
     def is_running(self) -> bool:

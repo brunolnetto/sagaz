@@ -90,7 +90,7 @@ class ETLPipelineSaga(Saga):
         source_record_count = ctx.get("source_record_count", 0)
 
         # Generate unique staging table name
-        staging_table = f"staging.etl_{batch_date.replace('-', '')}_{random.randint(1000, 9999)}"
+        staging_table = f"staging.etl_{batch_date.replace('-', '')}_{random.randint(1000, 9999)}"  # type: ignore[union-attr]
 
         logger.info(f"📤 Loading {source_record_count:,} records to {staging_table}")
         await asyncio.sleep(0.3)  # Simulate database load

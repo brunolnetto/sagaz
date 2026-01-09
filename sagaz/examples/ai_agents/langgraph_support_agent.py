@@ -110,7 +110,7 @@ def create_support_graph():
         ]
 
         response = await llm.ainvoke(messages)
-        parts = response.content.strip().split("|")
+        parts = response.content.strip().split("|")  # type: ignore[union-attr]
 
         return {
             "category": parts[0] if len(parts) > 0 else "other",
@@ -137,7 +137,7 @@ def create_support_graph():
 
         return {
             "ai_response": response.content,
-            "messages": [{"role": "agent", "content": response.content[:100] + "..."}],
+            "messages": [{"role": "agent", "content": response.content[:100] + "..."}],  # type: ignore[operator]
         }
 
     async def attempt_resolution_node(state: SupportTicketState) -> dict:
@@ -165,7 +165,7 @@ def create_support_graph():
         ]
 
         response = await llm.ainvoke(messages)
-        can_resolve = "YES" in response.content.upper()
+        can_resolve = "YES" in response.content.upper()  # type: ignore[union-attr]
 
         return {
             "resolution_attempted": True,
@@ -251,7 +251,7 @@ class CustomerSupportSaga(Saga):
     def on_ticket_received(self, event: dict) -> dict:
         """Process incoming support tickets."""
         if not event.get("issue"):
-            return None
+            return None  # type: ignore[return-value]
 
         return {
             "ticket_id": event.get("ticket_id", f"TKT-{datetime.now().timestamp()}"),

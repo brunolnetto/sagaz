@@ -50,7 +50,7 @@ class ModelDeploymentSaga(Saga):
         await asyncio.sleep(0.2)  # Simulate backup operation
 
         # Simulate current production state
-        current_version = model_version - 1 if model_version > 1 else 1
+        current_version = model_version - 1 if model_version > 1 else 1  # type: ignore[operator]
         backup_id = f"backup-{model_name}-v{current_version}-{int(datetime.now().timestamp())}"
 
         logger.info(f"Current production version: v{current_version}")
@@ -307,9 +307,9 @@ class ModelDeploymentSaga(Saga):
                 )
 
         # Calculate aggregate metrics
-        avg_error_rate = sum(s["error_rate"] for s in samples) / len(samples)
-        avg_latency = sum(s["latency"] for s in samples) / len(samples)
-        avg_throughput = sum(s["throughput"] for s in samples) / len(samples)
+        avg_error_rate = sum(s["error_rate"] for s in samples) / len(samples)  # type: ignore[misc]
+        avg_latency = sum(s["latency"] for s in samples) / len(samples)  # type: ignore[misc]
+        avg_throughput = sum(s["throughput"] for s in samples) / len(samples)  # type: ignore[misc]
 
         logger.info("✅ Health monitoring complete")
         logger.info(

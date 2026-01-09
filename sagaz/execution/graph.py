@@ -155,7 +155,7 @@ class CompensationNode:
     """
 
     step_id: str
-    compensation_fn: Callable[[dict[str, Any]], Awaitable[None]]
+    compensation_fn: Callable[..., Awaitable[Any]]
     depends_on: list[str] = field(default_factory=list)
     compensation_type: CompensationType = CompensationType.MECHANICAL
     description: str | None = None

@@ -240,11 +240,12 @@ class SingleConnectionManager(ConnectionManager[T]):
             await self.initialize()
 
         # Check if connection is still valid
-        if not await self._is_connection_valid(self._connection):
+        if self._connection and not await self._is_connection_valid(self._connection):
             await self.close()
             await self.initialize()
 
-        return self._connection  # type: ignore
+        assert self._connection is not None
+        return self._connection
 
     async def _release(self, connection: T) -> None:
         # No-op for single connection

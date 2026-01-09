@@ -67,7 +67,11 @@ def storage_decoder(obj: dict[str, Any]) -> Any:
         return obj
 
     type_name = obj["__type__"]
-    value = obj.get("value")
+
+    if "value" not in obj:
+        return obj
+
+    value = obj["value"]
 
     if type_name == "datetime":
         return datetime.fromisoformat(value)

@@ -14,10 +14,11 @@ try:
     from rich.console import Console
     from rich.table import Table
 
-    console = Console()
+    console: Console | None = Console()
+    TableClass: type[Table] | None = Table
 except ImportError:  # pragma: no cover
     console = None
-    Table = None
+    TableClass = None
 
 try:
     from simple_term_menu import TerminalMenu
@@ -126,7 +127,7 @@ def list_examples_cmd(category: str | None = None):
         _show_no_examples_message(category)
         return
 
-    if console and Table:
+    if console and TableClass:
         _display_examples_table(examples, category)
     else:
         _display_examples_plain(examples)
@@ -154,10 +155,11 @@ def _display_examples_table(examples: dict[str, Path], category: str | None) -> 
         desc = get_example_description(path)
         table.add_row(name, desc)
 
-    console.print(table)
+    if console:
+        console.print(table)
 
     categories = get_categories()
-    if categories and not category:
+    if categories and not category and console:
         console.print(f"\n[dim]Filter by category: --category {{{','.join(categories)}}}[/dim]")
 
 

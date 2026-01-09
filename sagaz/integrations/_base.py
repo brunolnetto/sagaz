@@ -110,4 +110,4 @@ def get_correlation_id() -> str:
     if correlation_id is None:
         correlation_id = generate_correlation_id()
         SagaContextManager.set("correlation_id", correlation_id)
-    return correlation_id
+    return str(correlation_id)

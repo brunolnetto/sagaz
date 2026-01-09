@@ -99,6 +99,9 @@ class SQLiteOutboxStorage:
     async def _init_schema(self) -> None:
         """Initialize database schema."""
         conn = self._conn
+        if conn is None:
+            msg = "Connection not initialized"
+            raise RuntimeError(msg)
         await conn.executescript("""
             CREATE TABLE IF NOT EXISTS outbox_events (
                 event_id TEXT PRIMARY KEY,
@@ -123,6 +126,7 @@ class SQLiteOutboxStorage:
             CREATE INDEX IF NOT EXISTS idx_outbox_saga_id ON outbox_events(saga_id);
             CREATE INDEX IF NOT EXISTS idx_outbox_claimed_at ON outbox_events(claimed_at);
         """)
+        assert conn is not None
         await conn.commit()
 
     async def __aenter__(self):
@@ -189,12 +193,14 @@ class SQLiteOutboxStorage:
     def _row_to_event(self, row: aiosqlite.Row) -> OutboxEvent:
         """Convert database row to OutboxEvent."""
         return OutboxEvent(
-            event_id=row["event_id"],
+            event_id=str(row["event_id"]),
             saga_id=row["saga_id"],
             event_type=row["event_type"],
             payload=deserialize(row["payload"]),
             status=OutboxStatus(row["status"]),
-            created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
+            created_at=datetime.fromisoformat(row["created_at"])
+            if row["created_at"]
+            else datetime.now(UTC),
             claimed_at=datetime.fromisoformat(row["claimed_at"]) if row["claimed_at"] else None,
             sent_at=datetime.fromisoformat(row["sent_at"]) if row["sent_at"] else None,
             worker_id=row["worker_id"],
@@ -202,7 +208,7 @@ class SQLiteOutboxStorage:
             last_error=row["last_error"],
             aggregate_type=row["aggregate_type"],
             aggregate_id=row["aggregate_id"],
-            headers=deserialize(row["headers"]) if row["headers"] else None,
+            headers=deserialize(row["headers"]) if row["headers"] else {},
             routing_key=row["routing_key"],
             partition_key=row["partition_key"],
         )
@@ -404,10 +410,12 @@ class SQLiteOutboxStorage:
             FROM outbox_events
         """)
         row = await cursor.fetchone()
+        if not row:
+            return StorageStatistics(total_records=0, pending_records=0)
 
         return StorageStatistics(
-            total_records=row["total"] or 0,
-            pending_records=row["pending"] or 0,
+            total_records=int(row["total"]) if row["total"] else 0,
+            pending_records=int(row["pending"]) if row["pending"] else 0,
         )
 
     async def count(self) -> int:
@@ -436,7 +444,7 @@ class SQLiteOutboxStorage:
     async def import_record(self, record: dict[str, Any]) -> None:
         """Import a single record from transfer."""
         event = OutboxEvent(
-            event_id=record.get("event_id"),
+            event_id=str(record.get("event_id")),
             saga_id=record["saga_id"],
             event_type=record["event_type"],
             payload=record.get("payload", {}),

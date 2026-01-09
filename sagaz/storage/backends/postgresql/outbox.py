@@ -557,7 +557,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
             raise OutboxStorageError(msg)
 
         async with self._pool.acquire() as conn:
-            return await conn.fetchval("SELECT COUNT(*) FROM saga_outbox")
+            return int(await conn.fetchval("SELECT COUNT(*) FROM saga_outbox"))
 
     async def export_all(self):
         """Export all records for transfer."""
@@ -589,7 +589,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
         """Import a single record from transfer."""
         # Using insert which is already idempotent-ish or effectively so
         event = OutboxEvent(
-            event_id=record.get("event_id"),
+            event_id=str(record.get("event_id")),
             saga_id=record["saga_id"],
             event_type=record["event_type"],
             payload=record.get("payload", {}),

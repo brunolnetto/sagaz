@@ -153,9 +153,10 @@ class SagaConfig:
 
         # Check if manager is initialized
         try:
-            self.storage = manager.saga
-            if self.outbox_storage is None:
-                self.outbox_storage = manager.outbox
+            if manager is not None:
+                self.storage = manager.saga
+                if self.outbox_storage is None:
+                    self.outbox_storage = manager.outbox
             self._storage_manager = manager
             logger.info("Using StorageManager for unified storage access")
         except RuntimeError:

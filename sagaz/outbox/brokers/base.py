@@ -21,6 +21,17 @@ class MessageBroker(Protocol):
     implement this protocol to be usable with the outbox pattern.
     """
 
+    async def connect(self) -> None:
+        """
+        Connect to the message broker.
+
+        Establishes the connection and prepares for publishing.
+
+        Raises:
+            BrokerConnectionError: If connection fails
+        """
+        ...
+
     async def publish(
         self,
         topic: str,

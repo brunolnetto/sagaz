@@ -32,8 +32,7 @@ from typing import Any
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
 )
 logger = logging.getLogger("sagaz.integration_test")
 
@@ -47,7 +46,7 @@ def record_result(test_name: str, success: bool, message: str = "", details: Any
         "success": success,
         "message": message,
         "details": details,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
     status = "✅ PASS" if success else "❌ FAIL"
     logger.info(f"{status}: {test_name} - {message}")
@@ -56,6 +55,7 @@ def record_result(test_name: str, success: bool, message: str = "", details: Any
 # ============================================================================
 # TEST 1: Basic Saga Execution (Classic/Imperative API)
 # ============================================================================
+
 
 async def test_basic_saga_execution():
     """Test basic saga execution using the ClassicSaga API."""
@@ -94,14 +94,14 @@ async def test_basic_saga_execution():
                 test_name,
                 True,
                 f"Saga completed successfully with {len(execution_log)} steps",
-                {"execution_log": execution_log, "status": result.status.value}
+                {"execution_log": execution_log, "status": result.status.value},
             )
         else:
             record_result(
                 test_name,
                 False,
                 f"Saga execution incomplete: {result.error}",
-                {"execution_log": execution_log}
+                {"execution_log": execution_log},
             )
 
     except Exception as e:
@@ -111,6 +111,7 @@ async def test_basic_saga_execution():
 # ============================================================================
 # TEST 2: Declarative Saga with Compensation
 # ============================================================================
+
 
 async def test_declarative_saga_compensation():
     """Test declarative saga with compensation on failure."""
@@ -158,14 +159,14 @@ async def test_declarative_saga_compensation():
                 test_name,
                 True,
                 f"Compensation executed correctly with {len(compensation_log)} compensations",
-                {"compensation_log": compensation_log}
+                {"compensation_log": compensation_log},
             )
         else:
             record_result(
                 test_name,
                 False,
                 f"Expected 2 compensations, got {len(compensation_log)}",
-                {"compensation_log": compensation_log}
+                {"compensation_log": compensation_log},
             )
 
     except Exception as e:
@@ -175,6 +176,7 @@ async def test_declarative_saga_compensation():
 # ============================================================================
 # TEST 3: PostgreSQL Outbox Storage
 # ============================================================================
+
 
 async def test_postgresql_outbox_storage():
     """Test PostgreSQL storage for outbox events."""
@@ -202,7 +204,7 @@ async def test_postgresql_outbox_storage():
             event = OutboxEvent(
                 saga_id=f"test-saga-{int(time.time())}",
                 event_type="order.created",
-                payload={"order_id": "ORD-INT-001", "amount": 99.99}
+                payload={"order_id": "ORD-INT-001", "amount": 99.99},
             )
 
             # Insert the event
@@ -216,7 +218,7 @@ async def test_postgresql_outbox_storage():
                     test_name,
                     True,
                     "Successfully stored and retrieved outbox event",
-                    {"event_id": event.event_id}
+                    {"event_id": event.event_id},
                 )
             else:
                 record_result(test_name, False, "Failed to retrieve outbox event")
@@ -234,6 +236,7 @@ async def test_postgresql_outbox_storage():
 # TEST 4: Redis Broker
 # ============================================================================
 
+
 async def test_redis_broker():
     """Test Redis broker for publishing outbox events."""
     test_name = "Redis Broker"
@@ -249,7 +252,7 @@ async def test_redis_broker():
 
         config = RedisBrokerConfig(
             url="redis://localhost:6379/0",
-            stream_name="sagaz_integration_test"  # NOT stream_prefix
+            stream_name="sagaz_integration_test",  # NOT stream_prefix
         )
 
         broker = RedisBroker(config)
@@ -268,16 +271,14 @@ async def test_redis_broker():
             test_message = json.dumps({"event": "test", "timestamp": time.time()}).encode()
 
             await broker.publish(
-                topic=test_topic,
-                message=test_message,
-                headers={"trace_id": "test-trace-001"}
+                topic=test_topic, message=test_message, headers={"trace_id": "test-trace-001"}
             )
 
             record_result(
                 test_name,
                 True,
                 "Successfully connected and published to Redis",
-                {"stream": config.stream_name}
+                {"stream": config.stream_name},
             )
 
         finally:
@@ -290,6 +291,7 @@ async def test_redis_broker():
 # ============================================================================
 # TEST 5: Outbox Pattern End-to-End
 # ============================================================================
+
 
 async def test_outbox_pattern():
     """Test the complete outbox pattern flow."""
@@ -319,8 +321,7 @@ async def test_outbox_pattern():
 
         # Setup broker
         broker_config = RedisBrokerConfig(
-            url="redis://localhost:6379/0",
-            stream_name="sagaz_outbox_e2e"
+            url="redis://localhost:6379/0", stream_name="sagaz_outbox_e2e"
         )
         broker = RedisBroker(broker_config)
 
@@ -332,7 +333,7 @@ async def test_outbox_pattern():
             event = OutboxEvent(
                 saga_id=f"outbox-test-{int(time.time())}",
                 event_type="order.created",
-                payload={"order_id": "ORD-E2E-001", "amount": 149.99}
+                payload={"order_id": "ORD-E2E-001", "amount": 149.99},
             )
             await storage.insert(event)
 
@@ -345,10 +346,7 @@ async def test_outbox_pattern():
             # Step 3: Create worker and process
             config = OutboxConfig(batch_size=10)
             worker = OutboxWorker(
-                storage=storage,
-                broker=broker,
-                config=config,
-                worker_id="integration-test-worker"
+                storage=storage, broker=broker, config=config, worker_id="integration-test-worker"
             )
 
             processed = await worker.process_batch()
@@ -364,15 +362,11 @@ async def test_outbox_pattern():
                     {
                         "pending_before": pending_count,
                         "pending_after": pending_after,
-                        "event_id": event.event_id
-                    }
+                        "event_id": event.event_id,
+                    },
                 )
             else:
-                record_result(
-                    test_name,
-                    False,
-                    f"Processing incomplete: processed={processed}"
-                )
+                record_result(test_name, False, f"Processing incomplete: processed={processed}")
 
         finally:
             await broker.close()
@@ -387,6 +381,7 @@ async def test_outbox_pattern():
 # TEST 6: Prometheus Metrics
 # ============================================================================
 
+
 async def test_prometheus_metrics():
     """Test Prometheus metrics endpoint."""
     test_name = "Prometheus Metrics"
@@ -394,14 +389,16 @@ async def test_prometheus_metrics():
     try:
         import urllib.request
 
-        with urllib.request.urlopen("http://localhost:9090/api/v1/status/runtimeinfo", timeout=5) as response:
+        with urllib.request.urlopen(
+            "http://localhost:9090/api/v1/status/runtimeinfo", timeout=5
+        ) as response:
             if response.status == 200:
                 data = json.loads(response.read().decode())
                 record_result(
                     test_name,
                     True,
                     "Prometheus is running and accessible",
-                    {"status": data.get("status")}
+                    {"status": data.get("status")},
                 )
             else:
                 record_result(test_name, False, f"Prometheus returned status {response.status}")
@@ -412,6 +409,7 @@ async def test_prometheus_metrics():
 # ============================================================================
 # TEST 7: Grafana Dashboard
 # ============================================================================
+
 
 async def test_grafana_dashboard():
     """Test Grafana dashboard is accessible."""
@@ -431,7 +429,7 @@ async def test_grafana_dashboard():
                     test_name,
                     True,
                     "Grafana is running and accessible",
-                    {"database": data.get("database")}
+                    {"database": data.get("database")},
                 )
             else:
                 record_result(test_name, False, f"Grafana returned status {response.status}")
@@ -443,6 +441,7 @@ async def test_grafana_dashboard():
 # ============================================================================
 # TEST 8: Saga Listeners
 # ============================================================================
+
 
 async def test_saga_listeners():
     """Test saga with listeners for observability."""
@@ -480,21 +479,23 @@ async def test_saga_listeners():
         saga = TrackedSaga()
         await saga.run({})
 
-        expected_calls = ["start:tracked-saga", "enter:tracked_step", "success:tracked_step", "complete:tracked-saga"]
+        expected_calls = [
+            "start:tracked-saga",
+            "enter:tracked_step",
+            "success:tracked_step",
+            "complete:tracked-saga",
+        ]
 
         if listener_calls == expected_calls:
             record_result(
-                test_name,
-                True,
-                "Listeners received all expected events",
-                {"calls": listener_calls}
+                test_name, True, "Listeners received all expected events", {"calls": listener_calls}
             )
         else:
             record_result(
                 test_name,
                 False,
                 "Listener calls mismatch",
-                {"expected": expected_calls, "actual": listener_calls}
+                {"expected": expected_calls, "actual": listener_calls},
             )
 
     except Exception as e:
@@ -504,6 +505,7 @@ async def test_saga_listeners():
 # ============================================================================
 # MAIN RUNNER
 # ============================================================================
+
 
 async def run_all_tests():
     """Run all integration tests."""
@@ -538,7 +540,7 @@ async def run_all_tests():
 
     print("-" * 70)
     print(f"Total: {total} | Passed: {passed} | Failed: {failed}")
-    print(f"Success Rate: {(passed/total)*100:.1f}%" if total > 0 else "N/A")
+    print(f"Success Rate: {(passed / total) * 100:.1f}%" if total > 0 else "N/A")
     print("=" * 70 + "\n")
 
     # Exit with error code if any tests failed
