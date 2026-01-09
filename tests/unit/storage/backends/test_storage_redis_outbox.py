@@ -311,6 +311,129 @@ class TestRedisOutboxStorageUnit:
 
             mock_redis.aclose.assert_called()
 
+    @pytest.mark.asyncio
+    async def test_count(self, storage, mock_redis):
+        """Test counting events."""
+        mock_redis.xlen.return_value = 15
+
+        count = await storage.count()
+
+        assert count == 15
+        mock_redis.xlen.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_export_all(self, storage, mock_redis):
+        """Test exporting all events."""
+        # Mock scan to return event keys
+        mock_redis.scan.side_effect = [
+            (1, [b"test:outbox:meta:evt-1", b"test:outbox:meta:evt-2"]),
+            (0, [b"test:outbox:meta:evt-3"]),
+        ]
+        mock_redis.hgetall.side_effect = [
+            {
+                b"event_id": b"evt-1",
+                b"saga_id": b"saga-1",
+                b"aggregate_type": b"saga",
+                b"aggregate_id": b"saga-1",
+                b"event_type": b"Test",
+                b"payload": b"{}",
+                b"headers": b"{}",
+                b"status": b"pending",
+                b"retry_count": b"0",
+                b"created_at": b"2024-01-15T10:00:00+00:00",
+                b"claimed_at": b"",
+                b"sent_at": b"",
+                b"last_error": b"",
+                b"worker_id": b"",
+                b"routing_key": b"",
+                b"partition_key": b"",
+            },
+            {
+                b"event_id": b"evt-2",
+                b"saga_id": b"saga-2",
+                b"aggregate_type": b"saga",
+                b"aggregate_id": b"saga-2",
+                b"event_type": b"Test",
+                b"payload": b"{}",
+                b"headers": b"{}",
+                b"status": b"sent",
+                b"retry_count": b"0",
+                b"created_at": b"2024-01-15T10:00:00+00:00",
+                b"claimed_at": b"",
+                b"sent_at": b"2024-01-15T10:01:00+00:00",
+                b"last_error": b"",
+                b"worker_id": b"",
+                b"routing_key": b"",
+                b"partition_key": b"",
+            },
+            {
+                b"event_id": b"evt-3",
+                b"saga_id": b"saga-3",
+                b"aggregate_type": b"saga",
+                b"aggregate_id": b"saga-3",
+                b"event_type": b"Test",
+                b"payload": b"{}",
+                b"headers": b"{}",
+                b"status": b"pending",
+                b"retry_count": b"0",
+                b"created_at": b"2024-01-15T10:00:00+00:00",
+                b"claimed_at": b"",
+                b"sent_at": b"",
+                b"last_error": b"",
+                b"worker_id": b"",
+                b"routing_key": b"",
+                b"partition_key": b"",
+            },
+        ]
+
+        events = []
+        async for event in storage.export_all():
+            events.append(event)
+
+        assert len(events) == 3
+        assert events[0].event_id == "evt-1"
+        assert events[1].event_id == "evt-2"
+        assert events[2].event_id == "evt-3"
+
+    @pytest.mark.asyncio
+    async def test_export_all_empty(self, storage, mock_redis):
+        """Test exporting when no events exist."""
+        mock_redis.scan.return_value = (0, [])
+
+        events = []
+        async for event in storage.export_all():
+            events.append(event)
+
+        assert events == []
+
+    @pytest.mark.asyncio
+    async def test_import_record(self, storage, mock_redis):
+        """Test importing a record."""
+        record = {
+            "event_id": "evt-imported",
+            "saga_id": "saga-imported",
+            "event_type": "ImportedEvent",
+            "payload": {"imported": True},
+            "status": "pending",
+        }
+
+        await storage.import_record(record)
+
+        # Verify insert was called via pipeline
+        mock_redis.pipeline.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_import_record_without_optional_fields(self, storage, mock_redis):
+        """Test importing a minimal record."""
+        record = {
+            "saga_id": "saga-minimal",
+            "event_type": "MinimalEvent",
+        }
+
+        await storage.import_record(record)
+
+        mock_redis.pipeline.assert_called()
+
 
 @pytest.mark.integration
 class TestRedisOutboxStorageIntegration:

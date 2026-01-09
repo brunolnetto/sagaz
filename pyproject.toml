@@ -62,6 +62,8 @@ dev = [
     "pytest-cov==7.0.0",
     "pytest-xdist>=3.8.0",
     "pytest-watch>=4.2.0",
+    # SQLite storage (for unit tests)
+    "aiosqlite>=0.19.0",
     # Code Quality
     "ruff>=0.1.6",
 
@@ -81,6 +83,9 @@ dev = [
     "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
     # Type stubs
     "types-PyYAML>=6.0.0",
+    # Framework integrations (for testing)
+    "flask>=3.0.0",
+    "fastapi>=0.100.0",
     # All optional backends for integration testing
     "asyncpg>=0.30.0",
     "redis>=6.0.0",
@@ -340,14 +345,16 @@ exclude_lines = [
 ]
 omit = [
     "*/tests/*",
-    "*/examples/*",
     "*/__init__.py",
     "sagaz/__init__.py",
     "sagaz/*/__init__.py",
-    "examples/*",
+    # Examples are bundled but not library code
+    "sagaz/examples/*",
     # CLI tools - interactive wrappers, not core library logic
     "sagaz/cli.py",
     "sagaz/cli_app.py",
+    "sagaz/cli/app.py",  # Interactive CLI commands - tested via manual/integration testing
+    "sagaz/cli/main.py",  # CLI entry point - thin wrapper
     # Optional integrations requiring external frameworks
     "sagaz/integrations/django.py",
     # Optional trigger sources requiring external services

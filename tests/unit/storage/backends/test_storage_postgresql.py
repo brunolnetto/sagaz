@@ -316,6 +316,169 @@ class TestPostgreSQLSagaStorageMocked:
             assert storage._format_bytes(1024) == "1.0KB"
             assert storage._format_bytes(1024 * 1024) == "1.0MB"
 
+    def test_format_bytes_large_values(self):
+        """Test bytes formatting for large values (GB, TB, PB)."""
+        with patch("sagaz.storage.backends.postgresql.saga.ASYNCPG_AVAILABLE", True):
+            from sagaz.storage.postgresql import PostgreSQLSagaStorage
+
+            storage = PostgreSQLSagaStorage("postgresql://localhost/test")
+
+            assert storage._format_bytes(1024 * 1024 * 1024) == "1.0GB"
+            assert storage._format_bytes(1024 * 1024 * 1024 * 1024) == "1.0TB"
+            # Test PB branch (line 466)
+            assert storage._format_bytes(1024 * 1024 * 1024 * 1024 * 1024 * 2) == "2.0PB"
+
+    @pytest.mark.asyncio
+    async def test_delete_saga_state(self, mock_pool):
+        """Test deleting saga state."""
+        with patch("sagaz.storage.backends.postgresql.saga.ASYNCPG_AVAILABLE", True):
+            from sagaz.storage.postgresql import PostgreSQLSagaStorage
+
+            pool, conn = mock_pool
+            storage = PostgreSQLSagaStorage("postgresql://localhost/test")
+            storage._pool = pool
+            conn.execute.return_value = "DELETE 1"
+
+            result = await storage.delete_saga_state("saga-123")
+
+            assert result is True
+            conn.execute.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_delete_saga_state_not_found(self, mock_pool):
+        """Test deleting non-existent saga state."""
+        with patch("sagaz.storage.backends.postgresql.saga.ASYNCPG_AVAILABLE", True):
+            from sagaz.storage.postgresql import PostgreSQLSagaStorage
+
+            pool, conn = mock_pool
+            storage = PostgreSQLSagaStorage("postgresql://localhost/test")
+            storage._pool = pool
+            conn.execute.return_value = "DELETE 0"
+
+            result = await storage.delete_saga_state("nonexistent")
+
+            assert result is False
+
+    @pytest.mark.asyncio
+    async def test_list_sagas_no_filters(self, mock_pool):
+        """Test listing sagas without filters."""
+        with patch("sagaz.storage.backends.postgresql.saga.ASYNCPG_AVAILABLE", True):
+            from sagaz.storage.postgresql import PostgreSQLSagaStorage
+
+            pool, conn = mock_pool
+            storage = PostgreSQLSagaStorage("postgresql://localhost/test")
+            storage._pool = pool
+
+            # Mock row data
+            mock_row = {
+                "saga_id": "saga-1",
+                "saga_name": "TestSaga",
+                "status": "completed",
+                "created_at": datetime.now(UTC),
+                "updated_at": datetime.now(UTC),
+                "step_count": 3,
+                "completed_steps": 3,
+            }
+            conn.fetch.return_value = [mock_row]
+
+            results = await storage.list_sagas()
+
+            assert len(results) == 1
+            assert results[0]["saga_id"] == "saga-1"
+            assert results[0]["saga_name"] == "TestSaga"
+            conn.fetch.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_list_sagas_with_status_filter(self, mock_pool):
+        """Test listing sagas filtered by status."""
+        with patch("sagaz.storage.backends.postgresql.saga.ASYNCPG_AVAILABLE", True):
+            from sagaz.storage.postgresql import PostgreSQLSagaStorage
+
+            pool, conn = mock_pool
+            storage = PostgreSQLSagaStorage("postgresql://localhost/test")
+            storage._pool = pool
+            conn.fetch.return_value = []
+
+            await storage.list_sagas(status=SagaStatus.COMPLETED)
+
+            conn.fetch.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_list_sagas_with_name_filter(self, mock_pool):
+        """Test listing sagas filtered by name."""
+        with patch("sagaz.storage.backends.postgresql.saga.ASYNCPG_AVAILABLE", True):
+            from sagaz.storage.postgresql import PostgreSQLSagaStorage
+
+            pool, conn = mock_pool
+            storage = PostgreSQLSagaStorage("postgresql://localhost/test")
+            storage._pool = pool
+            conn.fetch.return_value = []
+
+            await storage.list_sagas(saga_name="Order")
+
+            conn.fetch.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_list_sagas_with_both_filters(self, mock_pool):
+        """Test listing sagas filtered by both status and name."""
+        with patch("sagaz.storage.backends.postgresql.saga.ASYNCPG_AVAILABLE", True):
+            from sagaz.storage.postgresql import PostgreSQLSagaStorage
+
+            pool, conn = mock_pool
+            storage = PostgreSQLSagaStorage("postgresql://localhost/test")
+            storage._pool = pool
+            conn.fetch.return_value = []
+
+            await storage.list_sagas(status=SagaStatus.FAILED, saga_name="Payment")
+
+            conn.fetch.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_count_sagas(self, mock_pool):
+        """Test counting sagas."""
+        with patch("sagaz.storage.backends.postgresql.saga.ASYNCPG_AVAILABLE", True):
+            from sagaz.storage.postgresql import PostgreSQLSagaStorage
+
+            pool, conn = mock_pool
+            storage = PostgreSQLSagaStorage("postgresql://localhost/test")
+            storage._pool = pool
+            conn.fetchval.return_value = 42
+
+            count = await storage.count()
+
+            assert count == 42
+            conn.fetchval.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_context_manager_enter_exit(self, mock_pool):
+        """Test async context manager."""
+        with patch("sagaz.storage.backends.postgresql.saga.ASYNCPG_AVAILABLE", True):
+            with patch("sagaz.storage.backends.postgresql.saga.asyncpg") as mock_asyncpg:
+                from sagaz.storage.postgresql import PostgreSQLSagaStorage
+
+                pool, conn = mock_pool
+                mock_asyncpg.create_pool = AsyncMock(return_value=pool)
+
+                storage = PostgreSQLSagaStorage("postgresql://localhost/test")
+
+                async with storage as s:
+                    assert s is storage
+                    assert storage._pool is pool
+
+                pool.close.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_context_manager_exit_no_pool(self):
+        """Test async context manager exit when pool is None."""
+        with patch("sagaz.storage.backends.postgresql.saga.ASYNCPG_AVAILABLE", True):
+            from sagaz.storage.postgresql import PostgreSQLSagaStorage
+
+            storage = PostgreSQLSagaStorage("postgresql://localhost/test")
+            storage._pool = None
+
+            # Should not raise
+            await storage.__aexit__(None, None, None)
+
 
 # ============================================
 # INTEGRATION TESTS

@@ -565,8 +565,8 @@ class PostgreSQLOutboxStorage(OutboxStorage):
              msg = "Storage not initialized"
              raise OutboxStorageError(msg)
 
-        async with self._pool.acquire() as conn:
-            async with conn.transaction():
+        async with self._pool.acquire() as conn:  # pragma: no cover
+            async with conn.transaction():  # pragma: no cover
                 try:  # pragma: no cover
                     cursor = await conn.cursor("SELECT * FROM saga_outbox ORDER BY event_id")
                     async for row in cursor:

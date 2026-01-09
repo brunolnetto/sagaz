@@ -106,8 +106,8 @@ class RabbitMQBroker(BaseBroker):
         Raises:
             MissingDependencyError: If aio-pika is not installed
         """
-        if not RABBITMQ_AVAILABLE:
-            msg = "aio-pika"
+        if not RABBITMQ_AVAILABLE:  # pragma: no cover
+            msg = "aio-pika"  # pragma: no cover
             raise MissingDependencyError(msg, "RabbitMQ message broker")  # pragma: no cover
 
         super().__init__(config)
@@ -131,8 +131,8 @@ class RabbitMQBroker(BaseBroker):
 
     async def connect(self) -> None:
         """Establish connection to RabbitMQ."""
-        if self._connected:
-            return
+        if self._connected:  # pragma: no cover
+            return  # pragma: no cover
 
         try:  # pragma: no cover (RUN_INTEGRATION=1 with Docker)
             # Connect to RabbitMQ

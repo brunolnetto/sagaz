@@ -4175,16 +4175,13 @@ name = "sagaz"
 version = "1.0.3"
 source = { editable = "." }
 dependencies = [
-    { name = "asyncpg" },
-    { name = "python-statemachine" },
-]
-
-[package.optional-dependencies]
-cli = [
     { name = "click" },
+    { name = "python-statemachine" },
     { name = "rich" },
     { name = "simple-term-menu" },
 ]
+
+[package.optional-dependencies]
 integration-tests = [
     { name = "testcontainers", extra = ["rabbitmq", "redis"] },
 ]
@@ -4226,8 +4223,11 @@ cli = [
 dev = [
     { name = "aio-pika" },
     { name = "aiokafka" },
+    { name = "aiosqlite" },
     { name = "asyncpg" },
     { name = "bandit" },
+    { name = "fastapi" },
+    { name = "flask" },
     { name = "ipython" },
     { name = "mypy" },
     { name = "opentelemetry-api" },
@@ -4266,10 +4266,9 @@ sqlite = [
 requires-dist = [
     { name = "aio-pika", marker = "extra == 'rabbitmq'", specifier = ">=9.0.0" },
     { name = "aiokafka", marker = "extra == 'kafka'", specifier = ">=0.12.0" },
-    { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "asyncpg", marker = "extra == 'postgres'", specifier = ">=0.31.0" },
     { name = "asyncpg", marker = "extra == 'storage'", specifier = ">=0.30.0" },
-    { name = "click", marker = "extra == 'cli'", specifier = ">=8.1.0" },
+    { name = "click", specifier = ">=8.1.0" },
     { name = "opentelemetry-api", marker = "extra == 'tracing'", specifier = ">=1.39.1" },
     { name = "opentelemetry-exporter-otlp-proto-grpc", marker = "extra == 'tracing'", specifier = ">=1.39.1" },
     { name = "opentelemetry-sdk", marker = "extra == 'tracing'", specifier = ">=1.39.1" },
@@ -4277,11 +4276,11 @@ requires-dist = [
     { name = "python-statemachine", specifier = ">=2.1.0" },
     { name = "redis", marker = "extra == 'redis'", specifier = ">=7.1.0" },
     { name = "redis", marker = "extra == 'storage'", specifier = ">=7.0.0" },
-    { name = "rich", marker = "extra == 'cli'", specifier = ">=13.0.0" },
-    { name = "simple-term-menu", marker = "extra == 'cli'", specifier = ">=1.6.0" },
+    { name = "rich", specifier = ">=13.0.0" },
+    { name = "simple-term-menu", specifier = ">=1.6.0" },
     { name = "testcontainers", extras = ["kafka", "postgres", "rabbitmq", "redis"], marker = "extra == 'integration-tests'", specifier = ">=4.13.0" },
 ]
-provides-extras = ["cli", "storage", "integration-tests", "redis", "postgres", "kafka", "rabbitmq", "tracing", "prometheus"]
+provides-extras = ["storage", "integration-tests", "redis", "postgres", "kafka", "rabbitmq", "tracing", "prometheus"]
 
 [package.metadata.requires-dev]
 ai = [
@@ -4293,8 +4292,11 @@ cli = [{ name = "click", specifier = ">=8.3.1" }]
 dev = [
     { name = "aio-pika", specifier = ">=9.0.0" },
     { name = "aiokafka", specifier = ">=0.12.0" },
+    { name = "aiosqlite", specifier = ">=0.19.0" },
     { name = "asyncpg", specifier = ">=0.30.0" },
     { name = "bandit", extras = ["toml"], specifier = ">=1.7.5" },
+    { name = "fastapi", specifier = ">=0.100.0" },
+    { name = "flask", specifier = ">=3.0.0" },
     { name = "ipython", specifier = "==9.8.0" },
     { name = "mypy", specifier = "==1.19.1" },
     { name = "opentelemetry-api", specifier = ">=1.20.0" },

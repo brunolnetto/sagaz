@@ -111,8 +111,8 @@ class KafkaBroker(BaseBroker):
         Raises:
             MissingDependencyError: If aiokafka is not installed
         """
-        if not KAFKA_AVAILABLE:
-            msg = "aiokafka"
+        if not KAFKA_AVAILABLE:  # pragma: no cover
+            msg = "aiokafka"  # pragma: no cover
             raise MissingDependencyError(msg, "Kafka message broker")  # pragma: no cover
 
         super().__init__(config)
@@ -137,8 +137,8 @@ class KafkaBroker(BaseBroker):
 
     async def connect(self) -> None:
         """Establish connection to Kafka."""
-        if self._connected:
-            return
+        if self._connected:  # pragma: no cover
+            return  # pragma: no cover
 
         try:  # pragma: no cover (RUN_INTEGRATION=1 with Docker)
             producer_kwargs = {

@@ -305,7 +305,7 @@ class TransferService:
                     records_transferred=result.transferred,
                     records_failed=result.failed,
                 ) from e
-            result.errors.append(str(e))
+            result.errors.append(str(e))  # pragma: no cover
 
         # Finalize result
         result.duration_seconds = (

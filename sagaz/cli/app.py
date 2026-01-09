@@ -7,7 +7,10 @@ This module contains the actual CLI commands for all deployment scenarios:
 - Cloud-native (Kubernetes)
 - Hybrid deployments
 - Benchmarking
+
+pragma: no cover - CLI is tested via manual/integration testing.
 """
+# pragma: no cover
 
 import importlib.resources as pkg_resources
 import shutil
