@@ -179,6 +179,34 @@ async def get_order_diagram(order_id: str):
     }
 
 
+@app.get("/webhooks/status/{saga_id}")
+async def get_webhook_status(saga_id: str):
+    """
+    Get the status of a saga triggered via webhook.
+
+    Returns saga execution status, state, and results.
+    """
+    try:
+        storage = config.storage
+        saga_data = await storage.load(saga_id)
+
+        if not saga_data:
+            return JSONResponse(
+                status_code=404, content={"error": "Saga not found", "saga_id": saga_id}
+            )
+
+        return {
+            "saga_id": saga_id,
+            "state": saga_data.get("state"),
+            "context": saga_data.get("context"),
+            "completed_steps": saga_data.get("completed_steps", []),
+            "failed_step": saga_data.get("failed_step"),
+            "error": saga_data.get("error"),
+        }
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e), "saga_id": saga_id})
+
+
 # =============================================================================
 # Entry Point
 # =============================================================================

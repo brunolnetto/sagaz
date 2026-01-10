@@ -6,11 +6,10 @@ Demonstrates how to integrate Sagaz with FastAPI using the **native `sagaz.integ
 
 This example showcases:
 
-- **`create_lifespan(config)`** - Lifespan context manager for resource initialization/cleanup
-- **`saga_factory(SagaClass)`** - Dependency injection factory for saga instances
-- **`run_saga_background()`** - Fire-and-forget background saga execution
-- **`SagaContextMiddleware`** - Automatic correlation ID propagation
-- **`get_config()`** - Dependency to access current SagaConfig
+- **`sagaz_startup()` / `sagaz_shutdown()`** - Lifespan hooks for resource initialization/cleanup
+- **`@trigger(source="event_type")`** - Event-driven saga triggering
+- **`create_webhook_router()`** - Webhook endpoint registration
+- **Automatic correlation ID** - Propagated throughout the request
 
 ## Prerequisites
 
@@ -25,51 +24,40 @@ pip install -r requirements.txt
 # Run the app
 uvicorn main:app --reload
 
-# Or from the CLI
+# Or from the CLI (recommended)
 sagaz examples run integrations/fastapi_app
 ```
 
 ## Usage
 
-### Native Integration Module
+### Webhook Integration
 
 ```python
 from sagaz.integrations.fastapi import (
-    create_lifespan,
-    saga_factory,
-    run_saga_background,
-    SagaContextMiddleware,
+    create_webhook_router,
+    sagaz_startup,
+    sagaz_shutdown,
 )
+from sagaz.triggers import trigger
 
-# Create FastAPI app with Sagaz lifespan
-app = FastAPI(lifespan=create_lifespan(config))
+# Define saga with trigger
+class OrderSaga(Saga):
+    @trigger(source="order_created", idempotency_key="order_id")
+    def handle_order_created(self, event: dict) -> dict | None:
+        return {"order_id": event["order_id"], "amount": event["amount"]}
 
-# Add correlation ID middleware
-app.add_middleware(SagaContextMiddleware)
+# Create FastAPI app with lifespan
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await sagaz_startup()
+    yield
+    await sagaz_shutdown()
 
-# Use dependency injection in routes
-@app.post("/orders")
-async def create_order(saga: OrderSaga = Depends(saga_factory(OrderSaga))):
-    result = await saga.run({"order_id": "123"})
-    return result
-```
+app = FastAPI(lifespan=lifespan)
 
-### Background Saga Execution
-
-```python
-@app.post("/orders/async")
-async def create_order_async(
-    background_tasks: BackgroundTasks,
-    saga: OrderSaga = Depends(saga_factory(OrderSaga)),
-):
-    saga_id = await run_saga_background(
-        background_tasks,
-        saga,
-        {"order_id": "123"},
-        on_success=lambda r: print("Completed!"),
-        on_failure=lambda e: print(f"Failed: {e}"),
-    )
-    return {"saga_id": saga_id, "status": "accepted"}
+# Register webhook router
+app.include_router(create_webhook_router("/webhooks"))
+# Creates POST /webhooks/{source} endpoint
 ```
 
 ## API Endpoints
@@ -77,9 +65,46 @@ async def create_order_async(
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/health` | GET | Health check |
-| `/orders` | POST | Create order synchronously |
-| `/orders/async` | POST | Create order in background |
+| `/webhooks/<source>` | POST | Trigger saga via webhook event |
+| `/webhooks/status/<saga_id>` | GET | Get saga execution status |
 | `/orders/{order_id}/diagram` | GET | Get saga Mermaid diagram |
+
+## Example Requests
+
+### Trigger Saga via Webhook
+
+```bash
+curl -X POST http://localhost:8000/webhooks/order_created \
+     -H "Content-Type: application/json" \
+     -d '{"order_id": "ORD-001", "amount": 99.99, "user_id": "user-123"}'
+```
+
+Response:
+```json
+{
+  "message": "Event queued for processing",
+  "source": "order_created",
+  "status": "accepted"
+}
+```
+
+### Check Saga Status
+
+```bash
+curl http://localhost:8000/webhooks/status/<saga_id>
+```
+
+Response:
+```json
+{
+  "saga_id": "abc123",
+  "state": "COMPLETED",
+  "context": {"order_id": "ORD-001", ...},
+  "completed_steps": ["reserve_inventory", "charge_payment", "ship_order"],
+  "failed_step": null,
+  "error": null
+}
+```
 
 ## API Docs
 

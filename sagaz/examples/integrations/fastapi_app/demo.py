@@ -82,6 +82,7 @@ def main():
     print("  ❤️  Health Check:  http://localhost:8000/health")
     print("  📊 Order Diagram: http://localhost:8000/orders/<order_id>/diagram")
     print("  🎯 Webhook:       http://localhost:8000/webhooks/<source>")
+    print("  📈 Saga Status:   http://localhost:8000/webhooks/status/<saga_id>")
     print()
 
     print("=" * 70)
@@ -114,6 +115,10 @@ def main():
     print('        -H "Content-Type: application/json" \\')
     print('        -H "X-Correlation-ID: my-trace-123" \\')
     print('        -d \'{"order_id": "ORD-003", "amount": 299.99, "user_id": "user-789"}\'')
+    print()
+
+    print("6️⃣  Check Saga Status (use saga_id from webhook response):")
+    print("   curl http://localhost:8000/webhooks/status/<saga_id>")
     print()
 
     # Ask if user wants to run the server
@@ -169,6 +174,7 @@ def main():
     print("  ❤️  Health Check:  http://localhost:8000/health")
     print("  📊 Order Diagram: http://localhost:8000/orders/<order_id>/diagram")
     print("  🎯 Webhook:       http://localhost:8000/webhooks/<source>")
+    print("  📈 Saga Status:   http://localhost:8000/webhooks/status/<saga_id>")
     print()
 
     print("=" * 70)
@@ -201,6 +207,10 @@ def main():
     print('        -H "Content-Type: application/json" \\')
     print('        -H "X-Correlation-ID: my-trace-123" \\')
     print('        -d \'{"order_id": "ORD-003", "amount": 299.99, "user_id": "user-789"}\'')
+    print()
+
+    print("6️⃣  Check Saga Status (use saga_id from webhook response):")
+    print("   curl http://localhost:8000/webhooks/status/<saga_id>")
     print()
 
     print("=" * 70)
