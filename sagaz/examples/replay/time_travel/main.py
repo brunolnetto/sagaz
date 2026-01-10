@@ -1,12 +1,5 @@
 #!/usr/bin/env python3
-"""
-Time-Travel Example - Query Historical Saga State
-
-Demonstrates retrieving saga state at any point in history for auditing.
-
-Usage:
-    python -m sagaz.examples.replay.time_travel
-"""
+"""Time-Travel Demo - Query historical saga state for auditing"""
 
 import asyncio
 import logging

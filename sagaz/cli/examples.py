@@ -51,6 +51,43 @@ def get_examples_dir() -> Path:
         return cwd_examples  # Fallback if package not found
 
 
+# Domain-to-category mapping for consolidated navigation
+DOMAIN_MAPPING = {
+    "Business": [
+        "ecommerce",
+        "fintech",
+        "travel",
+        "logistics",
+        "real_estate",
+    ],
+    "Technology": [
+        "ai_agents",
+        "data_engineering",
+        "ml",
+        "iot",
+    ],
+    "Healthcare": ["healthcare"],
+    "Infrastructure": [
+        "energy",
+        "manufacturing",
+        "telecom",
+    ],
+    "Public Services": [
+        "government",
+        "education",
+    ],
+    "Digital Media": [
+        "media",
+        "gaming",
+    ],
+    "Platform": [
+        "replay",
+        "monitoring",
+        "integrations",
+    ],
+}
+
+
 def get_categories() -> list[str]:
     """Get list of available example categories (top-level directories)."""
     examples_dir = get_examples_dir()
@@ -66,6 +103,20 @@ def get_categories() -> list[str]:
                     break
 
     return sorted(categories)
+
+
+def get_domains() -> dict[str, list[str]]:
+    """Get consolidated domain groups with their categories."""
+    available_cats = set(get_categories())
+    domains = {}
+
+    for domain, categories in DOMAIN_MAPPING.items():
+        # Only include domains that have at least one available category
+        present_cats = [cat for cat in categories if cat in available_cats]
+        if present_cats:
+            domains[domain] = present_cats
+
+    return domains
 
 
 def discover_examples(category: str | None = None) -> dict[str, Path]:
@@ -267,10 +318,10 @@ def _format_category_name(category: str) -> str:
 
 
 def _category_menu_loop():  # pragma: no cover
-    """Main category selection loop."""
-    categories = get_categories()
+    """Main domain selection loop (consolidated categories)."""
+    domains = get_domains()
 
-    if not categories:
+    if not domains:
         click.echo("No examples found. Run this command from the sagaz repository root.")
         return
 
@@ -279,13 +330,14 @@ def _category_menu_loop():  # pragma: no cover
             console.print("\n[bold blue]  📦 Sagaz Examples  [/bold blue]")
             console.print("[dim]Use ↑/↓ to navigate, Enter to select, q to quit[/dim]\n")
 
-        # Build category menu with example counts
+        # Build domain menu with example counts
         menu_entries = []
-        for cat in categories:
-            examples = discover_examples(cat)
-            count = len(examples)
-            formatted_name = _format_category_name(cat)
-            menu_entries.append(f"📁 {formatted_name}  ({count} examples)")
+        domain_list = list(domains.keys())
+        for domain in domain_list:
+            categories = domains[domain]
+            # Count total examples across all categories in domain
+            total_count = sum(len(discover_examples(cat)) for cat in categories)
+            menu_entries.append(f"📁 {domain}  ({total_count} examples)")
 
         menu_entries.append("")  # Separator
         menu_entries.append("❌ Exit")
@@ -308,15 +360,63 @@ def _category_menu_loop():  # pragma: no cover
                 console.print("\n[dim]Goodbye! 👋[/dim]\n")
             return
 
-        # Open examples submenu for selected category
-        selected_category = categories[selected_index]
-        result = _examples_menu_loop(selected_category)
+        # Open category submenu for selected domain
+        selected_domain = domain_list[selected_index]
+        result = _domain_category_menu_loop(selected_domain, domains[selected_domain])
 
         if result == "exit":
             if console:
                 console.print("\n[dim]Goodbye! 👋[/dim]\n")
             return
-        # Otherwise, loop back to category menu
+        # Otherwise, loop back to domain menu
+
+
+def _domain_category_menu_loop(domain: str, categories: list[str]) -> str:  # pragma: no cover
+    """Category selection loop for a specific domain. Returns 'back' or 'exit'."""
+    while True:
+        if console:
+            console.print(f"\n[bold blue]  📁 {domain} Domain  [/bold blue]")
+            console.print("[dim]Use ↑/↓ to navigate, Enter to select, q to quit[/dim]\n")
+
+        # Build category menu
+        menu_entries = []
+        for cat in categories:
+            examples = discover_examples(cat)
+            count = len(examples)
+            formatted_name = _format_category_name(cat)
+            menu_entries.append(f"📂 {formatted_name}  ({count} examples)")
+
+        menu_entries.append("")  # Separator
+        menu_entries.append("← Back to domains")
+        menu_entries.append("❌ Exit")
+
+        menu = TerminalMenu(
+            menu_entries,
+            menu_cursor="▸ ",
+            menu_cursor_style=("fg_cyan", "bold"),
+            menu_highlight_style=("bg_gray", "fg_cyan", "bold"),
+            cycle_cursor=True,
+            clear_screen=False,
+            skip_empty_entries=True,
+        )
+
+        selected_index = menu.show()
+
+        # Handle back to domains
+        if selected_index == len(menu_entries) - 2:
+            return "back"
+
+        # Handle exit
+        if selected_index is None or selected_index == len(menu_entries) - 1:
+            return "exit"
+
+        # Open examples menu for selected category
+        selected_category = categories[selected_index]
+        result = _examples_menu_loop(selected_category)
+
+        if result == "exit":
+            return "exit"
+        # Otherwise, loop back to category selection
 
 
 def _examples_menu_loop(category: str) -> str:  # pragma: no cover

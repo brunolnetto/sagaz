@@ -1,12 +1,5 @@
 #!/usr/bin/env python3
-"""
-Simple Replay Demo - Minimal Example
-
-The simplest possible replay example to get started.
-
-Usage:
-    python -m sagaz.examples.replay.simple_demo
-"""
+"""Simple Replay Demo - Minimal Example"""
 
 import asyncio
 

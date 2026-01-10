@@ -13,6 +13,7 @@ from sagaz.cli.examples import (
     _fallback_interactive_simple,
     discover_examples,
     get_categories,
+    get_domains,
     get_example_description,
     get_examples_dir,
     interactive_cmd,
@@ -57,6 +58,50 @@ class TestGetCategories:
 
         result = get_categories()
         assert result == []
+
+
+class TestGetDomains:
+    """Tests for get_domains function."""
+
+    def test_returns_dict(self):
+        """Test that get_domains returns a dict."""
+        result = get_domains()
+        assert isinstance(result, dict)
+
+    def test_domain_structure(self):
+        """Test that domains contain lists of categories."""
+        result = get_domains()
+        for domain, categories in result.items():
+            assert isinstance(domain, str)
+            assert isinstance(categories, list)
+            assert all(isinstance(cat, str) for cat in categories)
+
+    def test_expected_domains(self):
+        """Test that expected domains are present."""
+        result = get_domains()
+        expected_domains = {
+            "Business",
+            "Technology",
+            "Healthcare",
+            "Infrastructure",
+            "Public Services",
+            "Digital Media",
+            "Platform",
+        }
+        # All expected domains should be present (if examples exist)
+        assert set(result.keys()).issubset(expected_domains)
+
+    def test_all_categories_mapped(self):
+        """Test that all categories from get_categories are in domains."""
+        all_cats = set(get_categories())
+        domains = get_domains()
+
+        mapped_cats = set()
+        for categories in domains.values():
+            mapped_cats.update(categories)
+
+        # All returned categories should be mapped
+        assert all_cats == mapped_cats
 
 
 class TestDiscoverExamples:

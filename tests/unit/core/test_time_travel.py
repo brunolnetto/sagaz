@@ -64,14 +64,14 @@ class TestSagaTimeTravel:
             snapshot = SagaSnapshot.create(
                 saga_id=saga_id,
                 saga_name="TestSaga",
-                step_name=f"step{i+1}",
+                step_name=f"step{i + 1}",
                 step_index=i,
                 status="executing",
                 context={
                     "step_count": i + 1,
-                    "data": f"value_{i+1}",
+                    "data": f"value_{i + 1}",
                 },
-                completed_steps=[f"step{j+1}" for j in range(i)],
+                completed_steps=[f"step{j + 1}" for j in range(i)],
             )
             # Manually set created_at for testing
             snapshot.created_at = base_time + timedelta(minutes=i * 10)
@@ -81,9 +81,7 @@ class TestSagaTimeTravel:
         return snapshots
 
     @pytest.mark.asyncio
-    async def test_get_state_at_exact_snapshot_time(
-        self, storage, saga_id, sample_snapshots
-    ):
+    async def test_get_state_at_exact_snapshot_time(self, storage, saga_id, sample_snapshots):
         time_travel = SagaTimeTravel(saga_id=saga_id, snapshot_storage=storage)
 
         # Query at exact snapshot time
@@ -99,9 +97,7 @@ class TestSagaTimeTravel:
         assert state.completed_steps == ["step1"]
 
     @pytest.mark.asyncio
-    async def test_get_state_at_between_snapshots(
-        self, storage, saga_id, sample_snapshots
-    ):
+    async def test_get_state_at_between_snapshots(self, storage, saga_id, sample_snapshots):
         time_travel = SagaTimeTravel(saga_id=saga_id, snapshot_storage=storage)
 
         # Query between snapshot 1 and 2
@@ -115,9 +111,7 @@ class TestSagaTimeTravel:
         assert state.context["step_count"] == 1
 
     @pytest.mark.asyncio
-    async def test_get_state_at_before_first_snapshot(
-        self, storage, saga_id, sample_snapshots
-    ):
+    async def test_get_state_at_before_first_snapshot(self, storage, saga_id, sample_snapshots):
         time_travel = SagaTimeTravel(saga_id=saga_id, snapshot_storage=storage)
 
         # Query before any snapshots exist
@@ -127,9 +121,7 @@ class TestSagaTimeTravel:
         assert state is None
 
     @pytest.mark.asyncio
-    async def test_get_state_at_after_last_snapshot(
-        self, storage, saga_id, sample_snapshots
-    ):
+    async def test_get_state_at_after_last_snapshot(self, storage, saga_id, sample_snapshots):
         time_travel = SagaTimeTravel(saga_id=saga_id, snapshot_storage=storage)
 
         # Query after last snapshot
@@ -155,9 +147,7 @@ class TestSagaTimeTravel:
         assert state is not None
 
     @pytest.mark.asyncio
-    async def test_list_state_changes_all(
-        self, storage, saga_id, sample_snapshots
-    ):
+    async def test_list_state_changes_all(self, storage, saga_id, sample_snapshots):
         time_travel = SagaTimeTravel(saga_id=saga_id, snapshot_storage=storage)
 
         states = await time_travel.list_state_changes()
@@ -169,9 +159,7 @@ class TestSagaTimeTravel:
         assert states[2].current_step == "step3"
 
     @pytest.mark.asyncio
-    async def test_list_state_changes_with_after_filter(
-        self, storage, saga_id, sample_snapshots
-    ):
+    async def test_list_state_changes_with_after_filter(self, storage, saga_id, sample_snapshots):
         time_travel = SagaTimeTravel(saga_id=saga_id, snapshot_storage=storage)
 
         # Filter: only states after 10:05
@@ -183,9 +171,7 @@ class TestSagaTimeTravel:
         assert states[1].current_step == "step3"
 
     @pytest.mark.asyncio
-    async def test_list_state_changes_with_before_filter(
-        self, storage, saga_id, sample_snapshots
-    ):
+    async def test_list_state_changes_with_before_filter(self, storage, saga_id, sample_snapshots):
         time_travel = SagaTimeTravel(saga_id=saga_id, snapshot_storage=storage)
 
         # Filter: only states before 10:15
@@ -197,9 +183,7 @@ class TestSagaTimeTravel:
         assert states[1].current_step == "step2"
 
     @pytest.mark.asyncio
-    async def test_list_state_changes_with_limit(
-        self, storage, saga_id, sample_snapshots
-    ):
+    async def test_list_state_changes_with_limit(self, storage, saga_id, sample_snapshots):
         time_travel = SagaTimeTravel(saga_id=saga_id, snapshot_storage=storage)
 
         states = await time_travel.list_state_changes(limit=2)
@@ -209,9 +193,7 @@ class TestSagaTimeTravel:
         assert states[1].current_step == "step2"
 
     @pytest.mark.asyncio
-    async def test_get_context_at_specific_key(
-        self, storage, saga_id, sample_snapshots
-    ):
+    async def test_get_context_at_specific_key(self, storage, saga_id, sample_snapshots):
         time_travel = SagaTimeTravel(saga_id=saga_id, snapshot_storage=storage)
 
         target_time = sample_snapshots[1].created_at
@@ -220,9 +202,7 @@ class TestSagaTimeTravel:
         assert value == "value_2"
 
     @pytest.mark.asyncio
-    async def test_get_context_at_all_keys(
-        self, storage, saga_id, sample_snapshots
-    ):
+    async def test_get_context_at_all_keys(self, storage, saga_id, sample_snapshots):
         time_travel = SagaTimeTravel(saga_id=saga_id, snapshot_storage=storage)
 
         target_time = sample_snapshots[1].created_at
@@ -231,9 +211,7 @@ class TestSagaTimeTravel:
         assert context == {"step_count": 2, "data": "value_2"}
 
     @pytest.mark.asyncio
-    async def test_get_context_at_nonexistent_time(
-        self, storage, saga_id, sample_snapshots
-    ):
+    async def test_get_context_at_nonexistent_time(self, storage, saga_id, sample_snapshots):
         time_travel = SagaTimeTravel(saga_id=saga_id, snapshot_storage=storage)
 
         target_time = sample_snapshots[0].created_at - timedelta(hours=1)
@@ -267,6 +245,7 @@ class TestTimeTravelIntegration:
 
         # Use time-travel to query historical state
         from uuid import UUID
+
         time_travel = SagaTimeTravel(
             saga_id=UUID(saga.saga_id),
             snapshot_storage=storage,

@@ -95,7 +95,34 @@ examples/
 
 Each example is self-contained in its directory and can be run directly.
 
-### Running Examples
+### Interactive Example Browser
+
+The CLI provides an organized domain-based navigator (consolidating 19 categories into 7 logical domains):
+
+```bash
+# Interactive browser (recommended)
+sagaz examples
+
+# Browse specific domain
+sagaz examples --category fintech
+
+# List all examples
+sagaz examples list
+
+# Run specific example
+sagaz examples run fintech/payment_processing
+```
+
+**Domain Organization:**
+- 📁 **Business** (11 examples) - ecommerce, fintech, travel, logistics, real_estate
+- 📁 **Technology** (8 examples) - data_engineering, ml, iot
+- 📁 **Healthcare** (4 examples) - patient care and medical workflows
+- 📁 **Infrastructure** (7 examples) - energy, manufacturing, telecom
+- 📁 **Public Services** (4 examples) - government, education
+- 📁 **Digital Media** (4 examples) - media, gaming
+- 📁 **Platform** (6 examples) - replay, monitoring, integrations
+
+### Running Examples Directly
 
 ```bash
 # Web Framework Integrations
