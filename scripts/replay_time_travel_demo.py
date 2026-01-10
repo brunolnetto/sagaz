@@ -13,6 +13,7 @@ from sagaz.storage.backends.memory_snapshot import InMemorySnapshotStorage
 
 logging.basicConfig(level=logging.WARNING)
 
+
 class SimpleConsentSaga(Saga):
     def __init__(self, **kwargs):
         super().__init__(name="consent", **kwargs)
@@ -34,15 +35,15 @@ class SimpleConsentSaga(Saga):
         await asyncio.sleep(0.05)
         return {"recorded": True}
 
+
 async def main():
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("SAGA TIME-TRAVEL DEMO")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     storage = InMemorySnapshotStorage()
     config = ReplayConfig(
-        enable_snapshots=True,
-        snapshot_strategy=SnapshotStrategy.BEFORE_EACH_STEP
+        enable_snapshots=True, snapshot_strategy=SnapshotStrategy.BEFORE_EACH_STEP
     )
 
     saga = SimpleConsentSaga(replay_config=config, snapshot_storage=storage)
@@ -70,7 +71,8 @@ async def main():
         print(f"No snapshot found at {midpoint.strftime('%H:%M:%S.%f')[:-3]}")
         print("✓ Time-travel feature working (no data at that exact time)")
 
-    print("\n" + "="*70 + "\n")
+    print("\n" + "=" * 70 + "\n")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -46,10 +46,6 @@ class SimpleWorkflowSaga(Saga):
 async def main():
     """Demonstrate time-travel queries."""
 
-    print("\n" + "=" * 70)
-    print("TIME-TRAVEL DEMO - Historical State Queries")
-    print("=" * 70 + "\n")
-
     snapshot_storage = InMemorySnapshotStorage()
 
     replay_config = ReplayConfig(
@@ -57,7 +53,6 @@ async def main():
     )
 
     # Execute saga with snapshot capture
-    print("📦 Executing saga with snapshots...")
     saga = SimpleWorkflowSaga(
         name="workflow", replay_config=replay_config, snapshot_storage=snapshot_storage
     )
@@ -71,23 +66,15 @@ async def main():
     end_time = datetime.now()
 
     saga_id = saga.saga_id
-    print(f"✓ Saga completed: {saga_id}\n")
 
     # Query snapshots
-    print("📸 Time-Travel Queries:")
-    print("-" * 70)
 
     snapshots = await snapshot_storage.list_snapshots(saga_id=saga_id)
 
-    for i, snapshot in enumerate(snapshots, 1):
-        print(f"\n{i}. Snapshot at step '{snapshot.step_name}':")
-        print(f"   Created: {snapshot.created_at.strftime('%H:%M:%S.%f')[:-3]}")
-        print(f"   Status: {snapshot.status}")
-        print(f"   Completed steps: {snapshot.completed_steps}")
-        print(f"   Context keys: {list(snapshot.context.keys())}")
+    for _i, _snapshot in enumerate(snapshots, 1):
+        pass
 
     # Query state at specific time
-    print("\n📍 Query: Get state at midpoint time")
     start_time + (end_time - start_time) / 2
 
     midpoint_snapshot = await snapshot_storage.get_latest_snapshot(
@@ -96,10 +83,7 @@ async def main():
     )
 
     if midpoint_snapshot:
-        print(f"   Found snapshot at step: {midpoint_snapshot.step_name}")
-        print(f"   Steps completed at that time: {midpoint_snapshot.completed_steps}")
-
-    print("\n" + "=" * 70)
+        pass
 
 
 if __name__ == "__main__":

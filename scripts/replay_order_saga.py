@@ -11,13 +11,13 @@ Or run the simpler demo:
 
 import sys
 
-print("\n" + "="*70)
+print("\n" + "=" * 70)
 print("⚠️  DEPRECATED SCRIPT")
-print("="*70)
+print("=" * 70)
 print("\nThis script has been reorganized. Please use instead:\n")
 print("  python -m sagaz.examples.replay.order_recovery")
 print("\nOr for a simpler introduction:")
 print("  python -m sagaz.examples.replay.simple_demo")
-print("\n" + "="*70 + "\n")
+print("\n" + "=" * 70 + "\n")
 
 sys.exit(1)
