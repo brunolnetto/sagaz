@@ -1,7 +1,16 @@
 # ADR Implementation Roadmap & Dependencies
 
-**Last Updated**: 2026-01-07  
+**Last Updated**: 2026-01-10  
 **Total ADRs**: 18 (011-028)
+
+---
+
+## Legend
+
+- 🟢 **Implemented** - Feature complete and production-ready
+- 🟡 **In Progress** - Partially implemented, actively being worked on
+- ⚪ **Proposed** - Design complete, awaiting implementation
+- 🔵 **Accepted** - Design approved, not yet started
 
 ---
 
@@ -9,24 +18,24 @@
 
 | ADR | Title | Status | Priority | Complexity |
 |-----|-------|--------|----------|------------|
-| [ADR-011](adr/adr-011-cdc-support.md) | CDC Support | Proposed | Low | High |
-| [ADR-012](adr/adr-012-synchronous-orchestration-model.md) | Synchronous Orchestration | **Accepted** | - | **Implemented** |
-| [ADR-013](adr/adr-013-fluss-iceberg-analytics.md) | Fluss + Iceberg Analytics | Proposed | Low | High |
-| [ADR-014](adr/adr-014-schema-registry.md) | Schema Registry | Proposed | Low | Medium |
-| [ADR-015](adr/adr-015-unified-saga-api.md) | Unified Saga API | **Accepted** | - | **Implemented** |
-| [ADR-016](adr/adr-016-unified-storage-layer.md) | Unified Storage Layer | **Accepted** | - | **Implemented** |
-| [ADR-017](adr/adr-017-chaos-engineering.md) | Chaos Engineering | Proposed | Low | Medium |
-| [ADR-018](adr/adr-018-saga-versioning.md) | Saga Versioning | Proposed | Medium | High |
-| [ADR-019](adr/adr-019-dry-run-mode.md) | Dry Run Mode | Proposed | Medium | Low |
-| [ADR-020](adr/adr-020-multi-tenancy.md) | Multi-Tenancy | Proposed | Medium | High |
-| [ADR-021](adr/adr-021-lightweight-context-streaming.md) | Context Streaming | **Accepted** | Medium | High |
-| [ADR-022](adr/adr-022-compensation-result-passing.md) | Compensation Result Passing | **Accepted** | Medium | Medium |
-| [ADR-023](adr/adr-023-pivot-irreversible-steps.md) | Pivot/Irreversible Steps | **Accepted** | - | **Implemented** |
-| [ADR-024](adr/adr-024-saga-replay.md) | Saga Replay & Time-Travel | **Accepted** | Medium | **Phase 1 & 2 Implemented** |
-| [ADR-025](adr/adr-025-event-driven-triggers.md) | Event-Driven Triggers | **Accepted** | - | **Implemented** |
-| [ADR-026](adr/adr-026-industry-examples-expansion.md) | Industry Examples Expansion | **Accepted** | - | **Complete (24 examples)** |
-| [ADR-027](adr/adr-027-project-cli.md) | Project CLI | **Accepted** | High | High |
-| [ADR-028](adr/adr-028-framework-integration.md) | Framework Integration | **Accepted** | - | **Examples Created** |
+| [ADR-011](adr/adr-011-cdc-support.md) | CDC Support | ⚪ Proposed | Low | High |
+| [ADR-012](adr/adr-012-synchronous-orchestration-model.md) | Synchronous Orchestration | 🟢 **Implemented** | - | - |
+| [ADR-013](adr/adr-013-fluss-iceberg-analytics.md) | Fluss + Iceberg Analytics | ⚪ Proposed | Low | High |
+| [ADR-014](adr/adr-014-schema-registry.md) | Schema Registry | ⚪ Proposed | Low | Medium |
+| [ADR-015](adr/adr-015-unified-saga-api.md) | Unified Saga API | 🟢 **Implemented** | - | - |
+| [ADR-016](adr/adr-016-unified-storage-layer.md) | Unified Storage Layer | 🟢 **Implemented** | - | - |
+| [ADR-017](adr/adr-017-chaos-engineering.md) | Chaos Engineering | ⚪ Proposed | Low | Medium |
+| [ADR-018](adr/adr-018-saga-versioning.md) | Saga Versioning | ⚪ Proposed | Medium | High |
+| [ADR-019](adr/adr-019-dry-run-mode.md) | Dry Run Mode | ⚪ Proposed | Medium | Low |
+| [ADR-020](adr/adr-020-multi-tenancy.md) | Multi-Tenancy | ⚪ Proposed | Medium | High |
+| [ADR-021](adr/adr-021-lightweight-context-streaming.md) | Context Streaming | 🟢 **Implemented** | - | - |
+| [ADR-022](adr/adr-022-compensation-result-passing.md) | Compensation Result Passing | 🟢 **Implemented** | - | - |
+| [ADR-023](adr/adr-023-pivot-irreversible-steps.md) | Pivot/Irreversible Steps | 🟢 **Implemented** | - | - |
+| [ADR-024](adr/adr-024-saga-replay.md) | Saga Replay & Time-Travel | 🟡 **In Progress** (Phase 1&2/5) | Medium | High |
+| [ADR-025](adr/adr-025-event-driven-triggers.md) | Event-Driven Triggers | 🟢 **Implemented** | - | - |
+| [ADR-026](adr/adr-026-industry-examples-expansion.md) | Industry Examples Expansion | 🟢 **Complete** (24 examples) | - | - |
+| [ADR-027](adr/adr-027-project-cli.md) | Project CLI | 🟢 **Implemented** | - | - |
+| [ADR-028](adr/adr-028-framework-integration.md) | Framework Integration | 🟢 **Implemented** | - | - |
 
 ---
 
@@ -37,7 +46,7 @@
 ```mermaid
 graph TD
     ADR016[ADR-016: Unified Storage ✅] --> ADR021[ADR-021: Context Streaming ✅]
-    ADR016 --> ADR024[ADR-024: Saga Replay ✅ Phase 1 & 2]
+    ADR016 --> ADR024[ADR-024: Saga Replay 🟡 Phase 1 & 2/5]
     ADR016 --> ADR020[ADR-020: Multi-Tenancy]
     ADR016 --> ADR011[ADR-011: CDC Support]
     
@@ -49,7 +58,7 @@ graph TD
     style ADR023 fill:#51cf66
     style ADR026 fill:#51cf66
     style ADR021 fill:#51cf66
-    style ADR024 fill:#51cf66
+    style ADR024 fill:#ff922b
 ```
 
 ### Feature Dependencies
@@ -63,7 +72,7 @@ graph TD
     ADR025[ADR-025: Event Triggers ✅] --> ADR011[ADR-011: CDC Support]
     
     %% Replay chain
-    ADR024[ADR-024: Saga Replay ✅ Phase 1 & 2] --> ADR018[ADR-018: Versioning]
+    ADR024[ADR-024: Saga Replay 🟡 Phase 1 & 2/5] --> ADR018[ADR-018: Versioning]
     ADR024 --> ADR019[ADR-019: Dry Run]
     
     %% Multi-tenancy requires storage
@@ -88,7 +97,7 @@ graph TD
     style ADR025 fill:#51cf66
     style ADR027 fill:#51cf66
     style ADR021 fill:#51cf66
-    style ADR024 fill:#51cf66
+    style ADR024 fill:#ff922b
 
     %% Independent
     ADR027[ADR-027: Project CLI ✅]
@@ -117,11 +126,13 @@ ADR-025 (Triggers) ✅ → ADR-011 (CDC)
 ### Chain 2: Storage → Replay → Testing
 
 ```
-ADR-016 (Storage) ✅ → ADR-024 (Replay) ✅ Phase 1 & 2 → ADR-019 (Dry Run)
-                                                        → ADR-018 (Versioning)
+ADR-016 (Storage) ✅ → ADR-024 (Replay) 🟡 Phase 1 & 2/5 → ADR-019 (Dry Run)
+                                                          → ADR-018 (Versioning)
 ```
 
 **Rationale**: Replay needs complete state snapshots. Versioning helps replay across schema changes.
+
+**Status**: Phases 1 & 2 complete (snapshot infrastructure + replay engine). Remaining: time-travel queries, CLI tooling, compliance features.
 
 ### Chain 3: Compensation → Pivots
 

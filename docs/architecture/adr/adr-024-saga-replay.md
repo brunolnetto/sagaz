@@ -2,7 +2,14 @@
 
 ## Status
 
-**Proposed** | Date: 2026-01-05 | Priority: Medium | Target: v2.0.0
+**In Progress** | Date: 2026-01-05 | Updated: 2026-01-10 | Priority: Medium | Target: v2.0.0
+
+**Implementation Status:**
+- ✅ Phase 1: Snapshot Infrastructure (Complete)
+- ✅ Phase 2: Replay Engine (Complete)
+- 🟡 Phase 3: Time-Travel Queries (In Progress)
+- 🟡 Phase 4: Tooling & UI (Pending)
+- 🟡 Phase 5: Compliance Features (Pending)
 
 ## Dependencies
 
@@ -334,45 +341,54 @@ await replay.from_checkpoint(
 
 ## Implementation Phases
 
-### Phase 1: Snapshot Infrastructure (v2.1.0)
+### Phase 1: Snapshot Infrastructure (v2.1.0) - ✅ COMPLETE
 
-- [ ] Create `saga_snapshots` table schema
-- [ ] Create `saga_replay_log` table schema
-- [ ] Implement `SnapshotStorage` interface
-- [ ] Add snapshot capture to saga execution
-- [ ] Configure retention policies
+- [x] Create snapshot data structures (`SagaSnapshot`, `ReplayConfig`)
+- [x] Create replay result structures (`ReplayResult`, `ReplayRequest`)
+- [x] Implement `SnapshotStorage` interface
+- [x] Implement `InMemorySnapshotStorage` backend
+- [x] Configure retention policies
+- [x] Add comprehensive tests (23 tests)
 
-**Duration:** 2 weeks
+**Duration:** 2 weeks  
+**Completed:** 2026-01-10  
+**Files:** `sagaz/core/replay.py`, `sagaz/storage/interfaces/snapshot.py`, `sagaz/storage/backends/memory_snapshot.py`
 
-### Phase 2: Replay Engine (v2.1.0)
+### Phase 2: Replay Engine (v2.1.0) - ✅ COMPLETE
 
-- [ ] Implement `SagaReplay` class
-- [ ] Add checkpoint loading
-- [ ] Implement context override
-- [ ] Add replay audit logging
-- [ ] Create replay API
+- [x] Implement `SagaReplay` class
+- [x] Add checkpoint loading from storage
+- [x] Implement context override and merge
+- [x] Add replay audit logging
+- [x] Create replay API (`from_checkpoint`, `list_available_checkpoints`, `get_replay_history`)
+- [x] Add dry-run validation mode
 
-**Duration:** 2 weeks
+**Duration:** 2 weeks  
+**Completed:** 2026-01-10  
+**Files:** `sagaz/core/saga_replay.py`, `tests/unit/core/test_replay.py`
 
-### Phase 3: Time-Travel Queries (v2.2.0)
+### Phase 3: Time-Travel Queries (v2.2.0) - 🟡 IN PROGRESS
 
 - [ ] Implement `SagaTimeTravel` class
-- [ ] Add state reconstruction algorithm
+- [ ] Add state reconstruction algorithm (snapshot + event replay)
 - [ ] Optimize snapshot/event querying
-- [ ] Add time-travel API
+- [ ] Add time-travel API (`get_state_at`, `list_state_changes`)
+- [ ] Integration tests with event sourcing
 
-**Duration:** 1 week
+**Duration:** 1 week  
+**Status:** Next priority
 
-### Phase 4: Tooling & UI (v2.2.0)
+### Phase 4: Tooling & UI (v2.2.0) - 🟡 PENDING
 
 - [ ] CLI command: `sagaz replay <saga_id> --from-step <step>`
 - [ ] CLI command: `sagaz time-travel <saga_id> --at <timestamp>`
 - [ ] Web UI for replay management
 - [ ] Grafana dashboard for replay metrics
 
-**Duration:** 2 weeks
+**Duration:** 2 weeks  
+**Depends on:** Phase 3
 
-### Phase 5: Compliance Features (v2.3.0)
+### Phase 5: Compliance Features (v2.3.0) - 🟡 PENDING
 
 - [ ] Add encryption for sensitive context
 - [ ] Implement GDPR "right to be forgotten" (delete snapshots)
