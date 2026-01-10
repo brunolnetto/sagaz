@@ -57,7 +57,7 @@ EXAMPLE_SAGA_PY = """from sagaz import Saga, action, SagaContext
 class ExampleSaga(Saga):
     \"\"\"
     Example saga demonstrating a simple multi-step workflow.
-    
+
     Steps:
     1. step_one: Prints a message
     2. step_two: Depends on step_one
