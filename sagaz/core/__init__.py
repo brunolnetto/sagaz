@@ -10,9 +10,12 @@ with existing imports like `from sagaz.core.saga import Saga`.
 
 from sagaz.core.config import SagaConfig, configure, get_config
 from sagaz.core.context import (
+    ConfigurationError,
     ExternalReference,
     ExternalStorage,
     FileSystemExternalStorage,
+    LargePayloadWarning,
+    MemoryFootprintError,
     S3ExternalStorage,
     SagaContext,
 )
@@ -53,10 +56,13 @@ from sagaz.core.saga import SagaStep
 from sagaz.core.types import ParallelFailureStrategy, SagaResult, SagaStatus, SagaStepStatus
 
 __all__ = [
+    "ConfigurationError",
     "ExternalReference",
     "ExternalStorage",
     "FileSystemExternalStorage",
+    "LargePayloadWarning",
     "LoggingSagaListener",
+    "MemoryFootprintError",
     "MetricsSagaListener",
     "MissingDependencyError",
     "NullLogger",
