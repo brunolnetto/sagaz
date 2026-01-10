@@ -105,6 +105,9 @@ def create_webhook_router(url_prefix: str = "/webhooks"):
         except Exception:
             payload = {}
 
+        # Generate correlation ID for tracking
+        correlation_id = request.headers.get("X-Correlation-ID") or generate_correlation_id()
+
         # Fire event in background (fire-and-forget)
         async def process_event():
             try:
@@ -121,6 +124,7 @@ def create_webhook_router(url_prefix: str = "/webhooks"):
                 "status": "accepted",
                 "source": source,
                 "message": "Event queued for processing",
+                "correlation_id": correlation_id,
             },
         )
 

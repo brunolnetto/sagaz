@@ -3,6 +3,7 @@ URL patterns for orders app.
 
 Trigger flow:
 - POST /webhooks/<source>/ → fires event → triggers saga with @trigger(source=...)
+- GET /webhooks/<source>/status/<correlation_id>/ → check event processing status
 """
 
 from django.urls import path
@@ -20,4 +21,10 @@ urlpatterns = [
     # Webhook trigger endpoint
     # POST /webhooks/order_created → triggers OrderSaga
     path("webhooks/<str:source>/", csrf_exempt(sagaz_webhook_view), name="webhooks"),
+    # Webhook status check
+    path(
+        "webhooks/<str:source>/status/<str:correlation_id>/",
+        views.WebhookStatusView.as_view(),
+        name="webhook-status",
+    ),
 ]

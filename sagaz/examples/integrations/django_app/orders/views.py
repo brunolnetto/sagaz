@@ -31,3 +31,26 @@ class OrderDiagramView(View):
                 "format": "mermaid",
             }
         )
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class WebhookStatusView(View):
+    """
+    Check status of event processing.
+
+    This is a simplified status endpoint. In production, you would:
+    - Store saga_ids with correlation_ids in Redis/DB
+    - Query saga storage for actual status
+    - Return detailed execution results
+    """
+
+    def get(self, request, source, correlation_id):
+        return JsonResponse(
+            {
+                "correlation_id": correlation_id,
+                "source": source,
+                "status": "processing",
+                "message": "Event is being processed. Check saga storage for execution details.",
+                "documentation": "Use the storage backend to query saga status by saga_id",
+            }
+        )

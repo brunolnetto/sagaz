@@ -126,32 +126,26 @@ def get_order_diagram(order_id: str):
     )
 
 
-@app.route("/webhooks/status/<saga_id>")
-def get_webhook_status(saga_id: str):
+@app.route("/webhooks/<source>/status/<correlation_id>")
+def get_webhook_status(source: str, correlation_id: str):
     """
-    Get the status of a saga triggered via webhook.
+    Check status of event processing.
 
-    Returns saga execution status, state, and results.
+    This is a simplified status endpoint. In production, you would:
+    - Store saga_ids with correlation_ids in Redis/DB
+    - Query saga storage for actual status
+    - Return detailed execution results
     """
-    try:
-        storage = config.storage
-        saga_data = asyncio.run(storage.load(saga_id))
-
-        if not saga_data:
-            return jsonify({"error": "Saga not found", "saga_id": saga_id}), 404
-
-        return jsonify(
-            {
-                "saga_id": saga_id,
-                "state": saga_data.get("state"),
-                "context": saga_data.get("context"),
-                "completed_steps": saga_data.get("completed_steps", []),
-                "failed_step": saga_data.get("failed_step"),
-                "error": saga_data.get("error"),
-            }
-        )
-    except Exception as e:
-        return jsonify({"error": str(e), "saga_id": saga_id}), 500
+    # For demo purposes, return a sample status
+    return jsonify(
+        {
+            "correlation_id": correlation_id,
+            "source": source,
+            "status": "processing",
+            "message": "Event is being processed. Check saga storage for execution details.",
+            "documentation": "Use the storage backend to query saga status by saga_id",
+        }
+    )
 
 
 # =============================================================================

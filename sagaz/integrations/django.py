@@ -149,6 +149,9 @@ def sagaz_webhook_view(request, source: str):
     except (json.JSONDecodeError, UnicodeDecodeError):
         payload = {}
 
+    # Generate correlation ID for tracking
+    correlation_id = request.headers.get("X-Correlation-ID") or generate_correlation_id()
+
     # Fire event in background thread (fire-and-forget)
     def process_in_thread():
         from sagaz.triggers import fire_event
@@ -167,6 +170,11 @@ def sagaz_webhook_view(request, source: str):
     thread.start()
 
     return JsonResponse(
-        {"status": "accepted", "source": source, "message": "Event queued for processing"},
+        {
+            "status": "accepted",
+            "source": source,
+            "message": "Event queued for processing",
+            "correlation_id": correlation_id,
+        },
         status=202,
     )  # Accepted
