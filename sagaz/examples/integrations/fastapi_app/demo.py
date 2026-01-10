@@ -1,24 +1,56 @@
 """
 FastAPI Integration Demo
 
-This is a non-blocking demonstration script that:
-1. Shows how to start the FastAPI server
-2. Explains how to test the endpoints
-3. Provides example curl commands
+Interactive demonstration that:
+1. Checks dependencies and offers installation
+2. Shows usage instructions
+3. Optionally runs the server
+4. Provides example curl commands
 
-To actually run the server, use:
-    uvicorn main:app --reload
-
-Or in production:
-    uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+Run with: python demo.py
 """
 
+import subprocess
 import sys
 from pathlib import Path
 
 
+def check_dependencies():
+    """Check if required dependencies are installed."""
+    try:
+        import fastapi
+        import uvicorn
+
+        return True
+    except ImportError:
+        return False
+
+
+def install_dependencies():
+    """Offer to install required dependencies."""
+    requirements_path = Path(__file__).parent / "requirements.txt"
+    print("\n⚠️  Required dependencies not installed!")
+    print(f"\n📦 Required: fastapi, uvicorn")
+    print(f"\nInstall command: pip install -r {requirements_path}")
+
+    response = input("\nInstall dependencies now? (y/N): ").strip().lower()
+    if response in ("y", "yes"):
+        print("\nInstalling dependencies...")
+        try:
+            subprocess.run(
+                [sys.executable, "-m", "pip", "install", "-r", str(requirements_path)],
+                check=True,
+            )
+            print("✅ Dependencies installed successfully!")
+            return True
+        except subprocess.CalledProcessError:
+            print("❌ Installation failed. Please install manually.")
+            return False
+    return False
+
+
 def main():
-    """Display FastAPI integration demo instructions."""
+    """Display FastAPI integration demo and optionally run server."""
     print("=" * 70)
     print("FASTAPI INTEGRATION EXAMPLE - Sagaz")
     print("=" * 70)
@@ -29,37 +61,51 @@ def main():
     print("   • Correlation ID middleware")
     print("   • OpenAPI/Swagger documentation")
     print()
-    print("=" * 70)
-    print("📋 PREREQUISITES")
-    print("=" * 70)
+
+    # Check and install dependencies if needed
+    if not check_dependencies():
+        if not install_dependencies():
+            return 1
+
     print()
-
-    # Check if dependencies are installed
-    try:
-        import fastapi
-        import uvicorn
-
-        deps_installed = True
-    except ImportError:
-        deps_installed = False
-
-    if not deps_installed:
-        print("⚠️  Required dependencies not installed!")
-        print()
-        requirements_path = Path(__file__).parent / "requirements.txt"
-        print(f"Install with: pip install -r {requirements_path}")
-        print()
-        return 1
     print("✅ All dependencies installed!")
     print()
 
+    # Ask if user wants to run the server
     print("=" * 70)
-    print("🚀 RUNNING THE SERVER")
+    print("🚀 START SERVER?")
+    print("=" * 70)
+    print()
+    script_dir = Path(__file__).parent
+    print("The FastAPI server will start on http://localhost:8000")
+    print("Press Ctrl+C to stop the server when done testing.")
+    print()
+
+    response = input("Start the server now? (Y/n): ").strip().lower()
+    if response in ("", "y", "yes"):
+        print("\n🚀 Starting FastAPI server...")
+        print("-" * 70)
+        try:
+            subprocess.run(
+                [sys.executable, "-m", "uvicorn", "main:app", "--reload"],
+                cwd=script_dir,
+                check=True,
+            )
+        except subprocess.CalledProcessError:
+            print("\n❌ Server failed to start.")
+            return 1
+        except KeyboardInterrupt:
+            print("\n\n✅ Server stopped.")
+        return 0
+
+    # Show instructions instead
+    print()
+    print("=" * 70)
+    print("🚀 MANUAL SERVER START")
     print("=" * 70)
     print()
     print("Start the FastAPI development server:")
     print()
-    script_dir = Path(__file__).parent
     print(f"  cd {script_dir}")
     print("  uvicorn main:app --reload")
     print()
