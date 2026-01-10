@@ -10,6 +10,11 @@
 - ADR-021: Context Streaming (streaming data pipelines)
 - ADR-025: Event Triggers (consume analytics events)
 
+**Optional Synergies** (can be used independently):
+- ADR-029: Saga Choreography (analytics can process choreography events)
+
+**Note**: This ADR provides real-time analytics capabilities for saga events. It works with both orchestration (existing) and choreography (ADR-029) patterns. Neither pattern requires analytics - this is an optional observability enhancement.
+
 **Roadmap**: **Phase 5 (Future/Optional)** - Only for real-time analytics use cases
 
 ## Context

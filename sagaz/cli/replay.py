@@ -45,43 +45,6 @@ def replay():
 # ============================================================================
 
 
-@replay.command("run")
-@click.argument("saga_id")
-@click.option(
-    "--from-step",
-    "-s",
-    required=True,
-    help="Step name to resume from",
-)
-@click.option(
-    "--storage",
-    "-t",
-    default="memory",
-    type=click.Choice(["memory", "redis", "postgres"]),
-    help="Snapshot storage backend",
-)
-@click.option(
-    "--storage-url",
-    help="Storage connection URL (for redis/postgres)",
-)
-@click.option(
-    "--override",
-    "-o",
-    multiple=True,
-    help="Context overrides (format: key=value)",
-)
-@click.option(
-    "--dry-run",
-    "-d",
-    is_flag=True,
-    help="Validate without executing",
-)
-@click.option(
-    "--verbose",
-    "-v",
-    is_flag=True,
-    help="Verbose output",
-)
 def _parse_overrides(override_tuple: tuple[str, ...]) -> dict[str, str]:
     """Parse override key=value pairs."""
     context_override = {}
@@ -151,6 +114,43 @@ def _handle_exception(e: Exception, verbose: bool):
         traceback.print_exc()
 
 
+@replay.command("run")
+@click.argument("saga_id")
+@click.option(
+    "--from-step",
+    "-s",
+    required=True,
+    help="Step name to resume from",
+)
+@click.option(
+    "--storage",
+    "-t",
+    default="memory",
+    type=click.Choice(["memory", "redis", "postgres"]),
+    help="Snapshot storage backend",
+)
+@click.option(
+    "--storage-url",
+    help="Storage connection URL (for redis/postgres)",
+)
+@click.option(
+    "--override",
+    "-o",
+    multiple=True,
+    help="Context overrides (format: key=value)",
+)
+@click.option(
+    "--dry-run",
+    "-d",
+    is_flag=True,
+    help="Validate without executing",
+)
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Verbose output",
+)
 def replay_command(
     saga_id: str,
     from_step: str,
@@ -164,7 +164,7 @@ def replay_command(
     Replay a saga from a checkpoint.
 
     Example:
-        sagaz replay abc-123 --from-step payment --override payment_token=new_token
+        sagaz replay run abc-123 --from-step payment --override payment_token=new_token
     """
     # Parse saga_id
     try:

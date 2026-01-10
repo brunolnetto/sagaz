@@ -1,6 +1,23 @@
 # Web Framework Integration Examples
 
+⚠️ **These examples require additional dependencies that are not included with Sagaz by default.**
+
 This directory contains examples demonstrating how to integrate Sagaz with popular Python web frameworks, using **event-driven triggers**.
+
+## Prerequisites
+
+Each example has its own `requirements.txt` file with framework-specific dependencies:
+
+```bash
+# FastAPI example
+cd fastapi_app && pip install -r requirements.txt
+
+# Flask example
+cd flask_app && pip install -r requirements.txt
+
+# Django example
+cd django_app && pip install -r requirements.txt
+```
 
 ## Trigger Pattern
 

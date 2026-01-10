@@ -12,14 +12,21 @@ This example showcases:
 - **`SagaContextMiddleware`** - Automatic correlation ID propagation
 - **`get_config()`** - Dependency to access current SagaConfig
 
+## Prerequisites
+
+⚠️ **This example requires additional dependencies that are not included with Sagaz by default.**
+
 ## Quick Start
 
 ```bash
-# Install dependencies
+# Install dependencies (FastAPI, Uvicorn)
 pip install -r requirements.txt
 
 # Run the app
 uvicorn main:app --reload
+
+# Or from the CLI
+sagaz examples run integrations/fastapi_app
 ```
 
 ## Usage

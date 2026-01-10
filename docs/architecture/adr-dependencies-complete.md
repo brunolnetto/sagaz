@@ -1,7 +1,7 @@
 # ADR Dependencies Update - Complete ✅
 
 **Date**: 2026-01-10  
-**Status**: All ADRs Updated | Saga Replay Production-Ready
+**Status**: All ADRs Updated | Saga Replay Production-Ready | Choreography ADR Added
 
 ---
 
@@ -45,6 +45,13 @@ Every ADR now includes a **Dependencies** section showing:
 - 🟢 **ADR-011**: CDC Support - *Requires ADR-016*
 - 🟢 **ADR-013**: Fluss Analytics - *Requires ADR-021, ADR-025*
 
+### Phase 6: Choreography (v2.2.0)
+- 🟡 **ADR-029**: Saga Choreography - **PROPOSED** (Event-driven distributed coordination)
+  - Prerequisites: ADR-016 (Storage), ADR-025 (Event Triggers)
+  - Optional Synergies: ADR-013 (Analytics - independent), ADR-017 (Chaos), ADR-024 (Replay)
+  - Target: v2.2.0 (10-15 weeks)
+  - **Note**: Independent from Fluss Analytics; both can work together but neither requires the other
+
 ---
 
 ## Key Insights
@@ -54,11 +61,15 @@ Every ADR now includes a **Dependencies** section showing:
 ADR-016 (Storage) ✅
     ├─→ ADR-021 (Streaming) ✅
     ├─→ ADR-024 (Replay) ✅ (All 6 Phases - PRODUCTION READY)
+    ├─→ ADR-029 (Choreography) - PROPOSED
     └─→ ADR-020 (Multi-Tenancy)
 
 ADR-022 (Compensation) ✅
     └─→ ADR-023 (Pivots) ✅
            └─→ ADR-026 (Industry Examples) ✅
+
+ADR-025 (Event Triggers) ✅
+    └─→ ADR-029 (Choreography) - PROPOSED
 ```
 
 ### Independent Features (Can Do Anytime)
@@ -88,8 +99,16 @@ ADR-022 (Compensation) ✅
 
 **Total for top 10**: ~38 weeks (9 months)
 
+### Choreography Pattern (v2.2.0)
+11. **ADR-029** - Saga Choreography (10-15 weeks)
+    - Event bus infrastructure (~3 weeks)
+    - Choreography engine (~4 weeks)
+    - Failure handling (~3 weeks)
+    - Distributed tracing (~2 weeks)
+    - Observability & examples (~3 weeks)
+
 ### Industry Examples (v1.4.0-v1.6.0)
-11. **ADR-026** - Examples expansion (phased over 3 releases)
+12. **ADR-026** - Examples expansion (phased over 3 releases)
     - Phase 1: 6 priority examples (~9 days)
     - Phase 2: 12 more examples (~15 days)
     - Phase 3: 6 final examples + community (~10 days)
