@@ -43,9 +43,7 @@ class TestEncryption:
     """Test context encryption"""
 
     def test_encrypt_sensitive_fields(self):
-        config = ComplianceConfig(
-            enable_encryption=True, encryption_key="secret-key-123"
-        )
+        config = ComplianceConfig(enable_encryption=True, encryption_key="secret-key-123")
         manager = ComplianceManager(config)
 
         context = {
@@ -65,9 +63,7 @@ class TestEncryption:
         assert encrypted["payment_token"]["_encrypted"] is True
 
     def test_decrypt_context(self):
-        config = ComplianceConfig(
-            enable_encryption=True, encryption_key="secret-key-123"
-        )
+        config = ComplianceConfig(enable_encryption=True, encryption_key="secret-key-123")
         manager = ComplianceManager(config)
 
         original = {
@@ -156,9 +152,7 @@ class TestAuditTrail:
         config = ComplianceConfig(enable_audit_trail=False)
         manager = ComplianceManager(config)
 
-        log_entry = manager.create_audit_log(
-            operation="replay", user_id="user123", saga_id=uuid4()
-        )
+        log_entry = manager.create_audit_log(operation="replay", user_id="user123", saga_id=uuid4())
 
         assert log_entry == {}
 
@@ -215,9 +209,7 @@ class TestComplianceIntegration:
 
     def test_encrypt_decrypt_round_trip(self):
         """Test full encryption/decryption cycle"""
-        config = ComplianceConfig(
-            enable_encryption=True, encryption_key="production-key-123"
-        )
+        config = ComplianceConfig(enable_encryption=True, encryption_key="production-key-123")
         manager = ComplianceManager(config)
 
         # Simulate context from a saga
@@ -248,9 +240,7 @@ class TestComplianceIntegration:
 
     def test_audit_trail_for_replay_operations(self):
         """Test audit logging for compliance"""
-        config = ComplianceConfig(
-            enable_audit_trail=True, log_all_operations=True
-        )
+        config = ComplianceConfig(enable_audit_trail=True, log_all_operations=True)
         manager = ComplianceManager(config)
 
         saga_id = uuid4()

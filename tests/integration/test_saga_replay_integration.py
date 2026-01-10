@@ -167,9 +167,7 @@ class TestSagaReplayIntegration:
 
         # Step 2: Create async saga factory that builds the saga
         async def async_saga_factory(name: str):
-            saga = SimpleSagaForReplay(
-                replay_config=replay_config, snapshot_storage=storage
-            )
+            saga = SimpleSagaForReplay(replay_config=replay_config, snapshot_storage=storage)
             await saga.build()
             return saga
 
@@ -221,9 +219,7 @@ class TestSagaReplayIntegration:
 
         # Step 3: Replay with context override
         async def async_saga_factory(name: str):
-            saga = SimpleSagaForReplay(
-                replay_config=replay_config, snapshot_storage=storage
-            )
+            saga = SimpleSagaForReplay(replay_config=replay_config, snapshot_storage=storage)
             await saga.build()
             return saga
 
@@ -269,9 +265,7 @@ class TestSagaReplayIntegration:
         assert "step1" in step2_snapshot.completed_steps
 
         # Execute from snapshot
-        replay_result = await saga2.execute_from_snapshot(
-            step2_snapshot, context_override=None
-        )
+        replay_result = await saga2.execute_from_snapshot(step2_snapshot, context_override=None)
 
         assert replay_result.success is True
         # step1 should be skipped (already completed in snapshot)
@@ -289,6 +283,7 @@ class TestReplayErrorHandling:
 
         # Create a snapshot
         from sagaz.core.replay import SagaSnapshot
+
         saga_id = uuid4()
         snapshot = SagaSnapshot.create(
             saga_id=saga_id,
@@ -306,6 +301,7 @@ class TestReplayErrorHandling:
 
         # This should fail without dry_run
         from sagaz.core.replay import ReplayError
+
         with pytest.raises(ReplayError, match="no saga_factory provided"):
             await replay.from_checkpoint(step_name="step1", dry_run=False)
 
@@ -322,7 +318,9 @@ class TestReplayErrorHandling:
         )
 
         # Execute saga that fails
-        saga = SimpleSagaForReplay(fail_at_step="step2", replay_config=config, snapshot_storage=storage)
+        saga = SimpleSagaForReplay(
+            fail_at_step="step2", replay_config=config, snapshot_storage=storage
+        )
         await saga.build()
         await saga.execute()
 

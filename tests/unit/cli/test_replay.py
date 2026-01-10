@@ -83,16 +83,12 @@ class TestReplayCommand:
 
     def test_replay_command_requires_from_step(self, runner):
         """Test that replay command requires --from-step option."""
-        result = runner.invoke(
-            replay_command, ["550e8400-e29b-41d4-a716-446655440000"]
-        )
+        result = runner.invoke(replay_command, ["550e8400-e29b-41d4-a716-446655440000"])
         assert result.exit_code != 0
 
     def test_replay_command_invalid_saga_id(self, runner):
         """Test replay command with invalid saga ID."""
-        result = runner.invoke(
-            replay_command, ["invalid-uuid", "--from-step", "step1"]
-        )
+        result = runner.invoke(replay_command, ["invalid-uuid", "--from-step", "step1"])
         # Click wraps return values, check output instead
         assert "Invalid saga ID" in result.output
 
@@ -228,9 +224,7 @@ class TestTimeTravelCommand:
 
     def test_time_travel_requires_timestamp(self, runner):
         """Test that time-travel requires --at option."""
-        result = runner.invoke(
-            time_travel_command, ["550e8400-e29b-41d4-a716-446655440000"]
-        )
+        result = runner.invoke(time_travel_command, ["550e8400-e29b-41d4-a716-446655440000"])
         assert result.exit_code != 0
 
     def test_time_travel_invalid_saga_id(self, runner):
@@ -258,7 +252,9 @@ class TestTimeTravelCommand:
         )
         assert "No state found" in result.output
 
-    def test_time_travel_query_specific_key_not_found(self, runner, mock_time_travel, mock_memory_storage):
+    def test_time_travel_query_specific_key_not_found(
+        self, runner, mock_time_travel, mock_memory_storage
+    ):
         """Test time-travel querying specific key not found."""
         mock_time_travel.return_value.get_context_at.return_value = None
 
@@ -274,7 +270,9 @@ class TestTimeTravelCommand:
         )
         assert "No state found" in result.output
 
-    def test_time_travel_query_specific_key_found(self, runner, mock_time_travel, mock_memory_storage):
+    def test_time_travel_query_specific_key_found(
+        self, runner, mock_time_travel, mock_memory_storage
+    ):
         """Test time-travel querying specific key found."""
         mock_time_travel.return_value.get_context_at.return_value = "token123"
 
@@ -311,7 +309,9 @@ class TestTimeTravelCommand:
         assert '"payment_token"' in result.output
         assert '"token123"' in result.output
 
-    def test_time_travel_full_state_text_format(self, runner, mock_time_travel, mock_memory_storage):
+    def test_time_travel_full_state_text_format(
+        self, runner, mock_time_travel, mock_memory_storage
+    ):
         """Test time-travel full state with text format."""
         mock_state = MagicMock()
         mock_state.saga_id = "550e8400-e29b-41d4-a716-446655440000"
@@ -381,9 +381,7 @@ class TestListChangesCommand:
         """Test list-changes when no changes found."""
         mock_time_travel.return_value.list_state_changes.return_value = []
 
-        result = runner.invoke(
-            list_changes_command, ["550e8400-e29b-41d4-a716-446655440000"]
-        )
+        result = runner.invoke(list_changes_command, ["550e8400-e29b-41d4-a716-446655440000"])
         assert result.exit_code == 0
         assert "No state changes found" in result.output
 
@@ -397,9 +395,7 @@ class TestListChangesCommand:
 
         mock_time_travel.return_value.list_state_changes.return_value = [mock_change]
 
-        result = runner.invoke(
-            list_changes_command, ["550e8400-e29b-41d4-a716-446655440000"]
-        )
+        result = runner.invoke(list_changes_command, ["550e8400-e29b-41d4-a716-446655440000"])
         assert result.exit_code == 0
         assert "step1" in result.output
 
@@ -429,13 +425,9 @@ class TestListChangesCommand:
 
     def test_list_changes_exception_handling(self, runner, mock_time_travel, mock_memory_storage):
         """Test list-changes exception handling."""
-        mock_time_travel.return_value.list_state_changes.side_effect = Exception(
-            "Test error"
-        )
+        mock_time_travel.return_value.list_state_changes.side_effect = Exception("Test error")
 
-        result = runner.invoke(
-            list_changes_command, ["550e8400-e29b-41d4-a716-446655440000"]
-        )
+        result = runner.invoke(list_changes_command, ["550e8400-e29b-41d4-a716-446655440000"])
         assert "Error" in result.output or "Test error" in result.output
 
 
@@ -450,9 +442,7 @@ class TestExecuteReplay:
         mock_saga_replay.return_value.from_checkpoint.return_value = mock_result
 
         saga_id = UUID("550e8400-e29b-41d4-a716-446655440000")
-        result = await _execute_replay(
-            saga_id, "step1", "memory", None, {}, False, False
-        )
+        result = await _execute_replay(saga_id, "step1", "memory", None, {}, False, False)
         assert result is True
 
     @pytest.mark.asyncio
@@ -461,9 +451,7 @@ class TestExecuteReplay:
         saga_id = UUID("550e8400-e29b-41d4-a716-446655440000")
 
         with pytest.raises(NotImplementedError, match="redis"):
-            await _execute_replay(
-                saga_id, "step1", "redis", "redis://localhost", {}, False, False
-            )
+            await _execute_replay(saga_id, "step1", "redis", "redis://localhost", {}, False, False)
 
 
 class TestExecuteTimeTravel:
@@ -477,9 +465,7 @@ class TestExecuteTimeTravel:
         saga_id = UUID("550e8400-e29b-41d4-a716-446655440000")
         timestamp = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
 
-        result = await _execute_time_travel(
-            saga_id, timestamp, "memory", None, "key1", "text"
-        )
+        result = await _execute_time_travel(saga_id, timestamp, "memory", None, "key1", "text")
         assert result is True
 
     @pytest.mark.asyncio
@@ -490,9 +476,7 @@ class TestExecuteTimeTravel:
         saga_id = UUID("550e8400-e29b-41d4-a716-446655440000")
         timestamp = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
 
-        result = await _execute_time_travel(
-            saga_id, timestamp, "memory", None, "key1", "text"
-        )
+        result = await _execute_time_travel(saga_id, timestamp, "memory", None, "key1", "text")
         assert result is False
 
     @pytest.mark.asyncio
@@ -603,7 +587,7 @@ class TestRichConsoleOutput:
         """Test replay verbose mode with Rich console."""
         mock_saga_replay.return_value.list_available_checkpoints.return_value = [
             {"step_name": "step1", "created_at": "2024-01-01T00:00:00Z"},
-            {"step_name": "step2", "created_at": "2024-01-01T00:01:00Z"}
+            {"step_name": "step2", "created_at": "2024-01-01T00:01:00Z"},
         ]
 
         mock_result = MagicMock()
@@ -657,7 +641,9 @@ class TestRichConsoleOutput:
         assert result.exit_code == 0
         assert "TestSaga" in result.output
 
-    def test_time_travel_with_table_format_no_rich(self, runner, mock_time_travel, mock_memory_storage):
+    def test_time_travel_with_table_format_no_rich(
+        self, runner, mock_time_travel, mock_memory_storage
+    ):
         """Test time-travel with table format when Rich is not available."""
         mock_state = MagicMock()
         mock_state.saga_id = "550e8400-e29b-41d4-a716-446655440000"
@@ -756,9 +742,6 @@ class TestWithoutRich:
         mock_time_travel.return_value.list_state_changes.return_value = [mock_change]
 
         with patch("sagaz.cli.replay.HAS_RICH", False):
-            result = runner.invoke(
-                list_changes_command, ["550e8400-e29b-41d4-a716-446655440000"]
-            )
+            result = runner.invoke(list_changes_command, ["550e8400-e29b-41d4-a716-446655440000"])
             assert result.exit_code == 0
             assert "step1" in result.output
-

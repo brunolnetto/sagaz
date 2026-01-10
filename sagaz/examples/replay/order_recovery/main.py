@@ -1,18 +1,5 @@
 #!/usr/bin/env python3
-"""
-Saga Replay Example - Order Processing Recovery
-
-Demonstrates how to replay a failed saga from a checkpoint with corrected data.
-
-Scenario:
-1. An order fails at the payment step due to payment gateway timeout
-2. We capture the failure state with snapshots
-3. We replay from the payment step with a backup gateway
-4. The saga completes successfully
-
-Usage:
-    python -m sagaz.examples.replay.order_recovery
-"""
+"""Order Processing Recovery - Replay failed saga from checkpoint"""
 
 import asyncio
 import logging

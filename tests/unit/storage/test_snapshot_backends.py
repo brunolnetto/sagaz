@@ -20,9 +20,7 @@ from sagaz.storage.backends.memory_snapshot import InMemorySnapshotStorage
 
 
 def create_test_snapshot(
-    saga_id: str | None = None,
-    step_name: str = "test_step",
-    retention_days: int | None = 30
+    saga_id: str | None = None, step_name: str = "test_step", retention_days: int | None = 30
 ) -> SagaSnapshot:
     """Create test snapshot."""
     created_at = datetime.now(UTC)
@@ -36,15 +34,14 @@ def create_test_snapshot(
         context={"test": "data"},
         completed_steps=[],
         created_at=created_at,
-        retention_until=(
-            created_at + timedelta(days=retention_days) if retention_days else None
-        )
+        retention_until=(created_at + timedelta(days=retention_days) if retention_days else None),
     )
 
 
 # ============================================================================
 # InMemorySnapshotStorage Tests
 # ============================================================================
+
 
 @pytest.mark.asyncio
 class TestInMemorySnapshotStorage:
@@ -78,6 +75,7 @@ class TestInMemorySnapshotStorage:
 
         # Ensure different timestamp
         import asyncio
+
         await asyncio.sleep(0.01)
 
         snap2 = create_test_snapshot(saga_id=saga_id, step_name="step2")
@@ -178,7 +176,7 @@ class TestInMemorySnapshotStorage:
             context=large_context,
             completed_steps=[],
             created_at=datetime.now(UTC),
-            retention_until=None
+            retention_until=None,
         )
 
         await storage.save_snapshot(snapshot)
@@ -196,6 +194,7 @@ class TestInMemorySnapshotStorage:
         await storage.save_snapshot(snap1)
 
         import asyncio
+
         await asyncio.sleep(0.01)
 
         snap2 = create_test_snapshot(saga_id=saga_id, step_name="step2")
@@ -216,6 +215,7 @@ class TestInMemorySnapshotStorage:
         saga_id = str(uuid4())
 
         from datetime import timedelta
+
         now = datetime.now(UTC)
 
         # Create snapshot in the past
@@ -229,7 +229,7 @@ class TestInMemorySnapshotStorage:
             context={"version": "old"},
             completed_steps=[],
             created_at=now - timedelta(hours=2),
-            retention_until=None
+            retention_until=None,
         )
         await storage.save_snapshot(past_snapshot)
 
@@ -270,6 +270,7 @@ class TestInMemorySnapshotStorage:
         from uuid import UUID
 
         from sagaz.core.replay import ReplayResult, ReplayStatus
+
         storage = InMemorySnapshotStorage()
 
         original_saga_id = uuid4()
@@ -282,7 +283,7 @@ class TestInMemorySnapshotStorage:
             checkpoint_step="step1",
             replay_status=ReplayStatus.SUCCESS,
             created_at=datetime.now(UTC),
-            completed_at=datetime.now(UTC)
+            completed_at=datetime.now(UTC),
         )
 
         # Save replay log
@@ -312,6 +313,7 @@ class TestInMemorySnapshotStorage:
         await storage.save_snapshot(snapshot)
 
         from sagaz.core.replay import ReplayResult, ReplayStatus
+
         replay_result = ReplayResult(
             replay_id=uuid4(),
             original_saga_id=uuid4(),
@@ -319,7 +321,7 @@ class TestInMemorySnapshotStorage:
             checkpoint_step="step1",
             replay_status=ReplayStatus.SUCCESS,
             created_at=datetime.now(UTC),
-            completed_at=datetime.now(UTC)
+            completed_at=datetime.now(UTC),
         )
         await storage.save_replay_log(replay_result)
 
@@ -335,6 +337,7 @@ class TestInMemorySnapshotStorage:
 # ============================================================================
 # Redis Backend Tests (Mocked)
 # ============================================================================
+
 
 @pytest.mark.asyncio
 class TestRedisSnapshotStorageMocked:
@@ -364,6 +367,7 @@ class TestRedisSnapshotStorageMocked:
 # PostgreSQL Backend Tests (Mocked)
 # ============================================================================
 
+
 @pytest.mark.asyncio
 class TestPostgreSQLSnapshotStorageMocked:
     """Test PostgreSQL backend with mocks to improve coverage."""
@@ -381,6 +385,7 @@ class TestPostgreSQLSnapshotStorageMocked:
 # ============================================================================
 # S3 Backend Tests (Mocked)
 # ============================================================================
+
 
 @pytest.mark.asyncio
 class TestS3SnapshotStorageMocked:
