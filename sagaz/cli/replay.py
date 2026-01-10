@@ -42,7 +42,7 @@ def replay():
 # ============================================================================
 
 
-@replay.command("replay")
+@replay.command("run")
 @click.argument("saga_id")
 @click.option(
     "--from-step",
