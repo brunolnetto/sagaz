@@ -12,8 +12,6 @@ Every ADR now includes a **Dependencies** section showing:
 - Enables/Synergies (what this unlocks)
 - Roadmap phase and target version
 
----
-
 ## Updated ADRs by Phase
 
 ### Phase 1: Foundation (v1.2.0)
@@ -34,7 +32,7 @@ Every ADR now includes a **Dependencies** section showing:
 - ✅ **ADR-026**: Industry Examples Expansion - **COMPLETE (24 examples)**
 
 ### Phase 4: Advanced (v2.0.0)
-- 🟡 **ADR-024**: Saga Replay - *Requires ADR-016*
+- ✅ **ADR-024**: Saga Replay - **IMPLEMENTED (Phase 1 & 2)** *Requires ADR-016*
 - 🟡 **ADR-018**: Saga Versioning - *Optional: ADR-024*
 - 🟢 **ADR-014**: Schema Registry - *No prerequisites (Deferred)*
 
@@ -49,8 +47,8 @@ Every ADR now includes a **Dependencies** section showing:
 ### Critical Path (Complete! ✅)
 ```
 ADR-016 (Storage) ✅
-    ├─→ ADR-021 (Streaming)
-    ├─→ ADR-024 (Replay)
+    ├─→ ADR-021 (Streaming) ✅
+    ├─→ ADR-024 (Replay) ✅ (Phase 1 & 2)
     └─→ ADR-020 (Multi-Tenancy)
 
 ADR-022 (Compensation) ✅
