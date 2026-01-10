@@ -70,6 +70,50 @@ def main():
     print("✅ All dependencies installed!")
     print()
 
+    # Show what's available first
+    print("=" * 70)
+    print("📡 AVAILABLE ENDPOINTS")
+    print("=" * 70)
+    print()
+    print("Once the server starts, you can access:")
+    print()
+    print("  🏠 Home Page:     http://localhost:8000/")
+    print("  📊 Admin Panel:   http://localhost:8000/admin/")
+    print("  ❤️  Health Check:  http://localhost:8000/health/")
+    print()
+
+    print("=" * 70)
+    print("🔧 EXAMPLE REQUESTS YOU CAN MAKE")
+    print("=" * 70)
+    print()
+
+    print("1️⃣  Health Check:")
+    print("   curl http://localhost:8000/health/")
+    print()
+
+    print("2️⃣  Create Order:")
+    print("   curl -X POST http://localhost:8000/orders/ \\")
+    print('        -H "Content-Type: application/json" \\')
+    print('        -d \'{"order_id": "ORD-001", "amount": 99.99}\'')
+    print()
+
+    print("3️⃣  Get Order Status:")
+    print("   curl http://localhost:8000/orders/ORD-001/")
+    print()
+
+    print("4️⃣  List Orders:")
+    print("   curl http://localhost:8000/orders/")
+    print()
+
+    print("=" * 70)
+    print("🛠️  MANAGEMENT COMMANDS YOU CAN RUN")
+    print("=" * 70)
+    print()
+    print("  python manage.py list_sagas")
+    print("  python manage.py replay_saga <saga_id>")
+    print("  python manage.py cleanup_old_sagas --days 30")
+    print()
+
     # Ask if user wants to run migrations and server
     print("=" * 70)
     print("🚀 START SERVER?")

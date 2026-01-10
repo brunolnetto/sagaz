@@ -70,6 +70,55 @@ def main():
     print("✅ All dependencies installed!")
     print()
 
+    # Show what's available first
+    print("=" * 70)
+    print("📡 AVAILABLE ENDPOINTS")
+    print("=" * 70)
+    print()
+    print("Once the server starts, you can access:")
+    print()
+    print("  ❤️  Health Check:  http://localhost:5000/health")
+    print("  📊 Order Diagram: http://localhost:5000/orders/ORD-001/diagram")
+    print()
+
+    print("=" * 70)
+    print("🔧 EXAMPLE REQUESTS YOU CAN MAKE")
+    print("=" * 70)
+    print()
+
+    print("1️⃣  Health Check:")
+    print("   curl http://localhost:5000/health")
+    print()
+
+    print("2️⃣  Create Order (Using Extension):")
+    print("   curl -X POST http://localhost:5000/orders \\")
+    print('        -H "Content-Type: application/json" \\')
+    print('        -d \'{"order_id": "ORD-001", "amount": 99.99}\'')
+    print()
+
+    print("3️⃣  Create Order (Standalone Function):")
+    print("   curl -X POST http://localhost:5000/orders/standalone \\")
+    print('        -H "Content-Type: application/json" \\')
+    print('        -d \'{"order_id": "ORD-002", "amount": 149.99}\'')
+    print()
+
+    print("4️⃣  Get Saga Diagram:")
+    print("   curl http://localhost:5000/orders/ORD-001/diagram")
+    print()
+
+    print("5️⃣  With Correlation ID:")
+    print("   curl -X POST http://localhost:5000/orders \\")
+    print('        -H "Content-Type: application/json" \\')
+    print('        -H "X-Correlation-ID: my-trace-456" \\')
+    print('        -d \'{"order_id": "ORD-003", "amount": 199.99}\'')
+    print()
+
+    print("6️⃣  Trigger via Webhook (Event-Driven):")
+    print("   curl -X POST http://localhost:5000/webhooks/order.created \\")
+    print('        -H "Content-Type: application/json" \\')
+    print('        -d \'{"order_id": "ORD-004", "amount": 299.99}\'')
+    print()
+
     # Ask if user wants to run the server
     print("=" * 70)
     print("🚀 START SERVER?")

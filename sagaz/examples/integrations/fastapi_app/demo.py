@@ -71,6 +71,50 @@ def main():
     print("✅ All dependencies installed!")
     print()
 
+    # Show what's available first
+    print("=" * 70)
+    print("📡 AVAILABLE ENDPOINTS")
+    print("=" * 70)
+    print()
+    print("Once the server starts, you can access:")
+    print()
+    print("  🌐 Swagger UI:    http://localhost:8000/docs")
+    print("  📚 ReDoc:         http://localhost:8000/redoc")
+    print("  ❤️  Health Check:  http://localhost:8000/health")
+    print()
+
+    print("=" * 70)
+    print("🔧 EXAMPLE REQUESTS YOU CAN MAKE")
+    print("=" * 70)
+    print()
+
+    print("1️⃣  Health Check:")
+    print("   curl http://localhost:8000/health")
+    print()
+
+    print("2️⃣  Create Order (Synchronous):")
+    print("   curl -X POST http://localhost:8000/orders \\")
+    print('        -H "Content-Type: application/json" \\')
+    print('        -d \'{"order_id": "ORD-001", "amount": 99.99}\'')
+    print()
+
+    print("3️⃣  Create Order (Background):")
+    print("   curl -X POST http://localhost:8000/orders/async \\")
+    print('        -H "Content-Type: application/json" \\')
+    print('        -d \'{"order_id": "ORD-002", "amount": 149.99}\'')
+    print()
+
+    print("4️⃣  Get Saga Diagram:")
+    print("   curl http://localhost:8000/orders/ORD-001/diagram")
+    print()
+
+    print("5️⃣  With Correlation ID:")
+    print("   curl -X POST http://localhost:8000/orders \\")
+    print('        -H "Content-Type: application/json" \\')
+    print('        -H "X-Correlation-ID: my-trace-123" \\')
+    print('        -d \'{"order_id": "ORD-003", "amount": 199.99}\'')
+    print()
+
     # Ask if user wants to run the server
     print("=" * 70)
     print("🚀 START SERVER?")
