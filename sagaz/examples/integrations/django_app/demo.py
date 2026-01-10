@@ -1,24 +1,55 @@
 """
 Django Integration Demo
 
-This is a non-blocking demonstration script that:
-1. Shows how to start the Django server
-2. Explains how to test the endpoints
-3. Provides example management commands
+Interactive demonstration that:
+1. Checks dependencies and offers installation
+2. Shows usage instructions
+3. Optionally runs the server
+4. Provides example curl commands
 
-To actually run the server, use:
-    python manage.py runserver
-
-Or in production:
-    gunicorn config.wsgi:application --bind 0.0.0.0:8000
+Run with: python demo.py
 """
 
+import subprocess
 import sys
 from pathlib import Path
 
 
+def check_dependencies():
+    """Check if required dependencies are installed."""
+    try:
+        import django
+
+        return True
+    except ImportError:
+        return False
+
+
+def install_dependencies():
+    """Offer to install required dependencies."""
+    requirements_path = Path(__file__).parent / "requirements.txt"
+    print("\n⚠️  Required dependencies not installed!")
+    print(f"\n📦 Required: django")
+    print(f"\nInstall command: pip install -r {requirements_path}")
+
+    response = input("\nInstall dependencies now? (y/N): ").strip().lower()
+    if response in ("y", "yes"):
+        print("\nInstalling dependencies...")
+        try:
+            subprocess.run(
+                [sys.executable, "-m", "pip", "install", "-r", str(requirements_path)],
+                check=True,
+            )
+            print("✅ Dependencies installed successfully!")
+            return True
+        except subprocess.CalledProcessError:
+            print("❌ Installation failed. Please install manually.")
+            return False
+    return False
+
+
 def main():
-    """Display Django integration demo instructions."""
+    """Display Django integration demo and optionally run server."""
     print("=" * 70)
     print("DJANGO INTEGRATION EXAMPLE - Sagaz")
     print("=" * 70)
@@ -29,36 +60,60 @@ def main():
     print("   • Middleware for correlation ID tracking")
     print("   • Celery integration for background execution")
     print()
-    print("=" * 70)
-    print("📋 PREREQUISITES")
-    print("=" * 70)
+
+    # Check and install dependencies if needed
+    if not check_dependencies():
+        if not install_dependencies():
+            return 1
+
     print()
-
-    # Check if dependencies are installed
-    try:
-        import django
-
-        deps_installed = True
-    except ImportError:
-        deps_installed = False
-
-    if not deps_installed:
-        print("⚠️  Required dependencies not installed!")
-        print()
-        requirements_path = Path(__file__).parent / "requirements.txt"
-        print(f"Install with: pip install -r {requirements_path}")
-        print()
-        return 1
     print("✅ All dependencies installed!")
     print()
 
+    # Ask if user wants to run migrations and server
     print("=" * 70)
-    print("🚀 RUNNING THE SERVER")
+    print("🚀 START SERVER?")
+    print("=" * 70)
+    print()
+    script_dir = Path(__file__).parent
+    print("The Django server will start on http://localhost:8000")
+    print("Note: This will run migrations first if needed.")
+    print("Press Ctrl+C to stop the server when done testing.")
+    print()
+
+    response = input("Start the server now? (Y/n): ").strip().lower()
+    if response in ("", "y", "yes"):
+        print("\n📦 Running migrations...")
+        print("-" * 70)
+        try:
+            subprocess.run(
+                [sys.executable, "manage.py", "migrate"],
+                cwd=script_dir,
+                check=True,
+            )
+            print("\n✅ Migrations completed!")
+            print("\n🚀 Starting Django server...")
+            print("-" * 70)
+            subprocess.run(
+                [sys.executable, "manage.py", "runserver"],
+                cwd=script_dir,
+                check=True,
+            )
+        except subprocess.CalledProcessError:
+            print("\n❌ Server failed to start.")
+            return 1
+        except KeyboardInterrupt:
+            print("\n\n✅ Server stopped.")
+        return 0
+
+    # Show instructions instead
+    print()
+    print("=" * 70)
+    print("🚀 MANUAL SERVER START")
     print("=" * 70)
     print()
     print("Start the Django development server:")
     print()
-    script_dir = Path(__file__).parent
     print(f"  cd {script_dir}")
     print("  python manage.py migrate  # Run migrations first")
     print("  python manage.py runserver")
