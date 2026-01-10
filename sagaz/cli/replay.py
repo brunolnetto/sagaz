@@ -32,7 +32,7 @@ except ImportError:
 
 
 @click.group()
-def replay_cli():
+def replay():
     """Saga replay and time-travel commands"""
     pass
 
@@ -42,7 +42,7 @@ def replay_cli():
 # ============================================================================
 
 
-@replay_cli.command("replay")
+@replay.command("replay")
 @click.argument("saga_id")
 @click.option(
     "--from-step",
@@ -246,7 +246,7 @@ async def _execute_replay(
 # ============================================================================
 
 
-@replay_cli.command("time-travel")
+@replay.command("time-travel")
 @click.argument("saga_id")
 @click.option(
     "--at",
@@ -411,7 +411,7 @@ async def _execute_time_travel(
 # ============================================================================
 
 
-@replay_cli.command("list-changes")
+@replay.command("list-changes")
 @click.argument("saga_id")
 @click.option(
     "--after",
