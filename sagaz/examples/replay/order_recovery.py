@@ -131,10 +131,6 @@ class OrderSaga(Saga):
 async def main():
     """Demonstrate saga replay from checkpoint."""
 
-    print("\n" + "=" * 70)
-    print("SAGA REPLAY DEMO - Order Processing Recovery")
-    print("=" * 70 + "\n")
-
     # Setup snapshot storage
     snapshot_storage = InMemorySnapshotStorage()
 
@@ -161,9 +157,6 @@ async def main():
     # PHASE 1: Initial saga execution (FAILS at payment step)
     # ========================================================================
 
-    print("📦 PHASE 1: Initial Order Processing (will fail)")
-    print("-" * 70)
-
     saga = OrderSaga(replay_config=replay_config, snapshot_storage=snapshot_storage)
 
     # Set context data
@@ -176,37 +169,21 @@ async def main():
 
     try:
         await saga.execute()
-        print(f"✓ Saga completed: {saga.saga_id}")
-    except Exception as e:
-        print(f"✗ Saga failed (expected): {e}")
-        print(f"  Failed saga ID: {failed_saga_id}")
-
-    print()
+    except Exception:
+        pass
 
     # ========================================================================
     # PHASE 2: Inspect available checkpoints
     # ========================================================================
 
-    print("📸 PHASE 2: Available Snapshots")
-    print("-" * 70)
-
     snapshots = await snapshot_storage.list_snapshots(saga_id=UUID(failed_saga_id))
-    print(f"Found {len(snapshots)} snapshots:")
 
-    for i, snapshot in enumerate(snapshots, 1):
-        print(
-            f"  {i}. Step: {snapshot.step_name:<20} Status: {snapshot.status:<15} "
-            f"Time: {snapshot.created_at.strftime('%H:%M:%S')}"
-        )
-
-    print()
+    for _i, _snapshot in enumerate(snapshots, 1):
+        pass
 
     # ========================================================================
     # PHASE 3: Replay from checkpoint with corrected data
     # ========================================================================
-
-    print("🔄 PHASE 3: Replay from 'process_payment' with Backup Gateway")
-    print("-" * 70)
 
     # Create replay instance
     replay = SagaReplay(
@@ -219,41 +196,16 @@ async def main():
     )
 
     # Replay from payment step with corrected gateway
-    replay_result = await replay.from_checkpoint(
+    await replay.from_checkpoint(
         step_name="process_payment",
         context_override={
             "payment_gateway": "backup"  # Use backup gateway
         },
     )
 
-    print("✓ Replay completed successfully!")
-    print(f"  Original Saga ID: {replay_result.original_saga_id}")
-    print(f"  New Saga ID: {replay_result.new_saga_id}")
-    print(f"  Status: {replay_result.replay_status}")
-    print(
-        f"  Duration: {(replay_result.completed_at - replay_result.created_at).total_seconds():.2f}s"
-    )
-
-    print()
-
     # ========================================================================
     # PHASE 4: Verify final state
     # ========================================================================
-
-    print("✅ PHASE 4: Summary")
-    print("-" * 70)
-    print("1. Initial saga FAILED at payment step (primary gateway timeout)")
-    print("2. Snapshot captured the failure state")
-    print("3. Replay from 'process_payment' with backup gateway")
-    print("4. Order completed successfully!")
-    print()
-    print(f"Total snapshots captured: {len(snapshots)}")
-    print(f"Replay initiated by: {replay_result.initiated_by}")
-    print(
-        f"Replay duration: {(replay_result.completed_at - replay_result.created_at).total_seconds():.2f}s"
-    )
-
-    print("\n" + "=" * 70)
 
 
 if __name__ == "__main__":

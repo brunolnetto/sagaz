@@ -58,7 +58,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 if TYPE_CHECKING:  # pragma: no cover
-    from sagaz.core.replay import ReplayConfig, SagaSnapshot
+    from sagaz.core.replay import ReplayConfig, SagaSnapshot, SnapshotStrategy
     from sagaz.storage.base import SagaStorage
     from sagaz.storage.interfaces.snapshot import SnapshotStorage
 
@@ -1048,6 +1048,18 @@ class Saga(ABC):
     # Replay & Snapshot Support
     # =========================================================================
 
+    def _should_capture_snapshot(self, strategy: "SnapshotStrategy", before: bool) -> bool:
+        """Check if snapshot should be captured based on strategy."""
+        from sagaz.core.replay import SnapshotStrategy
+
+        if strategy == SnapshotStrategy.BEFORE_EACH_STEP and before:
+            return True
+        if strategy == SnapshotStrategy.AFTER_EACH_STEP and not before:
+            return True
+        if strategy == SnapshotStrategy.ON_COMPLETION and self.status == SagaStatus.COMPLETED:
+            return True
+        return strategy == SnapshotStrategy.ON_FAILURE and self.status == SagaStatus.FAILED
+
     async def _capture_snapshot(self, step_name: str, step_index: int, before: bool = True) -> None:
         """
         Capture a snapshot of current saga state.
@@ -1064,31 +1076,19 @@ class Saga(ABC):
             logger.warning("Snapshot capture enabled but no snapshot_storage configured")
             return
 
-        from sagaz.core.replay import SagaSnapshot, SnapshotStrategy
+        from sagaz.core.replay import SagaSnapshot
 
-        strategy = self.replay_config.snapshot_strategy
-
-        # Determine if we should capture based on strategy
-        should_capture = False
-        if (
-            (strategy == SnapshotStrategy.BEFORE_EACH_STEP and before)
-            or (strategy == SnapshotStrategy.AFTER_EACH_STEP and not before)
-            or (strategy == SnapshotStrategy.ON_COMPLETION and self.status == SagaStatus.COMPLETED)
-            or (strategy == SnapshotStrategy.ON_FAILURE and self.status == SagaStatus.FAILED)
-        ):
-            should_capture = True
-
-        if not should_capture:
+        if not self._should_capture_snapshot(self.replay_config.snapshot_strategy, before):
             return
 
         try:
             snapshot = SagaSnapshot.create(
-                saga_id=UUID(self.saga_id),  # Convert string to UUID
+                saga_id=UUID(self.saga_id),
                 saga_name=self.name,
                 step_name=step_name,
                 step_index=step_index,
                 status=self.status.value,
-                context=self.context.data.copy(),  # Use .data attribute
+                context=self.context.data.copy(),
                 completed_steps=[s.name for s in self.completed_steps],
                 retention_until=self.replay_config.get_retention_until(),
             )

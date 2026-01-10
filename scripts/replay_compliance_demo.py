@@ -30,8 +30,7 @@ from sagaz.core.saga import Saga
 from sagaz.storage.backends.memory_snapshot import InMemorySnapshotStorage
 
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -60,10 +59,7 @@ class WireTransferSaga(Saga):
         logger.info(f"[TRANSFER {transfer_id}] Validating sender (SSN: ***-**-{sender_ssn[-4:]})")
         await asyncio.sleep(0.05)
 
-        return {
-            "sender_validated": True,
-            "validation_time": datetime.now().isoformat()
-        }
+        return {"sender_validated": True, "validation_time": datetime.now().isoformat()}
 
     async def _cancel_validation(self, result, ctx: SagaContext) -> None:
         """Invalidate sender."""
@@ -79,11 +75,7 @@ class WireTransferSaga(Saga):
         logger.info(f"[TRANSFER {transfer_id}] Checking AML/KYC for ${amount:,.2f}")
         await asyncio.sleep(0.05)
 
-        return {
-            "compliance_check": "passed",
-            "aml_score": 95,
-            "kyc_verified": True
-        }
+        return {"compliance_check": "passed", "aml_score": 95, "kyc_verified": True}
 
     async def _flag_compliance(self, result, ctx: SagaContext) -> None:
         """Flag compliance check."""
@@ -102,7 +94,7 @@ class WireTransferSaga(Saga):
         return {
             "swift_code": f"SWIFT-{transfer_id}",
             "confirmation_number": f"CONF-{datetime.now().timestamp()}",
-            "executed_at": datetime.now().isoformat()
+            "executed_at": datetime.now().isoformat(),
         }
 
     async def _reverse_transfer(self, result, ctx: SagaContext) -> None:
@@ -121,18 +113,15 @@ class WireTransferSaga(Saga):
         logger.info(f"[TRANSFER {transfer_id}] Notifying parties")
         await asyncio.sleep(0.05)
 
-        return {
-            "notification_sent": True,
-            "notified_at": datetime.now().isoformat()
-        }
+        return {"notification_sent": True, "notified_at": datetime.now().isoformat()}
 
 
 async def main():
     """Demonstrate compliance features."""
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("SAGA REPLAY COMPLIANCE DEMO - Financial Transaction Protection")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     # Setup
     snapshot_storage = InMemorySnapshotStorage()
@@ -150,7 +139,7 @@ async def main():
     replay_config = ReplayConfig(
         enable_snapshots=True,
         snapshot_strategy=SnapshotStrategy.BEFORE_EACH_STEP,
-        retention_days=2555  # 7 years for financial compliance
+        retention_days=2555,  # 7 years for financial compliance
     )
 
     # Transfer context with sensitive data
@@ -163,7 +152,7 @@ async def main():
         "receiver_account": "****5678",
         "amount": 50000.00,
         "currency": "USD",
-        "purpose": "Business payment"
+        "purpose": "Business payment",
     }
 
     # ========================================================================
@@ -173,10 +162,7 @@ async def main():
     print("💳 PHASE 1: Wire Transfer Execution")
     print("-" * 70)
 
-    saga = WireTransferSaga(
-        replay_config=replay_config,
-        snapshot_storage=snapshot_storage
-    )
+    saga = WireTransferSaga(replay_config=replay_config, snapshot_storage=snapshot_storage)
 
     # Set context and build
     for key, value in transfer_context.items():
@@ -206,7 +192,7 @@ async def main():
     sensitive_fields = {
         "sender_ssn": "123-45-6789",
         "credit_card": "4532-1234-5678-9010",
-        "routing_number": "021000021"
+        "routing_number": "021000021",
     }
 
     print("Original sensitive data:")
@@ -228,7 +214,9 @@ async def main():
 
     print("\nDecrypted data (authorized access):")
     for field, encrypted_str in encrypted_data.items():
-        decrypted_context = compliance_mgr.decrypt_context({field: {"_encrypted": True, "_value": encrypted_str}})
+        decrypted_context = compliance_mgr.decrypt_context(
+            {field: {"_encrypted": True, "_value": encrypted_str}}
+        )
         decrypted = decrypted_context[field]
         print(f"   {field}: {decrypted}")
 
@@ -260,7 +248,7 @@ async def main():
             operation="check_access",
             user_id=user,
             saga_id=UUID(saga_id),
-            details={"level": level.value, "allowed": has_access}
+            details={"level": level.value, "allowed": has_access},
         )
 
     print()
@@ -281,7 +269,7 @@ async def main():
     print("\nAnonymized context (irreversible):")
     print(f"   sender_ssn: {anonymized['sender_ssn']}")
     print(f"   sender_name: {anonymized['sender_name']}")
-    print("\n   ℹ️  Sensitive fields are hashed for privacy compliance")
+    print("\n   (i) Sensitive fields are hashed for privacy compliance")
 
     print()
 
@@ -289,9 +277,9 @@ async def main():
     # Summary
     # ========================================================================
 
-    print("="*70)
+    print("=" * 70)
     print("SUMMARY")
-    print("="*70)
+    print("=" * 70)
     print("✓ Demonstrated context encryption for PII protection")
     print("✓ Implemented access control for replay operations")
     print("✓ Showed GDPR-compliant data anonymization")
@@ -303,7 +291,7 @@ async def main():
     print("   • Complete audit logging")
     print("   • GDPR right to be forgotten support")
     print("   • Data anonymization for privacy")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
 
 if __name__ == "__main__":

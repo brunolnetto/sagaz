@@ -7,6 +7,7 @@ Commands for saga replay and time-travel operations.
 import asyncio
 from datetime import UTC, datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import click
@@ -23,6 +24,10 @@ try:
 except ImportError:
     console = None
     HAS_RICH = False
+
+if TYPE_CHECKING:
+    from sagaz.core.saga_replay import ReplayResult, SagaReplay
+    from sagaz.core.time_travel import SagaHistoricalState
 
 
 # ============================================================================
@@ -77,6 +82,75 @@ def replay():
     is_flag=True,
     help="Verbose output",
 )
+def _parse_overrides(override_tuple: tuple[str, ...]) -> dict[str, str]:
+    """Parse override key=value pairs."""
+    context_override = {}
+    for override_str in override_tuple:
+        if "=" not in override_str:
+            msg = f"Invalid override format: {override_str}"
+            click.echo(
+                f"Error: {msg}. Use key=value",
+                err=True,
+            )
+            raise ValueError(msg)
+        key, value = override_str.split("=", 1)
+        context_override[key] = value
+    return context_override
+
+
+def _display_replay_config(
+    saga_id: str,
+    from_step: str,
+    storage: str,
+    context_override: dict,
+    dry_run: bool,
+):
+    """Display replay configuration."""
+    if HAS_RICH and console:
+        console.print(
+            Panel(
+                f"[bold]Saga Replay[/bold]\n\n"
+                f"Saga ID: {saga_id}\n"
+                f"From Step: {from_step}\n"
+                f"Storage: {storage}\n"
+                f"Overrides: {len(context_override)}\n"
+                f"Dry Run: {dry_run}",
+                title="Replay Configuration",
+                border_style="blue",
+            )
+        )
+    else:
+        click.echo(f"Replaying saga {saga_id} from step {from_step}...")
+
+
+def _display_success():
+    """Display success message."""
+    if HAS_RICH and console:
+        console.print("[green]✓ Replay completed successfully[/green]")
+    else:
+        click.echo("✓ Replay completed successfully")
+
+
+def _display_failure():
+    """Display failure message."""
+    if HAS_RICH and console:
+        console.print("[red]✗ Replay failed[/red]")
+    else:
+        click.echo("✗ Replay failed", err=True)
+
+
+def _handle_exception(e: Exception, verbose: bool):
+    """Handle and display exception."""
+    if HAS_RICH and console:
+        console.print(f"[red]Error: {e}[/red]")
+    else:
+        click.echo(f"Error: {e}", err=True)
+    if verbose:
+        import traceback
+
+        traceback.print_exc()
+
+
 def replay_command(
     saga_id: str,
     from_step: str,
@@ -100,33 +174,13 @@ def replay_command(
         return 1
 
     # Parse overrides
-    context_override = {}
-    for override_str in override:
-        if "=" not in override_str:
-            click.echo(
-                f"Error: Invalid override format: {override_str}. Use key=value",
-                err=True,
-            )
-            return 1
-        key, value = override_str.split("=", 1)
-        context_override[key] = value
+    try:
+        context_override = _parse_overrides(override)
+    except ValueError:
+        return 1
 
     # Show what we're doing
-    if HAS_RICH and console:
-        console.print(
-            Panel(
-                f"[bold]Saga Replay[/bold]\n\n"
-                f"Saga ID: {saga_id}\n"
-                f"From Step: {from_step}\n"
-                f"Storage: {storage}\n"
-                f"Overrides: {len(context_override)}\n"
-                f"Dry Run: {dry_run}",
-                title="Replay Configuration",
-                border_style="blue",
-            )
-        )
-    else:
-        click.echo(f"Replaying saga {saga_id} from step {from_step}...")
+    _display_replay_config(saga_id, from_step, storage, context_override, dry_run)
 
     # Execute replay
     try:
@@ -143,27 +197,59 @@ def replay_command(
         )
 
         if result:
-            if HAS_RICH and console:
-                console.print("[green]✓ Replay completed successfully[/green]")
-            else:
-                click.echo("✓ Replay completed successfully")
+            _display_success()
             return 0
-        if HAS_RICH and console:
-            console.print("[red]✗ Replay failed[/red]")
-        else:
-            click.echo("✗ Replay failed", err=True)
+
+        _display_failure()
         return 1
 
     except Exception as e:
-        if HAS_RICH and console:
-            console.print(f"[red]Error: {e}[/red]")
-        else:
-            click.echo(f"Error: {e}", err=True)
-        if verbose:
-            import traceback
-
-            traceback.print_exc()
+        _handle_exception(e, verbose)
         return 1
+
+
+async def _show_checkpoints(replay: "SagaReplay", verbose: bool):
+    """Display available checkpoints."""
+    if not verbose:
+        return
+
+    checkpoints = await replay.list_available_checkpoints()
+    if HAS_RICH and console:
+        table = Table(title="Available Checkpoints")
+        table.add_column("Step", style="cyan")
+        table.add_column("Created At", style="green")
+        for cp in checkpoints:
+            table.add_row(cp["step_name"], cp["created_at"])
+        console.print(table)
+    else:
+        click.echo("\nAvailable checkpoints:")
+        for cp in checkpoints:
+            click.echo(f"  - {cp['step_name']} at {cp['created_at']}")
+
+
+def _show_replay_result(result: "ReplayResult", verbose: bool, dry_run: bool):
+    """Display replay result."""
+    if not (verbose or dry_run):
+        return
+
+    if HAS_RICH and console:
+        console.print(
+            Panel(
+                f"Status: {result.replay_status.value}\n"
+                f"Original Saga ID: {result.original_saga_id}\n"
+                f"New Saga ID: {result.new_saga_id}\n"
+                f"Checkpoint: {result.checkpoint_step}\n"
+                f"Error: {result.error_message or 'None'}",
+                title="Replay Result",
+                border_style="green" if result.replay_status.value == "success" else "red",
+            )
+        )
+    else:
+        click.echo(f"\nReplay status: {result.replay_status.value}")
+        click.echo(f"Original saga ID: {result.original_saga_id}")
+        click.echo(f"New saga ID: {result.new_saga_id}")
+        if result.error_message:
+            click.echo(f"Error: {result.error_message}")
 
 
 async def _execute_replay(
@@ -194,19 +280,7 @@ async def _execute_replay(
     )
 
     # List available checkpoints
-    if verbose:
-        checkpoints = await replay.list_available_checkpoints()
-        if HAS_RICH and console:
-            table = Table(title="Available Checkpoints")
-            table.add_column("Step", style="cyan")
-            table.add_column("Created At", style="green")
-            for cp in checkpoints:
-                table.add_row(cp["step_name"], cp["created_at"])
-            console.print(table)
-        else:
-            click.echo("\nAvailable checkpoints:")
-            for cp in checkpoints:
-                click.echo(f"  - {cp['step_name']} at {cp['created_at']}")
+    await _show_checkpoints(replay, verbose)
 
     # Execute replay
     result = await replay.from_checkpoint(
@@ -216,25 +290,7 @@ async def _execute_replay(
     )
 
     # Show result
-    if verbose or dry_run:
-        if HAS_RICH and console:
-            console.print(
-                Panel(
-                    f"Status: {result.replay_status.value}\n"
-                    f"Original Saga ID: {result.original_saga_id}\n"
-                    f"New Saga ID: {result.new_saga_id}\n"
-                    f"Checkpoint: {result.checkpoint_step}\n"
-                    f"Error: {result.error_message or 'None'}",
-                    title="Replay Result",
-                    border_style="green" if result.replay_status.value == "success" else "red",
-                )
-            )
-        else:
-            click.echo(f"\nReplay status: {result.replay_status.value}")
-            click.echo(f"Original saga ID: {result.original_saga_id}")
-            click.echo(f"New saga ID: {result.new_saga_id}")
-            if result.error_message:
-                click.echo(f"Error: {result.error_message}")
+    _show_replay_result(result, verbose, dry_run)
 
     return result.replay_status.value == "success"
 
@@ -322,6 +378,59 @@ def time_travel_command(
         return 1
 
 
+def _display_key_value(key: str, value: Any, output_format: str):
+    """Display a key-value pair."""
+    if output_format == "json":
+        import json
+
+        click.echo(json.dumps({key: value}, indent=2))
+    else:
+        click.echo(f"{key}: {value}")
+
+
+def _display_full_state(state: "SagaHistoricalState", output_format: str):
+    """Display full saga state."""
+    if output_format == "json":
+        import json
+
+        click.echo(json.dumps(state.to_dict(), indent=2))
+    elif output_format == "table" and HAS_RICH and console:
+        _display_state_table(state)
+    else:
+        _display_state_text(state)
+
+
+def _display_state_table(state: "SagaHistoricalState"):
+    """Display state as table (Rich)."""
+    table = Table(title=f"Saga State at {state.snapshot_time}")
+    table.add_column("Field", style="cyan")
+    table.add_column("Value", style="green")
+    table.add_row("Saga ID", str(state.saga_id))
+    table.add_row("Saga Name", state.saga_name)
+    table.add_row("Status", state.status)
+    table.add_row("Current Step", state.current_step or "N/A")
+    table.add_row("Step Index", str(state.step_index))
+    table.add_row("Completed Steps", ", ".join(state.completed_steps) or "None")
+    console.print(table)
+
+    if state.context:
+        console.print("\n[bold]Context:[/bold]")
+        console.print(JSON.from_data(state.context))
+
+
+def _display_state_text(state: "SagaHistoricalState"):
+    """Display state as text."""
+    click.echo(f"Saga ID: {state.saga_id}")
+    click.echo(f"Saga Name: {state.saga_name}")
+    click.echo(f"Status: {state.status}")
+    click.echo(f"Current Step: {state.current_step}")
+    click.echo(f"Step Index: {state.step_index}")
+    click.echo(f"Completed Steps: {', '.join(state.completed_steps) or 'None'}")
+    click.echo("\nContext:")
+    for k, v in state.context.items():
+        click.echo(f"  {k}: {v}")
+
+
 async def _execute_time_travel(
     saga_id: UUID,
     timestamp: datetime,
@@ -352,52 +461,14 @@ async def _execute_time_travel(
         if value is None:
             click.echo(f"No state found at {timestamp}")
             return False
-
-        if output_format == "json":
-            import json
-
-            click.echo(json.dumps({key: value}, indent=2))
-        else:
-            click.echo(f"{key}: {value}")
-
+        _display_key_value(key, value, output_format)
     else:
         # Query full state
         state = await time_travel.get_state_at(timestamp)
         if not state:
             click.echo(f"No state found at {timestamp}")
             return False
-
-        if output_format == "json":
-            import json
-
-            click.echo(json.dumps(state.to_dict(), indent=2))
-        elif output_format == "table" and HAS_RICH and console:
-            table = Table(title=f"Saga State at {timestamp}")
-            table.add_column("Field", style="cyan")
-            table.add_column("Value", style="green")
-            table.add_row("Saga ID", str(state.saga_id))
-            table.add_row("Saga Name", state.saga_name)
-            table.add_row("Status", state.status)
-            table.add_row("Current Step", state.current_step or "N/A")
-            table.add_row("Step Index", str(state.step_index))
-            table.add_row("Completed Steps", ", ".join(state.completed_steps) or "None")
-            console.print(table)
-
-            # Show context separately
-            if state.context:
-                console.print("\n[bold]Context:[/bold]")
-                console.print(JSON.from_data(state.context))
-        else:
-            # Text format
-            click.echo(f"Saga ID: {state.saga_id}")
-            click.echo(f"Saga Name: {state.saga_name}")
-            click.echo(f"Status: {state.status}")
-            click.echo(f"Current Step: {state.current_step}")
-            click.echo(f"Step Index: {state.step_index}")
-            click.echo(f"Completed Steps: {', '.join(state.completed_steps) or 'None'}")
-            click.echo("\nContext:")
-            for k, v in state.context.items():
-                click.echo(f"  {k}: {v}")
+        _display_full_state(state, output_format)
 
     return True
 
