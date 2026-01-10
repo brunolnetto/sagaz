@@ -78,8 +78,7 @@ class SagaReplay:
             ReplayError: If replay fails
         """
         logger.info(
-            f"Replay request: saga_id={self.saga_id}, "
-            f"checkpoint={step_name}, dry_run={dry_run}"
+            f"Replay request: saga_id={self.saga_id}, checkpoint={step_name}, dry_run={dry_run}"
         )
 
         # Create request
@@ -98,6 +97,7 @@ class SagaReplay:
             new_saga_id=uuid4(),  # New saga ID for replayed execution
             checkpoint_step=step_name,
             replay_status=ReplayStatus.PENDING,
+            initiated_by=self.initiated_by,
         )
 
         try:
@@ -107,17 +107,15 @@ class SagaReplay:
             )
 
             if not snapshot:
-                raise SnapshotNotFoundError(
-                    f"No snapshot found for saga {self.saga_id} at step '{step_name}'"
-                )
+                msg = f"No snapshot found for saga {self.saga_id} at step '{step_name}'"
+                raise SnapshotNotFoundError(msg)
 
             logger.info(
-                f"Loaded snapshot: {snapshot.snapshot_id} "
-                f"(created at {snapshot.created_at})"
+                f"Loaded snapshot: {snapshot.snapshot_id} (created at {snapshot.created_at})"
             )
 
             # 2. Merge context
-            merged_context = request.merge_context(snapshot.context)
+            request.merge_context(snapshot.context)
 
             logger.info(
                 f"Context merged: {len(snapshot.context)} original keys, "
@@ -134,26 +132,30 @@ class SagaReplay:
 
             # 4. Execute replay - create saga instance and resume
             if not self.saga_factory:
-                raise ReplayError(
+                msg = (
                     "Cannot execute replay: no saga_factory provided. "
                     "Use dry_run=True for validation only."
                 )
+                raise ReplayError(msg)
 
             result.replay_status = ReplayStatus.RUNNING
 
             # Create saga instance (handle both sync and async factories)
             import inspect
+
             if inspect.iscoroutinefunction(self.saga_factory):
                 saga_instance = await self.saga_factory(snapshot.saga_name)
             else:
                 saga_instance = self.saga_factory(snapshot.saga_name)
-            
+
             saga_instance.saga_id = str(result.new_saga_id)
 
+            # Build saga steps (if not already built)
+            if not saga_instance.steps:
+                await saga_instance.build()
+
             # Execute from snapshot
-            saga_result = await saga_instance.execute_from_snapshot(
-                snapshot, context_override
-            )
+            saga_result = await saga_instance.execute_from_snapshot(snapshot, context_override)
 
             if saga_result.success:
                 result.mark_success()
@@ -163,9 +165,7 @@ class SagaReplay:
                 )
             else:
                 result.mark_failed(str(saga_result.error))
-                logger.error(
-                    f"Replay failed: {saga_result.error}"
-                )
+                logger.error(f"Replay failed: {saga_result.error}")
 
             # 5. Log replay
             await self.snapshot_storage.save_replay_log(result)
@@ -182,7 +182,8 @@ class SagaReplay:
             logger.error(f"Replay failed: {e}", exc_info=True)
             result.mark_failed(str(e))
             await self.snapshot_storage.save_replay_log(result)
-            raise ReplayError(f"Replay failed: {e}") from e
+            msg = f"Replay failed: {e}"
+            raise ReplayError(msg) from e
 
     async def list_available_checkpoints(self) -> list[dict[str, Any]]:
         """

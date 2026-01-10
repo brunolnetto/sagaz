@@ -156,7 +156,7 @@ class Saga(ABC):
         self.execution_batches: list[set[str]] = []
         self.failure_strategy = failure_strategy
         self._has_dependencies = False  # Track if any step has explicit dependencies
-        
+
         # Replay support
         self.replay_config = replay_config
         self.snapshot_storage = snapshot_storage
@@ -1048,9 +1048,7 @@ class Saga(ABC):
     # Replay & Snapshot Support
     # =========================================================================
 
-    async def _capture_snapshot(
-        self, step_name: str, step_index: int, before: bool = True
-    ) -> None:
+    async def _capture_snapshot(self, step_name: str, step_index: int, before: bool = True) -> None:
         """
         Capture a snapshot of current saga state.
 
@@ -1072,13 +1070,12 @@ class Saga(ABC):
 
         # Determine if we should capture based on strategy
         should_capture = False
-        if strategy == SnapshotStrategy.BEFORE_EACH_STEP and before:
-            should_capture = True
-        elif strategy == SnapshotStrategy.AFTER_EACH_STEP and not before:
-            should_capture = True
-        elif strategy == SnapshotStrategy.ON_COMPLETION and self.status == SagaStatus.COMPLETED:
-            should_capture = True
-        elif strategy == SnapshotStrategy.ON_FAILURE and self.status == SagaStatus.FAILED:
+        if (
+            (strategy == SnapshotStrategy.BEFORE_EACH_STEP and before)
+            or (strategy == SnapshotStrategy.AFTER_EACH_STEP and not before)
+            or (strategy == SnapshotStrategy.ON_COMPLETION and self.status == SagaStatus.COMPLETED)
+            or (strategy == SnapshotStrategy.ON_FAILURE and self.status == SagaStatus.FAILED)
+        ):
             should_capture = True
 
         if not should_capture:
@@ -1144,12 +1141,10 @@ class Saga(ABC):
                 # Mark completed steps as executed (idempotency)
                 completed_step_names = set(snapshot.completed_steps)
                 self._executed_step_keys = {
-                    step.idempotency_key
-                    for step in self.steps
-                    if step.name in completed_step_names
+                    step.idempotency_key for step in self.steps if step.name in completed_step_names
                 }
 
-                # Start state machine
+                # Start state machine execution
                 try:
                     await self._state_machine.start()
                 except TransitionNotAllowed as e:

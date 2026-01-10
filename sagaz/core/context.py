@@ -347,7 +347,7 @@ class SagaContext:
         """
         # VALIDATION: auto_offload requires storage backend
         if auto_offload and storage is None:
-            raise ConfigurationError(
+            msg = (
                 "auto_offload=True requires a storage backend.\n\n"
                 "Configure external storage:\n"
                 "  from sagaz.core import FileSystemExternalStorage, S3ExternalStorage\n\n"
@@ -364,6 +364,7 @@ class SagaContext:
                 "      auto_offload=True\n"
                 "  )"
             )
+            raise ConfigurationError(msg)
 
         self._saga_id = saga_id
         self._storage_backend = storage

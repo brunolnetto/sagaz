@@ -49,6 +49,10 @@ prometheus = [
 ]
 aws = [
     "aioboto3>=12.0.0",
+    "zstandard>=0.22.0",  # For S3 snapshot compression
+]
+compression = [
+    "zstandard>=0.22.0",  # For snapshot compression
 ]
 
 [dependency-groups]

@@ -10,7 +10,7 @@ Allows querying saga state at any point in time by reconstructing from snapshots
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -56,12 +56,12 @@ class SagaTimeTravel:
             saga_id=UUID("abc-123"),
             snapshot_storage=storage
         )
-        
+
         # Get state at specific time
         state = await time_travel.get_state_at(
             timestamp=datetime(2024, 12, 15, 10, 30, 0, tzinfo=timezone.utc)
         )
-        
+
         # List state changes
         changes = await time_travel.list_state_changes()
     """
@@ -87,21 +87,17 @@ class SagaTimeTravel:
         Returns:
             HistoricalState or None if no state exists at that time
         """
-        logger.info(
-            f"Time-travel query: saga_id={self.saga_id}, timestamp={timestamp}"
-        )
+        logger.info(f"Time-travel query: saga_id={self.saga_id}, timestamp={timestamp}")
 
         # Ensure timestamp is timezone-aware
         if timestamp.tzinfo is None:
-            timestamp = timestamp.replace(tzinfo=timezone.utc)
+            timestamp = timestamp.replace(tzinfo=UTC)
 
         # Find the latest snapshot before or at the target timestamp
         snapshot = await self._find_snapshot_before(timestamp)
 
         if not snapshot:
-            logger.warning(
-                f"No snapshot found before {timestamp} for saga {self.saga_id}"
-            )
+            logger.warning(f"No snapshot found before {timestamp} for saga {self.saga_id}")
             return None
 
         # Reconstruct state from snapshot
@@ -155,10 +151,7 @@ class SagaTimeTravel:
         filtered = filtered[:limit]
 
         # Convert to HistoricalState
-        states = [
-            self._reconstruct_state(snapshot, snapshot.created_at)
-            for snapshot in filtered
-        ]
+        states = [self._reconstruct_state(snapshot, snapshot.created_at) for snapshot in filtered]
 
         logger.info(f"Found {len(states)} state changes")
         return states
@@ -195,10 +188,7 @@ class SagaTimeTravel:
         snapshots = await self.snapshot_storage.list_snapshots(self.saga_id)
 
         # Filter snapshots before or at timestamp
-        candidates = [
-            s for s in snapshots
-            if s.created_at <= timestamp
-        ]
+        candidates = [s for s in snapshots if s.created_at <= timestamp]
 
         if not candidates:
             return None

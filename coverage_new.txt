@@ -1,0 +1,183 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.5, pytest-9.0.2, pluggy-1.6.0
+rootdir: /home/pingu/github/sagaz
+configfile: pyproject.toml
+testpaths: tests
+plugins: xdist-3.8.0, cov-7.0.0, anyio-4.12.1, timeout-2.4.0, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 1702 items / 81 deselected / 1 skipped / 1621 selected
+
+tests/integration/test_api_protection.py ..............                  [  0%]
+tests/integration/test_chaos_engineering.py .............                [  1%]
+tests/integration/test_saga_replay_integration.py ........               [  2%]
+tests/unit/cli/test_cli_examples.py ...............................      [  4%]
+tests/unit/cli/test_cli_examples_coverage.py ...                         [  4%]
+tests/unit/cli/test_project.py ......                                    [  4%]
+tests/unit/cli/test_replay.py .......................................... [  7%]
+....                                                                     [  7%]
+tests/unit/core/test_compensation_graph.py ............................. [  9%]
+...........                                                              [  9%]
+tests/unit/core/test_compliance.py ...............                       [ 10%]
+tests/unit/core/test_context_coverage.py ..........................      [ 12%]
+tests/unit/core/test_context_s3.py ssssss                                [ 12%]
+tests/unit/core/test_context_s3_coverage.py .ssss                        [ 13%]
+tests/unit/core/test_context_streaming.py ......                         [ 13%]
+tests/unit/core/test_context_validation.py ................              [ 14%]
+tests/unit/core/test_core.py ........................................... [ 17%]
+....................................................                     [ 20%]
+tests/unit/core/test_coverage_edge_cases.py ..............               [ 21%]
+tests/unit/core/test_decorators.py ........................              [ 22%]
+tests/unit/core/test_edge_cases.py ......................                [ 24%]
+tests/unit/core/test_hooks.py .............                              [ 24%]
+tests/unit/core/test_hooks_listeners.py ................................ [ 26%]
+.............                                                            [ 27%]
+tests/unit/core/test_listeners.py ...........                            [ 28%]
+tests/unit/core/test_replay.py .......................                   [ 29%]
+tests/unit/core/test_sagas.py ..........                                 [ 30%]
+tests/unit/core/test_state_machine.py ................                   [ 31%]
+tests/unit/core/test_time_travel.py ..............                       [ 32%]
+tests/unit/integrations/test_integrations_base.py ..........             [ 32%]
+tests/unit/integrations/test_integrations_fastapi.py ..........          [ 33%]
+tests/unit/integrations/test_integrations_flask.py ........              [ 33%]
+tests/unit/monitoring/test_logger.py ...                                 [ 34%]
+tests/unit/monitoring/test_monitoring.py .............................   [ 35%]
+tests/unit/monitoring/test_prometheus_metrics.py ..............          [ 36%]
+tests/unit/monitoring/test_tracing.py ................................   [ 38%]
+tests/unit/monitoring/test_tracing_mocked.py ....................        [ 39%]
+tests/unit/outbox/test_brokers_coverage.py ..........................    [ 41%]
+tests/unit/outbox/test_outbox.py ..................................      [ 43%]
+tests/unit/outbox/test_outbox_brokers.py ..............                  [ 44%]
+tests/unit/outbox/test_outbox_edge_cases.py ..........                   [ 45%]
+tests/unit/outbox/test_outbox_extended.py .............................. [ 47%]
+......................                                                   [ 48%]
+tests/unit/outbox/test_outbox_extended_coverage.py ..................... [ 49%]
+....                                                                     [ 49%]
+tests/unit/outbox/test_outbox_patterns.py ...........                    [ 50%]
+tests/unit/outbox/test_outbox_worker.py .....................            [ 51%]
+tests/unit/outbox/test_redis_broker.py .................                 [ 52%]
+tests/unit/outbox/test_redis_broker_factory.py ......................... [ 54%]
+................                                                         [ 55%]
+tests/unit/storage/backends/test_redis_outbox_branches.py ...            [ 55%]
+tests/unit/storage/backends/test_storage_postgresql.py ................. [ 56%]
+....                                                                     [ 56%]
+tests/unit/storage/backends/test_storage_redis.py ...................... [ 58%]
+.................                                                        [ 59%]
+tests/unit/storage/backends/test_storage_redis_outbox.py ............... [ 60%]
+.....                                                                    [ 60%]
+tests/unit/storage/backends/test_storage_sqlite.py ..................... [ 61%]
+...........                                                              [ 62%]
+tests/unit/storage/test_snapshot_backends.py .....................       [ 63%]
+tests/unit/storage/test_storage.py .....................                 [ 65%]
+tests/unit/storage/test_storage_backends_coverage.py ................... [ 66%]
+....................................                                     [ 68%]
+tests/unit/storage/test_storage_core.py .............................    [ 70%]
+tests/unit/storage/test_storage_core_extended.py ....................... [ 71%]
+............                                                             [ 72%]
+tests/unit/storage/test_storage_errors.py .....                          [ 72%]
+tests/unit/storage/test_storage_factory.py ............................. [ 74%]
+.                                                                        [ 74%]
+tests/unit/storage/test_storage_interfaces.py .......................... [ 76%]
+.                                                                        [ 76%]
+tests/unit/storage/test_storage_manager.py ............................. [ 78%]
+..........                                                               [ 78%]
+tests/unit/storage/test_storage_manager_coverage.py ......               [ 79%]
+tests/unit/storage/test_storage_transfer.py ............................ [ 80%]
+...................                                                      [ 81%]
+tests/unit/strategies/test_strategies.py .........................       [ 83%]
+tests/unit/test_config.py ..............................                 [ 85%]
+tests/unit/test_config_coverage.py ............................          [ 87%]
+tests/unit/test_config_extended.py ...........................           [ 88%]
+tests/unit/test_factories.py .........                                   [ 89%]
+tests/unit/test_mermaid.py ............................................. [ 92%]
+...                                                                      [ 92%]
+tests/unit/test_mermaid_trails.py .......                                [ 92%]
+tests/unit/test_orchestrator.py ............                             [ 93%]
+tests/unit/test_patterns.py .............                                [ 94%]
+tests/unit/test_pivot.py ............................................... [ 97%]
+...                                                                      [ 97%]
+tests/unit/triggers/test_triggers.py ................................    [ 99%]
+tests/unit/triggers/test_triggers_sources.py ...........                 [100%]
+
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.13.5-final-0 ________________
+
+Name                                            Stmts   Miss Branch BrPart  Cover   Missing
+-------------------------------------------------------------------------------------------
+sagaz/__main__.py                                   1      1      0      0     0%   1
+sagaz/cli/examples.py                             131      3     44      3    97%   143, 150, 157, 179->exit, 196->199, 200->exit
+sagaz/cli/project.py                              134     21     44      9    82%   13-14, 24, 106-107, 108->113, 134->138, 162, 172, 179-180, 192->191, 220-222, 250-251, 259-260, 278-283
+sagaz/cli/replay.py                               224     25     64      8    88%   23-25, 36, 156, 163, 165-166, 238, 305, 324, 374-390, 489
+sagaz/core/compliance.py                           97      8     30      5    90%   95-96, 115, 145, 161, 173-175, 255->258
+sagaz/core/config.py                              227      0     80      3    99%   156->160, 158->160, 175->exit
+sagaz/core/context.py                             226     51     56      1    77%   31, 175-180, 186-217, 227-264, 267-286
+sagaz/core/decorators.py                          356      0     92      6    99%   563->566, 880->892, 898->906, 912->922, 964->961, 966->961
+sagaz/core/exceptions.py                           16      0      2      0   100%
+sagaz/core/hooks.py                                59      0      4      0   100%
+sagaz/core/listeners.py                           133      0     26      1    99%   194->exit
+sagaz/core/logger.py                               12      0      4      0   100%
+sagaz/core/replay.py                               83      0      2      0   100%
+sagaz/core/saga.py                                540     11    110      4    98%   1066-1067, 1080, 1082, 1103-1104, 1126-1127, 1155-1157
+sagaz/core/saga_replay.py                          63      2     12      2    95%   150, 156
+sagaz/core/time_travel.py                          65      0     16      0   100%
+sagaz/core/types.py                                62      0      0      0   100%
+sagaz/execution/graph.py                          242      0     52      1    99%   448->446
+sagaz/execution/orchestrator.py                    42      0      2      0   100%
+sagaz/execution/pivot.py                          115      0     26      1    99%   425->422
+sagaz/execution/state_machine.py                   79      0     18      0   100%
+sagaz/integrations/_base.py                        37      0      2      0   100%
+sagaz/integrations/fastapi.py                      31      0      0      0   100%
+sagaz/integrations/flask.py                        41      0      4      0   100%
+sagaz/monitoring/logging.py                        73      0     10      0   100%
+sagaz/monitoring/metrics.py                        28      0      6      1    97%   42->exit
+sagaz/monitoring/prometheus.py                     47      0     14      0   100%
+sagaz/monitoring/tracing.py                       138      0     44      0   100%
+sagaz/outbox/brokers/base.py                       27      0      0      0   100%
+sagaz/outbox/brokers/factory.py                    73      0     22      1    99%   50->49
+sagaz/outbox/brokers/kafka.py                      52      0      2      0   100%
+sagaz/outbox/brokers/memory.py                     22      0      4      0   100%
+sagaz/outbox/brokers/rabbitmq.py                   43      0      0      0   100%
+sagaz/outbox/brokers/redis.py                     121      0     22      1    99%   240->exit
+sagaz/outbox/consumer_inbox.py                     37      0      2      0   100%
+sagaz/outbox/optimistic_publisher.py               41      0      4      0   100%
+sagaz/outbox/state_machine.py                      54      0      6      0   100%
+sagaz/outbox/types.py                              71      0      4      0   100%
+sagaz/outbox/worker.py                            180      0     24      2    99%   329->338, 410->414
+sagaz/storage/backends/memory/outbox.py            83      0     18      0   100%
+sagaz/storage/backends/memory/saga.py             111      0     26      1    99%   154->exit
+sagaz/storage/backends/memory_snapshot.py          67      0     18      1    99%   116->119
+sagaz/storage/backends/postgresql/outbox.py        30      0      2      0   100%
+sagaz/storage/backends/postgresql/saga.py         141      0     28      2    99%   155->exit, 406->409
+sagaz/storage/backends/postgresql/snapshot.py     101     69     16      1    28%   106-111, 115-130, 134-137, 166-182, 188-220, 226-245, 251-267, 271-282, 286-300, 304-307, 330-347, 364-381, 399-401, 416-418, 422-423, 427
+sagaz/storage/backends/redis/outbox.py            232      0     58     11    96%   301->304, 329->327, 399->397, 405->397, 408->394, 444->442, 451->442, 482->480, 498->501, 535->528, 614->612
+sagaz/storage/backends/redis/saga.py              188      0     40      3    99%   248->246, 349->352, 438->exit
+sagaz/storage/backends/redis/snapshot.py          164    123     44      1    21%   35, 70-79, 83-92, 96, 100, 104, 108, 112-117, 121-126, 130-151, 158-167, 173-194, 200-219, 225-239, 243-258, 269, 273-289, 296-304, 310-324, 328-331, 335-336, 340
+sagaz/storage/backends/s3/snapshot.py             218    177     52      1    16%   27, 35, 76-88, 92-104, 108, 112, 116, 120-125, 129-134, 138-170, 174-198, 207-218, 224-249, 255-277, 283-304, 308-325, 331-353, 362-387, 391-412, 416-426, 432-461, 465-468, 472-473, 477
+sagaz/storage/backends/sqlite/outbox.py           141      3     16      3    96%   103-104, 143->exit, 414
+sagaz/storage/backends/sqlite/saga.py             134      3     32      5    95%   112-113, 143->146, 275->287, 276->275, 311
+sagaz/storage/base.py                              31      0      4      1    97%   193->196
+sagaz/storage/core/base.py                         32      0      2      1    97%   115->117
+sagaz/storage/core/connection.py                   88      0     18      2    98%   175->178, 233->236
+sagaz/storage/core/errors.py                       53      0      4      0   100%
+sagaz/storage/core/health.py                       46      0      0      0   100%
+sagaz/storage/core/serialization.py                97      1     54      1    99%   72
+sagaz/storage/factory.py                           77      0     14      0   100%
+sagaz/storage/interfaces/outbox.py                 29      0      0      0   100%
+sagaz/storage/interfaces/saga.py                   38      0      4      0   100%
+sagaz/storage/interfaces/snapshot.py                6      0      0      0   100%
+sagaz/storage/manager.py                          212     23     42      0    91%   360-365, 369-374, 378-383, 408-413, 417-422
+sagaz/storage/memory.py                             2      0      0      0   100%
+sagaz/storage/postgresql.py                         2      0      0      0   100%
+sagaz/storage/redis.py                              2      0      0      0   100%
+sagaz/storage/transfer/service.py                 191      0     44      1    99%   396->exit
+sagaz/strategies/base.py                            8      0      0      0   100%
+sagaz/strategies/fail_fast.py                      36      0     16      1    98%   78->77
+sagaz/strategies/fail_fast_grace.py                42      0     14      1    98%   93->92
+sagaz/strategies/wait_all.py                       19      0      8      0   100%
+sagaz/triggers/decorators.py                       17      0      0      0   100%
+sagaz/triggers/engine.py                          114      3     30      2    97%   86, 99-102
+sagaz/triggers/registry.py                         26      0      2      0   100%
+sagaz/visualization/mermaid.py                    339      0    158      2    99%   562->564, 564->566
+-------------------------------------------------------------------------------------------
+TOTAL                                            7140    524   1618     90    92%
+Coverage JSON written to file coverage.json
+========== 1611 passed, 11 skipped, 81 deselected in 69.96s (0:01:09) ==========

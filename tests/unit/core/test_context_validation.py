@@ -326,7 +326,8 @@ class TestEdgeCases:
         # Mock object that breaks pickle
         class UnpicklableObject:
             def __reduce__(self):
-                raise TypeError("Cannot pickle")
+                msg = "Cannot pickle"
+                raise TypeError(msg)
 
         obj = UnpicklableObject()
 

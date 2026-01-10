@@ -3526,6 +3526,10 @@ dependencies = [
 [package.optional-dependencies]
 aws = [
     { name = "aioboto3" },
+    { name = "zstandard" },
+]
+compression = [
+    { name = "zstandard" },
 ]
 integration-tests = [
     { name = "testcontainers", extra = ["rabbitmq", "redis"] },
@@ -3627,8 +3631,10 @@ requires-dist = [
     { name = "rich", specifier = ">=13.0.0" },
     { name = "simple-term-menu", specifier = ">=1.6.0" },
     { name = "testcontainers", extras = ["kafka", "postgres", "rabbitmq", "redis"], marker = "extra == 'integration-tests'", specifier = ">=4.13.0" },
+    { name = "zstandard", marker = "extra == 'aws'", specifier = ">=0.22.0" },
+    { name = "zstandard", marker = "extra == 'compression'", specifier = ">=0.22.0" },
 ]
-provides-extras = ["storage", "integration-tests", "redis", "postgres", "kafka", "rabbitmq", "tracing", "prometheus", "aws"]
+provides-extras = ["storage", "integration-tests", "redis", "postgres", "kafka", "rabbitmq", "tracing", "prometheus", "aws", "compression"]
 
 [package.metadata.requires-dev]
 ai = [

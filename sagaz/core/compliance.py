@@ -15,10 +15,13 @@ Implements security and compliance features:
 import hashlib
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
+
+if TYPE_CHECKING:  # pragma: no cover
+    from sagaz.storage.interfaces.snapshot import SnapshotStorage
 
 logger = logging.getLogger(__name__)
 
@@ -63,15 +66,15 @@ class ComplianceManager:
             encryption_key="your-secret-key",
             enable_gdpr=True,
         )
-        
+
         manager = ComplianceManager(config)
-        
+
         # Encrypt sensitive data
         encrypted = manager.encrypt_context({"ssn": "123-45-6789"})
-        
+
         # Decrypt for authorized use
         decrypted = manager.decrypt_context(encrypted)
-        
+
         # GDPR: Delete all data for a user
         await manager.delete_user_data(user_id)
     """
@@ -148,9 +151,7 @@ class ComplianceManager:
         text_bytes = text.encode()
 
         # XOR with key (cycled)
-        encrypted = bytes(
-            b ^ key_bytes[i % len(key_bytes)] for i, b in enumerate(text_bytes)
-        )
+        encrypted = bytes(b ^ key_bytes[i % len(key_bytes)] for i, b in enumerate(text_bytes))
 
         # Return as hex string
         return encrypted.hex()
@@ -165,18 +166,14 @@ class ComplianceManager:
             encrypted = bytes.fromhex(encrypted_hex)
 
             # XOR with key (cycled)
-            decrypted = bytes(
-                b ^ key_bytes[i % len(key_bytes)] for i, b in enumerate(encrypted)
-            )
+            decrypted = bytes(b ^ key_bytes[i % len(key_bytes)] for i, b in enumerate(encrypted))
 
             return decrypted.decode()
         except Exception as e:
             logger.error(f"Decryption failed: {e}")
             return encrypted_hex
 
-    def check_access(
-        self, user_id: str, required_level: AccessLevel | None = None
-    ) -> bool:
+    def check_access(self, user_id: str, required_level: AccessLevel | None = None) -> bool:
         """
         Check if user has required access level.
 
@@ -210,11 +207,10 @@ class ComplianceManager:
             Number of records deleted
         """
         if not self.config.enable_gdpr:
-            raise ValueError("GDPR features not enabled")
+            msg = "GDPR features not enabled"
+            raise ValueError(msg)
 
-        logger.warning(
-            f"GDPR deletion requested: user={user_id}, reason={reason}"
-        )
+        logger.warning(f"GDPR deletion requested: user={user_id}, reason={reason}")
 
         # In production, you'd:
         # 1. Verify user identity
@@ -245,7 +241,7 @@ class ComplianceManager:
             return {}
 
         log_entry = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "operation": operation,
             "user_id": user_id,
             "saga_id": str(saga_id),
@@ -277,10 +273,3 @@ class ComplianceManager:
     def _hash_value(self, value: str) -> str:
         """Create one-way hash of sensitive value"""
         return hashlib.sha256(value.encode()).hexdigest()[:16]
-
-
-# Type hint for SnapshotStorage (avoid circular import)
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:  # pragma: no cover
-    from sagaz.storage.interfaces.snapshot import SnapshotStorage

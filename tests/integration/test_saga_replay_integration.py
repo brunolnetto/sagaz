@@ -4,8 +4,9 @@ Integration tests for Saga Replay with actual saga execution.
 Tests the complete replay flow: snapshot capture, resume from checkpoint, etc.
 """
 
-import pytest
 from uuid import UUID, uuid4
+
+import pytest
 
 from sagaz.core.context import SagaContext
 from sagaz.core.replay import ReplayConfig, SnapshotStrategy
@@ -31,7 +32,8 @@ class SimpleSagaForReplay(Saga):
     async def _step1_action(self, ctx: SagaContext):
         self.execution_log.append("step1_executed")
         if self.fail_at_step == "step1":
-            raise RuntimeError("Simulated failure at step1")
+            msg = "Simulated failure at step1"
+            raise RuntimeError(msg)
         ctx.set("step1_result", "step1_done")
         return "step1_done"
 
@@ -41,7 +43,8 @@ class SimpleSagaForReplay(Saga):
     async def _step2_action(self, ctx: SagaContext):
         self.execution_log.append("step2_executed")
         if self.fail_at_step == "step2":
-            raise RuntimeError("Simulated failure at step2")
+            msg = "Simulated failure at step2"
+            raise RuntimeError(msg)
         ctx.set("step2_result", "step2_done")
         return "step2_done"
 
@@ -51,7 +54,8 @@ class SimpleSagaForReplay(Saga):
     async def _step3_action(self, ctx: SagaContext):
         self.execution_log.append("step3_executed")
         if self.fail_at_step == "step3":
-            raise RuntimeError("Simulated failure at step3")
+            msg = "Simulated failure at step3"
+            raise RuntimeError(msg)
         ctx.set("step3_result", "step3_done")
         return "step3_done"
 
@@ -143,8 +147,7 @@ class TestSagaReplayIntegration:
             enable_snapshots=True,
             snapshot_strategy=SnapshotStrategy.BEFORE_EACH_STEP,
         )
-        saga = SimpleSagaForReplay(replay_config=config, snapshot_storage=storage)
-        return saga
+        return SimpleSagaForReplay(replay_config=config, snapshot_storage=storage)
 
     @pytest.mark.asyncio
     async def test_replay_from_step2_after_step1_failure(self, storage, replay_config):
@@ -283,7 +286,7 @@ class TestReplayErrorHandling:
     @pytest.mark.asyncio
     async def test_replay_without_saga_factory_requires_dry_run(self):
         storage = InMemorySnapshotStorage()
-        
+
         # Create a snapshot
         from sagaz.core.replay import SagaSnapshot
         saga_id = uuid4()
