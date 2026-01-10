@@ -1,7 +1,7 @@
 # ADR Implementation Roadmap & Dependencies
 
 **Last Updated**: 2026-01-10  
-**Total ADRs**: 18 (011-028)
+**Total ADRs**: 19 (011-029)
 
 ---
 
@@ -36,6 +36,7 @@
 | [ADR-026](adr/adr-026-industry-examples-expansion.md) | Industry Examples Expansion | 🟢 **Complete** (24 examples) | - | - |
 | [ADR-027](adr/adr-027-project-cli.md) | Project CLI | 🟢 **Implemented** | - | - |
 | [ADR-028](adr/adr-028-framework-integration.md) | Framework Integration | 🟢 **Implemented** | - | - |
+| [ADR-029](adr/adr-029-saga-choreography.md) | Saga Choreography Pattern | ⚪ Proposed | High | High |
 
 ---
 
@@ -68,8 +69,9 @@ graph TD
     %% Streaming dependencies (ADR-021 requires ADR-016)
     ADR016[ADR-016: Storage ✅] --> ADR021[ADR-021: Context Streaming ✅]
     
-    %% Event triggers (independent, but enhances CDC)
+    %% Event triggers (independent, but enhances CDC and Choreography)
     ADR025[ADR-025: Event Triggers ✅] --> ADR011[ADR-011: CDC Support]
+    ADR025 --> ADR029[ADR-029: Choreography]
     
     %% Replay chain
     ADR024[ADR-024: Saga Replay ✅] --> ADR018[ADR-018: Versioning]
@@ -78,16 +80,23 @@ graph TD
     %% Multi-tenancy requires storage
     ADR016 --> ADR020[ADR-020: Multi-Tenancy]
     
-    %% Advanced analytics requires streaming + triggers
-    ADR021 --> ADR013[ADR-013: Fluss Analytics]
-    ADR025 --> ADR013
+    %% Analytics is independent - optional enhancement for streaming or choreography events
+    ADR021 -.-> ADR013[ADR-013: Fluss Analytics - Optional]
+    ADR029 -.-> ADR013
     
     %% Framework integration requires storage
     ADR016 --> ADR028[ADR-028: Frameworks ✅]
     
+    %% Choreography requires storage + triggers (Analytics is optional synergy)
+    ADR016 --> ADR029
+    
     %% Pivot chain (independent of streaming!)
     ADR022[ADR-022: Compensation ✅] --> ADR023[ADR-023: Pivot Steps ✅]
     ADR023 --> ADR026[ADR-026: Examples ✅]
+    
+    %% Optional synergies with choreography (dotted lines)
+    ADR017[ADR-017: Chaos Engineering] -.-> ADR029
+    ADR024 -.-> ADR029
     
     style ADR016 fill:#51cf66
     style ADR022 fill:#51cf66
@@ -117,30 +126,46 @@ graph TD
 ### Chain 1: Storage → Context → Advanced Features
 
 ```
-ADR-016 (Storage) ✅ → ADR-021 (Streaming) ✅ → ADR-013 (Analytics)
+ADR-016 (Storage) ✅ → ADR-021 (Streaming) ✅ → ADR-013 (Analytics - optional)
+ADR-016 (Storage) ✅ → ADR-029 (Choreography)
+ADR-025 (Triggers) ✅ → ADR-029 (Choreography)
 ADR-025 (Triggers) ✅ → ADR-011 (CDC)
 ```
 
-**Rationale**: Large context objects need external storage (ADR-016) before streaming (ADR-021) makes sense. Triggers are largely independent but enable CDC.
+**Rationale**: Large context objects need external storage (ADR-016) before streaming (ADR-021) makes sense. Choreography requires storage for event state tracking and triggers for event infrastructure. Fluss Analytics (ADR-013) is an optional enhancement for real-time event analytics - independent from choreography.
 
 ### Chain 2: Storage → Replay → Testing
 
 ```
-ADR-016 (Storage) ✅ → ADR-024 (Replay) ✅ All 5 Phases → ADR-019 (Dry Run)
+ADR-016 (Storage) ✅ → ADR-024 (Replay) ✅ All 6 Phases → ADR-019 (Dry Run)
                                                         → ADR-018 (Versioning)
 ```
 
 **Rationale**: Replay needs complete state snapshots. Versioning helps replay across schema changes.
 
-**Status**: ✅ COMPLETE - All 5 phases implemented (snapshot infrastructure, replay engine, time-travel, CLI, compliance)
+**Status**: ✅ COMPLETE - All 6 phases implemented (snapshot infrastructure, replay engine, time-travel, CLI, compliance, storage backends)
 
 ### Chain 3: Compensation → Pivots
 
 ```
-ADR-022 (Compensation Passing) → ADR-023 (Pivot Steps)
+ADR-022 (Compensation Passing) ✅ → ADR-023 (Pivot Steps) ✅
 ```
 
 **Rationale**: Pivots need compensation result context to make forward recovery decisions.
+
+### Chain 4: Choreography (Independent Pattern)
+
+```
+ADR-016 (Storage) ✅ → ADR-029 (Choreography)
+ADR-025 (Triggers) ✅ → ADR-029 (Choreography)
+
+Optional Synergies:
+ADR-013 (Analytics) - Real-time event analytics (independent)
+ADR-017 (Chaos) - Testing distributed failures  
+ADR-024 (Replay) ✅ - Replay choreographed sagas
+```
+
+**Rationale**: Choreography is an alternative coordination pattern to orchestration. It requires storage for event state tracking and triggers for event infrastructure. Analytics is an optional enhancement for event streams, not a requirement.
 
 ---
 
@@ -257,6 +282,34 @@ ADR-022 (Compensation Passing) → ADR-023 (Pivot Steps)
 
 ---
 
+### Phase 6: Choreography Pattern (v2.2.0) - **10-15 weeks**
+
+**Goal**: Distributed saga coordination
+
+| ADR | Priority | Effort | Dependencies |
+|-----|----------|--------|--------------|
+| 🟡 ADR-029 | High | 10-15 weeks | ADR-016, ADR-025 |
+
+**Deliverables**:
+- Event-driven choreography engine
+- Kafka/RabbitMQ/Redis adapters
+- Distributed tracing integration
+- Choreographed saga examples
+
+**Optional Synergies** (not required):
+- ADR-013: Fluss Analytics (real-time event analytics)
+- ADR-017: Chaos Engineering (testing distributed failures)
+- ADR-024: Saga Replay (replay choreographed sagas)
+
+**User Impact**:
+- **High**: Enables microservices architectures
+- **High**: Better scalability for event-driven systems
+- **Medium**: Natural fit for autonomous team workflows
+
+**Note**: Choreography and orchestration are complementary patterns. Choreography uses event buses for coordination, while analytics is an optional enhancement layer.
+
+---
+
 ## Effort Summary by Phase
 
 | Phase | Version | Duration | ADRs | Cumulative |
@@ -266,8 +319,9 @@ ADR-022 (Compensation Passing) → ADR-023 (Pivot Steps)
 | 3 | v1.4.0 | 6-8 weeks | 3 | 26 weeks |
 | 4 | v2.0.0 | 10-12 weeks | 3 | 38 weeks |
 | 5 | Future | 10-13 weeks | 2 | 51 weeks |
+| 6 | v2.2.0 | 10-15 weeks | 1 | 61 weeks |
 
-**Total**: ~1 year for full implementation
+**Total**: ~15 months for full implementation
 
 ---
 
@@ -316,6 +370,14 @@ ADR-022 (Compensation Passing) → ADR-023 (Pivot Steps)
 8. **ADR-024: Saga Replay**
 9. **ADR-018: Saga Versioning**
 
+### Choreography Pattern (Months 13-16)
+
+10. **ADR-029: Saga Choreography** ⭐ **HIGH IMPACT**
+   - Enables microservices architectures
+   - Event-driven coordination
+   - Kafka/RabbitMQ integration
+   - Distributed tracing
+
 ### Optional/Low Priority
 
 10. **ADR-017: Chaos Engineering**
@@ -363,6 +425,12 @@ ADR-022 (Compensation Passing) → ADR-023 (Pivot Steps)
 - ADR-019 (Week 9-10)
 - ADR-017 (Weeks 11-12)
 
+#### Stream D: Choreography (v2.2.0)
+- ADR-029 (Weeks 52-67, after Phase 5)
+  - Event bus infrastructure
+  - Choreography engine
+  - Distributed coordination
+
 This allows **3 developers** to work in parallel with minimal conflicts.
 
 ---
@@ -396,4 +464,9 @@ This allows **3 developers** to work in parallel with minimal conflicts.
 5. ✅ **ADR-019** (Dry Run) - Developer experience
 6. ✅ **ADR-026** (Industry Examples) - Demonstrates pivot feature across 10 industries
 
-These 6 ADRs deliver **80% of the value** with **40% of the effort**. The rest can wait for real user demand.
+These 6 ADRs deliver **80% of the value** with **40% of the effort**. 
+
+**Next Priority (Months 13-16)**: 
+- **ADR-029** (Saga Choreography) - Event-driven microservices coordination
+
+The rest can wait for real user demand.

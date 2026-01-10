@@ -11,10 +11,14 @@ This example showcases:
 - **Automatic correlation ID** - Propagated via request hooks
 - **`create_saga(SagaClass)`** - Create saga with correlation ID injected
 
+## Prerequisites
+
+⚠️ **This example requires additional dependencies that are not included with Sagaz by default.**
+
 ## Quick Start
 
 ```bash
-# Install dependencies
+# Install dependencies (Flask)
 pip install -r requirements.txt
 
 # Run the app
@@ -22,6 +26,9 @@ flask run --reload
 
 # Or directly
 python main.py
+
+# Or from the CLI
+sagaz examples run integrations/flask_app
 ```
 
 ## Usage

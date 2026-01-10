@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-**Last Updated**: 2026-01-07
+**Last Updated**: 2026-01-10
 
 This directory contains Architecture Decision Records (ADRs) documenting significant technical decisions for Sagaz.
 
@@ -13,36 +13,40 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-012](adr-012-synchronous-orchestration-model.md) | Synchronous Orchestration Model | v1.0.0 | 2024-12 |
 | [ADR-015](adr-015-unified-saga-api.md) | Unified Saga API | v1.0.3 | 2024-12 |
 | [ADR-016](adr-016-unified-storage-layer.md) | Unified Storage Layer | v1.2.0 | 2026-01 |
+| [ADR-021](adr-021-lightweight-context-streaming.md) | Context Streaming | v1.4.0 | 2026-01 |
+| [ADR-022](adr-022-compensation-result-passing.md) | Compensation Result Passing | v1.2.0 | 2026-01 |
+| [ADR-023](adr-023-pivot-irreversible-steps.md) | Pivot/Irreversible Steps | v1.3.0 | 2026-01 |
+| [ADR-024](adr-024-saga-replay.md) | Saga Replay & Time-Travel | v2.1.0 | 2026-01 |
+| [ADR-025](adr-025-event-driven-triggers.md) | Event-Driven Triggers | v1.3.0 | 2026-01 |
+| [ADR-026](adr-026-industry-examples-expansion.md) | Industry Examples Expansion | v1.4-1.6 | 2026-01 |
+| [ADR-027](adr-027-project-cli.md) | Project CLI | v1.3.0 | 2026-01 |
+| [ADR-028](adr-028-framework-integration.md) | Framework Integration | v1.3.0 | 2026-01 |
 
 ---
 
-## 📋 Proposed (2026 Roadmap)
+## 📋 Proposed (Future Releases)
 
 ### High Priority
 
 | ADR | Title | Target | Description |
 |-----|-------|--------|-------------|
-| [ADR-011](adr-011-cdc-support.md) | CDC Support | Q2 2026 | Change Data Capture with Debezium for 50K+ events/sec |
-| [ADR-020](adr-020-multi-tenancy.md) | Multi-Tenancy | Q4 2026 | Tenant isolation, quotas, and compliance |
+| [ADR-029](adr-029-saga-choreography.md) | Saga Choreography Pattern | v2.2.0 | Event-driven distributed coordination (10-15 weeks) |
+| [ADR-020](adr-020-multi-tenancy.md) | Multi-Tenancy | v2.0.0 | Tenant isolation, quotas, and compliance |
 
 ### Medium Priority
 
 | ADR | Title | Target | Description |
 |-----|-------|--------|-------------|
-| [ADR-013](adr-013-fluss-iceberg-analytics.md) | Fluss Analytics | Q3 2026 | Real-time + historical analytics with Iceberg |
-| [ADR-024](adr-024-saga-replay.md) | Saga Replay | Q3 2026 | Replay failed sagas and time-travel queries |
-| [ADR-019](adr-019-dry-run-mode.md) | Dry-Run Mode | Q2 2026 | Validate and preview saga execution |
-| [ADR-023](adr-023-pivot-irreversible-steps.md) | Pivot Steps | Q3 2026 | Irreversible steps and forward recovery |
-| [ADR-026](adr-026-industry-examples-expansion.md) | Industry Examples | Q4 2026 | 24 new examples across 10 industries |
+| [ADR-018](adr-018-saga-versioning.md) | Saga Versioning | v2.0.0 | Version management for saga definitions |
+| [ADR-019](adr-019-dry-run-mode.md) | Dry-Run Mode | v1.3.0 | Validate and preview saga execution |
 
 ### Low Priority / Future
 
 | ADR | Title | Target | Description |
 |-----|-------|--------|-------------|
-| [ADR-021](adr-021-lightweight-context-streaming.md) | Context Streaming | 2027+ | Reference-based context and streaming between steps |
+| [ADR-011](adr-011-cdc-support.md) | CDC Support | Future | Change Data Capture with Debezium for 50K+ events/sec |
+| [ADR-013](adr-013-fluss-iceberg-analytics.md) | Fluss Analytics | Future | Real-time + historical analytics with Iceberg |
 | [ADR-017](adr-017-chaos-engineering.md) | Chaos Engineering | TBD | Fault injection and resilience testing |
-| [ADR-018](adr-018-saga-versioning.md) | Saga Versioning | TBD | Version management for saga definitions |
-| [ADR-022](adr-022-compensation-result-passing.md) | Compensation Results | TBD | Pass results between compensation steps |
 
 ---
 

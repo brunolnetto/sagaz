@@ -547,8 +547,56 @@ def _fallback_interactive_simple(category: str | None = None):  # pragma: no cov
             return
 
 
+def _check_requirements(requirements_file: Path, script_path: Path) -> None:
+    """Check if required packages are installed and warn user."""
+    import importlib.util
+
+    # Read requirements and extract package names
+    try:
+        with requirements_file.open() as f:
+            reqs = [line.strip() for line in f if line.strip() and not line.startswith("#")]
+    except Exception:  # pragma: no cover
+        return
+
+    missing_packages = []
+    for req in reqs:
+        # Extract package name (handle versions like 'package>=1.0.0')
+        if req.startswith("sagaz"):
+            continue  # Skip sagaz itself
+        pkg_name = req.split(">=")[0].split("==")[0].split("<")[0].split(">")[0].strip()
+        if importlib.util.find_spec(pkg_name) is None:
+            missing_packages.append(pkg_name)
+
+    if missing_packages and console:
+        console.print("\n[yellow]⚠️  This example requires additional dependencies:[/yellow]")
+        for pkg in missing_packages:
+            console.print(f"   • {pkg}")
+        console.print(f"\n[cyan]📦 Install with:[/cyan] pip install -r {requirements_file}")
+        response = input("\nContinue anyway? (y/N): ").strip().lower()
+        if response not in ("y", "yes"):
+            raise KeyboardInterrupt
+    elif missing_packages:
+        click.echo(f"\n⚠️  Missing dependencies: {', '.join(missing_packages)}")
+        click.echo(f"Install with: pip install -r {requirements_file}")
+        response = input("\nContinue anyway? (y/N): ").strip().lower()
+        if response not in ("y", "yes"):
+            raise KeyboardInterrupt
+
+
 def _execute_example(script_path: Path):
     """Execute an example script."""
+    # Check for requirements.txt and show installation hint if present
+    requirements_file = script_path.parent / "requirements.txt"
+    if requirements_file.exists():
+        try:
+            _check_requirements(requirements_file, script_path)
+        except KeyboardInterrupt:
+            if console:
+                console.print("\n[yellow]Skipped example.[/yellow]")
+            else:
+                click.echo("\nSkipped example.")
+            return
+
     env = os.environ.copy()
     cwd = Path.cwd()
     if "PYTHONPATH" in env:
@@ -560,5 +608,8 @@ def _execute_example(script_path: Path):
         subprocess.run([sys.executable, str(script_path)], env=env, check=True)
     except subprocess.CalledProcessError as e:
         click.echo(f"\nExample failed with exit code {e.returncode}")
+        if requirements_file.exists():
+            click.echo("\n💡 This example may require additional dependencies.")
+            click.echo(f"   Install them with: pip install -r {requirements_file}")
     except KeyboardInterrupt:  # pragma: no cover
         click.echo("\nInterrupted.")

@@ -11,14 +11,21 @@ This example showcases:
 - **`create_saga(SagaClass)`** - Create saga with correlation ID injected
 - **`get_sagaz_config()`** - Read config from Django settings
 
+## Prerequisites
+
+⚠️ **This example requires additional dependencies that are not included with Sagaz by default.**
+
 ## Quick Start
 
 ```bash
-# Install dependencies
+# Install dependencies (Django)
 pip install -r requirements.txt
 
 # Run the app
 python manage.py runserver
+
+# Or from the CLI
+sagaz examples run integrations/django_app
 ```
 
 ## Usage
