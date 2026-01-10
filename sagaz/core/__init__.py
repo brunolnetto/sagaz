@@ -8,6 +8,7 @@ This module re-exports all core components for backward compatibility
 with existing imports like `from sagaz.core.saga import Saga`.
 """
 
+from sagaz.core.compliance import ComplianceConfig, ComplianceManager
 from sagaz.core.config import SagaConfig, configure, get_config
 from sagaz.core.context import (
     ConfigurationError,
@@ -65,13 +66,17 @@ from sagaz.core.replay import (
 )
 from sagaz.core.saga import SagaStep
 from sagaz.core.saga_replay import SagaReplay
+from sagaz.core.time_travel import HistoricalState, SagaTimeTravel
 from sagaz.core.types import ParallelFailureStrategy, SagaResult, SagaStatus, SagaStepStatus
 
 __all__ = [
+    "ComplianceConfig",
+    "ComplianceManager",
     "ConfigurationError",
     "ExternalReference",
     "ExternalStorage",
     "FileSystemExternalStorage",
+    "HistoricalState",
     "LargePayloadWarning",
     "LoggingSagaListener",
     "MemoryFootprintError",
@@ -101,6 +106,7 @@ __all__ = [
     "SagaStepDefinition",
     "SagaStepError",
     "SagaStepStatus",
+    "SagaTimeTravel",
     "SagaTimeoutError",
     "SnapshotCaptureError",
     "SnapshotNotFoundError",

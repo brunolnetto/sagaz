@@ -41,7 +41,16 @@ class InMemorySnapshotStorage(SnapshotStorage):
     async def get_latest_snapshot(
         self, saga_id: UUID, before_step: str | None = None
     ) -> SagaSnapshot | None:
-        """Get most recent snapshot for saga"""
+        """
+        Get most recent snapshot for saga, optionally before a specific step.
+
+        Args:
+            saga_id: The saga ID
+            before_step: If provided, get snapshot at or before this step name
+
+        Returns:
+            Most recent snapshot matching criteria, or None
+        """
         snapshot_ids = self._saga_snapshots.get(saga_id, [])
         if not snapshot_ids:
             return None
@@ -49,19 +58,20 @@ class InMemorySnapshotStorage(SnapshotStorage):
         # Get all snapshots for this saga
         snapshots = [self._snapshots[sid] for sid in snapshot_ids]
 
-        # Filter by before_step if provided
+        # If before_step specified, find snapshot at or before that step
         if before_step:
-            snapshots = [s for s in snapshots if s.step_name == before_step]
-
-        if not snapshots:
+            # Find step with matching name (could be multiple with retries)
+            matching = [s for s in snapshots if s.step_name == before_step]
+            if matching:
+                # Return the most recent one
+                return max(matching, key=lambda s: s.created_at)
+            # No exact match, return None (checkpoint not found)
             return None
 
-        # Return most recent
+        # No filter, return most recent overall
         return max(snapshots, key=lambda s: s.created_at)
 
-    async def get_snapshot_at_time(
-        self, saga_id: UUID, timestamp: datetime
-    ) -> SagaSnapshot | None:
+    async def get_snapshot_at_time(self, saga_id: UUID, timestamp: datetime) -> SagaSnapshot | None:
         """Get snapshot at or before given timestamp"""
         snapshot_ids = self._saga_snapshots.get(saga_id, [])
         if not snapshot_ids:
@@ -80,9 +90,7 @@ class InMemorySnapshotStorage(SnapshotStorage):
         # Return closest to timestamp
         return max(snapshots, key=lambda s: s.created_at)
 
-    async def list_snapshots(
-        self, saga_id: UUID, limit: int = 100
-    ) -> list[SagaSnapshot]:
+    async def list_snapshots(self, saga_id: UUID, limit: int = 100) -> list[SagaSnapshot]:
         """List all snapshots for saga"""
         snapshot_ids = self._saga_snapshots.get(saga_id, [])
         snapshots = [self._snapshots[sid] for sid in snapshot_ids]
@@ -128,9 +136,7 @@ class InMemorySnapshotStorage(SnapshotStorage):
         """Get replay log entry"""
         return self._replay_logs.get(replay_id)
 
-    async def list_replays(
-        self, original_saga_id: UUID, limit: int = 100
-    ) -> list[dict[str, Any]]:
+    async def list_replays(self, original_saga_id: UUID, limit: int = 100) -> list[dict[str, Any]]:
         """List replays for original saga"""
         replays = [
             log

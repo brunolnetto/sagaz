@@ -31,7 +31,7 @@
 | [ADR-021](adr/adr-021-lightweight-context-streaming.md) | Context Streaming | 🟢 **Implemented** | - | - |
 | [ADR-022](adr/adr-022-compensation-result-passing.md) | Compensation Result Passing | 🟢 **Implemented** | - | - |
 | [ADR-023](adr/adr-023-pivot-irreversible-steps.md) | Pivot/Irreversible Steps | 🟢 **Implemented** | - | - |
-| [ADR-024](adr/adr-024-saga-replay.md) | Saga Replay & Time-Travel | 🟢 **Implemented** (All 5 phases) | - | - |
+| [ADR-024](adr/adr-024-saga-replay.md) | Saga Replay & Time-Travel | 🟢 **Production-Ready** (All 6 Phases) | - | - |
 | [ADR-025](adr/adr-025-event-driven-triggers.md) | Event-Driven Triggers | 🟢 **Implemented** | - | - |
 | [ADR-026](adr/adr-026-industry-examples-expansion.md) | Industry Examples Expansion | 🟢 **Complete** (24 examples) | - | - |
 | [ADR-027](adr/adr-027-project-cli.md) | Project CLI | 🟢 **Implemented** | - | - |
@@ -46,7 +46,7 @@
 ```mermaid
 graph TD
     ADR016[ADR-016: Unified Storage ✅] --> ADR021[ADR-021: Context Streaming ✅]
-    ADR016 --> ADR024[ADR-024: Saga Replay ✅ All 5 Phases]
+    ADR016 --> ADR024[ADR-024: Saga Replay ✅ All 6 Phases]
     ADR016 --> ADR020[ADR-020: Multi-Tenancy]
     ADR016 --> ADR011[ADR-011: CDC Support]
     
@@ -58,7 +58,7 @@ graph TD
     style ADR023 fill:#51cf66
     style ADR026 fill:#51cf66
     style ADR021 fill:#51cf66
-    style ADR024 fill:#ff922b
+    style ADR024 fill:#51cf66
 ```
 
 ### Feature Dependencies

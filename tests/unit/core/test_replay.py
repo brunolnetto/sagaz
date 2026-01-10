@@ -2,9 +2,10 @@
 Tests for Saga Replay functionality.
 """
 
-import pytest
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
+
+import pytest
 
 from sagaz.core.replay import (
     ReplayConfig,
@@ -45,7 +46,7 @@ class TestReplayConfig:
     def test_get_retention_until(self):
         config = ReplayConfig(retention_days=7)
         retention = config.get_retention_until()
-        
+
         # Should be approximately 7 days from now
         expected = datetime.now(UTC) + timedelta(days=7)
         assert abs((retention - expected).total_seconds()) < 5  # Within 5 seconds

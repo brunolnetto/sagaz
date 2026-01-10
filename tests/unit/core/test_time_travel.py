@@ -4,12 +4,13 @@ Tests for Saga Time-Travel functionality.
 Tests querying historical state at specific timestamps.
 """
 
-import pytest
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from uuid import uuid4
 
+import pytest
+
 from sagaz.core.replay import SagaSnapshot
-from sagaz.core.time_travel import SagaTimeTravel, HistoricalState
+from sagaz.core.time_travel import HistoricalState, SagaTimeTravel
 from sagaz.storage.backends.memory_snapshot import InMemorySnapshotStorage
 
 
@@ -18,8 +19,8 @@ class TestHistoricalState:
 
     def test_to_dict(self):
         saga_id = uuid4()
-        timestamp = datetime.now(timezone.utc)
-        
+        timestamp = datetime.now(UTC)
+
         state = HistoricalState(
             saga_id=saga_id,
             saga_name="TestSaga",
@@ -56,7 +57,7 @@ class TestSagaTimeTravel:
     @pytest.fixture
     async def sample_snapshots(self, storage, saga_id):
         """Create sample snapshots at different times"""
-        base_time = datetime(2024, 1, 1, 10, 0, 0, tzinfo=timezone.utc)
+        base_time = datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC)
 
         snapshots = []
         for i in range(3):

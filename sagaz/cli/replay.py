@@ -1,4 +1,3 @@
-# pragma: no cover
 """
 Sagaz CLI - Replay Commands
 
@@ -6,7 +5,7 @@ Commands for saga replay and time-travel operations.
 """
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from uuid import UUID
 
@@ -14,10 +13,10 @@ import click
 
 try:
     from rich.console import Console
-    from rich.panel import Panel
-    from rich.table import Table
-    from rich.syntax import Syntax
     from rich.json import JSON
+    from rich.panel import Panel
+    from rich.syntax import Syntax
+    from rich.table import Table
 
     console = Console()
     HAS_RICH = True
@@ -34,7 +33,6 @@ except ImportError:
 @click.group()
 def replay():
     """Saga replay and time-travel commands"""
-    pass
 
 
 # ============================================================================
@@ -150,20 +148,20 @@ def replay_command(
             else:
                 click.echo("✓ Replay completed successfully")
             return 0
+        if HAS_RICH and console:
+            console.print("[red]✗ Replay failed[/red]")
         else:
-            if HAS_RICH and console:
-                console.print("[red]✗ Replay failed[/red]", err=True)
-            else:
-                click.echo("✗ Replay failed", err=True)
-            return 1
+            click.echo("✗ Replay failed", err=True)
+        return 1
 
     except Exception as e:
         if HAS_RICH and console:
-            console.print(f"[red]Error: {e}[/red]", err=True)
+            console.print(f"[red]Error: {e}[/red]")
         else:
             click.echo(f"Error: {e}", err=True)
         if verbose:
             import traceback
+
             traceback.print_exc()
         return 1
 
@@ -183,9 +181,11 @@ async def _execute_replay(
     # Create storage
     if storage_type == "memory":
         from sagaz.storage.backends.memory_snapshot import InMemorySnapshotStorage
+
         storage = InMemorySnapshotStorage()
     else:
-        raise NotImplementedError(f"Storage type '{storage_type}' not yet supported")
+        msg = f"Storage type '{storage_type}' not yet supported"
+        raise NotImplementedError(msg)
 
     # Create replay instance
     replay = SagaReplay(
@@ -226,9 +226,7 @@ async def _execute_replay(
                     f"Checkpoint: {result.checkpoint_step}\n"
                     f"Error: {result.error_message or 'None'}",
                     title="Replay Result",
-                    border_style="green"
-                    if result.replay_status.value == "success"
-                    else "red",
+                    border_style="green" if result.replay_status.value == "success" else "red",
                 )
             )
         else:
@@ -303,7 +301,7 @@ def time_travel_command(
     try:
         timestamp = datetime.fromisoformat(at.replace("Z", "+00:00"))
         if timestamp.tzinfo is None:
-            timestamp = timestamp.replace(tzinfo=timezone.utc)
+            timestamp = timestamp.replace(tzinfo=UTC)
     except ValueError:
         click.echo(f"Error: Invalid timestamp format: {at}", err=True)
         click.echo("Use ISO format: 2024-01-15T10:30:00Z", err=True)
@@ -312,15 +310,13 @@ def time_travel_command(
     # Execute time-travel query
     try:
         result = asyncio.run(
-            _execute_time_travel(
-                saga_uuid, timestamp, storage, storage_url, key, format
-            )
+            _execute_time_travel(saga_uuid, timestamp, storage, storage_url, key, format)
         )
         return 0 if result else 1
 
     except Exception as e:
         if HAS_RICH and console:
-            console.print(f"[red]Error: {e}[/red]", err=True)
+            console.print(f"[red]Error: {e}[/red]")
         else:
             click.echo(f"Error: {e}", err=True)
         return 1
@@ -340,9 +336,11 @@ async def _execute_time_travel(
     # Create storage
     if storage_type == "memory":
         from sagaz.storage.backends.memory_snapshot import InMemorySnapshotStorage
+
         storage = InMemorySnapshotStorage()
     else:
-        raise NotImplementedError(f"Storage type '{storage_type}' not yet supported")
+        msg = f"Storage type '{storage_type}' not yet supported"
+        raise NotImplementedError(msg)
 
     # Create time-travel instance
     time_travel = SagaTimeTravel(saga_id=saga_id, snapshot_storage=storage)
@@ -357,6 +355,7 @@ async def _execute_time_travel(
 
         if output_format == "json":
             import json
+
             click.echo(json.dumps({key: value}, indent=2))
         else:
             click.echo(f"{key}: {value}")
@@ -370,6 +369,7 @@ async def _execute_time_travel(
 
         if output_format == "json":
             import json
+
             click.echo(json.dumps(state.to_dict(), indent=2))
         elif output_format == "table" and HAS_RICH and console:
             table = Table(title=f"Saga State at {timestamp}")
@@ -380,9 +380,7 @@ async def _execute_time_travel(
             table.add_row("Status", state.status)
             table.add_row("Current Step", state.current_step or "N/A")
             table.add_row("Step Index", str(state.step_index))
-            table.add_row(
-                "Completed Steps", ", ".join(state.completed_steps) or "None"
-            )
+            table.add_row("Completed Steps", ", ".join(state.completed_steps) or "None")
             console.print(table)
 
             # Show context separately
@@ -396,10 +394,8 @@ async def _execute_time_travel(
             click.echo(f"Status: {state.status}")
             click.echo(f"Current Step: {state.current_step}")
             click.echo(f"Step Index: {state.step_index}")
-            click.echo(
-                f"Completed Steps: {', '.join(state.completed_steps) or 'None'}"
-            )
-            click.echo(f"\nContext:")
+            click.echo(f"Completed Steps: {', '.join(state.completed_steps) or 'None'}")
+            click.echo("\nContext:")
             for k, v in state.context.items():
                 click.echo(f"  {k}: {v}")
 
@@ -478,14 +474,12 @@ def list_changes_command(
 
     # Execute list changes
     try:
-        asyncio.run(
-            _execute_list_changes(saga_uuid, after_dt, before_dt, limit, storage)
-        )
+        asyncio.run(_execute_list_changes(saga_uuid, after_dt, before_dt, limit, storage))
         return 0
 
     except Exception as e:
         if HAS_RICH and console:
-            console.print(f"[red]Error: {e}[/red]", err=True)
+            console.print(f"[red]Error: {e}[/red]")
         else:
             click.echo(f"Error: {e}", err=True)
         return 1
@@ -504,17 +498,17 @@ async def _execute_list_changes(
     # Create storage
     if storage_type == "memory":
         from sagaz.storage.backends.memory_snapshot import InMemorySnapshotStorage
+
         storage = InMemorySnapshotStorage()
     else:
-        raise NotImplementedError(f"Storage type '{storage_type}' not yet supported")
+        msg = f"Storage type '{storage_type}' not yet supported"
+        raise NotImplementedError(msg)
 
     # Create time-travel instance
     time_travel = SagaTimeTravel(saga_id=saga_id, snapshot_storage=storage)
 
     # Query changes
-    changes = await time_travel.list_state_changes(
-        after=after, before=before, limit=limit
-    )
+    changes = await time_travel.list_state_changes(after=after, before=before, limit=limit)
 
     if not changes:
         click.echo("No state changes found")

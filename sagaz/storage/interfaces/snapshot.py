@@ -60,9 +60,7 @@ class SnapshotStorage(ABC):
         """
 
     @abstractmethod
-    async def get_snapshot_at_time(
-        self, saga_id: UUID, timestamp: datetime
-    ) -> SagaSnapshot | None:
+    async def get_snapshot_at_time(self, saga_id: UUID, timestamp: datetime) -> SagaSnapshot | None:
         """
         Get the snapshot closest to (but not after) given timestamp.
 
@@ -75,9 +73,7 @@ class SnapshotStorage(ABC):
         """
 
     @abstractmethod
-    async def list_snapshots(
-        self, saga_id: UUID, limit: int = 100
-    ) -> list[SagaSnapshot]:
+    async def list_snapshots(self, saga_id: UUID, limit: int = 100) -> list[SagaSnapshot]:
         """
         List all snapshots for a saga.
 
@@ -132,9 +128,7 @@ class SnapshotStorage(ABC):
         """
 
     @abstractmethod
-    async def list_replays(
-        self, original_saga_id: UUID, limit: int = 100
-    ) -> list[dict[str, Any]]:
+    async def list_replays(self, original_saga_id: UUID, limit: int = 100) -> list[dict[str, Any]]:
         """
         List all replay operations for a saga.
 
