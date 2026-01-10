@@ -4,10 +4,12 @@ version = "1.0.3"
 description = "Production-ready Saga pattern with DAG support"
 readme = "README.md"
 dependencies = [
+    "aiofiles>=25.1.0",
     "click>=8.1.0",
     "python-statemachine>=2.1.0",
     "rich>=13.0.0",
     "simple-term-menu>=1.6.0",
+    "PyYAML>=6.0.0",
 ]
 requires-python = ">=3.11"
 
@@ -44,6 +46,9 @@ tracing = [
 ]
 prometheus = [
     "prometheus-client>=0.23.1",
+]
+aws = [
+    "aioboto3>=12.0.0",
 ]
 
 [dependency-groups]
