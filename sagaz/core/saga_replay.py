@@ -141,8 +141,13 @@ class SagaReplay:
 
             result.replay_status = ReplayStatus.RUNNING
 
-            # Create saga instance
-            saga_instance = self.saga_factory(snapshot.saga_name)
+            # Create saga instance (handle both sync and async factories)
+            import inspect
+            if inspect.iscoroutinefunction(self.saga_factory):
+                saga_instance = await self.saga_factory(snapshot.saga_name)
+            else:
+                saga_instance = self.saga_factory(snapshot.saga_name)
+            
             saga_instance.saga_id = str(result.new_saga_id)
 
             # Execute from snapshot

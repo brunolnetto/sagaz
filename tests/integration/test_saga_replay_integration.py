@@ -162,13 +162,19 @@ class TestSagaReplayIntegration:
 
         original_saga_id = UUID(saga.saga_id)
 
-        # Step 2: Replay from step2 with fixed saga
+        # Step 2: Create async saga factory that builds the saga
+        async def async_saga_factory(name: str):
+            saga = SimpleSagaForReplay(
+                replay_config=replay_config, snapshot_storage=storage
+            )
+            await saga.build()
+            return saga
+
+        # Step 3: Replay from step2 with fixed saga
         replay = SagaReplay(
             saga_id=original_saga_id,
             snapshot_storage=storage,
-            saga_factory=lambda name: SimpleSagaForReplay(
-                replay_config=replay_config, snapshot_storage=storage
-            ),
+            saga_factory=async_saga_factory,
         )
 
         # Get available checkpoints
@@ -211,12 +217,17 @@ class TestSagaReplayIntegration:
         await storage.save_snapshot(snapshot)
 
         # Step 3: Replay with context override
+        async def async_saga_factory(name: str):
+            saga = SimpleSagaForReplay(
+                replay_config=replay_config, snapshot_storage=storage
+            )
+            await saga.build()
+            return saga
+
         replay = SagaReplay(
             saga_id=original_saga_id,
             snapshot_storage=storage,
-            saga_factory=lambda name: SimpleSagaForReplay(
-                replay_config=replay_config, snapshot_storage=storage
-            ),
+            saga_factory=async_saga_factory,
         )
 
         replay_result = await replay.from_checkpoint(
@@ -247,13 +258,16 @@ class TestSagaReplayIntegration:
         saga2 = SimpleSagaForReplay(replay_config=replay_config, snapshot_storage=storage)
         await saga2.build()
 
-        # Get snapshot after step1
+        # Get snapshot at step2 (step1 already completed)
         snapshots = await storage.list_snapshots(original_saga_id)
-        step1_snapshot = next(s for s in snapshots if s.step_name == "step1")
+        step2_snapshot = next(s for s in snapshots if s.step_name == "step2")
+
+        # Verify step1 is marked as completed in this snapshot
+        assert "step1" in step2_snapshot.completed_steps
 
         # Execute from snapshot
         replay_result = await saga2.execute_from_snapshot(
-            step1_snapshot, context_override=None
+            step2_snapshot, context_override=None
         )
 
         assert replay_result.success is True
@@ -312,14 +326,19 @@ class TestReplayErrorHandling:
         original_saga_id = UUID(saga.saga_id)
 
         # Try to replay with same failure
-        replay = SagaReplay(
-            saga_id=original_saga_id,
-            snapshot_storage=storage,
-            saga_factory=lambda name: SimpleSagaForReplay(
+        async def async_saga_factory(name: str):
+            saga = SimpleSagaForReplay(
                 fail_at_step="step2",  # Still fails
                 replay_config=config,
                 snapshot_storage=storage,
-            ),
+            )
+            await saga.build()
+            return saga
+
+        replay = SagaReplay(
+            saga_id=original_saga_id,
+            snapshot_storage=storage,
+            saga_factory=async_saga_factory,
         )
 
         replay_result = await replay.from_checkpoint(step_name="step2")
