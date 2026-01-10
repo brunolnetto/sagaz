@@ -23,7 +23,7 @@ from operator import add
 from typing import Annotated, Literal, TypedDict
 
 from sagaz import Saga, action, compensate
-from sagaz.config import SagaConfig, configure
+from sagaz.core.config import SagaConfig, configure
 from sagaz.storage import InMemorySagaStorage
 from sagaz.triggers import fire_event, trigger
 

@@ -21,8 +21,8 @@ from datetime import datetime
 from typing import Any
 
 from sagaz import Saga, SagaContext, action, compensate, forward_recovery
-from sagaz.exceptions import SagaStepError
-from sagaz.pivot import RecoveryAction
+from sagaz.core.exceptions import SagaStepError
+from sagaz.execution.pivot import RecoveryAction
 
 logging.basicConfig(
     level=logging.INFO,

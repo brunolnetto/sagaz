@@ -16,7 +16,7 @@ from decimal import Decimal
 from typing import Any
 
 from sagaz import Saga, SagaContext, action, compensate, forward_recovery
-from sagaz.pivot import RecoveryAction
+from sagaz.execution.pivot import RecoveryAction
 
 logging.basicConfig(
     level=logging.INFO,

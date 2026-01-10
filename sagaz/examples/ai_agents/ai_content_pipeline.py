@@ -25,7 +25,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from sagaz import Saga, action, compensate
-from sagaz.config import SagaConfig, configure
+from sagaz.core.config import SagaConfig, configure
 from sagaz.storage import InMemorySagaStorage
 from sagaz.triggers import fire_event, trigger
 
