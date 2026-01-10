@@ -63,6 +63,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 from statemachine.exceptions import TransitionNotAllowed
 
+from sagaz.core.context import SagaContext
 from sagaz.core.exceptions import (
     SagaCompensationError,
     SagaExecutionError,
@@ -135,7 +136,7 @@ class Saga(ABC):
         self.status = SagaStatus.PENDING
         self.steps: list[SagaStep] = []
         self.completed_steps: list[SagaStep] = []
-        self.context = SagaContext()
+        self.context = SagaContext(_saga_id=self.saga_id)
         self.started_at: datetime | None = None
         self.completed_at: datetime | None = None
         self.error: Exception | None = None
@@ -1061,24 +1062,7 @@ class Saga(ABC):
         raise TypeError(msg)  # pragma: no cover
 
 
-@dataclass
-class SagaContext:
-    """Context passed between saga steps for data sharing"""
 
-    data: dict[str, Any] = field(default_factory=dict)
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-    def set(self, key: str, value: Any) -> None:
-        """Set a value in the context"""
-        self.data[key] = value
-
-    def get(self, key: str, default: Any = None) -> Any:
-        """Get a value from the context"""
-        return self.data.get(key, default)
-
-    def has(self, key: str) -> bool:
-        """Check if a key exists in the context"""
-        return key in self.data
 
 
 @dataclass

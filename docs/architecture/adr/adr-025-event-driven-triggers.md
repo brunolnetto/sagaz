@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed** | Date: 2026-01-05 | Priority: High | Target: v1.3.0
+**Accepted** | Date: 2026-01-09 | Priority: High | Target: v1.3.0
 
 ## Dependencies
 

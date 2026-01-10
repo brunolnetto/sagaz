@@ -41,8 +41,15 @@ from sagaz.core.listeners import (
     TracingSagaListener,
     default_listeners,
 )
+from sagaz.core.context import (
+    ExternalReference,
+    ExternalStorage,
+    FileSystemExternalStorage,
+    S3ExternalStorage,
+    SagaContext,
+)
 from sagaz.core.logger import NullLogger, get_logger, set_logger
-from sagaz.core.saga import SagaContext, SagaStep
+from sagaz.core.saga import SagaStep
 from sagaz.core.types import ParallelFailureStrategy, SagaResult, SagaStatus, SagaStepStatus
 
 __all__ = [
@@ -90,4 +97,9 @@ __all__ = [
     "publish_on_success",
     "set_logger",
     "step",
+    # Context
+    "ExternalReference",
+    "ExternalStorage",
+    "FileSystemExternalStorage",
+    "S3ExternalStorage",
 ]

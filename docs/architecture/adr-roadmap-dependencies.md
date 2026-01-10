@@ -19,13 +19,13 @@
 | [ADR-018](adr/adr-018-saga-versioning.md) | Saga Versioning | Proposed | Medium | High |
 | [ADR-019](adr/adr-019-dry-run-mode.md) | Dry Run Mode | Proposed | Medium | Low |
 | [ADR-020](adr/adr-020-multi-tenancy.md) | Multi-Tenancy | Proposed | Medium | High |
-| [ADR-021](adr/adr-021-lightweight-context-streaming.md) | Context Streaming | Proposed | Medium | High |
+| [ADR-021](adr/adr-021-lightweight-context-streaming.md) | Context Streaming | **Accepted** | Medium | High |
 | [ADR-022](adr/adr-022-compensation-result-passing.md) | Compensation Result Passing | **Accepted** | Medium | Medium |
 | [ADR-023](adr/adr-023-pivot-irreversible-steps.md) | Pivot/Irreversible Steps | **Accepted** | - | **Implemented** |
 | [ADR-024](adr/adr-024-saga-replay.md) | Saga Replay & Time-Travel | Proposed | Medium | High |
-| [ADR-025](adr/adr-025-event-driven-triggers.md) | Event-Driven Triggers | Proposed | **High** | High |
+| [ADR-025](adr/adr-025-event-driven-triggers.md) | Event-Driven Triggers | **Accepted** | - | **Implemented** |
 | [ADR-026](adr/adr-026-industry-examples-expansion.md) | Industry Examples Expansion | **Accepted** | - | **Complete (24 examples)** |
-| [ADR-027](adr/adr-027-project-cli.md) | Project CLI | Proposed | High | High |
+| [ADR-027](adr/adr-027-project-cli.md) | Project CLI | **Accepted** | High | High |
 | [ADR-028](adr/adr-028-framework-integration.md) | Framework Integration | **Accepted** | - | **Examples Created** |
 
 ---
@@ -36,7 +36,7 @@
 
 ```mermaid
 graph TD
-    ADR016[ADR-016: Unified Storage ✅] --> ADR021[ADR-021: Context Streaming]
+    ADR016[ADR-016: Unified Storage ✅] --> ADR021[ADR-021: Context Streaming ✅]
     ADR016 --> ADR024[ADR-024: Saga Replay]
     ADR016 --> ADR020[ADR-020: Multi-Tenancy]
     ADR016 --> ADR011[ADR-011: CDC Support]
@@ -55,10 +55,10 @@ graph TD
 ```mermaid
 graph TD
     %% Streaming dependencies (ADR-021 requires ADR-016)
-    ADR016[ADR-016: Storage ✅] --> ADR021[ADR-021: Context Streaming]
+    ADR016[ADR-016: Storage ✅] --> ADR021[ADR-021: Context Streaming ✅]
     
     %% Event triggers (independent, but enhances CDC)
-    ADR025[ADR-025: Event Triggers] --> ADR011[ADR-011: CDC Support]
+    ADR025[ADR-025: Event Triggers ✅] --> ADR011[ADR-011: CDC Support]
     
     %% Replay chain
     ADR024[ADR-024: Saga Replay] --> ADR018[ADR-018: Versioning]
@@ -81,9 +81,18 @@ graph TD
     style ADR016 fill:#51cf66
     style ADR022 fill:#51cf66
     style ADR023 fill:#51cf66
+    style ADR023 fill:#51cf66
     style ADR026 fill:#51cf66
     style ADR028 fill:#51cf66
-    style ADR025 fill:#ffd43b
+    style ADR023 fill:#51cf66
+    style ADR026 fill:#51cf66
+    style ADR028 fill:#51cf66
+    style ADR025 fill:#51cf66
+    style ADR027 fill:#51cf66
+    style ADR021 fill:#51cf66
+
+    %% Independent
+    ADR027[ADR-027: Project CLI ✅]
 ```
 
 ### Independent Features
@@ -91,7 +100,7 @@ graph TD
 - **ADR-017: Chaos Engineering** - No dependencies, can implement anytime
 - **ADR-014: Schema Registry** - Standalone, integrates with triggers
 - **ADR-019: Dry Run Mode** - Can implement before or after other features
-- **ADR-027: Project CLI** - Improves DX, independent
+- **ADR-027: Project CLI** ✅ - Improves DX, independent - **Implemented**
 
 ---
 
@@ -100,12 +109,11 @@ graph TD
 ### Chain 1: Storage → Context → Advanced Features
 
 ```
-ADR-016 (Storage) → ADR-021 (Streaming) → ADR-023 (Pivots)
-                                        → ADR-025 (Triggers)
-                                        → ADR-013 (Analytics)
+ADR-016 (Storage) → ADR-021 (Streaming) → ADR-013 (Analytics)
+ADR-025 (Triggers) → ADR-011 (CDC)
 ```
 
-**Rationale**: Large context objects need external storage (ADR-016) before streaming (ADR-021) makes sense. Pivots and triggers benefit from streaming.
+**Rationale**: Large context objects need external storage (ADR-016) before streaming (ADR-021) makes sense. Triggers are largely independent but enable CDC.
 
 ### Chain 2: Storage → Replay → Testing
 
@@ -154,16 +162,16 @@ ADR-022 (Compensation Passing) → ADR-023 (Pivot Steps)
 | ADR | Priority | Effort | Dependencies |
 |-----|----------|--------|--------------|
 | ✅ ADR-023 | **Complete** | 5-6 weeks | ADR-022 |
-| 🔴 ADR-025 | Critical | 4-5 weeks | None (can parallel) |
+| ✅ ADR-025 | **Complete** | 4-5 weeks | None (can parallel) |
 | 🟡 ADR-019 | Medium | 1-2 weeks | None |
-| 🟢 ADR-027 | High | 6-8 weeks | None |
+| ✅ ADR-027 | **Implemented** | 2 weeks | None |
 | ✅ ADR-028 | **Examples Created** | 4-5 weeks | ADR-016 |
 
 **Deliverables**:
 - ✅ Pivot steps with forward recovery (`sagaz/pivot.py`)
 - Event-driven triggers (Kafka, RabbitMQ, Redis, Cron, Webhook)
 - Dry run mode for testing
-- Project scaffolding (`sagaz init`, `check`)
+- Project scaffolding (`sagaz project init`, `check`, `list`) - **Complete**
 - ✅ FastAPI, Django, Flask integration examples
 
 **User Impact**:
@@ -179,7 +187,7 @@ ADR-022 (Compensation Passing) → ADR-023 (Pivot Steps)
 
 | ADR | Priority | Effort | Dependencies |
 |-----|----------|--------|--------------|
-| 🟡 ADR-021 | Medium | 4-5 weeks | ADR-016 |
+| ✅ ADR-021 | **Implemented** | 4-5 weeks | ADR-016 |
 | 🟡 ADR-020 | Medium | 3-4 weeks | ADR-016 |
 | 🟢 ADR-017 | Low | 2 weeks | None |
 | ✅ ADR-026 | **Complete** | 5-6 weeks | ADR-023 |

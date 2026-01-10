@@ -24,11 +24,11 @@ Every ADR now includes a **Dependencies** section showing:
 - ✅ **ADR-023**: Pivot/Irreversible Steps - **IMPLEMENTED** (`sagaz/pivot.py`)
 - 🟡 **ADR-025**: Event-Driven Triggers - *No prerequisites*
 - 🟡 **ADR-019**: Dry Run Mode - *No prerequisites*
-- 🟡 **ADR-027**: Project CLI - *No prerequisites*
+- ✅ **ADR-027**: Project CLI - **IMPLEMENTED** (Init, Check, List)
 - ✅ **ADR-028**: Framework Integration - **EXAMPLES CREATED** (FastAPI, Django, Flask)
 
 ### Phase 3: Scalability (v1.4.0)
-- 🟡 **ADR-021**: Context Streaming - *Requires ADR-016*
+- ✅ **ADR-021**: Context Streaming - **IMPLEMENTED** (Requires ADR-016)
 - 🟡 **ADR-020**: Multi-Tenancy - *Requires ADR-016*
 - 🟡 **ADR-017**: Chaos Engineering - *No prerequisites*
 - ✅ **ADR-026**: Industry Examples Expansion - **COMPLETE (24 examples)**
