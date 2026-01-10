@@ -119,6 +119,42 @@ def get_example_description(path: Path) -> str:
     return "No description"
 
 
+# ============================================================================
+# CLI Group
+# ============================================================================
+
+@click.group(name="examples")
+def examples_cli():
+    """
+    Explore and run Sagaz examples.
+    """
+    pass
+
+
+# ============================================================================
+# Commands
+# ============================================================================
+
+@examples_cli.command(name="list")
+@click.option("--category", help="Filter by category (e.g. ecommerce)")
+def list_examples(category: str | None = None):
+    """List available examples."""
+    list_examples_cmd(category)
+
+
+@examples_cli.command(name="run")
+@click.argument("name")
+def run_example(name: str):
+    """Run a specific example by name."""
+    run_example_cmd(name)
+
+
+@examples_cli.command(name="select")
+@click.option("--category", help="Start in specific category")
+def select_example(category: str | None = None):
+    """Interactive example browser."""
+    interactive_cmd(category)
+
 def list_examples_cmd(category: str | None = None):
     """List available examples."""
     examples = discover_examples(category)

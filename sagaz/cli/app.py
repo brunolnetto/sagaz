@@ -21,6 +21,7 @@ from pathlib import Path
 import click
 
 from sagaz.cli import examples as cli_examples
+from sagaz.cli.project import project_cli
 
 try:
     from rich.console import Console
@@ -1029,8 +1030,9 @@ def run_example(name: str):
         sagaz examples run ecommerce/order_processing
         sagaz examples run monitoring
     """
-    cli_examples.run_example_cmd(name)
-
+    
+cli.add_command(cli_examples.examples_cli)
+cli.add_command(project_cli)
 
 if __name__ == "__main__":
     cli()

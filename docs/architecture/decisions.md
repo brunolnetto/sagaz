@@ -329,6 +329,14 @@ Implementation plan: [Unified Storage Implementation Plan](implementation-plans/
 
 ---
 
+### ADR-027: Project-Centric CLI
+- **Status**: Accepted
+- **Implemented**: Yes (Init, Check, List)
+- **Decision**: Adopt dbt/Airflow-style project structure with `sagaz.yaml` manifest.
+- **Components**: `project init`, `project check`, `project list` commands.
+
+---
+
 ## ADR-023: Pivot/Irreversible Steps
 
 ### Context
@@ -352,7 +360,7 @@ Introduce **pivot steps** with taint propagation and forward recovery:
 
 ### Status
 
-**Proposed** - See [ADR-023: Pivot/Irreversible Steps](adr/adr-023-pivot-irreversible-steps.md) for comprehensive design.
+**Accepted** - See [ADR-023: Pivot/Irreversible Steps](adr/adr-023-pivot-irreversible-steps.md) for comprehensive design.
 
 ---
 
@@ -377,7 +385,27 @@ Implement **Event-Driven Triggers** with auto-discovery:
 
 ### Status
 
-**Proposed** - See [ADR-025: Event-Driven Triggers](adr/adr-025-event-driven-triggers.md) for details.
+**Accepted** - See [ADR-025: Event-Driven Triggers](adr/adr-025-event-driven-triggers.md) for details.
+
+---
+
+## ADR-021: Lightweight Context & Streaming
+
+### Context
+
+Large payloads (files, datasets) cause OOM errors and database bloat when stored in saga context. Also, steps couldn't stream data to each other.
+
+### Decision
+
+Implement **Reference-Based Context** and **Streaming**:
+- **External Storage**: Abstraction for S3/Blob storage offloading
+- **Auto-Offload**: Automatically move large values (>1MB) to external storage
+- **Streaming**: Support `AsyncGenerator` in context for direct step-to-step pipelining
+
+### Status
+
+**Accepted** - See [ADR-021: Context Streaming](adr/adr-021-lightweight-context-streaming.md).
+**Implemented** - Core logic in `sagaz.core.context` (referencing, streaming, S3/File backends).
 
 ---
 
@@ -398,6 +426,7 @@ Implement **Event-Driven Triggers** with auto-discovery:
 | 11 | CDC Support | High-throughput upgrade path (proposed) |
 | 12 | Synchronous Orchestration | Simplicity for single-service sagas |
 | 16 | Unified Storage Layer | DRY, full Redis support, data transfer |
-| 23 | Pivot/Irreversible Steps | Handle irreversible operations (proposed) |
-| 25 | Event-Driven Triggers | Auto-discovered, reactive sagas (proposed) |
+| 23 | Pivot/Irreversible Steps | Handle irreversible operations |
+| 25 | Event-Driven Triggers | Auto-discovered, reactive sagas |
+| 21 | Context Streaming | Reference-based context for large payloads (Implemented) |
 

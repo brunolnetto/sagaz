@@ -1,7 +1,7 @@
 # ADR-027: Project-Centric CLI (Airflow/dbt-inspired)
 
-**Date**: 2026-01-07  
-**Status**: Proposed  
+**Date**: 2026-01-09  
+**Status**: Accepted  
 **Target Version**: v1.4.0  
 **Priority**: High  
 **Complexity**: High  
@@ -15,10 +15,10 @@
 
 As `sagaz` adoption grows, users building systems with 10–50+ sagas face organizational challenges:
 
-1. **No canonical structure**: Every team invents their own layout for saga files, tests, and configs.
-2. **No discovery mechanism**: Users must manually register sagas or create custom import machinery.
-3. **No pre-flight validation**: Circular dependencies, missing compensations, and config errors are only caught at runtime.
-4. **Environment management is ad-hoc**: Connection strings and credentials are hardcoded or managed inconsistently.
+1.  **No canonical structure**: Every team invents their own layout for saga files, tests, and configs.
+2.  **No discovery mechanism**: Users must manually register sagas or create custom import machinery.
+3.  **No pre-flight validation**: Circular dependencies, missing compensations, and config errors are only caught at runtime.
+4.  **Environment management is ad-hoc**: Connection strings and credentials are hardcoded or managed inconsistently.
 
 Tools like **dbt** and **Apache Airflow** solve analogous problems for data pipelines and workflows. Their project-centric CLIs are a key reason for their adoption.
 
@@ -36,11 +36,9 @@ These are *deployment* and *demo* oriented. We lack *project* and *saga* managem
 
 ## Decision
 
-Implement a **project-centric CLI** that treats a directory as a "Sagaz project" with:
-1. A manifest file (`sagaz.yaml`) defining project metadata.
-2. Auto-discovery of `Saga` subclasses in designated source directories.
-3. Validation, listing, and execution commands.
-4. Environment profiles with secret interpolation.
+The project CLI will be implemented as a new command group `sagaz project` within the main `sagaz` CLI.
+
+**Status**: Implemented (Init, Check, List)
 
 ### 1. Project Structure
 
@@ -70,7 +68,7 @@ name: my_project
 version: "1.0.0"
 profile: default  # References profiles.yaml
 
-saga-paths:
+paths:
   - sagas/  # Default; can add more
 
 config:
@@ -117,7 +115,7 @@ Secret interpolation uses `{{ env_var('NAME') }}` syntax (like dbt).
 ### 5. Saga Discovery
 
 The discovery algorithm:
-1. Walk all paths in `saga-paths`.
+1. Walk all paths in `paths`.
 2. For each `.py` file, attempt import (sandboxed with fresh `sys.modules` snapshot).
 3. Inspect module for classes subclassing `sagaz.Saga`.
 4. Extract metadata: `saga_name`, steps, dependencies, tags.
