@@ -98,7 +98,7 @@ def get_categories() -> list[str]:
     for item in examples_dir.iterdir():
         if item.is_dir() and not item.name.startswith("_"):
             for _root, _, files in os.walk(item):
-                if "main.py" in files:
+                if "main.py" in files or "demo.py" in files:
                     categories.append(item.name)
                     break
 
@@ -142,12 +142,16 @@ def discover_examples(category: str | None = None) -> dict[str, Path]:
         search_dir = examples_dir
 
     for root, _, files in os.walk(search_dir):
-        if "main.py" in files:
+        if "main.py" in files or "demo.py" in files:
             path = Path(root)
             try:
                 rel_path = path.relative_to(examples_dir)
                 name = str(rel_path).replace(os.sep, "/")
-                found[name] = path / "main.py"
+                # Prefer demo.py for integrations, otherwise use main.py
+                if "demo.py" in files and "integrations" in name:
+                    found[name] = path / "demo.py"
+                elif "main.py" in files:
+                    found[name] = path / "main.py"
             except ValueError:  # pragma: no cover
                 continue
 
@@ -551,6 +555,16 @@ def _check_requirements(requirements_file: Path, script_path: Path) -> None:
     """Check if required packages are installed and warn user."""
     import importlib.util
 
+    # Map package names to import names
+    package_to_import = {
+        "python-dotenv": "dotenv",
+        "pillow": "PIL",
+        "opencv-python": "cv2",
+        "scikit-learn": "sklearn",
+        "beautifulsoup4": "bs4",
+        "python-dateutil": "dateutil",
+    }
+
     # Read requirements and extract package names
     try:
         with requirements_file.open() as f:
@@ -564,7 +578,11 @@ def _check_requirements(requirements_file: Path, script_path: Path) -> None:
         if req.startswith("sagaz"):
             continue  # Skip sagaz itself
         pkg_name = req.split(">=")[0].split("==")[0].split("<")[0].split(">")[0].strip()
-        if importlib.util.find_spec(pkg_name) is None:
+
+        # Convert package name to import name
+        import_name = package_to_import.get(pkg_name, pkg_name)
+
+        if importlib.util.find_spec(import_name) is None:
             missing_packages.append(pkg_name)
 
     if missing_packages and console:
