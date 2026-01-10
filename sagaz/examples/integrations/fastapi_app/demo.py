@@ -30,7 +30,7 @@ def install_dependencies():
     """Offer to install required dependencies."""
     requirements_path = Path(__file__).parent / "requirements.txt"
     print("\n⚠️  Required dependencies not installed!")
-    print(f"\n📦 Required: fastapi, uvicorn")
+    print("\n📦 Required: fastapi, uvicorn")
     print(f"\nInstall command: pip install -r {requirements_path}")
 
     response = input("\nInstall dependencies now? (y/N): ").strip().lower()
@@ -63,9 +63,8 @@ def main():
     print()
 
     # Check and install dependencies if needed
-    if not check_dependencies():
-        if not install_dependencies():
-            return 1
+    if not check_dependencies() and not install_dependencies():
+        return 1
 
     print()
     print("✅ All dependencies installed!")
@@ -81,6 +80,8 @@ def main():
     print("  🌐 Swagger UI:    http://localhost:8000/docs")
     print("  📚 ReDoc:         http://localhost:8000/redoc")
     print("  ❤️  Health Check:  http://localhost:8000/health")
+    print("  📊 Order Diagram: http://localhost:8000/orders/<order_id>/diagram")
+    print("  🎯 Webhook:       http://localhost:8000/webhooks/<source>")
     print()
 
     print("=" * 70)
@@ -92,27 +93,27 @@ def main():
     print("   curl http://localhost:8000/health")
     print()
 
-    print("2️⃣  Create Order (Synchronous):")
-    print("   curl -X POST http://localhost:8000/orders \\")
-    print('        -H "Content-Type: application/json" \\')
-    print('        -d \'{"order_id": "ORD-001", "amount": 99.99}\'')
-    print()
-
-    print("3️⃣  Create Order (Background):")
-    print("   curl -X POST http://localhost:8000/orders/async \\")
-    print('        -H "Content-Type: application/json" \\')
-    print('        -d \'{"order_id": "ORD-002", "amount": 149.99}\'')
-    print()
-
-    print("4️⃣  Get Saga Diagram:")
+    print("2️⃣  Get Saga Diagram:")
     print("   curl http://localhost:8000/orders/ORD-001/diagram")
     print()
 
+    print("3️⃣  Trigger Order Saga via Webhook:")
+    print("   curl -X POST http://localhost:8000/webhooks/order_created \\")
+    print('        -H "Content-Type: application/json" \\')
+    print('        -d \'{"order_id": "ORD-001", "amount": 99.99, "user_id": "user-123"}\'')
+    print()
+
+    print("4️⃣  Trigger with High Amount (will fail payment):")
+    print("   curl -X POST http://localhost:8000/webhooks/order_created \\")
+    print('        -H "Content-Type: application/json" \\')
+    print('        -d \'{"order_id": "ORD-002", "amount": 1500.00, "user_id": "user-456"}\'')
+    print()
+
     print("5️⃣  With Correlation ID:")
-    print("   curl -X POST http://localhost:8000/orders \\")
+    print("   curl -X POST http://localhost:8000/webhooks/order_created \\")
     print('        -H "Content-Type: application/json" \\')
     print('        -H "X-Correlation-ID: my-trace-123" \\')
-    print('        -d \'{"order_id": "ORD-003", "amount": 199.99}\'')
+    print('        -d \'{"order_id": "ORD-003", "amount": 299.99, "user_id": "user-789"}\'')
     print()
 
     # Ask if user wants to run the server
@@ -166,6 +167,8 @@ def main():
     print("  🌐 Swagger UI:    http://localhost:8000/docs")
     print("  📚 ReDoc:         http://localhost:8000/redoc")
     print("  ❤️  Health Check:  http://localhost:8000/health")
+    print("  📊 Order Diagram: http://localhost:8000/orders/<order_id>/diagram")
+    print("  🎯 Webhook:       http://localhost:8000/webhooks/<source>")
     print()
 
     print("=" * 70)
@@ -177,44 +180,44 @@ def main():
     print("   curl http://localhost:8000/health")
     print()
 
-    print("2️⃣  Create Order (Synchronous):")
-    print("   curl -X POST http://localhost:8000/orders \\")
-    print('        -H "Content-Type: application/json" \\')
-    print('        -d \'{"order_id": "ORD-001", "amount": 99.99}\'')
-    print()
-
-    print("3️⃣  Create Order (Background):")
-    print("   curl -X POST http://localhost:8000/orders/async \\")
-    print('        -H "Content-Type: application/json" \\')
-    print('        -d \'{"order_id": "ORD-002", "amount": 149.99}\'')
-    print()
-
-    print("4️⃣  Get Saga Diagram:")
+    print("2️⃣  Get Saga Diagram:")
     print("   curl http://localhost:8000/orders/ORD-001/diagram")
     print()
 
+    print("3️⃣  Trigger Order Saga via Webhook:")
+    print("   curl -X POST http://localhost:8000/webhooks/order_created \\")
+    print('        -H "Content-Type: application/json" \\')
+    print('        -d \'{"order_id": "ORD-001", "amount": 99.99, "user_id": "user-123"}\'')
+    print()
+
+    print("4️⃣  Trigger with High Amount (will fail payment):")
+    print("   curl -X POST http://localhost:8000/webhooks/order_created \\")
+    print('        -H "Content-Type: application/json" \\')
+    print('        -d \'{"order_id": "ORD-002", "amount": 1500.00, "user_id": "user-456"}\'')
+    print()
+
     print("5️⃣  With Correlation ID:")
-    print("   curl -X POST http://localhost:8000/orders \\")
+    print("   curl -X POST http://localhost:8000/webhooks/order_created \\")
     print('        -H "Content-Type: application/json" \\')
     print('        -H "X-Correlation-ID: my-trace-123" \\')
-    print('        -d \'{"order_id": "ORD-003", "amount": 199.99}\'')
+    print('        -d \'{"order_id": "ORD-003", "amount": 299.99, "user_id": "user-789"}\'')
     print()
 
     print("=" * 70)
     print("💡 KEY FEATURES")
     print("=" * 70)
     print()
-    print("• Dependency Injection:")
-    print("  Use Depends(saga_factory(OrderSaga)) in route handlers")
+    print("• Webhook Integration:")
+    print("  create_webhook_router() provides POST /webhooks/{source}")
     print()
-    print("• Background Tasks:")
-    print("  Long-running sagas execute without blocking responses")
+    print("• Trigger Decorator:")
+    print("  @trigger maps webhook events to saga execution")
     print()
-    print("• Middleware:")
-    print("  SagaContextMiddleware auto-propagates correlation IDs")
+    print("• Async Native:")
+    print("  Full async/await support for high-performance execution")
     print()
     print("• Lifespan Management:")
-    print("  create_lifespan(config) handles startup/shutdown")
+    print("  sagaz_startup() and sagaz_shutdown() handle lifecycle")
     print()
 
     print("=" * 70)

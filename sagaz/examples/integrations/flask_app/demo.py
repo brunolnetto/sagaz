@@ -29,7 +29,7 @@ def install_dependencies():
     """Offer to install required dependencies."""
     requirements_path = Path(__file__).parent / "requirements.txt"
     print("\n⚠️  Required dependencies not installed!")
-    print(f"\n📦 Required: flask")
+    print("\n📦 Required: flask")
     print(f"\nInstall command: pip install -r {requirements_path}")
 
     response = input("\nInstall dependencies now? (y/N): ").strip().lower()
@@ -62,9 +62,8 @@ def main():
     print()
 
     # Check and install dependencies if needed
-    if not check_dependencies():
-        if not install_dependencies():
-            return 1
+    if not check_dependencies() and not install_dependencies():
+        return 1
 
     print()
     print("✅ All dependencies installed!")
@@ -78,7 +77,8 @@ def main():
     print("Once the server starts, you can access:")
     print()
     print("  ❤️  Health Check:  http://localhost:5000/health")
-    print("  📊 Order Diagram: http://localhost:5000/orders/ORD-001/diagram")
+    print("  📊 Order Diagram: http://localhost:5000/orders/<order_id>/diagram")
+    print("  🎯 Webhook:       http://localhost:5000/webhooks/<source>")
     print()
 
     print("=" * 70)
@@ -90,33 +90,27 @@ def main():
     print("   curl http://localhost:5000/health")
     print()
 
-    print("2️⃣  Create Order (Using Extension):")
-    print("   curl -X POST http://localhost:5000/orders \\")
-    print('        -H "Content-Type: application/json" \\')
-    print('        -d \'{"order_id": "ORD-001", "amount": 99.99}\'')
-    print()
-
-    print("3️⃣  Create Order (Standalone Function):")
-    print("   curl -X POST http://localhost:5000/orders/standalone \\")
-    print('        -H "Content-Type: application/json" \\')
-    print('        -d \'{"order_id": "ORD-002", "amount": 149.99}\'')
-    print()
-
-    print("4️⃣  Get Saga Diagram:")
+    print("2️⃣  Get Saga Diagram:")
     print("   curl http://localhost:5000/orders/ORD-001/diagram")
     print()
 
-    print("5️⃣  With Correlation ID:")
-    print("   curl -X POST http://localhost:5000/orders \\")
+    print("3️⃣  Trigger Order Saga via Webhook:")
+    print("   curl -X POST http://localhost:5000/webhooks/order_created \\")
     print('        -H "Content-Type: application/json" \\')
-    print('        -H "X-Correlation-ID: my-trace-456" \\')
-    print('        -d \'{"order_id": "ORD-003", "amount": 199.99}\'')
+    print('        -d \'{"order_id": "ORD-001", "amount": 99.99, "user_id": "user-123"}\'')
     print()
 
-    print("6️⃣  Trigger via Webhook (Event-Driven):")
-    print("   curl -X POST http://localhost:5000/webhooks/order.created \\")
+    print("4️⃣  Trigger with High Amount (will fail payment):")
+    print("   curl -X POST http://localhost:5000/webhooks/order_created \\")
     print('        -H "Content-Type: application/json" \\')
-    print('        -d \'{"order_id": "ORD-004", "amount": 299.99}\'')
+    print('        -d \'{"order_id": "ORD-002", "amount": 1500.00, "user_id": "user-456"}\'')
+    print()
+
+    print("5️⃣  With Correlation ID:")
+    print("   curl -X POST http://localhost:5000/webhooks/order_created \\")
+    print('        -H "Content-Type: application/json" \\')
+    print('        -H "X-Correlation-ID: my-trace-456" \\')
+    print('        -d \'{"order_id": "ORD-003", "amount": 299.99, "user_id": "user-789"}\'')
     print()
 
     # Ask if user wants to run the server
@@ -171,7 +165,8 @@ def main():
     print("Once running, access:")
     print()
     print("  ❤️  Health Check:  http://localhost:5000/health")
-    print("  📊 Order Diagram: http://localhost:5000/orders/ORD-001/diagram")
+    print("  📊 Order Diagram: http://localhost:5000/orders/<order_id>/diagram")
+    print("  🎯 Webhook:       http://localhost:5000/webhooks/<source>")
     print()
 
     print("=" * 70)
@@ -183,33 +178,27 @@ def main():
     print("   curl http://localhost:5000/health")
     print()
 
-    print("2️⃣  Create Order (Using Extension):")
-    print("   curl -X POST http://localhost:5000/orders \\")
-    print('        -H "Content-Type: application/json" \\')
-    print('        -d \'{"order_id": "ORD-001", "amount": 99.99}\'')
-    print()
-
-    print("3️⃣  Create Order (Standalone Function):")
-    print("   curl -X POST http://localhost:5000/orders/standalone \\")
-    print('        -H "Content-Type: application/json" \\')
-    print('        -d \'{"order_id": "ORD-002", "amount": 149.99}\'')
-    print()
-
-    print("4️⃣  Get Saga Diagram:")
+    print("2️⃣  Get Saga Diagram:")
     print("   curl http://localhost:5000/orders/ORD-001/diagram")
     print()
 
-    print("5️⃣  With Correlation ID:")
-    print("   curl -X POST http://localhost:5000/orders \\")
+    print("3️⃣  Trigger Order Saga via Webhook:")
+    print("   curl -X POST http://localhost:5000/webhooks/order_created \\")
     print('        -H "Content-Type: application/json" \\')
-    print('        -H "X-Correlation-ID: my-trace-456" \\')
-    print('        -d \'{"order_id": "ORD-003", "amount": 199.99}\'')
+    print('        -d \'{"order_id": "ORD-001", "amount": 99.99, "user_id": "user-123"}\'')
     print()
 
-    print("6️⃣  Trigger via Webhook (Event-Driven):")
-    print("   curl -X POST http://localhost:5000/webhooks/order.created \\")
+    print("4️⃣  Trigger with High Amount (will fail payment):")
+    print("   curl -X POST http://localhost:5000/webhooks/order_created \\")
     print('        -H "Content-Type: application/json" \\')
-    print('        -d \'{"order_id": "ORD-004", "amount": 299.99}\'')
+    print('        -d \'{"order_id": "ORD-002", "amount": 1500.00, "user_id": "user-456"}\'')
+    print()
+
+    print("5️⃣  With Correlation ID:")
+    print("   curl -X POST http://localhost:5000/webhooks/order_created \\")
+    print('        -H "Content-Type: application/json" \\')
+    print('        -H "X-Correlation-ID: my-trace-456" \\')
+    print('        -d \'{"order_id": "ORD-003", "amount": 299.99, "user_id": "user-789"}\'')
     print()
 
     print("=" * 70)

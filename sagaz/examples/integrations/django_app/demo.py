@@ -29,7 +29,7 @@ def install_dependencies():
     """Offer to install required dependencies."""
     requirements_path = Path(__file__).parent / "requirements.txt"
     print("\n⚠️  Required dependencies not installed!")
-    print(f"\n📦 Required: django")
+    print("\n📦 Required: django")
     print(f"\nInstall command: pip install -r {requirements_path}")
 
     response = input("\nInstall dependencies now? (y/N): ").strip().lower()
@@ -62,9 +62,8 @@ def main():
     print()
 
     # Check and install dependencies if needed
-    if not check_dependencies():
-        if not install_dependencies():
-            return 1
+    if not check_dependencies() and not install_dependencies():
+        return 1
 
     print()
     print("✅ All dependencies installed!")
