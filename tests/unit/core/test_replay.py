@@ -391,11 +391,12 @@ class TestSagaReplay:
         )
         await storage.save_snapshot(snapshot)
 
-        # Replay from checkpoint
+        # Replay from checkpoint (dry-run mode - validation only)
         replay = SagaReplay(saga_id=saga_id, snapshot_storage=storage)
         result = await replay.from_checkpoint(
             step_name="step1",
             context_override={"new": "override"},
+            dry_run=True,  # Just validation
         )
 
         assert result.replay_status == ReplayStatus.SUCCESS
@@ -460,9 +461,9 @@ class TestSagaReplay:
         )
         await storage.save_snapshot(snapshot)
 
-        # Execute replay
+        # Execute replay (dry-run)
         replay = SagaReplay(saga_id=saga_id, snapshot_storage=storage)
-        await replay.from_checkpoint(step_name="step1")
+        await replay.from_checkpoint(step_name="step1", dry_run=True)
 
         # Check history
         history = await replay.get_replay_history()

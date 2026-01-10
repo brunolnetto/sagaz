@@ -55,10 +55,12 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 if TYPE_CHECKING:  # pragma: no cover
+    from sagaz.core.replay import ReplayConfig, SagaSnapshot
     from sagaz.storage.base import SagaStorage
+    from sagaz.storage.interfaces.snapshot import SnapshotStorage
 
 
 from statemachine.exceptions import TransitionNotAllowed
@@ -129,6 +131,8 @@ class Saga(ABC):
         version: str = "1.0",
         failure_strategy: ParallelFailureStrategy = ParallelFailureStrategy.FAIL_FAST_WITH_GRACE,
         retry_backoff_base: float = 0.01,  # Base timeout for exponential backoff (seconds)
+        replay_config: "ReplayConfig | None" = None,
+        snapshot_storage: "SnapshotStorage | None" = None,
     ):
         self.name = name
         self.version = version
@@ -152,6 +156,10 @@ class Saga(ABC):
         self.execution_batches: list[set[str]] = []
         self.failure_strategy = failure_strategy
         self._has_dependencies = False  # Track if any step has explicit dependencies
+        
+        # Replay support
+        self.replay_config = replay_config
+        self.snapshot_storage = snapshot_storage
 
     async def _on_enter_executing(self) -> None:
         """Callback: entering EXECUTING state"""
@@ -747,16 +755,26 @@ class Saga(ABC):
         """Execute in sequential mode."""
         logger.info(f"Executing saga {self.name} in sequential mode")
 
-        for step in self.steps:
+        for i, step in enumerate(self.steps):
             if step.idempotency_key in self._executed_step_keys:
                 logger.info(f"Skipping step '{step.name}' - already executed (idempotent)")
                 continue
+
+            # Capture snapshot before step execution
+            await self._capture_snapshot(step.name, i, before=True)
 
             await self._execute_step_with_retry(step)
             self.completed_steps.append(step)
             self._executed_step_keys.add(step.idempotency_key)
 
+            # Capture snapshot after step execution
+            await self._capture_snapshot(step.name, i, before=False)
+
         await self._state_machine.succeed()
+
+        # Capture completion snapshot if configured
+        if self.replay_config and self.replay_config.enable_snapshots:
+            await self._capture_snapshot("__completed__", len(self.steps), before=False)
 
         return SagaResult(
             success=True,
@@ -1025,6 +1043,158 @@ class Saga(ABC):
     def _format_datetime(dt: datetime | None) -> str | None:
         """Format datetime to ISO string or None."""
         return dt.isoformat() if dt else None
+
+    # =========================================================================
+    # Replay & Snapshot Support
+    # =========================================================================
+
+    async def _capture_snapshot(
+        self, step_name: str, step_index: int, before: bool = True
+    ) -> None:
+        """
+        Capture a snapshot of current saga state.
+
+        Args:
+            step_name: Name of the step being executed
+            step_index: Index of the step
+            before: If True, snapshot taken before step; if False, after step
+        """
+        if not self.replay_config or not self.replay_config.enable_snapshots:
+            return
+
+        if not self.snapshot_storage:
+            logger.warning("Snapshot capture enabled but no snapshot_storage configured")
+            return
+
+        from sagaz.core.replay import SagaSnapshot, SnapshotStrategy
+
+        strategy = self.replay_config.snapshot_strategy
+
+        # Determine if we should capture based on strategy
+        should_capture = False
+        if strategy == SnapshotStrategy.BEFORE_EACH_STEP and before:
+            should_capture = True
+        elif strategy == SnapshotStrategy.AFTER_EACH_STEP and not before:
+            should_capture = True
+        elif strategy == SnapshotStrategy.ON_COMPLETION and self.status == SagaStatus.COMPLETED:
+            should_capture = True
+        elif strategy == SnapshotStrategy.ON_FAILURE and self.status == SagaStatus.FAILED:
+            should_capture = True
+
+        if not should_capture:
+            return
+
+        try:
+            snapshot = SagaSnapshot.create(
+                saga_id=UUID(self.saga_id),  # Convert string to UUID
+                saga_name=self.name,
+                step_name=step_name,
+                step_index=step_index,
+                status=self.status.value,
+                context=self.context.data.copy(),  # Use .data attribute
+                completed_steps=[s.name for s in self.completed_steps],
+                retention_until=self.replay_config.get_retention_until(),
+            )
+            await self.snapshot_storage.save_snapshot(snapshot)
+            logger.debug(
+                f"Snapshot captured for saga {self.saga_id} at step '{step_name}' "
+                f"({'before' if before else 'after'})"
+            )
+        except Exception as e:
+            logger.error(f"Failed to capture snapshot: {e}", exc_info=True)
+
+    async def execute_from_snapshot(
+        self,
+        snapshot: "SagaSnapshot",
+        context_override: dict[str, Any] | None = None,
+    ) -> SagaResult:
+        """
+        Resume saga execution from a snapshot.
+
+        Args:
+            snapshot: Snapshot to resume from
+            context_override: Optional context overrides
+
+        Returns:
+            SagaResult with execution outcome
+
+        Raises:
+            SagaExecutionError: If saga cannot be resumed
+        """
+        async with self._execution_lock:
+            if self._executing:
+                msg = "Saga is already executing"
+                raise SagaExecutionError(msg)
+
+            self._executing = True
+            start_time = datetime.now()
+
+            try:
+                # Restore context from snapshot
+                self.context = SagaContext(_saga_id=self.saga_id)
+                self.context.data = snapshot.context.copy()
+
+                # Apply context overrides
+                if context_override:
+                    self.context.data.update(context_override)
+                    logger.info(
+                        f"Applied {len(context_override)} context overrides to saga {self.saga_id}"
+                    )
+
+                # Mark completed steps as executed (idempotency)
+                completed_step_names = set(snapshot.completed_steps)
+                self._executed_step_keys = {
+                    step.idempotency_key
+                    for step in self.steps
+                    if step.name in completed_step_names
+                }
+
+                # Start state machine
+                try:
+                    await self._state_machine.start()
+                except TransitionNotAllowed as e:
+                    msg = f"Cannot start saga from snapshot: {e}"
+                    raise SagaExecutionError(msg)
+
+                logger.info(
+                    f"Resuming saga {self.name} from step '{snapshot.step_name}' "
+                    f"({len(completed_step_names)} steps already completed)"
+                )
+
+                # Execute remaining steps (sequential mode for now)
+                for i, step in enumerate(self.steps):
+                    if step.idempotency_key in self._executed_step_keys:
+                        logger.info(f"Skipping step '{step.name}' - already completed")
+                        self.completed_steps.append(step)
+                        continue
+
+                    # Capture snapshot before executing
+                    await self._capture_snapshot(step.name, i, before=True)
+
+                    await self._execute_step_with_retry(step)
+                    self.completed_steps.append(step)
+                    self._executed_step_keys.add(step.idempotency_key)
+
+                    # Capture snapshot after executing
+                    await self._capture_snapshot(step.name, i, before=False)
+
+                await self._state_machine.succeed()
+
+                return SagaResult(
+                    success=True,
+                    saga_name=self.name,
+                    status=SagaStatus.COMPLETED,
+                    completed_steps=len(self.completed_steps),
+                    total_steps=len(self.steps),
+                    execution_time=(datetime.now() - start_time).total_seconds(),
+                    context=self.context,
+                )
+
+            except Exception as e:
+                return await self._handle_execution_failure(e, start_time)
+
+            finally:
+                self._executing = False
 
     # =========================================================================
     # API Protection - Prevent mixing declarative and imperative approaches
