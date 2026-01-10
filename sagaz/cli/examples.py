@@ -107,13 +107,20 @@ def get_example_description(path: Path) -> str:
     """Extract description from example's main.py docstring."""
     try:
         with path.open() as f:
-            first_line = f.readline().strip()
-            if first_line.startswith(('"""', "'''")):
-                desc = first_line.strip("\"'- ").strip()
-                if not desc:
-                    second_line = f.readline().strip()
-                    desc = second_line
-                return desc if desc else "No description"
+            for line in f:
+                stripped = line.strip()
+                # Skip shebang and empty lines
+                if stripped.startswith("#!") or not stripped:
+                    continue
+                # Found docstring
+                if stripped.startswith(('"""', "'''")):
+                    desc = stripped.strip("\"'- ").strip()
+                    if not desc:
+                        # Multi-line docstring, read next line
+                        desc = f.readline().strip()
+                    return desc if desc else "No description"
+                # No docstring found
+                break
     except Exception:
         pass
     return "No description"
@@ -124,11 +131,15 @@ def get_example_description(path: Path) -> str:
 # ============================================================================
 
 
-@click.group(name="examples")
-def examples_cli():
+@click.group(name="examples", invoke_without_command=True)
+@click.pass_context
+def examples_cli(ctx):
     """
     Explore and run Sagaz examples.
     """
+    # If no subcommand provided, default to interactive selector
+    if ctx.invoked_subcommand is None:
+        interactive_cmd()
 
 
 # ============================================================================
@@ -239,6 +250,22 @@ def interactive_cmd(category: str | None = None):
         _category_menu_loop()
 
 
+def _format_category_name(category: str) -> str:
+    """Format category name with proper capitalization."""
+    # Special cases for acronyms
+    special_cases = {
+        "iot": "IoT",
+        "ml": "ML",
+        "ai_agents": "AI Agents",
+    }
+
+    if category.lower() in special_cases:
+        return special_cases[category.lower()]
+
+    # Default: replace underscores with spaces and title case each word
+    return " ".join(word.capitalize() for word in category.split("_"))
+
+
 def _category_menu_loop():  # pragma: no cover
     """Main category selection loop."""
     categories = get_categories()
@@ -257,7 +284,8 @@ def _category_menu_loop():  # pragma: no cover
         for cat in categories:
             examples = discover_examples(cat)
             count = len(examples)
-            menu_entries.append(f"📁 {cat.title()}  ({count} examples)")
+            formatted_name = _format_category_name(cat)
+            menu_entries.append(f"📁 {formatted_name}  ({count} examples)")
 
         menu_entries.append("")  # Separator
         menu_entries.append("❌ Exit")
@@ -314,7 +342,8 @@ def _examples_menu_loop(category: str) -> str:  # pragma: no cover
 def _show_category_header(category: str) -> None:  # pragma: no cover
     """Display category header."""
     if console:
-        console.print(f"\n[bold blue]  📁 {category.title()} Examples  [/bold blue]")
+        formatted_name = _format_category_name(category)
+        console.print(f"\n[bold blue]  📁 {formatted_name} Examples  [/bold blue]")
         console.print("[dim]Use ↑/↓ to navigate, Enter to select, q to quit[/dim]\n")
 
 
