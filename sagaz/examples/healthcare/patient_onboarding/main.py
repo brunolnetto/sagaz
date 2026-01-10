@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Any
 
 from sagaz import Saga, SagaContext, action, compensate
-from sagaz.exceptions import SagaStepError
+from sagaz.core.exceptions import SagaStepError
 
 logging.basicConfig(
     level=logging.INFO,
