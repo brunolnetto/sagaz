@@ -65,13 +65,15 @@ app.include_router(create_webhook_router("/webhooks"))
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/health` | GET | Health check |
-| `/webhooks/<source>` | POST | Trigger saga via webhook event |
-| `/webhooks/status/<saga_id>` | GET | Get saga execution status |
+| `/webhooks/<source>` | POST | Trigger saga via webhook event (fire-and-forget) |
+| `/webhooks/<source>/status/<correlation_id>` | GET | Check event processing status |
 | `/orders/{order_id}/diagram` | GET | Get saga Mermaid diagram |
+| `/docs` | GET | Interactive Swagger UI documentation |
+| `/redoc` | GET | Alternative ReDoc documentation |
 
 ## Example Requests
 
-### Trigger Saga via Webhook
+### Trigger Saga via Webhook (Event-Driven Pattern)
 
 ```bash
 curl -X POST http://localhost:8000/webhooks/order_created \
@@ -82,17 +84,33 @@ curl -X POST http://localhost:8000/webhooks/order_created \
 Response:
 ```json
 {
-  "message": "Event queued for processing",
+  "status": "accepted",
   "source": "order_created",
-  "status": "accepted"
+  "message": "Event queued for processing",
+  "correlation_id": "abc123..."
 }
 ```
 
-### Check Saga Status
+### Check Processing Status
 
 ```bash
-curl http://localhost:8000/webhooks/status/<saga_id>
+curl http://localhost:8000/webhooks/order_created/status/abc123...
 ```
+
+Response:
+```json
+{
+  "correlation_id": "abc123...",
+  "source": "order_created",
+  "status": "processing",
+  "message": "Event is being processed. Check saga storage for execution details."
+}
+```
+
+**Production Note:** The status endpoint is simplified for demo purposes. In production:
+- Store saga_ids with correlation_ids in Redis/database
+- Query saga storage backend for actual execution status
+- Return detailed results including step outcomes
 
 Response:
 ```json

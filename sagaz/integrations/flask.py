@@ -94,12 +94,19 @@ class SagaFlask:
 
             payload = request.get_json(silent=True) or {}
 
+            # Generate a correlation ID for this event
+            correlation_id = generate_correlation_id()
+
+            # Store saga IDs for status tracking
+            saga_ids_container = []
+
             # Fire event in background thread (fire-and-forget)
             def process_in_thread():
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 try:
                     saga_ids = loop.run_until_complete(fire_event(source, payload))
+                    saga_ids_container.extend(saga_ids)
                     logger.debug(f"Webhook {source} triggered sagas: {saga_ids}")
                 except Exception as e:  # pragma: no cover
                     logger.error(f"Webhook {source} processing error: {e}")  # pragma: no cover
@@ -110,7 +117,12 @@ class SagaFlask:
             thread.start()
 
             return jsonify(
-                {"status": "accepted", "source": source, "message": "Event queued for processing"}
+                {
+                    "status": "accepted",
+                    "source": source,
+                    "message": "Event queued for processing",
+                    "correlation_id": correlation_id,
+                }
             ), 202  # Accepted
 
         self.app.register_blueprint(bp)
