@@ -9,8 +9,12 @@ Implements replay-from-checkpoint functionality with context override.
 """
 
 import logging
-from typing import Any
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
+
+if TYPE_CHECKING:  # pragma: no cover
+    from sagaz.core.saga import Saga
 
 from sagaz.core.replay import (
     ReplayError,
@@ -31,7 +35,8 @@ class SagaReplay:
     Example:
         replay = SagaReplay(
             saga_id=UUID("abc-123"),
-            snapshot_storage=storage
+            snapshot_storage=storage,
+            saga_factory=my_saga_factory  # Function that creates saga instance
         )
         result = await replay.from_checkpoint(
             step_name="charge_payment",
@@ -44,10 +49,12 @@ class SagaReplay:
         saga_id: UUID,
         snapshot_storage: SnapshotStorage,
         initiated_by: str = "system",
+        saga_factory: "Callable[[str], Saga] | None" = None,
     ):
         self.saga_id = saga_id
         self.snapshot_storage = snapshot_storage
         self.initiated_by = initiated_by
+        self.saga_factory = saga_factory
 
     async def from_checkpoint(
         self,
@@ -122,17 +129,38 @@ class SagaReplay:
                 logger.info("Dry run mode: Validation passed, not executing")
                 result.replay_status = ReplayStatus.SUCCESS
                 result.completed_at = result.created_at
+                await self.snapshot_storage.save_replay_log(result)
                 return result
 
-            # 4. Execute replay (actual execution delegated to saga engine)
-            # Note: This is where we'd integrate with saga execution
-            # For now, we mark as success after validation
-            result.mark_success()
+            # 4. Execute replay - create saga instance and resume
+            if not self.saga_factory:
+                raise ReplayError(
+                    "Cannot execute replay: no saga_factory provided. "
+                    "Use dry_run=True for validation only."
+                )
 
-            logger.info(
-                f"Replay successful: new_saga_id={result.new_saga_id}, "
-                f"original_saga_id={result.original_saga_id}"
+            result.replay_status = ReplayStatus.RUNNING
+
+            # Create saga instance
+            saga_instance = self.saga_factory(snapshot.saga_name)
+            saga_instance.saga_id = str(result.new_saga_id)
+
+            # Execute from snapshot
+            saga_result = await saga_instance.execute_from_snapshot(
+                snapshot, context_override
             )
+
+            if saga_result.success:
+                result.mark_success()
+                logger.info(
+                    f"Replay successful: new_saga_id={result.new_saga_id}, "
+                    f"original_saga_id={result.original_saga_id}"
+                )
+            else:
+                result.mark_failed(str(saga_result.error))
+                logger.error(
+                    f"Replay failed: {saga_result.error}"
+                )
 
             # 5. Log replay
             await self.snapshot_storage.save_replay_log(result)
