@@ -216,6 +216,9 @@ section-order = ["future", "standard-library", "third-party", "first-party", "lo
 [tool.ruff.lint.per-file-ignores]
 # Allow print statements in CLI scripts
 "scripts/*" = ["T20"]
+# Allow print statements in example demo scripts
+"sagaz/examples/*/demo.py" = ["T20"]
+"sagaz/examples/*/*/demo.py" = ["T20"]
 # Allow unused imports in __init__.py (re-exports)
 "__init__.py" = ["F401", "N802"]
 # Sagaz source - allow specific patterns
