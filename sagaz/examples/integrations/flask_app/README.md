@@ -6,10 +6,10 @@ Demonstrates how to integrate Sagaz with Flask using the **native `sagaz.integra
 
 This example showcases:
 
-- **`SagaFlask(app, config)`** - Flask extension for lifecycle management
-- **`run_saga_sync(saga, context)`** - Synchronous wrapper for async sagas
+- **`SagaFlask(app)`** - Flask extension for lifecycle management
+- **`@trigger(source="event_type")`** - Event-driven saga triggering
+- **`register_webhook_blueprint()`** - Webhook endpoint registration
 - **Automatic correlation ID** - Propagated via request hooks
-- **`create_saga(SagaClass)`** - Create saga with correlation ID injected
 
 ## Prerequisites
 
@@ -22,42 +22,33 @@ This example showcases:
 pip install -r requirements.txt
 
 # Run the app
-flask run --reload
-
-# Or directly
 python main.py
 
-# Or from the CLI
+# Or from the CLI (recommended)
 sagaz examples run integrations/flask_app
 ```
 
 ## Usage
 
-### Native Integration Module
+### Webhook Integration
 
 ```python
-from sagaz.integrations.flask import SagaFlask, run_saga_sync
+from sagaz.integrations.flask import SagaFlask
+from sagaz.triggers import trigger
 
-# Create Flask app with Sagaz extension
+# Define saga with trigger
+class OrderSaga(Saga):
+    @trigger(source="order_created", idempotency_key="order_id")
+    def handle_order_created(self, event: dict) -> dict | None:
+        return {"order_id": event["order_id"], "amount": event["amount"]}
+
+# Create Flask app
 app = Flask(__name__)
-config = SagaConfig(metrics=True, logging=True)
-sagaz = SagaFlask(app, config)  # <-- Native extension!
+sagaz = SagaFlask(app)
 
-@app.route("/orders", methods=["POST"])
-def create_order():
-    saga = sagaz.create_saga(OrderSaga)
-    result = sagaz.run_sync(saga, {"order_id": "123"})
-    return jsonify(result)
-```
-
-### Standalone Function
-
-```python
-from sagaz.integrations.flask import run_saga_sync
-
-# Works without the extension
-saga = OrderSaga()
-result = run_saga_sync(saga, {"order_id": "123"})
+# Register webhook blueprint
+sagaz.register_webhook_blueprint("/webhooks")
+# Creates POST /webhooks/{source} endpoint
 ```
 
 ## API Endpoints
@@ -65,9 +56,46 @@ result = run_saga_sync(saga, {"order_id": "123"})
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/health` | GET | Health check |
-| `/orders` | POST | Create order using extension |
-| `/orders/standalone` | POST | Create order using standalone function |
+| `/webhooks/<source>` | POST | Trigger saga via webhook event |
+| `/webhooks/status/<saga_id>` | GET | Get saga execution status |
 | `/orders/<order_id>/diagram` | GET | Get saga Mermaid diagram |
+
+## Example Requests
+
+### Trigger Saga via Webhook
+
+```bash
+curl -X POST http://localhost:5000/webhooks/order_created \
+     -H "Content-Type: application/json" \
+     -d '{"order_id": "ORD-001", "amount": 99.99, "user_id": "user-123"}'
+```
+
+Response:
+```json
+{
+  "message": "Event queued for processing",
+  "source": "order_created",
+  "status": "accepted"
+}
+```
+
+### Check Saga Status
+
+```bash
+curl http://localhost:5000/webhooks/status/<saga_id>
+```
+
+Response:
+```json
+{
+  "saga_id": "abc123",
+  "state": "COMPLETED",
+  "context": {"order_id": "ORD-001", ...},
+  "completed_steps": ["reserve_inventory", "charge_payment", "ship_order"],
+  "failed_step": null,
+  "error": null
+}
+```
 
 ## Correlation ID
 
@@ -75,9 +103,8 @@ The `SagaFlask` extension automatically:
 
 1. Extracts `X-Correlation-ID` from incoming request headers
 2. Generates a new UUID if not present
-3. Stores it in `flask.g.saga_correlation_id`
-4. Includes it in response headers
-5. Injects it into sagas created via `create_saga()`
+3. Includes it in response headers
+4. Propagates it throughout saga execution
 
 ## Notes
 

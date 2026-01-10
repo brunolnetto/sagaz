@@ -18,7 +18,7 @@ Run with: python main.py
 import asyncio
 from typing import Any
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 
 from sagaz import Saga, SagaConfig, action, compensate, configure
 
@@ -124,6 +124,34 @@ def get_order_diagram(order_id: str):
             "format": "mermaid",
         }
     )
+
+
+@app.route("/webhooks/status/<saga_id>")
+def get_webhook_status(saga_id: str):
+    """
+    Get the status of a saga triggered via webhook.
+
+    Returns saga execution status, state, and results.
+    """
+    try:
+        storage = config.storage
+        saga_data = asyncio.run(storage.load(saga_id))
+
+        if not saga_data:
+            return jsonify({"error": "Saga not found", "saga_id": saga_id}), 404
+
+        return jsonify(
+            {
+                "saga_id": saga_id,
+                "state": saga_data.get("state"),
+                "context": saga_data.get("context"),
+                "completed_steps": saga_data.get("completed_steps", []),
+                "failed_step": saga_data.get("failed_step"),
+                "error": saga_data.get("error"),
+            }
+        )
+    except Exception as e:
+        return jsonify({"error": str(e), "saga_id": saga_id}), 500
 
 
 # =============================================================================
