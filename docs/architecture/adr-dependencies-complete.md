@@ -32,7 +32,7 @@ Every ADR now includes a **Dependencies** section showing:
 - ✅ **ADR-026**: Industry Examples Expansion - **COMPLETE (24 examples)**
 
 ### Phase 4: Advanced (v2.0.0)
-- ✅ **ADR-024**: Saga Replay - **IMPLEMENTED (Phase 1 & 2)** *Requires ADR-016*
+- 🟡 **ADR-024**: Saga Replay - **IN PROGRESS (Phase 1 & 2/5 Complete)** *Requires ADR-016*
 - 🟡 **ADR-018**: Saga Versioning - *Optional: ADR-024*
 - 🟢 **ADR-014**: Schema Registry - *No prerequisites (Deferred)*
 
@@ -44,11 +44,11 @@ Every ADR now includes a **Dependencies** section showing:
 
 ## Key Insights
 
-### Critical Path (Complete! ✅)
+### Critical Path (Mostly Complete! ✅)
 ```
 ADR-016 (Storage) ✅
     ├─→ ADR-021 (Streaming) ✅
-    ├─→ ADR-024 (Replay) ✅ (Phase 1 & 2)
+    ├─→ ADR-024 (Replay) 🟡 (Phase 1 & 2/5 - In Progress)
     └─→ ADR-020 (Multi-Tenancy)
 
 ADR-022 (Compensation) ✅
