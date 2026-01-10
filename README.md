@@ -119,6 +119,7 @@ sagaz examples select --category ml
 - `ecommerce` - Order processing workflows
 - `fintech` - Payment & trading systems  
 - `healthcare` - Patient onboarding
+- `integrations` - FastAPI, Flask, Django integration examples (requires `uv pip install uvicorn werkzeug asgiref`)
 - `iot` - Device orchestration, smart grid
 - `logistics` - Drone delivery
 - `ml` - Training pipelines, federated learning

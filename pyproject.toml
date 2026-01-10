@@ -104,12 +104,24 @@ dev = [
 ]
 django = [
     "django>=5.2.10",
+    "asgiref>=3.8.0",  # ASGI support for Django
+]
+web = [
+    # All web framework integrations
+    "fastapi>=0.128.0",
+    "uvicorn>=0.34.0",
+    "flask>=3.1.2",
+    "werkzeug>=3.1.0",
+    "django>=5.2.10",
+    "asgiref>=3.8.0",
 ]
 fastapi = [
     "fastapi>=0.128.0",
+    "uvicorn>=0.34.0",  # ASGI server for FastAPI
 ]
 flask = [
     "flask>=3.1.2",
+    "werkzeug>=3.1.0",  # WSGI utilities for Flask
 ]
 sqlite = [
     "aiosqlite>=0.22.1",
