@@ -1,9 +1,10 @@
-
 import asyncio
-import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from sagaz.core.context import S3ExternalStorage, HAS_AIOBOTO3
+import pytest
+
+from sagaz.core.context import HAS_AIOBOTO3, S3ExternalStorage
+
 
 # 1. Test missing aioboto3
 def test_init_raises_if_missing_aioboto3():
@@ -11,10 +12,10 @@ def test_init_raises_if_missing_aioboto3():
         with pytest.raises(ImportError, match="aioboto3 is required"):
             S3ExternalStorage("bucket")
 
+
 # 2. Test malformed S3 URIs
 @pytest.mark.skipif(not HAS_AIOBOTO3, reason="aioboto3 not installed")
 class TestS3MalformedURIs:
-    
     @pytest.fixture
     def s3_storage(self):
         # Clean mock without needing full session logic for these simple tests
@@ -31,10 +32,10 @@ class TestS3MalformedURIs:
         # Should just return logic
         await s3_storage.delete("s3://bucket_only")
 
+
 # 3. Test S3 client errors
 @pytest.mark.skipif(not HAS_AIOBOTO3, reason="aioboto3 not installed")
 class TestS3Errors:
-    
     @pytest.fixture
     def mock_s3_client(self):
         mock = AsyncMock()
@@ -58,15 +59,16 @@ class TestS3Errors:
         # Simulate AccessDenied or NoSuchKey as generic ClientError
         # In real boto3, this is a ClientError with Error code
         # Here we simulate the Exception message check logic
-        mock_s3_client.get_object.side_effect = Exception("An error occurred (NoSuchKey) when calling...")
-        
+        mock_s3_client.get_object.side_effect = Exception(
+            "An error occurred (NoSuchKey) when calling..."
+        )
+
         with pytest.raises(FileNotFoundError, match="S3 object not found"):
             await s3_storage.load("s3://bucket/key")
 
     @pytest.mark.asyncio
     async def test_load_other_error_raises(self, s3_storage, mock_s3_client):
         mock_s3_client.get_object.side_effect = Exception("Some other S3 error")
-        
+
         with pytest.raises(Exception, match="Some other S3 error"):
             await s3_storage.load("s3://bucket/key")
-

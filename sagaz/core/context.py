@@ -25,6 +25,7 @@ import aiofiles
 
 try:
     import aioboto3
+
     HAS_AIOBOTO3 = True
 except ImportError:  # pragma: no cover
     HAS_AIOBOTO3 = False
@@ -90,7 +91,7 @@ class FileSystemExternalStorage(ExternalStorage):
         # Create reference
         # We use absolute path for the URI
         uri = f"file://{file_path.absolute()}"
-        
+
         return ExternalReference(
             uri=uri,
             size_bytes=len(data),
@@ -120,7 +121,7 @@ class FileSystemExternalStorage(ExternalStorage):
     async def delete(self, uri: str) -> None:
         if not uri.startswith("file://"):
             return
-            
+
         path_str = uri[7:]
         file_path = Path(path_str)
         try:
@@ -145,7 +146,9 @@ class S3ExternalStorage(ExternalStorage):
         session_kwargs: dict[str, Any] | None = None,
     ):
         if not HAS_AIOBOTO3:
-            msg = "aioboto3 is required for S3ExternalStorage. Install with 'pip install sagaz[aws]'"
+            msg = (
+                "aioboto3 is required for S3ExternalStorage. Install with 'pip install sagaz[aws]'"
+            )
             raise ImportError(msg)
 
         self.bucket = bucket
@@ -161,14 +164,14 @@ class S3ExternalStorage(ExternalStorage):
         # Serialize
         data = pickle.dumps(value)
         data_len = len(data)
-        
+
         # Calculate checksum
         checksum = hashlib.sha256(data).hexdigest()
 
         # Generate unique key
         # Structure: saga_id/key-uuid.bin
         object_key = f"{saga_id}/{key}-{uuid.uuid4()}.bin"
-        
+
         session = aioboto3.Session(**self.session_kwargs)
         async with session.client(
             "s3",
@@ -189,7 +192,7 @@ class S3ExternalStorage(ExternalStorage):
             )
 
         uri = f"s3://{self.bucket}/{object_key}"
-        
+
         return ExternalReference(
             uri=uri,
             size_bytes=data_len,
@@ -209,13 +212,13 @@ class S3ExternalStorage(ExternalStorage):
         if len(parts) != 2:
             msg = f"Invalid S3 URI format: {uri}"
             raise ValueError(msg)
-            
+
         bucket, key = parts
-        
+
         # Security check: ensure bucket matches configured bucket
         if bucket != self.bucket:
-             msg = f"URI bucket '{bucket}' does not match configured bucket '{self.bucket}'"
-             raise ValueError(msg)
+            msg = f"URI bucket '{bucket}' does not match configured bucket '{self.bucket}'"
+            raise ValueError(msg)
 
         session = aioboto3.Session(**self.session_kwargs)
         async with session.client(
@@ -246,7 +249,7 @@ class S3ExternalStorage(ExternalStorage):
         parts = uri[5:].split("/", 1)
         if len(parts) != 2:
             return
-            
+
         bucket, key = parts
         if bucket != self.bucket:
             return
@@ -266,7 +269,7 @@ class S3ExternalStorage(ExternalStorage):
 class SagaContext:
     """
     Enhanced context passed between saga steps for data sharing.
-    
+
     Supports:
     - Key-value data storage
     - Metadata storage
@@ -276,28 +279,28 @@ class SagaContext:
 
     data: dict[str, Any] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
-    
+
     # External references mapping: key -> ExternalReference
     external_refs: dict[str, ExternalReference] = field(default_factory=dict)
-    
+
     # Stream registry: key -> AsyncGenerator
     # Note: Streams are transient and not persisted to DB
     _streams: dict[str, AsyncGenerator] = field(default_factory=dict)
-    
+
     # Configuration for external storage
     _storage_backend: ExternalStorage | None = None
     _saga_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    
+
     # Size tracking limits
     _auto_offload_enabled: bool = False
     _offload_threshold_bytes: int = 1_000_000  # 1MB default
 
     def configure(
-        self, 
-        saga_id: str, 
+        self,
+        saga_id: str,
         storage: ExternalStorage | None = None,
         auto_offload: bool = False,
-        offload_threshold: int = 1_000_000
+        offload_threshold: int = 1_000_000,
     ) -> None:
         """Configure context constraints and backend."""
         self._saga_id = saga_id
@@ -308,14 +311,14 @@ class SagaContext:
     def set(self, key: str, value: Any) -> None:
         """
         Set a value in the context (Synchronous).
-        
+
         Stores value directly in memory. For large values with auto-offload,
         use `set_async()` instead.
         """
         if isinstance(value, AsyncGenerator):
             self.register_stream(key, value)
             return
-            
+
         self.data[key] = value
 
     async def set_async(self, key: str, value: Any) -> None:
@@ -328,11 +331,7 @@ class SagaContext:
             return
 
         # Check for offloading if valid
-        if (
-            self._auto_offload_enabled 
-            and self._storage_backend 
-            and self._should_offload(value)
-        ):
+        if self._auto_offload_enabled and self._storage_backend and self._should_offload(value):
             ref = await self.store_external(key, value)
             self.data[key] = {"_external_ref": ref.uri}
         else:
@@ -341,7 +340,7 @@ class SagaContext:
     def get(self, key: str, default: Any = None) -> Any:
         """
         Get a value from the context (Synchronous).
-        
+
         Returns in-memory data. If data is an external reference,
         returns the reference dict/object, not the loaded content.
         Use `load_external()` or `get_async()` to resolve references.
@@ -367,28 +366,21 @@ class SagaContext:
 
         # 3. Standard retrieval
         val = self.data.get(key, default)
-        
+
         # 4. Check if it's a dict marked as ref
         if isinstance(val, dict) and "_external_ref" in val and self._storage_backend:
             return await self._storage_backend.load(val["_external_ref"])
-            
+
         return val
 
     def has(self, key: str) -> bool:
         """Check if a key exists in data, streams, or refs."""
-        return (
-            key in self.data 
-            or key in self._streams 
-            or key in self.external_refs
-        )
+        return key in self.data or key in self._streams or key in self.external_refs
 
     # --- External Storage Methods ---
 
     async def store_external(
-        self,
-        key: str,
-        value: Any,
-        ttl_seconds: int | None = None
+        self, key: str, value: Any, ttl_seconds: int | None = None
     ) -> ExternalReference:
         """Explicitly store value in external storage."""
         if not self._storage_backend:
@@ -396,10 +388,7 @@ class SagaContext:
             raise RuntimeError(msg)
 
         ref = await self._storage_backend.store(
-            saga_id=self._saga_id,
-            key=key,
-            value=value,
-            ttl_seconds=ttl_seconds
+            saga_id=self._saga_id, key=key, value=value, ttl_seconds=ttl_seconds
         )
         self.external_refs[key] = ref
         return ref
@@ -415,10 +404,10 @@ class SagaContext:
             val = self.data.get(key)
             if isinstance(val, dict) and "_external_ref" in val:
                 return await self._storage_backend.load(val["_external_ref"])
-            
+
             msg = f"No external reference found for key: {key}"
             raise KeyError(msg)
-        
+
         ref = self.external_refs[key]
         return await self._storage_backend.load(ref.uri)
 
@@ -452,6 +441,6 @@ class SagaContext:
             return len(value)
         if isinstance(value, str):
             return len(value.encode("utf-8"))
-        
+
         # Fallback: lightweight pickle check
         return len(pickle.dumps(value))
