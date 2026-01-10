@@ -9,6 +9,13 @@ with existing imports like `from sagaz.core.saga import Saga`.
 """
 
 from sagaz.core.config import SagaConfig, configure, get_config
+from sagaz.core.context import (
+    ExternalReference,
+    ExternalStorage,
+    FileSystemExternalStorage,
+    S3ExternalStorage,
+    SagaContext,
+)
 from sagaz.core.decorators import (
     Saga,
     SagaStepDefinition,
@@ -41,34 +48,24 @@ from sagaz.core.listeners import (
     TracingSagaListener,
     default_listeners,
 )
-from sagaz.core.context import (
-    ExternalReference,
-    ExternalStorage,
-    FileSystemExternalStorage,
-    S3ExternalStorage,
-    SagaContext,
-)
 from sagaz.core.logger import NullLogger, get_logger, set_logger
 from sagaz.core.saga import SagaStep
 from sagaz.core.types import ParallelFailureStrategy, SagaResult, SagaStatus, SagaStepStatus
 
 __all__ = [
-    # Listeners
+    "ExternalReference",
+    "ExternalStorage",
+    "FileSystemExternalStorage",
     "LoggingSagaListener",
     "MetricsSagaListener",
-    # Exceptions
     "MissingDependencyError",
-    # Logger
     "NullLogger",
     "OutboxSagaListener",
-    # Types
     "ParallelFailureStrategy",
-    # Decorators
+    "S3ExternalStorage",
     "Saga",
     "SagaCompensationError",
-    # Config
     "SagaConfig",
-    # Saga core
     "SagaContext",
     "SagaError",
     "SagaExecutionError",
@@ -88,7 +85,6 @@ __all__ = [
     "forward_recovery",
     "get_config",
     "get_logger",
-    # Hooks
     "on_step_enter",
     "on_step_failure",
     "on_step_success",
@@ -97,9 +93,4 @@ __all__ = [
     "publish_on_success",
     "set_logger",
     "step",
-    # Context
-    "ExternalReference",
-    "ExternalStorage",
-    "FileSystemExternalStorage",
-    "S3ExternalStorage",
 ]

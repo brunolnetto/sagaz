@@ -1030,7 +1030,8 @@ def run_example(name: str):
         sagaz examples run ecommerce/order_processing
         sagaz examples run monitoring
     """
-    
+
+
 cli.add_command(cli_examples.examples_cli)
 cli.add_command(project_cli)
 

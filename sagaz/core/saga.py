@@ -1062,9 +1062,6 @@ class Saga(ABC):
         raise TypeError(msg)  # pragma: no cover
 
 
-
-
-
 @dataclass
 class SagaStep:
     """
