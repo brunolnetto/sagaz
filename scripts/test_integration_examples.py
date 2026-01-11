@@ -44,7 +44,8 @@ def test_flask_saga():
         async def charge_payment(self, ctx: dict):
             await asyncio.sleep(0.01)
             if ctx.get("amount", 0) > 1000:
-                raise ValueError("Payment declined")
+                msg = "Payment declined"
+                raise ValueError(msg)
             return {"transaction_id": f"TXN-{ctx['order_id']}"}
 
         @compensate("charge_payment")
@@ -101,7 +102,8 @@ def test_fastapi_saga():
         async def charge_payment(self, ctx: dict):
             await asyncio.sleep(0.01)
             if ctx.get("amount", 0) > 1000:
-                raise ValueError("Payment declined")
+                msg = "Payment declined"
+                raise ValueError(msg)
             return {"transaction_id": f"TXN-{ctx['order_id']}"}
 
         @compensate("charge_payment")
