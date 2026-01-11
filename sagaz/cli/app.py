@@ -21,7 +21,7 @@ from pathlib import Path
 import click
 
 from sagaz.cli import examples as cli_examples
-from sagaz.cli.dry_run import dry_run_cli
+from sagaz.cli.dry_run import simulate, validate
 from sagaz.cli.project import project_cli
 from sagaz.cli.replay import replay
 
@@ -1037,7 +1037,8 @@ def run_example(name: str):
 cli.add_command(cli_examples.examples_cli)
 cli.add_command(project_cli)
 cli.add_command(replay)
-cli.add_command(dry_run_cli)
+cli.add_command(validate)
+cli.add_command(simulate)
 
 if __name__ == "__main__":
     cli()
