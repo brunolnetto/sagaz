@@ -587,3 +587,274 @@ class TestEdgeCases:
         assert result.success is True
         # Should use default values
         assert result.estimated_duration_ms > 0
+
+
+# =============================================================================
+# ADR-030: Parallel Analysis Tests
+# =============================================================================
+
+
+class TestParallelAnalysis:
+    """Tests for enhanced parallel execution analysis (ADR-030)."""
+
+    @pytest.mark.asyncio
+    async def test_analyze_forward_layers(self):
+        """Test forward execution layer analysis."""
+        from sagaz import Saga, action
+
+        class ParallelSaga(Saga):
+            saga_name = "parallel_test"
+
+            @action("step_a")
+            async def step_a(self, ctx):
+                return {"a": "done"}
+
+            @action("step_b", depends_on={"step_a"})
+            async def step_b(self, ctx):
+                return {"b": "done"}
+
+            @action("step_c", depends_on={"step_a"})
+            async def step_c(self, ctx):
+                return {"c": "done"}
+
+            @action("step_d", depends_on={"step_b", "step_c"})
+            async def step_d(self, ctx):
+                return {"d": "done"}
+
+        saga = ParallelSaga()
+        engine = DryRunEngine()
+        result = await engine.run(saga, {}, DryRunMode.SIMULATE)
+
+        assert result.success is True
+        assert len(result.forward_layers) == 3
+        
+        # Layer 0: step_a
+        assert result.forward_layers[0].layer_number == 0
+        assert result.forward_layers[0].steps == ["step_a"]
+        
+        # Layer 1: step_b, step_c (parallel)
+        assert result.forward_layers[1].layer_number == 1
+        assert set(result.forward_layers[1].steps) == {"step_b", "step_c"}
+        assert "step_a" in result.forward_layers[1].dependencies
+        
+        # Layer 2: step_d
+        assert result.forward_layers[2].layer_number == 2
+        assert result.forward_layers[2].steps == ["step_d"]
+        assert result.forward_layers[2].dependencies == {"step_b", "step_c"}
+
+    @pytest.mark.asyncio
+    async def test_parallelization_metrics(self):
+        """Test parallelization metrics calculation."""
+        from sagaz import Saga, action
+
+        class ParallelSaga(Saga):
+            saga_name = "metrics_test"
+
+            @action("root")
+            async def root(self, ctx):
+                return {}
+
+            @action("parallel_1", depends_on={"root"})
+            async def parallel_1(self, ctx):
+                return {}
+
+            @action("parallel_2", depends_on={"root"})
+            async def parallel_2(self, ctx):
+                return {}
+
+            @action("parallel_3", depends_on={"root"})
+            async def parallel_3(self, ctx):
+                return {}
+
+        saga = ParallelSaga()
+        engine = DryRunEngine()
+        result = await engine.run(saga, {}, DryRunMode.SIMULATE)
+
+        assert result.success is True
+        assert result.total_layers == 2
+        assert result.max_parallel_width == 3  # 3 parallel steps in layer 1
+        assert result.sequential_complexity == 4  # 4 total steps
+        assert result.parallel_complexity == 2  # 2 layers
+        assert result.parallelization_ratio == 0.5  # 2/4
+
+    @pytest.mark.asyncio
+    async def test_critical_path_identification(self):
+        """Test critical path identification."""
+        from sagaz import Saga, action
+
+        class ChainSaga(Saga):
+            saga_name = "chain_test"
+
+            @action("a")
+            async def a(self, ctx):
+                return {}
+
+            @action("b", depends_on={"a"})
+            async def b(self, ctx):
+                return {}
+
+            @action("c", depends_on={"b"})
+            async def c(self, ctx):
+                return {}
+
+            @action("d", depends_on={"a"})  # Shorter branch
+            async def d(self, ctx):
+                return {}
+
+        saga = ChainSaga()
+        engine = DryRunEngine()
+        result = await engine.run(saga, {}, DryRunMode.SIMULATE)
+
+        assert result.success is True
+        # Critical path should be the longest chain: a -> b -> c
+        assert len(result.critical_path) == 3
+        assert result.critical_path == ["a", "b", "c"]
+
+    @pytest.mark.asyncio
+    async def test_backward_compensation_layers(self):
+        """Test backward compensation layer analysis."""
+        from sagaz import Saga, action, compensate
+
+        class CompensateSaga(Saga):
+            saga_name = "compensate_test"
+
+            @action("step1")
+            async def step1(self, ctx):
+                return {}
+
+            @compensate("step1")
+            async def undo_step1(self, ctx):
+                pass
+
+            @action("step2", depends_on={"step1"})
+            async def step2(self, ctx):
+                return {}
+
+            @compensate("step2")
+            async def undo_step2(self, ctx):
+                pass
+
+            @action("step3", depends_on={"step2"})
+            async def step3(self, ctx):
+                return {}
+            
+            # step3 has no compensation
+
+        saga = CompensateSaga()
+        engine = DryRunEngine()
+        result = await engine.run(saga, {}, DryRunMode.SIMULATE)
+
+        assert result.success is True
+        assert len(result.backward_layers) > 0
+        
+        # Only compensatable steps should be in backward layers
+        all_backward_steps = []
+        for layer in result.backward_layers:
+            all_backward_steps.extend(layer.steps)
+        
+        assert "step1" in all_backward_steps
+        assert "step2" in all_backward_steps
+        assert "step3" not in all_backward_steps  # No compensation
+
+    @pytest.mark.asyncio
+    async def test_duration_metadata_detection(self):
+        """Test detection of duration metadata."""
+        from sagaz import Saga, action
+
+        class MetadataSaga(Saga):
+            saga_name = "metadata_test"
+
+            @action("with_meta")
+            async def with_meta(self, ctx):
+                return {}
+
+            @action("without_meta")
+            async def without_meta(self, ctx):
+                return {}
+
+        # Add metadata to one step
+        MetadataSaga.with_meta.__sagaz_metadata__ = {"estimated_duration_ms": 100}
+
+        saga = MetadataSaga()
+        engine = DryRunEngine()
+        result = await engine.run(saga, {}, DryRunMode.SIMULATE)
+
+        assert result.success is True
+        assert result.has_duration_metadata is True  # At least one step has metadata
+
+    @pytest.mark.asyncio
+    async def test_no_duration_metadata(self):
+        """Test analysis works without any duration metadata."""
+        from sagaz import Saga, action
+
+        class NoMetaSaga(Saga):
+            saga_name = "no_meta_test"
+
+            @action("step1")
+            async def step1(self, ctx):
+                return {}
+
+            @action("step2", depends_on={"step1"})
+            async def step2(self, ctx):
+                return {}
+
+        saga = NoMetaSaga()
+        engine = DryRunEngine()
+        result = await engine.run(saga, {}, DryRunMode.SIMULATE)
+
+        assert result.success is True
+        assert result.has_duration_metadata is False
+        assert result.max_parallel_duration_ms == 0.0
+        # But structural analysis still works
+        assert len(result.forward_layers) == 2
+        assert result.critical_path == ["step1", "step2"]
+
+    @pytest.mark.asyncio
+    async def test_estimate_without_metadata(self):
+        """Test estimate mode without duration metadata."""
+        from sagaz import Saga, action
+
+        class NoMetaSaga(Saga):
+            saga_name = "no_meta_estimate"
+
+            @action("step1")
+            async def step1(self, ctx):
+                return {}
+
+        saga = NoMetaSaga()
+        engine = DryRunEngine()
+        result = await engine.run(saga, {}, DryRunMode.ESTIMATE)
+
+        assert result.success is True
+        assert result.has_duration_metadata is False
+        # Should still provide API call estimates (if available)
+        assert isinstance(result.api_calls_estimated, dict)
+
+    @pytest.mark.asyncio
+    async def test_linear_dag_no_parallelization(self):
+        """Test linear DAG shows no parallelization opportunities."""
+        from sagaz import Saga, action
+
+        class LinearSaga(Saga):
+            saga_name = "linear_test"
+
+            @action("a")
+            async def a(self, ctx):
+                return {}
+
+            @action("b", depends_on={"a"})
+            async def b(self, ctx):
+                return {}
+
+            @action("c", depends_on={"b"})
+            async def c(self, ctx):
+                return {}
+
+        saga = LinearSaga()
+        engine = DryRunEngine()
+        result = await engine.run(saga, {}, DryRunMode.SIMULATE)
+
+        assert result.success is True
+        assert result.max_parallel_width == 1  # No parallelization
+        assert result.parallelization_ratio == 1.0  # 3 layers / 3 steps
+        assert len(result.critical_path) == 3

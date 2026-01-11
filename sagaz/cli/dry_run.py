@@ -332,39 +332,96 @@ def _display_validation_result_plain(result):
 
 def _display_simulation_result_rich(result, show_parallel: bool):
     """Display simulation result with Rich formatting."""
-    console.print(Panel("[green]Simulation Complete[/green]", title="Success"))
-
-    table = Table(title="Execution Plan")
-    table.add_column("Order", style="cyan")
-    table.add_column("Step", style="green")
-
-    for idx, step in enumerate(result.execution_order, 1):
-        table.add_row(str(idx), step)
-
+    console.print(Panel("[green]DAG Analysis Complete[/green]", title="Success"))
+    
+    # Show forward execution layers
+    console.print("\n[bold cyan]Forward Execution Layers (Parallelizable Groups):[/bold cyan]")
+    for layer in result.forward_layers:
+        console.print(f"\n[yellow]Layer {layer.layer_number}:[/yellow]")
+        for step in layer.steps:
+            console.print(f"  • {step}")
+        if layer.dependencies:
+            console.print(f"  [dim]Depends on: {', '.join(sorted(layer.dependencies))}[/dim]")
+    
+    # Show parallelization analysis
+    console.print("\n[bold cyan]Parallelization Analysis:[/bold cyan]")
+    table = Table(show_header=False)
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="green")
+    
+    table.add_row("Total steps", str(len(result.steps_planned)))
+    table.add_row("Sequential layers", str(result.total_layers))
+    table.add_row("Max parallel width", f"{result.max_parallel_width} step(s) per layer")
+    table.add_row("Parallelization ratio", f"{result.parallelization_ratio:.2f}")
+    table.add_row("Critical path length", f"{len(result.critical_path)} step(s)")
+    
     console.print(table)
     
-    # Show duration estimate if available
-    if result.max_parallel_duration_ms > 0:
+    # Show critical path
+    if result.critical_path:
+        console.print("\n[bold cyan]Critical Path (Longest Chain):[/bold cyan]")
+        console.print(" → ".join(result.critical_path))
+    
+    # Show backward compensation layers
+    if result.backward_layers:
+        console.print("\n[bold cyan]Compensation Layers (Rollback Order):[/bold cyan]")
+        for layer in result.backward_layers:
+            console.print(f"\n[yellow]Layer {layer.layer_number}:[/yellow]")
+            for step in layer.steps:
+                console.print(f"  • {step}")
+    
+    # Optional: Show duration estimates if metadata available
+    if result.has_duration_metadata and result.max_parallel_duration_ms > 0:
+        console.print("\n[bold cyan]Duration Estimates (from metadata):[/bold cyan]")
         duration_sec = result.max_parallel_duration_ms / 1000
-        console.print(f"\n[bold]Estimated Duration (with parallelism):[/bold] {duration_sec:.2f}s")
-
+        console.print(f"  Parallel execution: {duration_sec:.2f}s")
+    elif not result.has_duration_metadata:
+        console.print("\n[dim]💡 Tip: Add duration metadata for time estimates:[/dim]")
+        console.print("[dim]   @action('step', estimated_duration_ms=100)[/dim]")
+    
+    # Show old-style parallel groups if requested (backward compatibility)
     if show_parallel and result.parallel_groups:
-        console.print("\n[bold]Parallel Execution Groups:[/bold]")
-        for idx, group in enumerate(result.parallel_groups, 1):
-            console.print(f"  Group {idx}: {', '.join(group)}")
+        console.print("\n[dim]Legacy Parallel Groups (for reference):[/dim]")
+        for idx, group in enumerate(result.parallel_groups):
+            console.print(f"[dim]  Group {idx}: {', '.join(group)}[/dim]")
 
 
 def _display_simulation_result_plain(result, show_parallel: bool):
     """Display simulation result in plain text."""
-    print("Simulation Complete")
-    print("\nExecution Order:")
-    for idx, step in enumerate(result.execution_order, 1):
-        print(f"  {idx}. {step}")
-
-    if show_parallel and result.parallel_groups:
-        print("\nParallel Execution Groups:")
-        for idx, group in enumerate(result.parallel_groups, 1):
-            print(f"  Group {idx}: {', '.join(group)}")
+    print("DAG Analysis Complete\n")
+    
+    print("Forward Execution Layers (Parallelizable Groups):\n")
+    for layer in result.forward_layers:
+        print(f"Layer {layer.layer_number}:")
+        for step in layer.steps:
+            print(f"  • {step}")
+        if layer.dependencies:
+            print(f"  Depends on: {', '.join(sorted(layer.dependencies))}")
+        print()
+    
+    print("Parallelization Analysis:")
+    print(f"  Total steps: {len(result.steps_planned)}")
+    print(f"  Sequential layers: {result.total_layers}")
+    print(f"  Max parallel width: {result.max_parallel_width} step(s) per layer")
+    print(f"  Parallelization ratio: {result.parallelization_ratio:.2f}")
+    print(f"  Critical path length: {len(result.critical_path)} step(s)")
+    
+    if result.critical_path:
+        print(f"\nCritical Path: {' → '.join(result.critical_path)}")
+    
+    if result.backward_layers:
+        print("\nCompensation Layers (Rollback Order):")
+        for layer in result.backward_layers:
+            print(f"\nLayer {layer.layer_number}:")
+            for step in layer.steps:
+                print(f"  • {step}")
+    
+    if result.has_duration_metadata and result.max_parallel_duration_ms > 0:
+        duration_sec = result.max_parallel_duration_ms / 1000
+        print(f"\nDuration Estimate: {duration_sec:.2f}s (with parallelism)")
+    elif not result.has_duration_metadata:
+        print("\n💡 Tip: Add duration metadata for time estimates:")
+        print("   @action('step', estimated_duration_ms=100)")
 
 
 def _display_estimate_result_rich(result, scale: int):
@@ -375,29 +432,32 @@ def _display_estimate_result_rich(result, scale: int):
     table.add_column("Metric", style="cyan")
     table.add_column("Value", style="green")
     table.add_column(f"Scaled (x{scale})", style="yellow")
-
-    # Duration (sequential)
-    duration_s = result.estimated_duration_ms / 1000
-    scaled_duration_s = duration_s * scale
-    table.add_row(
-        "Duration (sequential)",
-        f"{duration_s:.2f}s",
-        f"{scaled_duration_s:.2f}s ({scaled_duration_s/60:.1f}m)",
-    )
     
-    # Duration (with parallelism) - upper bound
-    if result.estimated_duration_parallel_ms > 0:
-        parallel_s = result.estimated_duration_parallel_ms / 1000
-        scaled_parallel_s = parallel_s * scale
+    # Only show durations if metadata exists
+    if result.has_duration_metadata:
+        # Duration (sequential)
+        duration_s = result.estimated_duration_ms / 1000
+        scaled_duration_s = duration_s * scale
         table.add_row(
-            "Duration (parallel)",
-            f"{parallel_s:.2f}s",
-            f"{scaled_parallel_s:.2f}s ({scaled_parallel_s/60:.1f}m)",
+            "Duration (sequential)",
+            f"{duration_s:.2f}s",
+            f"{scaled_duration_s:.2f}s ({scaled_duration_s/60:.1f}m)",
         )
+        
+        # Duration (with parallelism) - upper bound
+        if result.estimated_duration_parallel_ms > 0:
+            parallel_s = result.estimated_duration_parallel_ms / 1000
+            scaled_parallel_s = parallel_s * scale
+            table.add_row(
+                "Duration (parallel)",
+                f"{parallel_s:.2f}s",
+                f"{scaled_parallel_s:.2f}s ({scaled_parallel_s/60:.1f}m)",
+            )
 
     # API calls
     if result.api_calls_estimated:
-        table.add_row("", "", "")  # Separator
+        if result.has_duration_metadata:
+            table.add_row("", "", "")  # Separator
         for api, count in result.api_calls_estimated.items():
             table.add_row(f"API: {api}", str(count), f"{count * scale:,}")
 
@@ -412,6 +472,11 @@ def _display_estimate_result_rich(result, scale: int):
         )
 
     console.print(table)
+    
+    # Show tip if no metadata
+    if not result.has_duration_metadata:
+        console.print("\n[yellow]⚠ No duration metadata found[/yellow]")
+        console.print("[dim]Add to action decorators: @action('step', estimated_duration_ms=100)[/dim]")
 
 
 def _display_estimate_result_plain(result, scale: int):
