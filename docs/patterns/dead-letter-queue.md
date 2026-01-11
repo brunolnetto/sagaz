@@ -6,26 +6,13 @@ The Dead Letter Queue pattern handles messages that cannot be processed successf
 
 ## Architecture
 
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Outbox    │────▶│   Broker    │────▶│  Consumer   │
-│   Worker    │     │  (Kafka/    │     │   (Inbox)   │
-└─────────────┘     │  RabbitMQ)  │     └──────┬──────┘
-                    └─────────────┘            │
-                                               │ Failed after
-                                               │ max retries
-                                               ▼
-                    ┌─────────────┐     ┌─────────────┐
-                    │    DLQ      │◀────│   Retry     │
-                    │   Topic     │     │   Handler   │
-                    └──────┬──────┘     └─────────────┘
-                           │
-                           ▼
-                    ┌─────────────┐
-                    │   DLQ       │
-                    │  Monitor    │
-                    │  (Alerts)   │
-                    └─────────────┘
+```mermaid
+graph TB
+    Outbox[Outbox Worker] --> Broker["Broker<br/>(Kafka/RabbitMQ)"]
+    Broker --> Consumer["Consumer<br/>(Inbox)"]
+    Consumer -->|Failed after max retries| Retry[Retry Handler]
+    Retry --> DLQ[DLQ Topic]
+    DLQ --> Monitor["DLQ Monitor<br/>(Alerts)"]
 ```
 
 ## Configuration

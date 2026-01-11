@@ -4,28 +4,31 @@ This document describes the high-level architecture of thesagaz library.
 
 ## System Context
 
-```
-┌────────────────────────────────────────────────────────┐
-│                           Application Layer            │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
-│  │   Service A  │  │   Service B  │  │   Service C  │  │
-│  │  (Orders)    │  │  (Payments)  │  │  (Inventory) │  │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  │
-│         │                 │                 │          │
-│         └─────────────────┼─────────────────┘          │
-│                           │                            │
-│                     ┌─────▼─────┐                      │
-│                     │  sagaz    │                      │
-│                     │  Library  │                      │
-│                     └─────┬─────┘                      │
-└───────────────────────────┼────────────────────────────┘
-                            │
-      ┌─────────────────────┼────────────────────┐
-      │           │         │         │          │
-┌─────▼──────┐ ┌──▼───┐ ┌───▼───┐ ┌───▼────┐
-│ PostgreSQL │ │Redis │ │Rabbit │ │ Kafka  │
-│  (Outbox)  │ │      │ │  MQ   │ │        │
-└────────────┘ └──────┘ └───────┘ └────────┘
+```mermaid
+graph TB
+    subgraph Application["Application Layer"]
+        ServiceA["Service A<br/>(Orders)"]
+        ServiceB["Service B<br/>(Payments)"]
+        ServiceC["Service C<br/>(Inventory)"]
+    end
+    
+    Sagaz["sagaz Library"]
+    
+    ServiceA --> Sagaz
+    ServiceB --> Sagaz
+    ServiceC --> Sagaz
+    
+    subgraph Infrastructure
+        Postgres["PostgreSQL<br/>(Outbox)"]
+        Redis["Redis"]
+        RabbitMQ["RabbitMQ"]
+        Kafka["Kafka"]
+    end
+    
+    Sagaz --> Postgres
+    Sagaz --> Redis
+    Sagaz --> RabbitMQ
+    Sagaz --> Kafka
 ```
 
 ## Core Components
@@ -71,71 +74,54 @@ Manages complex compensation dependencies for parallel execution.
 
 ### Kubernetes Topology
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Kubernetes Cluster                        │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │                      Namespace:sagaz                         ││
-│  │                                                              ││
-│  │  ┌──────────────────┐    ┌──────────────────┐               ││
-│  │  │   PostgreSQL     │    │    RabbitMQ      │               ││
-│  │  │   (StatefulSet)  │    │   (Deployment)   │               ││
-│  │  │                  │    │                  │               ││
-│  │  │  ┌────────────┐  │    │  Port: 5672      │               ││
-│  │  │  │saga_outbox │  │    │  Port: 15672     │               ││
-│  │  │  │   table    │  │    │    (mgmt)        │               ││
-│  │  │  └────────────┘  │    └────────┬─────────┘               ││
-│  │  └────────┬─────────┘             │                         ││
-│  │           │                       │                         ││
-│  │           │    ┌──────────────────┤                         ││
-│  │           │    │                  │                         ││
-│  │  ┌────────▼────▼───┐    ┌────────▼────────┐                ││
-│  │  │  Outbox Worker  │    │  Outbox Worker  │  ... (N pods)  ││
-│  │  │    (Pod 1)      │    │    (Pod 2)      │                ││
-│  │  │                 │    │                 │                ││
-│  │  │ - Poll outbox   │    │ - Poll outbox   │                ││
-│  │  │ - Publish events│    │ - Publish events│                ││
-│  │  │ - Mark sent     │    │ - Mark sent     │                ││
-│  │  └─────────────────┘    └─────────────────┘                ││
-│  │                                                              ││
-│  └─────────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Cluster["Kubernetes Cluster"]
+        subgraph Namespace["Namespace: sagaz"]
+            subgraph PG["PostgreSQL (StatefulSet)"]
+                OutboxTable["saga_outbox table"]
+            end
+            
+            subgraph RMQ["RabbitMQ (Deployment)"]
+                Port5672["Port: 5672"]
+                Port15672["Port: 15672 (mgmt)"]
+            end
+            
+            subgraph Workers["Outbox Workers (N pods)"]
+                Worker1["Outbox Worker Pod 1<br/>- Poll outbox<br/>- Publish events<br/>- Mark sent"]
+                Worker2["Outbox Worker Pod 2<br/>- Poll outbox<br/>- Publish events<br/>- Mark sent"]
+                WorkerN["... (N pods)"]
+            end
+            
+            PG --> Worker1
+            PG --> Worker2
+            RMQ --> Worker1
+            RMQ --> Worker2
+        end
+    end
 ```
 
 ### Component Interaction
 
-```
-Application                   sagaz                           Infrastructure
-    │                           │                                   │
-    │  saga.execute()           │                                   │
-    ├──────────────────────────►│                                   │
-    │                           │                                   │
-    │                           │  BEGIN TRANSACTION                │
-    │                           ├──────────────────────────────────►│ PostgreSQL
-    │                           │                                   │
-    │                           │  Execute step.action()            │
-    │                           │  Write to saga_outbox             │
-    │                           ├──────────────────────────────────►│
-    │                           │                                   │
-    │                           │  COMMIT                           │
-    │                           ├──────────────────────────────────►│
-    │                           │                                   │
-    │  SagaResult               │                                   │
-    │◄──────────────────────────┤                                   │
-    │                           │                                   │
-    │                           │         ┌─────────────────────────┤
-    │                           │         │  Outbox Worker          │
-    │                           │         │  (async, separate)      │
-    │                           │         │                         │
-    │                           │         │  Poll pending events    │
-    │                           │         ├────────────────────────►│ PostgreSQL
-    │                           │         │                         │
-    │                           │         │  Publish to broker      │
-    │                           │         ├────────────────────────►│ RabbitMQ
-    │                           │         │                         │
-    │                           │         │  Mark as sent           │
-    │                           │         ├────────────────────────►│ PostgreSQL
-    │                           │         └─────────────────────────┤
+```mermaid
+sequenceDiagram
+    participant App as Application
+    participant Sagaz as sagaz
+    participant PG as PostgreSQL
+    participant Worker as Outbox Worker
+    participant Broker as RabbitMQ
+    
+    App->>Sagaz: saga.execute()
+    Sagaz->>PG: BEGIN TRANSACTION
+    Sagaz->>Sagaz: Execute step.action()
+    Sagaz->>PG: Write to saga_outbox
+    Sagaz->>PG: COMMIT
+    Sagaz->>App: SagaResult
+    
+    Note over Worker: async, separate process
+    Worker->>PG: Poll pending events
+    Worker->>Broker: Publish to broker
+    Worker->>PG: Mark as sent
 ```
 
 ---
@@ -172,11 +158,16 @@ Application                   sagaz                           Infrastructure
 
 For high-throughput requirements (50K+ events/sec), the polling-based outbox worker can be replaced with CDC:
 
-```
-┌─────────────────┐     ┌───────────────┐     ┌─────────────┐     ┌──────────┐
-│   PostgreSQL    │ ──► │   Debezium    │ ──► │    Kafka    │ ──► │ Consumers│
-│   (WAL stream)  │     │ (CDC capture) │     │   (events)  │     │          │
-└─────────────────┘     └───────────────┘     └─────────────┘     └──────────┘
+```mermaid
+graph LR
+    PG["PostgreSQL<br/>(WAL stream)"]
+    Debezium["Debezium<br/>(CDC capture)"]
+    Kafka["Kafka<br/>(events)"]
+    Consumers["Consumers"]
+    
+    PG --> Debezium
+    Debezium --> Kafka
+    Kafka --> Consumers
 ```
 
 | Mode | Throughput | Use Case |

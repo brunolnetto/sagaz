@@ -77,18 +77,29 @@ For details on where to add new content, see [STRUCTURE.md](STRUCTURE.md).
 
 A Saga is a sequence of local transactions where each step has a compensating action. If any step fails, the saga executes compensations in reverse order.
 
-```
-Step 1 → Step 2 → Step 3 → ... → Complete
-   ↓        ↓        ↓
-Comp 1 ← Comp 2 ← Comp 3 ← ... ← Failure
+```mermaid
+graph LR
+    S1[Step 1] --> S2[Step 2]
+    S2 --> S3[Step 3]
+    S3 --> Complete[Complete]
+    
+    S1 -.->|Failure| C1[Comp 1]
+    S2 -.->|Failure| C2[Comp 2]
+    S3 -.->|Failure| C3[Comp 3]
+    C3 --> C2
+    C2 --> C1
 ```
 
 ### Transactional Outbox
 
 Ensures exactly-once event delivery by storing events in the database within the same transaction as business data, then publishing asynchronously.
 
-```
-[Business Logic] → [DB Transaction] → [Outbox Table] → [Worker] → [Broker]
+```mermaid
+graph LR
+    BL[Business Logic] --> DBT[DB Transaction]
+    DBT --> OT[Outbox Table]
+    OT --> W[Worker]
+    W --> B[Broker]
 ```
 
 ---
