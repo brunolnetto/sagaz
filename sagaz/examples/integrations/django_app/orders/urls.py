@@ -17,6 +17,9 @@ urlpatterns = [
     # Health check (supports both with and without trailing slash)
     path("health", views.health_check, name="health"),
     path("health/", views.health_check, name="health-slash"),
+    # Order validation
+    path("orders/validate", views.OrderValidateView.as_view(), name="order-validate"),
+    path("orders/validate/", views.OrderValidateView.as_view(), name="order-validate-slash"),
     # Saga diagram
     path("orders/<str:order_id>/diagram", views.OrderDiagramView.as_view(), name="order-diagram"),
     path(

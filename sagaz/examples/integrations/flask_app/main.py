@@ -16,6 +16,7 @@ Run with: python main.py
 """
 
 import asyncio
+import uuid
 from typing import Any
 
 from flask import Flask, jsonify, request
@@ -114,6 +115,80 @@ def health_check():
     return jsonify({"status": "healthy"})
 
 
+@app.route("/orders/validate", methods=["POST"])
+def validate_order():
+    """
+    Validate if an order can be processed.
+
+    This demonstrates idempotency checking before webhook submission.
+    Checks if order_id is already being processed or completed.
+    """
+    data = request.get_json()
+    if not data or "order_id" not in data:
+        return jsonify({"error": "order_id is required"}), 400
+
+    order_id = data["order_id"]
+
+    # Derive deterministic saga_id from order_id (same as trigger does)
+    saga_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, order_id))
+
+    # Check if saga exists in storage
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        state = loop.run_until_complete(config.storage.load_saga_state(saga_id))
+    finally:
+        loop.close()
+
+    if state:
+        from sagaz.core.types import SagaStatus
+
+        status = state.get("status")
+        if status == SagaStatus.COMPLETED:
+            return jsonify(
+                {
+                    "valid": False,
+                    "order_id": order_id,
+                    "saga_id": saga_id,
+                    "reason": "Order already processed successfully",
+                    "saga_status": "completed",
+                    "advice": "This order has been completed. Use a different order_id.",
+                }
+            ), 409  # Conflict
+        if status == SagaStatus.EXECUTING:
+            return jsonify(
+                {
+                    "valid": False,
+                    "order_id": order_id,
+                    "saga_id": saga_id,
+                    "reason": "Order is currently being processed",
+                    "saga_status": "executing",
+                    "advice": "Wait for this order to complete before resubmitting.",
+                }
+            ), 409  # Conflict
+        if status in (SagaStatus.FAILED, SagaStatus.ROLLED_BACK):
+            return jsonify(
+                {
+                    "valid": True,
+                    "order_id": order_id,
+                    "saga_id": saga_id,
+                    "message": "Order previously failed, can be retried",
+                    "saga_status": status.value,
+                    "advice": "This order can be resubmitted via webhook.",
+                }
+            )
+
+    return jsonify(
+        {
+            "valid": True,
+            "order_id": order_id,
+            "message": "Order can be processed",
+            "saga_id": saga_id,
+            "advice": "Submit order via POST /webhooks/order_created",
+        }
+    )
+
+
 @app.route("/orders/<order_id>/diagram")
 def get_order_diagram(order_id: str):
     saga = OrderSaga()
@@ -122,28 +197,6 @@ def get_order_diagram(order_id: str):
             "order_id": order_id,
             "diagram": saga.to_mermaid(),
             "format": "mermaid",
-        }
-    )
-
-
-@app.route("/webhooks/<source>/status/<correlation_id>")
-def get_webhook_status(source: str, correlation_id: str):
-    """
-    Check status of event processing.
-
-    This is a simplified status endpoint. In production, you would:
-    - Store saga_ids with correlation_ids in Redis/DB
-    - Query saga storage for actual status
-    - Return detailed execution results
-    """
-    # For demo purposes, return a sample status
-    return jsonify(
-        {
-            "correlation_id": correlation_id,
-            "source": source,
-            "status": "processing",
-            "message": "Event is being processed. Check saga storage for execution details.",
-            "documentation": "Use the storage backend to query saga status by saga_id",
         }
     )
 

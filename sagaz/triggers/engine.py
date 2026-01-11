@@ -68,7 +68,10 @@ class TriggerEngine:
             if not self._is_valid_context(context, saga_class, method_name):
                 return None
 
-            # 2. Get or generate saga ID
+            # 2. Validate idempotency for high-value operations
+            self._validate_idempotency(metadata, context, saga_class)
+
+            # 3. Get or generate saga ID
             saga_id, is_new = await self._resolve_saga_id(metadata, payload, saga_class)
             if saga_id is None:  # pragma: no cover
                 return None  # pragma: no cover
@@ -77,11 +80,11 @@ class TriggerEngine:
             if not is_new:
                 return saga_id
 
-            # 3. Check concurrency
+            # 4. Check concurrency
             if not await self._is_concurrency_allowed(metadata, saga_class):
                 return None
 
-            # 4. Run saga
+            # 5. Run saga
             if context is None:
                 context = {}
             await self._run_saga(saga_class, saga_id, context)
@@ -101,6 +104,29 @@ class TriggerEngine:
             )
             return False
         return True
+
+    def _validate_idempotency(self, metadata: TriggerMetadata, context: dict, saga_class):
+        """Validate and warn if high-value operations lack idempotency keys."""
+        if metadata.idempotency_key:
+            return  # Idempotency configured, all good
+
+        # Check for financial/high-value indicators
+        financial_indicators = ["amount", "price", "payment", "charge", "refund", "transaction"]
+        has_financial_data = any(
+            indicator in key.lower() for key in context for indicator in financial_indicators
+        )
+
+        # Check for amounts over a threshold
+        high_value_threshold = 100.0
+        has_high_value = any(
+            isinstance(v, (int, float)) and v >= high_value_threshold for v in context.values()
+        )
+
+        if has_financial_data or has_high_value:
+            logger.warning(
+                f"⚠️  High-value operation detected in {saga_class.__name__} without idempotency_key. "
+                f"Consider adding: @trigger(source='{metadata.source}', idempotency_key='<unique_field>')"
+            )
 
     async def _resolve_saga_id(
         self, metadata: TriggerMetadata, payload: Any, saga_class
