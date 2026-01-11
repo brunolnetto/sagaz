@@ -146,17 +146,36 @@ def main():
     if response in ("", "y", "yes"):
         print("\n🚀 Starting FastAPI server...")
         print("-" * 70)
+
+        # Check if port 8000 is in use
+        import socket
+
+        port = 8000
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            if s.connect_ex(("localhost", port)) == 0:
+                print(f"\n⚠️  Port {port} is already in use.")
+                alt_port = input("Use alternative port (e.g., 8001)? [8001]: ").strip() or "8001"
+                try:
+                    port = int(alt_port)
+                except ValueError:
+                    print("❌ Invalid port number.")
+                    return 1
+
+                # Update displayed URLs
+                print(f"\n📡 Server will start on http://localhost:{port}")
+                print(f"  🌐 Swagger UI:    http://localhost:{port}/docs")
+                print(f"  📚 ReDoc:         http://localhost:{port}/redoc")
+                print()
+
         try:
             subprocess.run(
-                [sys.executable, "-m", "uvicorn", "main:app", "--reload"],
+                [sys.executable, "-m", "uvicorn", "main:app", "--reload", "--port", str(port)],
                 cwd=script_dir,
                 check=True,
             )
         except subprocess.CalledProcessError as e:
             print("\n❌ Server failed to start.")
             print(f"\n💡 Error: {e}")
-            print("   Port 8000 may already be in use.")
-            print("   Stop any running FastAPI apps with: pkill -f uvicorn")
             return 1
         except KeyboardInterrupt:
             print("\n\n✅ Server stopped.")

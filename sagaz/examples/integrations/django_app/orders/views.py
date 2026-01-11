@@ -63,26 +63,51 @@ class WebhookStatusView(View):
                 status=404,
             )
 
+        # Compute overall status based on individual saga statuses
+        saga_statuses = status.get("saga_statuses", {})
+        saga_ids = status.get("saga_ids", [])
+        overall_status = status["status"]
+
+        # If triggered, check if all sagas have finished
+        if overall_status == "triggered" and saga_ids:
+            completed_count = sum(1 for s in saga_statuses.values() if s in ("completed", "failed"))
+            if completed_count == len(saga_ids):
+                # All sagas finished - determine overall outcome
+                failed_count = sum(1 for s in saga_statuses.values() if s == "failed")
+                overall_status = "completed_with_failures" if failed_count > 0 else "completed"
+
         response_data = {
             "correlation_id": correlation_id,
             "source": source,
-            "status": status["status"],
-            "saga_ids": status.get("saga_ids", []),
+            "status": overall_status,
+            "saga_ids": saga_ids,
         }
+
+        # Add saga details if available
+        if saga_statuses:
+            response_data["saga_statuses"] = saga_statuses
+
+        if "saga_errors" in status:
+            response_data["saga_errors"] = status["saga_errors"]
 
         if "error" in status:
             response_data["error"] = status["error"]
 
         # Add helpful messages based on status
-        if status["status"] == "queued":
+        if overall_status == "queued":
             response_data["message"] = "Event is queued for processing"
-        elif status["status"] == "processing":
+        elif overall_status == "processing":
             response_data["message"] = "Event is currently being processed"
-        elif status["status"] == "completed":
+        elif overall_status == "triggered":
             response_data["message"] = (
-                f"Event processed successfully, triggered {len(status['saga_ids'])} saga(s)"
+                f"Event triggered {len(saga_ids)} saga(s), waiting for completion"
             )
-        elif status["status"] == "failed":
+        elif overall_status == "completed":
+            response_data["message"] = f"All {len(saga_ids)} saga(s) completed successfully"
+        elif overall_status == "completed_with_failures":
+            failed_sagas = [sid for sid, s in saga_statuses.items() if s == "failed"]
+            response_data["message"] = f"{len(failed_sagas)} of {len(saga_ids)} saga(s) failed"
+        elif overall_status == "failed":
             response_data["message"] = "Event processing failed"
 
         return JsonResponse(response_data)
