@@ -1,0 +1,31 @@
+# Read the Docs configuration file for Sagaz
+# See https://docs.readthedocs.io/en/stable/config-file/v2.html
+
+version: 2
+
+# Build documentation with MkDocs
+mkdocs:
+  configuration: mkdocs.yml
+  fail_on_warning: false
+
+# Python environment
+build:
+  os: ubuntu-22.04
+  tools:
+    python: "3.11"
+  jobs:
+    post_checkout:
+      # Ensure docs directory is present
+      - ls -la docs/
+    post_build:
+      # Optional: validate no archive files leaked
+      - "! grep -r 'archive' site/ || true"
+
+# Python requirements for building docs
+python:
+  install:
+    - method: pip
+      path: .
+      extra_requirements:
+        - dev
+    - requirements: docs/requirements.txt

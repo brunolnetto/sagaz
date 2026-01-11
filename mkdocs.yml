@@ -1,0 +1,131 @@
+site_name: Sagaz Documentation
+site_description: Production-ready Saga pattern with DAG support and Transactional Outbox
+site_author: Bruno Lnetto
+site_url: https://sagaz.readthedocs.io
+
+repo_name: brunolnetto/sagaz
+repo_url: https://github.com/brunolnetto/sagaz
+edit_uri: edit/main/docs/
+
+# Theme configuration
+theme:
+  name: material
+  palette:
+    # Light mode
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.tracking
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+
+# Extensions
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+# Navigation structure (explicitly exclude archive)
+nav:
+  - Home: README.md
+  - Quickstart: quickstart.md
+  
+  - Guides:
+    - Configuration: guides/configuration.md
+    - Kubernetes Deployment: guides/kubernetes.md
+    - Benchmarking: guides/benchmarking.md
+    - Saga Replay: guides/saga-replay.md
+    - Replay Storage Backends: guides/replay-storage-backends.md
+    - HA PostgreSQL Quick Reference: guides/ha-postgres-quickref.md
+    - Mermaid Diagrams: guides/mermaid.md
+  
+  - Architecture:
+    - Overview: architecture/overview.md
+    - Components: architecture/components.md
+    - Data Flow: architecture/dataflow.md
+    - Decisions: architecture/decisions.md
+    - ADR Index: architecture/adr/README.md
+    - Deep Dives:
+      - CDC Support: architecture/adr/adr-011-cdc-support.md
+      - ADR Dependencies: architecture/adr-dependencies-complete.md
+      - Idempotency Webhook: architecture/idempotency-webhook-behavior.md
+      - Coverage Analysis: architecture/coverage-analysis.md
+    - Diagrams:
+      - Outbox Flow: architecture/diagrams/outbox-flow.md
+      - K8s Topology: architecture/diagrams/k8s-topology.md
+      - Saga State Machine: architecture/diagrams/saga-state-machine.md
+  
+  - Patterns:
+    - Consumer Inbox: patterns/consumer-inbox.md
+    - Dead Letter Queue: patterns/dead-letter-queue.md
+    - Multi-Sink Fanout: patterns/multi-sink-fanout.md
+    - Optimistic Sending: patterns/optimistic-sending.md
+  
+  - Integrations:
+    - Webhook Status Tracking: integrations/webhook-status-tracking.md
+  
+  - Monitoring:
+    - Observability Reference: monitoring/OBSERVABILITY_REFERENCE.md
+    - Metrics Compatibility: monitoring/METRICS_COMPATIBILITY.md
+  
+  - Reference:
+    - Configuration API: reference/configuration.md
+  
+  - Development:
+    - Testing Guide: development/testing.md
+    - Changelog: development/changelog.md
+  
+  - Roadmap: ROADMAP.md
+
+# Plugins
+plugins:
+  - search
+  - autorefs
+
+# Extra configuration
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/brunolnetto/sagaz
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/sagaz/
+  version:
+    provider: mike
+
+# Exclude archive folder and other unwanted files
+exclude_docs: |
+  archive/
+  STRUCTURE.md
+  REPLAY_IMPLEMENTATION_COMPLETE.md
