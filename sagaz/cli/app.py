@@ -49,18 +49,29 @@ def cli():
     Sagaz - Production-ready Saga Pattern Orchestration.
 
     \b
-    Deployment Scenarios:
-        sagaz init --local        # Local development (Docker Compose)
-        sagaz init --selfhost     # Self-hosted servers
-        sagaz init --k8s          # Kubernetes (cloud-native)
-        sagaz init --hybrid       # Hybrid deployment
-
-    \b
-    Operations:
+    Commands by Progressive Risk Level:
+    
+    Analysis (Read-only):
+        sagaz validate <file>     # Validate saga configuration
+        sagaz simulate <file>     # Analyze execution DAG
+    
+    Project Management:
+        sagaz init --local        # Initialize project
+        sagaz project init        # Create new saga project
+        sagaz examples            # Explore examples
+    
+    Development Operations:
         sagaz dev                 # Start local environment
-        sagaz status              # Check health
+        sagaz status              # Check service health
+        sagaz stop                # Stop services
+        sagaz logs                # View logs
+        sagaz monitor             # Open monitoring dashboard
+    
+    Performance Testing:
         sagaz benchmark           # Run performance tests
-        sagaz benchmark --stress  # Run stress tests
+    
+    State Modification (Highest Risk):
+        sagaz replay              # Replay/modify saga state
 
     Documentation: https://github.com/brunolnetto/sagaz
     """
@@ -1034,11 +1045,25 @@ def run_example(name: str):
     """
 
 
-cli.add_command(cli_examples.examples_cli)
-cli.add_command(project_cli)
-cli.add_command(replay)
+# ============================================================================
+# Command Registration Order (Progressive Risk)
+# ============================================================================
+# 1. Analysis/Validation (Read-only, zero risk)
 cli.add_command(validate)
 cli.add_command(simulate)
+
+# 2. Project/Examples (Low risk - scaffolding/exploration)
+cli.add_command(project_cli)
+cli.add_command(cli_examples.examples_cli)
+
+# 3. Development Operations (Medium risk - local env management)
+# Note: dev, status, stop, logs, monitor are @cli.command() decorated above
+
+# 4. Performance Testing (Medium-high risk - resource intensive)
+# Note: benchmark is @cli.command() decorated above
+
+# 5. Replay/State Modification (Highest risk - modifies saga state)
+cli.add_command(replay)
 
 if __name__ == "__main__":
     cli()

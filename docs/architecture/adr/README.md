@@ -20,7 +20,9 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-025](adr-025-event-driven-triggers.md) | Event-Driven Triggers | v1.3.0 | 2026-01 |
 | [ADR-026](adr-026-industry-examples-expansion.md) | Industry Examples Expansion | v1.4-1.6 | 2026-01 |
 | [ADR-027](adr-027-project-cli.md) | Project CLI | v1.3.0 | 2026-01 |
-| [ADR-028](adr-028-framework-integration.md) | Framework Integration | v1.3.0 | 2026-01 |
+| [ADR-030](adr-030-dry-run-parallel-analysis.md) | Dry-Run Parallel Analysis | v1.3.0 | 2026-01 |
+| [ADR-031](adr-031-dry-run-simplification.md) | Dry-Run Simplification | v1.3.0 | 2026-01 |
+| [ADR-032](adr-032-cli-command-organization.md) | CLI Command Organization | v1.3.0 | 2026-01 |
 
 ---
 
