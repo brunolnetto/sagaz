@@ -124,28 +124,19 @@ class OutboxEvent:
 
 State machine for event lifecycle.
 
-```
-                    ┌─────────────┐
-                    │   PENDING   │ ◄─── Initial state
-                    └──────┬──────┘
-                           │
-                    claim_batch()
-                           │
-                    ┌──────▼──────┐
-              ┌─────│   CLAIMED   │─────┐
-              │     └─────────────┘     │
-              │                         │
-        publish_ok()              publish_fail()
-              │                         │
-       ┌──────▼──────┐          ┌──────▼──────┐
-       │    SENT     │          │   FAILED    │
-       └─────────────┘          └──────┬──────┘
-                                       │
-                              retry_count >= max?
-                                       │
-                               ┌───────▼───────┐
-                               │  DEAD_LETTER  │
-                               └───────────────┘
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING: Initial state
+    
+    PENDING --> CLAIMED: claim_batch()
+    
+    CLAIMED --> SENT: publish_ok()
+    CLAIMED --> FAILED: publish_fail()
+    
+    FAILED --> DEAD_LETTER: retry_count >= max
+    
+    SENT --> [*]
+    DEAD_LETTER --> [*]
 ```
 
 ### OutboxWorker

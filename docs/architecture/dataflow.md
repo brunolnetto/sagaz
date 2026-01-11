@@ -4,88 +4,51 @@ This document describes how data flows through thesagaz system.
 
 ## Overview
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              SAGA EXECUTION                                 │
-│                                                                             │
-│   Application         Saga Engine          Database           Outbox Worker │
-│       │                   │                   │                     │       │
-│       │  execute()        │                   │                     │       │
-│       ├──────────────────►│                   │                     │       │
-│       │                   │                   │                     │       │
-│       │                   │ BEGIN TX          │                     │       │
-│       │                   ├──────────────────►│                     │       │
-│       │                   │                   │                     │       │
-│       │                   │ Step 1: action()  │                     │       │
-│       │                   │ INSERT outbox     │                     │       │
-│       │                   ├──────────────────►│                     │       │
-│       │                   │                   │                     │       │
-│       │                   │ Step 2: action()  │                     │       │
-│       │                   │ INSERT outbox     │                     │       │
-│       │                   ├──────────────────►│                     │       │
-│       │                   │                   │                     │       │
-│       │                   │ COMMIT TX         │                     │       │
-│       │                   ├──────────────────►│                     │       │
-│       │                   │                   │                     │       │
-│       │  SagaResult       │                   │                     │       │
-│       │◄──────────────────┤                   │                     │       │
-│       │                   │                   │                     │       │
-│       │                   │                   │  poll pending       │       │
-│       │                   │                   │◄────────────────────┤       │
-│       │                   │                   │                     │       │
-│       │                   │                   │  claim + publish    │       │
-│       │                   │                   │◄────────────────────┤       │
-│       │                   │                   │                     │       │
-└─────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+sequenceDiagram
+    participant App as Application
+    participant Saga as Saga Engine
+    participant DB as Database
+    participant Worker as Outbox Worker
+    
+    App->>Saga: execute()
+    Saga->>DB: BEGIN TX
+    Saga->>DB: Step 1: action()<br/>INSERT outbox
+    Saga->>DB: Step 2: action()<br/>INSERT outbox
+    Saga->>DB: COMMIT TX
+    Saga->>App: SagaResult
+    
+    Worker->>DB: poll pending
+    Worker->>DB: claim + publish
 ```
 
 ---
 
 ## Use Case 1: Successful Saga Execution
 
-```
-┌────────┐     ┌────────┐     ┌────────┐     ┌────────┐     ┌────────┐
-│  App   │     │  Saga  │     │  Step  │     │   DB   │     │ Outbox │
-└───┬────┘     └───┬────┘     └───┬────┘     └───┬────┘     └───┬────┘
-    │              │              │              │              │
-    │ execute()    │              │              │              │
-    ├─────────────►│              │              │              │
-    │              │              │              │              │
-    │              │ run step 1   │              │              │
-    │              ├─────────────►│              │              │
-    │              │              │              │              │
-    │              │              │ action()     │              │
-    │              │              ├─────────────►│              │
-    │              │              │              │              │
-    │              │              │ save_event() │              │
-    │              │              ├─────────────►│              │
-    │              │              │              │              │
-    │              │ step 1 done  │              │              │
-    │              │◄─────────────┤              │              │
-    │              │              │              │              │
-    │              │ run step 2   │              │              │
-    │              ├─────────────►│              │              │
-    │              │              │ (repeat)     │              │
-    │              │              ├─────────────►│              │
-    │              │              │              │              │
-    │              │ all done     │              │              │
-    │              │◄─────────────┤              │              │
-    │              │              │              │              │
-    │ COMPLETED    │              │              │              │
-    │◄─────────────┤              │              │              │
-    │              │              │              │              │
-    │              │              │              │ poll pending │
-    │              │              │              │◄─────────────┤
-    │              │              │              │              │
-    │              │              │              │ claim batch  │
-    │              │              │              │◄─────────────┤
-    │              │              │              │              │
-    │              │              │              │ publish      │
-    │              │              │              │─────────────►│ Broker
-    │              │              │              │              │
-    │              │              │              │ mark sent    │
-    │              │              │              │◄─────────────┤
-    │              │              │              │              │
+```mermaid
+sequenceDiagram
+    participant App
+    participant Saga
+    participant Step
+    participant DB
+    participant Outbox
+    participant Broker
+    
+    App->>Saga: execute()
+    Saga->>Step: run step 1
+    Step->>DB: action()
+    Step->>Outbox: save_event()
+    Step->>Saga: step 1 done
+    Saga->>Step: run step 2
+    Step->>DB: (repeat)
+    Step->>Saga: all done
+    Saga->>App: COMPLETED
+    
+    Outbox->>DB: poll pending
+    Outbox->>DB: claim batch
+    Outbox->>Broker: publish
+    Outbox->>DB: mark sent
 ```
 
 ---
@@ -94,37 +57,22 @@ This document describes how data flows through thesagaz system.
 
 When Step 2 fails, compensations run in reverse order.
 
-```
-┌────────┐     ┌────────┐     ┌────────┐     ┌────────┐
-│  App   │     │  Saga  │     │ Step 1 │     │ Step 2 │
-└───┬────┘     └───┬────┘     └───┬────┘     └───┬────┘
-    │              │              │              │
-    │ execute()    │              │              │
-    ├─────────────►│              │              │
-    │              │              │              │
-    │              │ run step 1   │              │
-    │              ├─────────────►│              │
-    │              │              │              │
-    │              │ action() ✓   │              │
-    │              │◄─────────────┤              │
-    │              │              │              │
-    │              │ run step 2   │              │
-    │              ├─────────────────────────────►
-    │              │              │              │
-    │              │              │   action() ✗ │
-    │              │◄─────────────────────────────  FAILS
-    │              │              │              │
-    │              │ COMPENSATING │              │
-    │              │              │              │
-    │              │ compensate step 1           │
-    │              ├─────────────►│              │
-    │              │              │              │
-    │              │ compensation()│             │
-    │              │◄─────────────┤              │
-    │              │              │              │
-    │ COMPENSATED  │              │              │
-    │◄─────────────┤              │              │
-    │              │              │              │
+```mermaid
+sequenceDiagram
+    participant App
+    participant Saga
+    participant Step1 as Step 1
+    participant Step2 as Step 2
+    
+    App->>Saga: execute()
+    Saga->>Step1: run step 1
+    Step1->>Saga: action() ✓
+    Saga->>Step2: run step 2
+    Step2-->>Saga: action() ✗ FAILS
+    Note over Saga: COMPENSATING
+    Saga->>Step1: compensate step 1
+    Step1->>Saga: compensation()
+    Saga->>App: COMPENSATED
 ```
 
 ---
@@ -133,79 +81,42 @@ When Step 2 fails, compensations run in reverse order.
 
 Multiple workers process events concurrently using `FOR UPDATE SKIP LOCKED`.
 
-```
-┌──────────┐     ┌──────────┐     ┌────────┐     ┌────────┐
-│ Worker 1 │     │ Worker 2 │     │   DB   │     │ Broker │
-└────┬─────┘     └────┬─────┘     └───┬────┘     └───┬────┘
-     │                │               │               │
-     │ claim_batch()  │               │               │
-     ├───────────────────────────────►│               │
-     │                │               │               │
-     │                │ claim_batch() │               │
-     │                ├──────────────►│               │
-     │                │               │               │
-     │ events [A, B]  │               │               │
-     │◄───────────────────────────────┤               │
-     │                │               │               │
-     │                │ events [C, D] │  (different   │
-     │                │◄──────────────┤   events due  │
-     │                │               │   to SKIP     │
-     │                │               │   LOCKED)     │
-     │                │               │               │
-     │ publish A      │               │               │
-     ├───────────────────────────────────────────────►│
-     │                │               │               │
-     │                │ publish C     │               │
-     │                ├──────────────────────────────►│
-     │                │               │               │
-     │ mark A sent    │               │               │
-     ├───────────────────────────────►│               │
-     │                │               │               │
-     │ publish B      │               │               │
-     ├───────────────────────────────────────────────►│
-     │                │               │               │
-     │                │ mark C sent   │               │
-     │                ├──────────────►│               │
-     │                │               │               │
+```mermaid
+sequenceDiagram
+    participant W1 as Worker 1
+    participant W2 as Worker 2
+    participant DB
+    participant Broker
+    
+    W1->>DB: claim_batch()
+    W2->>DB: claim_batch()
+    DB->>W1: events [A, B]
+    DB->>W2: events [C, D]<br/>(different via SKIP LOCKED)
+    W1->>Broker: publish A
+    W2->>Broker: publish C
+    W1->>DB: mark A sent
+    W1->>Broker: publish B
+    W2->>DB: mark C sent
 ```
 
 ---
 
 ## Event State Machine
 
-```
-                         ┌─────────────────────────────────────┐
-                         │                                     │
-                         │    ┌───────────┐                    │
-                         │    │  PENDING  │◄───── Created by   │
-                         │    └─────┬─────┘       saga step    │
-                         │          │                          │
-                         │    claim_batch()                    │
-                         │    (FOR UPDATE SKIP LOCKED)         │
-                         │          │                          │
-                         │    ┌─────▼─────┐                    │
-                  ┌──────┴────│  CLAIMED  │────────┐           │
-                  │           └───────────┘        │           │
-                  │                                │           │
-            publish_ok()                    publish_fail()     │
-                  │                                │           │
-            ┌─────▼─────┐                  ┌──────▼──────┐     │
-            │   SENT    │                  │   FAILED    │     │
-            │           │                  │             │     │
-            │  (done)   │                  │ retry_count │     │
-            └───────────┘                  │    += 1     │     │
-                                           └──────┬──────┘     │
-                                                  │            │
-                                    ┌─────────────┴────────────┤
-                                    │                          │
-                              retry_count < max?         retry_count >= max?
-                                    │                          │
-                              ┌─────▼─────┐             ┌──────▼──────┐
-                              │  PENDING  │             │ DEAD_LETTER │
-                              │  (retry)  │             │             │
-                              └───────────┘             │  (manual    │
-                                                        │   review)   │
-                                                        └─────────────┘
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING: Created by saga step
+    
+    PENDING --> CLAIMED: claim_batch()<br/>(FOR UPDATE SKIP LOCKED)
+    
+    CLAIMED --> SENT: publish_ok()
+    CLAIMED --> FAILED: publish_fail()
+    
+    FAILED --> PENDING: retry_count < max<br/>(retry)
+    FAILED --> DEAD_LETTER: retry_count >= max
+    
+    SENT --> [*]: done
+    DEAD_LETTER --> [*]: manual review
 ```
 
 ---
@@ -214,46 +125,23 @@ Multiple workers process events concurrently using `FOR UPDATE SKIP LOCKED`.
 
 ### RabbitMQ
 
-```
-┌─────────────┐    ┌─────────────────────────────────────────┐
-│   Worker    │    │              RabbitMQ                    │
-│             │    │                                          │
-│             │    │  ┌───────────────────────┐              │
-│  publish()  │───►│  │   saga-events         │  Exchange    │
-│             │    │  │   (topic)             │              │
-│             │    │  └───────────┬───────────┘              │
-│             │    │              │                          │
-│             │    │    routing key = event_type             │
-│             │    │              │                          │
-│             │    │  ┌───────────▼───────────┐              │
-│             │    │  │  order.created        │  Queue       │
-│             │    │  └───────────────────────┘              │
-│             │    │  ┌───────────────────────┐              │
-│             │    │  │  payment.completed    │  Queue       │
-│             │    │  └───────────────────────┘              │
-│             │    │                                          │
-└─────────────┘    └─────────────────────────────────────────┘
+```mermaid
+graph LR
+    Worker[Worker] -->|publish| Exchange["Exchange:<br/>saga-events (topic)"]
+    Exchange -->|routing key = event_type| Q1["Queue:<br/>order.created"]
+    Exchange --> Q2["Queue:<br/>payment.completed"]
 ```
 
 ### Kafka
 
-```
-┌─────────────┐    ┌─────────────────────────────────────────┐
-│   Worker    │    │              Kafka                       │
-│             │    │                                          │
-│             │    │  ┌─────────────────────────────────────┐│
-│  publish()  │───►│  │  Topic: saga-events                 ││
-│             │    │  │                                     ││
-│   key =     │    │  │  ┌────────┐ ┌────────┐ ┌────────┐  ││
-│   saga_id   │    │  │  │ Part 0 │ │ Part 1 │ │ Part 2 │  ││
-│             │    │  │  │        │ │        │ │        │  ││
-│             │    │  │  │  A, C  │ │  B, D  │ │  E, F  │  ││
-│             │    │  │  └────────┘ └────────┘ └────────┘  ││
-│             │    │  │                                     ││
-│             │    │  │  (partitioned by saga_id for order) ││
-│             │    │  └─────────────────────────────────────┘│
-│             │    │                                          │
-└─────────────┘    └─────────────────────────────────────────┘
+```mermaid
+graph TB
+    Worker[Worker<br/>key = saga_id] -->|publish| Topic["Topic: saga-events"]
+    Topic --> P0["Partition 0<br/>A, C"]
+    Topic --> P1["Partition 1<br/>B, D"]
+    Topic --> P2["Partition 2<br/>E, F"]
+    
+    Note[partitioned by saga_id for order]
 ```
 
 ---
@@ -262,45 +150,25 @@ Multiple workers process events concurrently using `FOR UPDATE SKIP LOCKED`.
 
 Prevents duplicate event processing on the consumer side.
 
-```
-┌──────────────┐     ┌──────────────┐     ┌────────────────┐
-│   Consumer   │     │    Inbox     │     │   Business     │
-│   Service    │     │    Table     │     │   Logic        │
-└──────┬───────┘     └──────┬───────┘     └───────┬────────┘
-       │                    │                     │
-       │ receive event      │                     │
-       ├───────────────────►│                     │
-       │                    │                     │
-       │ check: exists?     │                     │
-       ├───────────────────►│                     │
-       │                    │                     │
-       │ NO (new event)     │                     │
-       │◄───────────────────┤                     │
-       │                    │                     │
-       │ BEGIN TX           │                     │
-       ├─────────────────────────────────────────►│
-       │                    │                     │
-       │ INSERT inbox       │                     │
-       ├───────────────────►│                     │
-       │                    │                     │
-       │ process event      │                     │
-       ├─────────────────────────────────────────►│
-       │                    │                     │
-       │ COMMIT TX          │                     │
-       ├─────────────────────────────────────────►│
-       │                    │                     │
-       │                    │                     │
-       │ receive SAME event │                     │
-       ├───────────────────►│                     │
-       │                    │                     │
-       │ check: exists?     │                     │
-       ├───────────────────►│                     │
-       │                    │                     │
-       │ YES (duplicate)    │                     │
-       │◄───────────────────┤                     │
-       │                    │                     │
-       │ SKIP processing    │                     │
-       │                    │                     │
+```mermaid
+sequenceDiagram
+    participant C as Consumer Service
+    participant I as Inbox Table
+    participant B as Business Logic
+    
+    C->>I: receive event
+    C->>I: check: exists?
+    I->>C: NO (new event)
+    C->>B: BEGIN TX
+    C->>I: INSERT inbox
+    C->>B: process event
+    C->>B: COMMIT TX
+    
+    Note over C,I: Same event received again
+    C->>I: receive SAME event
+    C->>I: check: exists?
+    I->>C: YES (duplicate)
+    Note over C: SKIP processing
 ```
 
 ---
