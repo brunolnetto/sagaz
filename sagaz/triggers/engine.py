@@ -3,6 +3,7 @@ import uuid
 from typing import Any
 
 from sagaz.core.config import get_config
+from sagaz.core.exceptions import IdempotencyKeyRequiredError
 from sagaz.core.logger import get_logger
 from sagaz.core.types import SagaStatus
 from sagaz.triggers.decorators import TriggerMetadata
@@ -40,6 +41,9 @@ class TriggerEngine:
 
         Returns:
             List of started (or existing) saga IDs.
+
+        Raises:
+            IdempotencyKeyRequiredError: If a high-value operation lacks idempotency_key
         """
         triggers = TriggerRegistry.get_triggers(source)
 
@@ -53,7 +57,12 @@ class TriggerEngine:
             *[self._process_trigger(t, payload) for t in triggers], return_exceptions=True
         )
 
-        # Filter out None and exceptions
+        # Check for IdempotencyKeyRequiredError and re-raise
+        for result in results:
+            if isinstance(result, IdempotencyKeyRequiredError):
+                raise result
+
+        # Filter out None and other exceptions
         return [r for r in results if isinstance(r, str)]
 
     async def _process_trigger(self, trigger, payload: Any) -> str | None:
@@ -90,6 +99,9 @@ class TriggerEngine:
             await self._run_saga(saga_class, saga_id, context)
             return saga_id
 
+        except IdempotencyKeyRequiredError:
+            # Re-raise idempotency errors - these are configuration errors that should fail fast
+            raise
         except Exception as e:
             logger.exception(f"Error processing trigger {saga_class.__name__}.{method_name}: {e}")
             return None
@@ -106,26 +118,37 @@ class TriggerEngine:
         return True
 
     def _validate_idempotency(self, metadata: TriggerMetadata, context: dict, saga_class):
-        """Validate and warn if high-value operations lack idempotency keys."""
+        """
+        Validate idempotency key for high-value operations.
+
+        Raises IdempotencyKeyRequiredError if high-value data is detected
+        without an idempotency_key configured.
+        """
         if metadata.idempotency_key:
             return  # Idempotency configured, all good
 
         # Check for financial/high-value indicators
         financial_indicators = ["amount", "price", "payment", "charge", "refund", "transaction"]
-        has_financial_data = any(
-            indicator in key.lower() for key in context for indicator in financial_indicators
-        )
+        detected_fields = [
+            key for key in context for indicator in financial_indicators if indicator in key.lower()
+        ]
 
         # Check for amounts over a threshold
         high_value_threshold = 100.0
-        has_high_value = any(
-            isinstance(v, (int, float)) and v >= high_value_threshold for v in context.values()
-        )
+        high_value_fields = [
+            key
+            for key, v in context.items()
+            if isinstance(v, (int, float)) and v >= high_value_threshold
+        ]
 
-        if has_financial_data or has_high_value:
-            logger.warning(
-                f"⚠️  High-value operation detected in {saga_class.__name__} without idempotency_key. "
-                f"Consider adding: @trigger(source='{metadata.source}', idempotency_key='<unique_field>')"
+        # Merge detected fields
+        all_detected = list(set(detected_fields + high_value_fields))
+
+        if all_detected:
+            raise IdempotencyKeyRequiredError(
+                saga_name=saga_class.__name__,
+                source=metadata.source,
+                detected_fields=all_detected,
             )
 
     async def _resolve_saga_id(
