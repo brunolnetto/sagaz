@@ -102,9 +102,11 @@ def main():
     print('   ✓ Returns: {"status": "accepted", "correlation_id": "..."}')
     print()
 
-    print("4️⃣  Check Webhook Status:")
-    print("   # Use the correlation_id from previous response")
+    print("4️⃣  Check Webhook Status (use correlation_id from step 3):")
     print("   curl http://localhost:5000/webhooks/order_created/status/<correlation_id>")
+    print()
+    print("   Example:")
+    print("   curl http://localhost:5000/webhooks/order_created/status/abc-123-xyz")
     print()
 
     print("5️⃣  Trigger with High Amount (will fail payment):")
@@ -113,11 +115,14 @@ def main():
     print('        -d \'{"order_id": "ORD-002", "amount": 1500.00, "user_id": "user-456"}\'')
     print()
 
-    print("6️⃣  With Correlation ID for Tracing:")
+    print("6️⃣  With Custom Correlation ID for Tracing:")
     print("   curl -X POST http://localhost:5000/webhooks/order_created \\")
     print('        -H "Content-Type: application/json" \\')
     print('        -H "X-Correlation-ID: my-trace-456" \\')
     print('        -d \'{"order_id": "ORD-003", "amount": 299.99, "user_id": "user-789"}\'')
+    print()
+    print("   Then check status:")
+    print("   curl http://localhost:5000/webhooks/order_created/status/my-trace-456")
     print()
 
     print("ℹ️  Note: Webhooks execute sagas asynchronously in background.")

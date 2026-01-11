@@ -5,6 +5,7 @@ Provides:
 - SagaFlask extension class
 - Middleware for correlation ID propagation
 - Webhook blueprint registration (async, fire-and-forget)
+- Webhook status tracking
 """
 
 import threading
@@ -23,7 +24,30 @@ __all__ = [
     "SagaContextManager",
     "SagaFlask",
     "get_logger",
+    "get_webhook_status",
 ]
+
+# Global tracking for webhook status (in-memory for demo)
+_webhook_tracking: dict[str, dict[str, Any]] = {}
+
+
+def get_webhook_status(correlation_id: str) -> dict[str, Any] | None:
+    """
+    Get status of a webhook event by correlation ID.
+
+    Args:
+        correlation_id: The correlation ID from the webhook response
+
+    Returns:
+        Status dictionary or None if not found
+
+    Example:
+        status = get_webhook_status("abc-123-xyz")
+        if status:
+            print(f"Status: {status['status']}")
+            print(f"Saga IDs: {status['saga_ids']}")
+    """
+    return _webhook_tracking.get(correlation_id)
 
 
 class SagaFlask:
@@ -94,22 +118,30 @@ class SagaFlask:
 
             payload = request.get_json(silent=True) or {}
 
-            # Generate a correlation ID for this event
-            correlation_id = generate_correlation_id()
+            # Get or generate correlation ID
+            correlation_id = request.headers.get("X-Correlation-ID") or generate_correlation_id()
 
-            # Store saga IDs for status tracking
-            saga_ids_container = []
+            # Store initial status
+            _webhook_tracking[correlation_id] = {
+                "status": "queued",
+                "saga_ids": [],
+                "source": source,
+            }
 
             # Fire event in background thread (fire-and-forget)
             def process_in_thread():
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 try:
+                    _webhook_tracking[correlation_id]["status"] = "processing"
                     saga_ids = loop.run_until_complete(fire_event(source, payload))
-                    saga_ids_container.extend(saga_ids)
-                    logger.debug(f"Webhook {source} triggered sagas: {saga_ids}")
-                except Exception as e:  # pragma: no cover
-                    logger.error(f"Webhook {source} processing error: {e}")  # pragma: no cover
+                    _webhook_tracking[correlation_id]["saga_ids"] = saga_ids
+                    _webhook_tracking[correlation_id]["status"] = "completed"
+                    logger.info(f"Webhook {source} triggered sagas: {saga_ids}")
+                except Exception as e:
+                    _webhook_tracking[correlation_id]["status"] = "failed"
+                    _webhook_tracking[correlation_id]["error"] = str(e)
+                    logger.error(f"Webhook {source} processing error: {e}")
                 finally:
                     loop.close()
 
@@ -124,5 +156,48 @@ class SagaFlask:
                     "correlation_id": correlation_id,
                 }
             ), 202  # Accepted
+
+        @bp.route("/<source>/status/<correlation_id>", methods=["GET"])
+        def webhook_status_handler(source: str, correlation_id: str):
+            """
+            Check status of a webhook event.
+
+            Returns the current status of event processing.
+            """
+            status = get_webhook_status(correlation_id)
+
+            if not status:
+                return jsonify(
+                    {
+                        "correlation_id": correlation_id,
+                        "source": source,
+                        "status": "not_found",
+                        "message": "No webhook event found with this correlation ID",
+                    }
+                ), 404
+
+            response_data = {
+                "correlation_id": correlation_id,
+                "source": source,
+                "status": status["status"],
+                "saga_ids": status.get("saga_ids", []),
+            }
+
+            if "error" in status:
+                response_data["error"] = status["error"]
+
+            # Add helpful messages based on status
+            if status["status"] == "queued":
+                response_data["message"] = "Event is queued for processing"
+            elif status["status"] == "processing":
+                response_data["message"] = "Event is currently being processed"
+            elif status["status"] == "completed":
+                response_data["message"] = (
+                    f"Event processed successfully, triggered {len(status['saga_ids'])} saga(s)"
+                )
+            elif status["status"] == "failed":
+                response_data["message"] = "Event processing failed"
+
+            return jsonify(response_data)
 
         self.app.register_blueprint(bp)
