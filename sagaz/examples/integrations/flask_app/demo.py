@@ -148,8 +148,11 @@ def main():
                 [sys.executable, str(script_dir / "main.py")],
                 check=True,
             )
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as e:
             print("\n❌ Server failed to start.")
+            print(f"\n💡 Error: {e}")
+            print("   Port 5000 may already be in use.")
+            print("   Stop any running Flask apps with: pkill -f flask")
             return 1
         except KeyboardInterrupt:
             print("\n\n✅ Server stopped.")
