@@ -304,17 +304,23 @@ class SagaConfig:
         )
 
     @classmethod
-    def from_env(cls) -> SagaConfig:
+    def from_env(cls, load_dotenv: bool = True) -> SagaConfig:
         """
         Create configuration from environment variables.
 
         Environment variables:
             SAGAZ_STORAGE_URL: Storage connection string (auto-detects type)
+            SAGAZ_STORAGE_TYPE: Storage type (postgresql, redis, memory)
+            SAGAZ_STORAGE_HOST, PORT, DB, USER, PASSWORD: Individual components
             SAGAZ_BROKER_URL: Broker connection string (auto-detects type)
+            SAGAZ_BROKER_TYPE: Broker type (kafka, rabbitmq, redis, memory)
             SAGAZ_METRICS: Enable metrics (true/false)
             SAGAZ_TRACING: Enable tracing (true/false)
             SAGAZ_LOGGING: Enable logging (true/false)
             SAGAZ_TRACING_ENDPOINT: OpenTelemetry collector endpoint
+
+        Args:
+            load_dotenv: If True, loads .env file before reading variables
 
         Example:
             >>> import os
@@ -324,48 +330,86 @@ class SagaConfig:
         """
         import os
 
+        from sagaz.core.env import get_env
+
+        env = get_env()
+        if load_dotenv:
+            env.load()
+
         storage = None
         broker = None
 
-        # Parse storage URL
-        storage_url = os.environ.get("SAGAZ_STORAGE_URL", "")
+        # Parse storage - try URL first, then build from components
+        storage_url = env.get("SAGAZ_STORAGE_URL", "")
         if storage_url:
             storage = cls._parse_storage_url(storage_url)
+        else:
+            storage_type = env.get("SAGAZ_STORAGE_TYPE", "postgresql")
+            if storage_type == "postgresql":
+                host = env.get("SAGAZ_STORAGE_HOST", "localhost")
+                port = env.get("SAGAZ_STORAGE_PORT", "5432")
+                db = env.get("SAGAZ_STORAGE_DB", "sagaz")
+                user = env.get("SAGAZ_STORAGE_USER", "postgres")
+                password = env.get("SAGAZ_STORAGE_PASSWORD", "postgres")
+                storage_url = f"postgresql://{user}:{password}@{host}:{port}/{db}"
+                storage = cls._parse_storage_url(storage_url)
+            elif storage_type == "redis":
+                redis_url = env.get("SAGAZ_STORAGE_URL", "redis://localhost:6379/0")
+                storage = cls._parse_storage_url(redis_url)
 
-        # Parse broker URL
-        broker_url = os.environ.get("SAGAZ_BROKER_URL", "")
+        # Parse broker - try URL first, then build from components
+        broker_url = env.get("SAGAZ_BROKER_URL", "")
         if broker_url:
             broker = cls._parse_broker_url(broker_url)
-
-        # Parse boolean flags
-        def parse_bool(key: str, default: bool = True) -> bool:
-            val = os.environ.get(key, "").lower()
-            if val in ("true", "1", "yes"):
-                return True
-            if val in ("false", "0", "no"):
-                return False
-            return default
+        else:
+            broker_type = env.get("SAGAZ_BROKER_TYPE", "")
+            if broker_type == "kafka":
+                host = env.get("SAGAZ_BROKER_HOST", "localhost")
+                port = env.get("SAGAZ_BROKER_PORT", "9092")
+                broker_url = f"kafka://{host}:{port}"
+                broker = cls._parse_broker_url(broker_url)
+            elif broker_type == "rabbitmq":
+                host = env.get("SAGAZ_BROKER_HOST", "localhost")
+                port = env.get("SAGAZ_BROKER_PORT", "5672")
+                user = env.get("SAGAZ_BROKER_USER", "guest")
+                password = env.get("SAGAZ_BROKER_PASSWORD", "guest")
+                broker_url = f"amqp://{user}:{password}@{host}:{port}/"
+                broker = cls._parse_broker_url(broker_url)
+            elif broker_type == "redis":
+                redis_url = env.get("SAGAZ_BROKER_URL", "redis://localhost:6379/1")
+                broker = cls._parse_broker_url(redis_url)
 
         return cls(
             storage=storage,
             broker=broker,
-            metrics=parse_bool("SAGAZ_METRICS", True),
-            tracing=parse_bool("SAGAZ_TRACING", False),
-            logging=parse_bool("SAGAZ_LOGGING", True),
+            metrics=env.get_bool("SAGAZ_METRICS", True),
+            tracing=env.get_bool("SAGAZ_TRACING", False),
+            logging=env.get_bool("SAGAZ_LOGGING", True),
         )
 
     @classmethod
-    def from_file(cls, file_path: str | Path) -> SagaConfig:
+    def from_file(cls, file_path: str | Path, substitute_env: bool = True) -> SagaConfig:
         """
         Load configuration from a YAML or JSON file.
 
+        Supports environment variable substitution using ${VAR} syntax.
+
         Args:
             file_path: Path to the configuration file (e.g., 'sagaz.yaml')
+            substitute_env: If True, substitute environment variables in config
 
         Example:
             >>> config = SagaConfig.from_file("sagaz.yaml")
+            
+            # In sagaz.yaml:
+            # storage:
+            #   connection:
+            #     host: ${SAGAZ_STORAGE_HOST:-localhost}
+            #     password: ${SAGAZ_STORAGE_PASSWORD:?Password required}
         """
         import yaml
+
+        from sagaz.core.env import get_env
 
         path = Path(file_path)
         if not path.exists():
@@ -377,6 +421,12 @@ class SagaConfig:
 
         if not data:
             return cls()
+
+        # Substitute environment variables in the config
+        if substitute_env:
+            env = get_env()
+            env.load()  # Load .env if exists
+            data = env.substitute_dict(data)
 
         # Extract sections
         storage_data = data.get("storage", {})

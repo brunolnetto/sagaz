@@ -6,6 +6,7 @@ readme = "README.md"
 dependencies = [
     "aiofiles>=25.1.0",
     "click>=8.1.0",
+    "python-dotenv>=1.0.0",
     "python-statemachine>=2.1.0",
     "rich>=13.0.0",
     "simple-term-menu>=1.6.0",
