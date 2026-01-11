@@ -59,14 +59,17 @@ def cli():
     Commands by Progressive Risk:
     \b
       Analysis (Read-only):
-        validate         Validate saga configuration
-        simulate         Analyze execution DAG and parallelization
+        validate         Validate project sagas
+        simulate         Analyze execution DAG
     \b
       Project Management:
-        init             Initialize deployment environment
+        init             Initialize new project
         check            Validate project structure
         list             List discovered sagas
         examples         Explore examples
+    \b
+      Deployment:
+        setup            Setup deployment environment
     \b
       Development:
         dev              Start local environment
@@ -91,21 +94,250 @@ def cli():
 
 
 @click.command()
-def init_cmd():
+@click.option("--name", "-n", prompt="Project name", help="Name of the project")
+@click.option("--path", "-p", type=click.Path(), default=".", help="Project directory (default: current)")
+def init_cmd(name: str, path: str):
     """
-    Initialize Sagaz deployment environment interactively.
+    Initialize a new Sagaz project.
+    
+    Creates project structure:
+      - sagaz.yaml (project configuration)
+      - profiles.yaml (environment profiles)  
+      - sagas/ (saga definitions)
+      - tests/ (test files)
+      - README.md
+    
+    \b
+    Example:
+        sagaz init --name my-saga-project
+        sagaz init -n my-project -p ./my-project
+    """
+    project_path = Path(path)
+    project_path.mkdir(parents=True, exist_ok=True)
+    
+    if console:
+        console.print(
+            Panel.fit(
+                f"[bold blue]Initializing Sagaz Project: {name}[/bold blue]\n"
+                "Creating project structure...",
+                border_style="blue",
+            )
+        )
+    else:
+        click.echo(f"=== Initializing Sagaz Project: {name} ===\n")
+    
+    # Create sagaz.yaml
+    sagaz_yaml_content = f"""name: {name}
+version: "0.1.0"
+profile: default
+
+paths:
+  - sagas/
+
+config:
+  default_timeout: 60
+  failure_strategy: FAIL_FAST_WITH_GRACE
+  
+observability:
+  metrics:
+    enabled: true
+    port: 8000
+  tracing:
+    enabled: true
+    exporter: jaeger
+  logging:
+    level: INFO
+    format: json
+"""
+    (project_path / "sagaz.yaml").write_text(sagaz_yaml_content)
+    click.echo(f"  CREATE {project_path / 'sagaz.yaml'}")
+    
+    # Create profiles.yaml
+    profiles_yaml_content = """default:
+  target: dev
+
+dev:
+  storage_url: "postgresql://sagaz:sagaz@localhost:5432/sagaz_dev"
+  broker_url: "redis://localhost:6379/0"
+  outbox_url: "postgresql://sagaz:sagaz@localhost:5432/sagaz_outbox"
+  
+  observability:
+    metrics_port: 8000
+    tracing_endpoint: "http://localhost:14268/api/traces"
+    
+prod:
+  storage_url: "{{ env_var('SAGAZ_STORAGE_URL') }}"
+  broker_url: "{{ env_var('SAGAZ_BROKER_URL') }}"
+  outbox_url: "{{ env_var('SAGAZ_OUTBOX_URL') }}"
+  
+  observability:
+    metrics_port: 8000
+    tracing_endpoint: "{{ env_var('SAGAZ_TRACING_ENDPOINT') }}"
+"""
+    (project_path / "profiles.yaml").write_text(profiles_yaml_content)
+    click.echo(f"  CREATE {project_path / 'profiles.yaml'}")
+    
+    # Create sagas/ directory with example
+    sagas_dir = project_path / "sagas"
+    sagas_dir.mkdir(exist_ok=True)
+    (sagas_dir / "__init__.py").write_text("")
+    click.echo(f"  CREATE {sagas_dir / '__init__.py'}")
+    
+    example_saga_content = """from sagaz import Saga, action, SagaContext
+
+
+class ExampleSaga(Saga):
+    \"\"\"
+    Example saga demonstrating a simple multi-step workflow.
+    
+    Steps:
+    1. step_one: Initial processing
+    2. step_two: Depends on step_one
+    3. step_three: Final step
+    \"\"\"
+    
+    @action("step_one")
+    async def step_one(self, ctx: SagaContext):
+        \"\"\"First step of the saga.\"\"\"
+        print("Executing step one")
+        return {"result": "step_one_complete"}
+    
+    @action("step_two", depends_on=["step_one"])
+    async def step_two(self, ctx: SagaContext):
+        \"\"\"Second step, depends on step_one.\"\"\"
+        print("Executing step two")
+        return {"result": "step_two_complete"}
+    
+    @action("step_three", depends_on=["step_two"])
+    async def step_three(self, ctx: SagaContext):
+        \"\"\"Final step of the saga.\"\"\"
+        print("Executing step three")
+        return {"final": "done"}
+"""
+    (sagas_dir / "example_saga.py").write_text(example_saga_content)
+    click.echo(f"  CREATE {sagas_dir / 'example_saga.py'}")
+    
+    # Create tests/ directory
+    tests_dir = project_path / "tests"
+    tests_dir.mkdir(exist_ok=True)
+    (tests_dir / "__init__.py").write_text("")
+    click.echo(f"  CREATE {tests_dir / '__init__.py'}")
+    
+    test_example_content = """import pytest
+from sagas.example_saga import ExampleSaga
+
+
+@pytest.mark.asyncio
+async def test_example_saga():
+    \"\"\"Test the example saga.\"\"\"
+    saga = ExampleSaga()
+    result = await saga.run({})
+    assert result["final"] == "done"
+"""
+    (tests_dir / "test_example_saga.py").write_text(test_example_content)
+    click.echo(f"  CREATE {tests_dir / 'test_example_saga.py'}")
+    
+    # Create README.md
+    readme_content = f"""# {name}
+
+Sagaz project for orchestrating distributed transactions.
+
+## Structure
+
+```
+{name}/
+├── sagaz.yaml          # Project configuration
+├── profiles.yaml       # Environment profiles (dev/prod)
+├── sagas/              # Saga definitions
+│   └── example_saga.py
+└── tests/              # Test files
+    └── test_example_saga.py
+```
+
+## Quick Start
+
+1. **Validate sagas**: `sagaz validate`
+2. **Simulate execution**: `sagaz simulate`
+3. **Setup deployment**: `sagaz setup` (creates Docker Compose, K8s manifests, etc.)
+4. **Start development**: `sagaz dev`
+
+## Next Steps
+
+- Edit `sagas/example_saga.py` or create new sagas
+- Run `sagaz setup` to configure deployment environment
+- Check `sagaz --help` for all commands
+"""
+    (project_path / "README.md").write_text(readme_content)
+    click.echo(f"  CREATE {project_path / 'README.md'}")
+    
+    # Create .gitignore
+    gitignore_content = """# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# Sagaz
+.sagaz/
+logs/
+
+# Docker
+docker-compose.override.yaml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+"""
+    (project_path / ".gitignore").write_text(gitignore_content)
+    click.echo(f"  CREATE {project_path / '.gitignore'}")
+    
+    if console:
+        console.print("\n[bold green]Project initialized successfully![/bold green]")
+        console.print(f"\nNext steps:")
+        console.print(f"  1. cd {project_path if path != '.' else name}")
+        console.print(f"  2. Review and edit [bold cyan]sagas/example_saga.py[/bold cyan]")
+        console.print(f"  3. Run [bold cyan]sagaz validate[/bold cyan] to validate your sagas")
+        console.print(f"  4. Run [bold cyan]sagaz setup[/bold cyan] to configure deployment")
+    else:
+        click.echo(f"\nProject initialized successfully!")
+        click.echo(f"  cd {project_path if path != '.' else name}")
+        click.echo(f"  sagaz validate")
+
+
+# ============================================================================
+# sagaz setup
+# ============================================================================
+
+
+@click.command()
+def setup_cmd():
+    """
+    Setup deployment environment interactively.
     
     \b
     Interactive wizard to configure:
     - Deployment mode (local/k8s/selfhost/hybrid)
     - Message broker (redis/kafka/rabbitmq/postgres)
-    - Monitoring stack (Prometheus/Grafana)
+    - OLTP storage (PostgreSQL)
+    - Outbox storage (PostgreSQL/separate)
+    - Observability (Prometheus/Grafana/Jaeger)
     - High-availability options
     
     \b
     Example:
-        sagaz init  # Interactive setup
+        sagaz setup  # Interactive wizard
     """
+    # Check if we're in a sagaz project
+    if not Path("sagaz.yaml").exists():
+        click.echo("Error: Not in a Sagaz project directory.")
+        click.echo("   Run 'sagaz init' first to create a project.")
+        sys.exit(1)
+    
     if console:
         console.print(
             Panel.fit(
@@ -118,7 +350,7 @@ def init_cmd():
         click.echo("=== Sagaz Deployment Environment Setup ===\n")
 
     # Step 1: Deployment mode
-    click.echo("\n[1/5] Select deployment mode:")
+    click.echo("\n[1/6] Select deployment mode:")
     click.echo("  1. local      - Docker Compose for development (recommended)")
     click.echo("  2. k8s        - Kubernetes for cloud-native")
     click.echo("  3. selfhost   - Systemd for on-premise servers")
@@ -128,7 +360,7 @@ def init_cmd():
     mode = ["local", "k8s", "selfhost", "hybrid"][mode_choice - 1]
 
     # Step 2: Message broker
-    click.echo("\n[2/5] Select message broker:")
+    click.echo("\n[2/6] Select message broker:")
     click.echo("  1. redis      - Fast, simple (recommended)")
     click.echo("  2. kafka      - High-throughput, event streaming")
     click.echo("  3. rabbitmq   - Flexible routing")
@@ -140,21 +372,28 @@ def init_cmd():
     # Step 3: High availability (if postgres or k8s)
     with_ha = False
     if preset == "postgres" or mode == "k8s":
-        with_ha = click.confirm("\n[3/5] Enable high-availability setup?", default=False)
+        with_ha = click.confirm("\n[3/6] Enable high-availability setup?", default=False)
         if with_ha and preset != "postgres":
             preset = "postgres"
     else:
-        click.echo("\n[3/5] High-availability: Not applicable for this broker")
+        click.echo("\n[3/6] High-availability: Not applicable for this broker")
     
-    # Step 4: Monitoring
-    with_monitoring = click.confirm("\n[4/5] Include monitoring stack (Prometheus/Grafana)?", default=True)
+    # Step 4: Observability
+    with_observability = click.confirm("\n[4/6] Include observability stack (Prometheus/Grafana/Jaeger)?", default=True)
     
-    # Step 5: Benchmarks
+    # Step 5: Separate outbox storage
+    separate_outbox = False
+    if mode in ["k8s", "selfhost"]:
+        separate_outbox = click.confirm("\n[5/6] Use separate database for outbox pattern?", default=False)
+    else:
+        click.echo("\n[5/6] Outbox storage: Will use same database as OLTP")
+    
+    # Step 6: Benchmarks
     with_benchmarks = False
     if mode == "k8s":
-        with_benchmarks = click.confirm("\n[5/5] Include benchmark configuration?", default=False)
+        with_benchmarks = click.confirm("\n[6/6] Include benchmark configuration?", default=False)
     else:
-        click.echo("\n[5/5] Benchmarks: Will create benchmarks/ directory")
+        click.echo("\n[6/6] Benchmarks: Will create benchmarks/ directory")
         with_benchmarks = click.confirm("  Include it?", default=False)
 
     # Summary
@@ -164,23 +403,24 @@ def init_cmd():
             f"  Mode: [cyan]{mode}[/cyan]\n"
             f"  Broker: [yellow]{preset}[/yellow]\n"
             f"  HA: {'[green]Yes[/green]' if with_ha else '[dim]No[/dim]'}\n"
-            f"  Monitoring: {'[green]Yes[/green]' if with_monitoring else '[dim]No[/dim]'}\n"
+            f"  Observability: {'[green]Yes[/green]' if with_observability else '[dim]No[/dim]'}\n"
+            f"  Separate Outbox: {'[green]Yes[/green]' if separate_outbox else '[dim]No[/dim]'}\n"
             f"  Benchmarks: {'[green]Yes[/green]' if with_benchmarks else '[dim]No[/dim]'}"
         )
     else:
-        click.echo(f"\nConfiguration: mode={mode}, broker={preset}, ha={with_ha}, monitoring={with_monitoring}")
+        click.echo(f"\nConfiguration: mode={mode}, broker={preset}, ha={with_ha}, observability={with_observability}, separate_outbox={separate_outbox}")
 
-    if not click.confirm("\nProceed with initialization?", default=True):
+    if not click.confirm("\nProceed with setup?", default=True):
         click.echo("Aborted.")
         return
 
     # Execute initialization
     if mode == "local":
-        _init_local(preset, with_monitoring, with_ha)
+        _init_local(preset, with_observability, with_ha, separate_outbox)
     elif mode == "selfhost":
-        _init_selfhost(preset, with_monitoring)
+        _init_selfhost(preset, with_observability, separate_outbox)
     elif mode == "k8s":
-        _init_k8s(with_monitoring, with_benchmarks, with_ha)
+        _init_k8s(with_observability, with_benchmarks, with_ha, separate_outbox)
     elif mode == "hybrid":
         _init_hybrid(preset)
 
@@ -188,23 +428,20 @@ def init_cmd():
         _init_benchmarks()
 
 
-def _init_local(preset: str, with_monitoring: bool, with_ha: bool = False):
+def _init_local(preset: str, with_observability: bool, with_ha: bool = False, separate_outbox: bool = False):
     """Create local Docker Compose setup."""
     _log_local_init_start(preset, with_ha)
 
     is_postgres = with_ha or preset == "postgres"
 
     # 1. Create docker-compose.yaml
-    _init_docker_compose(preset, is_postgres)
+    _init_docker_compose(preset, is_postgres, with_observability, separate_outbox)
 
     # 2. Copy monitoring folder if enabled
-    if with_monitoring:
+    if with_observability:
         _init_monitoring(preset, is_postgres)
 
-    # 3. Create sagaz.yaml
-    _init_sagaz_yaml(preset)
-
-    _log_local_init_complete(with_monitoring, is_postgres)
+    _log_local_init_complete(with_observability, is_postgres)
 
 
 def _log_local_init_start(preset: str, with_ha: bool):
@@ -221,7 +458,7 @@ def _log_local_init_start(preset: str, with_ha: bool):
         )
 
 
-def _init_docker_compose(preset: str, is_postgres: bool):
+def _init_docker_compose(preset: str, is_postgres: bool, with_observability: bool = True, separate_outbox: bool = False):
     """Initialize docker-compose.yaml with optional overwrite confirmation."""
     target = "docker-compose.yaml"
 
@@ -229,10 +466,10 @@ def _init_docker_compose(preset: str, is_postgres: bool):
         click.echo(f"Skipping {target}")
         return
 
-    _copy_docker_compose_files(preset, is_postgres)
+    _copy_docker_compose_files(preset, is_postgres, with_observability, separate_outbox)
 
 
-def _copy_docker_compose_files(preset: str, is_postgres: bool):
+def _copy_docker_compose_files(preset: str, is_postgres: bool, with_observability: bool = True, separate_outbox: bool = False):
     """Copy the appropriate docker-compose files."""
     if is_postgres:
         _copy_resource("local/postgres/docker-compose.yaml", "docker-compose.yaml")
@@ -240,6 +477,9 @@ def _copy_docker_compose_files(preset: str, is_postgres: bool):
         _copy_dir_resource("local/postgres/partitioning", "partitioning")
     else:
         _copy_resource(f"local/{preset}/docker-compose.yaml", "docker-compose.yaml")
+    
+    # TODO: Add observability services to docker-compose if with_observability
+    # TODO: Add separate outbox database if separate_outbox
 
 
 def _init_monitoring(preset: str, is_postgres: bool):
@@ -250,24 +490,16 @@ def _init_monitoring(preset: str, is_postgres: bool):
         _copy_dir_resource(f"local/{preset}/monitoring", "monitoring")
 
 
-def _init_sagaz_yaml(preset: str):
-    """Initialize sagaz.yaml with optional overwrite confirmation."""
-    if Path("sagaz.yaml").exists() and not click.confirm("sagaz.yaml already exists. Overwrite?"):
-        click.echo("Skipping sagaz.yaml")
-        return
-    _create_sagaz_config(preset)
-
-
-def _log_local_init_complete(with_monitoring: bool, is_postgres: bool):
+def _log_local_init_complete(with_observability: bool, is_postgres: bool):
     """Log completion message for local initialization."""
     if not console:
         return
 
-    console.print("\n[bold green]Initialization complete![/bold green]")
+    console.print("\n[bold green]Deployment setup complete![/bold green]")
     console.print("Next steps:")
     console.print("  1. Run [bold cyan]sagaz dev[/bold cyan] to start the services")
     console.print("  2. Check status with [bold cyan]sagaz status[/bold cyan]")
-    if with_monitoring:
+    if with_observability:
         console.print("  3. Open monitoring at http://localhost:3000")
     if is_postgres:
         console.print("\n[bold yellow]HA PostgreSQL Info:[/bold yellow]")
@@ -277,7 +509,7 @@ def _log_local_init_complete(with_monitoring: bool, is_postgres: bool):
         console.print("  - PgBouncer-RO: localhost:6433")
 
 
-def _init_selfhost(preset: str, with_monitoring: bool):
+def _init_selfhost(preset: str, with_observability: bool, separate_outbox: bool = False):
     """Create self-hosted/on-premise server setup."""
     if console:
         console.print("Creating self-hosted deployment files...")
@@ -292,8 +524,11 @@ def _init_selfhost(preset: str, with_monitoring: bool):
     env_content = f"""# Sagaz Environment Configuration
 # Copy to /etc/sagaz/sagaz.env
 
-# Database
+# OLTP Database
 POSTGRES_URL=postgresql://sagaz:sagaz@localhost:5432/sagaz
+
+# Outbox Database {"(separate)" if separate_outbox else "(same as OLTP)"}
+{"OUTBOX_URL=postgresql://sagaz:sagaz@localhost:5432/sagaz_outbox" if separate_outbox else "# OUTBOX_URL=$POSTGRES_URL"}
 
 # Broker ({preset})
 BROKER_TYPE={preset}
@@ -311,6 +546,9 @@ SAGAZ_METRICS_PORT=8000
 SAGAZ_LOG_LEVEL=INFO
 SAGAZ_LOG_JSON=true
 """
+    
+    if with_observability:
+        env_content += "SAGAZ_TRACING_ENDPOINT=http://localhost:14268/api/traces\n"
 
     Path("selfhost/sagaz.env").write_text(env_content)
     click.echo("  CREATE selfhost/sagaz.env")
@@ -346,7 +584,7 @@ echo "Start with: sudo systemctl start sagaz-worker"
     Path("selfhost/install.sh").chmod(0o755)
     click.echo("  CREATE selfhost/install.sh")
 
-    if with_monitoring:
+    if with_observability:
         _create_selfhost_monitoring()
 
     if console:
@@ -393,7 +631,7 @@ scrape_configs:
     click.echo("  CREATE selfhost/prometheus.yml")
 
 
-def _init_k8s(with_monitoring: bool, with_benchmarks: bool, with_ha: bool = False):
+def _init_k8s(with_observability: bool, with_benchmarks: bool, with_ha: bool = False, separate_outbox: bool = False):
     """Copy Kubernetes manifests from the library to the current directory."""
     _log_k8s_init_start(with_ha)
 
@@ -401,8 +639,8 @@ def _init_k8s(with_monitoring: bool, with_benchmarks: bool, with_ha: bool = Fals
         return
 
     try:
-        _copy_k8s_manifests(with_ha)
-        _copy_k8s_monitoring(with_monitoring)
+        _copy_k8s_manifests(with_ha, separate_outbox)
+        _copy_k8s_observability(with_observability)
         _copy_k8s_benchmarks(with_benchmarks)
         _log_k8s_init_complete(with_ha)
     except Exception as e:
@@ -430,7 +668,7 @@ def _prepare_k8s_directory() -> bool:
     return True
 
 
-def _copy_k8s_manifests(with_ha: bool):
+def _copy_k8s_manifests(with_ha: bool, separate_outbox: bool = False):
     """Copy base Kubernetes manifests."""
     if with_ha:
         _copy_resource("k8s/postgresql-ha.yaml", "k8s/postgresql-ha.yaml")
@@ -441,6 +679,11 @@ def _copy_k8s_manifests(with_ha: bool):
         _copy_dir_resource("local/postgres/partitioning", "k8s/partitioning")
     else:
         _copy_resource("k8s/postgresql.yaml", "k8s/postgresql.yaml")
+    
+    # Separate outbox database if requested
+    if separate_outbox:
+        _copy_resource("k8s/outbox-postgresql.yaml", "k8s/outbox-postgresql.yaml")
+        click.echo("  CREATE k8s/outbox-postgresql.yaml (Separate outbox database)")
 
     # Copy base manifests
     for manifest in [
@@ -452,13 +695,14 @@ def _copy_k8s_manifests(with_ha: bool):
         _copy_resource(f"k8s/{manifest}", f"k8s/{manifest}")
 
 
-def _copy_k8s_monitoring(with_monitoring: bool):
-    """Copy K8s monitoring manifests if enabled."""
-    if with_monitoring:
+def _copy_k8s_observability(with_observability: bool):
+    """Copy K8s observability manifests if enabled."""
+    if with_observability:
         _copy_resource("k8s/prometheus-monitoring.yaml", "k8s/prometheus-monitoring.yaml")
+        _copy_resource("k8s/jaeger-tracing.yaml", "k8s/jaeger-tracing.yaml")
         _copy_dir_resource("k8s/monitoring", "k8s/monitoring")
     else:
-        click.echo("  SKIP k8s/monitoring (--no-monitoring)")
+        click.echo("  SKIP k8s/monitoring (observability disabled)")
 
 
 def _copy_k8s_benchmarks(with_benchmarks: bool):
@@ -737,25 +981,6 @@ def _copy_resource(resource_path: str, target_path: str):
         click.echo(f"  CREATE {target_path}")
     except Exception as e:
         click.echo(f"  ERROR copying {resource_path}: {e}")
-
-
-def _create_sagaz_config(preset: str):
-    """Create sagaz.yaml based on the preset."""
-    try:
-        template = (
-            pkg_resources.files("sagaz.resources").joinpath("sagaz.yaml.template").read_text()
-        )
-
-        # Simple replacements (no jinja2 yet for v1.0 simplicity)
-        ports = {"redis": 6379, "kafka": 9092, "rabbitmq": 5672}
-
-        content = template.replace("{{ broker_type }}", preset)
-        content = content.replace("{{ broker_port }}", str(ports.get(preset, 6379)))
-
-        Path("sagaz.yaml").write_text(content)
-        click.echo("  CREATE sagaz.yaml")
-    except Exception as e:
-        click.echo(f"  ERROR creating sagaz.yaml: {e}")
 
 
 # ============================================================================
@@ -1073,6 +1298,9 @@ cli.add_command(init_cmd, name="init")
 cli.add_command(check_cmd, name="check")
 cli.add_command(list_sagas, name="list")
 cli.add_command(examples_cmd, name="examples")
+
+# Deployment
+cli.add_command(setup_cmd, name="setup")
 
 # Development Operations
 cli.add_command(dev_cmd, name="dev")
