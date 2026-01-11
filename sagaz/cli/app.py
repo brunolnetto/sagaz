@@ -21,8 +21,8 @@ from pathlib import Path
 import click
 
 from sagaz.cli import examples as cli_examples
-from sagaz.cli.dry_run import simulate, validate
-from sagaz.cli.project import project_cli
+from sagaz.cli.dry_run import simulate_cmd, validate_cmd
+from sagaz.cli.project import check as check_cmd, list_sagas
 from sagaz.cli.replay import replay
 
 try:
@@ -42,36 +42,44 @@ except ImportError:
 # ============================================================================
 
 
-@click.group()
+class OrderedGroup(click.Group):
+    """Click Group that lists commands in the order they were added."""
+
+    def list_commands(self, ctx):
+        return list(self.commands.keys())
+
+
+@click.group(cls=OrderedGroup)
 @click.version_option(version="1.0.3", prog_name="sagaz")
 def cli():
     """
     Sagaz - Production-ready Saga Pattern Orchestration.
 
     \b
-    Commands by Progressive Risk Level:
-    
-    Analysis (Read-only):
-        sagaz validate <file>     # Validate saga configuration
-        sagaz simulate <file>     # Analyze execution DAG
-    
-    Project Management:
-        sagaz init --local        # Initialize project
-        sagaz project init        # Create new saga project
-        sagaz examples            # Explore examples
-    
-    Development Operations:
-        sagaz dev                 # Start local environment
-        sagaz status              # Check service health
-        sagaz stop                # Stop services
-        sagaz logs                # View logs
-        sagaz monitor             # Open monitoring dashboard
-    
-    Performance Testing:
-        sagaz benchmark           # Run performance tests
-    
-    State Modification (Highest Risk):
-        sagaz replay              # Replay/modify saga state
+    Commands by Progressive Risk:
+    \b
+      Analysis (Read-only):
+        validate         Validate saga configuration
+        simulate         Analyze execution DAG and parallelization
+    \b
+      Project Management:
+        init             Initialize deployment environment
+        check            Validate project structure
+        list             List discovered sagas
+        examples         Explore examples
+    \b
+      Development:
+        dev              Start local environment
+        status           Check service health
+        logs             View logs
+        monitor          Open monitoring dashboard
+        stop             Stop services
+    \b
+      Testing:
+        benchmark        Run performance tests
+    \b
+      Advanced (State Modification):
+        replay           Replay/modify saga state
 
     Documentation: https://github.com/brunolnetto/sagaz
     """
@@ -82,86 +90,91 @@ def cli():
 # ============================================================================
 
 
-@cli.command()
-@click.option(
-    "--local",
-    "mode",
-    flag_value="local",
-    default=True,
-    help="Docker Compose setup for local development",
-)
-@click.option(
-    "--selfhost", "mode", flag_value="selfhost", help="Setup for self-hosted/on-premise servers"
-)
-@click.option(
-    "--k8s", "mode", flag_value="k8s", help="Kubernetes manifests for cloud-native deployment"
-)
-@click.option(
-    "--hybrid",
-    "mode",
-    flag_value="hybrid",
-    help="Hybrid deployment (local services + cloud broker)",
-)
-@click.option(
-    "--preset",
-    type=click.Choice(["redis", "kafka", "rabbitmq", "postgres"]),
-    default="redis",
-    help="Message broker preset (default: redis), use 'postgres' for HA setup",
-)
-@click.option(
-    "--with-monitoring",
-    is_flag=True,
-    default=True,
-    help="Include Prometheus/Grafana monitoring stack (default: yes)",
-)
-@click.option(
-    "--with-benchmarks",
-    is_flag=True,
-    default=False,
-    help="Include benchmark configuration (optional)",
-)
-@click.option(
-    "--with-ha",
-    is_flag=True,
-    default=False,
-    help="Enable High-Availability PostgreSQL (primary + replicas + PgBouncer)",
-)
-def init(mode: str, preset: str, with_monitoring: bool, with_benchmarks: bool, with_ha: bool):
+@click.command()
+def init_cmd():
     """
-    Initialize a new Sagaz project for your deployment scenario.
-
+    Initialize Sagaz deployment environment interactively.
+    
     \b
-    Deployment Modes:
-        --local       Docker Compose for development (default)
-        --selfhost    Systemd services for on-premise servers
-        --k8s         Kubernetes manifests for cloud-native
-        --hybrid      Mix of local and cloud services
-
+    Interactive wizard to configure:
+    - Deployment mode (local/k8s/selfhost/hybrid)
+    - Message broker (redis/kafka/rabbitmq/postgres)
+    - Monitoring stack (Prometheus/Grafana)
+    - High-availability options
+    
     \b
-    Examples:
-        sagaz init                              #Local + Redis (simplest)
-        sagaz init --preset kafka               # Local + Kafka
-        sagaz init --with-ha                    # HA PostgreSQL (local)
-        sagaz init --k8s                        # Kubernetes manifests
-        sagaz init --k8s --with-ha              # K8s with HA PostgreSQL
-        sagaz init --k8s --with-benchmarks      # K8s with benchmark configs
-        sagaz init --selfhost                   # Systemd service files
-        sagaz init --hybrid                     # Hybrid deployment
+    Example:
+        sagaz init  # Interactive setup
     """
     if console:
         console.print(
             Panel.fit(
-                f"[bold blue]Sagaz Project Initialization[/bold blue]\n"
-                f"Mode: [cyan]{mode}[/cyan] | Broker: [green]{preset}[/green]"
-                + (" | HA: [yellow]enabled[/yellow]" if with_ha else ""),
+                "[bold blue]Sagaz Deployment Environment Setup[/bold blue]\n"
+                "Interactive wizard to configure your deployment",
                 border_style="blue",
             )
         )
+    else:
+        click.echo("=== Sagaz Deployment Environment Setup ===\n")
 
-    # Override preset to 'postgres' if --with-ha is used
-    if with_ha:
-        preset = "postgres"
+    # Step 1: Deployment mode
+    click.echo("\n[1/5] Select deployment mode:")
+    click.echo("  1. local      - Docker Compose for development (recommended)")
+    click.echo("  2. k8s        - Kubernetes for cloud-native")
+    click.echo("  3. selfhost   - Systemd for on-premise servers")
+    click.echo("  4. hybrid     - Local services + cloud broker")
+    
+    mode_choice = click.prompt("Choice", type=click.IntRange(1, 4), default=1)
+    mode = ["local", "k8s", "selfhost", "hybrid"][mode_choice - 1]
 
+    # Step 2: Message broker
+    click.echo("\n[2/5] Select message broker:")
+    click.echo("  1. redis      - Fast, simple (recommended)")
+    click.echo("  2. kafka      - High-throughput, event streaming")
+    click.echo("  3. rabbitmq   - Flexible routing")
+    click.echo("  4. postgres   - Full HA with replication")
+    
+    broker_choice = click.prompt("Choice", type=click.IntRange(1, 4), default=1)
+    preset = ["redis", "kafka", "rabbitmq", "postgres"][broker_choice - 1]
+    
+    # Step 3: High availability (if postgres or k8s)
+    with_ha = False
+    if preset == "postgres" or mode == "k8s":
+        with_ha = click.confirm("\n[3/5] Enable high-availability setup?", default=False)
+        if with_ha and preset != "postgres":
+            preset = "postgres"
+    else:
+        click.echo("\n[3/5] High-availability: Not applicable for this broker")
+    
+    # Step 4: Monitoring
+    with_monitoring = click.confirm("\n[4/5] Include monitoring stack (Prometheus/Grafana)?", default=True)
+    
+    # Step 5: Benchmarks
+    with_benchmarks = False
+    if mode == "k8s":
+        with_benchmarks = click.confirm("\n[5/5] Include benchmark configuration?", default=False)
+    else:
+        click.echo("\n[5/5] Benchmarks: Will create benchmarks/ directory")
+        with_benchmarks = click.confirm("  Include it?", default=False)
+
+    # Summary
+    if console:
+        console.print(
+            f"\n[bold green]Configuration Summary:[/bold green]\n"
+            f"  Mode: [cyan]{mode}[/cyan]\n"
+            f"  Broker: [yellow]{preset}[/yellow]\n"
+            f"  HA: {'[green]Yes[/green]' if with_ha else '[dim]No[/dim]'}\n"
+            f"  Monitoring: {'[green]Yes[/green]' if with_monitoring else '[dim]No[/dim]'}\n"
+            f"  Benchmarks: {'[green]Yes[/green]' if with_benchmarks else '[dim]No[/dim]'}"
+        )
+    else:
+        click.echo(f"\nConfiguration: mode={mode}, broker={preset}, ha={with_ha}, monitoring={with_monitoring}")
+
+    if not click.confirm("\nProceed with initialization?", default=True):
+        click.echo("Aborted.")
+        return
+
+    # Execute initialization
     if mode == "local":
         _init_local(preset, with_monitoring, with_ha)
     elif mode == "selfhost":
@@ -750,9 +763,9 @@ def _create_sagaz_config(preset: str):
 # ============================================================================
 
 
-@cli.command()
+@click.command()
 @click.option("-d", "--detach", is_flag=True, help="Run in background")
-def dev(detach: bool):
+def dev_cmd(detach: bool):
     """
     Start local development environment.
 
@@ -777,8 +790,8 @@ def dev(detach: bool):
 # ============================================================================
 
 
-@cli.command()
-def stop():
+@click.command()
+def stop_cmd():
     """Stop local development environment."""
     if not Path("docker-compose.yaml").exists():
         click.echo("docker-compose.yaml not found.")
@@ -793,8 +806,8 @@ def stop():
 # ============================================================================
 
 
-@cli.command()
-def status():
+@click.command()
+def status_cmd():
     """Check health of all services."""
     click.echo("Checking service health...")
     click.echo("")
@@ -835,7 +848,7 @@ def status():
 # ============================================================================
 
 
-@cli.command()
+@click.command()
 @click.option(
     "--profile",
     type=click.Choice(["local", "production", "stress", "full"]),
@@ -844,7 +857,7 @@ def status():
 )
 @click.option("--output", type=click.Path(), help="Output file for results (JSON)")
 @click.option("--quick", is_flag=True, help="Quick sanity check (minimal iterations)")
-def benchmark(profile: str, output: str, quick: bool):
+def benchmark_cmd(profile: str, output: str, quick: bool):
     """
     Run performance benchmarks.
 
@@ -926,11 +939,11 @@ asyncio.run(main())
 # ============================================================================
 
 
-@cli.command()
+@click.command()
 @click.argument("saga_id", required=False)
 @click.option("-f", "--follow", is_flag=True, help="Follow log output")
 @click.option("-s", "--service", help="Filter by service name")
-def logs(saga_id: str, follow: bool, service: str):
+def logs_cmd(saga_id: str, follow: bool, service: str):
     """
     View saga and service logs.
 
@@ -964,8 +977,8 @@ def logs(saga_id: str, follow: bool, service: str):
 # ============================================================================
 
 
-@cli.command()
-def monitor():
+@click.command()
+def monitor_cmd():
     """Open Grafana dashboard in browser."""
     import webbrowser
 
@@ -979,8 +992,8 @@ def monitor():
 # ============================================================================
 
 
-@cli.command()
-def version():
+@click.command()
+def version_cmd():
     """Show version information."""
     click.echo("sagaz version 1.0.3")
     click.echo("Python " + sys.version.split()[0])
@@ -991,9 +1004,9 @@ def version():
 # ============================================================================
 
 
-@cli.group(invoke_without_command=True)
+@click.group(invoke_without_command=True)
 @click.pass_context
-def examples(ctx):
+def examples_cmd(ctx):
     """
     Manage and run examples.
 
@@ -1013,7 +1026,7 @@ def examples(ctx):
         cli_examples.interactive_cmd()
 
 
-@examples.command("list")
+@examples_cmd.command("list")
 @click.option(
     "--category",
     "-c",
@@ -1032,7 +1045,7 @@ def list_examples(category: str):
     cli_examples.list_examples_cmd(category)
 
 
-@examples.command("run")
+@examples_cmd.command("run")
 @click.argument("name")
 def run_example(name: str):
     """
@@ -1046,24 +1059,36 @@ def run_example(name: str):
 
 
 # ============================================================================
-# Command Registration Order (Progressive Risk)
+# Command Registration (Progressive Risk Order)
 # ============================================================================
-# 1. Analysis/Validation (Read-only, zero risk)
-cli.add_command(validate)
-cli.add_command(simulate)
+# Commands appear in help in the order they're added to the group.
+# We explicitly register all commands here in the desired order.
 
-# 2. Project/Examples (Low risk - scaffolding/exploration)
-cli.add_command(project_cli)
-cli.add_command(cli_examples.examples_cli)
+# Analysis/Validation (Read-only, zero risk)
+cli.add_command(validate_cmd, name="validate")
+cli.add_command(simulate_cmd, name="simulate")
 
-# 3. Development Operations (Medium risk - local env management)
-# Note: dev, status, stop, logs, monitor are @cli.command() decorated above
+# Project Management
+cli.add_command(init_cmd, name="init")
+cli.add_command(check_cmd, name="check")
+cli.add_command(list_sagas, name="list")
+cli.add_command(examples_cmd, name="examples")
 
-# 4. Performance Testing (Medium-high risk - resource intensive)
-# Note: benchmark is @cli.command() decorated above
+# Development Operations
+cli.add_command(dev_cmd, name="dev")
+cli.add_command(status_cmd, name="status")
+cli.add_command(logs_cmd, name="logs")
+cli.add_command(monitor_cmd, name="monitor")
+cli.add_command(stop_cmd, name="stop")
 
-# 5. Replay/State Modification (Highest risk - modifies saga state)
-cli.add_command(replay)
+# Testing
+cli.add_command(benchmark_cmd, name="benchmark")
+
+# Utilities
+cli.add_command(version_cmd, name="version")
+
+# State Modification (Highest Risk)
+cli.add_command(replay, name="replay")
 
 if __name__ == "__main__":
     cli()

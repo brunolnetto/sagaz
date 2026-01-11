@@ -32,7 +32,7 @@ except ImportError:
 @click.option(
     "--saga-class", "-s", type=str, default=None, help="Saga class name (auto-detect if omitted)"
 )
-def validate(saga_module: str, context: str, saga_class: str | None):
+def validate_cmd(saga_module: str, context: str, saga_class: str | None):
     """
     Validate saga configuration.
     
@@ -72,7 +72,7 @@ def validate(saga_module: str, context: str, saga_class: str | None):
 @click.option(
     "--show-parallel", "-p", is_flag=True, help="Show parallel execution groups"
 )
-def simulate(saga_module: str, context: str, saga_class: str | None, show_parallel: bool):
+def simulate_cmd(saga_module: str, context: str, saga_class: str | None, show_parallel: bool):
     """
     Simulate saga execution and show step order.
     
