@@ -3,7 +3,6 @@ import uuid
 from typing import Any
 
 from sagaz.core.config import get_config
-from sagaz.core.exceptions import IdempotencyKeyRequiredError
 from sagaz.core.logger import get_logger
 from sagaz.core.types import SagaStatus
 from sagaz.triggers.decorators import TriggerMetadata
@@ -41,9 +40,6 @@ class TriggerEngine:
 
         Returns:
             List of started (or existing) saga IDs.
-
-        Raises:
-            IdempotencyKeyRequiredError: If a high-value operation lacks idempotency_key
         """
         triggers = TriggerRegistry.get_triggers(source)
 
@@ -57,12 +53,7 @@ class TriggerEngine:
             *[self._process_trigger(t, payload) for t in triggers], return_exceptions=True
         )
 
-        # Check for IdempotencyKeyRequiredError and re-raise
-        for result in results:
-            if isinstance(result, IdempotencyKeyRequiredError):
-                raise result
-
-        # Filter out None and other exceptions
+        # Filter out None and exceptions
         return [r for r in results if isinstance(r, str)]
 
     async def _process_trigger(self, trigger, payload: Any) -> str | None:
@@ -77,10 +68,7 @@ class TriggerEngine:
             if not self._is_valid_context(context, saga_class, method_name):
                 return None
 
-            # 2. Validate idempotency for high-value operations
-            self._validate_idempotency(metadata, context, saga_class)
-
-            # 3. Get or generate saga ID
+            # 2. Get or generate saga ID
             saga_id, is_new = await self._resolve_saga_id(metadata, payload, saga_class)
             if saga_id is None:  # pragma: no cover
                 return None  # pragma: no cover
@@ -89,19 +77,16 @@ class TriggerEngine:
             if not is_new:
                 return saga_id
 
-            # 4. Check concurrency
+            # 3. Check concurrency
             if not await self._is_concurrency_allowed(metadata, saga_class):
                 return None
 
-            # 5. Run saga
+            # 4. Run saga
             if context is None:
                 context = {}
             await self._run_saga(saga_class, saga_id, context)
             return saga_id
 
-        except IdempotencyKeyRequiredError:
-            # Re-raise idempotency errors - these are configuration errors that should fail fast
-            raise
         except Exception as e:
             logger.exception(f"Error processing trigger {saga_class.__name__}.{method_name}: {e}")
             return None
@@ -116,40 +101,6 @@ class TriggerEngine:
             )
             return False
         return True
-
-    def _validate_idempotency(self, metadata: TriggerMetadata, context: dict, saga_class):
-        """
-        Validate idempotency key for high-value operations.
-
-        Raises IdempotencyKeyRequiredError if high-value data is detected
-        without an idempotency_key configured.
-        """
-        if metadata.idempotency_key:
-            return  # Idempotency configured, all good
-
-        # Check for financial/high-value indicators
-        financial_indicators = ["amount", "price", "payment", "charge", "refund", "transaction"]
-        detected_fields = [
-            key for key in context for indicator in financial_indicators if indicator in key.lower()
-        ]
-
-        # Check for amounts over a threshold
-        high_value_threshold = 100.0
-        high_value_fields = [
-            key
-            for key, v in context.items()
-            if isinstance(v, (int, float)) and v >= high_value_threshold
-        ]
-
-        # Merge detected fields
-        all_detected = list(set(detected_fields + high_value_fields))
-
-        if all_detected:
-            raise IdempotencyKeyRequiredError(
-                saga_name=saga_class.__name__,
-                source=metadata.source,
-                detected_fields=all_detected,
-            )
 
     async def _resolve_saga_id(
         self, metadata: TriggerMetadata, payload: Any, saga_class
