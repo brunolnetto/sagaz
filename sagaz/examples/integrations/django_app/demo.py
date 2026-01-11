@@ -87,15 +87,15 @@ def main():
     print()
 
     print("1️⃣  Health Check:")
-    print("   curl http://localhost:8000/health")
+    print("   curl http://localhost:8000/health/")
     print()
 
     print("2️⃣  Get Saga Diagram:")
-    print("   curl http://localhost:8000/orders/ORD-001/diagram")
+    print("   curl http://localhost:8000/orders/ORD-001/diagram/")
     print()
 
     print("3️⃣  Trigger Order Saga via Webhook (Fire-and-Forget):")
-    print("   curl -X POST http://localhost:8000/webhooks/order_created \\")
+    print("   curl -X POST http://localhost:8000/webhooks/order_created/ \\")
     print('        -H "Content-Type: application/json" \\')
     print('        -d \'{"order_id": "ORD-001", "amount": 99.99, "user_id": "user-123"}\'')
     print()
@@ -103,26 +103,26 @@ def main():
     print()
 
     print("4️⃣  Check Webhook Status (use correlation_id from step 3):")
-    print("   curl http://localhost:8000/webhooks/order_created/status/<correlation_id>")
+    print("   curl http://localhost:8000/webhooks/order_created/status/<correlation_id>/")
     print()
     print("   Example:")
-    print("   curl http://localhost:8000/webhooks/order_created/status/abc-123-xyz")
+    print("   curl http://localhost:8000/webhooks/order_created/status/abc-123-xyz/")
     print()
 
     print("5️⃣  Trigger with High Amount (will fail payment):")
-    print("   curl -X POST http://localhost:8000/webhooks/order_created \\")
+    print("   curl -X POST http://localhost:8000/webhooks/order_created/ \\")
     print('        -H "Content-Type: application/json" \\')
     print('        -d \'{"order_id": "ORD-002", "amount": 1500.00, "user_id": "user-456"}\'')
     print()
 
     print("6️⃣  With Custom Correlation ID for Tracing:")
-    print("   curl -X POST http://localhost:8000/webhooks/order_created \\")
+    print("   curl -X POST http://localhost:8000/webhooks/order_created/ \\")
     print('        -H "Content-Type: application/json" \\')
     print('        -H "X-Correlation-ID: my-trace-456" \\')
     print('        -d \'{"order_id": "ORD-003", "amount": 299.99, "user_id": "user-789"}\'')
     print()
     print("   Then check status:")
-    print("   curl http://localhost:8000/webhooks/order_created/status/my-trace-456")
+    print("   curl http://localhost:8000/webhooks/order_created/status/my-trace-456/")
     print()
 
     print("ℹ️  Note: Webhooks execute sagas asynchronously in background.")
@@ -167,8 +167,11 @@ def main():
                 cwd=script_dir,
                 check=True,
             )
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as e:
             print("\n❌ Server failed to start.")
+            print(f"\n💡 Error: {e}")
+            print("   Port 8000 may already be in use.")
+            print("   Stop any running Django apps with: pkill -f 'manage.py runserver'")
             return 1
         except KeyboardInterrupt:
             print("\n\n✅ Server stopped.")
@@ -210,18 +213,24 @@ def main():
     print("   curl http://localhost:8000/health/")
     print()
 
-    print("2️⃣  Create Order:")
-    print("   curl -X POST http://localhost:8000/orders/ \\")
+    print("2️⃣  Get Saga Diagram:")
+    print("   curl http://localhost:8000/orders/ORD-001/diagram/")
+    print()
+
+    print("3️⃣  Trigger Order Saga via Webhook (Fire-and-Forget):")
+    print("   curl -X POST http://localhost:8000/webhooks/order_created/ \\")
     print('        -H "Content-Type: application/json" \\')
-    print('        -d \'{"order_id": "ORD-001", "amount": 99.99}\'')
+    print('        -d \'{"order_id": "ORD-001", "amount": 99.99, "user_id": "user-123"}\'')
     print()
 
-    print("3️⃣  Get Order Status:")
-    print("   curl http://localhost:8000/orders/ORD-001/")
+    print("4️⃣  Check Webhook Status:")
+    print("   curl http://localhost:8000/webhooks/order_created/status/<correlation_id>/")
     print()
 
-    print("4️⃣  List Orders:")
-    print("   curl http://localhost:8000/orders/")
+    print("5️⃣  Trigger with High Amount (will fail payment):")
+    print("   curl -X POST http://localhost:8000/webhooks/order_created/ \\")
+    print('        -H "Content-Type: application/json" \\')
+    print('        -d \'{"order_id": "ORD-002", "amount": 1500.00, "user_id": "user-456"}\'')
     print()
 
     print("=" * 70)

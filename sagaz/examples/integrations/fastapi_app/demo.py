@@ -152,8 +152,11 @@ def main():
                 cwd=script_dir,
                 check=True,
             )
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as e:
             print("\n❌ Server failed to start.")
+            print(f"\n💡 Error: {e}")
+            print("   Port 8000 may already be in use.")
+            print("   Stop any running FastAPI apps with: pkill -f uvicorn")
             return 1
         except KeyboardInterrupt:
             print("\n\n✅ Server stopped.")
