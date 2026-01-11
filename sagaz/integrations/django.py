@@ -306,11 +306,19 @@ def sagaz_webhook_status_view(request, source: str, correlation_id: str):
 
     # If triggered, check if all sagas have finished
     if overall_status == "triggered" and saga_ids:
-        completed_count = sum(1 for s in saga_statuses.values() if s in ("completed", "failed"))
-        if completed_count == len(saga_ids):
+        finished_count = sum(1 for s in saga_statuses.values() if s in ("completed", "failed"))
+        if finished_count == len(saga_ids):
             # All sagas finished - determine overall outcome
             failed_count = sum(1 for s in saga_statuses.values() if s == "failed")
-            overall_status = "completed_with_failures" if failed_count > 0 else "completed"
+            if failed_count == len(saga_ids):
+                # All sagas failed
+                overall_status = "failed"
+            elif failed_count > 0:
+                # Some failed, some succeeded
+                overall_status = "completed_with_failures"
+            else:
+                # All succeeded
+                overall_status = "completed"
 
     response_data = {
         "correlation_id": correlation_id,
@@ -341,9 +349,12 @@ def sagaz_webhook_status_view(request, source: str, correlation_id: str):
     elif overall_status == "completed":
         response_data["message"] = f"All {len(saga_ids)} saga(s) completed successfully"
     elif overall_status == "completed_with_failures":
-        failed_sagas = [sid for sid, s in saga_statuses.items() if s == "failed"]
-        response_data["message"] = f"{len(failed_sagas)} of {len(saga_ids)} saga(s) failed"
+        failed_count = sum(1 for s in saga_statuses.values() if s == "failed")
+        response_data["message"] = f"{failed_count} of {len(saga_ids)} saga(s) failed"
     elif overall_status == "failed":
-        response_data["message"] = "Event processing failed"
+        if len(saga_ids) == 1:
+            response_data["message"] = "Saga execution failed"
+        else:
+            response_data["message"] = f"All {len(saga_ids)} saga(s) failed"
 
     return JsonResponse(response_data)
