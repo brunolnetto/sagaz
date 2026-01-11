@@ -67,6 +67,7 @@ from sagaz.core.decorators import (
 # Exceptions
 # =============================================================================
 from sagaz.core.exceptions import (
+    IdempotencyKeyRequiredError,
     MissingDependencyError,
     SagaCompensationError,
     SagaError,
@@ -130,6 +131,10 @@ __all__ = [
     "CompensationNode",
     "CompensationResult",
     "CompensationType",
+    # =========================================================================
+    # Exceptions
+    # =========================================================================
+    "IdempotencyKeyRequiredError",
     "LoggingSagaListener",
     "MetricsSagaListener",
     "MissingDependencyError",
@@ -148,9 +153,6 @@ __all__ = [
     "SagaCompensationError",
     "SagaConfig",
     "SagaContext",
-    # =========================================================================
-    # Exceptions
-    # =========================================================================
     "SagaError",
     "SagaExecutionError",
     # =========================================================================

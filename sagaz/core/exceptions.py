@@ -71,3 +71,43 @@ class MissingDependencyError(SagaError):
             )
 
         super().__init__(message)
+
+
+class IdempotencyKeyRequiredError(SagaError):
+    """
+    Raised when a high-value operation lacks an idempotency key.
+
+    This exception enforces safe-by-default behavior for financial
+    and high-value operations, preventing duplicate execution.
+    """
+
+    def __init__(self, saga_name: str, source: str, detected_fields: list[str]):
+        self.saga_name = saga_name
+        self.source = source
+        self.detected_fields = detected_fields
+
+        fields_str = ", ".join(detected_fields)
+        message = (
+            f"\n╔══════════════════════════════════════════════════════════════╗\n"
+            f"║  IDEMPOTENCY KEY REQUIRED                                    ║\n"
+            f"╠══════════════════════════════════════════════════════════════╣\n"
+            f"║  Saga: {saga_name:<53} ║\n"
+            f"║  Trigger Source: {source:<45} ║\n"
+            f"║                                                              ║\n"
+            f"║  High-value operation detected with fields:                 ║\n"
+            f"║  {fields_str:<59} ║\n"
+            f"║                                                              ║\n"
+            f"║  To prevent duplicate execution, add an idempotency key:    ║\n"
+            f"║                                                              ║\n"
+            f"║  @trigger(                                                   ║\n"
+            f"║      source='{source}',                                        ║\n"
+            f"║      idempotency_key='<unique_field>'  # e.g., 'order_id'   ║\n"
+            f"║  )                                                           ║\n"
+            f"║                                                              ║\n"
+            f"║  Or use a callable for composite keys:                      ║\n"
+            '║  idempotency_key=lambda p: f\'{p["user_id"]}-{p["order_id"]}\'  ║\n'
+            f"║                                                              ║\n"
+            f"╚══════════════════════════════════════════════════════════════╝"
+        )
+
+        super().__init__(message)
