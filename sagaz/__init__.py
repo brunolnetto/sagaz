@@ -115,10 +115,7 @@ from sagaz.dry_run import (
     DryRunEngine,
     DryRunMode,
     DryRunResult,
-    DryRunTraceEvent,
-    EstimateResult,
     SimulationResult,
-    TraceResult,
     ValidationResult,
 )
 
@@ -151,8 +148,6 @@ __all__ = [
     "DryRunEngine",
     "DryRunMode",
     "DryRunResult",
-    "DryRunTraceEvent",
-    "EstimateResult",
     # =========================================================================
     # Exceptions
     # =========================================================================
@@ -204,7 +199,6 @@ __all__ = [
     "StepZone",
     "TaintPropagator",
     "TracingSagaListener",
-    "TraceResult",
     "ValidationResult",
     "action",
     "compensate",

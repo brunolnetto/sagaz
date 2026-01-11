@@ -20,42 +20,24 @@ class ParallelLayerInfo:
     layer_number: int
     steps: list[str]
     dependencies: set[str] = field(default_factory=set)  # Steps from previous layers
-    estimated_duration_ms: float | None = None  # Optional, from metadata
 
 
 class DryRunMode(Enum):
     """Dry-run execution modes.
     
     - VALIDATE: Configuration validation only
-    - SIMULATE: Preview step execution order
-    - ESTIMATE: Resource usage estimation  
-    - TRACE: Detailed execution trace
+    - SIMULATE: Preview step execution order with parallelization analysis
     """
 
     VALIDATE = "validate"
     SIMULATE = "simulate"
-    ESTIMATE = "estimate"
-    TRACE = "trace"
-
-
-@dataclass
-class DryRunTraceEvent:
-    """Event in dry-run execution trace."""
-
-    step_name: str
-    action: str  # "execute", "compensate", "skip"
-    context_before: dict[str, Any]
-    context_after: dict[str, Any]
-    estimated_duration_ms: float
-    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class DryRunResult:
     """Result of dry-run execution.
     
-    Contains validation results, execution plan, resource estimates,
-    and optional detailed trace.
+    Contains validation results, execution plan, and parallelization analysis.
     """
 
     mode: DryRunMode
@@ -70,9 +52,8 @@ class DryRunResult:
     steps_planned: list[str] = field(default_factory=list)
     execution_order: list[str] = field(default_factory=list)
     parallel_groups: list[list[str]] = field(default_factory=list)
-    max_parallel_duration_ms: float = 0.0  # Upper bound with parallelism
 
-    # NEW: Parallel execution analysis (ADR-030)
+    # Parallel execution analysis (ADR-030)
     forward_layers: list[ParallelLayerInfo] = field(default_factory=list)
     backward_layers: list[ParallelLayerInfo] = field(default_factory=list)
     
@@ -85,16 +66,6 @@ class DryRunResult:
     # Complexity (works without metadata)
     sequential_complexity: int = 0
     parallel_complexity: int = 0
-
-    # Resource estimates (ESTIMATE mode)
-    estimated_duration_ms: float = 0.0  # Sequential duration
-    estimated_duration_parallel_ms: float = 0.0  # With parallelism
-    has_duration_metadata: bool = False  # Whether steps have duration metadata
-    api_calls_estimated: dict[str, int] = field(default_factory=dict)
-    cost_estimate_usd: float = 0.0
-
-    # Detailed trace (TRACE mode)
-    trace: list[DryRunTraceEvent] | None = None
 
     # Metadata
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -123,27 +94,10 @@ class SimulationResult:
     parallel_groups: list[list[str]] = field(default_factory=list)
 
 
-@dataclass
-class EstimateResult:
-    """Result of resource estimation."""
-
-    duration_ms: float
-    api_calls: dict[str, int]
-    cost_usd: float = 0.0
-
-
-@dataclass
-class TraceResult:
-    """Result of execution tracing."""
-
-    events: list[DryRunTraceEvent]
-
-
 class DryRunEngine:
     """Execute sagas in dry-run mode without side effects.
     
-    Provides validation, simulation, estimation, and tracing
-    without executing actual step actions.
+    Provides validation and simulation without executing actual step actions.
     
     Example:
         >>> engine = DryRunEngine()
@@ -154,16 +108,7 @@ class DryRunEngine:
 
     def __init__(self):
         """Initialize dry-run engine."""
-        self._api_pricing: dict[str, float] = {}  # API name -> cost per call (USD)
-
-    def set_api_pricing(self, api: str, cost_per_call: float):
-        """Set pricing for API cost estimation.
-        
-        Args:
-            api: API service name
-            cost_per_call: Cost per API call in USD
-        """
-        self._api_pricing[api] = cost_per_call
+        pass
 
     async def run(
         self, saga: "Saga", context: dict[str, Any], mode: DryRunMode  # type: ignore # noqa: F821
@@ -176,7 +121,7 @@ class DryRunEngine:
             mode: Dry-run mode to execute
             
         Returns:
-            DryRunResult with validation, simulation, estimates, or trace
+            DryRunResult with validation or simulation analysis
         """
         result = DryRunResult(mode=mode, success=True)
 
@@ -200,7 +145,7 @@ class DryRunEngine:
             result.execution_order = simulation.order
             result.parallel_groups = simulation.parallel_groups
             
-            # NEW: Enhanced parallel analysis (ADR-030)
+            # Enhanced parallel analysis (ADR-030)
             dag = self._build_dag(saga)
             result.forward_layers, result.critical_path = self._analyze_parallel_layers(dag)
             result.backward_layers = self._analyze_backward_layers(saga, result.forward_layers)
@@ -212,35 +157,6 @@ class DryRunEngine:
                 result.parallel_complexity / result.sequential_complexity
                 if result.sequential_complexity > 0 else 1.0
             )
-            
-            # Calculate durations only if metadata exists
-            has_metadata, parallel_duration = self._calculate_parallel_duration_with_metadata(
-                saga, result.forward_layers
-            )
-            result.has_duration_metadata = has_metadata
-            if has_metadata:
-                result.max_parallel_duration_ms = parallel_duration
-
-        elif mode == DryRunMode.ESTIMATE:
-            estimate = await self._estimate(saga, context)
-            result.estimated_duration_ms = estimate.duration_ms
-            result.api_calls_estimated = estimate.api_calls
-            result.cost_estimate_usd = estimate.cost_usd
-            
-            # Also calculate parallel duration and check for metadata
-            simulation = await self._simulate(saga, context)
-            dag = self._build_dag(saga)
-            forward_layers, _ = self._analyze_parallel_layers(dag)
-            has_metadata, parallel_duration = self._calculate_parallel_duration_with_metadata(
-                saga, forward_layers
-            )
-            result.has_duration_metadata = has_metadata
-            if has_metadata:
-                result.estimated_duration_parallel_ms = parallel_duration
-
-        elif mode == DryRunMode.TRACE:
-            trace = await self._trace(saga, context)
-            result.trace = trace.events
 
         return result
 
@@ -499,170 +415,6 @@ class DryRunEngine:
             groups[depth].append(node)
 
         return [g for g in groups if g]  # Remove empty groups
-
-    async def _estimate(
-        self, saga: "Saga", context: dict[str, Any]  # type: ignore # noqa: F821
-    ) -> EstimateResult:
-        """Estimate resource usage.
-        
-        Args:
-            saga: Saga to estimate
-            context: Execution context
-            
-        Returns:
-            EstimateResult with duration, API calls, and cost
-        """
-        # Get steps (support both declarative and imperative sagas)
-        steps = []
-        if hasattr(saga, '_steps') and saga._steps:
-            steps = saga._steps
-        elif hasattr(saga, 'get_steps'):
-            steps = saga.get_steps()
-        elif hasattr(saga, 'steps'):
-            steps = saga.steps
-            
-        duration_ms = 0.0
-        api_calls = defaultdict(int)
-
-        for step in steps:
-            # Get step action/forward function
-            action_fn = getattr(step, 'forward_fn', None) or getattr(step, 'action', None)
-            if action_fn is None:
-                continue
-                
-            # Get step metadata for estimates
-            metadata = getattr(action_fn, "__sagaz_metadata__", {})
-
-            # Estimate duration
-            estimated_time = metadata.get("estimated_duration_ms", 100)
-            duration_ms += estimated_time
-
-            # Count API calls
-            for api, count in metadata.get("api_calls", {}).items():
-                api_calls[api] += count
-
-        # Calculate cost
-        cost_usd = self._calculate_cost(dict(api_calls))
-
-        return EstimateResult(
-            duration_ms=duration_ms, api_calls=dict(api_calls), cost_usd=cost_usd
-        )
-
-    def _calculate_cost(self, api_calls: dict[str, int]) -> float:
-        """Calculate cost based on API pricing.
-        
-        Args:
-            api_calls: Dictionary of {api: call_count}
-            
-        Returns:
-            Total cost in USD
-        """
-        total = 0.0
-        for api, count in api_calls.items():
-            if api in self._api_pricing:
-                total += count * self._api_pricing[api]
-        return total
-
-    async def _trace(
-        self, saga: "Saga", context: dict[str, Any]  # type: ignore # noqa: F821
-    ) -> TraceResult:
-        """Generate detailed execution trace.
-        
-        Args:
-            saga: Saga to trace
-            context: Execution context
-            
-        Returns:
-            TraceResult with detailed event trace
-        """
-        # Get steps (support both declarative and imperative sagas)
-        steps = []
-        if hasattr(saga, '_steps') and saga._steps:
-            steps = saga._steps
-        elif hasattr(saga, 'get_steps'):
-            steps = saga.get_steps()
-        elif hasattr(saga, 'steps'):
-            steps = saga.steps
-            
-        events = []
-        current_context = context.copy()
-
-        for step in steps:
-            step_name = getattr(step, 'step_id', None) or getattr(step, 'name', 'unknown')
-            
-            # Get step action/forward function
-            action_fn = getattr(step, 'forward_fn', None) or getattr(step, 'action', None)
-            if action_fn is None:
-                continue
-                
-            # Get metadata
-            metadata = getattr(action_fn, "__sagaz_metadata__", {})
-            estimated_duration = metadata.get("estimated_duration_ms", 100)
-
-            # Mock step result
-            context_after = current_context.copy()
-            context_after[f"{step_name}_result"] = "dry-run-mock"
-
-            # Create trace event
-            event = DryRunTraceEvent(
-                step_name=step_name,
-                action="execute",
-                context_before=current_context.copy(),
-                context_after=context_after.copy(),
-                estimated_duration_ms=estimated_duration,
-                metadata=metadata.copy() if metadata else {},
-            )
-            events.append(event)
-
-            current_context = context_after
-
-        return TraceResult(events=events)
-    
-    def _calculate_parallel_duration(
-        self, saga: "Saga", parallel_groups: list[list[str]]  # type: ignore # noqa: F821
-    ) -> float:
-        """Calculate maximum duration considering parallel execution.
-        
-        For each parallel group, takes the MAX duration (longest step in group).
-        Total duration is SUM of max durations across groups.
-        
-        Args:
-            saga: Saga instance
-            parallel_groups: List of parallel execution groups
-            
-        Returns:
-            Upper bound duration in milliseconds with parallelism
-        """
-        # Build step name -> duration map
-        steps = []
-        if hasattr(saga, '_steps') and saga._steps:
-            steps = saga._steps
-        elif hasattr(saga, 'get_steps'):
-            steps = saga.get_steps()
-        elif hasattr(saga, 'steps'):
-            steps = saga.steps
-        
-        step_durations = {}
-        for step in steps:
-            step_name = getattr(step, 'step_id', None) or getattr(step, 'name', 'unknown')
-            action_fn = getattr(step, 'forward_fn', None) or getattr(step, 'action', None)
-            
-            if action_fn:
-                metadata = getattr(action_fn, "__sagaz_metadata__", {})
-                duration = metadata.get("estimated_duration_ms", 100)
-                step_durations[step_name] = duration
-        
-        # Calculate max duration per group, sum across groups
-        total_duration = 0.0
-        for group in parallel_groups:
-            # In parallel group, execution takes as long as the slowest step
-            group_max = max(
-                (step_durations.get(step_name, 100) for step_name in group),
-                default=100
-            )
-            total_duration += group_max
-        
-        return total_duration
     
     def _build_dag(self, saga: "Saga") -> dict[str, list[str]]:  # type: ignore # noqa: F821
         """Build DAG from saga steps.
@@ -865,55 +617,3 @@ class DryRunEngine:
                 )
         
         return backward_layers
-    
-    def _calculate_parallel_duration_with_metadata(
-        self, saga: "Saga", forward_layers: list[ParallelLayerInfo]  # type: ignore # noqa: F821
-    ) -> tuple[bool, float]:
-        """Calculate parallel duration only if steps have metadata.
-        
-        Args:
-            saga: Saga instance
-            forward_layers: List of parallel execution layers
-            
-        Returns:
-            - bool: Whether duration metadata exists
-            - float: Total duration in ms (0 if no metadata)
-        """
-        # Build step name -> duration map
-        steps = []
-        if hasattr(saga, '_steps') and saga._steps:
-            steps = saga._steps
-        elif hasattr(saga, 'get_steps'):
-            steps = saga.get_steps()
-        elif hasattr(saga, 'steps'):
-            steps = saga.steps
-        
-        step_durations = {}
-        has_any_metadata = False
-        
-        for step in steps:
-            step_name = getattr(step, 'step_id', None) or getattr(step, 'name', 'unknown')
-            action_fn = getattr(step, 'forward_fn', None) or getattr(step, 'action', None)
-            
-            if action_fn:
-                metadata = getattr(action_fn, "__sagaz_metadata__", {})
-                if "estimated_duration_ms" in metadata:
-                    has_any_metadata = True
-                    duration = metadata["estimated_duration_ms"]
-                    step_durations[step_name] = duration
-        
-        if not has_any_metadata:
-            return False, 0.0
-        
-        # Calculate max duration per layer, sum across layers
-        total_duration = 0.0
-        for layer in forward_layers:
-            # In parallel layer, execution takes as long as the slowest step
-            layer_durations = [
-                step_durations.get(step_name, 0) for step_name in layer.steps
-            ]
-            if layer_durations:
-                group_max = max(layer_durations)
-                total_duration += group_max
-        
-        return True, total_duration
