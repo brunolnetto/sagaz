@@ -26,7 +26,7 @@ except ImportError:
 
 @click.command(name="validate")
 @click.option(
-    "--saga", "-s", type=str, default=None, help="Specific saga name to validate (validates all if omitted)"
+    "--saga", "-s", type=str, default=None, help="Specific saga name to validate (interactive if omitted)"
 )
 @click.option(
     "--context", "-c", type=str, default="{}", help="Context JSON (default: {})"
@@ -35,11 +35,12 @@ def validate_cmd(saga: str | None, context: str):
     """
     Validate saga configuration for project.
     
-    Validates all sagas defined in sagaz.yaml paths.
+    Discovers sagas from sagaz.yaml paths and validates them.
+    If no --saga specified, presents interactive selection.
     
     \b
     Examples:
-        sagaz validate                    # Validate all sagas
+        sagaz validate                    # Interactive selection
         sagaz validate --saga OrderSaga   # Validate specific saga
         sagaz validate --context='{"order_id": "123"}'
     """
@@ -52,16 +53,23 @@ def validate_cmd(saga: str | None, context: str):
     
     if not sagas:
         click.echo("Error: No sagas found in project. Check sagaz.yaml paths.", err=True)
+        click.echo("   Have you run 'sagaz init' yet?", err=True)
         sys.exit(1)
     
-    # Filter if specific saga requested
-    if saga:
-        sagas = [s for s in sagas if s["name"] == saga]
-        if not sagas:
-            click.echo(f"Error: Saga '{saga}' not found in project", err=True)
-            sys.exit(1)
+    # Interactive selection if no saga specified
+    if not saga:
+        saga = _interactive_saga_selection(sagas, "validate")
+        if not saga:
+            click.echo("Aborted.")
+            sys.exit(0)
+    
+    # Filter to specific saga
+    sagas = [s for s in sagas if s["name"] == saga]
+    if not sagas:
+        click.echo(f"Error: Saga '{saga}' not found in project", err=True)
+        sys.exit(1)
 
-    # Run validation for each saga
+    # Run validation for selected saga
     engine = DryRunEngine()
     all_success = True
     results = []
@@ -84,7 +92,7 @@ def validate_cmd(saga: str | None, context: str):
 
 @click.command(name="simulate")
 @click.option(
-    "--saga", "-s", type=str, default=None, help="Specific saga name to simulate (simulates all if omitted)"
+    "--saga", "-s", type=str, default=None, help="Specific saga name to simulate (interactive if omitted)"
 )
 @click.option(
     "--context", "-c", type=str, default="{}", help="Context JSON (default: {})"
@@ -96,13 +104,14 @@ def simulate_cmd(saga: str | None, context: str, show_parallel: bool):
     """
     Simulate saga execution and show step order.
     
-    Analyzes execution DAG and parallelization for all project sagas.
+    Analyzes execution DAG and parallelization for project sagas.
+    If no --saga specified, presents interactive selection.
     
     \b
     Examples:
-        sagaz simulate                     # Simulate all sagas
+        sagaz simulate                     # Interactive selection
         sagaz simulate --saga OrderSaga    # Simulate specific saga
-        sagaz simulate --show-parallel     # Show legacy parallel groups
+        sagaz simulate --show-parallel     # Show parallel groups
     """
     import asyncio
 
@@ -113,16 +122,23 @@ def simulate_cmd(saga: str | None, context: str, show_parallel: bool):
     
     if not sagas:
         click.echo("Error: No sagas found in project. Check sagaz.yaml paths.", err=True)
+        click.echo("   Have you run 'sagaz init' yet?", err=True)
         sys.exit(1)
     
-    # Filter if specific saga requested
-    if saga:
-        sagas = [s for s in sagas if s["name"] == saga]
-        if not sagas:
-            click.echo(f"Error: Saga '{saga}' not found in project", err=True)
-            sys.exit(1)
+    # Interactive selection if no saga specified
+    if not saga:
+        saga = _interactive_saga_selection(sagas, "simulate")
+        if not saga:
+            click.echo("Aborted.")
+            sys.exit(0)
+    
+    # Filter to specific saga
+    sagas = [s for s in sagas if s["name"] == saga]
+    if not sagas:
+        click.echo(f"Error: Saga '{saga}' not found in project", err=True)
+        sys.exit(1)
 
-    # Run simulation for each saga
+    # Run simulation for selected saga
     engine = DryRunEngine()
     all_success = True
     results = []
@@ -148,6 +164,38 @@ def simulate_cmd(saga: str | None, context: str, show_parallel: bool):
 # =============================================================================
 # Helper Functions
 # =============================================================================
+
+
+def _interactive_saga_selection(sagas: list[dict], operation: str) -> str | None:
+    """Present interactive saga selection menu. Returns saga name or None if cancelled."""
+    if not sagas:
+        return None
+    
+    # If only one saga, use it automatically
+    if len(sagas) == 1:
+        saga_name = sagas[0]["name"]
+        if RICH_AVAILABLE and console:
+            console.print(f"[dim]Auto-selecting only saga: {saga_name}[/dim]")
+        else:
+            click.echo(f"Auto-selecting only saga: {saga_name}")
+        return saga_name
+    
+    click.echo(f"\nSelect saga to {operation}:")
+    for idx, saga in enumerate(sagas, 1):
+        file_path = saga.get("file", "")
+        click.echo(f"  {idx}. {saga['name']:<30} ({file_path})")
+    click.echo(f"  0. Cancel")
+    
+    choice = click.prompt(
+        "Choice",
+        type=click.IntRange(0, len(sagas)),
+        default=1
+    )
+    
+    if choice == 0:
+        return None
+    
+    return sagas[choice - 1]["name"]
 
 
 def _discover_project_sagas():
