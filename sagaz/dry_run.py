@@ -13,6 +13,16 @@ from typing import Any
 from sagaz.core.types import SagaStatus
 
 
+@dataclass
+class ParallelLayerInfo:
+    """Information about a parallelizable execution layer."""
+
+    layer_number: int
+    steps: list[str]
+    dependencies: set[str] = field(default_factory=set)  # Steps from previous layers
+    estimated_duration_ms: float | None = None  # Optional, from metadata
+
+
 class DryRunMode(Enum):
     """Dry-run execution modes.
     
@@ -62,9 +72,24 @@ class DryRunResult:
     parallel_groups: list[list[str]] = field(default_factory=list)
     max_parallel_duration_ms: float = 0.0  # Upper bound with parallelism
 
+    # NEW: Parallel execution analysis (ADR-030)
+    forward_layers: list[ParallelLayerInfo] = field(default_factory=list)
+    backward_layers: list[ParallelLayerInfo] = field(default_factory=list)
+    
+    # Parallelization metrics
+    total_layers: int = 0
+    max_parallel_width: int = 0
+    critical_path: list[str] = field(default_factory=list)
+    parallelization_ratio: float = 1.0
+    
+    # Complexity (works without metadata)
+    sequential_complexity: int = 0
+    parallel_complexity: int = 0
+
     # Resource estimates (ESTIMATE mode)
     estimated_duration_ms: float = 0.0  # Sequential duration
     estimated_duration_parallel_ms: float = 0.0  # With parallelism
+    has_duration_metadata: bool = False  # Whether steps have duration metadata
     api_calls_estimated: dict[str, int] = field(default_factory=dict)
     cost_estimate_usd: float = 0.0
 
@@ -174,21 +199,44 @@ class DryRunEngine:
             result.steps_planned = simulation.steps
             result.execution_order = simulation.order
             result.parallel_groups = simulation.parallel_groups
-            # Calculate max parallel duration
-            result.max_parallel_duration_ms = self._calculate_parallel_duration(
-                saga, simulation.parallel_groups
+            
+            # NEW: Enhanced parallel analysis (ADR-030)
+            dag = self._build_dag(saga)
+            result.forward_layers, result.critical_path = self._analyze_parallel_layers(dag)
+            result.backward_layers = self._analyze_backward_layers(saga, result.forward_layers)
+            result.total_layers = len(result.forward_layers)
+            result.max_parallel_width = max((len(layer.steps) for layer in result.forward_layers), default=1)
+            result.sequential_complexity = len(result.steps_planned)
+            result.parallel_complexity = result.total_layers
+            result.parallelization_ratio = (
+                result.parallel_complexity / result.sequential_complexity
+                if result.sequential_complexity > 0 else 1.0
             )
+            
+            # Calculate durations only if metadata exists
+            has_metadata, parallel_duration = self._calculate_parallel_duration_with_metadata(
+                saga, result.forward_layers
+            )
+            result.has_duration_metadata = has_metadata
+            if has_metadata:
+                result.max_parallel_duration_ms = parallel_duration
 
         elif mode == DryRunMode.ESTIMATE:
             estimate = await self._estimate(saga, context)
             result.estimated_duration_ms = estimate.duration_ms
             result.api_calls_estimated = estimate.api_calls
             result.cost_estimate_usd = estimate.cost_usd
-            # Also calculate parallel duration
+            
+            # Also calculate parallel duration and check for metadata
             simulation = await self._simulate(saga, context)
-            result.estimated_duration_parallel_ms = self._calculate_parallel_duration(
-                saga, simulation.parallel_groups
+            dag = self._build_dag(saga)
+            forward_layers, _ = self._analyze_parallel_layers(dag)
+            has_metadata, parallel_duration = self._calculate_parallel_duration_with_metadata(
+                saga, forward_layers
             )
+            result.has_duration_metadata = has_metadata
+            if has_metadata:
+                result.estimated_duration_parallel_ms = parallel_duration
 
         elif mode == DryRunMode.TRACE:
             trace = await self._trace(saga, context)
@@ -615,3 +663,257 @@ class DryRunEngine:
             total_duration += group_max
         
         return total_duration
+    
+    def _build_dag(self, saga: "Saga") -> dict[str, list[str]]:  # type: ignore # noqa: F821
+        """Build DAG from saga steps.
+        
+        Args:
+            saga: Saga instance
+            
+        Returns:
+            DAG as adjacency list {step: [dependencies]}
+        """
+        steps = []
+        if hasattr(saga, '_steps') and saga._steps:
+            steps = saga._steps
+        elif hasattr(saga, 'get_steps'):
+            steps = saga.get_steps()
+        elif hasattr(saga, 'steps'):
+            steps = saga.steps
+        
+        dag = {}
+        for step in steps:
+            step_name = getattr(step, 'step_id', None) or getattr(step, 'name', 'unknown')
+            depends_on = getattr(step, 'depends_on', set()) or getattr(step, 'dependencies', set())
+            dag[step_name] = list(depends_on) if depends_on else []
+        
+        return dag
+    
+    def _analyze_parallel_layers(
+        self, dag: dict[str, list[str]]
+    ) -> tuple[list[ParallelLayerInfo], list[str]]:
+        """Analyze DAG for parallelizable execution layers (ADR-030).
+        
+        This identifies which steps can run in parallel by grouping them into layers
+        based on their dependency depth. Steps in the same layer can execute concurrently.
+        
+        Args:
+            dag: Adjacency list {step: [dependencies]}
+            
+        Returns:
+            - List of forward execution layers with dependency info
+            - Critical path (longest dependency chain)
+        """
+        # Calculate layer depth for each node
+        layers = {}
+        
+        def calculate_depth(node: str, memo: dict[str, int]) -> int:
+            if node in memo:
+                return memo[node]
+            
+            if not dag.get(node):
+                memo[node] = 0
+                return 0
+            
+            max_dep_depth = max(
+                (calculate_depth(dep, memo) for dep in dag[node]), default=-1
+            )
+            memo[node] = max_dep_depth + 1
+            return memo[node]
+        
+        for node in dag:
+            calculate_depth(node, layers)
+        
+        # Group steps by layer
+        max_layer = max(layers.values()) if layers else 0
+        layer_groups: dict[int, list[str]] = {}
+        
+        for step, layer in layers.items():
+            if layer not in layer_groups:
+                layer_groups[layer] = []
+            layer_groups[layer].append(step)
+        
+        # Build layer info with dependencies
+        forward_layers = []
+        for layer_num in sorted(layer_groups.keys()):
+            steps = layer_groups[layer_num]
+            
+            # Find all dependencies for this layer (from previous layers)
+            deps = set()
+            for step in steps:
+                deps.update(dag.get(step, []))
+            
+            forward_layers.append(
+                ParallelLayerInfo(
+                    layer_number=layer_num,
+                    steps=sorted(steps),
+                    dependencies=deps,
+                )
+            )
+        
+        # Find critical path (longest chain)
+        critical_path = self._find_critical_path(dag, layers)
+        
+        return forward_layers, critical_path
+    
+    def _find_critical_path(
+        self, dag: dict[str, list[str]], layers: dict[str, int]
+    ) -> list[str]:
+        """Find the longest dependency chain (critical path).
+        
+        Args:
+            dag: Adjacency list {step: [dependencies]}
+            layers: Layer depth for each step
+            
+        Returns:
+            List of steps forming the critical path
+        """
+        if not layers:
+            return []
+        
+        # Start from deepest layer
+        max_layer = max(layers.values())
+        deepest_nodes = [node for node, layer in layers.items() if layer == max_layer]
+        
+        # Trace back dependencies to find longest path
+        longest_path = []
+        
+        for start_node in deepest_nodes:
+            path = self._trace_path(start_node, dag, set())
+            if len(path) > len(longest_path):
+                longest_path = path
+        
+        return list(reversed(longest_path))
+    
+    def _trace_path(
+        self, node: str, dag: dict[str, list[str]], visited: set[str]
+    ) -> list[str]:
+        """Recursively trace dependency path.
+        
+        Args:
+            node: Current node
+            dag: Adjacency list
+            visited: Set of visited nodes (avoid cycles)
+            
+        Returns:
+            Path from node to root
+        """
+        path = [node]
+        
+        deps = dag.get(node, [])
+        if deps:
+            # Follow the longest dependency branch
+            longest_branch = []
+            for dep in deps:
+                if dep not in visited:
+                    branch = self._trace_path(dep, dag, visited | {node})
+                    if len(branch) > len(longest_branch):
+                        longest_branch = branch
+            path.extend(longest_branch)
+        
+        return path
+    
+    def _analyze_backward_layers(
+        self,
+        saga: "Saga",  # type: ignore # noqa: F821
+        forward_layers: list[ParallelLayerInfo],
+    ) -> list[ParallelLayerInfo]:
+        """Analyze compensation (backward) execution layers.
+        
+        Compensation happens in reverse order: deepest layer first.
+        
+        Args:
+            saga: Saga instance
+            forward_layers: Forward execution layers
+            
+        Returns:
+            List of backward compensation layers
+        """
+        # Get steps with compensation
+        steps = []
+        if hasattr(saga, '_steps') and saga._steps:
+            steps = saga._steps
+        elif hasattr(saga, 'get_steps'):
+            steps = saga.get_steps()
+        elif hasattr(saga, 'steps'):
+            steps = saga.steps
+        
+        compensatable_steps = set()
+        for step in steps:
+            compensation_fn = getattr(step, 'compensation_fn', None) or getattr(
+                step, 'compensation', None
+            )
+            if compensation_fn is not None:
+                step_name = getattr(step, 'step_id', None) or getattr(step, 'name', 'unknown')
+                compensatable_steps.add(step_name)
+        
+        # Build backward layers (reverse of forward, only compensatable steps)
+        backward_layers = []
+        for i, forward_layer in enumerate(reversed(forward_layers)):
+            # Filter to only compensatable steps
+            compensatable_in_layer = [
+                step for step in forward_layer.steps if step in compensatable_steps
+            ]
+            
+            if compensatable_in_layer:
+                backward_layers.append(
+                    ParallelLayerInfo(
+                        layer_number=i,
+                        steps=compensatable_in_layer,
+                        dependencies=set(),  # Backward has no dependencies
+                    )
+                )
+        
+        return backward_layers
+    
+    def _calculate_parallel_duration_with_metadata(
+        self, saga: "Saga", forward_layers: list[ParallelLayerInfo]  # type: ignore # noqa: F821
+    ) -> tuple[bool, float]:
+        """Calculate parallel duration only if steps have metadata.
+        
+        Args:
+            saga: Saga instance
+            forward_layers: List of parallel execution layers
+            
+        Returns:
+            - bool: Whether duration metadata exists
+            - float: Total duration in ms (0 if no metadata)
+        """
+        # Build step name -> duration map
+        steps = []
+        if hasattr(saga, '_steps') and saga._steps:
+            steps = saga._steps
+        elif hasattr(saga, 'get_steps'):
+            steps = saga.get_steps()
+        elif hasattr(saga, 'steps'):
+            steps = saga.steps
+        
+        step_durations = {}
+        has_any_metadata = False
+        
+        for step in steps:
+            step_name = getattr(step, 'step_id', None) or getattr(step, 'name', 'unknown')
+            action_fn = getattr(step, 'forward_fn', None) or getattr(step, 'action', None)
+            
+            if action_fn:
+                metadata = getattr(action_fn, "__sagaz_metadata__", {})
+                if "estimated_duration_ms" in metadata:
+                    has_any_metadata = True
+                    duration = metadata["estimated_duration_ms"]
+                    step_durations[step_name] = duration
+        
+        if not has_any_metadata:
+            return False, 0.0
+        
+        # Calculate max duration per layer, sum across layers
+        total_duration = 0.0
+        for layer in forward_layers:
+            # In parallel layer, execution takes as long as the slowest step
+            layer_durations = [
+                step_durations.get(step_name, 0) for step_name in layer.steps
+            ]
+            if layer_durations:
+                group_max = max(layer_durations)
+                total_duration += group_max
+        
+        return True, total_duration

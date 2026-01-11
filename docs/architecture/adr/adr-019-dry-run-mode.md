@@ -23,7 +23,8 @@
 - [ADR_019_IMPLEMENTATION_SUMMARY.md](../ADR_019_IMPLEMENTATION_SUMMARY.md) - Detailed design and implementation
 - [ADR_019_CLI_STATUS.md](../ADR_019_CLI_STATUS.md) - CLI integration
 - [ADR_019_DRY_RUN_COMPLETE.md](../ADR_019_DRY_RUN_COMPLETE.md) - Final completion status
-- Test Suite: `tests/unit/test_dry_run.py` (565 lines, 29 tests)
+- [ADR-030](./adr-030-dry-run-parallel-analysis.md) - Enhanced parallel execution analysis (v1.4.0)
+- Test Suite: `tests/unit/test_dry_run.py` (37 tests)
 
 ## Context
 
