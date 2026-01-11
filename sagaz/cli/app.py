@@ -57,34 +57,31 @@ def cli():
 
     \b
     Commands by Progressive Risk:
-    \b
-      Analysis (Read-only):
-        validate         Validate project sagas
-        simulate         Analyze execution DAG
-    \b
-      Project Management:
-        init             Initialize new project
-        check            Validate project structure
-        list             List discovered sagas
-        examples         Explore examples
-    \b
-      Deployment:
-        setup            Setup deployment environment
-    \b
-      Development:
-        dev              Start local environment
-        status           Check service health
-        logs             View logs
-        monitor          Open monitoring dashboard
-        stop             Stop services
-    \b
-      Testing:
-        benchmark        Run performance tests
-    \b
-      Advanced (State Modification):
-        replay           Replay/modify saga state
 
-    Documentation: https://github.com/brunolnetto/sagaz
+    \b
+    Library demo:
+      examples         Explore examples
+
+
+    \b
+    Project Management:
+      init             Initialize new project
+      setup            Setup deployment environment
+      check            Validate project structure
+      list             List discovered sagas
+      validate         Validate project sagas
+      simulate         Analyze execution DAG
+
+    
+    \b
+    Runtime Operations:
+      dev              Start local environment
+      status           Check service health
+      logs             View logs
+      monitor          Open monitoring dashboard
+      stop             Stop services
+      replay           Replay/modify saga state
+      benchmark        Run performance tests
     """
 
 
@@ -196,6 +193,15 @@ dev:
   storage_url: "postgresql://sagaz:sagaz@localhost:5432/sagaz_dev"
   broker_url: "redis://localhost:6379/0"
   outbox_url: "postgresql://sagaz:sagaz@localhost:5432/sagaz_outbox"
+  
+  observability:
+    metrics_port: 8000
+    tracing_endpoint: "http://localhost:14268/api/traces"
+
+dev_inmemory:
+  storage_url: "memory://"
+  broker_url: "redis://localhost:6379/0"
+  outbox_url: "memory://"
   
   observability:
     metrics_port: 8000
@@ -347,11 +353,10 @@ def setup_cmd():
     \b
     Interactive wizard to configure:
     - Deployment mode (local/k8s/selfhost/hybrid)
-    - Message broker (redis/kafka/rabbitmq/postgres)
-    - OLTP storage (PostgreSQL)
-    - Outbox storage (PostgreSQL/separate)
+    - OLTP storage (PostgreSQL with optional HA)
+    - Message broker (redis/rabbitmq/kafka)
+    - Outbox storage (same OLTP or separate)
     - Observability (Prometheus/Grafana/Jaeger)
-    - High-availability options
     
     \b
     Example:
@@ -375,7 +380,7 @@ def setup_cmd():
         click.echo("=== Sagaz Deployment Environment Setup ===\n")
 
     # Step 1: Deployment mode
-    click.echo("\n[1/6] Select deployment mode:")
+    click.echo("\n[1/7] Select deployment mode:")
     click.echo("  1. local      - Docker Compose for development (recommended)")
     click.echo("  2. k8s        - Kubernetes for cloud-native")
     click.echo("  3. selfhost   - Systemd for on-premise servers")
@@ -384,56 +389,92 @@ def setup_cmd():
     mode_choice = click.prompt("Choice", type=click.IntRange(1, 4), default=1)
     mode = ["local", "k8s", "selfhost", "hybrid"][mode_choice - 1]
 
-    # Step 2: Message broker
-    click.echo("\n[2/6] Select message broker:")
-    click.echo("  1. redis      - Fast, simple (recommended)")
-    click.echo("  2. kafka      - High-throughput, event streaming")
-    click.echo("  3. rabbitmq   - Flexible routing")
-    click.echo("  4. postgres   - Full HA with replication")
+    # Step 2: OLTP Storage
+    click.echo("\n[2/9] Select OLTP storage (transaction data):")
+    click.echo("  1. postgresql - Production-ready RDBMS (recommended)")
+    click.echo("  2. in-memory  - Fast, no persistence (dev/testing only)")
+    click.echo("  3. sqlite     - Simple file-based database")
     
-    broker_choice = click.prompt("Choice", type=click.IntRange(1, 4), default=1)
-    preset = ["redis", "kafka", "rabbitmq", "postgres"][broker_choice - 1]
+    oltp_choice = click.prompt("Choice", type=click.IntRange(1, 3), default=1)
+    oltp_storage = ["postgresql", "in-memory", "sqlite"][oltp_choice - 1]
     
-    # Step 3: High availability (if postgres or k8s)
+    # Step 2b: HA for PostgreSQL
     with_ha = False
-    if preset == "postgres" or mode == "k8s":
-        with_ha = click.confirm("\n[3/6] Enable high-availability setup?", default=False)
-        if with_ha and preset != "postgres":
-            preset = "postgres"
-    else:
-        click.echo("\n[3/6] High-availability: Not applicable for this broker")
+    if oltp_storage == "postgresql" and mode in ["k8s", "selfhost"]:
+        with_ha = click.confirm("  Enable high-availability (primary + replicas + PgBouncer)?", default=False)
     
-    # Step 4: Observability
-    with_observability = click.confirm("\n[4/6] Include observability stack (Prometheus/Grafana/Jaeger)?", default=True)
+    # Step 3: Message broker
+    click.echo("\n[3/9] Select message broker:")
+    click.echo("  1. redis      - Fast, simple (recommended)")
+    click.echo("  2. rabbitmq   - Flexible routing, reliable")
+    click.echo("  3. kafka      - High-throughput, event streaming")
     
-    # Step 5: Separate outbox storage
-    separate_outbox = False
-    if mode in ["k8s", "selfhost"]:
-        separate_outbox = click.confirm("\n[5/6] Use separate database for outbox pattern?", default=False)
-    else:
-        click.echo("\n[5/6] Outbox storage: Will use same database as OLTP")
+    broker_choice = click.prompt("Choice", type=click.IntRange(1, 3), default=1)
+    broker = ["redis", "rabbitmq", "kafka"][broker_choice - 1]
     
-    # Step 6: Benchmarks
-    with_benchmarks = False
-    if mode == "k8s":
-        with_benchmarks = click.confirm("\n[6/6] Include benchmark configuration?", default=False)
+    # Step 4: Outbox storage
+    click.echo("\n[4/9] Select outbox storage (for reliable messaging):")
+    click.echo("  1. same       - Use same database as OLTP (simplest)")
+    click.echo("  2. postgresql - Separate PostgreSQL database")
+    click.echo("  3. in-memory  - No persistence (dev/testing only)")
+    
+    outbox_choice = click.prompt("Choice", type=click.IntRange(1, 3), default=1)
+    outbox_storage = ["same", "postgresql", "in-memory"][outbox_choice - 1]
+    separate_outbox = (outbox_storage != "same")
+    
+    # Step 5: Observability - Metrics
+    click.echo("\n[5/9] Observability - Metrics:")
+    with_metrics = click.confirm("  Include Prometheus + Grafana for metrics?", default=True)
+    
+    # Step 6: Observability - Tracing
+    click.echo("\n[6/9] Observability - Tracing:")
+    with_tracing = click.confirm("  Include Jaeger for distributed tracing?", default=True)
+    
+    # Step 7: Observability - Logging
+    click.echo("\n[7/9] Observability - Logging:")
+    with_logging = click.confirm("  Include Loki + Promtail for log aggregation?", default=True)
+    
+    # Step 8: Benchmarks
+    click.echo("\n[8/9] Benchmarks:")
+    with_benchmarks = click.confirm("  Include benchmark configuration?", default=False)
+    
+    # Step 9: Development mode
+    click.echo("\n[9/9] Development mode:")
+    dev_mode = False
+    if oltp_storage == "in-memory" or outbox_storage == "in-memory":
+        dev_mode = True
+        click.echo("  [yellow]⚠ In-memory storage detected - enabling development mode[/yellow]")
     else:
-        click.echo("\n[6/6] Benchmarks: Will create benchmarks/ directory")
-        with_benchmarks = click.confirm("  Include it?", default=False)
+        dev_mode = click.confirm("  Enable in-memory mode (no external dependencies)?", default=False)
 
     # Summary
+    with_observability = with_metrics or with_tracing or with_logging
+    
     if console:
+        storage_label = oltp_storage
+        if oltp_storage == "postgresql" and with_ha:
+            storage_label = "postgresql (HA)"
+        
+        outbox_label = outbox_storage if outbox_storage != "same" else f"same as OLTP ({oltp_storage})"
+        
         console.print(
             f"\n[bold green]Configuration Summary:[/bold green]\n"
             f"  Mode: [cyan]{mode}[/cyan]\n"
-            f"  Broker: [yellow]{preset}[/yellow]\n"
-            f"  HA: {'[green]Yes[/green]' if with_ha else '[dim]No[/dim]'}\n"
-            f"  Observability: {'[green]Yes[/green]' if with_observability else '[dim]No[/dim]'}\n"
-            f"  Separate Outbox: {'[green]Yes[/green]' if separate_outbox else '[dim]No[/dim]'}\n"
-            f"  Benchmarks: {'[green]Yes[/green]' if with_benchmarks else '[dim]No[/dim]'}"
+            f"  OLTP Storage: [yellow]{storage_label}[/yellow]\n"
+            f"  Broker: [yellow]{broker}[/yellow]\n"
+            f"  Outbox Storage: [yellow]{outbox_label}[/yellow]\n"
+            f"  Metrics: {'[green]Yes[/green]' if with_metrics else '[dim]No[/dim]'}\n"
+            f"  Tracing: {'[green]Yes[/green]' if with_tracing else '[dim]No[/dim]'}\n"
+            f"  Logging: {'[green]Yes[/green]' if with_logging else '[dim]No[/dim]'}\n"
+            f"  Benchmarks: {'[green]Yes[/green]' if with_benchmarks else '[dim]No[/dim]'}\n"
+            f"  Dev Mode: {'[yellow]Yes[/yellow]' if dev_mode else '[dim]No[/dim]'}"
         )
     else:
-        click.echo(f"\nConfiguration: mode={mode}, broker={preset}, ha={with_ha}, observability={with_observability}, separate_outbox={separate_outbox}")
+        click.echo(
+            f"\nConfiguration: mode={mode}, oltp={oltp_storage}, "
+            f"outbox={outbox_storage}, broker={broker}, "
+            f"observability={with_observability}, dev_mode={dev_mode}"
+        )
 
     if not click.confirm("\nProceed with setup?", default=True):
         click.echo("Aborted.")
@@ -441,49 +482,76 @@ def setup_cmd():
 
     # Execute initialization
     if mode == "local":
-        _init_local(preset, with_observability, with_ha, separate_outbox)
+        _init_local(
+            broker, 
+            with_observability, 
+            with_ha, 
+            separate_outbox, 
+            oltp_storage,
+            outbox_storage,
+            dev_mode
+        )
     elif mode == "selfhost":
-        _init_selfhost(preset, with_observability, separate_outbox)
+        _init_selfhost(broker, with_observability, separate_outbox, oltp_storage, outbox_storage)
     elif mode == "k8s":
-        _init_k8s(with_observability, with_benchmarks, with_ha, separate_outbox)
+        _init_k8s(with_observability, with_benchmarks, with_ha, separate_outbox, oltp_storage, outbox_storage)
     elif mode == "hybrid":
-        _init_hybrid(preset)
+        _init_hybrid(broker, oltp_storage, outbox_storage)
 
     if with_benchmarks and mode not in ["k8s"]:
         _init_benchmarks()
 
 
-def _init_local(preset: str, with_observability: bool, with_ha: bool = False, separate_outbox: bool = False):
+def _init_local(
+    broker: str, 
+    with_observability: bool, 
+    with_ha: bool = False, 
+    separate_outbox: bool = False,
+    oltp_storage: str = "postgresql",
+    outbox_storage: str = "same",
+    dev_mode: bool = False
+):
     """Create local Docker Compose setup."""
-    _log_local_init_start(preset, with_ha)
-
-    is_postgres = with_ha or preset == "postgres"
+    _log_local_init_start(broker, with_ha, oltp_storage, dev_mode)
 
     # 1. Create docker-compose.yaml
-    _init_docker_compose(preset, is_postgres, with_observability, separate_outbox)
+    _init_docker_compose(broker, with_ha, with_observability, separate_outbox, oltp_storage, outbox_storage, dev_mode)
 
     # 2. Copy monitoring folder if enabled
     if with_observability:
-        _init_monitoring(preset, is_postgres)
+        _init_monitoring(broker, with_ha)
 
-    _log_local_init_complete(with_observability, is_postgres)
+    _log_local_init_complete(with_observability, with_ha, dev_mode)
 
 
-def _log_local_init_start(preset: str, with_ha: bool):
+def _log_local_init_start(broker: str, with_ha: bool, oltp_storage: str, dev_mode: bool):
     """Log the start of local initialization."""
     if not console:
         return
-    if with_ha:
+    
+    if dev_mode:
+        console.print(
+            "Creating [bold yellow]in-memory development[/bold yellow] environment (no external dependencies)..."
+        )
+    elif with_ha:
         console.print(
             "Creating local HA PostgreSQL environment with [bold green]primary + replica + PgBouncer[/bold green]..."
         )
     else:
         console.print(
-            f"Creating local development environment (preset: [bold green]{preset}[/bold green])..."
+            f"Creating local development environment (storage: [bold green]{oltp_storage}[/bold green], broker: [bold green]{broker}[/bold green])..."
         )
 
 
-def _init_docker_compose(preset: str, is_postgres: bool, with_observability: bool = True, separate_outbox: bool = False):
+def _init_docker_compose(
+    broker: str, 
+    with_ha: bool, 
+    with_observability: bool = True, 
+    separate_outbox: bool = False,
+    oltp_storage: str = "postgresql",
+    outbox_storage: str = "same",
+    dev_mode: bool = False
+):
     """Initialize docker-compose.yaml with optional overwrite confirmation."""
     target = "docker-compose.yaml"
 
@@ -491,42 +559,82 @@ def _init_docker_compose(preset: str, is_postgres: bool, with_observability: boo
         click.echo(f"Skipping {target}")
         return
 
-    _copy_docker_compose_files(preset, is_postgres, with_observability, separate_outbox)
+    _copy_docker_compose_files(broker, with_ha, with_observability, separate_outbox, oltp_storage, outbox_storage, dev_mode)
 
 
-def _copy_docker_compose_files(preset: str, is_postgres: bool, with_observability: bool = True, separate_outbox: bool = False):
+def _copy_docker_compose_files(
+    broker: str, 
+    with_ha: bool, 
+    with_observability: bool = True, 
+    separate_outbox: bool = False,
+    oltp_storage: str = "postgresql",
+    outbox_storage: str = "same",
+    dev_mode: bool = False
+):
     """Copy the appropriate docker-compose files."""
-    if is_postgres:
-        _copy_resource("local/postgres/docker-compose.yaml", "docker-compose.yaml")
-        _copy_resource("local/postgres/init-primary.sh", "init-primary.sh")
-        _copy_dir_resource("local/postgres/partitioning", "partitioning")
+    if dev_mode:
+        # Create minimal in-memory docker-compose
+        _create_inmemory_docker_compose(broker)
+    elif with_ha:
+        _copy_resource("local/postgres-ha/docker-compose.yaml", "docker-compose.yaml")
+        _copy_resource("local/postgres-ha/init-primary.sh", "init-primary.sh")
+        _copy_dir_resource("local/postgres-ha/partitioning", "partitioning")
     else:
-        _copy_resource(f"local/{preset}/docker-compose.yaml", "docker-compose.yaml")
+        _copy_resource(f"local/{broker}/docker-compose.yaml", "docker-compose.yaml")
     
     # TODO: Add observability services to docker-compose if with_observability
     # TODO: Add separate outbox database if separate_outbox
 
 
-def _init_monitoring(preset: str, is_postgres: bool):
+def _create_inmemory_docker_compose(broker: str):
+    """Create a minimal docker-compose for in-memory development."""
+    content = f"""version: '3.8'
+
+services:
+  # Message broker only - everything else runs in-memory
+  {broker}:
+    image: {"redis:7-alpine" if broker == "redis" else "rabbitmq:3-management" if broker == "rabbitmq" else "confluentinc/cp-kafka:latest"}
+    ports:
+      - "{6379 if broker == 'redis' else 5672 if broker == 'rabbitmq' else 9092}:{6379 if broker == 'redis' else 5672 if broker == 'rabbitmq' else 9092}"
+    environment:
+      {"ALLOW_ANONYMOUS_LOGIN: 'yes'" if broker == 'redis' else "RABBITMQ_DEFAULT_USER: sagaz" if broker == 'rabbitmq' else "KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092"}
+      {"" if broker == 'redis' else "RABBITMQ_DEFAULT_PASS: sagaz" if broker == 'rabbitmq' else "KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181"}
+
+networks:
+  sagaz:
+    driver: bridge
+"""
+    Path("docker-compose.yaml").write_text(content)
+    click.echo(f"  CREATE docker-compose.yaml")
+
+
+def _init_monitoring(broker: str, with_ha: bool):
     """Copy monitoring configuration."""
-    if is_postgres:
-        _copy_dir_resource("local/postgres/monitoring", "monitoring")
+    if with_ha:
+        _copy_dir_resource("local/postgres-ha/monitoring", "monitoring")
     else:
-        _copy_dir_resource(f"local/{preset}/monitoring", "monitoring")
+        _copy_dir_resource(f"local/{broker}/monitoring", "monitoring")
 
 
-def _log_local_init_complete(with_observability: bool, is_postgres: bool):
+def _log_local_init_complete(with_observability: bool, with_ha: bool, dev_mode: bool):
     """Log completion message for local initialization."""
     if not console:
         return
 
     console.print("\n[bold green]Deployment setup complete![/bold green]")
-    console.print("Next steps:")
+    
+    if dev_mode:
+        console.print("\n[bold yellow]Development Mode Active:[/bold yellow]")
+        console.print("  - OLTP and Outbox storage run [bold]in-memory[/bold]")
+        console.print("  - No data persistence between restarts")
+        console.print("  - Fastest startup, ideal for testing")
+    
+    console.print("\nNext steps:")
     console.print("  1. Run [bold cyan]sagaz dev[/bold cyan] to start the services")
     console.print("  2. Check status with [bold cyan]sagaz status[/bold cyan]")
     if with_observability:
         console.print("  3. Open monitoring at http://localhost:3000")
-    if is_postgres:
+    if with_ha:
         console.print("\n[bold yellow]HA PostgreSQL Info:[/bold yellow]")
         console.print("  - Primary (writes): localhost:5432")
         console.print("  - Replica (reads): localhost:5433")
@@ -534,7 +642,13 @@ def _log_local_init_complete(with_observability: bool, is_postgres: bool):
         console.print("  - PgBouncer-RO: localhost:6433")
 
 
-def _init_selfhost(preset: str, with_observability: bool, separate_outbox: bool = False):
+def _init_selfhost(
+    broker: str, 
+    with_observability: bool, 
+    separate_outbox: bool = False,
+    oltp_storage: str = "postgresql",
+    outbox_storage: str = "same"
+):
     """Create self-hosted/on-premise server setup."""
     if console:
         console.print("Creating self-hosted deployment files...")
@@ -555,14 +669,14 @@ POSTGRES_URL=postgresql://sagaz:sagaz@localhost:5432/sagaz
 # Outbox Database {"(separate)" if separate_outbox else "(same as OLTP)"}
 {"OUTBOX_URL=postgresql://sagaz:sagaz@localhost:5432/sagaz_outbox" if separate_outbox else "# OUTBOX_URL=$POSTGRES_URL"}
 
-# Broker ({preset})
-BROKER_TYPE={preset}
+# Broker ({broker})
+BROKER_TYPE={broker}
 """
-    if preset == "redis":
+    if broker == "redis":
         env_content += "REDIS_URL=redis://localhost:6379\n"
-    elif preset == "kafka":
+    elif broker == "kafka":
         env_content += "KAFKA_BOOTSTRAP_SERVERS=localhost:9092\n"
-    elif preset == "rabbitmq":
+    elif broker == "rabbitmq":
         env_content += "RABBITMQ_URL=amqp://guest:guest@localhost:5672\n"
 
     env_content += """
@@ -656,15 +770,22 @@ scrape_configs:
     click.echo("  CREATE selfhost/prometheus.yml")
 
 
-def _init_k8s(with_observability: bool, with_benchmarks: bool, with_ha: bool = False, separate_outbox: bool = False):
+def _init_k8s(
+    with_observability: bool, 
+    with_benchmarks: bool, 
+    with_ha: bool = False, 
+    separate_outbox: bool = False,
+    oltp_storage: str = "postgresql",
+    outbox_storage: str = "same"
+):
     """Copy Kubernetes manifests from the library to the current directory."""
-    _log_k8s_init_start(with_ha)
+    _log_k8s_init_start(with_ha, oltp_storage)
 
     if not _prepare_k8s_directory():
         return
 
     try:
-        _copy_k8s_manifests(with_ha, separate_outbox)
+        _copy_k8s_manifests(with_ha, separate_outbox, oltp_storage)
         _copy_k8s_observability(with_observability)
         _copy_k8s_benchmarks(with_benchmarks)
         _log_k8s_init_complete(with_ha)
@@ -672,12 +793,12 @@ def _init_k8s(with_observability: bool, with_benchmarks: bool, with_ha: bool = F
         click.echo(f"Error copying manifests: {e}")
 
 
-def _log_k8s_init_start(with_ha: bool):
+def _log_k8s_init_start(with_ha: bool, oltp_storage: str):
     """Log the start of K8s initialization."""
     if not console:
         return
     ha_msg = " with [bold yellow]HA PostgreSQL[/bold yellow]" if with_ha else ""
-    console.print(f"Copying Kubernetes manifests{ha_msg} to [bold cyan]./k8s[/bold cyan]...")
+    console.print(f"Copying Kubernetes manifests{ha_msg} (storage: [bold cyan]{oltp_storage}[/bold cyan]) to [bold cyan]./k8s[/bold cyan]...")
 
 
 def _prepare_k8s_directory() -> bool:
@@ -693,17 +814,20 @@ def _prepare_k8s_directory() -> bool:
     return True
 
 
-def _copy_k8s_manifests(with_ha: bool, separate_outbox: bool = False):
+def _copy_k8s_manifests(with_ha: bool, separate_outbox: bool = False, oltp_storage: str = "postgresql"):
     """Copy base Kubernetes manifests."""
-    if with_ha:
-        _copy_resource("k8s/postgresql-ha.yaml", "k8s/postgresql-ha.yaml")
-        _copy_resource("k8s/pgbouncer.yaml", "k8s/pgbouncer.yaml")
-        click.echo("  CREATE k8s/postgresql-ha.yaml (StatefulSet with replicas)")
-        click.echo("  CREATE k8s/pgbouncer.yaml (Connection pooling)")
-        Path("k8s/partitioning").mkdir(exist_ok=True)
-        _copy_dir_resource("local/postgres/partitioning", "k8s/partitioning")
-    else:
-        _copy_resource("k8s/postgresql.yaml", "k8s/postgresql.yaml")
+    if oltp_storage == "postgresql":
+        if with_ha:
+            _copy_resource("k8s/postgresql-ha.yaml", "k8s/postgresql-ha.yaml")
+            _copy_resource("k8s/pgbouncer.yaml", "k8s/pgbouncer.yaml")
+            click.echo("  CREATE k8s/postgresql-ha.yaml (StatefulSet with replicas)")
+            click.echo("  CREATE k8s/pgbouncer.yaml (Connection pooling)")
+            Path("k8s/partitioning").mkdir(exist_ok=True)
+            _copy_dir_resource("local/postgres/partitioning", "k8s/partitioning")
+        else:
+            _copy_resource("k8s/postgresql.yaml", "k8s/postgresql.yaml")
+    elif oltp_storage == "in-memory":
+        click.echo("  SKIP postgresql (using in-memory storage)")
     
     # Separate outbox database if requested
     if separate_outbox:
@@ -824,7 +948,7 @@ spec:
     click.echo("  CREATE k8s/benchmark/stress-job.yaml")
 
 
-def _init_hybrid(preset: str):
+def _init_hybrid(broker: str, oltp_storage: str = "postgresql", outbox_storage: str = "same"):
     """Create hybrid deployment configuration."""
     if console:
         console.print("Creating hybrid deployment configuration...")
@@ -835,8 +959,8 @@ def _init_hybrid(preset: str):
     readme = f"""# Hybrid Deployment Configuration
 
 This directory contains configuration for a hybrid Sagaz deployment where:
-- **PostgreSQL**: Runs locally or on-premise
-- **Message Broker ({preset})**: Cloud-managed service
+- **OLTP Storage ({oltp_storage})**: Runs locally or on-premise
+- **Message Broker ({broker})**: Cloud-managed service
 - **Workers**: Kubernetes or local Docker
 
 ## Architecture
@@ -846,7 +970,7 @@ This directory contains configuration for a hybrid Sagaz deployment where:
 │  On-Premise     │     │        Cloud            │
 │                 │     │                         │
 │  ┌───────────┐  │     │  ┌─────────────────┐    │
-│  │ PostgreSQL│◄─┼─────┼──│  Message Broker │    │
+│  │ {oltp_storage:11s}│◄─┼─────┼──│  Message Broker │    │
 │  └───────────┘  │     │  │  (managed)      │    │
 │                 │     │  └────────┬────────┘    │
 │  ┌───────────┐  │     │           │             │
@@ -866,8 +990,9 @@ Edit `hybrid.env` with your cloud broker credentials.
     Path("hybrid/README.md").write_text(readme)
     click.echo("  CREATE hybrid/README.md")
 
-    # Create hybrid docker-compose
-    compose = f"""version: '3.8'
+    # Create hybrid docker-compose based on storage type
+    if oltp_storage == "postgresql":
+        compose = f"""version: '3.8'
 
 # Hybrid: Local Postgres + Cloud Broker
 # Set BROKER_URL in environment
@@ -908,7 +1033,7 @@ volumes:
 
 BROKER_URL={
         "redis://your-cloud-redis:6379"
-        if preset == "redis"
+        if broker == "redis"
         else "kafka://your-cloud-kafka:9092"
         if preset == "kafka"
         else "amqp://user:pass@your-cloud-rabbitmq:5672"
@@ -1384,16 +1509,14 @@ def run_example(name: str):
 cli.add_command(validate_cmd, name="validate")
 cli.add_command(simulate_cmd, name="simulate")
 
-# Project Management
+# Project Management (Structure & Configuration)
 cli.add_command(init_cmd, name="init")
+cli.add_command(setup_cmd, name="setup")
 cli.add_command(check_cmd, name="check")
 cli.add_command(list_sagas, name="list")
 cli.add_command(examples_cmd, name="examples")
 
-# Deployment
-cli.add_command(setup_cmd, name="setup")
-
-# Development Operations
+# Development (Runtime Operations)
 cli.add_command(dev_cmd, name="dev")
 cli.add_command(status_cmd, name="status")
 cli.add_command(logs_cmd, name="logs")

@@ -1,30 +1,65 @@
-# Sagaz Configuration Template
+# Sagaz Configuration
+# Supports environment variable substitution using ${VAR} syntax
+# See .env.template for available variables
+
 version: "1.0"
 
 project:
-  name: "my-sagaz-project"
-  environment: "development"
+  name: "${SAGAZ_PROJECT_NAME:-my-sagaz-project}"
+  environment: "${SAGAZ_ENV:-development}"
 
 storage:
-  type: "postgresql"
+  type: "${SAGAZ_STORAGE_TYPE:-postgresql}"
   connection:
-    host: "localhost"
-    port: 5432
-    database: "sagaz"
-    user: "postgres"
-    password: "postgres"
+    # Option 1: Full URL (recommended)
+    url: "${SAGAZ_STORAGE_URL}"
+    
+    # Option 2: Individual components (used if url is not set)
+    host: "${SAGAZ_STORAGE_HOST:-localhost}"
+    port: ${SAGAZ_STORAGE_PORT:-5432}
+    database: "${SAGAZ_STORAGE_DB:-sagaz}"
+    user: "${SAGAZ_STORAGE_USER:-postgres}"
+    password: "${SAGAZ_STORAGE_PASSWORD}"
+
+# Outbox storage (optional - defaults to same as saga storage)
+outbox_storage:
+  # Uncomment to use separate database for outbox pattern
+  # type: "postgresql"
+  # connection:
+  #   url: "${SAGAZ_OUTBOX_STORAGE_URL}"
 
 broker:
-  # Selected during init
-  type: "{{ broker_type }}"
+  type: "${SAGAZ_BROKER_TYPE:-redis}"
   connection:
-    host: "localhost"
-    port: {{ broker_port }}
+    # Option 1: Full URL (recommended)
+    url: "${SAGAZ_BROKER_URL}"
+    
+    # Option 2: Individual components (used if url is not set)
+    host: "${SAGAZ_BROKER_HOST:-localhost}"
+    port: ${SAGAZ_BROKER_PORT:-6379}
+    user: "${SAGAZ_BROKER_USER:-guest}"
+    password: "${SAGAZ_BROKER_PASSWORD:-guest}"
 
 observability:
   prometheus:
-    enabled: true
-    port: 9090
+    enabled: ${SAGAZ_METRICS_ENABLED:-true}
+    port: ${SAGAZ_METRICS_PORT:-9090}
+  
   grafana:
-    enabled: true
-    port: 3000
+    enabled: ${SAGAZ_GRAFANA_ENABLED:-true}
+    port: ${SAGAZ_GRAFANA_PORT:-3000}
+  
+  tracing:
+    enabled: ${SAGAZ_TRACING_ENABLED:-false}
+    endpoint: "${SAGAZ_TRACING_ENDPOINT:-http://localhost:4317}"
+  
+  logging:
+    enabled: ${SAGAZ_LOGGING_ENABLED:-true}
+    level: "${SAGAZ_LOG_LEVEL:-INFO}"
+
+# Saga execution defaults
+execution:
+  default_timeout: ${SAGAZ_DEFAULT_TIMEOUT:-60.0}
+  default_max_retries: ${SAGAZ_DEFAULT_MAX_RETRIES:-3}
+  failure_strategy: "${SAGAZ_FAILURE_STRATEGY:-FAIL_FAST_WITH_GRACE}"
+
