@@ -204,3 +204,123 @@ class TestIdempotencyWarnings:
         assert "TestSaga.on_event" in caplog.text
         assert "test_event" in caplog.text
         assert "idempotency_key" in caplog.text
+
+
+class TestIdempotencyKeyMissing:
+    """Test that missing idempotency keys in payload raise errors."""
+
+    @pytest.mark.asyncio
+    async def test_missing_idempotency_field_raises_error(self):
+        """When trigger has idempotency_key but payload lacks it, should raise."""
+        from sagaz.core.exceptions import IdempotencyKeyMissingInPayloadError
+
+        class OrderSaga(Saga):
+            saga_name = "order"
+
+            @trigger(source="order_placed", idempotency_key="order_id")
+            def on_order(self, event: dict) -> dict:
+                return {
+                    "user_id": event.get("user_id", "unknown"),
+                    "amount": event.get("amount", 0),
+                }
+
+            @action("process")
+            async def process(self, ctx: dict) -> dict:
+                return {}
+
+            @compensate("process")
+            async def undo(self, ctx: dict) -> None:
+                pass
+
+        # Payload missing 'order_id' field
+        with pytest.raises(IdempotencyKeyMissingInPayloadError) as exc_info:
+            await fire_event("order_placed", {"user_id": "U123", "amount": 100.0})
+
+        # Verify error details
+        assert "order_id" in str(exc_info.value)
+        assert "OrderSaga" in str(exc_info.value)
+        assert "user_id, amount" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_missing_field_with_callable_raises_error(self):
+        """Callable idempotency_key that returns None should raise."""
+        from sagaz.core.exceptions import IdempotencyKeyMissingInPayloadError
+
+        class PaymentSaga(Saga):
+            saga_name = "payment"
+
+            @trigger(
+                source="payment_requested",
+                idempotency_key=lambda e: e.get("transaction_id"),  # Returns None if missing
+            )
+            def on_payment(self, event: dict) -> dict:
+                return {"amount": event["amount"]}
+
+            @action("charge")
+            async def charge(self, ctx: dict) -> dict:
+                return {}
+
+            @compensate("charge")
+            async def refund(self, ctx: dict) -> None:
+                pass
+
+        # Payload missing 'transaction_id' field
+        with pytest.raises(IdempotencyKeyMissingInPayloadError) as exc_info:
+            await fire_event("payment_requested", {"amount": 50.0})
+
+        # Should mention callable
+        assert "<callable>" in str(exc_info.value)
+        assert "PaymentSaga" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_empty_payload_with_idempotency_raises_error(self):
+        """Empty payload with idempotency_key should raise."""
+        from sagaz.core.exceptions import IdempotencyKeyMissingInPayloadError
+
+        class RefundSaga(Saga):
+            saga_name = "refund"
+
+            @trigger(source="refund_requested", idempotency_key="refund_id")
+            def on_refund(self, event: dict) -> dict | None:
+                return {"status": "pending"}
+
+            @action("process_refund")
+            async def process_refund(self, ctx: dict) -> dict:
+                return {}
+
+            @compensate("process_refund")
+            async def undo_refund(self, ctx: dict) -> None:
+                pass
+
+        # Empty payload
+        with pytest.raises(IdempotencyKeyMissingInPayloadError) as exc_info:
+            await fire_event("refund_requested", {})
+
+        assert "refund_id" in str(exc_info.value)
+        assert "(empty payload)" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_with_correct_field_succeeds(self):
+        """When payload has the idempotency field, should succeed."""
+
+        class OrderSaga(Saga):
+            saga_name = "order"
+
+            @trigger(source="order_placed", idempotency_key="order_id")
+            def on_order(self, event: dict) -> dict:
+                return {
+                    "order_id": event["order_id"],
+                    "amount": event["amount"],
+                }
+
+            @action("process")
+            async def process(self, ctx: dict) -> dict:
+                return {}
+
+            @compensate("process")
+            async def undo(self, ctx: dict) -> None:
+                pass
+
+        # Should succeed - payload has order_id
+        saga_ids = await fire_event("order_placed", {"order_id": "ORD-123", "amount": 100.0})
+        assert len(saga_ids) == 1

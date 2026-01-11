@@ -40,6 +40,10 @@ class TriggerEngine:
 
         Returns:
             List of started (or existing) saga IDs.
+
+        Raises:
+            IdempotencyKeyMissingInPayloadError: If trigger requires idempotency key
+                but payload is missing it (configuration error).
         """
         triggers = TriggerRegistry.get_triggers(source)
 
@@ -53,7 +57,14 @@ class TriggerEngine:
             *[self._process_trigger(t, payload) for t in triggers], return_exceptions=True
         )
 
-        # Filter out None and exceptions
+        # Check for configuration errors and re-raise them
+        from sagaz.core.exceptions import IdempotencyKeyMissingInPayloadError
+
+        for result in results:
+            if isinstance(result, IdempotencyKeyMissingInPayloadError):
+                raise result
+
+        # Filter out None and exceptions (only transient errors remain)
         return [r for r in results if isinstance(r, str)]
 
     async def _process_trigger(self, trigger, payload: Any) -> str | None:
@@ -88,6 +99,13 @@ class TriggerEngine:
             return saga_id
 
         except Exception as e:
+            # Re-raise configuration errors - these should fail fast
+            from sagaz.core.exceptions import IdempotencyKeyMissingInPayloadError
+
+            if isinstance(e, IdempotencyKeyMissingInPayloadError):
+                raise
+
+            # Log and swallow transient errors
             logger.exception(f"Error processing trigger {saga_class.__name__}.{method_name}: {e}")
             return None
 
@@ -114,7 +132,7 @@ class TriggerEngine:
             - is_new is True if saga should be created, False if already exists
             Returns (None, False) on error
         """
-        saga_id = self._derive_saga_id(metadata, payload)
+        saga_id = self._derive_saga_id(metadata, payload, saga_class)
 
         if saga_id:
             # Check if already exists
@@ -151,7 +169,7 @@ class TriggerEngine:
         result = transformer(payload)
         return dict(result) if result is not None else None
 
-    def _derive_saga_id(self, metadata: TriggerMetadata, payload: Any) -> str | None:
+    def _derive_saga_id(self, metadata: TriggerMetadata, payload: Any, saga_class) -> str | None:
         """Derive deterministic Saga ID if idempotency key logic is provided."""
         key_logic = metadata.idempotency_key
 
@@ -161,7 +179,17 @@ class TriggerEngine:
         key_str = self._extract_key_value(key_logic, payload)
 
         if not key_str:
-            return None
+            # Developer declared idempotency_key but payload is missing it - FAIL LOUDLY
+            from sagaz.core.exceptions import IdempotencyKeyMissingInPayloadError
+
+            key_name = key_logic if isinstance(key_logic, str) else "<callable>"
+            payload_keys = list(payload.keys()) if isinstance(payload, dict) else []
+            raise IdempotencyKeyMissingInPayloadError(
+                saga_name=saga_class.__name__,
+                source=metadata.source,
+                key_name=key_name,
+                payload_keys=payload_keys,
+            )
 
         return str(uuid.uuid5(uuid.NAMESPACE_DNS, key_str))
 
@@ -177,6 +205,9 @@ class TriggerEngine:
         """Extract key from payload using string key."""
         if isinstance(payload, dict):
             value = payload.get(key)
+            if value is None:
+                # Field explicitly declared but missing - this is an error
+                return None
         elif hasattr(payload, key):  # pragma: no cover
             value = getattr(payload, key)  # pragma: no cover
         else:  # pragma: no cover

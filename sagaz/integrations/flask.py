@@ -150,12 +150,54 @@ class SagaFlask:
 
             Returns immediately with 202 Accepted.
             """
+            from sagaz.core.exceptions import IdempotencyKeyMissingInPayloadError
             from sagaz.triggers import fire_event
 
             payload = request.get_json(silent=True) or {}
 
             # Get or generate correlation ID
             correlation_id = request.headers.get("X-Correlation-ID") or generate_correlation_id()
+
+            # Validate idempotency requirements BEFORE accepting the request
+            try:
+                from sagaz.triggers.registry import TriggerRegistry
+
+                triggers = TriggerRegistry.get_triggers(source)
+                for trigger in triggers:
+                    metadata = trigger.metadata
+                    if metadata.idempotency_key:
+                        key_name = (
+                            metadata.idempotency_key
+                            if isinstance(metadata.idempotency_key, str)
+                            else None
+                        )
+                        if key_name and isinstance(payload, dict) and key_name not in payload:
+                            raise IdempotencyKeyMissingInPayloadError(
+                                saga_name=trigger.saga_class.__name__,
+                                source=source,
+                                key_name=key_name,
+                                payload_keys=list(payload.keys())
+                                if isinstance(payload, dict)
+                                else [],
+                            )
+            except IdempotencyKeyMissingInPayloadError as e:
+                return (
+                    jsonify(
+                        {
+                            "status": "rejected",
+                            "source": source,
+                            "error": "missing_idempotency_key",
+                            "message": f"Required field '{e.key_name}' is missing from payload",
+                            "details": {
+                                "saga": e.saga_name,
+                                "required_field": e.key_name,
+                                "payload_keys": e.payload_keys,
+                            },
+                            "help": f"Include '{e.key_name}' in your request payload to ensure idempotent processing",
+                        }
+                    ),
+                    400,
+                )
 
             # Store initial status
             _webhook_tracking[correlation_id] = {

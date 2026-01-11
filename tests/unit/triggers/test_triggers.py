@@ -476,8 +476,9 @@ class TestIdempotency:
         assert ids1[0] == ids2[0]
 
     @pytest.mark.asyncio
-    async def test_idempotency_missing_key_field_generates_random_id(self, memory_storage):
-        """Missing idempotency key field results in random ID generation."""
+    async def test_idempotency_missing_key_field_raises_error(self, memory_storage):
+        """Missing idempotency key field in payload raises configuration error."""
+        from sagaz.core.exceptions import IdempotencyKeyMissingInPayloadError
 
         class MissingKeySaga(Saga):
             saga_name = "missing_key"
@@ -490,13 +491,14 @@ class TestIdempotency:
             async def step(self, ctx):
                 return {}
 
-        ids1 = await fire_event("missing_source", {"other": "data"})
-        ids2 = await fire_event("missing_source", {"other": "data"})
+        # Should raise error because payload lacks 'nonexistent_field'
+        with pytest.raises(IdempotencyKeyMissingInPayloadError) as exc_info:
+            await fire_event("missing_source", {"other": "data"})
 
-        # Should generate random IDs (different each time)
-        assert len(ids1) == 1
-        assert len(ids2) == 1
-        assert ids1[0] != ids2[0]
+        # Verify error message contains helpful details
+        assert "nonexistent_field" in str(exc_info.value)
+        assert "MissingKeySaga" in str(exc_info.value)
+        assert "other" in str(exc_info.value)
 
 
 # =============================================================================
