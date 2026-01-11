@@ -27,6 +27,7 @@ __all__ = [
     "create_saga",
     "get_logger",
     "get_sagaz_config",
+    "get_webhook_status",
     "run_saga_sync",
     "sagaz_webhook_view",
 ]
@@ -120,6 +121,26 @@ class SagaDjangoMiddleware:
             SagaContextManager.clear()
 
 
+def get_webhook_status(correlation_id: str) -> dict[str, Any] | None:
+    """
+    Get status of a webhook event by correlation ID.
+
+    Args:
+        correlation_id: The correlation ID from the webhook response
+
+    Returns:
+        Status dictionary or None if not found
+
+    Example:
+        status = get_webhook_status("abc-123-xyz")
+        if status:
+            print(f"Status: {status['status']}")
+            print(f"Saga IDs: {status['saga_ids']}")
+    """
+    tracking = getattr(sagaz_webhook_view, "_tracking", {})
+    return tracking.get(correlation_id)
+
+
 def sagaz_webhook_view(request, source: str):
     """
     Django view for handling webhook events (fire-and-forget).
@@ -152,6 +173,11 @@ def sagaz_webhook_view(request, source: str):
     # Generate correlation ID for tracking
     correlation_id = request.headers.get("X-Correlation-ID") or generate_correlation_id()
 
+    # Store correlation -> saga mapping for status checks
+    _webhook_tracking = getattr(sagaz_webhook_view, "_tracking", {})
+    _webhook_tracking[correlation_id] = {"status": "queued", "saga_ids": [], "source": source}
+    sagaz_webhook_view._tracking = _webhook_tracking
+
     # Fire event in background thread (fire-and-forget)
     def process_in_thread():
         from sagaz.triggers import fire_event
@@ -159,9 +185,14 @@ def sagaz_webhook_view(request, source: str):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
+            _webhook_tracking[correlation_id]["status"] = "processing"
             saga_ids = loop.run_until_complete(fire_event(source, payload))
-            logger.debug(f"Webhook {source} triggered sagas: {saga_ids}")
+            _webhook_tracking[correlation_id]["saga_ids"] = saga_ids
+            _webhook_tracking[correlation_id]["status"] = "completed"
+            logger.info(f"Webhook {source} triggered sagas: {saga_ids}")
         except Exception as e:
+            _webhook_tracking[correlation_id]["status"] = "failed"
+            _webhook_tracking[correlation_id]["error"] = str(e)
             logger.error(f"Webhook {source} processing error: {e}")
         finally:
             loop.close()
