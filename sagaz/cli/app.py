@@ -94,37 +94,73 @@ def cli():
 
 
 @click.command()
-@click.option("--name", "-n", prompt="Project name", help="Name of the project")
-@click.option("--path", "-p", type=click.Path(), default=".", help="Project directory (default: current)")
-def init_cmd(name: str, path: str):
+def init_cmd():
     """
-    Initialize a new Sagaz project.
+    Initialize a new Sagaz project interactively.
     
-    Creates project structure:
-      - sagaz.yaml (project configuration)
-      - profiles.yaml (environment profiles)  
-      - sagas/ (saga definitions)
-      - tests/ (test files)
-      - README.md
+    Interactive wizard to create a new project:
+      - Project name and location
+      - Optional example saga scaffold
+      - Project structure (sagaz.yaml, profiles.yaml, sagas/, tests/)
     
     \b
     Example:
-        sagaz init --name my-saga-project
-        sagaz init -n my-project -p ./my-project
+        sagaz init  # Interactive wizard
     """
-    project_path = Path(path)
-    project_path.mkdir(parents=True, exist_ok=True)
-    
     if console:
         console.print(
             Panel.fit(
-                f"[bold blue]Initializing Sagaz Project: {name}[/bold blue]\n"
-                "Creating project structure...",
+                "[bold blue]Sagaz Project Initialization[/bold blue]\n"
+                "Interactive wizard to create your project",
                 border_style="blue",
             )
         )
     else:
-        click.echo(f"=== Initializing Sagaz Project: {name} ===\n")
+        click.echo("=== Sagaz Project Initialization ===\n")
+    
+    # Step 1: Project name
+    name = click.prompt("Project name", type=str)
+    
+    # Step 2: Project path
+    default_path = f"./{name}" if name else "."
+    path = click.prompt("Project directory", type=str, default=default_path)
+    
+    project_path = Path(path)
+    
+    # Check if directory exists and has content
+    if project_path.exists() and any(project_path.iterdir()):
+        if not click.confirm(f"Directory '{path}' already exists and is not empty. Continue?", default=False):
+            click.echo("Aborted.")
+            return
+    
+    project_path.mkdir(parents=True, exist_ok=True)
+    
+    # Step 3: Include example saga scaffold?
+    click.echo("\n[3] Would you like to include an example saga to get started?")
+    click.echo("  1. None - Start with empty project")
+    click.echo("  2. Simple example - Basic multi-step saga")
+    click.echo("  3. E-commerce order - Order processing saga")
+    click.echo("  4. Payment processing - Financial transaction saga")
+    click.echo("  5. Healthcare procedure - Medical workflow saga")
+    
+    example_choice = click.prompt("Choice", type=click.IntRange(1, 5), default=2)
+    
+    example_map = {
+        1: None,
+        2: "simple",
+        3: "ecommerce/order_processing",
+        4: "fintech/payment_processing",
+        5: "healthcare/procedure_scheduling"
+    }
+    
+    example_template = example_map[example_choice]
+    
+    if console:
+        console.print(
+            f"\n[bold green]Creating project: {name}[/bold green]"
+        )
+    else:
+        click.echo(f"\n=== Creating Project: {name} ===\n")
     
     # Create sagaz.yaml
     sagaz_yaml_content = f"""name: {name}
@@ -177,45 +213,34 @@ prod:
     (project_path / "profiles.yaml").write_text(profiles_yaml_content)
     click.echo(f"  CREATE {project_path / 'profiles.yaml'}")
     
-    # Create sagas/ directory with example
+    # Create sagas/ directory with optional example
     sagas_dir = project_path / "sagas"
     sagas_dir.mkdir(exist_ok=True)
     (sagas_dir / "__init__.py").write_text("")
     click.echo(f"  CREATE {sagas_dir / '__init__.py'}")
     
-    example_saga_content = """from sagaz import Saga, action, SagaContext
+    # Copy example saga if requested
+    if example_template:
+        _copy_example_saga(example_template, sagas_dir)
+    else:
+        # Create minimal placeholder
+        placeholder = """from sagaz import Saga, action, SagaContext
 
 
-class ExampleSaga(Saga):
+class MySaga(Saga):
     \"\"\"
-    Example saga demonstrating a simple multi-step workflow.
+    Your saga implementation goes here.
     
-    Steps:
-    1. step_one: Initial processing
-    2. step_two: Depends on step_one
-    3. step_three: Final step
+    Define steps using @action decorator with dependencies.
     \"\"\"
     
     @action("step_one")
     async def step_one(self, ctx: SagaContext):
-        \"\"\"First step of the saga.\"\"\"
-        print("Executing step one")
-        return {"result": "step_one_complete"}
-    
-    @action("step_two", depends_on=["step_one"])
-    async def step_two(self, ctx: SagaContext):
-        \"\"\"Second step, depends on step_one.\"\"\"
-        print("Executing step two")
-        return {"result": "step_two_complete"}
-    
-    @action("step_three", depends_on=["step_two"])
-    async def step_three(self, ctx: SagaContext):
-        \"\"\"Final step of the saga.\"\"\"
-        print("Executing step three")
-        return {"final": "done"}
+        \"\"\"Implement your first step.\"\"\"
+        pass
 """
-    (sagas_dir / "example_saga.py").write_text(example_saga_content)
-    click.echo(f"  CREATE {sagas_dir / 'example_saga.py'}")
+        (sagas_dir / "my_saga.py").write_text(placeholder)
+        click.echo(f"  CREATE {sagas_dir / 'my_saga.py'}")
     
     # Create tests/ directory
     tests_dir = project_path / "tests"
@@ -944,6 +969,72 @@ echo "Benchmark complete!"
     Path("benchmarks/run.sh").write_text(benchmark_script)
     Path("benchmarks/run.sh").chmod(0o755)
     click.echo("  CREATE benchmarks/run.sh")
+
+
+def _copy_example_saga(example_template: str, target_dir: Path):
+    """Copy an example saga from the package to the target directory."""
+    try:
+        import shutil
+        from pathlib import Path
+        
+        # Map simple name to full path
+        if example_template == "simple":
+            # Create simple inline example
+            simple_content = """from sagaz import Saga, action, SagaContext
+
+
+class ExampleSaga(Saga):
+    \"\"\"
+    Simple example saga demonstrating basic multi-step workflow.
+    
+    This saga shows:
+    - Sequential step execution with dependencies
+    - Context passing between steps
+    - Compensation handlers for rollback
+    \"\"\"
+    
+    @action("initialize")
+    async def initialize(self, ctx: SagaContext):
+        \"\"\"Initialize the workflow.\"\"\"
+        print("Initializing workflow")
+        return {"initialized": True}
+    
+    @action("process", depends_on=["initialize"])
+    async def process(self, ctx: SagaContext):
+        \"\"\"Main processing step.\"\"\"
+        print("Processing data")
+        return {"processed": True}
+    
+    @action("finalize", depends_on=["process"])
+    async def finalize(self, ctx: SagaContext):
+        \"\"\"Finalize the workflow.\"\"\"
+        print("Finalizing workflow")
+        return {"completed": True}
+"""
+            (target_dir / "example_saga.py").write_text(simple_content)
+            click.echo(f"  CREATE {target_dir / 'example_saga.py'}")
+            return
+        
+        # Try to copy from package examples
+        source_path = pkg_resources.files("sagaz.examples").joinpath(example_template)
+        
+        # Copy main.py if it exists
+        try:
+            main_py = source_path.joinpath("main.py")
+            content = main_py.read_text()
+            
+            # Extract saga class name from path for filename
+            saga_filename = example_template.split("/")[-1] + "_saga.py"
+            (target_dir / saga_filename).write_text(content)
+            click.echo(f"  CREATE {target_dir / saga_filename}")
+        except Exception:
+            click.echo(f"  WARNING: Could not copy example '{example_template}'")
+            click.echo(f"           Creating simple example instead")
+            _copy_example_saga("simple", target_dir)
+            
+    except Exception as e:
+        click.echo(f"  ERROR: {e}")
+        click.echo(f"  Creating empty project")
 
 
 def _copy_dir_resource(resource_dir: str, target_dir: str) -> None:
