@@ -108,11 +108,23 @@ def main():
     print("   Example:")
     print("   curl http://localhost:5000/webhooks/order_created/status/abc-123-xyz")
     print()
+    print("   ⏱️  Status values:")
+    print("     • queued → Event received, not processed yet")
+    print("     • processing → Firing event to trigger sagas")
+    print("     • triggered → Sagas running in background (poll for updates)")
+    print("     • completed → All sagas succeeded")
+    print("     • completed_with_failures → Some sagas succeeded, some failed")
+    print("     • failed → All sagas failed")
+    print()
 
     print("5️⃣  Trigger with High Amount (will fail payment):")
     print("   curl -X POST http://localhost:5000/webhooks/order_created \\")
     print('        -H "Content-Type: application/json" \\')
-    print('        -d \'{"order_id": "ORD-002", "amount": 1500.00, "user_id": "user-456"}\'')
+    print('        -d \'{"order_id": "FAIL-001", "amount": 1500.00, "user_id": "user-456"}\'')
+    print()
+    print("   Then check status after 1 second:")
+    print("   sleep 1 && curl http://localhost:5000/webhooks/order_created/status/<correlation_id>")
+    print("   (Should show 'failed' with error details)")
     print()
 
     print("6️⃣  With Custom Correlation ID for Tracing:")
@@ -125,8 +137,11 @@ def main():
     print("   curl http://localhost:5000/webhooks/order_created/status/my-trace-456")
     print()
 
-    print("ℹ️  Note: Webhooks execute sagas asynchronously in background.")
-    print("   Use correlation_id to check status, or monitor application logs.")
+    print("⚠️  IDEMPOTENCY: Same order_id triggers same saga (deduplication)")
+    print("   Each correlation_id tracks a separate webhook invocation")
+    print("   If you send order_id='ORD-001' again, webhook returns existing saga status")
+    print()
+    print("ℹ️  Webhooks execute sagas asynchronously. Poll status endpoint for updates.")
     print()
 
     # Ask if user wants to run the server

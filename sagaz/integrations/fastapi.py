@@ -187,7 +187,41 @@ def create_webhook_router(url_prefix: str = "/webhooks"):
                 for saga_id in saga_ids:
                     _saga_to_webhook[saga_id] = correlation_id
 
-                # Mark as triggered (saga outcomes will be tracked by listener)
+                # Check if any saga_ids already have completion status (idempotent case)
+                # Query storage to get their current status
+                from sagaz.core.config import get_config
+
+                config = get_config()
+                if config.storage and saga_ids:
+                    for saga_id in saga_ids:
+                        try:
+                            state = await config.storage.load_saga_state(saga_id)
+                            if state:
+                                # Saga already exists - populate its status immediately
+                                if "saga_statuses" not in _webhook_tracking[correlation_id]:
+                                    _webhook_tracking[correlation_id]["saga_statuses"] = {}
+
+                                from sagaz.core.types import SagaStatus
+
+                                status = state.get("status")
+                                if status == SagaStatus.COMPLETED:
+                                    _webhook_tracking[correlation_id]["saga_statuses"][saga_id] = (
+                                        "completed"
+                                    )
+                                elif status in (SagaStatus.FAILED, SagaStatus.ROLLED_BACK):
+                                    _webhook_tracking[correlation_id]["saga_statuses"][saga_id] = (
+                                        "failed"
+                                    )
+                                    if state.get("error"):
+                                        if "saga_errors" not in _webhook_tracking[correlation_id]:
+                                            _webhook_tracking[correlation_id]["saga_errors"] = {}
+                                        _webhook_tracking[correlation_id]["saga_errors"][
+                                            saga_id
+                                        ] = state["error"]
+                        except Exception:
+                            pass  # saga status will be tracked via listener
+
+                # Mark as triggered (saga outcomes will be tracked by listener for new sagas)
                 _webhook_tracking[correlation_id]["status"] = "triggered"
                 logger.info(f"Webhook {source} triggered sagas: {saga_ids}")
             except Exception as e:
