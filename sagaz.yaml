@@ -5,6 +5,9 @@ project:
   name: "my-sagaz-project"
   environment: "development"
 
+paths:
+  - sagas/
+
 storage:
   type: "postgresql"
   connection:
