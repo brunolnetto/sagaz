@@ -109,6 +109,20 @@ from sagaz.execution.graph import (
 )
 
 # =============================================================================
+# Dry-Run Mode (ADR-019, v1.3.0)
+# =============================================================================
+from sagaz.dry_run import (
+    DryRunEngine,
+    DryRunMode,
+    DryRunResult,
+    DryRunTraceEvent,
+    EstimateResult,
+    SimulationResult,
+    TraceResult,
+    ValidationResult,
+)
+
+# =============================================================================
 # Orchestrator and Types
 # =============================================================================
 from sagaz.execution.orchestrator import SagaOrchestrator
@@ -131,6 +145,14 @@ __all__ = [
     "CompensationNode",
     "CompensationResult",
     "CompensationType",
+    # =========================================================================
+    # Dry-Run Mode (ADR-019, v1.3.0)
+    # =========================================================================
+    "DryRunEngine",
+    "DryRunMode",
+    "DryRunResult",
+    "DryRunTraceEvent",
+    "EstimateResult",
     # =========================================================================
     # Exceptions
     # =========================================================================
@@ -178,9 +200,12 @@ __all__ = [
     "SagaStepStatus",
     "SagaTimeoutError",
     "SagaZones",
+    "SimulationResult",
     "StepZone",
     "TaintPropagator",
     "TracingSagaListener",
+    "TraceResult",
+    "ValidationResult",
     "action",
     "compensate",
     "configure",
