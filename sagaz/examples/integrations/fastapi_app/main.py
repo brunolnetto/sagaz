@@ -6,6 +6,7 @@ Demonstrates how to integrate Sagaz with FastAPI:
 - `@trigger` decorator for event-driven sagas
 - `create_webhook_router()` for webhook endpoints (fire-and-forget)
 - Composable lifespan hooks
+- Idempotency via order_id deduplication
 
 The trigger pattern:
 1. Define @trigger on your saga with source="event_type"
@@ -20,7 +21,7 @@ import uuid
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -49,6 +50,9 @@ config = SagaConfig(
 
 configure(config)
 
+# Track orders being processed to prevent duplicates
+_processing_orders: set[str] = set()
+
 
 # =============================================================================
 # Saga Definition with Trigger
@@ -72,7 +76,7 @@ class OrderSaga(Saga):
 
     @trigger(
         source="order_created",  # POST /webhooks/order_created triggers this
-        idempotency_key="order_id",
+        idempotency_key="order_id",  # Creates deterministic saga_id from order_id
         max_concurrent=10,
     )
     def handle_order_created(self, event: dict) -> dict | None:
@@ -81,6 +85,10 @@ class OrderSaga(Saga):
 
         Return dict → saga runs with this context
         Return None → saga skipped (invalid event)
+
+        Note: The idempotency_key ensures duplicate order_ids reuse the same
+        saga_id. If a saga with that ID already exists in storage, it won't
+        be re-executed (idempotent behavior).
         """
         if not event.get("order_id"):
             return None
@@ -166,6 +174,83 @@ app.include_router(create_webhook_router("/webhooks"), tags=["webhooks"])
 async def health_check():
     """Health check."""
     return {"status": "healthy"}
+
+
+class ValidateRequest(BaseModel):
+    """Request to validate an order."""
+
+    order_id: str
+
+
+@app.post("/orders/validate")
+async def validate_order(request: ValidateRequest):
+    """
+    Validate if an order can be processed.
+
+    This demonstrates idempotency checking before webhook submission.
+    Checks if order_id is already being processed or completed.
+    Returns validation status with helpful message.
+
+    Example:
+        POST /orders/validate
+        {"order_id": "ORD-123"}
+    """
+    order_id = request.order_id
+
+    # Derive deterministic saga_id from order_id (same as trigger does)
+    saga_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, order_id))
+
+    # Check if saga exists in storage
+    state = await config.storage.load_saga_state(saga_id)
+
+    if state:
+        from sagaz.core.types import SagaStatus
+
+        status = state.get("status")
+        if status == SagaStatus.COMPLETED:
+            return JSONResponse(
+                status_code=409,  # Conflict
+                content={
+                    "valid": False,
+                    "order_id": order_id,
+                    "saga_id": saga_id,
+                    "reason": "Order already processed successfully",
+                    "saga_status": "completed",
+                    "advice": "This order has been completed. Use a different order_id for new orders.",
+                },
+            )
+        if status == SagaStatus.EXECUTING:
+            return JSONResponse(
+                status_code=409,  # Conflict
+                content={
+                    "valid": False,
+                    "order_id": order_id,
+                    "saga_id": saga_id,
+                    "reason": "Order is currently being processed",
+                    "saga_status": "executing",
+                    "advice": "Wait for this order to complete before resubmitting.",
+                },
+            )
+        if status in (SagaStatus.FAILED, SagaStatus.ROLLED_BACK):
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "valid": True,
+                    "order_id": order_id,
+                    "saga_id": saga_id,
+                    "message": "Order previously failed, can be retried",
+                    "saga_status": status.value,
+                    "advice": "This order can be resubmitted via webhook.",
+                },
+            )
+
+    return {
+        "valid": True,
+        "order_id": order_id,
+        "message": "Order can be processed",
+        "saga_id": saga_id,
+        "advice": "Submit order via POST /webhooks/order_created",
+    }
 
 
 @app.get("/orders/{order_id}/diagram")

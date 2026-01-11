@@ -5,11 +5,15 @@ The main entry point is the webhook at /webhooks/<source>/
 which triggers sagas registered with @trigger(source=...).
 """
 
+import asyncio
+import uuid
+
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
+from sagaz.core.config import get_config
 from sagaz.integrations.django import get_webhook_status
 
 from .sagas import OrderSaga
@@ -18,6 +22,91 @@ from .sagas import OrderSaga
 def health_check(request):
     """Health check endpoint."""
     return JsonResponse({"status": "healthy"})
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class OrderValidateView(View):
+    """
+    Validate if an order can be processed.
+
+    This demonstrates idempotency checking before webhook submission.
+    Checks if order_id is already being processed or completed.
+    """
+
+    def post(self, request):
+        import json
+
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+        if "order_id" not in data:
+            return JsonResponse({"error": "order_id is required"}, status=400)
+
+        order_id = data["order_id"]
+
+        # Derive deterministic saga_id from order_id (same as trigger does)
+        saga_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, order_id))
+
+        # Check if saga exists in storage
+        config = get_config()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            state = loop.run_until_complete(config.storage.load_saga_state(saga_id))
+        finally:
+            loop.close()
+
+        if state:
+            from sagaz.core.types import SagaStatus
+
+            status = state.get("status")
+            if status == SagaStatus.COMPLETED:
+                return JsonResponse(
+                    {
+                        "valid": False,
+                        "order_id": order_id,
+                        "saga_id": saga_id,
+                        "reason": "Order already processed successfully",
+                        "saga_status": "completed",
+                        "advice": "This order has been completed. Use a different order_id.",
+                    },
+                    status=409,  # Conflict
+                )
+            if status == SagaStatus.EXECUTING:
+                return JsonResponse(
+                    {
+                        "valid": False,
+                        "order_id": order_id,
+                        "saga_id": saga_id,
+                        "reason": "Order is currently being processed",
+                        "saga_status": "executing",
+                        "advice": "Wait for this order to complete before resubmitting.",
+                    },
+                    status=409,  # Conflict
+                )
+            if status in (SagaStatus.FAILED, SagaStatus.ROLLED_BACK):
+                return JsonResponse(
+                    {
+                        "valid": True,
+                        "order_id": order_id,
+                        "saga_id": saga_id,
+                        "message": "Order previously failed, can be retried",
+                        "saga_status": status.value,
+                        "advice": "This order can be resubmitted via webhook.",
+                    }
+                )
+
+        return JsonResponse(
+            {
+                "valid": True,
+                "order_id": order_id,
+                "message": "Order can be processed",
+                "saga_id": saga_id,
+                "advice": "Submit order via POST /webhooks/order_created/",
+            }
+        )
 
 
 @method_decorator(csrf_exempt, name="dispatch")
