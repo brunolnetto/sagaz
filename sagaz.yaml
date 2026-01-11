@@ -1,0 +1,30 @@
+# Sagaz Configuration Template
+version: "1.0"
+
+project:
+  name: "my-sagaz-project"
+  environment: "development"
+
+storage:
+  type: "postgresql"
+  connection:
+    host: "localhost"
+    port: 5432
+    database: "sagaz"
+    user: "postgres"
+    password: "postgres"
+
+broker:
+  # Selected during init
+  type: "redis"
+  connection:
+    host: "localhost"
+    port: 6379
+
+observability:
+  prometheus:
+    enabled: true
+    port: 9090
+  grafana:
+    enabled: true
+    port: 3000

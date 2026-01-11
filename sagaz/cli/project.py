@@ -77,66 +77,8 @@ class ExampleSaga(Saga):
 """
 
 # ============================================================================
-# CLI Group
+# Commands (Top-level, not in a group)
 # ============================================================================
-
-
-@click.group(name="project")
-def project_cli():
-    """
-    Manage Sagaz projects (init, check, run).
-    """
-
-
-# ============================================================================
-# Commands
-# ============================================================================
-
-
-@project_cli.command()
-@click.argument("name")
-def init(name: str):
-    """
-    Initialize a new Sagaz project scaffold.
-    """
-    project_dir = Path(name)
-
-    if project_dir.exists():
-        if not project_dir.is_dir():
-            click.echo(f"Error: '{name}' exists and is not a directory.")
-            sys.exit(1)
-        if any(project_dir.iterdir()) and not click.confirm(
-            f"Directory '{name}' is not empty. Continue?"
-        ):
-            return
-
-    echo(f"Initializing Sagaz project in [bold cyan]{name}/[/bold cyan]")
-
-    # 1. Create directories
-    (project_dir / "sagas").mkdir(parents=True, exist_ok=True)
-    (project_dir / "tests").mkdir(parents=True, exist_ok=True)
-    (project_dir / ".sagaz").mkdir(parents=True, exist_ok=True)
-
-    # 2. Create manifest (sagaz.yaml)
-    (project_dir / "sagaz.yaml").write_text(DEFAULT_SAGAZ_YAML.format(project_name=name))
-    echo("  CREATE sagaz.yaml")
-
-    # 3. Create profiles (profiles.yaml)
-    (project_dir / "profiles.yaml").write_text(DEFAULT_PROFILES_YAML)
-    echo("  CREATE profiles.yaml")
-
-    # 4. Create example saga
-    (project_dir / "sagas" / "example.py").write_text(EXAMPLE_SAGA_PY)
-    echo("  CREATE sagas/example.py")
-
-    # 5. Create .gitignore if not exists
-    gitignore_path = project_dir / ".gitignore"
-    if not gitignore_path.exists():
-        gitignore_path.write_text(".sagaz/\n__pycache__/\n*.pyc\nprofiles.yaml\n.env\n")
-        echo("  CREATE .gitignore")
-
-    echo("\n[bold green]Project initialized![/bold green]")
-    echo(f"cd {name} && sagaz project check")
 
 
 def _is_valid_saga_class(name: str, obj: Any) -> bool:
@@ -206,7 +148,7 @@ def _discover_sagas(paths: list[str]) -> list[dict[str, Any]]:
     return discovered
 
 
-@project_cli.command()
+@click.command()
 def check():
     """
     Validate the Sagaz project structure and configuration.
@@ -241,7 +183,7 @@ def check():
     echo(f"\n[bold green]Check complete![/bold green] Found {len(sagas)} sagas.")
 
 
-@project_cli.command(name="list")
+@click.command(name="list")
 def list_sagas():
     """
     List all discovered sagas in the project.
