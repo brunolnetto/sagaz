@@ -143,16 +143,42 @@ def main():
     if response in ("", "y", "yes"):
         print("\n🚀 Starting Flask server...")
         print("-" * 70)
+
+        # Check if port 5000 is in use
+        import socket
+
+        port = 5000
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            if s.connect_ex(("localhost", port)) == 0:
+                print(f"\n⚠️  Port {port} is already in use.")
+                alt_port = input("Use alternative port (e.g., 5001)? [5001]: ").strip() or "5001"
+                try:
+                    port = int(alt_port)
+                except ValueError:
+                    print("❌ Invalid port number.")
+                    return 1
+
+                # Update displayed URLs
+                print(f"\n📡 Server will start on http://localhost:{port}")
+                print()
+
+                # Set environment variable for Flask
+                import os
+
+                os.environ["FLASK_RUN_PORT"] = str(port)
+
         try:
+            # Use flask run command for better port control
+            import os
+
+            os.environ["FLASK_APP"] = str(script_dir / "main.py")
             subprocess.run(
-                [sys.executable, str(script_dir / "main.py")],
+                [sys.executable, "-m", "flask", "run", "--port", str(port)],
                 check=True,
             )
         except subprocess.CalledProcessError as e:
             print("\n❌ Server failed to start.")
             print(f"\n💡 Error: {e}")
-            print("   Port 5000 may already be in use.")
-            print("   Stop any running Flask apps with: pkill -f flask")
             return 1
         except KeyboardInterrupt:
             print("\n\n✅ Server stopped.")

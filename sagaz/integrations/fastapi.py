@@ -14,6 +14,7 @@ from collections.abc import Callable
 from contextlib import asynccontextmanager
 from typing import Any
 
+from sagaz.core.listeners import SagaListener
 from sagaz.core.logger import get_logger
 from sagaz.integrations._base import (
     SagaContextManager,
@@ -36,6 +37,35 @@ __all__ = [
 
 # Global tracking for webhook status (in-memory for demo)
 _webhook_tracking: dict[str, dict[str, Any]] = {}
+_saga_to_webhook: dict[str, str] = {}  # saga_id -> correlation_id mapping
+
+
+class _WebhookStatusListener(SagaListener):
+    """Internal listener to track saga outcomes for webhook status."""
+
+    async def on_saga_complete(self, saga_name: str, saga_id: str, ctx: dict[str, Any]) -> None:
+        """Mark saga as successful in webhook tracking."""
+        correlation_id = _saga_to_webhook.get(saga_id)
+        if correlation_id and correlation_id in _webhook_tracking:
+            # Track individual saga statuses
+            if "saga_statuses" not in _webhook_tracking[correlation_id]:
+                _webhook_tracking[correlation_id]["saga_statuses"] = {}
+            _webhook_tracking[correlation_id]["saga_statuses"][saga_id] = "completed"
+
+    async def on_saga_failed(
+        self, saga_name: str, saga_id: str, ctx: dict[str, Any], error: Exception
+    ) -> None:
+        """Mark saga as failed in webhook tracking."""
+        correlation_id = _saga_to_webhook.get(saga_id)
+        if correlation_id and correlation_id in _webhook_tracking:
+            # Track individual saga statuses
+            if "saga_statuses" not in _webhook_tracking[correlation_id]:
+                _webhook_tracking[correlation_id]["saga_statuses"] = {}
+            _webhook_tracking[correlation_id]["saga_statuses"][saga_id] = "failed"
+            _webhook_tracking[correlation_id]["saga_errors"] = _webhook_tracking[
+                correlation_id
+            ].get("saga_errors", {})
+            _webhook_tracking[correlation_id]["saga_errors"][saga_id] = str(error)
 
 
 def get_webhook_status(correlation_id: str) -> dict[str, Any] | None:
@@ -70,7 +100,14 @@ async def sagaz_startup():
             # ... your cleanup code ...
             await sagaz_shutdown()
     """
-    logger.info("Sagaz initialized")
+    from sagaz.core.config import get_config
+
+    # Add webhook status listener to config
+    config = get_config()
+    if _WebhookStatusListener not in [type(listener) for listener in config.listeners]:
+        config._listeners.append(_WebhookStatusListener())
+
+    logger.info("Sagaz initialized with webhook status tracking")
 
 
 async def sagaz_shutdown():
@@ -145,7 +182,13 @@ def create_webhook_router(url_prefix: str = "/webhooks"):
                 _webhook_tracking[correlation_id]["status"] = "processing"
                 saga_ids = await fire_event(source, payload)
                 _webhook_tracking[correlation_id]["saga_ids"] = saga_ids
-                _webhook_tracking[correlation_id]["status"] = "completed"
+
+                # Map saga IDs to correlation ID for status tracking
+                for saga_id in saga_ids:
+                    _saga_to_webhook[saga_id] = correlation_id
+
+                # Mark as triggered (saga outcomes will be tracked by listener)
+                _webhook_tracking[correlation_id]["status"] = "triggered"
                 logger.info(f"Webhook {source} triggered sagas: {saga_ids}")
             except Exception as e:
                 _webhook_tracking[correlation_id]["status"] = "failed"
@@ -184,26 +227,51 @@ def create_webhook_router(url_prefix: str = "/webhooks"):
                 },
             )
 
+        # Compute overall status based on individual saga statuses
+        saga_statuses = status.get("saga_statuses", {})
+        saga_ids = status.get("saga_ids", [])
+        overall_status = status["status"]
+
+        # If triggered, check if all sagas have finished
+        if overall_status == "triggered" and saga_ids:
+            completed_count = sum(1 for s in saga_statuses.values() if s in ("completed", "failed"))
+            if completed_count == len(saga_ids):
+                # All sagas finished - determine overall outcome
+                failed_count = sum(1 for s in saga_statuses.values() if s == "failed")
+                overall_status = "completed_with_failures" if failed_count > 0 else "completed"
+
         response_data = {
             "correlation_id": correlation_id,
             "source": source,
-            "status": status["status"],
-            "saga_ids": status.get("saga_ids", []),
+            "status": overall_status,
+            "saga_ids": saga_ids,
         }
+
+        # Add saga details if available
+        if saga_statuses:
+            response_data["saga_statuses"] = saga_statuses
+
+        if "saga_errors" in status:
+            response_data["saga_errors"] = status["saga_errors"]
 
         if "error" in status:
             response_data["error"] = status["error"]
 
         # Add helpful messages based on status
-        if status["status"] == "queued":
+        if overall_status == "queued":
             response_data["message"] = "Event is queued for processing"
-        elif status["status"] == "processing":
+        elif overall_status == "processing":
             response_data["message"] = "Event is currently being processed"
-        elif status["status"] == "completed":
+        elif overall_status == "triggered":
             response_data["message"] = (
-                f"Event processed successfully, triggered {len(status['saga_ids'])} saga(s)"
+                f"Event triggered {len(saga_ids)} saga(s), waiting for completion"
             )
-        elif status["status"] == "failed":
+        elif overall_status == "completed":
+            response_data["message"] = f"All {len(saga_ids)} saga(s) completed successfully"
+        elif overall_status == "completed_with_failures":
+            failed_sagas = [sid for sid, s in saga_statuses.items() if s == "failed"]
+            response_data["message"] = f"{len(failed_sagas)} of {len(saga_ids)} saga(s) failed"
+        elif overall_status == "failed":
             response_data["message"] = "Event processing failed"
 
         return JSONResponse(content=response_data)

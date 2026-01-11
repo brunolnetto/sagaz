@@ -232,7 +232,18 @@ class TriggerEngine:
         # Run in background - don't await completion
         task = asyncio.create_task(saga_instance.run(context, saga_id=saga_id))
         self._background_tasks.add(task)
-        task.add_done_callback(self._background_tasks.discard)
+
+        def _handle_task_done(t):
+            """Handle task completion and cleanup."""
+            self._background_tasks.discard(t)
+            # Retrieve exception to prevent "Task exception was never retrieved" warning
+            # The saga already logged and handled compensation, so we just silently consume it
+            try:
+                t.result()
+            except Exception:
+                pass  # Expected for failed sagas - already logged and compensated
+
+        task.add_done_callback(_handle_task_done)
 
 
 # Singleton instance
