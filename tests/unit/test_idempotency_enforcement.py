@@ -1,11 +1,14 @@
 """
-Tests for idempotency key enforcement in triggers.
+Tests for idempotency warnings in triggers.
+
+Tests verify that triggers WITHOUT idempotency_key emit warnings,
+but still execute successfully. The library is now agnostic and
+warns users rather than enforcing business rules.
 """
 
 import pytest
 
 from sagaz import Saga, action, compensate
-from sagaz.core.exceptions import IdempotencyKeyRequiredError
 from sagaz.triggers import fire_event, trigger
 from sagaz.triggers.registry import TriggerRegistry
 
@@ -18,12 +21,12 @@ def _clear_registry():
     TriggerRegistry.clear()
 
 
-class TestIdempotencyEnforcement:
-    """Test that idempotency keys are enforced for high-value operations."""
+class TestIdempotencyWarnings:
+    """Test that idempotency warnings are emitted when keys are missing."""
 
     @pytest.mark.asyncio
-    async def test_high_value_without_idempotency_raises(self):
-        """High-value operation without idempotency_key should raise."""
+    async def test_without_idempotency_emits_warning(self, caplog):
+        """Triggers without idempotency_key should emit warning but execute."""
 
         class PaymentSaga(Saga):
             saga_name = "payment-saga"
@@ -32,7 +35,7 @@ class TestIdempotencyEnforcement:
             def on_payment(self, event: dict) -> dict:
                 return {
                     "order_id": event["order_id"],
-                    "amount": event["amount"],  # Financial field
+                    "amount": event["amount"],
                 }
 
             @action("process_payment")
@@ -43,19 +46,18 @@ class TestIdempotencyEnforcement:
             async def refund(self, ctx: dict) -> None:
                 pass
 
-        # Fire event with high amount (>= 100.0 threshold)
-        with pytest.raises(IdempotencyKeyRequiredError) as exc_info:
-            await fire_event("payment_requested", {"order_id": "ORD-001", "amount": 150.0})
+        # Should execute successfully despite missing idempotency_key
+        saga_ids = await fire_event("payment_requested", {"order_id": "ORD-001", "amount": 150.0})
+        assert len(saga_ids) == 1
 
-        # Verify error details
-        error = exc_info.value
-        assert error.saga_name == "PaymentSaga"
-        assert error.source == "payment_requested"
-        assert "amount" in error.detected_fields
+        # But should have logged a warning
+        assert "IDEMPOTENCY WARNING" in caplog.text
+        assert "PaymentSaga.on_payment" in caplog.text
+        assert "payment_requested" in caplog.text
 
     @pytest.mark.asyncio
-    async def test_financial_field_without_idempotency_raises(self):
-        """Financial field names should trigger enforcement."""
+    async def test_financial_field_without_idempotency_warns(self, caplog):
+        """Financial field triggers should warn but still execute."""
 
         class RefundSaga(Saga):
             saga_name = "refund-saga"
@@ -64,7 +66,7 @@ class TestIdempotencyEnforcement:
             def on_refund(self, event: dict) -> dict:
                 return {
                     "transaction_id": event["txn_id"],
-                    "refund_amount": 50.0,  # "refund" is a financial indicator
+                    "refund_amount": 50.0,
                 }
 
             @action("process_refund")
@@ -75,16 +77,16 @@ class TestIdempotencyEnforcement:
             async def undo_refund(self, ctx: dict) -> None:
                 pass
 
-        # Should raise even with amount < 100 because of "refund" keyword
-        with pytest.raises(IdempotencyKeyRequiredError) as exc_info:
-            await fire_event("refund_requested", {"txn_id": "TXN-001"})
+        # Should execute successfully
+        saga_ids = await fire_event("refund_requested", {"txn_id": "TXN-001"})
+        assert len(saga_ids) == 1
 
-        assert exc_info.value.saga_name == "RefundSaga"
-        assert "refund_amount" in exc_info.value.detected_fields
+        # But should warn
+        assert "IDEMPOTENCY WARNING" in caplog.text
 
     @pytest.mark.asyncio
-    async def test_with_idempotency_key_succeeds(self):
-        """Operation with idempotency_key should succeed."""
+    async def test_with_idempotency_key_no_warning(self, caplog):
+        """Operation with idempotency_key should succeed without warning."""
 
         class SafePaymentSaga(Saga):
             saga_name = "safe-payment"
@@ -108,9 +110,12 @@ class TestIdempotencyEnforcement:
         saga_ids = await fire_event("payment_requested", {"order_id": "ORD-001", "amount": 150.0})
         assert len(saga_ids) == 1
 
+        # Should NOT have warning
+        assert "IDEMPOTENCY WARNING" not in caplog.text
+
     @pytest.mark.asyncio
-    async def test_low_value_without_financial_fields_succeeds(self):
-        """Low-value operations without financial fields don't need idempotency."""
+    async def test_low_value_without_financial_fields_warns(self, caplog):
+        """Even low-value operations warn without idempotency (library agnostic)."""
 
         class NotificationSaga(Saga):
             saga_name = "notification"
@@ -130,13 +135,16 @@ class TestIdempotencyEnforcement:
             async def cancel_notification(self, ctx: dict) -> None:
                 pass
 
-        # Should succeed - no financial fields or high values
+        # Should succeed - library doesn't enforce business rules
         saga_ids = await fire_event("user_login", {"user_id": "U123", "timestamp": "2026-01-10"})
         assert len(saga_ids) == 1
 
+        # But should still warn (consistent warning for all triggers)
+        assert "IDEMPOTENCY WARNING" in caplog.text
+
     @pytest.mark.asyncio
-    async def test_callable_idempotency_key(self):
-        """Callable idempotency_key should work for high-value operations."""
+    async def test_callable_idempotency_key_no_warning(self, caplog):
+        """Callable idempotency_key should work without warnings."""
 
         class OrderSaga(Saga):
             saga_name = "order"
@@ -166,9 +174,12 @@ class TestIdempotencyEnforcement:
         )
         assert len(saga_ids) == 1
 
+        # No warning
+        assert "IDEMPOTENCY WARNING" not in caplog.text
+
     @pytest.mark.asyncio
-    async def test_error_message_format(self):
-        """Verify error message contains helpful guidance."""
+    async def test_warning_message_format(self, caplog):
+        """Verify warning message contains helpful guidance."""
 
         class TestSaga(Saga):
             saga_name = "test-payment"
@@ -185,68 +196,11 @@ class TestIdempotencyEnforcement:
             async def test_comp(self, ctx: dict) -> None:
                 pass
 
-        with pytest.raises(IdempotencyKeyRequiredError) as exc_info:
-            await fire_event("test_event", {})
-
-        error_msg = str(exc_info.value)
-        # Verify helpful content in error message
-        assert "IDEMPOTENCY KEY REQUIRED" in error_msg
-        assert "test-payment" in error_msg or "TestSaga" in error_msg
-        assert "test_event" in error_msg
-        assert "@trigger" in error_msg
-        assert "idempotency_key" in error_msg
-
-    @pytest.mark.asyncio
-    async def test_threshold_boundary(self):
-        """Test the high-value threshold (100.0)."""
-
-        class BoundarySaga(Saga):
-            @trigger(source="boundary_test")
-            def on_event(self, event: dict) -> dict:
-                return {"value": event["value"]}
-
-            @action("test")
-            async def test_action(self, ctx: dict) -> dict:
-                return {}
-
-            @compensate("test")
-            async def test_comp(self, ctx: dict) -> None:
-                pass
-
-        # Value exactly at threshold should require idempotency
-        with pytest.raises(IdempotencyKeyRequiredError):
-            await fire_event("boundary_test", {"value": 100.0})
-
-        # Value just below threshold should not require idempotency
-        saga_ids = await fire_event("boundary_test", {"value": 99.99})
+        saga_ids = await fire_event("test_event", {})
         assert len(saga_ids) == 1
 
-    @pytest.mark.asyncio
-    async def test_multiple_financial_indicators(self):
-        """Test detection of multiple financial field types."""
-
-        class MultiFinancialSaga(Saga):
-            @trigger(source="multi_test")
-            def on_event(self, event: dict) -> dict:
-                return {
-                    "transaction_id": event["txn"],
-                    "charge_amount": 50.0,
-                    "refund_pending": True,
-                }
-
-            @action("test")
-            async def test_action(self, ctx: dict) -> dict:
-                return {}
-
-            @compensate("test")
-            async def test_comp(self, ctx: dict) -> None:
-                pass
-
-        with pytest.raises(IdempotencyKeyRequiredError) as exc_info:
-            await fire_event("multi_test", {"txn": "TXN-001"})
-
-        # Should detect multiple financial fields
-        error = exc_info.value
-        detected = set(error.detected_fields)
-        financial_detected = {"charge_amount", "transaction_id", "refund_pending"} & detected
-        assert len(financial_detected) > 0  # At least one financial field detected
+        # Verify helpful content in warning message
+        assert "IDEMPOTENCY WARNING" in caplog.text
+        assert "TestSaga.on_event" in caplog.text
+        assert "test_event" in caplog.text
+        assert "idempotency_key" in caplog.text
