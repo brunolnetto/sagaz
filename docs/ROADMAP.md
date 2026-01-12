@@ -136,11 +136,18 @@ ECO   ┌──────────────┐   ┌──────�
 
 **Target throughput**: 50,000+ events/sec
 
-### Dry-Run Mode
+### ✅ Dry-Run Mode (COMPLETED v1.3.0)
 
-**Target**: Q2 2026 | [ADR-019](architecture/adr/adr-019-dry-run-mode.md)
+**Status**: ✅ Implemented | [ADR-019](architecture/adr/adr-019-dry-run-mode.md)
 
 Validate and preview saga execution without side effects.
+
+**Features**:
+- `sagaz validate` - Validate saga configuration
+- `sagaz simulate` - Analyze execution DAG and step order
+- 100% test coverage (29 tests)
+- Interactive saga selection
+- Rich output formatting
 
 ---
 

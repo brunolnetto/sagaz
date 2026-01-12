@@ -1,23 +1,24 @@
 # ADR Implementation Roadmap & Dependencies
 
-**Last Updated**: 2026-01-11  
+**Last Updated**: 2026-01-12  
 **Total ADRs**: 19 (011-029)  
-**Remaining ADRs**: 8 (proposed, not yet implemented)
+**Remaining ADRs**: 5 (proposed, not yet implemented)  
+**Implemented ADRs**: 14 (including ADR-019 Dry-Run Mode)
 
 ---
 
 ## 📊 Quick Summary
 
-**Total Remaining Effort (AI-Supported):** 18-26 weeks (4-6 months)
+**Total Remaining Effort (AI-Supported):** 12-16.5 weeks (3-4 months)
 
 | Priority | ADRs | Total Duration | Notes |
 |----------|------|----------------|-------|
-| High | 3 | **9-12.5 weeks** | Core features: Dry Run, Multi-Tenancy, Choreography |
-| Medium | 2 | **3-4 weeks** | Operations: Chaos, Versioning |
-| Low | 3 | **7-9.5 weeks** | Optional: Schema, CDC, Analytics |
+| 🔴 High | 2 | **8-11.5 weeks** | Core features: Multi-Tenancy, Choreography |
+| 🟡 Medium | 2 | **3-4 weeks** | Operations: Chaos, Versioning |
+| 🔵 Low | 3 | **7-9.5 weeks** | Optional: Schema, CDC, Analytics |
 
-**Fastest Path (2 developers):** 6-9 weeks (High Priority only)  
-**Complete Path (2 developers):** 12-17 weeks (All 8 ADRs)
+**Fastest Path (2 developers):** 5-8 weeks (High Priority only)  
+**Complete Path (2 developers):** 11-16 weeks (All 7 ADRs)
 
 📈 **See Critical Path Analysis below** for DAG-based timing, parallel execution scenarios, and detailed duration breakdowns.
 
@@ -36,16 +37,16 @@
 
 | ADR | Title | Status | Priority | Complexity | Duration (AI)** |
 |-----|-------|--------|----------|------------|----------------|
-| [ADR-011](adr/adr-011-cdc-support.md) | CDC Support | ⚪ Proposed | Low | High | 3.5-5 weeks |
+| [ADR-011](adr/adr-011-cdc-support.md) | CDC Support | ⚪ Proposed | 🔵 Low | High | 3.5-5 weeks |
 | [ADR-012](adr/adr-012-synchronous-orchestration-model.md) | Synchronous Orchestration | 🟢 **Implemented** | - | - | - |
-| [ADR-013](adr/adr-013-fluss-iceberg-analytics.md) | Fluss + Iceberg Analytics | ⚪ Proposed | Low | High | 2.5-3 weeks |
-| [ADR-014](adr/adr-014-schema-registry.md) | Schema Registry | ⚪ Proposed | Low | Medium | 1-1.5 weeks |
+| [ADR-013](adr/adr-013-fluss-iceberg-analytics.md) | Fluss + Iceberg Analytics | ⚪ Proposed | 🔵 Low | High | 2.5-3 weeks |
+| [ADR-014](adr/adr-014-schema-registry.md) | Schema Registry | ⚪ Proposed | 🔵 Low | Medium | 1-1.5 weeks |
 | [ADR-015](adr/adr-015-unified-saga-api.md) | Unified Saga API | 🟢 **Implemented** | - | - | - |
 | [ADR-016](adr/adr-016-unified-storage-layer.md) | Unified Storage Layer | 🟢 **Implemented** | - | - | - |
-| [ADR-017](adr/adr-017-chaos-engineering.md) | Chaos Engineering | ⚪ Proposed | Low | Medium | 1-1.5 weeks |
-| [ADR-018](adr/adr-018-saga-versioning.md) | Saga Versioning | ⚪ Proposed | Medium | High | 2-2.5 weeks |
-| [ADR-019](adr/adr-019-dry-run-mode.md) | Dry Run Mode | ⚪ Proposed | Medium | Low | 0.5-1 week ⚡ |
-| [ADR-020](adr/adr-020-multi-tenancy.md) | Multi-Tenancy | ⚪ Proposed | Medium | High | 2-2.5 weeks |
+| [ADR-017](adr/adr-017-chaos-engineering.md) | Chaos Engineering | ⚪ Proposed | 🟡 Medium | Medium | 1-1.5 weeks |
+| [ADR-018](adr/adr-018-saga-versioning.md) | Saga Versioning | ⚪ Proposed | 🟡 Medium | High | 2-2.5 weeks |
+| [ADR-019](adr/adr-019-dry-run-mode.md) | Dry Run Mode | 🟢 **Implemented** | - | - | - |
+| [ADR-020](adr/adr-020-multi-tenancy.md) | Multi-Tenancy | ⚪ Proposed | 🔴 High | High | 2-2.5 weeks |
 | [ADR-021](adr/adr-021-lightweight-context-streaming.md) | Context Streaming | 🟢 **Implemented** | - | - | - |
 | [ADR-022](adr/adr-022-compensation-result-passing.md) | Compensation Result Passing | 🟢 **Implemented** | - | - | - |
 | [ADR-023](adr/adr-023-pivot-irreversible-steps.md) | Pivot/Irreversible Steps | 🟢 **Implemented** | - | - | - |
@@ -54,9 +55,14 @@
 | [ADR-026](adr/adr-026-industry-examples-expansion.md) | Industry Examples Expansion | 🟢 **Complete** (24 examples) | - | - | - |
 | [ADR-027](adr/adr-027-project-cli.md) | Project CLI | 🟢 **Implemented** | - | - | - |
 | [ADR-028](adr/adr-028-framework-integration.md) | Framework Integration | 🟢 **Implemented** | - | - | - |
-| [ADR-029](adr/adr-029-saga-choreography.md) | Saga Choreography Pattern | ⚪ Proposed | High | High | 6-9 weeks ⭐ |
+| [ADR-029](adr/adr-029-saga-choreography.md) | Saga Choreography Pattern | ⚪ Proposed | 🔴 High | High | 6-9 weeks ⭐ |
 
 **Duration (AI)**: AI-agent supported development time. See [ADR Effort Estimates](ADR_EFFORT_ESTIMATES.md) for detailed task breakdowns and Critical Path Analysis section below.
+
+**Priority Legend:**
+- 🔴 **High** - Critical features, implement first
+- 🟡 **Medium** - Important operations features
+- 🔵 **Low** - Optional/future features
 
 ---
 
@@ -82,7 +88,7 @@ graph TD
     style ADR024 fill:#51cf66
 ```
 
-### Feature Dependencies (With Duration Estimates)
+### Feature Dependencies (With Duration Estimates and Priorities)
 
 ```mermaid
 graph TD
@@ -97,15 +103,15 @@ graph TD
     ADR027["ADR-027: CLI ✅<br/>DONE"]
     ADR028["ADR-028: Frameworks ✅<br/>DONE"]
     
-    %% Proposed ADRs with durations (AI-supported estimates)
-    ADR011["ADR-011: CDC Support<br/>⏱️ 3.5-5 weeks<br/>📊 Critical: 3.5-5w"]
-    ADR013["ADR-013: Fluss Analytics<br/>⏱️ 2.5-3 weeks<br/>📊 Critical: 2.5-3w"]
-    ADR014["ADR-014: Schema Registry<br/>⏱️ 1-1.5 weeks<br/>📊 Critical: 1-1.5w"]
-    ADR017["ADR-017: Chaos Engineering<br/>⏱️ 1-1.5 weeks<br/>📊 Critical: 1-1.5w"]
-    ADR018["ADR-018: Versioning<br/>⏱️ 2-2.5 weeks<br/>📊 Critical: 2-2.5w"]
-    ADR019["ADR-019: Dry Run<br/>⏱️ 0.5-1 week<br/>📊 Critical: 0.5-1w"]
-    ADR020["ADR-020: Multi-Tenancy<br/>⏱️ 2-2.5 weeks<br/>📊 Critical: 2-2.5w"]
-    ADR029["ADR-029: Choreography<br/>⏱️ 6-9 weeks<br/>📊 Critical: 6-9w"]
+    %% Proposed ADRs with durations and priority
+    ADR011["ADR-011: CDC Support<br/>⏱️ 3.5-5 weeks<br/>🔵 Priority: LOW"]
+    ADR013["ADR-013: Fluss Analytics<br/>⏱️ 2.5-3 weeks<br/>🔵 Priority: LOW"]
+    ADR014["ADR-014: Schema Registry<br/>⏱️ 1-1.5 weeks<br/>🔵 Priority: LOW"]
+    ADR017["ADR-017: Chaos Engineering<br/>⏱️ 1-1.5 weeks<br/>🟡 Priority: MEDIUM"]
+    ADR018["ADR-018: Versioning<br/>⏱️ 2-2.5 weeks<br/>🟡 Priority: MEDIUM"]
+    ADR019["ADR-019: Dry Run ✅<br/>✅ Implemented v1.3.0"]
+    ADR020["ADR-020: Multi-Tenancy<br/>⏱️ 2-2.5 weeks<br/>🔴 Priority: HIGH"]
+    ADR029["ADR-029: Choreography<br/>⏱️ 6-9 weeks<br/>🔴 Priority: HIGH"]
     
     %% Storage dependencies
     ADR016 --> ADR021
@@ -133,7 +139,8 @@ graph TD
     ADR017 -.-> ADR029
     ADR024 -.-> ADR029
     
-    %% Styling
+    %% Styling - Color by Status and Priority
+    %% Green = Implemented
     style ADR016 fill:#51cf66,stroke:#2f9e44,stroke-width:2px
     style ADR021 fill:#51cf66,stroke:#2f9e44,stroke-width:2px
     style ADR022 fill:#51cf66,stroke:#2f9e44,stroke-width:2px
@@ -143,30 +150,33 @@ graph TD
     style ADR026 fill:#51cf66,stroke:#2f9e44,stroke-width:2px
     style ADR027 fill:#51cf66,stroke:#2f9e44,stroke-width:2px
     style ADR028 fill:#51cf66,stroke:#2f9e44,stroke-width:2px
+    style ADR019 fill:#51cf66
     
-    style ADR019 fill:#ffd43b,stroke:#fab005,stroke-width:2px
-    style ADR020 fill:#ffd43b,stroke:#fab005,stroke-width:2px
-    style ADR029 fill:#ffd43b,stroke:#fab005,stroke-width:2px
+    %% Red = High Priority (CRITICAL)
+    style ADR020 fill:#ff6b6b,stroke:#e03131,stroke-width:3px,color:#fff
+    style ADR029 fill:#ff6b6b,stroke:#e03131,stroke-width:3px,color:#fff
     
-    style ADR017 fill:#a9e34b,stroke:#74b816,stroke-width:1px
-    style ADR018 fill:#a9e34b,stroke:#74b816,stroke-width:1px
+    %% Yellow = Medium Priority
+    style ADR017 fill:#ffd43b,stroke:#fab005,stroke-width:2px
+    style ADR018 fill:#ffd43b,stroke:#fab005,stroke-width:2px
     
-    style ADR011 fill:#e7f5ff,stroke:#339af0,stroke-width:1px
-    style ADR013 fill:#e7f5ff,stroke:#339af0,stroke-width:1px
-    style ADR014 fill:#e7f5ff,stroke:#339af0,stroke-width:1px
+    %% Blue = Low Priority (OPTIONAL)
+    style ADR011 fill:#74c0fc,stroke:#339af0,stroke-width:2px
+    style ADR013 fill:#74c0fc,stroke:#339af0,stroke-width:2px
+    style ADR014 fill:#74c0fc,stroke:#339af0,stroke-width:2px
 ```
 
 **Color Legend:**
-- 🟢 **Green**: Implemented (✅)
-- 🟡 **Yellow**: High Priority Proposed
-- 🟢 **Light Green**: Medium Priority Proposed
-- 🔵 **Light Blue**: Low Priority Proposed
+- 🟢 **Green** = Implemented (production-ready ✅)
+- 🔴 **Red** = 🔴 Critical Priority (implement first)
+- 🟡 **Yellow** = 🟡 Medium Priority (important operations)
+- 🔵 **Blue** = 🔵 Low Priority (optional/future features)
 
 ### Independent Features
 
 - **ADR-017: Chaos Engineering** (1-1.5 weeks) - No dependencies, can implement anytime
 - **ADR-014: Schema Registry** (1-1.5 weeks) - Standalone, integrates with triggers
-- **ADR-019: Dry Run Mode** (0.5-1 week) ⚡ - Can implement before or after other features (Quick Win!)
+- **ADR-019: Dry Run Mode** ✅ **Implemented v1.3.0** - `sagaz validate` and `sagaz simulate` commands
 - **ADR-027: Project CLI** ✅ - Improves DX, independent - **Implemented**
 
 ---
@@ -179,7 +189,7 @@ Since all high-priority dependencies are **already satisfied** (ADR-016 ✅, ADR
 
 | ADR | Direct Duration | Critical Path Duration | Notes |
 |-----|----------------|------------------------|-------|
-| **ADR-019** | 0.5-1 week | **0.5-1 week** | No dependencies, quickest win ⚡ |
+| **ADR-019** | ✅ Implemented | **v1.3.0** | Dry-run validation and simulation |
 | **ADR-020** | 2-2.5 weeks | **2-2.5 weeks** | Dependencies satisfied ✅ (ADR-016) |
 | **ADR-029** | 6-9 weeks | **6-9 weeks** ⭐ | Dependencies satisfied ✅ (ADR-016, ADR-025) |
 | **ADR-017** | 1-1.5 weeks | **1-1.5 weeks** | No dependencies |

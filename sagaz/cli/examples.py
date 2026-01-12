@@ -119,6 +119,24 @@ def get_domains() -> dict[str, list[str]]:
     return domains
 
 
+def _find_example_files(search_dir: Path, examples_dir: Path) -> dict[str, Path]:
+    """Find example files in directory."""
+    found = {}
+    for root, _, files in os.walk(search_dir):
+        if "main.py" in files or "demo.py" in files:
+            path = Path(root)
+            try:
+                rel_path = path.relative_to(examples_dir)
+                name = str(rel_path).replace(os.sep, "/")
+                if "demo.py" in files and "integrations" in name:
+                    found[name] = path / "demo.py"
+                elif "main.py" in files:
+                    found[name] = path / "main.py"
+            except ValueError:
+                continue
+    return found
+
+
 def discover_examples(category: str | None = None) -> dict[str, Path]:
     """
     Scan examples directory for valid examples.
@@ -132,30 +150,11 @@ def discover_examples(category: str | None = None) -> dict[str, Path]:
     if not examples_dir.exists():
         return {}
 
-    found = {}
+    search_dir = examples_dir / category if category else examples_dir
+    if category and not search_dir.exists():
+        return {}
 
-    if category:
-        search_dir = examples_dir / category
-        if not search_dir.exists():
-            return {}
-    else:
-        search_dir = examples_dir
-
-    for root, _, files in os.walk(search_dir):
-        if "main.py" in files or "demo.py" in files:
-            path = Path(root)
-            try:
-                rel_path = path.relative_to(examples_dir)
-                name = str(rel_path).replace(os.sep, "/")
-                # Prefer demo.py for integrations, otherwise use main.py
-                if "demo.py" in files and "integrations" in name:
-                    found[name] = path / "demo.py"
-                elif "main.py" in files:
-                    found[name] = path / "main.py"
-            except ValueError:  # pragma: no cover
-                continue
-
-    return found
+    return _find_example_files(search_dir, examples_dir)
 
 
 def get_example_description(path: Path) -> str:
@@ -321,6 +320,20 @@ def _format_category_name(category: str) -> str:
     return " ".join(word.capitalize() for word in category.split("_"))
 
 
+def _build_domain_menu(domains: dict) -> tuple[list[str], list[str]]:
+    """Build domain menu entries."""
+    menu_entries = []
+    domain_list = list(domains.keys())
+    for domain in domain_list:
+        categories = domains[domain]
+        total_count = sum(len(discover_examples(cat)) for cat in categories)
+        menu_entries.append(f"📁 {domain}  ({total_count} examples)")
+
+    menu_entries.append("")
+    menu_entries.append("❌ Exit")
+    return menu_entries, domain_list
+
+
 def _category_menu_loop():  # pragma: no cover
     """Main domain selection loop (consolidated categories)."""
     domains = get_domains()
@@ -334,17 +347,7 @@ def _category_menu_loop():  # pragma: no cover
             console.print("\n[bold blue]  📦 Sagaz Examples  [/bold blue]")
             console.print("[dim]Use ↑/↓ to navigate, Enter to select, q to quit[/dim]\n")
 
-        # Build domain menu with example counts
-        menu_entries = []
-        domain_list = list(domains.keys())
-        for domain in domain_list:
-            categories = domains[domain]
-            # Count total examples across all categories in domain
-            total_count = sum(len(discover_examples(cat)) for cat in categories)
-            menu_entries.append(f"📁 {domain}  ({total_count} examples)")
-
-        menu_entries.append("")  # Separator
-        menu_entries.append("❌ Exit")
+        menu_entries, domain_list = _build_domain_menu(domains)
 
         menu = TerminalMenu(
             menu_entries,
@@ -359,12 +362,10 @@ def _category_menu_loop():  # pragma: no cover
         selected_index = menu.show()
 
         if selected_index is None or selected_index == len(menu_entries) - 1:
-            # Exit selected or Ctrl+C
             if console:
                 console.print("\n[dim]Goodbye! 👋[/dim]\n")
             return
 
-        # Open category submenu for selected domain
         selected_domain = domain_list[selected_index]
         result = _domain_category_menu_loop(selected_domain, domains[selected_domain])
 
@@ -372,7 +373,6 @@ def _category_menu_loop():  # pragma: no cover
             if console:
                 console.print("\n[dim]Goodbye! 👋[/dim]\n")
             return
-        # Otherwise, loop back to domain menu
 
 
 def _domain_category_menu_loop(domain: str, categories: list[str]) -> str:  # pragma: no cover
@@ -551,11 +551,15 @@ def _fallback_interactive_simple(category: str | None = None):  # pragma: no cov
             return
 
 
-def _check_requirements(requirements_file: Path, script_path: Path) -> None:
-    """Check if required packages are installed and warn user."""
+def _parse_package_name(req: str) -> str:
+    """Extract package name from requirement string."""
+    return req.split(">=")[0].split("==")[0].split("<")[0].split(">")[0].strip()
+
+
+def _check_package_installed(pkg_name: str) -> bool:
+    """Check if a package is installed."""
     import importlib.util
 
-    # Map package names to import names
     package_to_import = {
         "python-dotenv": "dotenv",
         "pillow": "PIL",
@@ -565,40 +569,51 @@ def _check_requirements(requirements_file: Path, script_path: Path) -> None:
         "python-dateutil": "dateutil",
     }
 
-    # Read requirements and extract package names
-    try:
-        with requirements_file.open() as f:
-            reqs = [line.strip() for line in f if line.strip() and not line.startswith("#")]
-    except Exception:  # pragma: no cover
-        return
+    import_name = package_to_import.get(pkg_name, pkg_name)
+    return importlib.util.find_spec(import_name) is not None
 
-    missing_packages = []
-    for req in reqs:
-        # Extract package name (handle versions like 'package>=1.0.0')
-        if req.startswith("sagaz"):
-            continue  # Skip sagaz itself
-        pkg_name = req.split(">=")[0].split("==")[0].split("<")[0].split(">")[0].strip()
 
-        # Convert package name to import name
-        import_name = package_to_import.get(pkg_name, pkg_name)
+def _prompt_user_continue() -> bool:
+    """Prompt user to continue despite missing packages."""
+    response = input("\nContinue anyway? (y/N): ").strip().lower()
+    return response in ("y", "yes")
 
-        if importlib.util.find_spec(import_name) is None:
-            missing_packages.append(pkg_name)
 
-    if missing_packages and console:
+def _display_missing_packages(missing_packages: list[str], requirements_file: Path):
+    """Display missing packages to user."""
+    if console:
         console.print("\n[yellow]⚠️  This example requires additional dependencies:[/yellow]")
         for pkg in missing_packages:
             console.print(f"   • {pkg}")
         console.print(f"\n[cyan]📦 Install with:[/cyan] pip install -r {requirements_file}")
-        response = input("\nContinue anyway? (y/N): ").strip().lower()
-        if response not in ("y", "yes"):
-            raise KeyboardInterrupt
-    elif missing_packages:
+    else:
         click.echo(f"\n⚠️  Missing dependencies: {', '.join(missing_packages)}")
         click.echo(f"Install with: pip install -r {requirements_file}")
-        response = input("\nContinue anyway? (y/N): ").strip().lower()
-        if response not in ("y", "yes"):
-            raise KeyboardInterrupt
+
+
+def _check_requirements(requirements_file: Path, script_path: Path) -> None:
+    """Check if required packages are installed and warn user."""
+    try:
+        with requirements_file.open() as f:
+            reqs = [line.strip() for line in f if line.strip() and not line.startswith("#")]
+    except Exception:
+        return
+
+    missing_packages = []
+    for req in reqs:
+        if req.startswith("sagaz"):
+            continue
+        pkg_name = _parse_package_name(req)
+        if not _check_package_installed(pkg_name):
+            missing_packages.append(pkg_name)
+
+    if not missing_packages:
+        return
+
+    _display_missing_packages(missing_packages, requirements_file)
+
+    if not _prompt_user_continue():
+        raise KeyboardInterrupt
 
 
 def _execute_example(script_path: Path):

@@ -126,44 +126,34 @@ class OrderDiagramView(View):
 
 @method_decorator(csrf_exempt, name="dispatch")
 class WebhookStatusView(View):
-    """
-    Check status of event processing.
-
-    Returns the status of a webhook event using its correlation ID.
-    The webhook view tracks events in memory for demo purposes.
-
-    In production, you would:
-    - Store correlation_id -> saga_id mappings in Redis/PostgreSQL
-    - Query saga storage for detailed execution status
-    - Implement proper cleanup of old tracking data
-    """
+    """Check status of event processing."""
 
     def get(self, request, source, correlation_id):
         status = get_webhook_status(correlation_id)
 
         if not status:
-            return JsonResponse(
-                {
-                    "correlation_id": correlation_id,
-                    "source": source,
-                    "status": "not_found",
-                    "message": "No webhook event found with this correlation ID",
-                },
-                status=404,
-            )
+            return self._not_found_response(correlation_id, source)
 
-        # Compute overall status based on individual saga statuses
+        response_data = self._build_response_data(status, correlation_id, source)
+        return JsonResponse(response_data)
+
+    def _not_found_response(self, correlation_id, source):
+        """Build 404 response."""
+        return JsonResponse(
+            {
+                "correlation_id": correlation_id,
+                "source": source,
+                "status": "not_found",
+                "message": "No webhook event found with this correlation ID",
+            },
+            status=404,
+        )
+
+    def _build_response_data(self, status, correlation_id, source):
+        """Build response data dictionary."""
         saga_statuses = status.get("saga_statuses", {})
         saga_ids = status.get("saga_ids", [])
-        overall_status = status["status"]
-
-        # If triggered, check if all sagas have finished
-        if overall_status == "triggered" and saga_ids:
-            completed_count = sum(1 for s in saga_statuses.values() if s in ("completed", "failed"))
-            if completed_count == len(saga_ids):
-                # All sagas finished - determine overall outcome
-                failed_count = sum(1 for s in saga_statuses.values() if s == "failed")
-                overall_status = "completed_with_failures" if failed_count > 0 else "completed"
+        overall_status = self._compute_overall_status(status, saga_statuses, saga_ids)
 
         response_data = {
             "correlation_id": correlation_id,
@@ -172,31 +162,47 @@ class WebhookStatusView(View):
             "saga_ids": saga_ids,
         }
 
-        # Add saga details if available
+        self._add_optional_fields(response_data, status, saga_statuses)
+        response_data["message"] = self._get_status_message(overall_status, saga_ids, saga_statuses)
+
+        return response_data
+
+    def _compute_overall_status(self, status, saga_statuses, saga_ids):
+        """Compute overall status from saga statuses."""
+        overall_status = status["status"]
+
+        if overall_status == "triggered" and saga_ids:
+            completed_count = sum(1 for s in saga_statuses.values() if s in ("completed", "failed"))
+            if completed_count == len(saga_ids):
+                failed_count = sum(1 for s in saga_statuses.values() if s == "failed")
+                overall_status = "completed_with_failures" if failed_count > 0 else "completed"
+
+        return overall_status
+
+    def _add_optional_fields(self, response_data, status, saga_statuses):
+        """Add optional fields to response."""
         if saga_statuses:
             response_data["saga_statuses"] = saga_statuses
-
         if "saga_errors" in status:
             response_data["saga_errors"] = status["saga_errors"]
-
         if "error" in status:
             response_data["error"] = status["error"]
 
-        # Add helpful messages based on status
-        if overall_status == "queued":
-            response_data["message"] = "Event is queued for processing"
-        elif overall_status == "processing":
-            response_data["message"] = "Event is currently being processed"
-        elif overall_status == "triggered":
-            response_data["message"] = (
-                f"Event triggered {len(saga_ids)} saga(s), waiting for completion"
-            )
-        elif overall_status == "completed":
-            response_data["message"] = f"All {len(saga_ids)} saga(s) completed successfully"
-        elif overall_status == "completed_with_failures":
-            failed_sagas = [sid for sid, s in saga_statuses.items() if s == "failed"]
-            response_data["message"] = f"{len(failed_sagas)} of {len(saga_ids)} saga(s) failed"
-        elif overall_status == "failed":
-            response_data["message"] = "Event processing failed"
+    def _get_status_message(self, overall_status, saga_ids, saga_statuses):
+        """Get message for status."""
+        messages = {
+            "queued": "Event is queued for processing",
+            "processing": "Event is currently being processed",
+            "triggered": f"Event triggered {len(saga_ids)} saga(s), waiting for completion",
+            "completed": f"All {len(saga_ids)} saga(s) completed successfully",
+            "failed": "Event processing failed",
+        }
 
-        return JsonResponse(response_data)
+        if overall_status in messages:
+            return messages[overall_status]
+
+        if overall_status == "completed_with_failures":
+            failed_sagas = [sid for sid, s in saga_statuses.items() if s == "failed"]
+            return f"{len(failed_sagas)} of {len(saga_ids)} saga(s) failed"
+
+        return ""

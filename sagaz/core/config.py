@@ -344,7 +344,7 @@ class SagaConfig:
         if storage_url:
             storage = cls._parse_storage_url(storage_url)
         else:
-            storage_type = env.get("SAGAZ_STORAGE_TYPE", "postgresql")
+            storage_type = env.get("SAGAZ_STORAGE_TYPE", "memory")
             if storage_type == "postgresql":
                 host = env.get("SAGAZ_STORAGE_HOST", "localhost")
                 port = env.get("SAGAZ_STORAGE_PORT", "5432")
@@ -400,7 +400,7 @@ class SagaConfig:
 
         Example:
             >>> config = SagaConfig.from_file("sagaz.yaml")
-            
+
             # In sagaz.yaml:
             # storage:
             #   connection:

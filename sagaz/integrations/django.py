@@ -209,7 +209,6 @@ def sagaz_webhook_view(request, source: str):
         msg = "Django is required. Install with: pip install django"
         raise ImportError(msg)
 
-    # Ensure listener is registered on first webhook
     _ensure_listener_registered()
 
     if request.method != "POST":
@@ -220,49 +219,14 @@ def sagaz_webhook_view(request, source: str):
     except (json.JSONDecodeError, UnicodeDecodeError):
         payload = {}
 
-    # Generate correlation ID for tracking
     correlation_id = request.headers.get("X-Correlation-ID") or generate_correlation_id()
 
-    # Validate idempotency requirements BEFORE accepting the request
-    try:
-        from sagaz.core.exceptions import IdempotencyKeyMissingInPayloadError
-        from sagaz.triggers.registry import TriggerRegistry
+    is_valid, error_response = _validate_idempotency_requirements(source, payload)
+    if not is_valid:
+        return error_response
 
-        triggers = TriggerRegistry.get_triggers(source)
-        for trigger in triggers:
-            metadata = trigger.metadata
-            if metadata.idempotency_key:
-                key_name = (
-                    metadata.idempotency_key if isinstance(metadata.idempotency_key, str) else None
-                )
-                if key_name and isinstance(payload, dict) and key_name not in payload:
-                    raise IdempotencyKeyMissingInPayloadError(
-                        saga_name=trigger.saga_class.__name__,
-                        source=source,
-                        key_name=key_name,
-                        payload_keys=list(payload.keys()) if isinstance(payload, dict) else [],
-                    )
-    except IdempotencyKeyMissingInPayloadError as e:
-        return JsonResponse(
-            {
-                "status": "rejected",
-                "source": source,
-                "error": "missing_idempotency_key",
-                "message": f"Required field '{e.key_name}' is missing from payload",
-                "details": {
-                    "saga": e.saga_name,
-                    "required_field": e.key_name,
-                    "payload_keys": e.payload_keys,
-                },
-                "help": f"Include '{e.key_name}' in your request payload to ensure idempotent processing",
-            },
-            status=400,
-        )
-
-    # Store correlation -> saga mapping for status checks
     _webhook_tracking[correlation_id] = {"status": "queued", "saga_ids": [], "source": source}
 
-    # Fire event in background thread (fire-and-forget)
     def process_in_thread():
         from sagaz.triggers import fire_event
 
@@ -273,44 +237,11 @@ def sagaz_webhook_view(request, source: str):
             saga_ids = loop.run_until_complete(fire_event(source, payload))
             _webhook_tracking[correlation_id]["saga_ids"] = saga_ids
 
-            # Map saga IDs to correlation ID for status tracking
             for saga_id in saga_ids:
                 _saga_to_webhook[saga_id] = correlation_id
 
-            # Check if any saga_ids already have completion status (idempotent case)
-            from sagaz.core.config import get_config
+            _check_existing_saga_status(loop, saga_ids, correlation_id)
 
-            config = get_config()
-            if config.storage and saga_ids:
-                for saga_id in saga_ids:
-                    try:
-                        state = loop.run_until_complete(config.storage.load_saga_state(saga_id))
-                        if state:
-                            # Saga already exists - populate status immediately
-                            if "saga_statuses" not in _webhook_tracking[correlation_id]:
-                                _webhook_tracking[correlation_id]["saga_statuses"] = {}
-
-                            from sagaz.core.types import SagaStatus
-
-                            status_val = state.get("status")
-                            if status_val == SagaStatus.COMPLETED:
-                                _webhook_tracking[correlation_id]["saga_statuses"][saga_id] = (
-                                    "completed"
-                                )
-                            elif status_val in (SagaStatus.FAILED, SagaStatus.ROLLED_BACK):
-                                _webhook_tracking[correlation_id]["saga_statuses"][saga_id] = (
-                                    "failed"
-                                )
-                                if state.get("error"):
-                                    if "saga_errors" not in _webhook_tracking[correlation_id]:
-                                        _webhook_tracking[correlation_id]["saga_errors"] = {}
-                                    _webhook_tracking[correlation_id]["saga_errors"][saga_id] = (
-                                        state["error"]
-                                    )
-                    except Exception:
-                        pass  # status will be tracked via listener
-
-            # Mark as triggered (saga outcomes will be tracked by listener for new sagas)
             _webhook_tracking[correlation_id]["status"] = "triggered"
             logger.info(f"Webhook {source} triggered sagas: {saga_ids}")
         except Exception as e:
@@ -331,21 +262,93 @@ def sagaz_webhook_view(request, source: str):
             "correlation_id": correlation_id,
         },
         status=202,
-    )  # Accepted
+    )
+
+
+def _validate_idempotency_requirements(source: str, payload: dict) -> tuple[bool, dict | None]:
+    """Validate idempotency requirements for triggers.
+
+    Returns:
+        Tuple of (is_valid, error_response)
+    """
+    try:
+        from sagaz.core.exceptions import IdempotencyKeyMissingInPayloadError
+        from sagaz.triggers.registry import TriggerRegistry
+
+        triggers = TriggerRegistry.get_triggers(source)
+        for trigger in triggers:
+            metadata = trigger.metadata
+            if metadata.idempotency_key:
+                key_name = (
+                    metadata.idempotency_key if isinstance(metadata.idempotency_key, str) else None
+                )
+                if key_name and isinstance(payload, dict) and key_name not in payload:
+                    raise IdempotencyKeyMissingInPayloadError(
+                        saga_name=trigger.saga_class.__name__,
+                        source=source,
+                        key_name=key_name,
+                        payload_keys=list(payload.keys()) if isinstance(payload, dict) else [],
+                    )
+    except IdempotencyKeyMissingInPayloadError as e:
+        from django.http import JsonResponse
+
+        return False, JsonResponse(
+            {
+                "status": "rejected",
+                "source": source,
+                "error": "missing_idempotency_key",
+                "message": f"Required field '{e.key_name}' is missing from payload",
+                "details": {
+                    "saga": e.saga_name,
+                    "required_field": e.key_name,
+                    "payload_keys": e.payload_keys,
+                },
+                "help": f"Include '{e.key_name}' in your request payload to ensure idempotent processing",
+            },
+            status=400,
+        )
+    return True, None
+
+
+def _update_saga_status(correlation_id: str, saga_id: str, status_val, state: dict):
+    """Update webhook tracking with saga status."""
+    if "saga_statuses" not in _webhook_tracking[correlation_id]:
+        _webhook_tracking[correlation_id]["saga_statuses"] = {}
+
+    from sagaz.core.types import SagaStatus
+
+    if status_val == SagaStatus.COMPLETED:
+        _webhook_tracking[correlation_id]["saga_statuses"][saga_id] = "completed"
+    elif status_val in (SagaStatus.FAILED, SagaStatus.ROLLED_BACK):
+        _webhook_tracking[correlation_id]["saga_statuses"][saga_id] = "failed"
+        if state.get("error"):
+            if "saga_errors" not in _webhook_tracking[correlation_id]:
+                _webhook_tracking[correlation_id]["saga_errors"] = {}
+            _webhook_tracking[correlation_id]["saga_errors"][saga_id] = state["error"]
+
+
+def _check_existing_saga_status(loop, saga_ids: list[str], correlation_id: str):
+    """Check if sagas already exist and populate their statuses."""
+    from sagaz.core.config import get_config
+
+    config = get_config()
+    if not config.storage or not saga_ids:
+        return
+
+    for saga_id in saga_ids:
+        try:
+            state = loop.run_until_complete(config.storage.load_saga_state(saga_id))
+            if not state:
+                continue
+
+            status_val = state.get("status")
+            _update_saga_status(correlation_id, saga_id, status_val, state)
+        except Exception:
+            pass
 
 
 def sagaz_webhook_status_view(request, source: str, correlation_id: str):
-    """
-    Django view for checking webhook event status.
-
-    Usage in urls.py:
-        from sagaz.integrations.django import sagaz_webhook_status_view
-
-        urlpatterns = [
-            path('webhooks/<str:source>/status/<str:correlation_id>/',
-                 sagaz_webhook_status_view),
-        ]
-    """
+    """Django view for checking webhook event status."""
     try:
         from django.http import JsonResponse
     except ImportError:  # pragma: no cover
@@ -358,36 +361,53 @@ def sagaz_webhook_status_view(request, source: str, correlation_id: str):
     status = get_webhook_status(correlation_id)
 
     if not status:
-        return JsonResponse(
-            {
-                "correlation_id": correlation_id,
-                "source": source,
-                "status": "not_found",
-                "message": "No webhook event found with this correlation ID",
-            },
-            status=404,
-        )
+        return _webhook_status_not_found_response(correlation_id, source)
 
-    # Compute overall status based on individual saga statuses
+    response_data = _build_webhook_status_response(status, correlation_id, source)
+    return JsonResponse(response_data)
+
+
+def _webhook_status_not_found_response(correlation_id: str, source: str):
+    """Build 404 response for webhook status not found."""
+    from django.http import JsonResponse
+
+    return JsonResponse(
+        {
+            "correlation_id": correlation_id,
+            "source": source,
+            "status": "not_found",
+            "message": "No webhook event found with this correlation ID",
+        },
+        status=404,
+    )
+
+
+def _compute_overall_status(status: dict) -> str:
+    """Compute overall status from individual saga statuses."""
     saga_statuses = status.get("saga_statuses", {})
     saga_ids = status.get("saga_ids", [])
     overall_status = status["status"]
 
-    # If triggered, check if all sagas have finished
-    if overall_status == "triggered" and saga_ids:
-        finished_count = sum(1 for s in saga_statuses.values() if s in ("completed", "failed"))
-        if finished_count == len(saga_ids):
-            # All sagas finished - determine overall outcome
-            failed_count = sum(1 for s in saga_statuses.values() if s == "failed")
-            if failed_count == len(saga_ids):
-                # All sagas failed
-                overall_status = "failed"
-            elif failed_count > 0:
-                # Some failed, some succeeded
-                overall_status = "completed_with_failures"
-            else:
-                # All succeeded
-                overall_status = "completed"
+    if overall_status != "triggered" or not saga_ids:
+        return overall_status
+
+    finished_count = sum(1 for s in saga_statuses.values() if s in ("completed", "failed"))
+    if finished_count < len(saga_ids):
+        return overall_status
+
+    failed_count = sum(1 for s in saga_statuses.values() if s == "failed")
+    if failed_count == len(saga_ids):
+        return "failed"
+    if failed_count > 0:
+        return "completed_with_failures"
+    return "completed"
+
+
+def _build_webhook_status_response(status: dict, correlation_id: str, source: str) -> dict:
+    """Build webhook status response data."""
+    overall_status = _compute_overall_status(status)
+    saga_ids = status.get("saga_ids", [])
+    saga_statuses = status.get("saga_statuses", {})
 
     response_data = {
         "correlation_id": correlation_id,
@@ -396,34 +416,33 @@ def sagaz_webhook_status_view(request, source: str, correlation_id: str):
         "saga_ids": saga_ids,
     }
 
-    # Add saga details if available
     if saga_statuses:
         response_data["saga_statuses"] = saga_statuses
-
     if "saga_errors" in status:
         response_data["saga_errors"] = status["saga_errors"]
-
     if "error" in status:
         response_data["error"] = status["error"]
 
-    # Add helpful messages based on status
-    if overall_status == "queued":
-        response_data["message"] = "Event is queued for processing"
-    elif overall_status == "processing":
-        response_data["message"] = "Event is currently being processed"
-    elif overall_status == "triggered":
-        response_data["message"] = (
-            f"Event triggered {len(saga_ids)} saga(s), waiting for completion"
-        )
-    elif overall_status == "completed":
-        response_data["message"] = f"All {len(saga_ids)} saga(s) completed successfully"
-    elif overall_status == "completed_with_failures":
-        failed_count = sum(1 for s in saga_statuses.values() if s == "failed")
-        response_data["message"] = f"{failed_count} of {len(saga_ids)} saga(s) failed"
-    elif overall_status == "failed":
-        if len(saga_ids) == 1:
-            response_data["message"] = "Saga execution failed"
-        else:
-            response_data["message"] = f"All {len(saga_ids)} saga(s) failed"
+    response_data["message"] = _get_status_message(overall_status, saga_ids, saga_statuses)
 
-    return JsonResponse(response_data)
+    return response_data
+
+
+def _get_status_message(overall_status: str, saga_ids: list, saga_statuses: dict) -> str:
+    """Get helpful message based on status."""
+    if overall_status == "queued":
+        return "Event is queued for processing"
+    if overall_status == "processing":
+        return "Event is currently being processed"
+    if overall_status == "triggered":
+        return f"Event triggered {len(saga_ids)} saga(s), waiting for completion"
+    if overall_status == "completed":
+        return f"All {len(saga_ids)} saga(s) completed successfully"
+    if overall_status == "completed_with_failures":
+        failed_count = sum(1 for s in saga_statuses.values() if s == "failed")
+        return f"{failed_count} of {len(saga_ids)} saga(s) failed"
+    if overall_status == "failed":
+        if len(saga_ids) == 1:
+            return "Saga execution failed"
+        return f"All {len(saga_ids)} saga(s) failed"
+    return ""

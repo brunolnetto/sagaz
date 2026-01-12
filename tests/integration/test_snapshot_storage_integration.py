@@ -35,7 +35,7 @@ pytestmark = pytest.mark.integration
 
 class TestPostgreSQLSnapshotStorageIntegration:
     """Integration tests for PostgreSQL snapshot storage using testcontainers.
-    
+
     Uses session-scoped postgres_container fixture from conftest.py for efficiency.
     """
 
@@ -290,7 +290,7 @@ class TestPostgreSQLSnapshotStorageIntegration:
 
 class TestRedisSnapshotStorageIntegration:
     """Integration tests for Redis snapshot storage using testcontainers.
-    
+
     Uses session-scoped redis_container fixture from conftest.py for efficiency.
     """
 
@@ -418,7 +418,7 @@ class TestRedisSnapshotStorageIntegration:
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)
         redis_url = f"redis://{host}:{port}/0"
-        
+
         # Create storage with short TTL, disable compression to avoid zstandard dependency
         storage = RedisSnapshotStorage(redis_url=redis_url, default_ttl=2, enable_compression=False)
 
