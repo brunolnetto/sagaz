@@ -95,6 +95,17 @@ from sagaz.core.saga import SagaContext, SagaStep
 from sagaz.core.types import ParallelFailureStrategy, SagaResult, SagaStatus, SagaStepStatus
 
 # =============================================================================
+# Dry-Run Mode (ADR-019, v1.3.0)
+# =============================================================================
+from sagaz.dry_run import (
+    DryRunEngine,
+    DryRunMode,
+    DryRunResult,
+    SimulationResult,
+    ValidationResult,
+)
+
+# =============================================================================
 # Execution Graph (compensation and dependency management)
 # =============================================================================
 from sagaz.execution.graph import (
@@ -106,17 +117,6 @@ from sagaz.execution.graph import (
     CompensationType,
     SagaCompensationContext,
     SagaExecutionGraph,
-)
-
-# =============================================================================
-# Dry-Run Mode (ADR-019, v1.3.0)
-# =============================================================================
-from sagaz.dry_run import (
-    DryRunEngine,
-    DryRunMode,
-    DryRunResult,
-    SimulationResult,
-    ValidationResult,
 )
 
 # =============================================================================

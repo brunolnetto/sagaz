@@ -22,7 +22,8 @@ import click
 
 from sagaz.cli import examples as cli_examples
 from sagaz.cli.dry_run import simulate_cmd, validate_cmd
-from sagaz.cli.project import check as check_cmd, list_sagas
+from sagaz.cli.project import check as check_cmd
+from sagaz.cli.project import list_sagas
 from sagaz.cli.replay import replay
 
 try:
@@ -48,6 +49,10 @@ class OrderedGroup(click.Group):
     def list_commands(self, ctx):
         return list(self.commands.keys())
 
+    def format_commands(self, ctx, formatter):
+        """Override to hide the automatic Commands section."""
+        # Do nothing - this prevents Click from adding the Commands list
+
 
 @click.group(cls=OrderedGroup)
 @click.version_option(version="1.0.3", prog_name="sagaz")
@@ -72,7 +77,7 @@ def cli():
       validate         Validate project sagas
       simulate         Analyze execution DAG
 
-    
+
     \b
     Runtime Operations:
       dev              Start local environment
@@ -90,16 +95,58 @@ def cli():
 # ============================================================================
 
 
+def _prompt_project_details() -> tuple[str, Path]:
+    """Prompt user for project name and directory."""
+    name = click.prompt("Project name", type=str)
+    default_path = f"./{name}" if name else "."
+    path = click.prompt("Project directory", type=str, default=default_path)
+    return name, Path(path)
+
+
+def _validate_project_directory(project_path: Path) -> None:
+    """Validate and create project directory."""
+    if (
+        project_path.exists()
+        and any(project_path.iterdir())
+        and not click.confirm(
+            f"Directory '{project_path}' already exists and is not empty. Continue?", default=False
+        )
+    ):
+        click.echo("Aborted.")
+        raise SystemExit(0)
+    project_path.mkdir(parents=True, exist_ok=True)
+
+
+def _prompt_example_choice() -> str | None:
+    """Prompt user for example saga choice."""
+    click.echo("\n[3] Would you like to include an example saga to get started?")
+    click.echo("  1. None - Start with empty project")
+    click.echo("  2. Simple example - Basic multi-step saga")
+    click.echo("  3. E-commerce order - Order processing saga")
+    click.echo("  4. Payment processing - Financial transaction saga")
+    click.echo("  5. Healthcare procedure - Medical workflow saga")
+
+    example_choice = click.prompt("Choice", type=click.IntRange(1, 5), default=2)
+    example_map = {
+        1: None,
+        2: "simple",
+        3: "ecommerce/order_processing",
+        4: "fintech/payment_processing",
+        5: "healthcare/procedure_scheduling",
+    }
+    return example_map[example_choice]
+
+
 @click.command()
 def init_cmd():
     """
     Initialize a new Sagaz project interactively.
-    
+
     Interactive wizard to create a new project:
       - Project name and location
       - Optional example saga scaffold
       - Project structure (sagaz.yaml, profiles.yaml, sagas/, tests/)
-    
+
     \b
     Example:
         sagaz init  # Interactive wizard
@@ -114,51 +161,16 @@ def init_cmd():
         )
     else:
         click.echo("=== Sagaz Project Initialization ===\n")
-    
-    # Step 1: Project name
-    name = click.prompt("Project name", type=str)
-    
-    # Step 2: Project path
-    default_path = f"./{name}" if name else "."
-    path = click.prompt("Project directory", type=str, default=default_path)
-    
-    project_path = Path(path)
-    
-    # Check if directory exists and has content
-    if project_path.exists() and any(project_path.iterdir()):
-        if not click.confirm(f"Directory '{path}' already exists and is not empty. Continue?", default=False):
-            click.echo("Aborted.")
-            return
-    
-    project_path.mkdir(parents=True, exist_ok=True)
-    
-    # Step 3: Include example saga scaffold?
-    click.echo("\n[3] Would you like to include an example saga to get started?")
-    click.echo("  1. None - Start with empty project")
-    click.echo("  2. Simple example - Basic multi-step saga")
-    click.echo("  3. E-commerce order - Order processing saga")
-    click.echo("  4. Payment processing - Financial transaction saga")
-    click.echo("  5. Healthcare procedure - Medical workflow saga")
-    
-    example_choice = click.prompt("Choice", type=click.IntRange(1, 5), default=2)
-    
-    example_map = {
-        1: None,
-        2: "simple",
-        3: "ecommerce/order_processing",
-        4: "fintech/payment_processing",
-        5: "healthcare/procedure_scheduling"
-    }
-    
-    example_template = example_map[example_choice]
-    
+
+    name, project_path = _prompt_project_details()
+    _validate_project_directory(project_path)
+    example_template = _prompt_example_choice()
+
     if console:
-        console.print(
-            f"\n[bold green]Creating project: {name}[/bold green]"
-        )
+        console.print(f"\n[bold green]Creating project: {name}[/bold green]")
     else:
         click.echo(f"\n=== Creating Project: {name} ===\n")
-    
+
     # Create sagaz.yaml
     sagaz_yaml_content = f"""name: {name}
 version: "0.1.0"
@@ -170,7 +182,7 @@ paths:
 config:
   default_timeout: 60
   failure_strategy: FAIL_FAST_WITH_GRACE
-  
+
 observability:
   metrics:
     enabled: true
@@ -184,7 +196,7 @@ observability:
 """
     (project_path / "sagaz.yaml").write_text(sagaz_yaml_content)
     click.echo(f"  CREATE {project_path / 'sagaz.yaml'}")
-    
+
     # Create profiles.yaml
     profiles_yaml_content = """default:
   target: dev
@@ -193,7 +205,7 @@ dev:
   storage_url: "postgresql://sagaz:sagaz@localhost:5432/sagaz_dev"
   broker_url: "redis://localhost:6379/0"
   outbox_url: "postgresql://sagaz:sagaz@localhost:5432/sagaz_outbox"
-  
+
   observability:
     metrics_port: 8000
     tracing_endpoint: "http://localhost:14268/api/traces"
@@ -202,29 +214,29 @@ dev_inmemory:
   storage_url: "memory://"
   broker_url: "redis://localhost:6379/0"
   outbox_url: "memory://"
-  
+
   observability:
     metrics_port: 8000
     tracing_endpoint: "http://localhost:14268/api/traces"
-    
+
 prod:
   storage_url: "{{ env_var('SAGAZ_STORAGE_URL') }}"
   broker_url: "{{ env_var('SAGAZ_BROKER_URL') }}"
   outbox_url: "{{ env_var('SAGAZ_OUTBOX_URL') }}"
-  
+
   observability:
     metrics_port: 8000
     tracing_endpoint: "{{ env_var('SAGAZ_TRACING_ENDPOINT') }}"
 """
     (project_path / "profiles.yaml").write_text(profiles_yaml_content)
     click.echo(f"  CREATE {project_path / 'profiles.yaml'}")
-    
+
     # Create sagas/ directory with optional example
     sagas_dir = project_path / "sagas"
     sagas_dir.mkdir(exist_ok=True)
     (sagas_dir / "__init__.py").write_text("")
     click.echo(f"  CREATE {sagas_dir / '__init__.py'}")
-    
+
     # Copy example saga if requested
     if example_template:
         _copy_example_saga(example_template, sagas_dir)
@@ -236,10 +248,10 @@ prod:
 class MySaga(Saga):
     \"\"\"
     Your saga implementation goes here.
-    
+
     Define steps using @action decorator with dependencies.
     \"\"\"
-    
+
     @action("step_one")
     async def step_one(self, ctx: SagaContext):
         \"\"\"Implement your first step.\"\"\"
@@ -247,13 +259,13 @@ class MySaga(Saga):
 """
         (sagas_dir / "my_saga.py").write_text(placeholder)
         click.echo(f"  CREATE {sagas_dir / 'my_saga.py'}")
-    
+
     # Create tests/ directory
     tests_dir = project_path / "tests"
     tests_dir.mkdir(exist_ok=True)
     (tests_dir / "__init__.py").write_text("")
     click.echo(f"  CREATE {tests_dir / '__init__.py'}")
-    
+
     test_example_content = """import pytest
 from sagas.example_saga import ExampleSaga
 
@@ -267,7 +279,7 @@ async def test_example_saga():
 """
     (tests_dir / "test_example_saga.py").write_text(test_example_content)
     click.echo(f"  CREATE {tests_dir / 'test_example_saga.py'}")
-    
+
     # Create README.md
     readme_content = f"""# {name}
 
@@ -300,7 +312,7 @@ Sagaz project for orchestrating distributed transactions.
 """
     (project_path / "README.md").write_text(readme_content)
     click.echo(f"  CREATE {project_path / 'README.md'}")
-    
+
     # Create .gitignore
     gitignore_content = """# Python
 __pycache__/
@@ -326,18 +338,18 @@ docker-compose.override.yaml
 """
     (project_path / ".gitignore").write_text(gitignore_content)
     click.echo(f"  CREATE {project_path / '.gitignore'}")
-    
+
     if console:
         console.print("\n[bold green]Project initialized successfully![/bold green]")
-        console.print(f"\nNext steps:")
+        console.print("\nNext steps:")
         console.print(f"  1. cd {project_path if path != '.' else name}")
-        console.print(f"  2. Review and edit [bold cyan]sagas/example_saga.py[/bold cyan]")
-        console.print(f"  3. Run [bold cyan]sagaz validate[/bold cyan] to validate your sagas")
-        console.print(f"  4. Run [bold cyan]sagaz setup[/bold cyan] to configure deployment")
+        console.print("  2. Review and edit [bold cyan]sagas/example_saga.py[/bold cyan]")
+        console.print("  3. Run [bold cyan]sagaz validate[/bold cyan] to validate your sagas")
+        console.print("  4. Run [bold cyan]sagaz setup[/bold cyan] to configure deployment")
     else:
-        click.echo(f"\nProject initialized successfully!")
+        click.echo("\nProject initialized successfully!")
         click.echo(f"  cd {project_path if path != '.' else name}")
-        click.echo(f"  sagaz validate")
+        click.echo("  sagaz validate")
 
 
 # ============================================================================
@@ -347,27 +359,30 @@ docker-compose.override.yaml
 
 @click.command()
 def setup_cmd():
-    """
-    Setup deployment environment interactively.
-    
-    \b
-    Interactive wizard to configure:
-    - Deployment mode (local/k8s/selfhost/hybrid)
-    - OLTP storage (PostgreSQL with optional HA)
-    - Message broker (redis/rabbitmq/kafka)
-    - Outbox storage (same OLTP or separate)
-    - Observability (Prometheus/Grafana/Jaeger)
-    
-    \b
-    Example:
-        sagaz setup  # Interactive wizard
-    """
-    # Check if we're in a sagaz project
+    """Setup deployment environment interactively."""
+    _check_project_exists()
+    _display_setup_header()
+
+    config = _gather_setup_configuration()
+    _display_configuration_summary(config)
+
+    if not click.confirm("\nProceed with setup?", default=True):
+        click.echo("Aborted.")
+        return
+
+    _execute_setup(config)
+
+
+def _check_project_exists():
+    """Check if we're in a Sagaz project directory."""
     if not Path("sagaz.yaml").exists():
         click.echo("Error: Not in a Sagaz project directory.")
         click.echo("   Run 'sagaz init' first to create a project.")
         sys.exit(1)
-    
+
+
+def _display_setup_header():
+    """Display setup wizard header."""
     if console:
         console.print(
             Panel.fit(
@@ -379,143 +394,201 @@ def setup_cmd():
     else:
         click.echo("=== Sagaz Deployment Environment Setup ===\n")
 
-    # Step 1: Deployment mode
-    click.echo("\n[1/7] Select deployment mode:")
+
+def _gather_setup_configuration() -> dict:
+    """Gather configuration from user interactively."""
+    config = {}
+
+    config["mode"] = _prompt_deployment_mode()
+    config["oltp_storage"], config["with_ha"] = _prompt_oltp_storage(config["mode"])
+    config["broker"] = _prompt_message_broker()
+    config["outbox_storage"], config["separate_outbox"] = _prompt_outbox_storage()
+    config["with_metrics"] = _prompt_metrics()
+    config["with_tracing"] = _prompt_tracing()
+    config["with_logging"] = _prompt_logging()
+    config["with_benchmarks"] = _prompt_benchmarks()
+    config["dev_mode"] = _determine_dev_mode(config["oltp_storage"], config["outbox_storage"])
+    config["with_observability"] = (
+        config["with_metrics"] or config["with_tracing"] or config["with_logging"]
+    )
+
+    return config
+
+
+def _prompt_deployment_mode() -> str:
+    """Prompt for deployment mode."""
+    click.echo("\n[1/9] Select deployment mode:")
     click.echo("  1. local      - Docker Compose for development (recommended)")
     click.echo("  2. k8s        - Kubernetes for cloud-native")
     click.echo("  3. selfhost   - Systemd for on-premise servers")
     click.echo("  4. hybrid     - Local services + cloud broker")
-    
-    mode_choice = click.prompt("Choice", type=click.IntRange(1, 4), default=1)
-    mode = ["local", "k8s", "selfhost", "hybrid"][mode_choice - 1]
 
-    # Step 2: OLTP Storage
+    mode_choice = click.prompt("Choice", type=click.IntRange(1, 4), default=1)
+    return ["local", "k8s", "selfhost", "hybrid"][mode_choice - 1]
+
+
+def _prompt_oltp_storage(mode: str) -> tuple[str, bool]:
+    """Prompt for OLTP storage and HA configuration."""
     click.echo("\n[2/9] Select OLTP storage (transaction data):")
     click.echo("  1. postgresql - Production-ready RDBMS (recommended)")
     click.echo("  2. in-memory  - Fast, no persistence (dev/testing only)")
     click.echo("  3. sqlite     - Simple file-based database")
-    
+
     oltp_choice = click.prompt("Choice", type=click.IntRange(1, 3), default=1)
     oltp_storage = ["postgresql", "in-memory", "sqlite"][oltp_choice - 1]
-    
-    # Step 2b: HA for PostgreSQL
+
     with_ha = False
     if oltp_storage == "postgresql" and mode in ["k8s", "selfhost"]:
-        with_ha = click.confirm("  Enable high-availability (primary + replicas + PgBouncer)?", default=False)
-    
-    # Step 3: Message broker
+        with_ha = click.confirm(
+            "  Enable high-availability (primary + replicas + PgBouncer)?", default=False
+        )
+
+    return oltp_storage, with_ha
+
+
+def _prompt_message_broker() -> str:
+    """Prompt for message broker."""
     click.echo("\n[3/9] Select message broker:")
     click.echo("  1. redis      - Fast, simple (recommended)")
     click.echo("  2. rabbitmq   - Flexible routing, reliable")
     click.echo("  3. kafka      - High-throughput, event streaming")
-    
+
     broker_choice = click.prompt("Choice", type=click.IntRange(1, 3), default=1)
-    broker = ["redis", "rabbitmq", "kafka"][broker_choice - 1]
-    
-    # Step 4: Outbox storage
+    return ["redis", "rabbitmq", "kafka"][broker_choice - 1]
+
+
+def _prompt_outbox_storage() -> tuple[str, bool]:
+    """Prompt for outbox storage."""
     click.echo("\n[4/9] Select outbox storage (for reliable messaging):")
     click.echo("  1. same       - Use same database as OLTP (simplest)")
     click.echo("  2. postgresql - Separate PostgreSQL database")
     click.echo("  3. in-memory  - No persistence (dev/testing only)")
-    
+
     outbox_choice = click.prompt("Choice", type=click.IntRange(1, 3), default=1)
     outbox_storage = ["same", "postgresql", "in-memory"][outbox_choice - 1]
-    separate_outbox = (outbox_storage != "same")
-    
-    # Step 5: Observability - Metrics
-    click.echo("\n[5/9] Observability - Metrics:")
-    with_metrics = click.confirm("  Include Prometheus + Grafana for metrics?", default=True)
-    
-    # Step 6: Observability - Tracing
-    click.echo("\n[6/9] Observability - Tracing:")
-    with_tracing = click.confirm("  Include Jaeger for distributed tracing?", default=True)
-    
-    # Step 7: Observability - Logging
-    click.echo("\n[7/9] Observability - Logging:")
-    with_logging = click.confirm("  Include Loki + Promtail for log aggregation?", default=True)
-    
-    # Step 8: Benchmarks
-    click.echo("\n[8/9] Benchmarks:")
-    with_benchmarks = click.confirm("  Include benchmark configuration?", default=False)
-    
-    # Step 9: Development mode
-    click.echo("\n[9/9] Development mode:")
-    dev_mode = False
-    if oltp_storage == "in-memory" or outbox_storage == "in-memory":
-        dev_mode = True
-        click.echo("  [yellow]⚠ In-memory storage detected - enabling development mode[/yellow]")
-    else:
-        dev_mode = click.confirm("  Enable in-memory mode (no external dependencies)?", default=False)
+    separate_outbox = outbox_storage != "same"
 
-    # Summary
-    with_observability = with_metrics or with_tracing or with_logging
-    
+    return outbox_storage, separate_outbox
+
+
+def _prompt_metrics() -> bool:
+    """Prompt for metrics observability."""
+    click.echo("\n[5/9] Observability - Metrics:")
+    return click.confirm("  Include Prometheus + Grafana for metrics?", default=True)
+
+
+def _prompt_tracing() -> bool:
+    """Prompt for tracing observability."""
+    click.echo("\n[6/9] Observability - Tracing:")
+    return click.confirm("  Include Jaeger for distributed tracing?", default=True)
+
+
+def _prompt_logging() -> bool:
+    """Prompt for logging observability."""
+    click.echo("\n[7/9] Observability - Logging:")
+    return click.confirm("  Include Loki + Promtail for log aggregation?", default=True)
+
+
+def _prompt_benchmarks() -> bool:
+    """Prompt for benchmarks."""
+    click.echo("\n[8/9] Benchmarks:")
+    return click.confirm("  Include benchmark configuration?", default=False)
+
+
+def _determine_dev_mode(oltp_storage: str, outbox_storage: str) -> bool:
+    """Determine if development mode should be enabled."""
+    click.echo("\n[9/9] Development mode:")
+    if oltp_storage == "in-memory" or outbox_storage == "in-memory":
+        click.echo("  [yellow]⚠ In-memory storage detected - enabling development mode[/yellow]")
+        return True
+    return click.confirm("  Enable in-memory mode (no external dependencies)?", default=False)
+
+
+def _display_configuration_summary(config: dict):
+    """Display configuration summary."""
+    storage_label = config["oltp_storage"]
+    if config["oltp_storage"] == "postgresql" and config["with_ha"]:
+        storage_label = "postgresql (HA)"
+
+    outbox_label = config["outbox_storage"]
+    if config["outbox_storage"] == "same":
+        outbox_label = f"same as OLTP ({config['oltp_storage']})"
+
     if console:
-        storage_label = oltp_storage
-        if oltp_storage == "postgresql" and with_ha:
-            storage_label = "postgresql (HA)"
-        
-        outbox_label = outbox_storage if outbox_storage != "same" else f"same as OLTP ({oltp_storage})"
-        
         console.print(
             f"\n[bold green]Configuration Summary:[/bold green]\n"
-            f"  Mode: [cyan]{mode}[/cyan]\n"
+            f"  Mode: [cyan]{config['mode']}[/cyan]\n"
             f"  OLTP Storage: [yellow]{storage_label}[/yellow]\n"
-            f"  Broker: [yellow]{broker}[/yellow]\n"
+            f"  Broker: [yellow]{config['broker']}[/yellow]\n"
             f"  Outbox Storage: [yellow]{outbox_label}[/yellow]\n"
-            f"  Metrics: {'[green]Yes[/green]' if with_metrics else '[dim]No[/dim]'}\n"
-            f"  Tracing: {'[green]Yes[/green]' if with_tracing else '[dim]No[/dim]'}\n"
-            f"  Logging: {'[green]Yes[/green]' if with_logging else '[dim]No[/dim]'}\n"
-            f"  Benchmarks: {'[green]Yes[/green]' if with_benchmarks else '[dim]No[/dim]'}\n"
-            f"  Dev Mode: {'[yellow]Yes[/yellow]' if dev_mode else '[dim]No[/dim]'}"
+            f"  Metrics: {'[green]Yes[/green]' if config['with_metrics'] else '[dim]No[/dim]'}\n"
+            f"  Tracing: {'[green]Yes[/green]' if config['with_tracing'] else '[dim]No[/dim]'}\n"
+            f"  Logging: {'[green]Yes[/green]' if config['with_logging'] else '[dim]No[/dim]'}\n"
+            f"  Benchmarks: {'[green]Yes[/green]' if config['with_benchmarks'] else '[dim]No[/dim]'}\n"
+            f"  Dev Mode: {'[yellow]Yes[/yellow]' if config['dev_mode'] else '[dim]No[/dim]'}"
         )
     else:
         click.echo(
-            f"\nConfiguration: mode={mode}, oltp={oltp_storage}, "
-            f"outbox={outbox_storage}, broker={broker}, "
-            f"observability={with_observability}, dev_mode={dev_mode}"
+            f"\nConfiguration: mode={config['mode']}, oltp={config['oltp_storage']}, "
+            f"outbox={config['outbox_storage']}, broker={config['broker']}, "
+            f"observability={config['with_observability']}, dev_mode={config['dev_mode']}"
         )
 
-    if not click.confirm("\nProceed with setup?", default=True):
-        click.echo("Aborted.")
-        return
 
-    # Execute initialization
+def _execute_setup(config: dict):
+    """Execute setup based on configuration."""
+    mode = config["mode"]
+
     if mode == "local":
         _init_local(
-            broker, 
-            with_observability, 
-            with_ha, 
-            separate_outbox, 
-            oltp_storage,
-            outbox_storage,
-            dev_mode
+            config["broker"],
+            config["with_observability"],
+            config["with_ha"],
+            config["separate_outbox"],
+            config["oltp_storage"],
+            config["outbox_storage"],
+            config["dev_mode"],
         )
     elif mode == "selfhost":
-        _init_selfhost(broker, with_observability, separate_outbox, oltp_storage, outbox_storage)
+        _init_selfhost(
+            config["broker"],
+            config["with_observability"],
+            config["separate_outbox"],
+            config["oltp_storage"],
+            config["outbox_storage"],
+        )
     elif mode == "k8s":
-        _init_k8s(with_observability, with_benchmarks, with_ha, separate_outbox, oltp_storage, outbox_storage)
+        _init_k8s(
+            config["with_observability"],
+            config["with_benchmarks"],
+            config["with_ha"],
+            config["separate_outbox"],
+            config["oltp_storage"],
+            config["outbox_storage"],
+        )
     elif mode == "hybrid":
-        _init_hybrid(broker, oltp_storage, outbox_storage)
+        _init_hybrid(config["broker"], config["oltp_storage"], config["outbox_storage"])
 
-    if with_benchmarks and mode not in ["k8s"]:
+    if config["with_benchmarks"] and mode not in ["k8s"]:
         _init_benchmarks()
 
 
 def _init_local(
-    broker: str, 
-    with_observability: bool, 
-    with_ha: bool = False, 
+    broker: str,
+    with_observability: bool,
+    with_ha: bool = False,
     separate_outbox: bool = False,
     oltp_storage: str = "postgresql",
     outbox_storage: str = "same",
-    dev_mode: bool = False
+    dev_mode: bool = False,
 ):
     """Create local Docker Compose setup."""
     _log_local_init_start(broker, with_ha, oltp_storage, dev_mode)
 
     # 1. Create docker-compose.yaml
-    _init_docker_compose(broker, with_ha, with_observability, separate_outbox, oltp_storage, outbox_storage, dev_mode)
+    _init_docker_compose(
+        broker, with_ha, with_observability, separate_outbox, oltp_storage, outbox_storage, dev_mode
+    )
 
     # 2. Copy monitoring folder if enabled
     if with_observability:
@@ -528,7 +601,7 @@ def _log_local_init_start(broker: str, with_ha: bool, oltp_storage: str, dev_mod
     """Log the start of local initialization."""
     if not console:
         return
-    
+
     if dev_mode:
         console.print(
             "Creating [bold yellow]in-memory development[/bold yellow] environment (no external dependencies)..."
@@ -544,13 +617,13 @@ def _log_local_init_start(broker: str, with_ha: bool, oltp_storage: str, dev_mod
 
 
 def _init_docker_compose(
-    broker: str, 
-    with_ha: bool, 
-    with_observability: bool = True, 
+    broker: str,
+    with_ha: bool,
+    with_observability: bool = True,
     separate_outbox: bool = False,
     oltp_storage: str = "postgresql",
     outbox_storage: str = "same",
-    dev_mode: bool = False
+    dev_mode: bool = False,
 ):
     """Initialize docker-compose.yaml with optional overwrite confirmation."""
     target = "docker-compose.yaml"
@@ -559,17 +632,19 @@ def _init_docker_compose(
         click.echo(f"Skipping {target}")
         return
 
-    _copy_docker_compose_files(broker, with_ha, with_observability, separate_outbox, oltp_storage, outbox_storage, dev_mode)
+    _copy_docker_compose_files(
+        broker, with_ha, with_observability, separate_outbox, oltp_storage, outbox_storage, dev_mode
+    )
 
 
 def _copy_docker_compose_files(
-    broker: str, 
-    with_ha: bool, 
-    with_observability: bool = True, 
+    broker: str,
+    with_ha: bool,
+    with_observability: bool = True,
     separate_outbox: bool = False,
     oltp_storage: str = "postgresql",
     outbox_storage: str = "same",
-    dev_mode: bool = False
+    dev_mode: bool = False,
 ):
     """Copy the appropriate docker-compose files."""
     if dev_mode:
@@ -581,31 +656,50 @@ def _copy_docker_compose_files(
         _copy_dir_resource("local/postgres-ha/partitioning", "partitioning")
     else:
         _copy_resource(f"local/{broker}/docker-compose.yaml", "docker-compose.yaml")
-    
+
     # TODO: Add observability services to docker-compose if with_observability
     # TODO: Add separate outbox database if separate_outbox
 
 
+def _get_broker_config(broker: str) -> tuple[str, int, str]:
+    """Get broker-specific Docker configuration."""
+    configs = {
+        "redis": ("redis:7-alpine", 6379, "ALLOW_ANONYMOUS_LOGIN: 'yes'"),
+        "rabbitmq": (
+            "rabbitmq:3-management",
+            5672,
+            "RABBITMQ_DEFAULT_USER: sagaz\n      RABBITMQ_DEFAULT_PASS: sagaz",
+        ),
+        "kafka": (
+            "confluentinc/cp-kafka:latest",
+            9092,
+            "KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092\n      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181",
+        ),
+    }
+    return configs.get(broker, configs["redis"])
+
+
 def _create_inmemory_docker_compose(broker: str):
     """Create a minimal docker-compose for in-memory development."""
+    image, port, env_config = _get_broker_config(broker)
+
     content = f"""version: '3.8'
 
 services:
   # Message broker only - everything else runs in-memory
   {broker}:
-    image: {"redis:7-alpine" if broker == "redis" else "rabbitmq:3-management" if broker == "rabbitmq" else "confluentinc/cp-kafka:latest"}
+    image: {image}
     ports:
-      - "{6379 if broker == 'redis' else 5672 if broker == 'rabbitmq' else 9092}:{6379 if broker == 'redis' else 5672 if broker == 'rabbitmq' else 9092}"
+      - "{port}:{port}"
     environment:
-      {"ALLOW_ANONYMOUS_LOGIN: 'yes'" if broker == 'redis' else "RABBITMQ_DEFAULT_USER: sagaz" if broker == 'rabbitmq' else "KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092"}
-      {"" if broker == 'redis' else "RABBITMQ_DEFAULT_PASS: sagaz" if broker == 'rabbitmq' else "KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181"}
+      {env_config}
 
 networks:
   sagaz:
     driver: bridge
 """
     Path("docker-compose.yaml").write_text(content)
-    click.echo(f"  CREATE docker-compose.yaml")
+    click.echo("  CREATE docker-compose.yaml")
 
 
 def _init_monitoring(broker: str, with_ha: bool):
@@ -622,13 +716,13 @@ def _log_local_init_complete(with_observability: bool, with_ha: bool, dev_mode: 
         return
 
     console.print("\n[bold green]Deployment setup complete![/bold green]")
-    
+
     if dev_mode:
         console.print("\n[bold yellow]Development Mode Active:[/bold yellow]")
         console.print("  - OLTP and Outbox storage run [bold]in-memory[/bold]")
         console.print("  - No data persistence between restarts")
         console.print("  - Fastest startup, ideal for testing")
-    
+
     console.print("\nNext steps:")
     console.print("  1. Run [bold cyan]sagaz dev[/bold cyan] to start the services")
     console.print("  2. Check status with [bold cyan]sagaz status[/bold cyan]")
@@ -643,11 +737,11 @@ def _log_local_init_complete(with_observability: bool, with_ha: bool, dev_mode: 
 
 
 def _init_selfhost(
-    broker: str, 
-    with_observability: bool, 
+    broker: str,
+    with_observability: bool,
     separate_outbox: bool = False,
     oltp_storage: str = "postgresql",
-    outbox_storage: str = "same"
+    outbox_storage: str = "same",
 ):
     """Create self-hosted/on-premise server setup."""
     if console:
@@ -685,7 +779,7 @@ SAGAZ_METRICS_PORT=8000
 SAGAZ_LOG_LEVEL=INFO
 SAGAZ_LOG_JSON=true
 """
-    
+
     if with_observability:
         env_content += "SAGAZ_TRACING_ENDPOINT=http://localhost:14268/api/traces\n"
 
@@ -771,12 +865,12 @@ scrape_configs:
 
 
 def _init_k8s(
-    with_observability: bool, 
-    with_benchmarks: bool, 
-    with_ha: bool = False, 
+    with_observability: bool,
+    with_benchmarks: bool,
+    with_ha: bool = False,
     separate_outbox: bool = False,
     oltp_storage: str = "postgresql",
-    outbox_storage: str = "same"
+    outbox_storage: str = "same",
 ):
     """Copy Kubernetes manifests from the library to the current directory."""
     _log_k8s_init_start(with_ha, oltp_storage)
@@ -798,7 +892,9 @@ def _log_k8s_init_start(with_ha: bool, oltp_storage: str):
     if not console:
         return
     ha_msg = " with [bold yellow]HA PostgreSQL[/bold yellow]" if with_ha else ""
-    console.print(f"Copying Kubernetes manifests{ha_msg} (storage: [bold cyan]{oltp_storage}[/bold cyan]) to [bold cyan]./k8s[/bold cyan]...")
+    console.print(
+        f"Copying Kubernetes manifests{ha_msg} (storage: [bold cyan]{oltp_storage}[/bold cyan]) to [bold cyan]./k8s[/bold cyan]..."
+    )
 
 
 def _prepare_k8s_directory() -> bool:
@@ -814,7 +910,9 @@ def _prepare_k8s_directory() -> bool:
     return True
 
 
-def _copy_k8s_manifests(with_ha: bool, separate_outbox: bool = False, oltp_storage: str = "postgresql"):
+def _copy_k8s_manifests(
+    with_ha: bool, separate_outbox: bool = False, oltp_storage: str = "postgresql"
+):
     """Copy base Kubernetes manifests."""
     if oltp_storage == "postgresql":
         if with_ha:
@@ -828,7 +926,7 @@ def _copy_k8s_manifests(with_ha: bool, separate_outbox: bool = False, oltp_stora
             _copy_resource("k8s/postgresql.yaml", "k8s/postgresql.yaml")
     elif oltp_storage == "in-memory":
         click.echo("  SKIP postgresql (using in-memory storage)")
-    
+
     # Separate outbox database if requested
     if separate_outbox:
         _copy_resource("k8s/outbox-postgresql.yaml", "k8s/outbox-postgresql.yaml")
@@ -1101,7 +1199,7 @@ def _copy_example_saga(example_template: str, target_dir: Path):
     try:
         import shutil
         from pathlib import Path
-        
+
         # Map simple name to full path
         if example_template == "simple":
             # Create simple inline example
@@ -1111,25 +1209,25 @@ def _copy_example_saga(example_template: str, target_dir: Path):
 class ExampleSaga(Saga):
     \"\"\"
     Simple example saga demonstrating basic multi-step workflow.
-    
+
     This saga shows:
     - Sequential step execution with dependencies
     - Context passing between steps
     - Compensation handlers for rollback
     \"\"\"
-    
+
     @action("initialize")
     async def initialize(self, ctx: SagaContext):
         \"\"\"Initialize the workflow.\"\"\"
         print("Initializing workflow")
         return {"initialized": True}
-    
+
     @action("process", depends_on=["initialize"])
     async def process(self, ctx: SagaContext):
         \"\"\"Main processing step.\"\"\"
         print("Processing data")
         return {"processed": True}
-    
+
     @action("finalize", depends_on=["process"])
     async def finalize(self, ctx: SagaContext):
         \"\"\"Finalize the workflow.\"\"\"
@@ -1139,27 +1237,27 @@ class ExampleSaga(Saga):
             (target_dir / "example_saga.py").write_text(simple_content)
             click.echo(f"  CREATE {target_dir / 'example_saga.py'}")
             return
-        
+
         # Try to copy from package examples
         source_path = pkg_resources.files("sagaz.examples").joinpath(example_template)
-        
+
         # Copy main.py if it exists
         try:
             main_py = source_path.joinpath("main.py")
             content = main_py.read_text()
-            
+
             # Extract saga class name from path for filename
             saga_filename = example_template.split("/")[-1] + "_saga.py"
             (target_dir / saga_filename).write_text(content)
             click.echo(f"  CREATE {target_dir / saga_filename}")
         except Exception:
             click.echo(f"  WARNING: Could not copy example '{example_template}'")
-            click.echo(f"           Creating simple example instead")
+            click.echo("           Creating simple example instead")
             _copy_example_saga("simple", target_dir)
-            
+
     except Exception as e:
         click.echo(f"  ERROR: {e}")
-        click.echo(f"  Creating empty project")
+        click.echo("  Creating empty project")
 
 
 def _copy_dir_resource(resource_dir: str, target_dir: str) -> None:

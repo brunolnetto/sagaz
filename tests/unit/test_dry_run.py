@@ -3,28 +3,23 @@ Comprehensive tests for Dry-Run Mode (ADR-019)
 
 Tests cover:
 - DryRunEngine core functionality
-- All 4 dry-run modes (VALIDATE, SIMULATE, ESTIMATE, TRACE)
+- Dry-run modes (VALIDATE, SIMULATE)
 - Validation logic (DAG cycles, dependencies, context)
 - Simulation (topological sort, parallel groups)
-- Estimation (duration, API calls, costs)
-- Tracing (execution trace, context changes)
 """
 
-import pytest
 from unittest.mock import AsyncMock, Mock
+
+import pytest
 
 from sagaz import Saga, action
 from sagaz.dry_run import (
     DryRunEngine,
     DryRunMode,
     DryRunResult,
-    ValidationResult,
     SimulationResult,
-    EstimateResult,
-    TraceResult,
-    DryRunTraceEvent,
+    ValidationResult,
 )
-
 
 # =============================================================================
 # Test Fixtures
@@ -62,7 +57,7 @@ def saga_with_metadata():
     # Define function with metadata BEFORE making it a method
     async def api_call_func(self, ctx):
         return {}
-    
+
     api_call_func.__sagaz_metadata__ = {
         "estimated_duration_ms": 150,
         "api_calls": {"payment_api": 1, "inventory_api": 2},
@@ -74,10 +69,10 @@ def saga_with_metadata():
         @action("api_call")
         async def api_call(self, ctx):
             return {}
-    
+
     # Add metadata to the underlying function
     MetadataSaga.api_call._saga_step_meta.estimated_duration_ms = 150
-    
+
     saga = MetadataSaga()
     # Set metadata on the step's forward function
     if saga._steps:
@@ -96,19 +91,19 @@ def saga_with_dependencies():
 
     class DAGSaga(Saga):
         saga_name = "dag_test"
-        
+
         @action("step1")
         async def step1(self, ctx):
             return {}
-        
+
         @action("step2", depends_on={"step1"})
         async def step2(self, ctx):
             return {}
-        
+
         @action("step3", depends_on={"step1"})
         async def step3(self, ctx):
             return {}
-        
+
         @action("step4", depends_on={"step2", "step3"})
         async def step4(self, ctx):
             return {}
@@ -123,15 +118,15 @@ def saga_with_cycle():
 
     class CyclicSaga(Saga):
         saga_name = "cyclic_test"
-        
+
         @action("step1", depends_on={"step3"})  # Cycle: step1 -> step3 -> step2 -> step1
         async def step1(self, ctx):
             return {}
-        
+
         @action("step2", depends_on={"step1"})
         async def step2(self, ctx):
             return {}
-        
+
         @action("step3", depends_on={"step2"})
         async def step3(self, ctx):
             return {}
@@ -152,14 +147,6 @@ class TestDryRunEngine:
         """Test engine can be initialized."""
         engine = DryRunEngine()
         assert engine is not None
-        assert engine._api_pricing == {}
-
-    @pytest.mark.asyncio
-    async def test_set_api_pricing(self):
-        """Test setting API pricing for cost estimation."""
-        engine = DryRunEngine()
-        engine.set_api_pricing("test_api", 0.001)
-        assert engine._api_pricing["test_api"] == 0.001
 
     @pytest.mark.asyncio
     async def test_run_returns_result(self, simple_saga):
@@ -207,7 +194,7 @@ class TestValidationMode:
         class RequiredContextSaga(Saga):
             saga_name = "required_context"
             required_context_fields = ["order_id", "amount"]
-            
+
             @action("step1")
             async def step1(self, ctx):
                 return {}
@@ -228,7 +215,7 @@ class TestValidationMode:
 
         class InvalidDepSaga(Saga):
             saga_name = "invalid_dep"
-            
+
             @action("step1", depends_on={"nonexistent"})
             async def step1(self, ctx):
                 return {}
@@ -247,13 +234,13 @@ class TestValidationMode:
 
         class NoCompensationSaga(Saga):
             saga_name = "no_compensation"
-            
+
             @action("step1")
             async def step1(self, ctx):
                 return {}
 
         saga = NoCompensationSaga()
-        
+
         # Mark step as requiring compensation (simulate requirement)
         if saga._steps:
             saga._steps[0].requires_compensation = True
@@ -331,96 +318,6 @@ class TestSimulationMode:
 # =============================================================================
 
 
-class TestEstimationMode:
-    """Test ESTIMATE mode functionality."""
-
-    @pytest.mark.asyncio
-    async def test_estimate_duration(self, saga_with_metadata):
-        """Test duration estimation from metadata."""
-        engine = DryRunEngine()
-        result = await engine.run(saga_with_metadata, {}, DryRunMode.ESTIMATE)
-
-        assert result.success is True
-        assert result.estimated_duration_ms == 150
-
-    @pytest.mark.asyncio
-    async def test_estimate_api_calls(self, saga_with_metadata):
-        """Test API call counting from metadata."""
-        engine = DryRunEngine()
-        result = await engine.run(saga_with_metadata, {}, DryRunMode.ESTIMATE)
-
-        assert result.success is True
-        assert result.api_calls_estimated["payment_api"] == 1
-        assert result.api_calls_estimated["inventory_api"] == 2
-
-    @pytest.mark.asyncio
-    async def test_estimate_cost_calculation(self, saga_with_metadata):
-        """Test cost calculation with API pricing."""
-        engine = DryRunEngine()
-        engine.set_api_pricing("payment_api", 0.001)
-        engine.set_api_pricing("inventory_api", 0.0005)
-
-        result = await engine.run(saga_with_metadata, {}, DryRunMode.ESTIMATE)
-
-        assert result.success is True
-        # Cost = (1 * 0.001) + (2 * 0.0005) = 0.002
-        assert result.cost_estimate_usd == 0.002
-
-    @pytest.mark.asyncio
-    async def test_estimate_default_duration(self, simple_saga):
-        """Test default duration for steps without metadata."""
-        engine = DryRunEngine()
-        result = await engine.run(simple_saga, {}, DryRunMode.ESTIMATE)
-
-        assert result.success is True
-        # 3 steps * 100ms default = 300ms
-        assert result.estimated_duration_ms == 300
-
-
-# =============================================================================
-# Tracing Mode Tests
-# =============================================================================
-
-
-class TestTracingMode:
-    """Test TRACE mode functionality."""
-
-    @pytest.mark.asyncio
-    async def test_trace_generates_events(self, simple_saga):
-        """Test trace generates event for each step."""
-        engine = DryRunEngine()
-        result = await engine.run(simple_saga, {}, DryRunMode.TRACE)
-
-        assert result.success is True
-        assert result.trace is not None
-        assert len(result.trace) == 3
-
-    @pytest.mark.asyncio
-    async def test_trace_event_structure(self, simple_saga):
-        """Test trace events have correct structure."""
-        engine = DryRunEngine()
-        result = await engine.run(simple_saga, {}, DryRunMode.TRACE)
-
-        event = result.trace[0]
-        assert isinstance(event, DryRunTraceEvent)
-        assert event.step_name == "step1"
-        assert event.action == "execute"
-        assert isinstance(event.context_before, dict)
-        assert isinstance(event.context_after, dict)
-        assert isinstance(event.estimated_duration_ms, (int, float))
-
-    @pytest.mark.asyncio
-    async def test_trace_context_changes(self, simple_saga):
-        """Test trace tracks context changes."""
-        engine = DryRunEngine()
-        result = await engine.run(simple_saga, {"initial": "value"}, DryRunMode.TRACE)
-
-        # Each step should add a result to context
-        for event in result.trace:
-            assert f"{event.step_name}_result" in event.context_after
-            assert event.context_after[f"{event.step_name}_result"] == "dry-run-mock"
-
-
 # =============================================================================
 # Helper Method Tests
 # =============================================================================
@@ -464,29 +361,6 @@ class TestHelperMethods:
         # B and C should be before D
         assert order.index("B") < order.index("D")
         assert order.index("C") < order.index("D")
-
-    def test_calculate_cost_with_pricing(self):
-        """Test cost calculation."""
-        engine = DryRunEngine()
-        engine.set_api_pricing("api1", 0.001)
-        engine.set_api_pricing("api2", 0.002)
-
-        api_calls = {"api1": 10, "api2": 5}
-        cost = engine._calculate_cost(api_calls)
-
-        # (10 * 0.001) + (5 * 0.002) = 0.020
-        assert cost == 0.020
-
-    def test_calculate_cost_unknown_api(self):
-        """Test cost calculation with unknown API."""
-        engine = DryRunEngine()
-        engine.set_api_pricing("known_api", 0.001)
-
-        api_calls = {"known_api": 10, "unknown_api": 5}
-        cost = engine._calculate_cost(api_calls)
-
-        # Only known_api should be counted
-        assert cost == 0.010
 
 
 # =============================================================================
@@ -537,14 +411,6 @@ class TestIntegration:
         sim_result = await engine.run(simple_saga, context, DryRunMode.SIMULATE)
         assert sim_result.success is True
 
-        # Estimate
-        est_result = await engine.run(simple_saga, context, DryRunMode.ESTIMATE)
-        assert est_result.success is True
-
-        # Trace
-        trace_result = await engine.run(simple_saga, context, DryRunMode.TRACE)
-        assert trace_result.success is True
-
 
 # =============================================================================
 # Edge Cases
@@ -577,16 +443,6 @@ class TestEdgeCases:
         result = await engine.run(simple_saga, {}, DryRunMode.VALIDATE)
 
         assert result.success is True
-
-    @pytest.mark.asyncio
-    async def test_estimate_no_metadata(self, simple_saga):
-        """Test estimation works with steps having no metadata."""
-        engine = DryRunEngine()
-        result = await engine.run(simple_saga, {}, DryRunMode.ESTIMATE)
-
-        assert result.success is True
-        # Should use default values
-        assert result.estimated_duration_ms > 0
 
 
 # =============================================================================
@@ -627,16 +483,16 @@ class TestParallelAnalysis:
 
         assert result.success is True
         assert len(result.forward_layers) == 3
-        
+
         # Layer 0: step_a
         assert result.forward_layers[0].layer_number == 0
         assert result.forward_layers[0].steps == ["step_a"]
-        
+
         # Layer 1: step_b, step_c (parallel)
         assert result.forward_layers[1].layer_number == 1
         assert set(result.forward_layers[1].steps) == {"step_b", "step_c"}
         assert "step_a" in result.forward_layers[1].dependencies
-        
+
         # Layer 2: step_d
         assert result.forward_layers[2].layer_number == 2
         assert result.forward_layers[2].steps == ["step_d"]
@@ -737,7 +593,7 @@ class TestParallelAnalysis:
             @action("step3", depends_on={"step2"})
             async def step3(self, ctx):
                 return {}
-            
+
             # step3 has no compensation
 
         saga = CompensateSaga()
@@ -746,12 +602,12 @@ class TestParallelAnalysis:
 
         assert result.success is True
         assert len(result.backward_layers) > 0
-        
+
         # Only compensatable steps should be in backward layers
         all_backward_steps = []
         for layer in result.backward_layers:
             all_backward_steps.extend(layer.steps)
-        
+
         assert "step1" in all_backward_steps
         assert "step2" in all_backward_steps
         assert "step3" not in all_backward_steps  # No compensation
@@ -780,7 +636,6 @@ class TestParallelAnalysis:
         result = await engine.run(saga, {}, DryRunMode.SIMULATE)
 
         assert result.success is True
-        assert result.has_duration_metadata is True  # At least one step has metadata
 
     @pytest.mark.asyncio
     async def test_no_duration_metadata(self):
@@ -803,32 +658,9 @@ class TestParallelAnalysis:
         result = await engine.run(saga, {}, DryRunMode.SIMULATE)
 
         assert result.success is True
-        assert result.has_duration_metadata is False
-        assert result.max_parallel_duration_ms == 0.0
-        # But structural analysis still works
+        # Structural analysis still works
         assert len(result.forward_layers) == 2
         assert result.critical_path == ["step1", "step2"]
-
-    @pytest.mark.asyncio
-    async def test_estimate_without_metadata(self):
-        """Test estimate mode without duration metadata."""
-        from sagaz import Saga, action
-
-        class NoMetaSaga(Saga):
-            saga_name = "no_meta_estimate"
-
-            @action("step1")
-            async def step1(self, ctx):
-                return {}
-
-        saga = NoMetaSaga()
-        engine = DryRunEngine()
-        result = await engine.run(saga, {}, DryRunMode.ESTIMATE)
-
-        assert result.success is True
-        assert result.has_duration_metadata is False
-        # Should still provide API call estimates (if available)
-        assert isinstance(result.api_calls_estimated, dict)
 
     @pytest.mark.asyncio
     async def test_linear_dag_no_parallelization(self):

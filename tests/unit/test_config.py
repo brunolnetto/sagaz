@@ -217,13 +217,13 @@ class TestSagaConfigFromEnv:
     def test_from_env_default(self):
         """Test from_env with no environment variables."""
         with patch.dict(os.environ, {}, clear=True):
-            config = SagaConfig.from_env()
+            config = SagaConfig.from_env(load_dotenv=False)
 
-        assert isinstance(config.storage, InMemorySagaStorage)
-        assert config.broker is None
-        assert config.metrics is True
-        assert config.logging is True
-        assert config.tracing is False
+            assert isinstance(config.storage, InMemorySagaStorage)
+            assert config.broker is None
+            assert config.metrics is True
+            assert config.logging is True
+            assert config.tracing is False
 
     def test_from_env_memory_storage(self):
         """Test from_env with memory:// storage URL."""

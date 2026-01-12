@@ -25,12 +25,12 @@ def sample_project(tmp_path):
     """Create a sample project structure for testing."""
     project_dir = tmp_path / "my_saga_project"
     project_dir.mkdir()
-    
+
     # Create directories
     (project_dir / "sagas").mkdir()
     (project_dir / "tests").mkdir()
     (project_dir / ".sagaz").mkdir()
-    
+
     # Create sagaz.yaml
     sagaz_yaml = """name: my_saga_project
 version: "0.1.0"
@@ -44,7 +44,7 @@ config:
   failure_strategy: FAIL_FAST_WITH_GRACE
 """
     (project_dir / "sagaz.yaml").write_text(sagaz_yaml)
-    
+
     # Create example saga
     example_saga = """from sagaz import Saga, action, SagaContext
 
@@ -58,7 +58,7 @@ class ExampleSaga(Saga):
         return {"result": "success"}
 """
     (project_dir / "sagas" / "example.py").write_text(example_saga)
-    
+
     return project_dir
 
 

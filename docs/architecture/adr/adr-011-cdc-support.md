@@ -131,48 +131,206 @@ Create Debezium connector configuration:
 }
 ```
 
-### Phase 3: CDC Worker (Alternative to Polling)
+### Phase 3: Extend Existing OutboxWorker with CDC Mode
+
+Instead of creating a separate worker, extend the existing `OutboxWorker` with a `mode` parameter:
 
 ```python
-class CDCOutboxWorker:
+from enum import Enum
+
+class WorkerMode(Enum):
+    """Outbox worker operation mode."""
+    POLLING = "polling"  # Traditional database polling
+    CDC = "cdc"          # Change Data Capture stream consumption
+
+class OutboxWorker:
     """
-    CDC-based outbox worker.
+    Unified outbox worker supporting both polling and CDC modes.
     
-    Instead of polling the database, consumes CDC events from Kafka.
+    Polling mode: Polls database for pending events (traditional)
+    CDC mode: Consumes CDC events from stream (high-throughput)
     """
     
     def __init__(
         self,
-        cdc_consumer: KafkaConsumer,
+        storage: OutboxStorage,
         broker: MessageBroker,
-        inbox_storage: Optional[ConsumerInbox] = None,
+        config: OutboxConfig | None = None,
+        worker_id: str | None = None,
+        mode: WorkerMode = WorkerMode.POLLING,
+        cdc_consumer: Optional[Any] = None,  # Kafka/Redis consumer for CDC mode
+        on_event_published: Callable[[OutboxEvent], Awaitable[None]] | None = None,
+        on_event_failed: Callable[[OutboxEvent, Exception], Awaitable[None]] | None = None,
     ):
-        self.cdc_consumer = cdc_consumer
+        """
+        Initialize the outbox worker.
+
+        Args:
+            storage: Outbox storage (used in polling mode)
+            broker: Target message broker for publishing
+            config: Worker configuration
+            worker_id: Unique worker identifier
+            mode: POLLING (default) or CDC
+            cdc_consumer: Consumer for CDC events (required if mode=CDC)
+            on_event_published: Success callback
+            on_event_failed: Failure callback
+        """
+        self.storage = storage
         self.broker = broker
-        self.inbox_storage = inbox_storage
+        self.config = config or OutboxConfig()
+        self.worker_id = worker_id or f"worker-{uuid.uuid4().hex[:8]}"
+        self.mode = mode
+        self.cdc_consumer = cdc_consumer
+        
+        # Validate CDC mode requirements
+        if self.mode == WorkerMode.CDC and not self.cdc_consumer:
+            raise ValueError("cdc_consumer required when mode=CDC")
+        
+        self._state_machine = OutboxStateMachine(max_retries=self.config.max_retries)
+        self._running = False
+        self._shutdown_event = asyncio.Event()
+        
+        self._on_event_published = on_event_published
+        self._on_event_failed = on_event_failed
+        
+        # Metrics
+        self._events_processed = 0
+        self._events_failed = 0
+        self._events_dead_lettered = 0
     
-    async def process_cdc_event(self, cdc_event: dict):
-        """Process a CDC event from Debezium."""
-        # Extract outbox event from CDC payload
-        event = self._parse_cdc_event(cdc_event)
-        
-        # Idempotency check (optional, for exactly-once)
-        if self.inbox_storage:
-            if await self.inbox_storage.exists(event.event_id):
-                return  # Already processed
-        
-        # Publish to target broker
-        await self.broker.publish_event(event)
-        
-        # Mark as processed
-        if self.inbox_storage:
-            await self.inbox_storage.mark_processed(event.event_id)
+    async def _run_processing_loop(self) -> None:
+        """Main processing loop - delegates to mode-specific implementation."""
+        if self.mode == WorkerMode.POLLING:
+            await self._run_polling_loop()
+        else:
+            await self._run_cdc_loop()
     
-    async def run(self):
-        """Main processing loop."""
-        async for message in self.cdc_consumer:
-            await self.process_cdc_event(message.value)
+    async def _run_polling_loop(self) -> None:
+        """Polling mode: Traditional database polling (existing logic)."""
+        while self._running:
+            should_break = await self._process_iteration()
+            if should_break:
+                break
+    
+    async def _run_cdc_loop(self) -> None:
+        """CDC mode: Consume events from CDC stream."""
+        logger.info(f"Worker {self.worker_id} running in CDC mode")
+        
+        try:
+            async for message in self.cdc_consumer:
+                if not self._running:
+                    break
+                
+                await self._process_cdc_message(message)
+                
+        except asyncio.CancelledError:
+            logger.info(f"CDC worker {self.worker_id} cancelled")
+    
+    async def _process_cdc_message(self, message: Any) -> None:
+        """
+        Process a single CDC message from Debezium.
+        
+        CDC message format (Debezium outbox transform):
+        {
+            "id": "event-uuid",
+            "aggregateType": "order",
+            "aggregateId": "ORD-123",
+            "type": "OrderCreated",
+            "payload": {"order_id": "ORD-123", ...},
+            "timestamp": 1704067200000
+        }
+        """
+        try:
+            # Parse CDC event into OutboxEvent
+            event = self._parse_cdc_event(message)
+            
+            # Process the event (same logic as polling mode)
+            await self._process_event(event)
+            
+            # Commit offset (CDC consumer)
+            await self._commit_cdc_offset(message)
+            
+        except Exception as e:
+            logger.error(f"Failed to process CDC message: {e}")
+            # CDC errors are logged but don't stop the worker
+            # Event remains in CDC stream for retry
+    
+    def _parse_cdc_event(self, message: Any) -> OutboxEvent:
+        """
+        Parse Debezium CDC message into OutboxEvent.
+        
+        Supports multiple CDC formats:
+        - Debezium outbox transform (recommended)
+        - Raw CDC change event
+        """
+        # Handle Kafka message
+        if hasattr(message, 'value'):
+            payload = message.value
+        else:
+            payload = message
+        
+        # Debezium outbox transform format
+        if isinstance(payload, dict) and 'type' in payload:
+            return OutboxEvent(
+                event_id=payload.get('id', str(uuid.uuid4())),
+                saga_id=payload.get('saga_id', payload.get('aggregateId')),
+                aggregate_type=payload.get('aggregateType', 'saga'),
+                aggregate_id=payload.get('aggregateId'),
+                event_type=payload['type'],
+                payload=payload.get('payload', {}),
+                headers=payload.get('headers', {}),
+                status=OutboxStatus.PENDING,  # CDC events are "already claimed"
+            )
+        
+        # Raw CDC format (less common)
+        raise ValueError(f"Unsupported CDC message format: {type(payload)}")
+    
+    async def _commit_cdc_offset(self, message: Any) -> None:
+        """Commit CDC consumer offset after successful processing."""
+        if hasattr(self.cdc_consumer, 'commit'):
             await self.cdc_consumer.commit()
+```
+
+### Configuration Changes
+
+Add mode configuration to `OutboxConfig`:
+
+```python
+@dataclass
+class OutboxConfig:
+    """Configuration for the outbox pattern."""
+    
+    # Existing fields...
+    batch_size: int = 100
+    poll_interval_seconds: float = 1.0
+    claim_timeout_seconds: float = 300.0
+    max_retries: int = 10
+    
+    # NEW: Worker mode
+    mode: WorkerMode = WorkerMode.POLLING
+    
+    # NEW: CDC-specific config
+    cdc_consumer_group: str = "sagaz-outbox-workers"
+    cdc_stream_name: str = "saga.outbox.events"
+    
+    @classmethod
+    def from_env(cls) -> "OutboxConfig":
+        """Create config from environment variables."""
+        import os
+        
+        # Parse mode from environment
+        mode_str = os.getenv("SAGAZ_OUTBOX_MODE", "polling").lower()
+        mode = WorkerMode.CDC if mode_str == "cdc" else WorkerMode.POLLING
+        
+        return cls(
+            batch_size=int(os.getenv("OUTBOX_BATCH_SIZE", 100)),
+            poll_interval_seconds=float(os.getenv("OUTBOX_POLL_INTERVAL", 1.0)),
+            claim_timeout_seconds=float(os.getenv("OUTBOX_CLAIM_TIMEOUT", 300.0)),
+            max_retries=int(os.getenv("OUTBOX_MAX_RETRIES", 10)),
+            mode=mode,
+            cdc_consumer_group=os.getenv("OUTBOX_CONSUMER_GROUP", "sagaz-outbox-workers"),
+            cdc_stream_name=os.getenv("OUTBOX_STREAM_NAME", "saga.outbox.events"),
+        )
 ```
 
 ### Phase 4: No Status Updates Needed
@@ -476,39 +634,93 @@ Choose the right CDC sink based on your requirements:
 
 ---
 
-## Migration Path
+## Migration Path (Using Unified Worker)
 
-### Stage 1: Parallel Running
+### Stage 1: Parallel Running (Both Modes)
 
 ```
-                    ┌─────────────────┐
-                    │   saga_outbox   │
-                    └────────┬────────┘
-                             │
-              ┌──────────────┼──────────────┐
-              │              │              │
-              ▼              ▼              ▼
-        ┌──────────┐  ┌──────────────┐  ┌─────────┐
-        │ Polling  │  │ CDC Capture  │  │ CDC     │
-        │ Workers  │  │              │  │ Workers │
-        │ (legacy) │  │              │  │ (new)   │
-        └──────────┘  └──────────────┘  └─────────┘
-                             │              │
-                             └──────────────┘
-                              Both publish to
-                              same broker topic
+                     ┌─────────────────┐
+                     │   saga_outbox   │
+                     └────────┬────────┘
+                              │
+               ┌──────────────┼──────────────┐
+               │              │              │
+               ▼              ▼              ▼
+         ┌──────────┐  ┌──────────────┐  ┌─────────────┐
+         │ Worker   │  │ CDC Capture  │  │  Worker     │
+         │ (polling)│  │  (Debezium)  │  │  (cdc mode) │
+         │ mode     │  │              │  │             │
+         └──────────┘  └──────────────┘  └─────────────┘
+                              │              │
+                              └──────────────┘
+                               Both publish to
+                               same broker topic
+```
+
+**Deployment example:**
+
+```yaml
+# Polling workers (existing)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: outbox-worker-polling
+spec:
+  replicas: 3
+  template:
+    spec:
+      containers:
+        - name: worker
+          image: sagaz/outbox-worker:latest
+          env:
+            - name: SAGAZ_OUTBOX_MODE
+              value: "polling"  # <-- Polling mode
+            - name: BATCH_SIZE
+              value: "100"
+
+---
+# CDC workers (new)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: outbox-worker-cdc
+spec:
+  replicas: 3
+  template:
+    spec:
+      containers:
+        - name: worker
+          image: sagaz/outbox-worker:latest
+          env:
+            - name: SAGAZ_OUTBOX_MODE
+              value: "cdc"  # <-- CDC mode
+            - name: OUTBOX_STREAM_NAME
+              value: "saga.outbox.events"
+            - name: OUTBOX_CONSUMER_GROUP
+              value: "sagaz-outbox-workers"
 ```
 
 ### Stage 2: Cutover
 
-1. Stop polling workers
-2. Verify CDC workers are processing
-3. Remove polling worker deployment
+1. Verify CDC workers are processing (check metrics)
+2. Gradually scale down polling workers: `kubectl scale deployment/outbox-worker-polling --replicas=0`
+3. Monitor CDC throughput and lag
 
 ### Stage 3: Cleanup
 
-1. Remove `status` column (optional)
-2. Simplify table to CDC-optimized schema
+1. Remove polling worker deployment
+2. Optionally remove `status` column (if not needed for debugging)
+3. Update monitoring dashboards
+
+### Environment Variable Reference
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SAGAZ_OUTBOX_MODE` | `polling` | Worker mode: `polling` or `cdc` |
+| `OUTBOX_STREAM_NAME` | `saga.outbox.events` | CDC stream/topic name (CDC mode only) |
+| `OUTBOX_CONSUMER_GROUP` | `sagaz-outbox-workers` | Consumer group ID (CDC mode only) |
+| `BATCH_SIZE` | `100` | Batch size (polling mode only) |
+| `POLL_INTERVAL` | `1.0` | Poll interval seconds (polling mode only) |
 
 ---
 
@@ -604,18 +816,25 @@ Update existing Grafana dashboards to include:
 
 ---
 
-## Implementation Phases
+## Implementation Phases (Updated for Unified Worker)
 
 | Phase | Scope | Effort |
 |-------|-------|--------|
 | 1. Design & ADR | This document | ✅ Done |
 | 2. Schema prep | Publication, replication slot | 2 hours |
 | 3. Debezium config | Connector JSON, K8s deployment | 4 hours |
-| 4. CDC Worker | Python consumer, processing | 8 hours |
-| 5. Testing | Integration tests, benchmarks | 8 hours |
-| 6. Documentation | Migration guide, runbooks | 4 hours |
+| 4. Extend OutboxWorker | Add CDC mode + WorkerMode enum | 6 hours |
+| 5. CDC consumer factory | Create CDC consumer from config | 4 hours |
+| 6. Testing | Integration tests, benchmarks | 8 hours |
+| 7. Documentation | Migration guide, runbooks | 4 hours |
 
-**Total estimate**: ~26 hours (3-4 days)
+**Total estimate**: ~28 hours (3-4 days)
+
+**Key changes from original plan:**
+- ✅ No separate `CDCOutboxWorker` class - extend existing worker
+- ✅ Single codebase with mode toggle
+- ✅ Same deployment tooling, just change env vars
+- ✅ Easier testing (same test harness for both modes)
 
 ---
 
@@ -630,6 +849,8 @@ For now, polling workers are sufficient for most use cases. CDC provides a clear
 - **Kafka**: Highest throughput, best replay
 - **Redis Streams**: Lowest latency, simplest setup
 - **RabbitMQ**: Flexible routing, familiar AMQP
+
+**Implementation approach**: Extend existing `OutboxWorker` with `WorkerMode` enum (POLLING | CDC). Same worker class, same deployment process, just toggle `SAGAZ_OUTBOX_MODE` environment variable.
 
 ---
 
@@ -662,3 +883,472 @@ For now, polling workers are sufficient for most use cases. CDC provides a clear
 
 ### Patterns
 - [Microservices Patterns: Transactional Outbox](https://microservices.io/patterns/data/transactional-outbox.html)
+
+---
+
+## Usage Examples (Unified Worker)
+
+### Polling Mode (Current/Default)
+
+```python
+from sagaz.outbox import OutboxWorker, WorkerMode
+from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
+from sagaz.outbox.brokers import KafkaBroker
+
+storage = PostgreSQLOutboxStorage("postgresql://localhost/db")
+broker = KafkaBroker(bootstrap_servers="localhost:9092")
+
+await storage.initialize()
+await broker.connect()
+
+# Polling mode (default)
+worker = OutboxWorker(
+    storage=storage,
+    broker=broker,
+    mode=WorkerMode.POLLING  # <-- Polling mode
+)
+
+await worker.start()  # Polls database every 1 second
+```
+
+### CDC Mode (High Throughput)
+
+```python
+from sagaz.outbox import OutboxWorker, WorkerMode
+from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
+from sagaz.outbox.brokers import KafkaBroker
+from aiokafka import AIOKafkaConsumer
+
+storage = PostgreSQLOutboxStorage("postgresql://localhost/db")
+broker = KafkaBroker(bootstrap_servers="localhost:9092")
+
+# Create CDC consumer (Kafka)
+cdc_consumer = AIOKafkaConsumer(
+    'saga.outbox.events',  # Debezium output topic
+    bootstrap_servers='localhost:9092',
+    group_id='sagaz-outbox-workers',
+    auto_offset_reset='earliest'
+)
+
+await storage.initialize()  # Still needed for metrics
+await broker.connect()
+await cdc_consumer.start()
+
+# CDC mode
+worker = OutboxWorker(
+    storage=storage,
+    broker=broker,
+    mode=WorkerMode.CDC,  # <-- CDC mode
+    cdc_consumer=cdc_consumer  # <-- CDC consumer required
+)
+
+await worker.start()  # Consumes from CDC stream
+```
+
+### Configuration from Environment
+
+```python
+from sagaz.outbox import OutboxWorker, OutboxConfig
+from sagaz.outbox.factory import create_worker_from_env
+
+# Reads SAGAZ_OUTBOX_MODE, OUTBOX_STREAM_NAME, etc.
+config = OutboxConfig.from_env()
+worker = await create_worker_from_env(config)
+
+await worker.start()
+```
+
+**Environment variables:**
+```bash
+# Polling mode
+export SAGAZ_OUTBOX_MODE=polling
+export BATCH_SIZE=100
+export POLL_INTERVAL=1.0
+
+# CDC mode
+export SAGAZ_OUTBOX_MODE=cdc
+export OUTBOX_STREAM_NAME=saga.outbox.events
+export OUTBOX_CONSUMER_GROUP=sagaz-outbox-workers
+export BROKER_TYPE=kafka
+export KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+```
+
+
+---
+
+## CLI Integration
+
+CDC should be integrated into the project initialization and extension workflow for seamless setup.
+
+### `sagaz init` - New Project Setup
+
+When initializing a new project, users can choose CDC mode:
+
+```bash
+# Interactive wizard
+$ sagaz init
+? Select outbox mode:
+  > Polling (default, simple)
+    CDC (high-throughput, requires Debezium)
+
+# Or via flags
+$ sagaz init --local --outbox-mode=polling
+$ sagaz init --local --outbox-mode=cdc --outbox-broker=kafka
+$ sagaz init --k8s --outbox-mode=cdc --outbox-broker=redis
+```
+
+**Generated files (polling mode):**
+```
+myproject/
+├── docker-compose.yml          # PostgreSQL + RabbitMQ/Kafka
+├── .env
+│   SAGAZ_OUTBOX_MODE=polling
+│   BATCH_SIZE=100
+└── k8s/
+    └── outbox-worker.yaml      # Polling worker deployment
+```
+
+**Generated files (CDC mode):**
+```
+myproject/
+├── docker-compose.yml          # PostgreSQL + Debezium + Broker
+├── debezium/
+│   └── application.properties  # Debezium Server config
+├── .env
+│   SAGAZ_OUTBOX_MODE=cdc
+│   OUTBOX_STREAM_NAME=saga.outbox.events
+└── k8s/
+    ├── debezium-server.yaml    # Debezium Server deployment
+    └── outbox-worker.yaml      # CDC worker deployment
+```
+
+### `sagaz extend` - Upgrade Existing Project
+
+Enable CDC on an existing project without breaking changes:
+
+```bash
+# Extend existing project with CDC
+$ sagaz extend --enable-outbox-cdc
+
+? Select CDC broker:
+  > Kafka
+    Redis Streams
+    RabbitMQ
+
+? Run in hybrid mode (parallel polling + CDC)?
+  > Yes (recommended for migration)
+    No (CDC only)
+
+✓ Generated debezium/application.properties
+✓ Updated docker-compose.yml (added Debezium service)
+✓ Generated k8s/debezium-server.yaml
+✓ Generated k8s/outbox-worker-cdc.yaml
+✓ Updated .env (added CDC variables)
+
+Next steps:
+  1. Review generated files
+  2. Start Debezium: docker-compose up debezium-server
+  3. Deploy CDC workers: kubectl apply -f k8s/outbox-worker-cdc.yaml
+  4. Monitor metrics: kubectl port-forward svc/prometheus 9090
+  5. Scale down polling workers when ready
+```
+
+### CLI Commands
+
+#### `sagaz init`
+
+```bash
+sagaz init [OPTIONS]
+
+Options:
+  --local              Generate Docker Compose setup (default)
+  --k8s                Generate Kubernetes manifests
+  --outbox-mode TEXT      Outbox mode: polling|cdc (default: polling)
+  --outbox-broker TEXT    CDC broker: kafka|redis|rabbitmq (required if cdc-mode=cdc)
+  --hybrid             Enable hybrid mode (polling + CDC)
+  --help               Show this message and exit
+
+Examples:
+  sagaz init --local
+  sagaz init --local --outbox-mode=cdc --outbox-broker=kafka
+  sagaz init --k8s --outbox-mode=cdc --outbox-broker=redis --hybrid
+```
+
+#### `sagaz extend`
+
+```bash
+sagaz extend [OPTIONS]
+
+Options:
+  --enable-outbox-cdc         Enable CDC on existing project
+  --outbox-broker TEXT    CDC broker: kafka|redis|rabbitmq
+  --hybrid             Run in hybrid mode (recommended)
+  --no-backup          Skip backing up existing files
+  --help               Show this message and exit
+
+Examples:
+  sagaz extend --enable-outbox-cdc --outbox-broker=kafka --hybrid
+  sagaz extend --enable-outbox-cdc --outbox-broker=redis
+```
+
+#### `sagaz status`
+
+Show current outbox mode and health:
+
+```bash
+$ sagaz status
+
+Sagaz Project Status
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Outbox Mode:       CDC (Kafka)
+Workers:           3 polling, 5 cdc (hybrid mode)
+Debezium:          ✓ Running (1 replica)
+CDC Lag:           12ms
+Pending Events:    47
+Throughput:        12,500 events/sec
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Services:
+  ✓ PostgreSQL        localhost:5432
+  ✓ Kafka             localhost:9092
+  ✓ Debezium Server   Running
+  ✓ Outbox Workers    8 running (3 polling, 5 cdc)
+  ✓ Prometheus        localhost:9090
+
+Run 'sagaz logs' to view worker logs
+```
+
+### Template Structure
+
+```
+sagaz/templates/
+├── init/
+│   ├── polling/
+│   │   ├── docker-compose.yml.j2
+│   │   ├── .env.j2
+│   │   └── k8s/
+│   │       └── outbox-worker.yaml.j2
+│   └── cdc/
+│       ├── docker-compose.yml.j2          # Includes Debezium
+│       ├── debezium/
+│       │   ├── kafka.properties.j2
+│       │   ├── redis.properties.j2
+│       │   └── rabbitmq.properties.j2
+│       ├── .env.j2
+│       └── k8s/
+│           ├── debezium-server.yaml.j2
+│           └── outbox-worker.yaml.j2
+└── extend/
+    └── cdc/
+        ├── debezium-patch.yml.j2          # Patch for docker-compose
+        ├── debezium/
+        │   └── application.properties.j2
+        └── k8s/
+            ├── debezium-server.yaml.j2
+            └── outbox-worker-cdc.yaml.j2
+```
+
+### Environment Variable Presets
+
+The CLI should generate appropriate presets:
+
+**Polling mode:**
+```env
+# Outbox Configuration
+SAGAZ_OUTBOX_MODE=polling
+BATCH_SIZE=100
+POLL_INTERVAL=1.0
+MAX_RETRIES=10
+
+# Database
+DATABASE_URL=postgresql://user:pass@localhost:5432/saga_db
+
+# Broker
+BROKER_TYPE=kafka
+KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+```
+
+**CDC mode:**
+```env
+# Outbox Configuration
+SAGAZ_OUTBOX_MODE=cdc
+OUTBOX_STREAM_NAME=saga.outbox.events
+OUTBOX_CONSUMER_GROUP=sagaz-outbox-workers
+MAX_RETRIES=10
+
+# Database
+DATABASE_URL=postgresql://user:pass@localhost:5432/saga_db
+
+# Broker (for publishing)
+BROKER_TYPE=kafka
+KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+
+# Debezium (separate service)
+DEBEZIUM_ENABLED=true
+```
+
+### Docker Compose Integration
+
+#### Polling Mode
+
+```yaml
+# docker-compose.yml
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: saga_db
+    ports:
+      - "5432:5432"
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    ports:
+      - "9092:9092"
+
+  outbox-worker:
+    image: sagaz/outbox-worker:latest
+    environment:
+      SAGAZ_OUTBOX_MODE: polling
+      BATCH_SIZE: 100
+      DATABASE_URL: postgresql://postgres@postgres:5432/saga_db
+      BROKER_TYPE: kafka
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on:
+      - postgres
+      - kafka
+```
+
+#### CDC Mode
+
+```yaml
+# docker-compose.yml
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: saga_db
+    ports:
+      - "5432:5432"
+    command:
+      - "postgres"
+      - "-c"
+      - "wal_level=logical"  # CDC requirement
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    ports:
+      - "9092:9092"
+
+  debezium-server:
+    image: quay.io/debezium/server:2.4
+    volumes:
+      - ./debezium:/debezium/conf
+    environment:
+      QUARKUS_LOG_LEVEL: INFO
+    depends_on:
+      - postgres
+      - kafka
+
+  outbox-worker:
+    image: sagaz/outbox-worker:latest
+    environment:
+      SAGAZ_OUTBOX_MODE: cdc
+      OUTBOX_STREAM_NAME: saga.outbox.events
+      OUTBOX_CONSUMER_GROUP: sagaz-outbox-workers
+      DATABASE_URL: postgresql://postgres@postgres:5432/saga_db
+      BROKER_TYPE: kafka
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on:
+      - debezium-server
+```
+
+### Migration Workflow
+
+The CLI should guide users through migration:
+
+```bash
+$ sagaz extend --enable-outbox-cdc --outbox-broker=kafka
+
+✓ Detected existing polling mode setup
+✓ Backed up configuration to .sagaz-backup/
+
+Migration Plan:
+  1. Add Debezium Server to docker-compose.yml
+  2. Generate Debezium configuration (debezium/kafka.properties)
+  3. Create CDC worker deployment (k8s/outbox-worker-cdc.yaml)
+  4. Run in hybrid mode (both polling + CDC workers)
+
+? Proceed with migration? [Y/n]: y
+
+✓ Generated files
+✓ Updated docker-compose.yml
+
+Next steps:
+  1. Review generated files
+  2. Start Debezium:
+     $ docker-compose up -d debezium-server
+  
+  3. Verify CDC is working:
+     $ sagaz status
+  
+  4. When ready, scale down polling workers:
+     $ docker-compose scale outbox-worker-polling=0
+     OR
+     $ kubectl scale deployment/outbox-worker-polling --replicas=0
+  
+  5. Remove polling workers when CDC is stable:
+     $ sagaz extend --remove-polling
+
+For detailed migration guide, see:
+  docs/guides/cdc-migration.md
+```
+
+### Configuration Validation
+
+```bash
+$ sagaz validate
+
+Validating Sagaz Configuration...
+
+✓ PostgreSQL connection: OK
+✓ Kafka broker: OK
+✓ Debezium Server: OK
+✗ CDC lag too high: 5000ms (threshold: 1000ms)
+⚠ Polling workers still running (consider scaling down)
+
+Recommendations:
+  - Scale up CDC workers: kubectl scale deployment/outbox-worker-cdc --replicas=10
+  - Check Debezium logs: docker-compose logs debezium-server
+```
+
+---
+
+## Implementation Tasks for CLI Integration
+
+| Task | Effort | Priority |
+|------|--------|----------|
+| Add `--outbox-mode` flag to `sagaz init` | 2 hours | High |
+| Create CDC templates (Debezium configs) | 4 hours | High |
+| Implement `sagaz extend --enable-outbox-cdc` | 6 hours | High |
+| Add CDC status to `sagaz status` | 3 hours | Medium |
+| Create migration workflow | 4 hours | High |
+| Add `sagaz validate` CDC checks | 3 hours | Medium |
+| Write CLI integration tests | 4 hours | Medium |
+| Update documentation | 2 hours | High |
+
+**Total**: ~28 hours
+
+---
+
+## CLI Integration Benefits
+
+| Benefit | Description |
+|---------|-------------|
+| ✅ **Turnkey setup** | `sagaz init --outbox-mode=cdc` generates everything |
+| ✅ **Zero manual config** | No need to write Debezium configs by hand |
+| ✅ **Safe migration** | `--hybrid` mode allows gradual cutover |
+| ✅ **Validation** | `sagaz validate` checks CDC health |
+| ✅ **Guided workflow** | CLI prompts guide users through setup |
+| ✅ **Backup safety** | Auto-backup before extending |
+

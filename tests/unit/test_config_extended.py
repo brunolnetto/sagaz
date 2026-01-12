@@ -194,7 +194,7 @@ class TestSagaConfigFromEnv:
                 if key.startswith("SAGAZ_"):
                     del os.environ[key]
 
-            config = SagaConfig.from_env()
+            config = SagaConfig.from_env(load_dotenv=False)
 
             # Default storage is InMemory
             from sagaz.storage.memory import InMemorySagaStorage

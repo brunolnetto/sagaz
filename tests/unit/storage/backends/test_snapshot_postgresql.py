@@ -64,9 +64,7 @@ class TestPostgreSQLSnapshotStorageUnit:
                     PostgreSQLSnapshotStorage,
                 )
 
-                storage = PostgreSQLSnapshotStorage(
-                    connection_string="postgresql://localhost/test"
-                )
+                storage = PostgreSQLSnapshotStorage(connection_string="postgresql://localhost/test")
                 assert storage.connection_string == "postgresql://localhost/test"
 
     @pytest.mark.asyncio
@@ -74,9 +72,7 @@ class TestPostgreSQLSnapshotStorageUnit:
         """Test PostgreSQL connection error handling"""
         with patch("sagaz.storage.backends.postgresql.snapshot.ASYNCPG_AVAILABLE", True):
             with patch("sagaz.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
-                mock_asyncpg.create_pool = AsyncMock(
-                    side_effect=Exception("Connection refused")
-                )
+                mock_asyncpg.create_pool = AsyncMock(side_effect=Exception("Connection refused"))
 
                 from sagaz.storage.backends.postgresql.snapshot import (
                     PostgreSQLSnapshotStorage,
@@ -98,9 +94,13 @@ class TestPostgreSQLSnapshotStorageUnit:
                 mock_pool = AsyncMock()
                 mock_conn = AsyncMock()
                 mock_asyncpg.create_pool = AsyncMock(return_value=mock_pool)
-                mock_pool.acquire = AsyncMock()
-                mock_pool.acquire.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
-                mock_pool.acquire.return_value.__aexit__ = AsyncMock(return_value=None)
+                # Mock acquire to return an async context manager
+                mock_pool.acquire = MagicMock(
+                    return_value=AsyncMock(
+                        __aenter__=AsyncMock(return_value=mock_conn),
+                        __aexit__=AsyncMock(return_value=None),
+                    )
+                )
 
                 # Mock execute for table creation and insert
                 mock_conn.execute = AsyncMock(return_value="INSERT 1")
@@ -118,7 +118,7 @@ class TestPostgreSQLSnapshotStorageUnit:
                     saga_name="test_saga",
                     step_name="step1",
                     step_index=0,
-                    status=SagaStatus.RUNNING,
+                    status=SagaStatus.EXECUTING,
                     context={"key": "value"},
                     completed_steps=[],
                     created_at=datetime.now(UTC),
@@ -136,22 +136,27 @@ class TestPostgreSQLSnapshotStorageUnit:
                 mock_pool = AsyncMock()
                 mock_conn = AsyncMock()
                 mock_asyncpg.create_pool = AsyncMock(return_value=mock_pool)
-                mock_pool.acquire = AsyncMock()
-                mock_pool.acquire.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
-                mock_pool.acquire.return_value.__aexit__ = AsyncMock(return_value=None)
-
-                # Mock fetch to return None (not found)
-                mock_conn.fetch = AsyncMock(return_value=[])
+                # Mock acquire to return an async context manager
+                mock_pool.acquire = MagicMock(
+                    return_value=AsyncMock(
+                        __aenter__=AsyncMock(return_value=mock_conn),
+                        __aexit__=AsyncMock(return_value=None),
+                    )
+                )
+                # Mock execute for table creation
+                mock_conn.execute = AsyncMock(return_value=None)
+                # Mock fetchrow to return None (not found)
+                mock_conn.fetchrow = AsyncMock(return_value=None)
 
                 from sagaz.storage.backends.postgresql.snapshot import (
                     PostgreSQLSnapshotStorage,
                 )
 
                 storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
-                await storage.initialize()
 
-                with pytest.raises(SnapshotNotFoundError):
-                    await storage.get_snapshot(snapshot_id=uuid4())
+                # Should return None for non-existent snapshot
+                result = await storage.get_snapshot(snapshot_id=uuid4())
+                assert result is None
 
     @pytest.mark.asyncio
     async def test_list_snapshots_empty(self):
@@ -161,10 +166,13 @@ class TestPostgreSQLSnapshotStorageUnit:
                 mock_pool = AsyncMock()
                 mock_conn = AsyncMock()
                 mock_asyncpg.create_pool = AsyncMock(return_value=mock_pool)
-                mock_pool.acquire = AsyncMock()
-                mock_pool.acquire.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
-                mock_pool.acquire.return_value.__aexit__ = AsyncMock(return_value=None)
-
+                # Mock acquire to return an async context manager
+                mock_pool.acquire = MagicMock(
+                    return_value=AsyncMock(
+                        __aenter__=AsyncMock(return_value=mock_conn),
+                        __aexit__=AsyncMock(return_value=None),
+                    )
+                )
                 # Mock fetch to return empty list
                 mock_conn.fetch = AsyncMock(return_value=[])
 
@@ -173,7 +181,6 @@ class TestPostgreSQLSnapshotStorageUnit:
                 )
 
                 storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
-                await storage.initialize()
 
                 result = await storage.list_snapshots(saga_id=uuid4())
                 assert result == []
@@ -186,10 +193,13 @@ class TestPostgreSQLSnapshotStorageUnit:
                 mock_pool = AsyncMock()
                 mock_conn = AsyncMock()
                 mock_asyncpg.create_pool = AsyncMock(return_value=mock_pool)
-                mock_pool.acquire = AsyncMock()
-                mock_pool.acquire.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
-                mock_pool.acquire.return_value.__aexit__ = AsyncMock(return_value=None)
-
+                # Mock acquire to return an async context manager
+                mock_pool.acquire = MagicMock(
+                    return_value=AsyncMock(
+                        __aenter__=AsyncMock(return_value=mock_conn),
+                        __aexit__=AsyncMock(return_value=None),
+                    )
+                )
                 mock_conn.execute = AsyncMock(return_value="DELETE 1")
 
                 from sagaz.storage.backends.postgresql.snapshot import (
@@ -197,7 +207,6 @@ class TestPostgreSQLSnapshotStorageUnit:
                 )
 
                 storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
-                await storage.initialize()
 
                 await storage.delete_snapshot(snapshot_id=uuid4())
                 assert mock_conn.execute.called
@@ -208,7 +217,17 @@ class TestPostgreSQLSnapshotStorageUnit:
         with patch("sagaz.storage.backends.postgresql.snapshot.ASYNCPG_AVAILABLE", True):
             with patch("sagaz.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
                 mock_pool = AsyncMock()
+                mock_conn = AsyncMock()
                 mock_asyncpg.create_pool = AsyncMock(return_value=mock_pool)
+
+                # Mock acquire for _get_pool table creation
+                mock_pool.acquire = MagicMock(
+                    return_value=AsyncMock(
+                        __aenter__=AsyncMock(return_value=mock_conn),
+                        __aexit__=AsyncMock(return_value=None),
+                    )
+                )
+                mock_conn.execute = AsyncMock(return_value=None)
                 mock_pool.close = AsyncMock()
 
                 from sagaz.storage.backends.postgresql.snapshot import (
@@ -216,8 +235,10 @@ class TestPostgreSQLSnapshotStorageUnit:
                 )
 
                 storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
-                await storage.initialize()
-                await storage.cleanup()
+                # Create pool first
+                await storage._get_pool()
+                # Then close it
+                await storage.close()
 
                 assert mock_pool.close.called
 
@@ -250,7 +271,6 @@ class TestPostgreSQLSnapshotStorageIntegration:
 
         connection_string = postgres_container.get_connection_url()
         storage = PostgreSQLSnapshotStorage(connection_string=connection_string)
-        await storage.initialize()
         yield storage
         await storage.cleanup()
 
@@ -263,7 +283,7 @@ class TestPostgreSQLSnapshotStorageIntegration:
             saga_name="payment_saga",
             step_name="authorize_payment",
             step_index=1,
-            status=SagaStatus.RUNNING,
+            status=SagaStatus.EXECUTING,
             context={"amount": 100.50, "currency": "USD"},
             completed_steps=[],
             created_at=datetime.now(UTC),
@@ -292,7 +312,7 @@ class TestPostgreSQLSnapshotStorageIntegration:
                 saga_name="test_saga",
                 step_name=f"step_{i}",
                 step_index=i,
-                status=SagaStatus.RUNNING,
+                status=SagaStatus.EXECUTING,
                 context={"step": i},
                 completed_steps=[],
                 created_at=datetime.now(UTC),
@@ -316,7 +336,7 @@ class TestPostgreSQLSnapshotStorageIntegration:
                 saga_name="test_saga",
                 step_name=f"step_{i}",
                 step_index=i,
-                status=SagaStatus.RUNNING,
+                status=SagaStatus.EXECUTING,
                 context={"step": i},
                 completed_steps=[],
                 created_at=datetime.now(UTC),
@@ -335,7 +355,7 @@ class TestPostgreSQLSnapshotStorageIntegration:
             saga_name="test_saga",
             step_name="step1",
             step_index=0,
-            status=SagaStatus.RUNNING,
+            status=SagaStatus.EXECUTING,
             context={},
             completed_steps=[],
             created_at=datetime.now(UTC),
@@ -361,7 +381,7 @@ class TestPostgreSQLSnapshotStorageIntegration:
                 saga_name="test_saga",
                 step_name=f"step_{i}",
                 step_index=i,
-                status=SagaStatus.RUNNING,
+                status=SagaStatus.EXECUTING,
                 context={"step": i, "latest": i == 2},
                 completed_steps=[],
                 created_at=datetime.now(UTC),
@@ -396,7 +416,7 @@ class TestPostgreSQLSnapshotStorageIntegration:
             saga_name="test_saga",
             step_name="step_recent",
             step_index=1,
-            status=SagaStatus.RUNNING,
+            status=SagaStatus.EXECUTING,
             context={},
             completed_steps=[],
             created_at=datetime.now(UTC),

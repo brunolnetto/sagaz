@@ -153,3 +153,136 @@ class TestGetLogger:
         """Test that get_logger returns a logger instance."""
         logger = get_logger()
         assert logger is not None
+
+
+class TestWebhookStatusTracking:
+    """Tests for webhook status tracking functionality."""
+
+    @pytest.mark.asyncio
+    async def test_get_webhook_status_not_found(self):
+        """Test get_webhook_status returns None for unknown ID."""
+        from sagaz.integrations.fastapi import get_webhook_status
+
+        status = get_webhook_status("nonexistent-id")
+        assert status is None
+
+    @pytest.mark.asyncio
+    async def test_webhook_status_listener_on_complete(self):
+        """Test webhook status listener tracks saga completion."""
+        from sagaz.integrations.fastapi import (
+            _WebhookStatusListener,
+            _webhook_tracking,
+            _saga_to_webhook,
+        )
+
+        # Setup tracking
+        correlation_id = "test-corr-123"
+        saga_id = "saga-456"
+        _webhook_tracking[correlation_id] = {"status": "processing"}
+        _saga_to_webhook[saga_id] = correlation_id
+
+        listener = _WebhookStatusListener()
+        await listener.on_saga_complete("test_saga", saga_id, {"key": "value"})
+
+        # Check status was updated
+        assert "saga_statuses" in _webhook_tracking[correlation_id]
+        assert _webhook_tracking[correlation_id]["saga_statuses"][saga_id] == "completed"
+
+        # Cleanup
+        _webhook_tracking.clear()
+        _saga_to_webhook.clear()
+
+    @pytest.mark.asyncio
+    async def test_webhook_status_listener_on_failed(self):
+        """Test webhook status listener tracks saga failure."""
+        from sagaz.integrations.fastapi import (
+            _WebhookStatusListener,
+            _webhook_tracking,
+            _saga_to_webhook,
+        )
+
+        # Setup tracking
+        correlation_id = "test-corr-789"
+        saga_id = "saga-012"
+        _webhook_tracking[correlation_id] = {"status": "processing"}
+        _saga_to_webhook[saga_id] = correlation_id
+
+        listener = _WebhookStatusListener()
+        test_error = Exception("Test error")
+        await listener.on_saga_failed("test_saga", saga_id, {"key": "value"}, test_error)
+
+        # Check status was updated
+        assert "saga_statuses" in _webhook_tracking[correlation_id]
+        assert _webhook_tracking[correlation_id]["saga_statuses"][saga_id] == "failed"
+        assert "saga_errors" in _webhook_tracking[correlation_id]
+        assert "Test error" in _webhook_tracking[correlation_id]["saga_errors"][saga_id]
+
+        # Cleanup
+        _webhook_tracking.clear()
+        _saga_to_webhook.clear()
+
+    @pytest.mark.asyncio
+    async def test_sagaz_startup_adds_listener(self):
+        """Test sagaz_startup adds webhook listener to config."""
+        from sagaz.integrations.fastapi import sagaz_startup
+
+        with patch("sagaz.core.config.get_config") as mock_get_config:
+            mock_config = MagicMock()
+            mock_config.listeners = []
+            mock_config._listeners = []
+            mock_get_config.return_value = mock_config
+
+            await sagaz_startup()
+
+            # Check listener was added
+            assert len(mock_config._listeners) == 1
+
+    @pytest.mark.asyncio
+    async def test_webhook_router_fires_event(self):
+        """Test webhook router fires event on POST."""
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from sagaz.integrations.fastapi import create_webhook_router
+
+        app = FastAPI()
+        router = create_webhook_router()
+        app.include_router(router)
+
+        client = TestClient(app)
+
+        with patch("sagaz.triggers.fire_event", new_callable=AsyncMock) as mock_fire:
+            # Mock fire_event to return a saga_id
+            mock_fire.return_value = ["saga-123"]
+
+            response = client.post(
+                "/webhooks/test_event",
+                json={"test": "data"},
+                headers={"Content-Type": "application/json"},
+            )
+
+            assert response.status_code == 202  # Accepted
+            response_data = response.json()
+            assert response_data["status"] == "accepted"
+            assert "correlation_id" in response_data
+
+    @pytest.mark.asyncio
+    async def test_webhook_router_handles_errors(self):
+        """Test webhook router handles fire_event errors gracefully."""
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from sagaz.integrations.fastapi import create_webhook_router
+
+        app = FastAPI()
+        router = create_webhook_router()
+        app.include_router(router)
+
+        client = TestClient(app)
+
+        with patch("sagaz.triggers.fire_event", new_callable=AsyncMock) as mock_fire:
+            # Mock fire_event to raise an error
+            mock_fire.side_effect = Exception("Test error")
+
+            response = client.post("/webhooks/test_event", json={"test": "data"})
+
+            # Should still return accepted (fire-and-forget)
+            assert response.status_code == 202
