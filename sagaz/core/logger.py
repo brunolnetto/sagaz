@@ -23,7 +23,7 @@ from typing import Any
 _custom_logger: Any = None
 
 
-class NullLogger:  # pragma: no cover
+class NullLogger:
     """A logger that does nothing (for when logging is disabled)."""
 
     def debug(self, *args, **kwargs):
@@ -88,7 +88,7 @@ def get_logger(name: str = "sagaz") -> Any:
     return logger
 
 
-def configure_default_logging(  # pragma: no cover
+def configure_default_logging(
     level: int = logging.INFO,
     format_string: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 ) -> None:

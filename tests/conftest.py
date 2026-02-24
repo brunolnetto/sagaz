@@ -3,12 +3,17 @@ Pytest configuration and shared fixtures for saga pattern tests
 
 Optimizations:
 - Session-scoped fixtures for expensive setup (Docker containers, K8s manifests)
+- Parallel container initialization (all start simultaneously)
+- Automatic container availability detection (no env vars needed)
 - Reduced sleep times where possible
 """
 
 import warnings
 
 import pytest
+
+# Import parallel container plugin
+pytest_plugins = ["tests.conftest_containers"]
 
 # ============================================
 # AUTO-USE FIXTURES
@@ -84,124 +89,58 @@ def k8s_manifests():
 
 # ============================================
 # SESSION-SCOPED CONTAINER FIXTURES
-# These are shared across ALL tests to avoid
-# repeated container startup (~30-100s each)
+# Containers start in PARALLEL via conftest_containers.py
+# Automatic availability detection - no env vars needed
 # ============================================
 
-# Check for testcontainers availability
-try:
-    from testcontainers.kafka import KafkaContainer
-    from testcontainers.postgres import PostgresContainer
-    from testcontainers.rabbitmq import RabbitMqContainer
-    from testcontainers.redis import RedisContainer
-
-    TESTCONTAINERS_AVAILABLE = True
-except ImportError:
-    TESTCONTAINERS_AVAILABLE = False
-    KafkaContainer = None
-    PostgresContainer = None
-    RabbitMqContainer = None
-    RedisContainer = None
-
-
 @pytest.fixture(scope="session")
-def postgres_container():
-    """
-    Session-scoped PostgreSQL container.
-
-    Shared across all tests in the session.
-    Container starts once and stops at the end of the test session.
-    Gracefully skips if container fails to start (e.g., Docker issues).
-    """
-    if not TESTCONTAINERS_AVAILABLE:
+def postgres_container(container_manager):
+    """PostgreSQL container (auto-initialized in parallel)."""
+    if not container_manager:
         pytest.skip("testcontainers not available")
-        return None
-
-    try:
-        with PostgresContainer("postgres:16-alpine") as container:
-            yield container
-    except Exception as e:
-        # Container failed to start (timeout, Docker issues, etc.)
-        pytest.skip(f"PostgreSQL container failed to start: {e}")
+    if not container_manager.available.get("postgres"):
+        pytest.skip(f"PostgreSQL: {container_manager.errors.get('postgres', 'unavailable')}")
+    return container_manager.containers["postgres"]
 
 
 @pytest.fixture(scope="session")
-def redis_container():
-    """
-    Session-scoped Redis container.
-
-    Shared across all tests in the session.
-    Container starts once and stops at the end of the test session.
-    Gracefully skips if container fails to start (e.g., Docker issues).
-    """
-    if not TESTCONTAINERS_AVAILABLE:
+def redis_container(container_manager):
+    """Redis container (auto-initialized in parallel)."""
+    if not container_manager:
         pytest.skip("testcontainers not available")
-        return None
-
-    try:
-        with RedisContainer("redis:7-alpine") as container:
-            yield container
-    except Exception as e:
-        # Container failed to start (timeout, Docker issues, etc.)
-        pytest.skip(f"Redis container failed to start: {e}")
+    if not container_manager.available.get("redis"):
+        pytest.skip(f"Redis: {container_manager.errors.get('redis', 'unavailable')}")
+    return container_manager.containers["redis"]
 
 
 @pytest.fixture(scope="session")
-def kafka_container():
-    """
-    Session-scoped Kafka container.
-
-    Shared across all tests in the session.
-    Container starts once and stops at the end of the test session.
-
-    Note: Kafka containers are notoriously slow to start (30-120s) and often
-    fail in WSL/Docker environments. Tests using this fixture will be skipped
-    if the container fails to start.
-
-    To run Kafka tests:
-        SAGAZ_KAFKA_TESTS=1 pytest -m integration -k kafka
-    """
-    import os
-
-    # Allow explicit opt-in for Kafka tests
-    if not os.getenv("SAGAZ_KAFKA_TESTS"):
-        pytest.skip("Kafka tests disabled (set SAGAZ_KAFKA_TESTS=1 to enable)")
-        return None
-
-    if not TESTCONTAINERS_AVAILABLE:
-        pytest.skip("testcontainers[kafka] not available")
-        return None
-
-    try:
-        container = KafkaContainer("confluentinc/cp-kafka:7.6.0")
-        with container:
-            yield container
-    except Exception as e:
-        pytest.skip(f"Kafka container failed to start: {e}")
+def kafka_container(container_manager):
+    """Kafka container (auto-initialized in parallel)."""
+    if not container_manager:
+        pytest.skip("testcontainers not available")
+    if not container_manager.available.get("kafka"):
+        pytest.skip(f"Kafka: {container_manager.errors.get('kafka', 'unavailable')}")
+    return container_manager.containers["kafka"]
 
 
 @pytest.fixture(scope="session")
-def rabbitmq_container():
-    """
-    Session-scoped RabbitMQ container.
+def rabbitmq_container(container_manager):
+    """RabbitMQ container (auto-initialized in parallel)."""
+    if not container_manager:
+        pytest.skip("testcontainers not available")
+    if not container_manager.available.get("rabbitmq"):
+        pytest.skip(f"RabbitMQ: {container_manager.errors.get('rabbitmq', 'unavailable')}")
+    return container_manager.containers["rabbitmq"]
 
-    Shared across all tests in the session.
-    Container starts once and stops at the end of the test session.
-    Gracefully skips if container fails to start (e.g., Docker issues).
-    """
-    if not TESTCONTAINERS_AVAILABLE:
-        pytest.skip("testcontainers[rabbitmq] not available")
-        return None
 
-    try:
-        # Use basic image without management for faster startup
-        container = RabbitMqContainer("rabbitmq:3.12-alpine")
-
-        with container:
-            yield container
-    except Exception as e:
-        # Container failed to start (timeout, Docker issues, etc.)
-        pytest.skip(f"RabbitMQ container failed to start: {e}")
+@pytest.fixture(scope="session")
+def localstack_container(container_manager):
+    """LocalStack S3 container (auto-initialized in parallel)."""
+    if not container_manager:
+        pytest.skip("testcontainers not available")
+    if not container_manager.available.get("localstack"):
+        pytest.skip(f"LocalStack: {container_manager.errors.get('localstack', 'unavailable')}")
+    return container_manager.containers["localstack"]
 
 
 @pytest.fixture(scope="session")

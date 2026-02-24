@@ -25,7 +25,7 @@ try:
     import asyncpg
 
     ASYNCPG_AVAILABLE = True
-except ImportError:  # pragma: no cover
+except ImportError:
     ASYNCPG_AVAILABLE = False  # pragma: no cover
     asyncpg = None  # pragma: no cover
 
@@ -123,9 +123,9 @@ class PostgreSQLSnapshotStorage(SnapshotStorage):
                 # Create tables if they don't exist
                 async with self._pool.acquire() as conn:
                     await conn.execute(self.CREATE_TABLES_SQL)
-            except Exception as e:  # pragma: no cover
-                msg = f"Failed to connect to PostgreSQL: {e}"  # pragma: no cover
-                raise ConnectionError(msg)  # pragma: no cover
+            except Exception as e:
+                msg = f"Failed to connect to PostgreSQL: {e}"
+                raise ConnectionError(msg)
 
         return self._pool
 
@@ -317,8 +317,8 @@ class PostgreSQLSnapshotStorage(SnapshotStorage):
                 if replay_result.context_override
                 else None,
                 replay_result.initiated_by,
-                replay_result.status,
-                replay_result.error,
+                replay_result.replay_status.value if hasattr(replay_result.replay_status, 'value') else replay_result.replay_status,
+                replay_result.error_message,
                 replay_result.created_at,
                 replay_result.completed_at,
             )

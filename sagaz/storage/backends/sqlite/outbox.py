@@ -21,14 +21,14 @@ import logging
 from datetime import UTC, datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     import aiosqlite as aiosqlite_types
 
 try:
     import aiosqlite
 
     AIOSQLITE_AVAILABLE = True
-except ImportError:  # pragma: no cover
+except ImportError:
     AIOSQLITE_AVAILABLE = False
     aiosqlite = None  # type: ignore[assignment]
 
@@ -72,7 +72,7 @@ class SQLiteOutboxStorage:
         Args:
             db_path: Path to SQLite database file, or ":memory:" for in-memory
         """
-        if not AIOSQLITE_AVAILABLE:  # pragma: no cover
+        if not AIOSQLITE_AVAILABLE:
             msg = "aiosqlite"
             raise MissingDependencyError(msg, "SQLite storage")
 

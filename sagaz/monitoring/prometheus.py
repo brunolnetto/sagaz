@@ -29,7 +29,7 @@ Requirements:
 import logging
 from typing import TYPE_CHECKING, Any
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     from sagaz.core.types import SagaStatus
 
 # Check if prometheus_client is installed
@@ -37,7 +37,7 @@ try:
     from prometheus_client import Counter, Gauge, Histogram, start_http_server
 
     PROMETHEUS_AVAILABLE = True
-except ImportError:  # pragma: no cover
+except ImportError:
     PROMETHEUS_AVAILABLE = False
     Counter: Any = None  # type: ignore[no-redef]
     Gauge: Any = None  # type: ignore[no-redef]

@@ -47,7 +47,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     pass
 
 
@@ -244,7 +244,7 @@ class SagaZones:
             # Find the nearest pivot ancestor
             # This is a simplified version - full implementation
             # would trace back through dependencies
-            return next(iter(self.pivots)) if self.pivots else None  # pragma: no cover
+            return next(iter(self.pivots)) if self.pivots else None
         return None
 
 
@@ -358,7 +358,7 @@ class TaintPropagator:
             Set of step names that were newly tainted
         """
         if completed_pivot not in self.pivots:
-            return set()  # pragma: no cover - defensive check
+            return set()  # defensive check
 
         self.completed_pivots.add(completed_pivot)
         ancestors = self.get_ancestors(completed_pivot)
@@ -453,8 +453,8 @@ class TaintPropagator:
         if step_name in self._tainted:
             return False
         # Cannot compensate incomplete pivots
-        if step_name in self.pivots and step_name not in self.completed_pivots:  # pragma: no cover
-            return True  # Can still compensate if pivot didn't complete  # pragma: no cover
+        if step_name in self.pivots and step_name not in self.completed_pivots:
+            return True  # Can still compensate if pivot didn't complete
         return True
 
 

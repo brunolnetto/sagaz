@@ -82,10 +82,10 @@ class FailFastWithGraceStrategy(ParallelExecutionStrategy):
             await asyncio.wait_for(
                 asyncio.gather(*pending, return_exceptions=True), timeout=self.grace_period
             )
-        except TimeoutError:  # pragma: no cover
-            for task in pending:  # pragma: no cover
-                if not task.done():  # pragma: no cover
-                    task.cancel()  # pragma: no cover
+        except TimeoutError:
+            for task in pending:
+                if not task.done():
+                    task.cancel()
 
     def _cancel_all_tasks(self, tasks: list):
         """Cancel all incomplete tasks."""

@@ -78,14 +78,14 @@ class BaseStorage(HealthCheckable, ABC):
                 message="Storage is closed",
             )
 
-        if self._connection_manager:  # pragma: no cover
-            return await self._connection_manager.health_check()  # pragma: no cover
+        if self._connection_manager:
+            return await self._connection_manager.health_check()
 
-        return HealthCheckResult(  # pragma: no cover
-            status=HealthStatus.HEALTHY,  # pragma: no cover
-            latency_ms=0,  # pragma: no cover
-            message="No connection manager (in-memory mode)",  # pragma: no cover
-        )  # pragma: no cover
+        return HealthCheckResult(
+            status=HealthStatus.HEALTHY,
+            latency_ms=0,
+            message="No connection manager (in-memory mode)",
+        )
 
     async def get_statistics(self) -> StorageStatistics:
         """

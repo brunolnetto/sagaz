@@ -30,7 +30,7 @@ try:
     from aio_pika.abc import AbstractChannel, AbstractConnection, AbstractExchange
 
     RABBITMQ_AVAILABLE = True
-except ImportError:  # pragma: no cover
+except ImportError:
     RABBITMQ_AVAILABLE = False
     aio_pika: Any = None  # type: ignore[no-redef]
     Message: Any = None  # type: ignore[no-redef]
@@ -106,9 +106,9 @@ class RabbitMQBroker(BaseBroker):
         Raises:
             MissingDependencyError: If aio-pika is not installed
         """
-        if not RABBITMQ_AVAILABLE:  # pragma: no cover
-            msg = "aio-pika"  # pragma: no cover
-            raise MissingDependencyError(msg, "RabbitMQ message broker")  # pragma: no cover
+        if not RABBITMQ_AVAILABLE:
+            msg = "aio-pika"
+            raise MissingDependencyError(msg, "RabbitMQ message broker")
 
         super().__init__(config)
         self.config: RabbitMQBrokerConfig = config or RabbitMQBrokerConfig()
@@ -131,10 +131,10 @@ class RabbitMQBroker(BaseBroker):
 
     async def connect(self) -> None:
         """Establish connection to RabbitMQ."""
-        if self._connected:  # pragma: no cover
-            return  # pragma: no cover
+        if self._connected:
+            return
 
-        try:  # pragma: no cover (RUN_INTEGRATION=1 with Docker)
+        try:  # (RUN_INTEGRATION=1 with Docker)
             # Connect to RabbitMQ
             self._connection = await aio_pika.connect_robust(
                 self.config.url,
@@ -158,7 +158,7 @@ class RabbitMQBroker(BaseBroker):
             self._connected = True
             logger.info(f"Connected to RabbitMQ at {self.config.url}")
 
-        except Exception as e:  # pragma: no cover
+        except Exception as e:
             msg = f"Failed to connect to RabbitMQ: {e}"
             raise BrokerConnectionError(msg) from e
 
@@ -182,7 +182,7 @@ class RabbitMQBroker(BaseBroker):
             msg = "RabbitMQ broker not connected"
             raise BrokerConnectionError(msg)
 
-        try:  # pragma: no cover (RUN_INTEGRATION=1 with Docker)
+        try:  # (RUN_INTEGRATION=1 with Docker)
             # Create message with persistent delivery mode
             rmq_message = Message(
                 body=message,
@@ -199,11 +199,11 @@ class RabbitMQBroker(BaseBroker):
 
             logger.debug(f"Published message to RabbitMQ routing key {topic}")
 
-        except Exception as e:  # pragma: no cover
+        except Exception as e:
             msg = f"Failed to publish to RabbitMQ: {e}"
             raise BrokerPublishError(msg) from e
 
-    async def close(self) -> None:  # pragma: no cover (RUN_INTEGRATION=1)
+    async def close(self) -> None:  # (RUN_INTEGRATION=1)
         """Close the RabbitMQ connection."""
         if self._channel:
             await self._channel.close()
@@ -219,12 +219,12 @@ class RabbitMQBroker(BaseBroker):
 
     async def health_check(self) -> bool:
         """Check RabbitMQ connection health."""
-        if not self._connected or not self._connection:  # pragma: no cover
+        if not self._connected or not self._connection:
             return False
 
-        try:  # pragma: no cover (RUN_INTEGRATION=1 with Docker)
+        try:  # (RUN_INTEGRATION=1 with Docker)
             return not self._connection.is_closed
-        except Exception:  # pragma: no cover
+        except Exception:
             return False
 
     async def declare_queue(
@@ -243,22 +243,22 @@ class RabbitMQBroker(BaseBroker):
             durable: Whether queue survives broker restart
             dead_letter_exchange: Optional DLX for rejected messages
         """
-        if not self._channel or not self._exchange:  # pragma: no cover
+        if not self._channel or not self._exchange:
             msg = "RabbitMQ broker not connected"
             raise BrokerConnectionError(msg)
 
-        arguments = {}  # pragma: no cover
-        if dead_letter_exchange:  # pragma: no cover
+        arguments = {}
+        if dead_letter_exchange:
             arguments["x-dead-letter-exchange"] = dead_letter_exchange
 
-        queue = await self._channel.declare_queue(  # pragma: no cover
+        queue = await self._channel.declare_queue(
             queue_name,
             durable=durable,
             arguments=arguments or None,  # type: ignore[arg-type]
         )
 
-        await queue.bind(self._exchange, routing_key)  # pragma: no cover
-        logger.info(f"Declared queue {queue_name} bound to {routing_key}")  # pragma: no cover
+        await queue.bind(self._exchange, routing_key)
+        logger.info(f"Declared queue {queue_name} bound to {routing_key}")
 
 
 def is_rabbitmq_available() -> bool:

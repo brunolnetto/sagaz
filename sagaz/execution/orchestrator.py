@@ -60,7 +60,7 @@ class SagaOrchestrator:
         """Count completed sagas"""
         return await self.count_by_status(SagaStatus.COMPLETED)
 
-    async def count_failed(self) -> int:  # pragma: no cover
+    async def count_failed(self) -> int:
         """Count failed sagas (unrecoverable)"""
         return await self.count_by_status(SagaStatus.FAILED)
 

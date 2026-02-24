@@ -168,6 +168,7 @@ class ReplayResult:
     checkpoint_step: str
     replay_status: ReplayStatus
     initiated_by: str = "system"
+    context_override: dict[str, Any] | None = None
     error_message: str | None = None
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     completed_at: datetime | None = None
@@ -192,6 +193,7 @@ class ReplayResult:
             "checkpoint_step": self.checkpoint_step,
             "replay_status": self.replay_status.value,
             "initiated_by": self.initiated_by,
+            "context_override": self.context_override,
             "error_message": self.error_message,
             "created_at": self.created_at.isoformat(),
             "completed_at": self.completed_at.isoformat() if self.completed_at else None,

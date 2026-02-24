@@ -156,7 +156,7 @@ class OutboxEvent:
         """Parse status from string or OutboxStatus."""
         if isinstance(status, str):
             return OutboxStatus(status)
-        return status  # pragma: no cover
+        return status
 
     @staticmethod
     def _parse_datetime(value: str | datetime | None) -> datetime | None:

@@ -92,7 +92,7 @@ def get_sagaz_config() -> dict[str, Any]:
         from django.conf import settings
 
         return getattr(settings, "SAGAZ", {})
-    except ImportError:  # pragma: no cover
+    except ImportError:
         return {}
 
 
@@ -205,7 +205,7 @@ def sagaz_webhook_view(request, source: str):
     """
     try:
         from django.http import JsonResponse
-    except ImportError:  # pragma: no cover
+    except ImportError:
         msg = "Django is required. Install with: pip install django"
         raise ImportError(msg)
 
@@ -351,7 +351,7 @@ def sagaz_webhook_status_view(request, source: str, correlation_id: str):
     """Django view for checking webhook event status."""
     try:
         from django.http import JsonResponse
-    except ImportError:  # pragma: no cover
+    except ImportError:
         msg = "Django is required. Install with: pip install django"
         raise ImportError(msg)
 

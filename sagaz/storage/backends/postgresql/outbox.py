@@ -29,7 +29,7 @@ try:
     import asyncpg
 
     ASYNCPG_AVAILABLE = True
-except ImportError:  # pragma: no cover
+except ImportError:
     ASYNCPG_AVAILABLE = False
     asyncpg = None  # pragma: no cover
 
@@ -138,15 +138,15 @@ class PostgreSQLOutboxStorage(OutboxStorage):
             MissingDependencyError: If asyncpg is not installed
         """
         if not ASYNCPG_AVAILABLE:
-            msg = "asyncpg"  # pragma: no cover
-            raise MissingDependencyError(msg, "PostgreSQL outbox storage")  # pragma: no cover
+            msg = "asyncpg"
+            raise MissingDependencyError(msg, "PostgreSQL outbox storage")
 
         self.connection_string = connection_string
         self.pool_min_size = pool_min_size
         self.pool_max_size = pool_max_size
         self._pool: asyncpg.Pool | None = None
 
-    async def initialize(self) -> None:  # pragma: no cover
+    async def initialize(self) -> None:
         """Initialize the connection pool and create schema."""
         self._pool = await asyncpg.create_pool(
             self.connection_string,
@@ -158,13 +158,13 @@ class PostgreSQLOutboxStorage(OutboxStorage):
         async with self._pool.acquire() as conn:
             await conn.execute(OUTBOX_SCHEMA)
 
-    async def close(self) -> None:  # pragma: no cover
+    async def close(self) -> None:
         """Close the connection pool."""
         if self._pool:
             await self._pool.close()
             self._pool = None
 
-    def _get_connection(self, connection: Any | None = None):  # pragma: no cover
+    def _get_connection(self, connection: Any | None = None):
         """Get a connection - either provided or from pool."""
         if connection:
             return connection
@@ -173,7 +173,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
             raise OutboxStorageError(msg)
         return self._pool
 
-    async def insert(  # pragma: no cover
+    async def insert(
         self,
         event: OutboxEvent,
         connection: Any | None = None,
@@ -209,7 +209,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
         async with conn.acquire() as c:
             return await _insert(c)  # type: ignore[no-any-return]
 
-    async def claim_batch(  # pragma: no cover
+    async def claim_batch(
         self,
         worker_id: str,
         batch_size: int = 100,
@@ -245,7 +245,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
             rows = await conn.fetch(query, cutoff, batch_size, worker_id)
             return [self._row_to_event(row) for row in rows]
 
-    async def update_status(  # pragma: no cover
+    async def update_status(
         self,
         event_id: str,
         status: OutboxStatus,
@@ -304,7 +304,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
         async with conn.acquire() as c:
             return await _update(c)  # type: ignore[no-any-return]
 
-    async def get_by_id(self, event_id: str) -> OutboxEvent | None:  # pragma: no cover
+    async def get_by_id(self, event_id: str) -> OutboxEvent | None:
         """Get an event by its ID."""
         if not self._pool:
             msg = "Storage not initialized"
@@ -316,7 +316,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
             row = await conn.fetchrow(query, event_id)
             return self._row_to_event(row) if row else None
 
-    async def get_events_by_saga(self, saga_id: str) -> list[OutboxEvent]:  # pragma: no cover
+    async def get_events_by_saga(self, saga_id: str) -> list[OutboxEvent]:
         """Get all events for a saga."""
         if not self._pool:
             msg = "Storage not initialized"
@@ -331,7 +331,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
     async def get_stuck_events(
         self,
         claimed_older_than_seconds: float = 300.0,
-    ) -> list[OutboxEvent]:  # pragma: no cover
+    ) -> list[OutboxEvent]:
         """Get events that appear to be stuck."""
         if not self._pool:
             msg = "Storage not initialized"
@@ -353,7 +353,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
     async def release_stuck_events(
         self,
         claimed_older_than_seconds: float = 300.0,
-    ) -> int:  # pragma: no cover
+    ) -> int:
         """Release stuck events back to PENDING status."""
         if not self._pool:
             msg = "Storage not initialized"
@@ -375,7 +375,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
             # Parse "UPDATE N" to get count
             return int(result.split()[-1])
 
-    async def get_pending_count(self) -> int:  # pragma: no cover
+    async def get_pending_count(self) -> int:
         """Get count of pending events."""
         if not self._pool:
             msg = "Storage not initialized"
@@ -389,9 +389,9 @@ class PostgreSQLOutboxStorage(OutboxStorage):
     async def get_dead_letter_events(
         self,
         limit: int = 100,
-    ) -> list[OutboxEvent]:  # pragma: no cover
+    ) -> list[OutboxEvent]:
         """Get events in dead letter queue."""
-        if not self._pool:  # pragma: no cover
+        if not self._pool:
             msg = "Storage not initialized"
             raise OutboxStorageError(msg)
 
@@ -409,9 +409,9 @@ class PostgreSQLOutboxStorage(OutboxStorage):
     async def archive_sent_events(
         self,
         older_than_days: int = 7,
-    ) -> int:  # pragma: no cover
+    ) -> int:
         """Move old sent events to archive table."""
-        if not self._pool:  # pragma: no cover
+        if not self._pool:
             msg = "Storage not initialized"
             raise OutboxStorageError(msg)
 
@@ -434,7 +434,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
             result = await conn.execute(delete_query, cutoff)
             return int(result.split()[-1])
 
-    def _row_to_event(self, row: "asyncpg.Record") -> OutboxEvent:  # pragma: no cover
+    def _row_to_event(self, row: "asyncpg.Record") -> OutboxEvent:
         """Convert database row to OutboxEvent."""
         payload = row["payload"]
         if isinstance(payload, str):
@@ -471,7 +471,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
         event_type: str,
         payload: dict,
         connection: Optional["asyncpg.Connection"] = None,
-    ) -> bool:  # pragma: no cover
+    ) -> bool:
         """
         Check if event was already processed and insert if not.
 
@@ -514,7 +514,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
 
     async def update_inbox_duration(
         self, event_id: str, duration_ms: int
-    ) -> None:  # pragma: no cover
+    ) -> None:
         """Update processing duration for an event."""
         async with self._pool.acquire() as conn:  # type: ignore[union-attr]
             await conn.execute(
@@ -529,7 +529,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
 
     async def cleanup_inbox(
         self, consumer_name: str, older_than_days: int
-    ) -> int:  # pragma: no cover
+    ) -> int:
         """
         Delete old inbox entries.
 
@@ -565,9 +565,9 @@ class PostgreSQLOutboxStorage(OutboxStorage):
             msg = "Storage not initialized"
             raise OutboxStorageError(msg)
 
-        async with self._pool.acquire() as conn:  # pragma: no cover
-            async with conn.transaction():  # pragma: no cover
-                try:  # pragma: no cover
+        async with self._pool.acquire() as conn:
+            async with conn.transaction():
+                try:
                     cursor = await conn.cursor("SELECT * FROM saga_outbox ORDER BY event_id")
                     async for row in cursor:
                         event = self._row_to_event(row)
@@ -581,9 +581,9 @@ class PostgreSQLOutboxStorage(OutboxStorage):
                             if event.created_at
                             else None,
                         }
-                except Exception:  # pragma: no cover
+                except Exception:
                     # Transaction rollback is automatic with context manager
-                    raise  # pragma: no cover
+                    raise
 
     async def import_record(self, record: dict[str, Any]) -> None:
         """Import a single record from transfer."""

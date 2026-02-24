@@ -5,6 +5,7 @@ Provides storage implementations for different backends.
 
 Available backends:
 - memory: In-memory storage for testing
+- filesystem: Local filesystem storage for development/research
 - redis: Redis-based storage for distributed systems
 - postgresql: PostgreSQL storage for ACID compliance
 - sqlite: SQLite embedded storage for local development
@@ -18,6 +19,8 @@ __all__ = [
     # Memory
     "InMemorySagaStorage",
     "InMemorySnapshotStorage",
+    # Filesystem
+    "FilesystemSnapshotStorage",
     "PostgreSQLOutboxStorage",
     # PostgreSQL
     "PostgreSQLSagaStorage",
@@ -38,6 +41,7 @@ _BACKEND_IMPORTS = {
     "InMemorySagaStorage": ("memory", "InMemorySagaStorage"),
     "InMemoryOutboxStorage": ("memory", "InMemoryOutboxStorage"),
     "InMemorySnapshotStorage": ("memory_snapshot", "InMemorySnapshotStorage"),
+    "FilesystemSnapshotStorage": ("filesystem_snapshot", "FilesystemSnapshotStorage"),
     "RedisSagaStorage": ("redis", "RedisSagaStorage"),
     "RedisOutboxStorage": ("redis", "RedisOutboxStorage"),
     "RedisSnapshotStorage": ("redis", "RedisSnapshotStorage"),

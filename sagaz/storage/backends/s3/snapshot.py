@@ -25,7 +25,7 @@ try:
     import aioboto3
 
     AIOBOTO3_AVAILABLE = True
-except ImportError:  # pragma: no cover
+except ImportError:
     AIOBOTO3_AVAILABLE = False  # pragma: no cover
     aioboto3 = None  # pragma: no cover
 
@@ -33,7 +33,7 @@ try:
     import zstandard as zstd
 
     ZSTD_AVAILABLE = True
-except ImportError:  # pragma: no cover
+except ImportError:
     ZSTD_AVAILABLE = False  # pragma: no cover
     zstd = None  # pragma: no cover
 
@@ -99,9 +99,9 @@ class S3SnapshotStorage(SnapshotStorage):
                 self._s3_client = await self._session.client(
                     "s3", region_name=self.region_name, **self.s3_kwargs
                 ).__aenter__()
-            except Exception as e:  # pragma: no cover
-                msg = f"Failed to create S3 client: {e}"  # pragma: no cover
-                raise ConnectionError(msg)  # pragma: no cover
+            except Exception as e:
+                msg = f"Failed to create S3 client: {e}"
+                raise ConnectionError(msg)
 
         return self._s3_client
 
@@ -319,8 +319,8 @@ class S3SnapshotStorage(SnapshotStorage):
             await self._remove_from_saga_index(snapshot.saga_id, snapshot_id)
 
             return True
-        except Exception:  # pragma: no cover
-            return False  # pragma: no cover
+        except Exception:
+            return False
 
     async def _remove_from_saga_index(self, saga_id: UUID, snapshot_id: UUID) -> None:
         """Remove snapshot from saga index"""
@@ -382,8 +382,8 @@ class S3SnapshotStorage(SnapshotStorage):
                         # Delete snapshot
                         if await self.delete_snapshot(snapshot_id):
                             deleted_count += 1
-                except Exception:  # pragma: no cover
-                    continue  # pragma: no cover
+                except Exception:
+                    continue
 
         return deleted_count
 
@@ -449,8 +449,8 @@ class S3SnapshotStorage(SnapshotStorage):
 
                         if len(replays) >= limit:
                             break
-                except Exception:  # pragma: no cover
-                    continue  # pragma: no cover
+                except Exception:
+                    continue
 
             if len(replays) >= limit:
                 break

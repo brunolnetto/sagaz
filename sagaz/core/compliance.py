@@ -20,7 +20,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     from sagaz.storage.interfaces.snapshot import SnapshotStorage
 
 logger = logging.getLogger(__name__)

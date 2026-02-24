@@ -13,7 +13,7 @@ try:
     from prometheus_client import Counter, Histogram
 
     PROMETHEUS_AVAILABLE = True
-except ImportError:  # pragma: no cover
+except ImportError:
     PROMETHEUS_AVAILABLE = False
     # No-op fallbacks
     from contextlib import contextmanager

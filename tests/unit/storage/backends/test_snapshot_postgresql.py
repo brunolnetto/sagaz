@@ -270,15 +270,21 @@ class TestPostgreSQLSnapshotStorageIntegration:
         from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
         connection_string = postgres_container.get_connection_url()
+        # Fix DSN format: asyncpg only understands postgresql:// or postgres://
+        connection_string = connection_string.replace("postgresql+asyncpg://", "postgresql://")
+        connection_string = connection_string.replace("postgresql+psycopg2://", "postgresql://")
+        connection_string = connection_string.replace("postgresql+psycopg://", "postgresql://")
+        
         storage = PostgreSQLSnapshotStorage(connection_string=connection_string)
         yield storage
-        await storage.cleanup()
+        await storage.close()
 
     @pytest.mark.asyncio
     async def test_save_and_get_snapshot(self, storage):
         """Test saving and retrieving a snapshot"""
         saga_id = uuid4()
         snapshot = SagaSnapshot(
+            snapshot_id=uuid4(),
             saga_id=saga_id,
             saga_name="payment_saga",
             step_name="authorize_payment",
@@ -290,11 +296,11 @@ class TestPostgreSQLSnapshotStorageIntegration:
         )
 
         # Save snapshot
-        snapshot_id = await storage.save_snapshot(snapshot)
-        assert snapshot_id is not None
+        await storage.save_snapshot(snapshot)
 
         # Retrieve snapshot
-        retrieved = await storage.get_snapshot(snapshot_id=snapshot_id)
+        retrieved = await storage.get_snapshot(snapshot_id=snapshot.snapshot_id)
+        assert retrieved is not None
         assert retrieved.saga_id == saga_id
         assert retrieved.saga_name == "payment_saga"
         assert retrieved.step_name == "authorize_payment"
@@ -308,6 +314,7 @@ class TestPostgreSQLSnapshotStorageIntegration:
         # Create multiple snapshots
         for i in range(3):
             snapshot = SagaSnapshot(
+                snapshot_id=uuid4(),
                 saga_id=saga_id,
                 saga_name="test_saga",
                 step_name=f"step_{i}",
@@ -332,6 +339,7 @@ class TestPostgreSQLSnapshotStorageIntegration:
         # Create 5 snapshots
         for i in range(5):
             snapshot = SagaSnapshot(
+                snapshot_id=uuid4(),
                 saga_id=saga_id,
                 saga_name="test_saga",
                 step_name=f"step_{i}",
@@ -351,6 +359,7 @@ class TestPostgreSQLSnapshotStorageIntegration:
     async def test_delete_snapshot(self, storage):
         """Test deleting a snapshot"""
         snapshot = SagaSnapshot(
+            snapshot_id=uuid4(),
             saga_id=uuid4(),
             saga_name="test_saga",
             step_name="step1",
@@ -362,12 +371,13 @@ class TestPostgreSQLSnapshotStorageIntegration:
         )
 
         # Save and then delete
-        snapshot_id = await storage.save_snapshot(snapshot)
-        await storage.delete_snapshot(snapshot_id=snapshot_id)
+        await storage.save_snapshot(snapshot)
+        deleted = await storage.delete_snapshot(snapshot_id=snapshot.snapshot_id)
+        assert deleted is True
 
-        # Verify deleted
-        with pytest.raises(SnapshotNotFoundError):
-            await storage.get_snapshot(snapshot_id=snapshot_id)
+        # Verify deleted - should return None
+        retrieved = await storage.get_snapshot(snapshot_id=snapshot.snapshot_id)
+        assert retrieved is None
 
     @pytest.mark.asyncio
     async def test_get_latest_snapshot(self, storage):
@@ -377,6 +387,7 @@ class TestPostgreSQLSnapshotStorageIntegration:
         # Create snapshots with delays
         for i in range(3):
             snapshot = SagaSnapshot(
+                snapshot_id=uuid4(),
                 saga_id=saga_id,
                 saga_name="test_saga",
                 step_name=f"step_{i}",
@@ -398,8 +409,9 @@ class TestPostgreSQLSnapshotStorageIntegration:
         """Test pruning snapshots older than retention period"""
         saga_id = uuid4()
 
-        # Create old snapshot
+        # Create old snapshot with expired retention
         old_snapshot = SagaSnapshot(
+            snapshot_id=uuid4(),
             saga_id=saga_id,
             saga_name="test_saga",
             step_name="step_old",
@@ -408,10 +420,12 @@ class TestPostgreSQLSnapshotStorageIntegration:
             context={},
             completed_steps=[],
             created_at=datetime.now(UTC) - timedelta(days=31),
+            retention_until=datetime.now(UTC) - timedelta(days=1),  # Expired
         )
 
         # Create recent snapshot
         recent_snapshot = SagaSnapshot(
+            snapshot_id=uuid4(),
             saga_id=saga_id,
             saga_name="test_saga",
             step_name="step_recent",
@@ -422,16 +436,16 @@ class TestPostgreSQLSnapshotStorageIntegration:
             created_at=datetime.now(UTC),
         )
 
-        old_id = await storage.save_snapshot(old_snapshot)
-        recent_id = await storage.save_snapshot(recent_snapshot)
+        await storage.save_snapshot(old_snapshot)
+        await storage.save_snapshot(recent_snapshot)
 
-        # Prune snapshots older than 30 days
-        deleted_count = await storage.prune_snapshots(older_than_days=30)
-        assert deleted_count >= 1
+        # Delete expired snapshots (older than retention period)
+        deleted_count = await storage.delete_expired_snapshots()
+        assert deleted_count >= 1  # Should delete the expired snapshot
 
         # Verify old deleted, recent remains
-        with pytest.raises(SnapshotNotFoundError):
-            await storage.get_snapshot(snapshot_id=old_id)
+        old_retrieved = await storage.get_snapshot(snapshot_id=old_snapshot.snapshot_id)
+        assert old_retrieved is None  # Should be deleted
 
-        retrieved_recent = await storage.get_snapshot(snapshot_id=recent_id)
+        retrieved_recent = await storage.get_snapshot(snapshot_id=recent_snapshot.snapshot_id)
         assert retrieved_recent is not None

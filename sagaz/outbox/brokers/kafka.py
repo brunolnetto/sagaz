@@ -28,7 +28,7 @@ try:
     from aiokafka.errors import KafkaError
 
     KAFKA_AVAILABLE = True
-except ImportError:  # pragma: no cover
+except ImportError:
     KAFKA_AVAILABLE = False  # pragma: no cover
     AIOKafkaProducer = None  # pragma: no cover
     KafkaError = Exception  # pragma: no cover
@@ -111,9 +111,9 @@ class KafkaBroker(BaseBroker):
         Raises:
             MissingDependencyError: If aiokafka is not installed
         """
-        if not KAFKA_AVAILABLE:  # pragma: no cover
-            msg = "aiokafka"  # pragma: no cover
-            raise MissingDependencyError(msg, "Kafka message broker")  # pragma: no cover
+        if not KAFKA_AVAILABLE:
+            msg = "aiokafka"
+            raise MissingDependencyError(msg, "Kafka message broker")
 
         super().__init__(config)
         self.config: KafkaBrokerConfig = config or KafkaBrokerConfig()
@@ -137,10 +137,10 @@ class KafkaBroker(BaseBroker):
 
     async def connect(self) -> None:
         """Establish connection to Kafka."""
-        if self._connected:  # pragma: no cover
-            return  # pragma: no cover
+        if self._connected:
+            return
 
-        try:  # pragma: no cover (RUN_INTEGRATION=1 with Docker)
+        try:  # (RUN_INTEGRATION=1 with Docker)
             producer_kwargs = {
                 "bootstrap_servers": self.config.bootstrap_servers,
                 "client_id": self.config.client_id,
@@ -155,7 +155,7 @@ class KafkaBroker(BaseBroker):
                 producer_kwargs["compression_type"] = self.config.compression_type
 
             # Add security settings if configured
-            if self.config.sasl_mechanism:  # pragma: no cover
+            if self.config.sasl_mechanism:
                 producer_kwargs["sasl_mechanism"] = self.config.sasl_mechanism
                 producer_kwargs["sasl_plain_username"] = self.config.sasl_username
                 producer_kwargs["sasl_plain_password"] = self.config.sasl_password
@@ -167,7 +167,7 @@ class KafkaBroker(BaseBroker):
 
             logger.info(f"Connected to Kafka at {self.config.bootstrap_servers}")
 
-        except KafkaError as e:  # pragma: no cover
+        except KafkaError as e:
             msg = f"Failed to connect to Kafka: {e}"
             raise BrokerConnectionError(msg) from e
 
@@ -183,7 +183,7 @@ class KafkaBroker(BaseBroker):
             msg = "Kafka producer not connected"
             raise BrokerConnectionError(msg)
 
-        try:  # pragma: no cover (RUN_INTEGRATION=1 with Docker)
+        try:  # (RUN_INTEGRATION=1 with Docker)
             await self._producer.send_and_wait(
                 topic=topic,
                 value=message,
@@ -192,7 +192,7 @@ class KafkaBroker(BaseBroker):
             )
             logger.debug(f"Published message to Kafka topic {topic}")
 
-        except KafkaError as e:  # pragma: no cover
+        except KafkaError as e:
             msg = f"Failed to publish to Kafka: {e}"
             raise BrokerPublishError(msg) from e
 
@@ -208,7 +208,7 @@ class KafkaBroker(BaseBroker):
         """Encode key to bytes if provided."""
         return key.encode("utf-8") if key else None
 
-    async def close(self) -> None:  # pragma: no cover (RUN_INTEGRATION=1)
+    async def close(self) -> None:  # (RUN_INTEGRATION=1)
         """Close the Kafka producer."""
         if self._producer:
             await self._producer.stop()
@@ -221,11 +221,11 @@ class KafkaBroker(BaseBroker):
         if not self._connected or not self._producer:
             return False
 
-        try:  # pragma: no cover (RUN_INTEGRATION=1 with Docker)
+        try:  # (RUN_INTEGRATION=1 with Docker)
             # Try to get cluster metadata as a health check
             await self._producer.client.fetch_all_metadata()
             return True
-        except Exception:  # pragma: no cover
+        except Exception:
             return False
 
 

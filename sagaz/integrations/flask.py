@@ -135,7 +135,7 @@ class SagaFlask:
         """
         try:
             from flask import Blueprint, jsonify, request
-        except ImportError:  # pragma: no cover
+        except ImportError:
             msg = "Flask is required. Install with: pip install flask"
             raise ImportError(msg)
 

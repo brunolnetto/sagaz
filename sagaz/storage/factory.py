@@ -243,7 +243,7 @@ def create_storage(
         outbox_storage = _OUTBOX_STORAGE_REGISTRY[backend](factory_kwargs)
         return saga_storage, outbox_storage
     except MissingDependencyError:
-        raise  # pragma: no cover
+        raise
 
 
 def get_available_backends() -> dict[str, dict[str, Any]]:
@@ -283,7 +283,7 @@ def get_available_backends() -> dict[str, dict[str, Any]]:
             "best_for": "Distributed systems, high throughput, auto-expiration",
             "supports": ["saga", "outbox"],
         }
-    except ImportError:  # pragma: no cover
+    except ImportError:
         backends["redis"] = {
             "available": False,
             "description": "Redis-based distributed storage",
@@ -303,7 +303,7 @@ def get_available_backends() -> dict[str, dict[str, Any]]:
             "best_for": "ACID compliance, complex queries, data integrity",
             "supports": ["saga", "outbox"],
         }
-    except ImportError:  # pragma: no cover
+    except ImportError:
         backends["postgresql"] = {
             "available": False,
             "description": "PostgreSQL ACID-compliant storage",
@@ -323,7 +323,7 @@ def get_available_backends() -> dict[str, dict[str, Any]]:
             "best_for": "Local development, testing, single-file persistence",
             "supports": ["saga", "outbox"],
         }
-    except ImportError:  # pragma: no cover
+    except ImportError:
         backends["sqlite"] = {
             "available": False,
             "description": "SQLite embedded storage",
@@ -352,6 +352,6 @@ def print_available_backends() -> None:
         print(f"                   Supports: {supports}")
 
         if not info["available"] and info["install"]:
-            print(f"                   Install: {info['install']}")  # pragma: no cover
+            print(f"                   Install: {info['install']}")
 
     print()

@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any
 
 from sagaz.storage.interfaces.outbox import OutboxStorage, OutboxStorageError
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     from sagaz.outbox.types import OutboxEvent, OutboxStatus
 
 

@@ -25,7 +25,7 @@ try:
     import redis.asyncio as redis
 
     REDIS_AVAILABLE = True
-except ImportError:  # pragma: no cover
+except ImportError:
     REDIS_AVAILABLE = False  # pragma: no cover
     redis: Any = None  # type: ignore[no-redef]  # pragma: no cover
 
@@ -33,7 +33,7 @@ try:
     import zstandard as zstd
 
     ZSTD_AVAILABLE = True
-except ImportError:  # pragma: no cover
+except ImportError:
     ZSTD_AVAILABLE = False  # pragma: no cover
     zstd = None  # pragma: no cover
 
@@ -89,9 +89,9 @@ class RedisSnapshotStorage(SnapshotStorage):
                 self._redis = redis.from_url(self.redis_url, **self.redis_kwargs)
                 # Test connection
                 await self._redis.ping()  # type: ignore[attr-defined]
-            except Exception as e:  # pragma: no cover
-                msg = f"Failed to connect to Redis: {e}"  # pragma: no cover
-                raise ConnectionError(msg)  # pragma: no cover
+            except Exception as e:
+                msg = f"Failed to connect to Redis: {e}"
+                raise ConnectionError(msg)
 
         return self._redis
 

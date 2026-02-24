@@ -27,7 +27,7 @@ def _check_broker_availability(module_path: str, available_attr: str) -> bool:
     try:
         module = __import__(module_path, fromlist=[available_attr])
         return getattr(module, available_attr, False)
-    except ImportError:  # pragma: no cover
+    except ImportError:
         return False  # pragma: no cover
 
 
@@ -97,7 +97,7 @@ def _print_broker_status(module_path: str, attr: str, name: str, desc: str, inst
     if available:
         print(f"  ✓ {name:<10} - {desc}")
     else:
-        print(f"  ✗ {name:<10} - {desc} (install: {install})")  # pragma: no cover
+        print(f"  ✗ {name:<10} - {desc} (install: {install})")
 
 
 def _create_kafka_broker(kwargs: dict):
@@ -141,6 +141,7 @@ def _create_redis_broker(kwargs: dict):
 _BROKER_REGISTRY = {
     "memory": (lambda _: InMemoryBroker(), None),
     "kafka": (_create_kafka_broker, "aiokafka"),
+    "tansu": (_create_kafka_broker, "aiokafka"),  # Tansu is Kafka-compatible
     "rabbitmq": (_create_rabbitmq_broker, "aio-pika"),
     "rabbit": (_create_rabbitmq_broker, "aio-pika"),
     "amqp": (_create_rabbitmq_broker, "aio-pika"),
@@ -187,12 +188,12 @@ def create_broker(
 
     try:
         return factory(kwargs)  # type: ignore[no-any-return]
-    except ImportError:  # pragma: no cover
+    except ImportError:
         if dependency:  # pragma: no cover
             raise MissingDependencyError(
                 dependency, f"{broker_type} message broker"
-            )  # pragma: no cover
-        raise  # pragma: no cover
+            )
+        raise
 
 
 def create_broker_from_env() -> MessageBroker:
