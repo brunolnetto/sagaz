@@ -402,8 +402,8 @@ class MermaidGenerator:
             s1, s2 = comp_order[i], comp_order[i - 1]
             s1_comp = s1 in self.trail.compensated
             s2_comp = s2 in self.trail.compensated
-            if has_trail and not (s1_comp and s2_comp):  # pragma: no cover
-                continue  # pragma: no cover
+            if has_trail and not (s1_comp and s2_comp):
+                continue
             self._add_link(
                 f"comp_{s1}", "-.->", f"comp_{s2}", highlight=True, link_type="compensation"
             )
@@ -434,12 +434,12 @@ class MermaidGenerator:
         while queue:
             dep_name = queue.pop(0)
             if dep_name in seen:
-                continue  # pragma: no cover
+                continue
             seen.add(dep_name)
 
             dep_step = self._step_map.get(dep_name)
-            if not dep_step:  # pragma: no cover
-                continue  # pragma: no cover
+            if not dep_step:
+                continue
 
             if dep_step.has_compensation:
                 found.add(dep_name)
@@ -568,8 +568,8 @@ class MermaidGenerator:
 
     def _is_after_any_pivot(self, step: StepInfo) -> bool:
         """Check if step is a descendant of any pivot."""
-        if not self._pivot_steps:  # pragma: no cover
-            return False  # pragma: no cover
+        if not self._pivot_steps:
+            return False
 
         # BFS from pivot steps to find descendants
         pivots = {s.name for s in self._pivot_steps}
@@ -580,17 +580,17 @@ class MermaidGenerator:
 
         while to_check:
             dep = to_check.pop(0)
-            if dep in visited:  # pragma: no cover
-                continue  # pragma: no cover
+            if dep in visited:
+                continue
             visited.add(dep)
 
             if dep in pivots:
                 return True
 
             # Check ancestors of this dependency
-            dep_step = self._step_map.get(dep)  # pragma: no cover
-            if dep_step:  # pragma: no cover
-                to_check.extend(dep_step.depends_on)  # pragma: no cover
+            dep_step = self._step_map.get(dep)
+            if dep_step:
+                to_check.extend(dep_step.depends_on)
 
         return False
 

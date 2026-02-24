@@ -52,9 +52,9 @@ class StorageEncoder(json.JSONEncoder):
 
         # Try to serialize as dict
         if hasattr(obj, "__dict__"):
-            return obj.__dict__  # pragma: no cover
+            return obj.__dict__
 
-        return super().default(obj)  # pragma: no cover
+        return super().default(obj)
 
 
 def storage_decoder(obj: dict[str, Any]) -> Any:
@@ -110,7 +110,7 @@ def serialize(data: Any) -> str:
     """
     try:
         return json.dumps(data, cls=StorageEncoder, ensure_ascii=False)
-    except (TypeError, ValueError) as e:  # pragma: no cover
+    except (TypeError, ValueError) as e:
         raise SerializationError(
             message=f"Failed to serialize data: {e}",
             operation="serialize",
@@ -159,10 +159,10 @@ def serialize_for_redis(data: dict[str, Any]) -> dict[str, str]:
             result[key] = ""
         elif isinstance(value, bool):  # Check bool BEFORE int (bool is subclass of int)
             result[key] = "true" if value else "false"
-        elif isinstance(value, str):  # pragma: no cover
-            result[key] = value  # pragma: no cover
-        elif isinstance(value, (int, float)):  # pragma: no cover
-            result[key] = str(value)  # pragma: no cover
+        elif isinstance(value, str):
+            result[key] = value
+        elif isinstance(value, (int, float)):
+            result[key] = str(value)
         elif isinstance(value, datetime):
             result[key] = value.isoformat()
         elif isinstance(value, UUID):

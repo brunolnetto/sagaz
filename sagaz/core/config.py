@@ -49,7 +49,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     from sagaz.core.listeners import SagaListener
     from sagaz.outbox.brokers.base import BaseBroker
     from sagaz.storage.base import SagaStorage

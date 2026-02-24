@@ -3517,6 +3517,7 @@ source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
     { name = "click" },
+    { name = "python-dotenv" },
     { name = "python-statemachine" },
     { name = "pyyaml" },
     { name = "rich" },
@@ -3636,6 +3637,7 @@ requires-dist = [
     { name = "opentelemetry-exporter-otlp-proto-grpc", marker = "extra == 'tracing'", specifier = ">=1.39.1" },
     { name = "opentelemetry-sdk", marker = "extra == 'tracing'", specifier = ">=1.39.1" },
     { name = "prometheus-client", marker = "extra == 'prometheus'", specifier = ">=0.23.1" },
+    { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "python-statemachine", specifier = ">=2.1.0" },
     { name = "pyyaml", specifier = ">=6.0.0" },
     { name = "redis", marker = "extra == 'redis'", specifier = ">=7.1.0" },

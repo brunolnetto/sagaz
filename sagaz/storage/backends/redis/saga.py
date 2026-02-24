@@ -25,7 +25,7 @@ try:
     import redis.asyncio as redis
 
     REDIS_AVAILABLE = True
-except ImportError:  # pragma: no cover
+except ImportError:
     REDIS_AVAILABLE = False  # pragma: no cover
     redis: Any = None  # type: ignore[no-redef]  # pragma: no cover
 
@@ -73,9 +73,9 @@ class RedisSagaStorage(SagaStorage):
                 self._redis = redis.from_url(self.redis_url, **self.redis_kwargs)
                 # Test connection
                 await self._redis.ping()  # type: ignore[attr-defined]
-            except Exception as e:  # pragma: no cover
-                msg = f"Failed to connect to Redis: {e}"  # pragma: no cover
-                raise SagaStorageConnectionError(msg)  # pragma: no cover
+            except Exception as e:
+                msg = f"Failed to connect to Redis: {e}"
+                raise SagaStorageConnectionError(msg)
 
         return self._redis
 
@@ -148,9 +148,9 @@ class RedisSagaStorage(SagaStorage):
 
         try:
             return json.loads(saga_data_json)  # type: ignore[no-any-return]
-        except json.JSONDecodeError as e:  # pragma: no cover
-            msg = f"Failed to decode saga data for {saga_id}: {e}"  # pragma: no cover
-            raise SagaStorageError(msg)  # pragma: no cover
+        except json.JSONDecodeError as e:
+            msg = f"Failed to decode saga data for {saga_id}: {e}"
+            raise SagaStorageError(msg)
 
     async def delete_saga_state(self, saga_id: str) -> bool:
         """Delete saga state from Redis"""
@@ -409,9 +409,9 @@ class RedisSagaStorage(SagaStorage):
             result = await redis_client.get(test_key)
             await redis_client.delete(test_key)
 
-            if result != b"ok":  # pragma: no cover
-                msg = "Read/write test failed"  # pragma: no cover
-                raise Exception(msg)  # pragma: no cover
+            if result != b"ok":
+                msg = "Read/write test failed"
+                raise Exception(msg)
 
             # Get Redis info
             info = await redis_client.info()
@@ -425,13 +425,13 @@ class RedisSagaStorage(SagaStorage):
                 "timestamp": datetime.now(UTC).isoformat(),
             }
 
-        except Exception as e:  # pragma: no cover
+        except Exception as e:
             return {
                 "status": "unhealthy",
                 "storage_type": "redis",
                 "error": str(e),
                 "timestamp": datetime.now(UTC).isoformat(),
-            }  # pragma: no cover
+            }
 
     async def close(self):
         """Close connection explicitly."""
@@ -447,7 +447,7 @@ class RedisSagaStorage(SagaStorage):
         """Async context manager exit"""
         await self.close()
 
-    async def count(self) -> int:  # pragma: no cover
+    async def count(self) -> int:
         """Count total sagas."""
         redis_client = await self._get_redis()
         # This is expensive in Redis, better use a counter key or scan
@@ -460,7 +460,7 @@ class RedisSagaStorage(SagaStorage):
             count += await redis_client.scard(status_index)
         return count
 
-    async def export_all(self):  # pragma: no cover
+    async def export_all(self):
         """Export all records for transfer."""
         redis_client = await self._get_redis()
         saga_ids = await self._get_all_saga_ids(redis_client)
@@ -470,7 +470,7 @@ class RedisSagaStorage(SagaStorage):
             if saga_data:
                 yield saga_data
 
-    async def import_record(self, record: dict[str, Any]) -> None:  # pragma: no cover
+    async def import_record(self, record: dict[str, Any]) -> None:
         """Import a single record from transfer."""
         await self.save_saga_state(
             saga_id=record["saga_id"],

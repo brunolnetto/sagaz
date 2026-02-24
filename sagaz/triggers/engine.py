@@ -81,8 +81,8 @@ class TriggerEngine:
 
             # 2. Get or generate saga ID
             saga_id, is_new = await self._resolve_saga_id(metadata, payload, saga_class)
-            if saga_id is None:  # pragma: no cover
-                return None  # pragma: no cover
+            if saga_id is None:
+                return None
 
             # If saga already exists (idempotent), return the ID without running
             if not is_new:
@@ -199,7 +199,7 @@ class TriggerEngine:
             return self._extract_string_key(key_logic, payload)
         if callable(key_logic):
             return self._extract_callable_key(key_logic, payload)
-        return None  # pragma: no cover
+        return None
 
     def _extract_string_key(self, key: str, payload: Any) -> str | None:
         """Extract key from payload using string key."""
@@ -208,10 +208,10 @@ class TriggerEngine:
             if value is None:
                 # Field explicitly declared but missing - this is an error
                 return None
-        elif hasattr(payload, key):  # pragma: no cover
-            value = getattr(payload, key)  # pragma: no cover
-        else:  # pragma: no cover
-            return None  # pragma: no cover
+        elif hasattr(payload, key):
+            value = getattr(payload, key)
+        else:
+            return None
 
         return str(value) if value is not None else None
 
@@ -220,26 +220,26 @@ class TriggerEngine:
         try:
             result = func(payload)
             return str(result) if result is not None else None
-        except Exception as e:  # pragma: no cover
-            logger.error(f"Error calculating idempotency key: {e}")  # pragma: no cover
-            return None  # pragma: no cover
+        except Exception as e:
+            logger.error(f"Error calculating idempotency key: {e}")
+            return None
 
     async def _check_idempotency(self, saga_id: str, saga_name: str) -> bool:
         """Check if saga with this ID already exists."""
         if not self.storage:
-            return False  # pragma: no cover
+            return False
 
         try:
             state = await self.storage.load_saga_state(saga_id)
             return state is not None
-        except Exception as e:  # pragma: no cover
-            logger.warning(f"Storage error during idempotency check: {e}")  # pragma: no cover
-            return False  # pragma: no cover
+        except Exception as e:
+            logger.warning(f"Storage error during idempotency check: {e}")
+            return False
 
     async def _check_concurrency(self, saga_name: str, max_concurrent: int) -> bool:
         """Check if concurrency limit allows new saga."""
         if not self.storage:
-            return True  # pragma: no cover
+            return True
 
         try:
             running = await self.storage.list_sagas(
@@ -247,9 +247,9 @@ class TriggerEngine:
             )
             current_count = len(running) if running else 0
             return current_count < max_concurrent
-        except Exception as e:  # pragma: no cover
-            logger.warning(f"Storage error during concurrency check: {e}")  # pragma: no cover
-            return True  # pragma: no cover
+        except Exception as e:
+            logger.warning(f"Storage error during concurrency check: {e}")
+            return True
 
     async def _run_saga(self, saga_class, saga_id: str, context: dict):
         """Create and run saga instance in background.

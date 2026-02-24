@@ -32,7 +32,7 @@ from typing import TYPE_CHECKING, Optional
 from statemachine import State, StateMachine
 from statemachine.exceptions import TransitionNotAllowed
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     from sagaz.core.saga import Saga
 
 

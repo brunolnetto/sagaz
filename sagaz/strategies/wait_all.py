@@ -34,8 +34,8 @@ class WaitAllStrategy(ParallelExecutionStrategy):
         Raises:
             Exception: Any exception from failed steps (after all steps complete)
         """
-        if not steps:  # pragma: no cover
-            return []  # pragma: no cover
+        if not steps:
+            return []
 
         tasks = [asyncio.create_task(step.execute()) for step in steps]
         results = await asyncio.gather(*tasks, return_exceptions=True)

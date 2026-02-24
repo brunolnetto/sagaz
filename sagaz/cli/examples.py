@@ -16,7 +16,7 @@ try:
 
     console: Console | None = Console()
     TableClass: type[Table] | None = Table
-except ImportError:  # pragma: no cover
+except ImportError:
     console = None
     TableClass = None
 
@@ -24,7 +24,7 @@ try:
     from simple_term_menu import TerminalMenu
 
     TERM_MENU_AVAILABLE = True
-except ImportError:  # pragma: no cover
+except ImportError:
     TERM_MENU_AVAILABLE = False
     TerminalMenu = None
 
@@ -42,12 +42,12 @@ def get_examples_dir() -> Path:
     # First check CWD for development
     cwd_examples = Path.cwd() / "examples"
     if cwd_examples.exists() and cwd_examples.is_dir():
-        return cwd_examples  # pragma: no cover
+        return cwd_examples
 
     # Fall back to packaged examples
     try:
         return Path(str(pkg_resources.files("sagaz.examples")))
-    except (ModuleNotFoundError, TypeError):  # pragma: no cover
+    except (ModuleNotFoundError, TypeError):
         return cwd_examples  # Fallback if package not found
 
 
@@ -292,14 +292,14 @@ def run_example_cmd(name: str):
 
 def interactive_cmd(category: str | None = None):
     """Interactive example selection and execution with cascaded menus."""
-    if not TERM_MENU_AVAILABLE:  # pragma: no cover
+    if not TERM_MENU_AVAILABLE:
         _fallback_interactive_simple(category)
         return
 
-    if category:  # pragma: no cover
+    if category:
         # Direct to examples in category
         _examples_menu_loop(category)
-    else:  # pragma: no cover
+    else:
         # Start with category selection
         _category_menu_loop()
 
@@ -334,7 +334,7 @@ def _build_domain_menu(domains: dict) -> tuple[list[str], list[str]]:
     return menu_entries, domain_list
 
 
-def _category_menu_loop():  # pragma: no cover
+def _category_menu_loop():
     """Main domain selection loop (consolidated categories)."""
     domains = get_domains()
 
@@ -375,7 +375,7 @@ def _category_menu_loop():  # pragma: no cover
             return
 
 
-def _domain_category_menu_loop(domain: str, categories: list[str]) -> str:  # pragma: no cover
+def _domain_category_menu_loop(domain: str, categories: list[str]) -> str:
     """Category selection loop for a specific domain. Returns 'back' or 'exit'."""
     while True:
         if console:
@@ -423,7 +423,7 @@ def _domain_category_menu_loop(domain: str, categories: list[str]) -> str:  # pr
         # Otherwise, loop back to category selection
 
 
-def _examples_menu_loop(category: str) -> str:  # pragma: no cover
+def _examples_menu_loop(category: str) -> str:
     """Examples selection loop for a specific category. Returns 'back' or 'exit'."""
     while True:
         examples = discover_examples(category)
@@ -443,7 +443,7 @@ def _examples_menu_loop(category: str) -> str:  # pragma: no cover
         # Loop continues after example runs
 
 
-def _show_category_header(category: str) -> None:  # pragma: no cover
+def _show_category_header(category: str) -> None:
     """Display category header."""
     if console:
         formatted_name = _format_category_name(category)
@@ -451,7 +451,7 @@ def _show_category_header(category: str) -> None:  # pragma: no cover
         console.print("[dim]Use ↑/↓ to navigate, Enter to select, q to quit[/dim]\n")
 
 
-def _build_example_menu_entries(sorted_examples: list) -> list[str]:  # pragma: no cover
+def _build_example_menu_entries(sorted_examples: list) -> list[str]:
     """Build menu entries from examples."""
     menu_entries = []
     for name, path in sorted_examples:
@@ -469,7 +469,7 @@ def _build_example_menu_entries(sorted_examples: list) -> list[str]:  # pragma: 
 
 def _handle_menu_selection(
     menu_entries: list[str], sorted_examples: list
-) -> str:  # pragma: no cover
+) -> str:
     """Handle menu selection. Returns 'back', 'exit', or 'continue'."""
     menu = TerminalMenu(
         menu_entries,
@@ -496,7 +496,7 @@ def _handle_menu_selection(
     return "continue"
 
 
-def _run_and_show_result(name: str, path: Path) -> None:  # pragma: no cover
+def _run_and_show_result(name: str, path: Path) -> None:
     """Run example and show completion message."""
     if console:
         console.print(f"\n[bold green]▸ Running:[/bold green] {name}")
@@ -511,7 +511,7 @@ def _run_and_show_result(name: str, path: Path) -> None:  # pragma: no cover
     input("\nPress Enter to return to menu...")
 
 
-def _fallback_interactive_simple(category: str | None = None):  # pragma: no cover
+def _fallback_interactive_simple(category: str | None = None):
     """Fallback numbered menu when simple-term-menu is not available."""
     examples = discover_examples(category)
     if not examples:
@@ -644,5 +644,5 @@ def _execute_example(script_path: Path):
         if requirements_file.exists():
             click.echo("\n💡 This example may require additional dependencies.")
             click.echo(f"   Install them with: pip install -r {requirements_file}")
-    except KeyboardInterrupt:  # pragma: no cover
+    except KeyboardInterrupt:
         click.echo("\nInterrupted.")

@@ -145,7 +145,7 @@ def create_webhook_router(url_prefix: str = "/webhooks"):
     try:
         from fastapi import APIRouter, BackgroundTasks, Request
         from fastapi.responses import JSONResponse
-    except ImportError:  # pragma: no cover
+    except ImportError:
         msg = "FastAPI is required for this integration. Install with: pip install fastapi"
         raise ImportError(msg)
 

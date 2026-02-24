@@ -266,7 +266,7 @@ class InMemorySagaStorage(SagaStorage):
                 # Yield a copy
                 yield dict(saga_data)
 
-    async def import_record(self, record: dict[str, Any]) -> None:  # pragma: no cover
+    async def import_record(self, record: dict[str, Any]) -> None:
         """Import a single record from transfer."""
         await self.save_saga_state(
             saga_id=record["saga_id"],

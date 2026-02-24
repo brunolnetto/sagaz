@@ -112,7 +112,7 @@ class TransferProgress:
         """Transfer rate in records per second."""
         elapsed = self.elapsed_seconds
         if elapsed == 0:
-            return 0.0  # pragma: no cover
+            return 0.0
         return self.transferred / elapsed
 
     @property
@@ -120,7 +120,7 @@ class TransferProgress:
         """Estimated remaining time in seconds."""
         rate = self.records_per_second
         if rate == 0:
-            return 0.0  # pragma: no cover
+            return 0.0
         remaining = self.total - self.transferred - self.failed - self.skipped
         return remaining / rate
 
@@ -305,7 +305,7 @@ class TransferService:
                     records_transferred=result.transferred,
                     records_failed=result.failed,
                 ) from e
-            result.errors.append(str(e))  # pragma: no cover
+            result.errors.append(str(e))
 
         # Finalize result
         result.duration_seconds = (datetime.now(UTC) - start_time).total_seconds()
@@ -411,7 +411,7 @@ class TransferService:
             except Exception as e:
                 logger.warning(f"Retry {attempt + 1}/{self.config.max_retries} failed: {e}")
 
-        return False  # pragma: no cover
+        return False
 
     def _notify_progress(self) -> None:
         """Notify progress callback if configured."""

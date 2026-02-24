@@ -29,7 +29,7 @@ try:
     import aioboto3
 
     HAS_AIOBOTO3 = True
-except ImportError:  # pragma: no cover
+except ImportError:
     HAS_AIOBOTO3 = False
 
 

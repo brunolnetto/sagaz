@@ -24,7 +24,7 @@ try:
     import asyncpg
 
     ASYNCPG_AVAILABLE = True
-except ImportError:  # pragma: no cover
+except ImportError:
     ASYNCPG_AVAILABLE = False  # pragma: no cover
     asyncpg = None  # pragma: no cover
 
@@ -108,9 +108,9 @@ class PostgreSQLSagaStorage(SagaStorage):
                 async with self._pool.acquire() as conn:  # type: ignore[attr-defined]
                     await conn.execute(self.CREATE_TABLES_SQL)
 
-            except Exception as e:  # pragma: no cover
-                msg = f"Failed to connect to PostgreSQL: {e}"  # pragma: no cover
-                raise SagaStorageConnectionError(msg)  # pragma: no cover
+            except Exception as e:
+                msg = f"Failed to connect to PostgreSQL: {e}"
+                raise SagaStorageConnectionError(msg)
 
         return self._pool
 
@@ -194,7 +194,7 @@ class PostgreSQLSagaStorage(SagaStorage):
             )
 
             if not saga_row:
-                return None  # pragma: no cover
+                return None
 
             step_rows = await conn.fetch(
                 """
@@ -242,8 +242,8 @@ class PostgreSQLSagaStorage(SagaStorage):
         """Parse JSON, returning raw value on failure."""
         try:
             return json.loads(value)
-        except json.JSONDecodeError:  # pragma: no cover
-            return value  # pragma: no cover
+        except json.JSONDecodeError:
+            return value
 
     async def delete_saga_state(self, saga_id: str) -> bool:
         """Delete saga state from PostgreSQL"""
@@ -359,9 +359,9 @@ class PostgreSQLSagaStorage(SagaStorage):
                 executed_at,
             )
 
-            if update_result.split()[-1] == "0":  # No rows affected  # pragma: no cover
+            if update_result.split()[-1] == "0":  # No rows affected
                 msg = f"Step {step_name} not found in saga {saga_id}"
-                raise SagaStorageError(msg)  # pragma: no cover
+                raise SagaStorageError(msg)
 
             # Update saga timestamp
             await conn.execute(
@@ -430,9 +430,9 @@ class PostgreSQLSagaStorage(SagaStorage):
             async with pool.acquire() as conn:
                 # Test basic query
                 result = await conn.fetchval("SELECT 1")
-                if result != 1:  # pragma: no cover
-                    msg = "Basic query failed"  # pragma: no cover
-                    raise Exception(msg)  # pragma: no cover
+                if result != 1:
+                    msg = "Basic query failed"
+                    raise Exception(msg)
 
                 # Get PostgreSQL version
                 version = await conn.fetchval("SELECT version()")
@@ -448,13 +448,13 @@ class PostgreSQLSagaStorage(SagaStorage):
                     "timestamp": datetime.now(UTC).isoformat(),
                 }
 
-        except Exception as e:  # pragma: no cover
+        except Exception as e:
             return {
                 "status": "unhealthy",
                 "storage_type": "postgresql",
                 "error": str(e),
                 "timestamp": datetime.now(UTC).isoformat(),
-            }  # pragma: no cover
+            }
 
     def _format_bytes(self, num_bytes: int) -> str:
         """Format bytes in human readable format"""
@@ -481,7 +481,7 @@ class PostgreSQLSagaStorage(SagaStorage):
         async with pool.acquire() as conn:
             return int(await conn.fetchval("SELECT COUNT(*) FROM sagas"))
 
-    async def export_all(self):  # pragma: no cover
+    async def export_all(self):
         """Export all records for transfer.
 
         Note: Using cursor for efficient streaming of large datasets.
@@ -502,7 +502,7 @@ class PostgreSQLSagaStorage(SagaStorage):
 
                     yield self._build_saga_dict(row, step_rows)
 
-    async def import_record(self, record: dict[str, Any]) -> None:  # pragma: no cover
+    async def import_record(self, record: dict[str, Any]) -> None:
         """Import a single record from transfer."""
         await self.save_saga_state(
             saga_id=record["saga_id"],

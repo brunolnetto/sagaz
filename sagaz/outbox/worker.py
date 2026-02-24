@@ -110,7 +110,7 @@ try:
         buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 5.0],
     )
 
-except ImportError:  # pragma: no cover
+except ImportError:
     PROMETHEUS_AVAILABLE = False
     logger.debug("prometheus-client not installed, metrics disabled")
 
@@ -207,7 +207,7 @@ class OutboxWorker:
         for sig in (signal.SIGTERM, signal.SIGINT):
             try:
                 loop.add_signal_handler(sig, self._handle_shutdown)
-            except NotImplementedError:  # pragma: no cover
+            except NotImplementedError:
                 pass  # Windows doesn't support add_signal_handler
 
     async def _run_processing_loop(self) -> None:
@@ -215,17 +215,17 @@ class OutboxWorker:
         while self._running:
             should_break = await self._process_iteration()
             if should_break:
-                break  # pragma: no cover
+                break
 
     async def _process_iteration(self) -> bool:
         """Process one iteration of the loop. Returns True if loop should break."""
         try:
             # Update pending events gauge
-            if PROMETHEUS_AVAILABLE:  # pragma: no cover
+            if PROMETHEUS_AVAILABLE:
                 try:
                     pending_count = await self.storage.get_pending_count()
                     OUTBOX_PENDING_EVENTS.set(pending_count)
-                except Exception:  # pragma: no cover
+                except Exception:
                     pass  # Ignore errors when getting pending count
 
             processed = await self.process_batch()
@@ -234,10 +234,10 @@ class OutboxWorker:
             return False
         except TimeoutError:
             return False  # Normal timeout, continue loop
-        except asyncio.CancelledError:  # pragma: no cover
+        except asyncio.CancelledError:
             logger.info(f"Worker {self.worker_id} cancelled")
             return True
-        except Exception as e:  # pragma: no cover
+        except Exception as e:
             logger.error(f"Worker {self.worker_id} error: {e}")
             await asyncio.sleep(self.config.poll_interval_seconds)
             return False
@@ -273,14 +273,14 @@ class OutboxWorker:
             batch_size=self.config.batch_size,
         )
 
-        if not events:  # pragma: no cover
+        if not events:
             return 0
 
         batch_size = len(events)
         logger.debug(f"Worker {self.worker_id} claimed {batch_size} events")
 
         # Record Prometheus metrics
-        if PROMETHEUS_AVAILABLE:  # pragma: no cover
+        if PROMETHEUS_AVAILABLE:
             OUTBOX_BATCH_SIZE.labels(worker_id=self.worker_id).set(batch_size)
             OUTBOX_PROCESSING_EVENTS.labels(worker_id=self.worker_id).set(batch_size)
 
@@ -291,13 +291,13 @@ class OutboxWorker:
         # Count successes and failures
         processed = 0
         for event, result in zip(events, results, strict=False):
-            if isinstance(result, Exception):  # pragma: no cover
+            if isinstance(result, Exception):
                 logger.error(f"Failed to process event {event.event_id}: {result}")
             else:
                 processed += 1
 
         # Record batch completion
-        if PROMETHEUS_AVAILABLE:  # pragma: no cover
+        if PROMETHEUS_AVAILABLE:
             OUTBOX_BATCH_PROCESSED.labels(worker_id=self.worker_id).inc()
             OUTBOX_PROCESSING_EVENTS.labels(worker_id=self.worker_id).set(0)
 
@@ -340,9 +340,9 @@ class OutboxWorker:
 
             logger.debug(f"Event {event.event_id} published successfully")
 
-        except BrokerError as e:  # pragma: no cover
+        except BrokerError as e:
             await self._handle_publish_failure(event, e)
-        except Exception as e:  # pragma: no cover
+        except Exception as e:
             await self._handle_publish_failure(event, e)
 
     async def _handle_publish_failure(
@@ -379,7 +379,7 @@ class OutboxWorker:
             OUTBOX_FAILED_EVENTS.labels(worker_id=self.worker_id, event_type=event_type).inc()
             OUTBOX_RETRY_ATTEMPTS.labels(worker_id=self.worker_id).inc()
 
-        if self._on_event_failed:  # pragma: no cover
+        if self._on_event_failed:
             await self._on_event_failed(event, error)
 
         # Check if should move to dead letter

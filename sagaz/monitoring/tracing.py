@@ -35,7 +35,7 @@ try:
     from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
     TRACING_AVAILABLE = True
-except ImportError:  # pragma: no cover
+except ImportError:
     # Graceful degradation if OpenTelemetry is not installed
     TRACING_AVAILABLE = False
     trace = None  # type: ignore[assignment]
@@ -66,7 +66,7 @@ def is_tracing_available() -> bool:
         ... else:
         ...     print("Tracing not available - install opentelemetry-api opentelemetry-sdk")
     """
-    return TRACING_AVAILABLE  # pragma: no cover
+    return TRACING_AVAILABLE
 
 
 class SagaTracer:

@@ -26,7 +26,7 @@ Usage (different backends):
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, cast
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
     # For casting
@@ -237,9 +237,9 @@ class StorageManager(BaseStorageManager):
         elif backend_type == "sqlite":
             await self._initialize_sqlite_unified()
 
-        else:  # pragma: no cover
-            msg = f"Unknown backend type: {backend_type}"  # pragma: no cover
-            raise ValueError(msg)  # pragma: no cover
+        else:
+            msg = f"Unknown backend type: {backend_type}"
+            raise ValueError(msg)
 
     async def _initialize_postgresql_unified(self) -> None:
         """Initialize PostgreSQL with shared connection pool."""
@@ -247,7 +247,7 @@ class StorageManager(BaseStorageManager):
 
         try:
             import asyncpg
-        except ImportError:  # pragma: no cover
+        except ImportError:
             msg = "asyncpg"
             raise MissingDependencyError(msg, "PostgreSQL storage backend")
 
@@ -287,7 +287,7 @@ class StorageManager(BaseStorageManager):
 
         try:
             import redis.asyncio as redis
-        except ImportError:  # pragma: no cover
+        except ImportError:
             msg = "redis"
             raise MissingDependencyError(msg, "Redis storage backend")  # pragma: no cover
 
@@ -314,7 +314,7 @@ class StorageManager(BaseStorageManager):
         from sagaz.storage.backends.sqlite.saga import SQLiteSagaStorage
 
         db_path = self._saga_url
-        if db_path and db_path.startswith("sqlite://"):  # pragma: no cover
+        if db_path and db_path.startswith("sqlite://"):
             db_path = db_path[9:] or ":memory:"
 
         # Use local variables
@@ -343,17 +343,17 @@ class StorageManager(BaseStorageManager):
 
             return cast("SagaStorage", InMemorySagaStorage())
 
-        if backend_type == "postgresql":  # pragma: no cover
+        if backend_type == "postgresql":
             return self._create_postgresql_saga(url)
 
-        if backend_type == "redis":  # pragma: no cover
+        if backend_type == "redis":
             return self._create_redis_saga(url)
 
-        if backend_type == "sqlite":  # pragma: no cover
+        if backend_type == "sqlite":
             return await self._create_sqlite_saga(url)
 
-        msg = f"Unknown saga backend: {backend_type}"  # pragma: no cover
-        raise ValueError(msg)  # pragma: no cover
+        msg = f"Unknown saga backend: {backend_type}"
+        raise ValueError(msg)
 
     def _create_postgresql_saga(self, url: str | None) -> "SagaStorage":
         """Create PostgreSQL saga storage."""
@@ -384,24 +384,24 @@ class StorageManager(BaseStorageManager):
 
     async def _create_outbox_storage(self, backend_type: str, url: str | None) -> "OutboxStorage":
         """Create and initialize outbox storage for a backend type."""
-        if backend_type == "memory":  # pragma: no cover
+        if backend_type == "memory":
             from sagaz.storage.backends.memory.outbox import (
-                InMemoryOutboxStorage,  # pragma: no cover
+                InMemoryOutboxStorage,
             )
 
-            return cast("OutboxStorage", InMemoryOutboxStorage())  # pragma: no cover
+            return cast("OutboxStorage", InMemoryOutboxStorage())
 
-        if backend_type == "postgresql":  # pragma: no cover
+        if backend_type == "postgresql":
             return await self._create_postgresql_outbox(url)
 
-        if backend_type == "redis":  # pragma: no cover
+        if backend_type == "redis":
             return await self._create_redis_outbox(url)
 
-        if backend_type == "sqlite":  # pragma: no cover
+        if backend_type == "sqlite":
             return await self._create_sqlite_outbox(url)
 
-        msg = f"Unknown outbox backend: {backend_type}"  # pragma: no cover
-        raise ValueError(msg)  # pragma: no cover
+        msg = f"Unknown outbox backend: {backend_type}"
+        raise ValueError(msg)
 
     async def _create_postgresql_outbox(self, url: str | None) -> "OutboxStorage":
         """Create and initialize PostgreSQL outbox storage."""
@@ -434,8 +434,8 @@ class StorageManager(BaseStorageManager):
         """Close all connections."""
         # Close shared pool if exists (PostgreSQL/Redis unified mode)
         if self._shared_pool is not None:
-            if hasattr(self._shared_pool, "close"):  # pragma: no cover
-                if hasattr(self._shared_pool, "wait_closed"):  # pragma: no cover
+            if hasattr(self._shared_pool, "close"):
+                if hasattr(self._shared_pool, "wait_closed"):
                     # asyncpg pool
                     self._shared_pool.close()
                     await self._shared_pool.wait_closed()
@@ -447,8 +447,8 @@ class StorageManager(BaseStorageManager):
         # Always close individual storages (they may have their own connections)
         if self._saga_storage and hasattr(self._saga_storage, "close"):
             await self._saga_storage.close()
-        if self._outbox_storage and hasattr(self._outbox_storage, "close"):  # pragma: no cover
-            await self._outbox_storage.close()  # pragma: no cover
+        if self._outbox_storage and hasattr(self._outbox_storage, "close"):
+            await self._outbox_storage.close()
 
         self._saga_storage = None
         self._outbox_storage = None
@@ -463,9 +463,9 @@ class StorageManager(BaseStorageManager):
                 if hasattr(self._saga_storage, "health_check"):
                     result = await self._saga_storage.health_check()  # type: ignore[assignment]
                     saga_health = self._normalize_health_result(result)
-                else:  # pragma: no cover
+                else:
                     saga_health = {"status": "healthy"}
-            except Exception as e:  # pragma: no cover
+            except Exception as e:
                 saga_health = {"status": "unhealthy", "error": str(e)}
 
         if self._outbox_storage:
@@ -473,9 +473,9 @@ class StorageManager(BaseStorageManager):
                 if hasattr(self._outbox_storage, "health_check"):
                     result = await self._outbox_storage.health_check()  # type: ignore[assignment]
                     outbox_health = self._normalize_health_result(result)
-                else:  # pragma: no cover
+                else:
                     outbox_health = {"status": "healthy"}
-            except Exception as e:  # pragma: no cover
+            except Exception as e:
                 outbox_health = {"status": "unhealthy", "error": str(e)}
 
         # Normalize status values for comparison
@@ -510,7 +510,7 @@ class StorageManager(BaseStorageManager):
             return {"status": status_val}
         if isinstance(result, dict):
             return result  # type: ignore[return-value]
-        return {"status": "healthy"}  # pragma: no cover
+        return {"status": "healthy"}
 
 
 # Backend configuration for explicit backend mode

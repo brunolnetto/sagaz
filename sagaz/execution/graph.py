@@ -105,13 +105,13 @@ class SagaCompensationContext:
 
     def get_result(self, step_id: str, default: Any = None) -> Any:
         """Get result from a previously executed compensation."""
-        return self.compensation_results.get(step_id, default)  # pragma: no cover
+        return self.compensation_results.get(step_id, default)
 
     def set_result(self, step_id: str, result: Any) -> None:
         """Store result from a compensation."""
         self.compensation_results[step_id] = result
 
-    def to_dict(self) -> dict[str, Any]:  # pragma: no cover
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage."""
         return {
             "saga_id": self.saga_id,
@@ -123,7 +123,7 @@ class SagaCompensationContext:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "SagaCompensationContext":  # pragma: no cover
+    def from_dict(cls, data: dict[str, Any]) -> "SagaCompensationContext":
         """Restore from dictionary (e.g., from blob storage)."""
         created_at_str = data.get("created_at")
         return cls(
@@ -202,7 +202,7 @@ def _detect_compensation_signature(
 
     # Remove 'self' if present (for bound methods)
     if params and params[0] == "self":
-        params = params[1:]  # pragma: no cover
+        params = params[1:]
 
     # New signature: (ctx, compensation_results) or (ctx, comp_results=None)
     # Context-only signature: (ctx)
@@ -331,8 +331,8 @@ class SagaExecutionGraph:
         Args:
             step_id: The step identifier to unmark
         """
-        if step_id in self.executed_steps:  # pragma: no cover
-            self.executed_steps.remove(step_id)  # pragma: no cover
+        if step_id in self.executed_steps:
+            self.executed_steps.remove(step_id)
 
     def get_executed_steps(self) -> list[str]:
         """
@@ -428,27 +428,27 @@ class SagaExecutionGraph:
             if node in path:
                 cycle_start = path.index(node)
                 return [*path[cycle_start:], node]
-            if node in visited:  # pragma: no cover
-                return None  # pragma: no cover
+            if node in visited:
+                return None
 
             visited.add(node)
             path.append(node)
 
             for dep in deps.get(node, set()):
-                if dep in nodes:  # pragma: no cover
+                if dep in nodes:
                     result = dfs(dep)
                     if result:
                         return result
 
-            path.pop()  # pragma: no cover
-            return None  # pragma: no cover
+            path.pop()
+            return None
 
         for node in nodes:
             result = dfs(node)
             if result:
                 return result
 
-        return list(nodes)[:3]  # Fallback: return first few nodes  # pragma: no cover
+        return list(nodes)[:3]  # Fallback: return first few nodes
 
     def validate(self) -> None:
         """
@@ -543,7 +543,7 @@ class SagaExecutionGraph:
                 original_context=context,
                 compensation_results=self._compensation_results.copy(),
             )
-        return context  # pragma: no cover
+        return context
 
     def _create_failure_result(self, error: Exception, start_time: float) -> CompensationResult:
         """Create a failed CompensationResult for structural errors."""
@@ -684,8 +684,8 @@ class SagaExecutionGraph:
             Exception: If compensation fails after retries
         """
         node = self.nodes.get(step_id)
-        if not node:  # pragma: no cover
-            return None  # pragma: no cover
+        if not node:
+            return None
 
         # Update context with current step
         comp_context.step_id = step_id
@@ -731,9 +731,9 @@ class SagaExecutionGraph:
                 raise
 
         # Should not reach here, but satisfy type checker
-        if last_error:  # pragma: no cover
-            raise last_error  # pragma: no cover
-        return None  # pragma: no cover
+        if last_error:
+            raise last_error
+        return None
 
     def _should_skip_step(
         self,
@@ -756,8 +756,8 @@ class SagaExecutionGraph:
             return False
 
         node = self.nodes.get(step_id)
-        if not node:  # pragma: no cover
-            return False  # pragma: no cover
+        if not node:
+            return False
 
         # Build compensation dependencies for this step
         # A step's compensation depends on the compensations of steps that depend on it

@@ -57,7 +57,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     from sagaz.core.replay import ReplayConfig, SagaSnapshot, SnapshotStrategy
     from sagaz.storage.base import SagaStorage
     from sagaz.storage.interfaces.snapshot import SnapshotStorage
@@ -319,7 +319,7 @@ class Saga(ABC):
         adjacency: dict[str, set[str]] = {name: set() for name in step_names}
         for name, deps in self.step_dependencies.items():
             for dep in deps:
-                if dep in step_names:  # pragma: no cover
+                if dep in step_names:
                     adjacency[name].add(dep)
                     adjacency[dep].add(name)
         return adjacency
@@ -366,8 +366,8 @@ class Saga(ABC):
 
             while queue:
                 node = queue.pop(0)
-                if node in component:  # pragma: no cover
-                    continue  # pragma: no cover
+                if node in component:
+                    continue
                 component.add(node)
                 queue.extend(adjacency[node] - component)
 
@@ -565,14 +565,14 @@ class Saga(ABC):
 
             return self._build_dag_result(start_time, success=True, status=SagaStatus.COMPLETED)
 
-        except Exception as e:  # pragma: no cover
-            logger.error(f"DAG execution failed for saga {self.name}: {e}")  # pragma: no cover
-            return self._build_dag_result(  # pragma: no cover
+        except Exception as e:
+            logger.error(f"DAG execution failed for saga {self.name}: {e}")
+            return self._build_dag_result(
                 start_time,
                 success=False,
                 status=SagaStatus.FAILED,
-                error=e,  # pragma: no cover
-            )  # pragma: no cover
+                error=e,
+            )
 
     def _get_parallel_strategy(self):
         """Get the parallel execution strategy implementation."""
@@ -1217,14 +1217,14 @@ class Saga(ABC):
             saga = MySaga()
             result = await saga.run({"key": "value"})
         """
-        msg = (  # pragma: no cover
-            "Cannot use run() on imperative Saga. "  # pragma: no cover
-            "Use execute() instead for imperative API. "  # pragma: no cover
-            "For declarative API with @action/@compensate decorators, "  # pragma: no cover
-            "use the Saga class from sagaz.decorators. "  # pragma: no cover
-            "See docstring for examples."  # pragma: no cover
-        )  # pragma: no cover
-        raise TypeError(msg)  # pragma: no cover
+        msg = (
+            "Cannot use run() on imperative Saga. "
+            "Use execute() instead for imperative API. "
+            "For declarative API with @action/@compensate decorators, "
+            "use the Saga class from sagaz.decorators. "
+            "See docstring for examples."
+        )
+        raise TypeError(msg)
 
 
 @dataclass

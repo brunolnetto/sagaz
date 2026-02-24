@@ -223,11 +223,11 @@ class SingleConnectionManager(ConnectionManager[T]):
         try:
             self._connection = await self._create_connection()
             self._initialized = True
-        except Exception as e:  # pragma: no cover
+        except Exception as e:
             raise ConnectionError(
                 message=f"Failed to create connection: {e}",
                 url=self.config.url,
-            ) from e  # pragma: no cover
+            ) from e
 
     async def close(self) -> None:
         if self._connection is not None:
@@ -286,10 +286,10 @@ class SingleConnectionManager(ConnectionManager[T]):
                 latency_ms=elapsed_ms,
                 message="Connection is invalid",
             )
-        except Exception as e:  # pragma: no cover
-            elapsed_ms = (time.perf_counter() - start) * 1000  # pragma: no cover
+        except Exception as e:
+            elapsed_ms = (time.perf_counter() - start) * 1000
             return HealthCheckResult(
                 status=HealthStatus.UNHEALTHY,
                 latency_ms=elapsed_ms,
                 message=f"Health check failed: {e}",
-            )  # pragma: no cover
+            )

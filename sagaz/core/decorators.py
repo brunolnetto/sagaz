@@ -33,7 +33,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypeVar
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     from sagaz.storage.base import SagaStorage
 
 
@@ -448,8 +448,8 @@ class Saga:
         if self._steps:
             self._mode = "declarative"
             # saga_name takes precedence, then name parameter
-            if self.saga_name is None and name is not None:  # pragma: no cover
-                self.saga_name = name  # pragma: no cover
+            if self.saga_name is None and name is not None:
+                self.saga_name = name
         else:
             # No decorators found - allow imperative mode
             # Name is required for imperative usage
@@ -505,7 +505,7 @@ class Saga:
         meta: CompensationMetadata = method._saga_compensation_meta
         step_name = meta.for_step
         if step_name not in self._step_registry:
-            return  # pragma: no cover - compensate for unknown step
+            return  # compensate for unknown step
         step = self._step_registry[step_name]
         step.compensation_fn = method
         # Compensation dependencies are derived from forward dependencies (step.depends_on)
@@ -748,11 +748,11 @@ class Saga:
         # Fetch saga state from storage
         saga_data = await storage.load_saga_state(saga_id)
 
-        if not saga_data:  # pragma: no cover
+        if not saga_data:
             # No execution found, return diagram without highlighting
             return self.to_mermaid(
                 direction, show_compensation, None, show_state_markers
-            )  # pragma: no cover
+            )
 
         # Parse steps to build highlight trail
         steps_data = saga_data.get("steps", [])
@@ -766,15 +766,15 @@ class Saga:
 
             if status == "completed":
                 completed_steps.add(name)
-            elif status == "failed":  # pragma: no cover
-                failed_step = name  # pragma: no cover
-            elif status == "compensated":  # pragma: no cover
-                compensated_steps.add(name)  # pragma: no cover
+            elif status == "failed":
+                failed_step = name
+            elif status == "compensated":
+                compensated_steps.add(name)
                 # A compensated step must have completed first
-                completed_steps.add(name)  # pragma: no cover
-            elif status == "compensating":  # pragma: no cover
-                compensated_steps.add(name)  # pragma: no cover
-                completed_steps.add(name)  # pragma: no cover
+                completed_steps.add(name)
+            elif status == "compensating":
+                compensated_steps.add(name)
+                completed_steps.add(name)
 
         # Build highlight trail
         highlight_trail = {
@@ -886,8 +886,8 @@ class Saga:
                     [],  # TODO: Track steps
                     self._context,
                 )
-            except Exception as e:  # pragma: no cover
-                logger.warning(f"Failed to persist saga start: {e}")  # pragma: no cover
+            except Exception as e:
+                logger.warning(f"Failed to persist saga start: {e}")
 
         try:
             await self._notify_listeners("on_saga_start", name, self._saga_id, self._context)
@@ -900,8 +900,8 @@ class Saga:
                     await storage.save_saga_state(
                         self._saga_id, name, SagaStatus.COMPLETED, [], self._context
                     )
-                except Exception as e:  # pragma: no cover
-                    logger.warning(f"Failed to persist saga completion: {e}")  # pragma: no cover
+                except Exception as e:
+                    logger.warning(f"Failed to persist saga completion: {e}")
 
             return self._context
         except Exception as e:
@@ -914,10 +914,10 @@ class Saga:
                     await storage.save_saga_state(
                         self._saga_id, name, SagaStatus.ROLLED_BACK, [], self._context
                     )
-                except Exception as e_storage:  # pragma: no cover
+                except Exception as e_storage:
                     logger.warning(
                         f"Failed to persist saga failure: {e_storage}"
-                    )  # pragma: no cover
+                    )
 
             raise
 
@@ -971,7 +971,7 @@ class Saga:
     async def _execute_level(self, level: list[SagaStepDefinition]) -> None:
         """Execute all steps in a level concurrently."""
         if not level:
-            return  # pragma: no cover
+            return
 
         tasks = [self._execute_step(step) for step in level]
 
@@ -1093,10 +1093,10 @@ class Saga:
         """Execute a single compensation with lifecycle hook and listeners."""
         node = self._compensation_graph.get_compensation_info(step_id)
         if not node:
-            return  # pragma: no cover
+            return
 
         # v1.3.0: Double-check taint status (in case it changed)
-        if self._is_step_tainted(step_id):  # pragma: no cover
+        if self._is_step_tainted(step_id):
             logger.debug(f"Skipping compensation for tainted step: {step_id}")
             return
 

@@ -94,7 +94,7 @@ class RedisOutboxStorage(OutboxStorage):
 
         try:
             import redis.asyncio as redis
-        except ImportError:  # pragma: no cover
+        except ImportError:
             msg = "redis package required. Install with: pip install redis"
             raise ImportError(msg)
 
@@ -110,7 +110,7 @@ class RedisOutboxStorage(OutboxStorage):
                 mkstream=True,
             )
             logger.info(f"Created consumer group '{self._consumer_group}'")
-        except redis.ResponseError as e:  # pragma: no cover
+        except redis.ResponseError as e:
             if "BUSYGROUP" not in str(e):
                 raise
             # Group already exists, that's fine
@@ -194,7 +194,7 @@ class RedisOutboxStorage(OutboxStorage):
     ) -> OutboxEvent:
         """Insert event into Redis stream."""
         if not self._initialized:
-            await self.initialize()  # pragma: no cover
+            await self.initialize()
         assert self._redis is not None
 
         # Store full metadata in hash
@@ -226,7 +226,7 @@ class RedisOutboxStorage(OutboxStorage):
     async def get_by_id(self, event_id: str) -> OutboxEvent | None:
         """Get event by ID from metadata hash."""
         if not self._initialized:
-            await self.initialize()  # pragma: no cover
+            await self.initialize()
         assert self._redis is not None
 
         meta_key = self._meta_key(event_id)
@@ -246,7 +246,7 @@ class RedisOutboxStorage(OutboxStorage):
     ) -> OutboxEvent:
         """Update event status."""
         if not self._initialized:
-            await self.initialize()  # pragma: no cover
+            await self.initialize()
         assert self._redis is not None
 
         meta_key = self._meta_key(event_id)
@@ -267,9 +267,9 @@ class RedisOutboxStorage(OutboxStorage):
 
         # Get updated event
         event = await self.get_by_id(event_id)
-        if not event:  # pragma: no cover
-            msg = f"Event not found: {event_id}"  # pragma: no cover
-            raise OutboxStorageError(msg)  # pragma: no cover
+        if not event:
+            msg = f"Event not found: {event_id}"
+            raise OutboxStorageError(msg)
 
         return event
 
@@ -289,7 +289,7 @@ class RedisOutboxStorage(OutboxStorage):
         Uses Redis consumer groups for reliable claiming.
         """
         if not self._initialized:
-            await self.initialize()  # pragma: no cover
+            await self.initialize()
         assert self._redis is not None
 
         response = await self._read_from_stream(worker_id, batch_size)
@@ -314,7 +314,7 @@ class RedisOutboxStorage(OutboxStorage):
                 count=batch_size,
                 block=1000,
             )
-        except Exception as e:  # pragma: no cover
+        except Exception as e:
             logger.warning(f"Error reading from stream: {e}")
             return None
 
@@ -336,11 +336,11 @@ class RedisOutboxStorage(OutboxStorage):
     ) -> OutboxEvent | None:
         """Claim and update a single message. Returns event or None."""
         event_id = self._extract_event_id(message_data)
-        if not event_id:  # pragma: no cover
-            return None  # pragma: no cover
+        if not event_id:
+            return None
 
         event = await self.get_by_id(event_id)
-        if not event:  # pragma: no cover
+        if not event:
             # Acknowledge orphaned message
             assert self._redis is not None
             await self._redis.xack(self._stream_key, self._consumer_group, message_id)
@@ -357,9 +357,9 @@ class RedisOutboxStorage(OutboxStorage):
     def _extract_event_id(self, message_data: dict) -> str:
         """Extract event_id from message data (handles bytes/str)."""
         raw = message_data.get(b"event_id") or message_data.get("event_id", "")
-        if isinstance(raw, bytes):  # pragma: no cover
-            return raw.decode()  # pragma: no cover
-        return raw or ""  # pragma: no cover
+        if isinstance(raw, bytes):
+            return raw.decode()
+        return raw or ""
 
     async def _update_claim_metadata(
         self, event_id: str, message_id, worker_id: str, now: datetime
@@ -382,8 +382,8 @@ class RedisOutboxStorage(OutboxStorage):
 
     async def get_events_by_saga(self, saga_id: str) -> list[OutboxEvent]:
         """Get all events for a saga (requires scanning)."""
-        if not self._initialized:  # pragma: no cover
-            await self.initialize()  # pragma: no cover
+        if not self._initialized:
+            await self.initialize()
         assert self._redis is not None
 
         # This is expensive - scan all metadata keys
@@ -419,8 +419,8 @@ class RedisOutboxStorage(OutboxStorage):
         claimed_older_than_seconds: float = 300.0,
     ) -> list[OutboxEvent]:
         """Get events that appear to be stuck."""
-        if not self._initialized:  # pragma: no cover
-            await self.initialize()  # pragma: no cover
+        if not self._initialized:
+            await self.initialize()
         assert self._redis is not None
 
         # Check pending entries in consumer group
@@ -433,8 +433,8 @@ class RedisOutboxStorage(OutboxStorage):
                 count=1000,
             )
         except Exception as e:
-            logger.warning(f"Error getting pending entries: {e}")  # pragma: no cover
-            return []  # pragma: no cover
+            logger.warning(f"Error getting pending entries: {e}")
+            return []
 
         stuck = []
         threshold_ms = claimed_older_than_seconds * 1000
@@ -458,8 +458,8 @@ class RedisOutboxStorage(OutboxStorage):
         claimed_older_than_seconds: float = 300.0,
     ) -> int:
         """Release stuck events back to pending."""
-        if not self._initialized:  # pragma: no cover
-            await self.initialize()  # pragma: no cover
+        if not self._initialized:
+            await self.initialize()
         assert self._redis is not None
 
         # Get pending entries
@@ -471,8 +471,8 @@ class RedisOutboxStorage(OutboxStorage):
                 max="+",
                 count=1000,
             )
-        except Exception:  # pragma: no cover
-            return 0  # pragma: no cover
+        except Exception:
+            return 0
 
         released = 0
         threshold_ms = int(claimed_older_than_seconds * 1000)
@@ -492,7 +492,7 @@ class RedisOutboxStorage(OutboxStorage):
                         message_ids=[message_id],
                     )
                     released += 1
-                except Exception as e:  # pragma: no cover
+                except Exception as e:
                     logger.warning(f"Failed to release stuck event: {e}")
 
         if released:
@@ -506,19 +506,19 @@ class RedisOutboxStorage(OutboxStorage):
 
     async def get_pending_count(self) -> int:
         """Get count of pending events."""
-        if not self._initialized:  # pragma: no cover
-            await self.initialize()  # pragma: no cover
+        if not self._initialized:
+            await self.initialize()
         assert self._redis is not None
 
         try:
             return await self._redis.xlen(self._stream_key)
-        except Exception:  # pragma: no cover
+        except Exception:
             return 0
 
     async def get_dead_letter_events(self, limit: int = 100) -> list[OutboxEvent]:
         """Get events in dead letter queue."""
-        if not self._initialized:  # pragma: no cover
-            await self.initialize()  # pragma: no cover
+        if not self._initialized:
+            await self.initialize()
         assert self._redis is not None
 
         events = []
@@ -534,7 +534,7 @@ class RedisOutboxStorage(OutboxStorage):
                 event = await self.get_by_id(event_id)
                 if event:
                     events.append(event)
-        except Exception as e:  # pragma: no cover
+        except Exception as e:
             logger.warning(f"Error reading DLQ: {e}")
 
         return events
@@ -568,7 +568,7 @@ class RedisOutboxStorage(OutboxStorage):
                     "consumer_group": self._consumer_group,
                 },
             )
-        except Exception as e:  # pragma: no cover
+        except Exception as e:
             elapsed_ms = (time.perf_counter() - start) * 1000
             return HealthCheckResult(
                 status=HealthStatus.UNHEALTHY,
@@ -578,15 +578,15 @@ class RedisOutboxStorage(OutboxStorage):
 
     async def get_statistics(self) -> StorageStatistics:
         """Get storage statistics."""
-        if not self._initialized:  # pragma: no cover
-            await self.initialize()  # pragma: no cover
+        if not self._initialized:
+            await self.initialize()
         assert self._redis is not None
 
         pending = await self.get_pending_count()
 
         try:
             dlq_len = await self._redis.xlen(self._dlq_key)
-        except Exception:  # pragma: no cover
+        except Exception:
             dlq_len = 0
 
         return StorageStatistics(
@@ -601,8 +601,8 @@ class RedisOutboxStorage(OutboxStorage):
 
     async def export_all(self):
         """Export all events."""
-        if not self._initialized:  # pragma: no cover
-            await self.initialize()  # pragma: no cover
+        if not self._initialized:
+            await self.initialize()
         assert self._redis is not None
 
         pattern = f"{self._prefix}:meta:*"
