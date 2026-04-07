@@ -246,6 +246,28 @@ class TestSagaConfigFromEnv:
 
         assert config.tracing is True
 
+    def test_from_env_redis_storage_type_with_url(self):
+        """Test _storage_from_env with redis type and explicit SAGAZ_STORAGE_URL set."""
+        with patch.dict(
+            os.environ,
+            {"SAGAZ_STORAGE_TYPE": "redis", "SAGAZ_STORAGE_URL": "redis://localhost:6380/2"},
+            clear=True,
+        ):
+            config = SagaConfig.from_env(load_dotenv=False)
+
+        assert config.storage is not None
+
+    def test_from_env_redis_broker_type_with_url(self):
+        """Test _broker_from_env with redis type and explicit SAGAZ_BROKER_URL set."""
+        with patch.dict(
+            os.environ,
+            {"SAGAZ_BROKER_TYPE": "redis", "SAGAZ_BROKER_URL": "redis://localhost:6380/3"},
+            clear=True,
+        ):
+            config = SagaConfig.from_env(load_dotenv=False)
+
+        assert config.broker is not None
+
     def test_from_env_invalid_storage_url(self):
         """Test from_env raises on invalid storage URL."""
         with patch.dict(os.environ, {"SAGAZ_STORAGE_URL": "invalid://foo"}):

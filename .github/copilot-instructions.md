@@ -140,6 +140,7 @@ Look at `sagas/order_processing.py`, `sagas/trade_execution.py` for patterns:
 
 - Any new feature must be assigned to a PR; do not publish directly to `main`.
 - New work should be implemented on a dedicated feature branch and reviewed via PR before merging.
+- When a PR fully addresses an issue, close that issue upon merge using `Closes #<n>` in the PR body or by calling `gh issue close <n>` immediately after the PR is merged.
 - Regression-sensitive features must preserve coverage at or above `95%` relative to `main`.
 - Follow TDD with a red-green-refactor cycle: write failing tests first, then implement code to pass them.
 - Keep unit, integration, end-to-end, and performance tests clearly separated.
