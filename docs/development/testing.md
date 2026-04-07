@@ -178,22 +178,19 @@ async def memory_broker():
 
 ## CI/CD
 
-```yaml
-name: Tests
-on: [push, pull_request]
+The repository uses [uv](https://docs.astral.sh/uv/) for dependency management. The `tests.yml` workflow runs unit tests across Python 3.11, 3.12, and 3.13 and enforces a 95% coverage threshold:
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Install dependencies
-        run: pip install -e ".[dev]"
-      - name: Run tests with coverage
-        run: pytest --cov=sagaz --cov-fail-under=95
+```yaml
+- name: Install dependencies
+  run: uv sync --group dev
+
+- name: Run unit tests with coverage
+  run: |
+    uv run pytest tests/ \
+      --cov=sagaz \
+      --cov-fail-under=95 \
+      -m "not integration" \
+      -n auto
 ```
 
 ---

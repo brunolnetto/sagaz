@@ -15,9 +15,9 @@ jobs:
             const body = (context.payload.pull_request.body || "").toLowerCase()
 
             const patterns = [
-              /closes\s+#\d+/,
-              /fixes\s+#\d+/,
-              /resolves\s+#\d+/
+              /closes\s*:?\s+#\d+(?:[.,;!?]|\s|$)/,
+              /fixes\s*:?\s+#\d+(?:[.,;!?]|\s|$)/,
+              /resolves\s*:?\s+#\d+(?:[.,;!?]|\s|$)+#\d+(?:[.,;!?]|\s|$)/
             ]
 
             const found = patterns.some(p => p.test(body))

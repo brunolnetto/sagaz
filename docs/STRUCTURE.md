@@ -86,10 +86,6 @@ docs/
 - All new features must be documented as part of the same PR (no docs-later pattern).
 - ADRs follow the `adr-NNN-short-title.md` naming convention and are indexed in `architecture/adr/README.md`.
 
-| Historical/deprecated | `archive/` | Old README |
-
----
-
 ## Content by Audience
 
 | I am a... | Start Here | Then Read |

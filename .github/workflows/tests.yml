@@ -45,6 +45,7 @@ jobs:
             --cov=sagaz \
             --cov-report=xml:coverage.xml \
             --cov-report=term-missing \
+            --cov-fail-under=95 \
             --junitxml=junit.xml \
             -o junit_family=legacy \
             -m "not integration" \

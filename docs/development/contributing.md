@@ -9,7 +9,7 @@ How to contribute to the Sagaz saga pattern library.
 - **Never push directly to `main`.** All changes must go through a pull request.
 - Create a dedicated feature branch for every piece of work:
   ```bash
-  git checkout -b feat/my-feature
+  git checkout -b featureure/my-feature
   ```
 - Open a PR against `main` and request a review before merging.
 
