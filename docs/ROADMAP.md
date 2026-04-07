@@ -184,6 +184,28 @@ Replay failed sagas and query historical state for debugging and compliance.
 
 Support for irreversible steps and forward recovery patterns.
 
+### v1.4.0 - Lightweight Context Streaming
+
+**Target**: Q3 2026 | **Effort**: 8-12 hours | [ADR-021](architecture/adr/adr-021-lightweight-context-streaming.md)
+
+| Feature | Priority | Status |
+|---------|----------|--------|
+| Reference-based context passing | High | 📋 Planned |
+| Streaming support for large payloads | High | 📋 Planned |
+| Snapshot threshold & incremental load | Medium | 📋 Planned |
+
+### v2.2.0 - Saga Visualization UI
+
+**Target**: Q3 2026 | **Effort**: 16-24 hours | [ADR-035](architecture/adr/adr-035-saga-visualization-ui.md)
+
+| Feature | Priority | Status |
+|---------|----------|--------|
+| REST + SSE backend API | High | 📋 Planned |
+| `sagaz monitor` command | High | 📋 Planned |
+| Interactive web dashboard | High | 📋 Planned |
+| Live step progress (SSE) | Medium | 📋 Planned |
+| Step Explorer & run comparison | Medium | 📋 Planned |
+
 ---
 
 ## Q4 2026 (Oct-Dec)
@@ -199,6 +221,42 @@ Support for irreversible steps and forward recovery patterns.
 | Resource quotas per tenant | Medium | 📋 Planned |
 | Per-tenant encryption | Medium | 📋 Planned |
 
+### v2.2.0 - Saga Choreography Mode
+
+**Target**: Q4 2026 | **Effort**: 30-40 hours | [ADR-029](architecture/adr/adr-029-saga-choreography.md)
+
+| Feature | Priority | Status |
+|---------|----------|--------|
+| Event Bus Infrastructure | High | 📋 Planned |
+| Choreography Engine | High | 📋 Planned |
+| Event sourcing integration | Medium | 📋 Planned |
+| Distributed tracing for choreography | Medium | 📋 Planned |
+
+### v2.3.0 - Event Sourcing Integration
+
+**Target**: Q4 2026 | **Effort**: 20-30 hours | [ADR-033](architecture/adr/adr-033-event-sourcing-integration.md)
+
+| Feature | Priority | Status |
+|---------|----------|--------|
+| `SagaEvent` hierarchy & event store interface | High | 📋 Planned |
+| PostgreSQL + SQLite event store backends | High | 📋 Planned |
+| Opt-in `Meta.storage_strategy = "event_sourced"` | High | 📋 Planned |
+| Projection / read-model builder | Medium | 📋 Planned |
+| Snapshot threshold strategy | Medium | 📋 Planned |
+| `sagaz event-log <saga-id>` CLI command | Medium | 📋 Planned |
+
+### v2.4.0 - Multi-Region Saga Coordination
+
+**Target**: Q4 2026 | **Effort**: 40-56 hours | [ADR-034](architecture/adr/adr-034-multi-region-coordination.md)
+
+| Feature | Priority | Status |
+|---------|----------|--------|
+| Region registry & routing | High | 📋 Planned |
+| Cross-region coordinator | High | 📋 Planned |
+| Conflict resolution (OCC + vector clocks) | High | 📋 Planned |
+| Automatic region failover (< 5 s) | High | 📋 Planned |
+| `sagaz region list/failover` CLI commands | Medium | 📋 Planned |
+
 ### Cloud Managed Tier (Beta)
 
 Sagaz Cloud platform with managed infrastructure.
@@ -207,18 +265,17 @@ Sagaz Cloud platform with managed infrastructure.
 
 ## 2027+ Considerations
 
-### Lightweight Context Streaming
+### Future Community Ideas
 
-[ADR-021](architecture/adr/adr-021-lightweight-context-streaming.md) - Reference-based context passing and streaming between steps.
+All previously listed ideas have been promoted to the 2026 roadmap and have dedicated ADRs:
 
-### Future Ideas (Community Interest)
-
-| Feature | Notes | Status |
-|---------|-------|--------|
-| Event sourcing integration | Store saga state as events | 💡 Ideas |
-| Saga choreography mode | Event-driven sagas (vs orchestration) | 💡 Ideas |
-| Multi-region support | Cross-region saga coordination | 💡 Ideas |
-| Saga visualization UI | Dashboard for saga monitoring | 💡 Ideas |
+| Feature | ADR | Target |
+|---------|-----|--------|
+| Lightweight Context Streaming | [ADR-021](architecture/adr/adr-021-lightweight-context-streaming.md) | v1.4.0 (Q3 2026) |
+| Saga Choreography Mode | [ADR-029](architecture/adr/adr-029-saga-choreography.md) | v2.2.0 (Q4 2026) |
+| Event Sourcing Integration | [ADR-033](architecture/adr/adr-033-event-sourcing-integration.md) | v2.3.0 (Q4 2026) |
+| Saga Visualization UI | [ADR-035](architecture/adr/adr-035-saga-visualization-ui.md) | v2.2.0 (Q3 2026) |
+| Multi-Region Coordination | [ADR-034](architecture/adr/adr-034-multi-region-coordination.md) | v2.4.0 (Q4 2026) |
 
 ---
 
