@@ -2,7 +2,7 @@
 
 Active development roadmap for the Sagaz saga pattern library.
 
-> **Updated**: 2026-01-05 | **Version**: 1.0.x → 2.x
+> **Updated**: 2026-04-07 | **Version**: 1.3.x → 2.x
 
 ---
 
@@ -41,6 +41,16 @@ Sagaz competes with AWS Step Functions, Temporal, and Azure Durable Functions by
 | **Mermaid Diagram Generation** | 1.0.3 | ✅ Done |
 | **Connected Graph Validation** | 1.0.3 | ✅ Done |
 | **Grafana Dashboard Templates** | 1.0.3 | ✅ Done |
+| **Unified Storage Layer** | 1.2.0 | ✅ Done — [ADR-016](architecture/adr/adr-016-unified-storage-layer.md) |
+| **Compensation Result Passing** | 1.2.0 | ✅ Done — [ADR-022](architecture/adr/adr-022-compensation-result-passing.md) |
+| **Pivot / Irreversible Steps** | 1.3.0 | ✅ Done — [ADR-023](architecture/adr/adr-023-pivot-irreversible-steps.md) |
+| **Event-Driven Triggers** | 1.3.0 | ✅ Done — [ADR-025](architecture/adr/adr-025-event-driven-triggers.md) |
+| **Dry-Run Mode** (`validate` / `simulate`) | 1.3.0 | ✅ Done — [ADR-019](architecture/adr/adr-019-dry-run-mode.md) |
+| **Project CLI** (`project init/check/list`) | 1.3.0 | ✅ Done — [ADR-027](architecture/adr/adr-027-project-cli.md) |
+| **Framework Integration** (FastAPI/Django/Flask) | 1.3.0 | ✅ Done — [ADR-028](architecture/adr/adr-028-framework-integration.md) |
+| **Lightweight Context Streaming** | 1.4.0 | ✅ Done — [ADR-021](architecture/adr/adr-021-lightweight-context-streaming.md) |
+| **Industry Examples** (24 examples, 12 verticals) | 1.4.0 | ✅ Done — [ADR-026](architecture/adr/adr-026-industry-examples-expansion.md) |
+| **Saga Replay & Time-Travel** | 2.1.0 | ✅ Done — [ADR-024](architecture/adr/adr-024-saga-replay.md) |
 
 ---
 
@@ -72,48 +82,62 @@ ECO   ┌──────────────┐   ┌──────�
 
 ---
 
-## Q1 2026 (Jan-Mar)
+## Q1 2026 (Jan-Mar) — ✅ Completed
 
-### CLI v1.0 - Local Development
+> All major Q1 deliverables were shipped ahead of schedule.
 
-**Target**: Q1 2026 | **Effort**: 20-30 hours
+| Release | Feature | Status |
+|---------|---------|--------|
+| v1.2.0 | Unified Storage Layer | ✅ Done |
+| v1.2.0 | Compensation Result Passing | ✅ Done |
+| v1.3.0 | Pivot/Irreversible Steps | ✅ Done |
+| v1.3.0 | Event-Driven Triggers | ✅ Done |
+| v1.3.0 | Dry-Run Mode | ✅ Done |
+| v1.3.0 | Project CLI | ✅ Done |
+| v1.3.0 | Framework Integration | ✅ Done |
+| v1.4.0 | Lightweight Context Streaming | ✅ Done |
+| v1.4.0 | Industry Examples (24) | ✅ Done |
+| v2.1.0 | Saga Replay & Time-Travel | ✅ Done |
 
-| Feature | Priority | Status |
-|---------|----------|--------|
-| `sagaz init --local` | High | 📋 Planned |
-| `sagaz dev` (start containers) | High | 📋 Planned |
-| `sagaz status` (health check) | High | 📋 Planned |
-| `sagaz logs` (log tailing) | Medium | 📋 Planned |
-| `sagaz visualize` (Mermaid) | Medium | 📋 Planned |
+Items originally tagged Q1 but deferred to Q2 (not yet started):
 
-### v1.1.0 - Reliability & Observability
-
-**Target**: Q1 2026 | **Effort**: 16-24 hours
-
-| Feature | Priority | Status | Docs |
-|---------|----------|--------|------|
-| **Dead Letter Queue Pattern** | High | 📋 Planned | [Docs](patterns/dead-letter-queue.md) |
-| **AlertManager Rules Template** | High | 📋 Planned | [Template](monitoring/alertmanager-rules.yml) |
-| Batch saga status updates | Low | 📋 Planned | - |
-
-### v1.2.0 - Unified Storage Layer
-
-**Target**: Q1 2026 | **Effort**: 5-6 weeks
-
-| Feature | Priority | Status | Docs |
-|---------|----------|--------|------|
-| **Core Infrastructure** | High | 📋 Planned | [Plan](architecture/unified-storage-implementation-plan.md) |
-| **Redis Outbox Storage** | High | 📋 Planned | [Plan](architecture/unified-storage-implementation-plan.md) |
-| **Data Transfer Layer** | High | 📋 Planned | [Plan](architecture/unified-storage-implementation-plan.md) |
-| SQLite Backend | Low | 📋 Planned | - |
+| Feature | Issue |
+|---------|-------|
+| CLI v1.0 local dev commands | [#48](https://github.com/brunolnetto/sagaz/issues/48) |
+| Dead Letter Queue | [#44](https://github.com/brunolnetto/sagaz/issues/44) |
+| AlertManager Rules | [#45](https://github.com/brunolnetto/sagaz/issues/45) |
+| SQLite Backend | [#46](https://github.com/brunolnetto/sagaz/issues/46) |
+| Storage Data Transfer layer | [#47](https://github.com/brunolnetto/sagaz/issues/47) |
 
 ---
 
-## Q2 2026 (Apr-Jun)
+## 📅 Semester Sprint Calendar — Apr–Sep 2026
+
+> Current date: **2026-04-07** | Sprints are 2 weeks each.
+
+| Sprint | Dates | Deliverable | Issues |
+|--------|-------|-------------|--------|
+| S1 | Apr 7 – Apr 18 | Merge PR #42 (testcontainer fix); start DLQ | [#41](https://github.com/brunolnetto/sagaz/issues/41), [#44](https://github.com/brunolnetto/sagaz/issues/44) |
+| S2 | Apr 21 – May 2 | DLQ pattern + AlertManager rules template | [#44](https://github.com/brunolnetto/sagaz/issues/44), [#45](https://github.com/brunolnetto/sagaz/issues/45) |
+| S3 | May 5 – May 16 | SQLite storage backend | [#46](https://github.com/brunolnetto/sagaz/issues/46) |
+| S4 | May 19 – May 30 | Storage data-transfer / migration layer | [#47](https://github.com/brunolnetto/sagaz/issues/47) |
+| S5 | Jun 2 – Jun 13 | CLI v1.0 core commands (`init`, `dev`, `status`) | [#48](https://github.com/brunolnetto/sagaz/issues/48) |
+| S6 | Jun 16 – Jun 27 | CLI v1.0 (`logs`, `visualize`) + release v1.5.0 | [#48](https://github.com/brunolnetto/sagaz/issues/48) |
+| S7 | Jun 30 – Jul 11 | CDC/Debezium worker + pg_logical | [#50](https://github.com/brunolnetto/sagaz/issues/50) |
+| S8 | Jul 14 – Jul 25 | CDC metrics, dashboards; CLI v2.0 start | [#50](https://github.com/brunolnetto/sagaz/issues/50), [#49](https://github.com/brunolnetto/sagaz/issues/49) |
+| S9 | Jul 28 – Aug 8 | CLI v2.0 (`deploy --provider`) + Fluss listener | [#49](https://github.com/brunolnetto/sagaz/issues/49), [#51](https://github.com/brunolnetto/sagaz/issues/51) |
+| S10 | Aug 11 – Aug 22 | Visualization UI (API + dashboard) | [#58](https://github.com/brunolnetto/sagaz/issues/58) |
+| S11 | Aug 25 – Sep 5 | Choreography engine Phase 1–2 | [#56](https://github.com/brunolnetto/sagaz/issues/56) |
+| S12 | Sep 8 – Sep 19 | Choreography Phase 3–4 + release v2.2.0 | [#56](https://github.com/brunolnetto/sagaz/issues/56) |
+| S13 | Sep 22 – Sep 30 | Multi-tenancy Phase 1 start | [#54](https://github.com/brunolnetto/sagaz/issues/54) |
+
+---
+
+## Q2 2026 (Apr-Jun) — 🔄 In Progress
 
 ### CLI v2.0 - Multi-Cloud Deploy
 
-**Target**: Q2 2026 | **Effort**: 30-40 hours
+**Target**: S8–S9 (Jul–Aug 2026) | **Effort**: 30-40 hours | [#49](https://github.com/brunolnetto/sagaz/issues/49)
 
 | Feature | Priority | Status |
 |---------|----------|--------|
@@ -124,7 +148,7 @@ ECO   ┌──────────────┐   ┌──────�
 
 ### v2.0.0 - CDC (Change Data Capture)
 
-**Target**: Q2 2026 | **Effort**: 26-40 hours | [ADR-011](architecture/adr/adr-011-cdc-support.md)
+**Target**: S7–S8 (Jun–Jul 2026) | **Effort**: 26-40 hours | [ADR-011](architecture/adr/adr-011-cdc-support.md) | [#50](https://github.com/brunolnetto/sagaz/issues/50)
 
 | Feature | Priority | Status |
 |---------|----------|--------|
@@ -136,26 +160,39 @@ ECO   ┌──────────────┐   ┌──────�
 
 **Target throughput**: 50,000+ events/sec
 
-### ✅ Dry-Run Mode (COMPLETED v1.3.0)
+### ✅ Already Shipped (not Q2 work)
 
-**Status**: ✅ Implemented | [ADR-019](architecture/adr/adr-019-dry-run-mode.md)
+| Feature | Version | ADR |
+|---------|---------|-----|
+| Dry-Run Mode | 1.3.0 | [ADR-019](architecture/adr/adr-019-dry-run-mode.md) |
+| Lightweight Context Streaming | 1.4.0 | [ADR-021](architecture/adr/adr-021-lightweight-context-streaming.md) |
+| Saga Replay & Time-Travel | 2.1.0 | [ADR-024](architecture/adr/adr-024-saga-replay.md) |
 
-Validate and preview saga execution without side effects.
+### v1.5.0 - DLQ + Storage + CLI v1.0 (Deferred from Q1)
 
-**Features**:
-- `sagaz validate` - Validate saga configuration
-- `sagaz simulate` - Analyze execution DAG and step order
-- 100% test coverage (29 tests)
-- Interactive saga selection
-- Rich output formatting
+**Target**: S1–S6 (Apr–Jun 2026)
+
+| Feature | Sprint | Issue |
+|---------|--------|-------|
+| Dead Letter Queue pattern | S1–S2 | [#44](https://github.com/brunolnetto/sagaz/issues/44) |
+| AlertManager rules template | S2 | [#45](https://github.com/brunolnetto/sagaz/issues/45) |
+| SQLite backend | S3 | [#46](https://github.com/brunolnetto/sagaz/issues/46) |
+| Storage data-transfer layer | S4 | [#47](https://github.com/brunolnetto/sagaz/issues/47) |
+| CLI v1.0 (`init`, `dev`, `status`, `logs`, `visualize`) | S5–S6 | [#48](https://github.com/brunolnetto/sagaz/issues/48) |
 
 ---
 
-## Q3 2026 (Jul-Sep)
+## Q3 2026 (Jul-Sep) — Planned
+
+### v2.0.0 - CDC (Change Data Capture) continued
+
+**Target**: S7–S8 (Jul 2026) | [ADR-011](architecture/adr/adr-011-cdc-support.md) | [#50](https://github.com/brunolnetto/sagaz/issues/50)
+
+(Continues from Q2 S7–S8 sprint.)
 
 ### v2.1.0 - Analytics (Fluss + Iceberg)
 
-**Target**: Q3 2026 | **Effort**: 32-48 hours | [ADR-013](architecture/adr/adr-013-fluss-iceberg-analytics.md)
+**Target**: S9 (Aug 2026) | **Effort**: 32-48 hours | [ADR-013](architecture/adr/adr-013-fluss-iceberg-analytics.md) | [#51](https://github.com/brunolnetto/sagaz/issues/51)
 
 | Feature | Priority | Status |
 |---------|----------|--------|
@@ -172,31 +209,9 @@ Saga → FlussListener → Fluss (real-time) → Iceberg (historical)
                      (sub-second)           analytics
 ```
 
-### Saga Replay & Time-Travel
-
-**Target**: Q3 2026 | [ADR-016](architecture/adr/adr-016-saga-replay.md)
-
-Replay failed sagas and query historical state for debugging and compliance.
-
-### Pivot/Irreversible Steps
-
-**Target**: Q3 2026 | [ADR-023](architecture/adr/adr-023-pivot-irreversible-steps.md)
-
-Support for irreversible steps and forward recovery patterns.
-
-### v1.4.0 - Lightweight Context Streaming
-
-**Target**: Q3 2026 | **Effort**: 8-12 hours | [ADR-021](architecture/adr/adr-021-lightweight-context-streaming.md)
-
-| Feature | Priority | Status |
-|---------|----------|--------|
-| Reference-based context passing | High | 📋 Planned |
-| Streaming support for large payloads | High | 📋 Planned |
-| Snapshot threshold & incremental load | Medium | 📋 Planned |
-
 ### v2.2.0 - Saga Visualization UI
 
-**Target**: Q3 2026 | **Effort**: 16-24 hours | [ADR-035](architecture/adr/adr-035-saga-visualization-ui.md)
+**Target**: S10 (Aug 2026) | **Effort**: 16-24 hours | [ADR-035](architecture/adr/adr-035-saga-visualization-ui.md) | [#58](https://github.com/brunolnetto/sagaz/issues/58)
 
 | Feature | Priority | Status |
 |---------|----------|--------|
@@ -206,13 +221,23 @@ Support for irreversible steps and forward recovery patterns.
 | Live step progress (SSE) | Medium | 📋 Planned |
 | Step Explorer & run comparison | Medium | 📋 Planned |
 
+### v2.2.0 - Saga Choreography Mode (Phases 1–4)
+
+**Target**: S11–S12 (Aug–Sep 2026) | [ADR-029](architecture/adr/adr-029-saga-choreography.md) | [#56](https://github.com/brunolnetto/sagaz/issues/56)
+
+| Feature | Priority | Status |
+|---------|----------|--------|
+| Event Bus Infrastructure | High | 📋 Planned |
+| Choreography Engine | High | 📋 Planned |
+| Distributed tracing for choreography | Medium | 📋 Planned |
+
 ---
 
-## Q4 2026 (Oct-Dec)
+## Q4 2026 (Oct-Dec) — Planned
 
 ### Multi-Tenancy Support
 
-**Target**: Q4 2026 | [ADR-020](architecture/adr/adr-020-multi-tenancy.md)
+**Target**: Oct–Nov 2026 | [ADR-020](architecture/adr/adr-020-multi-tenancy.md) | [#54](https://github.com/brunolnetto/sagaz/issues/54)
 
 | Feature | Priority | Status |
 |---------|----------|--------|
@@ -221,20 +246,18 @@ Support for irreversible steps and forward recovery patterns.
 | Resource quotas per tenant | Medium | 📋 Planned |
 | Per-tenant encryption | Medium | 📋 Planned |
 
-### v2.2.0 - Saga Choreography Mode
+### v2.2.0 - Saga Choreography Mode (Phase 5 wrap-up)
 
-**Target**: Q4 2026 | **Effort**: 30-40 hours | [ADR-029](architecture/adr/adr-029-saga-choreography.md)
+**Target**: Oct 2026 | [ADR-029](architecture/adr/adr-029-saga-choreography.md) | [#56](https://github.com/brunolnetto/sagaz/issues/56)
 
 | Feature | Priority | Status |
 |---------|----------|--------|
-| Event Bus Infrastructure | High | 📋 Planned |
-| Choreography Engine | High | 📋 Planned |
-| Event sourcing integration | Medium | 📋 Planned |
-| Distributed tracing for choreography | Medium | 📋 Planned |
+| Event sourcing integration (with ADR-033) | Medium | 📋 Planned |
+| Testing & observability | Medium | 📋 Planned |
 
 ### v2.3.0 - Event Sourcing Integration
 
-**Target**: Q4 2026 | **Effort**: 20-30 hours | [ADR-033](architecture/adr/adr-033-event-sourcing-integration.md)
+**Target**: Nov 2026 | **Effort**: 20-30 hours | [ADR-033](architecture/adr/adr-033-event-sourcing-integration.md) | [#57](https://github.com/brunolnetto/sagaz/issues/57)
 
 | Feature | Priority | Status |
 |---------|----------|--------|
@@ -247,7 +270,7 @@ Support for irreversible steps and forward recovery patterns.
 
 ### v2.4.0 - Multi-Region Saga Coordination
 
-**Target**: Q4 2026 | **Effort**: 40-56 hours | [ADR-034](architecture/adr/adr-034-multi-region-coordination.md)
+**Target**: Dec 2026 | **Effort**: 40-56 hours | [ADR-034](architecture/adr/adr-034-multi-region-coordination.md) | [#59](https://github.com/brunolnetto/sagaz/issues/59)
 
 | Feature | Priority | Status |
 |---------|----------|--------|
@@ -265,17 +288,16 @@ Sagaz Cloud platform with managed infrastructure.
 
 ## 2027+ Considerations
 
-### Future Community Ideas
-
 All previously listed ideas have been promoted to the 2026 roadmap and have dedicated ADRs:
 
-| Feature | ADR | Target |
-|---------|-----|--------|
-| Lightweight Context Streaming | [ADR-021](architecture/adr/adr-021-lightweight-context-streaming.md) | v1.4.0 (Q3 2026) |
-| Saga Choreography Mode | [ADR-029](architecture/adr/adr-029-saga-choreography.md) | v2.2.0 (Q4 2026) |
-| Event Sourcing Integration | [ADR-033](architecture/adr/adr-033-event-sourcing-integration.md) | v2.3.0 (Q4 2026) |
-| Saga Visualization UI | [ADR-035](architecture/adr/adr-035-saga-visualization-ui.md) | v2.2.0 (Q3 2026) |
-| Multi-Region Coordination | [ADR-034](architecture/adr/adr-034-multi-region-coordination.md) | v2.4.0 (Q4 2026) |
+| Feature | ADR | Scheduled | Issue |
+|---------|-----|-----------|-------|
+| Lightweight Context Streaming | [ADR-021](architecture/adr/adr-021-lightweight-context-streaming.md) | v1.4.0 ✅ Done | — |
+| Saga Replay & Time-Travel | [ADR-024](architecture/adr/adr-024-saga-replay.md) | v2.1.0 ✅ Done | — |
+| Saga Choreography Mode | [ADR-029](architecture/adr/adr-029-saga-choreography.md) | v2.2.0 (Aug–Oct 2026) | [#56](https://github.com/brunolnetto/sagaz/issues/56) |
+| Saga Visualization UI | [ADR-035](architecture/adr/adr-035-saga-visualization-ui.md) | v2.2.0 (Aug 2026) | [#58](https://github.com/brunolnetto/sagaz/issues/58) |
+| Event Sourcing Integration | [ADR-033](architecture/adr/adr-033-event-sourcing-integration.md) | v2.3.0 (Nov 2026) | [#57](https://github.com/brunolnetto/sagaz/issues/57) |
+| Multi-Region Coordination | [ADR-034](architecture/adr/adr-034-multi-region-coordination.md) | v2.4.0 (Dec 2026) | [#59](https://github.com/brunolnetto/sagaz/issues/59) |
 
 ---
 
@@ -427,6 +449,10 @@ To propose a new feature:
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 2.1.0 | 2026-01 | Saga Replay & Time-Travel (all 6 phases, ADR-024) |
+| 1.4.0 | 2026-01 | Context Streaming (ADR-021), 24 industry examples (ADR-026) |
+| 1.3.0 | 2026-01 | Pivot Steps (ADR-023), Event Triggers (ADR-025), Dry-Run (ADR-019), CLI scaffold (ADR-027), Framework integration (ADR-028) |
+| 1.2.0 | 2026-01 | Unified Storage Layer (ADR-016), Compensation Result Passing (ADR-022) |
 | 1.0.3 | 2024-12 | Unified SagaConfig, env var config, test perf |
 | 1.0.2 | 2024-12 | CI improvements, Codecov, code quality fixes |
 | 1.0.1 | 2024-12 | Redis broker, documentation reorg |
