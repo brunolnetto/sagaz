@@ -549,7 +549,11 @@ ADR-024 (Replay) ✅ - Replay choreographed sagas
   - Event bus infrastructure
   - Choreography engine
   - Distributed coordination
-- ADR-035 Visualization UI (Aug 2026, v2.2.0) — **Proposed** (PR [#71](https://github.com/brunolnetto/sagaz/pull/71))
+- ADR-036 sqldim Analytics Pipeline (May–Jun 2026, v2.2.0) — **In Progress** (PR [#74](https://github.com/brunolnetto/sagaz/pull/74))
+  - Bronze→Silver→Gold medallion over saga OLTP (sqldim >= 0.1.1)
+  - Depends on ADR-016 (Storage) + #46 (SQLite); enables ADR-035 Gold query layer
+- ADR-035 Visualization UI (Jun 2026, v2.2.0) — **Proposed** (PR [#71](https://github.com/brunolnetto/sagaz/pull/71))
+  - Reads Gold layer from ADR-036 for /api/v1/analytics/* endpoints
 - ADR-033 Event Sourcing (Nov 2026, v2.3.0) — **Proposed** (PR [#70](https://github.com/brunolnetto/sagaz/pull/70))
 - ADR-034 Multi-Region (Dec 2026, v2.4.0) — **Proposed** (PR [#72](https://github.com/brunolnetto/sagaz/pull/72))
 

@@ -52,6 +52,7 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-033](adr-033-event-sourcing-integration.md) | Event Sourcing Integration | v2.3.0 | Opt-in event-sourced storage strategy for full audit trail |
 | [ADR-034](adr-034-multi-region-coordination.md) | Multi-Region Coordination | v2.4.0 | Cross-region step routing, data residency, and failover |
 | [ADR-035](adr-035-saga-visualization-ui.md) | Saga Visualization UI | v2.2.0 | Browser-based live saga monitoring dashboard |
+| [ADR-036](adr-036-sqldim-analytics-pipeline.md) | sqldim Analytics Pipeline | v2.2.0 | Star schema + DGM query layer over saga OLTP data (opt-in `sagaz[analytics]`) |
 
 ---
 

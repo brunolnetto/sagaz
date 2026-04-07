@@ -111,24 +111,82 @@ Items originally tagged Q1 but deferred to Q2 (not yet started):
 
 ---
 
-## 📅 Semester Sprint Calendar — Apr–Sep 2026
+## 📅 Implementation Schedule — Apr 7 → Jun 30, 2026
 
-> Current date: **2026-04-07** | Sprints are 2 weeks each.
+> **Deadline**: Jun 30, 2026 (61 business days) — dependency-ordered, no weekends.
+> Deferred items (Q3+) are listed at the bottom.
+
+### Dependency Graph
+
+```
+PR #42 (fix/coverage-and-container-timeouts)
+  └─► DLQ #44 ──────────────────────────────────────────────────────────► M1
+        └─► AlertManager #45 ─────────────────────────────────────────────► M1
+        └─► SQLite #46 ───────────────────────────────────────────────────► M2
+              └─► sqldim analytics #73 ──────────────────────────────────► M2
+              └─► Storage migration #47 ────────────────────────────────► M2
+                    └─► CLI v1.0 #48 ────────────────────────────────────► M3
+                    └─► Visualization UI #58 ◄── enabled by #73 ─────────► M3
+```
+
+### Day-by-Day Schedule (D1–D61)
+
+| Days | Dates | Feature | PR | Milestone |
+|------|-------|---------|-----|-----------|
+| D1–D2 | Apr 7–8 | Merge PR #42; read DLQ + storage design docs | [#42](https://github.com/brunolnetto/sagaz/pull/42) | M1 |
+| D3–D8 | Apr 9–16 | DLQ implementation Phases 1+2 (queue model, consumer, metrics) | [#60](https://github.com/brunolnetto/sagaz/pull/60) / [#44](https://github.com/brunolnetto/sagaz/issues/44) | M1 |
+| D9–D10 | Apr 17–18 | AlertManager rules template + docs | [#61](https://github.com/brunolnetto/sagaz/pull/61) / [#45](https://github.com/brunolnetto/sagaz/issues/45) | M1 |
+| D11–D17 | Apr 21–29 | SQLite backend Phases 1+2 (schema, CRUD, migrations) | [#62](https://github.com/brunolnetto/sagaz/pull/62) / [#46](https://github.com/brunolnetto/sagaz/issues/46) | M2 |
+| D18–D22 | Apr 30–May 6 | Storage migration layer + transfer API | [#63](https://github.com/brunolnetto/sagaz/pull/63) / [#47](https://github.com/brunolnetto/sagaz/issues/47) | M2 |
+| D23–D30 | May 7–16 | sqldim analytics — Bronze reads + Silver star schema | [#74](https://github.com/brunolnetto/sagaz/pull/74) / [#73](https://github.com/brunolnetto/sagaz/issues/73) | M2 |
+| D31–D38 | May 19–28 | CLI v1.0 (`init`, `dev`, `status`, `logs`, `visualize`) | [#64](https://github.com/brunolnetto/sagaz/pull/64) / [#48](https://github.com/brunolnetto/sagaz/issues/48) | M3 |
+| D39–D52 | May 29–Jun 17 | Visualization UI — REST/SSE API + dashboard (Phases 1–3) | [#71](https://github.com/brunolnetto/sagaz/pull/71) / [#58](https://github.com/brunolnetto/sagaz/issues/58) | M3 |
+| D53–D57 | Jun 18–24 | sqldim Gold aggregations + UI analytics tab integration | [#74](https://github.com/brunolnetto/sagaz/pull/74) | M3 |
+| D58–D61 | Jun 25–30 | Integration testing, bugfix buffer, cut v2.2.0-beta / v1.5.0 | — | M3 |
+
+### What Ships by June 30
+
+| Release | Features | PRs |
+|---------|----------|-----|
+| v1.1.0 | DLQ pattern, AlertManager rules | #60, #61 |
+| v1.3.1 | SQLite backend, storage migration | #62, #63 |
+| v1.5.0 | CLI v1.0 `init`/`dev`/`status`/`logs`/`visualize` | #64 |
+| v2.2.0-beta | sqldim analytics pipeline (`sagaz[analytics]`) | #74 |
+| v2.2.0-beta | Visualization UI + live analytics tab | #71 |
+
+### Deferred to Q3+ (Jul–Dec 2026)
+
+| Feature | Issue | Earliest start |
+|---------|-------|----------------|
+| CLI v2.0 multi-cloud deploy | [#49](https://github.com/brunolnetto/sagaz/issues/49) | Jul 1 |
+| CDC / Debezium | [#50](https://github.com/brunolnetto/sagaz/issues/50) | Jul 1 |
+| Fluss + Iceberg analytics | [#51](https://github.com/brunolnetto/sagaz/issues/51) | Aug 1 |
+| Choreography engine | [#56](https://github.com/brunolnetto/sagaz/issues/56) | Aug 1 |
+| Event sourcing integration | [#57](https://github.com/brunolnetto/sagaz/issues/57) | Oct 1 |
+| Multi-tenancy | [#54](https://github.com/brunolnetto/sagaz/issues/54) | Oct 1 |
+| Multi-region coordination | [#59](https://github.com/brunolnetto/sagaz/issues/59) | Nov 1 |
+
+---
+
+## 📅 Semester Sprint Calendar — Apr–Sep 2026 (reference)
+
+> Sprint reference view — see "Implementation Schedule" above for the day-by-day plan.
+> Sprints are 2 weeks each.
 
 | Sprint | Dates | Deliverable | Issues |
 |--------|-------|-------------|--------|
-| S1 | Apr 7 – Apr 18 | Merge PR #42 (testcontainer fix); start DLQ | [#41](https://github.com/brunolnetto/sagaz/issues/41), [#44](https://github.com/brunolnetto/sagaz/issues/44) |
-| S2 | Apr 21 – May 2 | DLQ pattern + AlertManager rules template | [#44](https://github.com/brunolnetto/sagaz/issues/44), [#45](https://github.com/brunolnetto/sagaz/issues/45) |
-| S3 | May 5 – May 16 | SQLite storage backend | [#46](https://github.com/brunolnetto/sagaz/issues/46) |
-| S4 | May 19 – May 30 | Storage data-transfer / migration layer | [#47](https://github.com/brunolnetto/sagaz/issues/47) |
-| S5 | Jun 2 – Jun 13 | CLI v1.0 core commands (`init`, `dev`, `status`) | [#48](https://github.com/brunolnetto/sagaz/issues/48) |
-| S6 | Jun 16 – Jun 27 | CLI v1.0 (`logs`, `visualize`) + release v1.5.0 | [#48](https://github.com/brunolnetto/sagaz/issues/48) |
-| S7 | Jun 30 – Jul 11 | CDC/Debezium worker + pg_logical | [#50](https://github.com/brunolnetto/sagaz/issues/50) |
+| S1 | Apr 7 – Apr 18 | Merge PR #42; start DLQ | [#41](https://github.com/brunolnetto/sagaz/issues/41), [#44](https://github.com/brunolnetto/sagaz/issues/44) |
+| S2 | Apr 21 – May 2 | DLQ + AlertManager + SQLite start | [#44](https://github.com/brunolnetto/sagaz/issues/44), [#45](https://github.com/brunolnetto/sagaz/issues/45), [#46](https://github.com/brunolnetto/sagaz/issues/46) |
+| S3 | May 5 – May 16 | SQLite backend + storage migration | [#46](https://github.com/brunolnetto/sagaz/issues/46), [#47](https://github.com/brunolnetto/sagaz/issues/47) |
+| S4 | May 19 – May 30 | sqldim analytics pipeline + CLI v1.0 | [#73](https://github.com/brunolnetto/sagaz/issues/73), [#48](https://github.com/brunolnetto/sagaz/issues/48) |
+| S5 | Jun 2 – Jun 13 | Visualization UI Phases 1–2 | [#58](https://github.com/brunolnetto/sagaz/issues/58) |
+| S6 | Jun 16 – Jun 30 | Viz UI Phase 3 + Gold integr. + v2.2.0-beta + v1.5.0 | [#58](https://github.com/brunolnetto/sagaz/issues/58), [#73](https://github.com/brunolnetto/sagaz/issues/73) |
+| S7 | Jul 1 – Jul 11 | CDC/Debezium worker + pg_logical | [#50](https://github.com/brunolnetto/sagaz/issues/50) |
 | S8 | Jul 14 – Jul 25 | CDC metrics, dashboards; CLI v2.0 start | [#50](https://github.com/brunolnetto/sagaz/issues/50), [#49](https://github.com/brunolnetto/sagaz/issues/49) |
 | S9 | Jul 28 – Aug 8 | CLI v2.0 (`deploy --provider`) + Fluss listener | [#49](https://github.com/brunolnetto/sagaz/issues/49), [#51](https://github.com/brunolnetto/sagaz/issues/51) |
-| S10 | Aug 11 – Aug 22 | Visualization UI (API + dashboard) | [#58](https://github.com/brunolnetto/sagaz/issues/58) |
-| S11 | Aug 25 – Sep 5 | Choreography engine Phase 1–2 | [#56](https://github.com/brunolnetto/sagaz/issues/56) |
-| S12 | Sep 8 – Sep 19 | Choreography Phase 3–4 + release v2.2.0 | [#56](https://github.com/brunolnetto/sagaz/issues/56) |
+| S10 | Aug 11 – Aug 22 | Choreography engine Phase 1–2 | [#56](https://github.com/brunolnetto/sagaz/issues/56) |
+| S11 | Aug 25 – Sep 5 | Choreography Phase 3–4 | [#56](https://github.com/brunolnetto/sagaz/issues/56) |
+| S12 | Sep 8 – Sep 19 | Choreography Phase 5 + release v2.2.0 | [#56](https://github.com/brunolnetto/sagaz/issues/56) |
 | S13 | Sep 22 – Sep 30 | Multi-tenancy Phase 1 start | [#54](https://github.com/brunolnetto/sagaz/issues/54) |
 
 ---
