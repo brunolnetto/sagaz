@@ -30,6 +30,7 @@ from sagaz.cli.migrate import migrate_cmd
 from sagaz.cli.project import check as check_cmd
 from sagaz.cli.project import list_sagas
 from sagaz.cli.replay import replay
+from sagaz.cli.visualize import visualize_cmd
 
 try:
     from rich.console import Console
@@ -709,6 +710,7 @@ cli.add_command(stop_cmd, name="stop")
 cli.add_command(benchmark_cmd, name="benchmark")
 
 # Utilities
+cli.add_command(visualize_cmd, name="visualize")
 cli.add_command(version_cmd, name="version")
 
 # DLQ Management
