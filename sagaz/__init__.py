@@ -122,6 +122,21 @@ from sagaz.core.listeners import (
 # Core Saga Classes
 # =============================================================================
 from sagaz.core.saga import SagaContext, SagaStep
+
+# =============================================================================
+# Multi-Tenancy (ADR-020, v1.4.0)
+# =============================================================================
+from sagaz.core.tenant import (
+    QuotaExceededError,
+    RateLimitExceededError,
+    TenantAwareSagaExecutor,
+    TenantContext,
+    TenantError,
+    TenantNotFoundError,
+    TenantQuotas,
+    TenantRegistry,
+    TenantSuspendedError,
+)
 from sagaz.core.types import ParallelFailureStrategy, SagaResult, SagaStatus, SagaStepStatus
 
 # =============================================================================
@@ -142,15 +157,9 @@ __all__ = [
     "CompensationNode",
     "CompensationResult",
     "CompensationType",
-    # =========================================================================
-    # Dry-Run Mode (ADR-019, v1.3.0)
-    # =========================================================================
     "DryRunEngine",
     "DryRunMode",
     "DryRunResult",
-    # =========================================================================
-    # Exceptions
-    # =========================================================================
     "IdempotencyKeyRequiredError",
     "LoggingSagaListener",
     "MetricsSagaListener",
@@ -158,13 +167,9 @@ __all__ = [
     "OutboxSagaListener",
     "ParallelFailureStrategy",
     "PivotInfo",
-    # =========================================================================
-    # Pivot/Irreversible Steps (v1.3.0)
-    # =========================================================================
+    "QuotaExceededError",
+    "RateLimitExceededError",
     "RecoveryAction",
-    # =========================================================================
-    # Primary Exports (Recommended API)
-    # =========================================================================
     "Saga",
     "SagaCompensationContext",
     "SagaCompensationError",
@@ -172,21 +177,9 @@ __all__ = [
     "SagaContext",
     "SagaError",
     "SagaExecutionError",
-    # =========================================================================
-    # Execution Graph
-    # =========================================================================
     "SagaExecutionGraph",
-    # =========================================================================
-    # Listeners
-    # =========================================================================
     "SagaListener",
-    # =========================================================================
-    # Orchestrator
-    # =========================================================================
     "SagaOrchestrator",
-    # =========================================================================
-    # Types and Results
-    # =========================================================================
     "SagaResult",
     "SagaStatus",
     "SagaStep",
@@ -198,6 +191,13 @@ __all__ = [
     "SimulationResult",
     "StepZone",
     "TaintPropagator",
+    "TenantAwareSagaExecutor",
+    "TenantContext",
+    "TenantError",
+    "TenantNotFoundError",
+    "TenantQuotas",
+    "TenantRegistry",
+    "TenantSuspendedError",
     "TracingSagaListener",
     "ValidationResult",
     "action",
