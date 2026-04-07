@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed** | Date: 2026-01-05 | Priority: Low | Target: Future
+**In Progress** | Date: 2026-01-05 | Priority: Low | Target: Future
 
 ## Dependencies
 
