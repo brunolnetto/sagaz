@@ -35,7 +35,7 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
-import aiofiles
+import aiofiles  # type: ignore[import-untyped]
 
 from sagaz.core.replay import ReplayResult, SagaSnapshot
 from sagaz.storage.interfaces.snapshot import SnapshotStorage
@@ -141,7 +141,7 @@ class FilesystemSnapshotStorage(SnapshotStorage):
             async with aiofiles.open(path) as f:
                 json_str = await f.read()
 
-        return json.loads(json_str)
+        return json.loads(json_str)  # type: ignore[no-any-return]
 
     async def _update_index(self, saga_id: UUID, snapshot_id: UUID, created_at: datetime) -> None:
         """Update saga index with new snapshot"""

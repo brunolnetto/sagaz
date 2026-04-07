@@ -175,8 +175,8 @@ class DryRunEngine:
     ) -> ValidationResult:
         """Validate saga configuration."""
         errors = []
-        warnings = []
-        checks = {}
+        warnings: list[str] = []
+        checks: dict[str, Any] = {}
 
         steps = self._extract_steps(saga)
         if not steps:
@@ -202,7 +202,7 @@ class DryRunEngine:
 
     def _get_step_names(self, steps: list) -> set[str]:
         """Get step names from steps."""
-        return {getattr(step, "step_id", None) or getattr(step, "name", "") for step in steps}
+        return {str(getattr(step, "step_id", None) or getattr(step, "name", "")) for step in steps}
 
     def _validate_steps(
         self, steps: list, step_names: set[str], errors: list, warnings: list
@@ -212,8 +212,10 @@ class DryRunEngine:
         has_compensation = False
 
         for step in steps:
-            step_name = getattr(step, "step_id", None) or getattr(step, "name", "unknown")
-            depends_on = getattr(step, "depends_on", set()) or getattr(step, "dependencies", set())
+            step_name: str = str(getattr(step, "step_id", None) or getattr(step, "name", "unknown"))
+            depends_on: Any = getattr(step, "depends_on", set()) or getattr(
+                step, "dependencies", set()
+            )
 
             if depends_on:
                 has_dependencies = True
@@ -248,10 +250,12 @@ class DryRunEngine:
 
     def _validate_cycles(self, steps: list, checks: dict, errors: list):
         """Build DAG and check for cycles."""
-        dag = {}
+        dag: dict[str, list[str]] = {}
         for step in steps:
-            step_name = getattr(step, "step_id", None) or getattr(step, "name", "unknown")
-            depends_on = getattr(step, "depends_on", set()) or getattr(step, "dependencies", set())
+            step_name: str = str(getattr(step, "step_id", None) or getattr(step, "name", "unknown"))
+            depends_on: Any = getattr(step, "depends_on", set()) or getattr(
+                step, "dependencies", set()
+            )
             dag[step_name] = list(depends_on) if depends_on else []
 
         checks["has_cycles"] = False
@@ -298,19 +302,21 @@ class DryRunEngine:
     def _extract_steps(self, saga: "Saga") -> list:  # type: ignore
         """Extract steps from saga instance."""
         if hasattr(saga, "_steps") and saga._steps:
-            return saga._steps
+            return list(saga._steps)
         if hasattr(saga, "get_steps"):
-            return saga.get_steps()
+            return list(saga.get_steps())
         if hasattr(saga, "steps"):
-            return saga.steps
+            return list(saga.steps)
         return []
 
     def _build_dag_from_steps(self, steps: list) -> dict[str, list[str]]:
         """Build DAG from step dependencies."""
-        dag = {}
+        dag: dict[str, list[str]] = {}
         for step in steps:
-            step_name = getattr(step, "step_id", None) or getattr(step, "name", "unknown")
-            depends_on = getattr(step, "depends_on", set()) or getattr(step, "dependencies", set())
+            step_name: str = str(getattr(step, "step_id", None) or getattr(step, "name", "unknown"))
+            depends_on: Any = getattr(step, "depends_on", set()) or getattr(
+                step, "dependencies", set()
+            )
             dag[step_name] = list(depends_on) if depends_on else []
         return dag
 
@@ -342,7 +348,8 @@ class DryRunEngine:
         """
         steps = self._extract_steps(saga)
         steps_planned = [
-            getattr(step, "step_id", None) or getattr(step, "name", "unknown") for step in steps
+            str(getattr(step, "step_id", None) or getattr(step, "name", "unknown"))
+            for step in steps
         ]
         dag = self._build_dag_from_steps(steps)
         execution_order, parallel_groups = self._determine_execution_plan(dag, steps_planned)
@@ -355,7 +362,7 @@ class DryRunEngine:
         self, dag: dict[str, list[str]]
     ) -> tuple[dict[str, list[str]], dict[str, int]]:
         """Build reverse DAG and compute in-degrees."""
-        reverse_dag = {node: [] for node in dag}
+        reverse_dag: dict[str, list[str]] = {node: [] for node in dag}
         in_degree = {node: len(dag[node]) for node in dag}
 
         for node, dependencies in dag.items():
@@ -401,7 +408,7 @@ class DryRunEngine:
             List of parallel groups [[step1, step2], [step3], ...]
         """
         # Simple implementation: group steps with same depth
-        depths = {}
+        depths: dict[str, int] = {}
 
         def calculate_depth(node: str, memo: dict[str, int]) -> int:
             if node in memo:
@@ -420,7 +427,7 @@ class DryRunEngine:
 
         # Group by depth
         max_depth = max(depths.values()) if depths else 0
-        groups = [[] for _ in range(max_depth + 1)]
+        groups: list[list[str]] = [[] for _ in range(max_depth + 1)]
 
         for node, depth in depths.items():
             groups[depth].append(node)
@@ -444,10 +451,12 @@ class DryRunEngine:
         elif hasattr(saga, "steps"):
             steps = saga.steps
 
-        dag = {}
+        dag: dict[str, list[str]] = {}
         for step in steps:
-            step_name = getattr(step, "step_id", None) or getattr(step, "name", "unknown")
-            depends_on = getattr(step, "depends_on", set()) or getattr(step, "dependencies", set())
+            step_name: str = str(getattr(step, "step_id", None) or getattr(step, "name", "unknown"))
+            depends_on: Any = getattr(step, "depends_on", set()) or getattr(
+                step, "dependencies", set()
+            )
             dag[step_name] = list(depends_on) if depends_on else []
 
         return dag
@@ -468,7 +477,7 @@ class DryRunEngine:
             - Critical path (longest dependency chain)
         """
         # Calculate layer depth for each node
-        layers = {}
+        layers: dict[str, int] = {}
 
         def calculate_depth(node: str, memo: dict[str, int]) -> int:
             if node in memo:
@@ -535,7 +544,7 @@ class DryRunEngine:
         deepest_nodes = [node for node, layer in layers.items() if layer == max_layer]
 
         # Trace back dependencies to find longest path
-        longest_path = []
+        longest_path: list[str] = []
 
         for start_node in deepest_nodes:
             path = self._trace_path(start_node, dag, set())
@@ -560,7 +569,7 @@ class DryRunEngine:
         deps = dag.get(node, [])
         if deps:
             # Follow the longest dependency branch
-            longest_branch = []
+            longest_branch: list[str] = []
             for dep in deps:
                 if dep not in visited:
                     branch = self._trace_path(dep, dag, visited | {node})
@@ -573,14 +582,16 @@ class DryRunEngine:
     def _get_compensatable_steps(self, saga: "Saga") -> set[str]:  # type: ignore
         """Get set of steps that have compensation functions."""
         steps = self._extract_steps(saga)
-        compensatable_steps = set()
+        compensatable_steps: set[str] = set()
 
         for step in steps:
             compensation_fn = getattr(step, "compensation_fn", None) or getattr(
                 step, "compensation", None
             )
             if compensation_fn is not None:
-                step_name = getattr(step, "step_id", None) or getattr(step, "name", "unknown")
+                step_name: str = str(
+                    getattr(step, "step_id", None) or getattr(step, "name", "unknown")
+                )
                 compensatable_steps.add(step_name)
 
         return compensatable_steps

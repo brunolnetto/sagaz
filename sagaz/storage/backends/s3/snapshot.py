@@ -27,7 +27,7 @@ try:
     AIOBOTO3_AVAILABLE = True
 except ImportError:
     AIOBOTO3_AVAILABLE = False
-    aioboto3 = None
+    aioboto3 = None  # type: ignore[assignment]
 
 try:
     import zstandard as zstd
@@ -35,7 +35,7 @@ try:
     ZSTD_AVAILABLE = True
 except ImportError:
     ZSTD_AVAILABLE = False
-    zstd = None
+    zstd = None  # type: ignore[assignment]
 
 
 class S3SnapshotStorage(SnapshotStorage):
@@ -83,8 +83,8 @@ class S3SnapshotStorage(SnapshotStorage):
         self.enable_encryption = enable_encryption
         self.storage_class = storage_class
         self.s3_kwargs = s3_kwargs
-        self._session = None
-        self._s3_client = None
+        self._session: Any = None
+        self._s3_client: Any = None
         self._lock = asyncio.Lock()
         self._compressor = (
             zstd.ZstdCompressor(level=compression_level) if self.enable_compression else None
@@ -137,7 +137,7 @@ class S3SnapshotStorage(SnapshotStorage):
         else:
             json_bytes = data
 
-        return json.loads(json_bytes.decode("utf-8"))
+        return json.loads(json_bytes.decode("utf-8"))  # type: ignore[no-any-return]
 
     async def save_snapshot(self, snapshot: SagaSnapshot) -> None:
         """Save snapshot to S3"""
@@ -167,7 +167,7 @@ class S3SnapshotStorage(SnapshotStorage):
 
         # Set lifecycle expiration
         if snapshot.retention_until:
-            put_params["Expires"] = snapshot.retention_until
+            put_params["Expires"] = snapshot.retention_until  # type: ignore[assignment]
 
         # Upload to S3
         await s3.put_object(**put_params)

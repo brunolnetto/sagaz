@@ -36,7 +36,7 @@ try:
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
-    redis: Any = None  # type: ignore[no-redef]
+    redis: Any = None  # type: ignore[assignment, no-redef]
 
 
 logger = logging.getLogger(__name__)
@@ -130,7 +130,7 @@ class RedisBroker(BaseBroker):
 
         super().__init__(config)
         self.config: RedisBrokerConfig = config or RedisBrokerConfig()
-        self._client = None
+        self._client: Any = None
 
     @classmethod
     def from_env(cls) -> "RedisBroker":

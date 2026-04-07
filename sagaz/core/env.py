@@ -16,7 +16,7 @@ from typing import Any
 try:
     from dotenv import load_dotenv
 except ImportError:
-    load_dotenv = None
+    load_dotenv = None  # type: ignore[assignment]
 
 
 class EnvManager:
@@ -97,7 +97,7 @@ class EnvManager:
 
     def get_bool(self, key: str, default: bool = False) -> bool:
         """Get environment variable as boolean."""
-        value = self.get(key, "").lower()
+        value = (self.get(key) or "").lower()
         if value in ("true", "1", "yes", "on"):
             return True
         if value in ("false", "0", "no", "off"):
@@ -107,7 +107,7 @@ class EnvManager:
     def get_int(self, key: str, default: int = 0) -> int:
         """Get environment variable as integer."""
         try:
-            return int(self.get(key, str(default)))
+            return int(self.get(key) or str(default))
         except (ValueError, TypeError):
             return default
 
@@ -167,7 +167,7 @@ class EnvManager:
         Returns:
             Dictionary with variables substituted
         """
-        result = {}
+        result: dict[str, Any] = {}
         for key, value in data.items():
             if isinstance(value, str):
                 result[key] = self.substitute(value)

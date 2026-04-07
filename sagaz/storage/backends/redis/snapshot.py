@@ -27,7 +27,7 @@ try:
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
-    redis: Any = None  # type: ignore[no-redef]
+    redis: Any = None  # type: ignore[assignment, no-redef]
 
 try:
     import zstandard as zstd
@@ -35,7 +35,7 @@ try:
     ZSTD_AVAILABLE = True
 except ImportError:
     ZSTD_AVAILABLE = False
-    zstd = None
+    zstd = None  # type: ignore[assignment]
 
 
 class RedisSnapshotStorage(SnapshotStorage):
@@ -75,7 +75,7 @@ class RedisSnapshotStorage(SnapshotStorage):
         self.enable_compression = enable_compression and ZSTD_AVAILABLE
         self.compression_level = compression_level
         self.redis_kwargs = redis_kwargs
-        self._redis = None
+        self._redis: Any = None
         self._lock = asyncio.Lock()
         self._compressor = (
             zstd.ZstdCompressor(level=compression_level) if self.enable_compression else None
@@ -127,7 +127,7 @@ class RedisSnapshotStorage(SnapshotStorage):
         else:
             json_bytes = data
 
-        return json.loads(json_bytes.decode("utf-8"))
+        return json.loads(json_bytes.decode("utf-8"))  # type: ignore[no-any-return]
 
     async def save_snapshot(self, snapshot: SagaSnapshot) -> None:
         """Save snapshot to Redis"""
@@ -250,7 +250,7 @@ class RedisSnapshotStorage(SnapshotStorage):
         saga_index = self._saga_index_key(snapshot.saga_id)
         await r.zrem(saga_index, str(snapshot_id))  # type: ignore[attr-defined]
 
-        return deleted > 0
+        return bool(deleted > 0)
 
     async def delete_expired_snapshots(self) -> int:
         """

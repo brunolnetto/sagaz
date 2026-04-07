@@ -336,48 +336,8 @@ class SagaConfig:
         if load_dotenv:
             env.load()
 
-        storage = None
-        broker = None
-
-        # Parse storage - try URL first, then build from components
-        storage_url = env.get("SAGAZ_STORAGE_URL", "")
-        if storage_url:
-            storage = cls._parse_storage_url(storage_url)
-        else:
-            storage_type = env.get("SAGAZ_STORAGE_TYPE", "memory")
-            if storage_type == "postgresql":
-                host = env.get("SAGAZ_STORAGE_HOST", "localhost")
-                port = env.get("SAGAZ_STORAGE_PORT", "5432")
-                db = env.get("SAGAZ_STORAGE_DB", "sagaz")
-                user = env.get("SAGAZ_STORAGE_USER", "postgres")
-                password = env.get("SAGAZ_STORAGE_PASSWORD", "postgres")
-                storage_url = f"postgresql://{user}:{password}@{host}:{port}/{db}"
-                storage = cls._parse_storage_url(storage_url)
-            elif storage_type == "redis":
-                redis_url = env.get("SAGAZ_STORAGE_URL", "redis://localhost:6379/0")
-                storage = cls._parse_storage_url(redis_url)
-
-        # Parse broker - try URL first, then build from components
-        broker_url = env.get("SAGAZ_BROKER_URL", "")
-        if broker_url:
-            broker = cls._parse_broker_url(broker_url)
-        else:
-            broker_type = env.get("SAGAZ_BROKER_TYPE", "")
-            if broker_type == "kafka":
-                host = env.get("SAGAZ_BROKER_HOST", "localhost")
-                port = env.get("SAGAZ_BROKER_PORT", "9092")
-                broker_url = f"kafka://{host}:{port}"
-                broker = cls._parse_broker_url(broker_url)
-            elif broker_type == "rabbitmq":
-                host = env.get("SAGAZ_BROKER_HOST", "localhost")
-                port = env.get("SAGAZ_BROKER_PORT", "5672")
-                user = env.get("SAGAZ_BROKER_USER", "guest")
-                password = env.get("SAGAZ_BROKER_PASSWORD", "guest")
-                broker_url = f"amqp://{user}:{password}@{host}:{port}/"
-                broker = cls._parse_broker_url(broker_url)
-            elif broker_type == "redis":
-                redis_url = env.get("SAGAZ_BROKER_URL", "redis://localhost:6379/1")
-                broker = cls._parse_broker_url(redis_url)
+        storage = cls._storage_from_env(env)
+        broker = cls._broker_from_env(env)
 
         return cls(
             storage=storage,
@@ -386,6 +346,52 @@ class SagaConfig:
             tracing=env.get_bool("SAGAZ_TRACING", False),
             logging=env.get_bool("SAGAZ_LOGGING", True),
         )
+
+    @classmethod
+    def _storage_from_env(cls, env: Any) -> Any:
+        storage_url = env.get("SAGAZ_STORAGE_URL", "")
+        if storage_url:
+            return cls._parse_storage_url(storage_url)
+
+        storage_type = env.get("SAGAZ_STORAGE_TYPE", "memory")
+        if storage_type == "postgresql":
+            host = env.get("SAGAZ_STORAGE_HOST", "localhost")
+            port = env.get("SAGAZ_STORAGE_PORT", "5432")
+            db = env.get("SAGAZ_STORAGE_DB", "sagaz")
+            user = env.get("SAGAZ_STORAGE_USER", "postgres")
+            password = env.get("SAGAZ_STORAGE_PASSWORD", "postgres")
+            url = f"postgresql://{user}:{password}@{host}:{port}/{db}"
+            return cls._parse_storage_url(url)
+        if storage_type == "redis":
+            redis_url = env.get("SAGAZ_STORAGE_URL")
+            if redis_url is None:
+                redis_url = "redis://localhost:6379/0"
+            return cls._parse_storage_url(redis_url)
+        return None
+
+    @classmethod
+    def _broker_from_env(cls, env: Any) -> Any:
+        broker_url = env.get("SAGAZ_BROKER_URL", "")
+        if broker_url:
+            return cls._parse_broker_url(broker_url)
+
+        broker_type = env.get("SAGAZ_BROKER_TYPE", "")
+        if broker_type == "kafka":
+            host = env.get("SAGAZ_BROKER_HOST", "localhost")
+            port = env.get("SAGAZ_BROKER_PORT", "9092")
+            return cls._parse_broker_url(f"kafka://{host}:{port}")
+        if broker_type == "rabbitmq":
+            host = env.get("SAGAZ_BROKER_HOST", "localhost")
+            port = env.get("SAGAZ_BROKER_PORT", "5672")
+            user = env.get("SAGAZ_BROKER_USER", "guest")
+            password = env.get("SAGAZ_BROKER_PASSWORD", "guest")
+            return cls._parse_broker_url(f"amqp://{user}:{password}@{host}:{port}/")
+        if broker_type == "redis":
+            redis_url = env.get("SAGAZ_BROKER_URL")
+            if redis_url is None:
+                redis_url = "redis://localhost:6379/1"
+            return cls._parse_broker_url(redis_url)
+        return None
 
     @classmethod
     def from_file(cls, file_path: str | Path, substitute_env: bool = True) -> SagaConfig:
