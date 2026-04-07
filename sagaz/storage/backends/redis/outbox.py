@@ -79,7 +79,7 @@ class RedisOutboxStorage(OutboxStorage):
         self._event_ttl_seconds = event_ttl_seconds
         self._redis_kwargs = redis_kwargs
 
-        self._redis = None
+        self._redis: Any = None
         self._initialized = False
 
         # Key names
@@ -511,7 +511,7 @@ class RedisOutboxStorage(OutboxStorage):
         assert self._redis is not None
 
         try:
-            return await self._redis.xlen(self._stream_key)
+            return int(await self._redis.xlen(self._stream_key))
         except Exception:
             return 0
 

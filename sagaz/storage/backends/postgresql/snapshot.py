@@ -107,7 +107,7 @@ class PostgreSQLSnapshotStorage(SnapshotStorage):
         self.pool_min_size = pool_min_size
         self.pool_max_size = pool_max_size
         self.pool_kwargs = pool_kwargs
-        self._pool = None
+        self._pool: Any = None
         self._lock = asyncio.Lock()
 
     async def _get_pool(self):
@@ -154,7 +154,7 @@ class PostgreSQLSnapshotStorage(SnapshotStorage):
                 snapshot.saga_name,
                 snapshot.step_name,
                 snapshot.step_index,
-                snapshot.status.value,
+                snapshot.status.value if hasattr(snapshot.status, "value") else snapshot.status,
                 json.dumps(snapshot.context),
                 json.dumps(snapshot.completed_steps),
                 snapshot.created_at,
@@ -275,7 +275,7 @@ class PostgreSQLSnapshotStorage(SnapshotStorage):
                 snapshot_id,
             )
 
-            return result == "DELETE 1"
+            return bool(result == "DELETE 1")
 
     async def delete_expired_snapshots(self) -> int:
         """Delete expired snapshots"""
@@ -408,7 +408,7 @@ class PostgreSQLSnapshotStorage(SnapshotStorage):
             saga_name=row["saga_name"],
             step_name=row["step_name"],
             step_index=row["step_index"],
-            status=SagaStatus(row["status"]),
+            status=SagaStatus(row["status"]).value,
             context=json.loads(row["context"])
             if isinstance(row["context"], str)
             else row["context"],

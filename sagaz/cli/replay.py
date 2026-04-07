@@ -22,12 +22,12 @@ try:
     console = Console()
     HAS_RICH = True
 except ImportError:
-    console = None
+    console = None  # type: ignore[assignment]
     HAS_RICH = False
 
 if TYPE_CHECKING:
     from sagaz.core.saga_replay import ReplayResult, SagaReplay
-    from sagaz.core.time_travel import SagaHistoricalState
+    from sagaz.core.time_travel import HistoricalState
 
 
 # ============================================================================
@@ -388,7 +388,7 @@ def _display_key_value(key: str, value: Any, output_format: str):
         click.echo(f"{key}: {value}")
 
 
-def _display_full_state(state: "SagaHistoricalState", output_format: str):
+def _display_full_state(state: "HistoricalState", output_format: str):
     """Display full saga state."""
     if output_format == "json":
         import json
@@ -400,9 +400,9 @@ def _display_full_state(state: "SagaHistoricalState", output_format: str):
         _display_state_text(state)
 
 
-def _display_state_table(state: "SagaHistoricalState"):
+def _display_state_table(state: "HistoricalState"):
     """Display state as table (Rich)."""
-    table = Table(title=f"Saga State at {state.snapshot_time}")
+    table = Table(title=f"Saga State at {state.timestamp}")
     table.add_column("Field", style="cyan")
     table.add_column("Value", style="green")
     table.add_row("Saga ID", str(state.saga_id))
@@ -418,7 +418,7 @@ def _display_state_table(state: "SagaHistoricalState"):
         console.print(JSON.from_data(state.context))
 
 
-def _display_state_text(state: "SagaHistoricalState"):
+def _display_state_text(state: "HistoricalState"):
     """Display state as text."""
     click.echo(f"Saga ID: {state.saga_id}")
     click.echo(f"Saga Name: {state.saga_name}")

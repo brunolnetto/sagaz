@@ -58,7 +58,7 @@ async def main():
     await saga.execute()
     end_time = datetime.now()
 
-    saga_id = saga.saga_id
+    saga_id = UUID(saga.saga_id)
 
     # Query snapshots
 

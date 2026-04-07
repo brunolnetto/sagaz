@@ -291,12 +291,12 @@ class StorageManager(BaseStorageManager):
             msg = "redis"
             raise MissingDependencyError(msg, "Redis storage backend")
 
+        assert self._saga_url is not None
         self._shared_pool = redis.from_url(self._saga_url)
 
         from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
         from sagaz.storage.backends.redis.saga import RedisSagaStorage
 
-        assert self._saga_url is not None
         saga_storage = RedisSagaStorage(self._saga_url)
         saga_storage._redis = self._shared_pool
         # Note: RedisSagaStorage uses _has_initialized, not _initialized

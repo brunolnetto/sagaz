@@ -20,7 +20,7 @@ try:
     console = Console()
     RICH_AVAILABLE = True
 except ImportError:
-    console = None
+    console = None  # type: ignore[assignment]
     RICH_AVAILABLE = False
 
 
@@ -71,7 +71,7 @@ def _discover_and_select_sagas(
         return [s for s in sagas if s["name"] == selected_name]
 
     # Default: return all sagas
-    return sagas
+    return sagas  # type: ignore[no-any-return]
 
 
 def _run_validation_for_sagas(sagas: list, ctx: dict) -> list:
@@ -157,7 +157,7 @@ def _interactive_saga_selection(sagas: list[dict], operation: str) -> str | None
             console.print(f"[dim]Auto-selecting only saga: {saga_name}[/dim]")
         else:
             click.echo(f"Auto-selecting only saga: {saga_name}")
-        return saga_name
+        return saga_name  # type: ignore[no-any-return]
 
     click.echo(f"\nSelect saga to {operation}:")
     for idx, saga in enumerate(sagas, 1):
@@ -170,7 +170,7 @@ def _interactive_saga_selection(sagas: list[dict], operation: str) -> str | None
     if choice == 0:
         return None
 
-    return sagas[choice - 1]["name"]
+    return sagas[choice - 1]["name"]  # type: ignore[no-any-return]
 
 
 def _discover_project_sagas():

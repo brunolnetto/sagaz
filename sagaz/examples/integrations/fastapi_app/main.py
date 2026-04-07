@@ -201,7 +201,7 @@ async def validate_order(request: ValidateRequest):
     saga_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, order_id))
 
     # Check if saga exists in storage
-    state = await config.storage.load_saga_state(saga_id)
+    state = await config.storage.load_saga_state(saga_id) if config.storage else None  # type: ignore[union-attr]
 
     if state:
         from sagaz.core.types import SagaStatus

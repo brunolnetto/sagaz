@@ -386,7 +386,7 @@ def _compute_overall_status(status: dict) -> str:
     """Compute overall status from individual saga statuses."""
     saga_statuses = status.get("saga_statuses", {})
     saga_ids = status.get("saga_ids", [])
-    overall_status = status["status"]
+    overall_status: str = str(status["status"])
 
     if overall_status != "triggered" or not saga_ids:
         return overall_status

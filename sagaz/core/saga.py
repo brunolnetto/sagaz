@@ -1009,7 +1009,7 @@ class Saga(ABC):
     @property
     def current_state(self) -> str:
         """Get current state name"""
-        return self._state_machine.current_state.name  # type: ignore[no-any-return]
+        return self._state_machine.current_state.name  # type: ignore[union-attr, no-any-return]
 
     def get_status(self) -> dict[str, Any]:
         """Get detailed saga status"""
