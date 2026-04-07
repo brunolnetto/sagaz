@@ -284,8 +284,62 @@ class TestStorageManagerSQLiteIntegration:
             assert health["status"] == "healthy"
             assert health["saga_backend"] == "sqlite"
 
+    @pytest.mark.asyncio
+    async def test_sqlite_file_based_storage_persists(self, tmp_path):
+        """File-based SQLite DB survives close+reopen (durability check)."""
+        pytest.importorskip("aiosqlite")
 
-class TestCreateStorageManagerFactoryIntegration:
+        from sagaz.core.types import SagaStatus
+        from sagaz.storage.manager import StorageManager
+
+        db_path = tmp_path / "sagas_test.db"
+        url = f"sqlite:///{db_path}"
+
+        # Write in first session
+        async with StorageManager(url=url) as manager:
+            await manager.saga.save_saga_state(
+                saga_id="file-test-saga-1",
+                saga_name="FileBasedSQLiteTest",
+                status=SagaStatus.COMPLETED,
+                steps=[],
+                context={"key": "durable"},
+            )
+            # Verify file was created on disk
+            assert db_path.exists()
+
+        # Read in second session — confirms durability
+        async with StorageManager(url=url) as manager2:
+            loaded = await manager2.saga.load_saga_state("file-test-saga-1")
+            assert loaded is not None
+            assert loaded["saga_name"] == "FileBasedSQLiteTest"
+            assert loaded["context"]["key"] == "durable"
+
+    @pytest.mark.asyncio
+    async def test_sqlite_file_based_outbox_persists(self, tmp_path):
+        """File-based SQLite outbox events survive close+reopen."""
+        pytest.importorskip("aiosqlite")
+
+        from sagaz.outbox.types import OutboxEvent
+        from sagaz.storage.manager import StorageManager
+
+        db_path = tmp_path / "outbox_test.db"
+        url = f"sqlite:///{db_path}"
+
+        async with StorageManager(url=url) as manager:
+            event = OutboxEvent(
+                saga_id="outbox-file-saga-1",
+                event_type="OrderPlaced",
+                payload={"order_id": "ORD-001"},
+            )
+            await manager.outbox.insert(event)
+            assert db_path.exists()
+
+        # Confirm event readable in new session
+        async with StorageManager(url=url) as manager2:
+            events = await manager2.outbox.get_events_by_saga("outbox-file-saga-1")
+            assert len(events) >= 1
+            assert events[0].event_type == "OrderPlaced"
+
     """Integration tests for create_storage_manager factory function."""
 
     @pytest.mark.asyncio
