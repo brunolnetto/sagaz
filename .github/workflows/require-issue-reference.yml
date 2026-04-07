@@ -7,6 +7,7 @@ on:
 jobs:
   require-issue:
     runs-on: ubuntu-latest
+    if: ${{ !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'renovate/') }}
     steps:
       - name: Check PR description for issue reference
         uses: actions/github-script@v7
@@ -17,7 +18,7 @@ jobs:
             const patterns = [
               /closes\s*:?\s+#\d+(?:[.,;!?]|\s|$)/,
               /fixes\s*:?\s+#\d+(?:[.,;!?]|\s|$)/,
-              /resolves\s*:?\s+#\d+(?:[.,;!?]|\s|$)+#\d+(?:[.,;!?]|\s|$)/
+              /resolves\s*:?\s+#\d+(?:[.,;!?]|\s|$)/
             ]
 
             const found = patterns.some(p => p.test(body))
