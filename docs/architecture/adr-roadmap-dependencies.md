@@ -544,11 +544,18 @@ ADR-024 (Replay) ✅ - Replay choreographed sagas
 - ADR-019 (Week 9-10)
 - ADR-017 (Weeks 11-12)
 
-#### Stream D: Choreography (v2.2.0)
-- ADR-029 (Weeks 52-67, after Phase 5)
+#### Stream D: Choreography (v2.2.0) + Phase 6 (v2.2.0–v2.4.0)
+- ADR-029 (Weeks 52-67, after Phase 5) — **In Progress** (PR [#69](https://github.com/brunolnetto/sagaz/pull/69))
   - Event bus infrastructure
   - Choreography engine
   - Distributed coordination
+- ADR-036 sqldim Analytics Pipeline (May–Jun 2026, v2.2.0) — **In Progress** (PR [#74](https://github.com/brunolnetto/sagaz/pull/74))
+  - Bronze→Silver→Gold medallion over saga OLTP (sqldim >= 0.1.1)
+  - Depends on ADR-016 (Storage) + #46 (SQLite); enables ADR-035 Gold query layer
+- ADR-035 Visualization UI (Jun 2026, v2.2.0) — **Proposed** (PR [#71](https://github.com/brunolnetto/sagaz/pull/71))
+  - Reads Gold layer from ADR-036 for /api/v1/analytics/* endpoints
+- ADR-033 Event Sourcing (Nov 2026, v2.3.0) — **Proposed** (PR [#70](https://github.com/brunolnetto/sagaz/pull/70))
+- ADR-034 Multi-Region (Dec 2026, v2.4.0) — **Proposed** (PR [#72](https://github.com/brunolnetto/sagaz/pull/72))
 
 This allows **3 developers** to work in parallel with minimal conflicts.
 
@@ -585,7 +592,10 @@ This allows **3 developers** to work in parallel with minimal conflicts.
 
 These 6 ADRs deliver **80% of the value** with **40% of the effort**. 
 
-**Next Priority (Months 13-16)**: 
-- **ADR-029** (Saga Choreography) - Event-driven microservices coordination
+**Next Priority (Phase 6 — 2026 Q3/Q4)**:
+- **ADR-035** (Saga Visualization UI) — `feature/visualization-ui`, PR [#71](https://github.com/brunolnetto/sagaz/pull/71), v2.2.0 Aug 2026
+- **ADR-029** (Saga Choreography) — `feature/saga-choreography`, PR [#69](https://github.com/brunolnetto/sagaz/pull/69), v2.2.0 Aug–Oct 2026
+- **ADR-033** (Event Sourcing) — `feature/event-sourcing`, PR [#70](https://github.com/brunolnetto/sagaz/pull/70), v2.3.0 Nov 2026
+- **ADR-034** (Multi-Region) — `feature/multi-region-coordination`, PR [#72](https://github.com/brunolnetto/sagaz/pull/72), v2.4.0 Dec 2026
 
 The rest can wait for real user demand.

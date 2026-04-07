@@ -20,8 +20,8 @@ import pytest
 # Disable Ryuk (the testcontainers reaper) to avoid 409 name conflicts on restart.
 os.environ.setdefault("TESTCONTAINERS_RYUK_DISABLED", "true")
 
-# Per-container startup timeout in seconds (keep short to fail fast).
-_CONTAINER_TIMEOUT = 60
+# Per-container startup timeout in seconds.
+_CONTAINER_TIMEOUT = 120
 
 
 def _cleanup_stale_containers() -> None:
@@ -112,7 +112,7 @@ class ContainerManager:
             from testcontainers.rabbitmq import RabbitMqContainer
 
             c = RabbitMqContainer("rabbitmq:3.12-alpine")
-            c.start()
+            c.start(timeout=180)
             return c
 
         self._start("rabbitmq", _factory)
@@ -133,7 +133,7 @@ class ContainerManager:
 
             c = LocalStackContainer("localstack/localstack:3.0")
             c.with_services("s3")
-            c.start()
+            c.start(timeout=180)
             return c
 
         self._start("localstack", _factory)

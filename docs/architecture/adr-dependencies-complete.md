@@ -115,6 +115,28 @@ ADR-025 (Event Triggers) ✅
 
 ---
 
+## Phase 7: Advanced Features (v2.2.0–v2.4.0) — New ADRs (2026-04-07)
+
+Three new ADRs added for the 2026 H2 roadmap, plus ADR-036 (sqldim analytics):
+
+| ADR | Feature | Target | Branch | PR |
+|-----|---------|--------|--------|----|
+| ADR-035 | Saga Visualization UI | v2.2.0 (Jun 2026) | `feature/visualization-ui` | [#71](https://github.com/brunolnetto/sagaz/pull/71) |
+| ADR-036 | sqldim Analytics Pipeline | v2.2.0 (May–Jun 2026) | `feature/sqldim-analytics-pipeline` | [#74](https://github.com/brunolnetto/sagaz/pull/74) |
+| ADR-033 | Event Sourcing Integration | v2.3.0 (Nov 2026) | `feature/event-sourcing` | [#70](https://github.com/brunolnetto/sagaz/pull/70) |
+| ADR-034 | Multi-Region Saga Coordination | v2.4.0 (Dec 2026) | `feature/multi-region-coordination` | [#72](https://github.com/brunolnetto/sagaz/pull/72) |
+
+Dependencies for new ADRs:
+- **ADR-035**: requires ADR-027 (CLI), ADR-025 (Event Triggers); enabled by ADR-036 (Gold query layer)
+- **ADR-036**: requires ADR-016 (Storage), #46 (SQLite backend)
+- **ADR-033**: requires ADR-016 (Storage), ADR-024 (Replay)
+- **ADR-034**: requires ADR-016 (Storage), ADR-012 (Orchestration Model)
+
+Synergies: ADR-033 ↔ ADR-034 ↔ ADR-029 (Choreography uses event sourcing, multi-region needs event log)
+ADR-036 synergies: ADR-033 (event store → Bronze), ADR-011 (CDC via DebeziumSource)
+
+---
+
 ## Changes Made
 
 ### Priority Updates
