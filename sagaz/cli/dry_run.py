@@ -58,7 +58,7 @@ def _discover_and_select_sagas(
     if saga_name:
         filtered_sagas = [s for s in sagas if s["name"] == saga_name]
         if not filtered_sagas:
-            click.echo(f"Error: saga_class '{saga_name}' not found in project", err=True)
+            click.echo(f"Error: Saga '{saga_name}' not found in project", err=True)
             sys.exit(1)
         return filtered_sagas
 
@@ -192,20 +192,20 @@ def _discover_project_sagas():
 
 
 def _discover_sagas_in_paths(paths: list[str]):
-    """Discover saga_class classes in given paths."""
+    """Discover Saga classes in given paths."""
     import importlib.util
     import inspect
     import sys
     from pathlib import Path
 
-    from sagaz import saga_class
+    from sagaz import Saga
 
     discovered = []
 
     for path_str in paths:
         p = Path(path_str)
         if p.exists():
-            discovered.extend(_discover_sagas_in_directory(p, sys, importlib, inspect, saga_class))
+            discovered.extend(_discover_sagas_in_directory(p, sys, importlib, inspect, Saga))
 
     return discovered
 
@@ -256,10 +256,10 @@ def _load_saga(module_path: str, saga_class_name: str | None):
     import importlib.util
     import inspect
 
-    from sagaz import saga_class
+    from sagaz import Saga
 
     module = _load_python_module(module_path, importlib)
-    saga_cls = _find_saga_class_in_module(module, saga_class_name, inspect, saga_class)
+    saga_cls = _find_saga_class_in_module(module, saga_class_name, inspect, Saga)
 
     return saga_cls()
 
@@ -293,13 +293,13 @@ def _get_named_saga_class(module, saga_class_name: str):
     """Get specific saga_class class by name."""
     saga_cls = getattr(module, saga_class_name, None)
     if saga_cls is None:
-        click.echo(f"Error: saga_class class '{saga_class_name}' not found", err=True)
+        click.echo(f"Error: Saga class '{saga_class_name}' not found", err=True)
         sys.exit(1)
     return saga_cls
 
 
 def _auto_detect_saga_class(module, inspect, saga_class):
-    """Auto-detect saga_class class in module."""
+    """Auto-detect Saga class in module."""
     saga_classes = [
         obj
         for name, obj in inspect.getmembers(module, inspect.isclass)
@@ -307,7 +307,7 @@ def _auto_detect_saga_class(module, inspect, saga_class):
     ]
 
     if not saga_classes:
-        click.echo("Error: No saga_class class found in module", err=True)
+        click.echo("Error: No Saga class found in module", err=True)
         sys.exit(1)
 
     if len(saga_classes) > 1:
