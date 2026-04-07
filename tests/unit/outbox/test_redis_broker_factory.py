@@ -629,3 +629,55 @@ class TestBrokerFactory:
 
         captured = capsys.readouterr()
         assert "memory" in captured.out.lower()
+
+
+class TestBrokerFactoryMissingBranches:
+    def test_get_available_brokers_with_unavailable(self):
+        """50->49: _check_broker_availability returns False → skip append."""
+        from sagaz.outbox.brokers.factory import get_available_brokers
+
+        with patch(
+            "sagaz.outbox.brokers.factory._check_broker_availability",
+            return_value=False,
+        ):
+            result = get_available_brokers()
+        assert "memory" in result
+        assert "kafka" not in result
+
+    def test_print_broker_status_unavailable(self, capsys):
+        """100: unavailable broker prints the ✗ line."""
+        from sagaz.outbox.brokers.factory import _print_broker_status
+
+        with patch(
+            "sagaz.outbox.brokers.factory._check_broker_availability",
+            return_value=False,
+        ):
+            _print_broker_status(
+                "module.path", "ATTR", "kafka", "Kafka broker", "pip install aiokafka"
+            )
+        captured = capsys.readouterr()
+        assert "kafka" in captured.out
+        assert "install" in captured.out
+
+    def test_create_broker_import_error_no_dependency(self):
+        """196: raise ImportError when no dependency (dependency is None)."""
+        from sagaz.outbox.brokers.factory import create_broker
+
+        # memory has no dependency - inject a factory that raises ImportError
+        from sagaz.outbox.brokers.factory import _BROKER_REGISTRY
+
+        original = _BROKER_REGISTRY.get("memory")
+        try:
+            _BROKER_REGISTRY["memory"] = (
+                lambda _: (_ for _ in ()).throw(ImportError("no module")),
+                None,  # No dependency
+            )
+            with pytest.raises(ImportError):
+                create_broker("memory")
+        finally:
+            if original is not None:
+                _BROKER_REGISTRY["memory"] = original
+
+
+# ==========================================================================
+# outbox/brokers/redis.py  – 365->368

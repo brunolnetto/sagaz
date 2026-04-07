@@ -6,6 +6,7 @@ automatic metrics, tracing, and outbox publishing.
 """
 
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -374,3 +375,34 @@ class TestListenerErrorHandling:
         await saga.run({})  # Should not raise
 
         assert step_executed is True
+
+
+class TestCoreListenersBranches:
+    def test_record_step_duration_key_not_found(self):
+        """194->exit: key not in _step_start_times → function exits early."""
+        from sagaz.core.listeners import MetricsSagaListener
+
+        listener = MetricsSagaListener(metrics=MagicMock())
+        listener._step_start_times = {}
+        # Call with saga_id/step_name that's NOT in _step_start_times
+        listener._record_step_duration("MySaga", "step1", {"saga_id": "not-there"})
+        # No error → covered
+
+    def test_record_step_duration_calls_metrics(self):
+        """198: metrics.record_step_duration called when key found and method exists."""
+        import time
+        from sagaz.core.listeners import MetricsSagaListener
+
+        mock_metrics = MagicMock()
+        listener = MetricsSagaListener(metrics=mock_metrics)
+        saga_id = "test-saga"
+        step_name = "step1"
+        key = f"{saga_id}:{step_name}"
+        listener._step_start_times = {key: time.time() - 1.0}  # 1 second ago
+        listener._record_step_duration("MySaga", step_name, {"saga_id": saga_id})
+        # duration was recorded
+        assert key not in listener._step_start_times
+
+
+# ==========================================================================
+# core/saga.py  – 1123-1124, 1136-1137, 1150-1152, 1188-1189

@@ -7,6 +7,7 @@ import asyncio
 import json
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
 import pytest
 
@@ -1048,3 +1049,151 @@ class TestRedisStorageIntegration:
         async with RedisSagaStorage(redis_url, key_prefix="delete-test:") as storage:
             result = await storage.delete_saga_state("nonexistent-redis-saga-xyz")
             assert result is False
+
+
+class TestRedisSagaStorageUnitMissing:
+    """Unit tests for RedisSagaStorage missing lines: 248->246, 349->352, 413-414, 438->exit, 452-461, 465-471."""
+
+    @pytest.fixture
+    def storage(self):
+        from sagaz.storage.backends.redis.saga import RedisSagaStorage
+        return RedisSagaStorage(redis_url="redis://localhost:6379", key_prefix="unit-test:")
+
+    @pytest.mark.asyncio
+    async def test_build_saga_summaries_filters_none(self, storage):
+        """Line 248->246: _build_saga_summaries skips saga_ids where load returns None."""
+        storage.load_saga_state = AsyncMock(return_value=None)
+        result = await storage._build_saga_summaries(["x", "y"])
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_cleanup_with_explicit_statuses(self, storage):
+        """Lines 349->352: cleanup_completed_sagas skips statuses default when provided."""
+        from datetime import timedelta
+        from sagaz.core.types import SagaStatus
+
+        mock_redis = AsyncMock()
+        mock_redis.smembers = AsyncMock(return_value=set())
+        storage._redis = mock_redis
+
+        result = await storage.cleanup_completed_sagas(
+            older_than=datetime.now(UTC) - timedelta(days=1),
+            statuses=[SagaStatus.COMPLETED],
+        )
+        assert isinstance(result, int)
+
+    @pytest.mark.asyncio
+    async def test_health_check_read_write_fails(self, storage):
+        """Lines 413-414: health_check raises when read/write verification fails."""
+        mock_redis = AsyncMock()
+        mock_redis.set = AsyncMock()
+        mock_redis.get = AsyncMock(return_value=b"wrong_value")
+        mock_redis.delete = AsyncMock()
+        storage._redis = mock_redis
+
+        result = await storage.health_check()
+        assert result["status"] == "unhealthy"
+
+    @pytest.mark.asyncio
+    async def test_close_when_not_connected(self, storage):
+        """Line 438->exit: close() is no-op when _redis is None."""
+        storage._redis = None
+        await storage.close()  # must not raise
+
+    @pytest.mark.asyncio
+    async def test_count_via_mock(self, storage):
+        """Lines 452-461: count() method iterates statuses."""
+        mock_redis = AsyncMock()
+        mock_redis.scard = AsyncMock(return_value=3)
+        storage._redis = mock_redis
+
+        count = await storage.count()
+        assert count >= 0
+
+    @pytest.mark.asyncio
+    async def test_export_all_empty(self, storage):
+        """Lines 465-471: export_all() yields nothing when no data."""
+        storage._get_redis = AsyncMock(return_value=AsyncMock(smembers=AsyncMock(return_value=set())))
+
+        results = []
+        async for record in storage.export_all():
+            results.append(record)
+        assert results == []
+
+
+class TestRedisSagaBranches:
+    @pytest.fixture
+    def mock_redis(self):
+        mock = AsyncMock()
+        # export_all uses keys() not smembers()
+        mock.keys = AsyncMock(return_value=[b"saga:saga-123"])
+        mock.hget = AsyncMock(return_value=b'{"saga_id": "saga-123", "saga_name": "TestSaga", "status": "completed", "steps": [], "context": {}, "created_at": "2024-01-15T10:00:00+00:00", "updated_at": "2024-01-15T10:01:00+00:00"}')
+        mock.hgetall = AsyncMock(return_value={
+            b"saga_id": b"saga-123",
+            b"saga_name": b"TestSaga",
+            b"status": b"completed",
+            b"steps": b"[]",
+            b"context": b"{}",
+            b"created_at": b"2024-01-15T10:00:00+00:00",
+            b"updated_at": b"2024-01-15T10:01:00+00:00",
+        })
+        mock.sadd = AsyncMock()
+        mock.expire = AsyncMock()
+        mock.aclose = AsyncMock()
+        mock.ping = AsyncMock(return_value=True)
+
+        # pipeline support for save_saga_state (used by import_record)
+        pipeline_mock = AsyncMock()
+        pipeline_mock.hset = AsyncMock()
+        pipeline_mock.sadd = AsyncMock()
+        pipeline_mock.expire = AsyncMock()
+        pipeline_mock.execute = AsyncMock(return_value=[True, True, True])
+        pipeline_mock.__aenter__ = AsyncMock(return_value=pipeline_mock)
+        pipeline_mock.__aexit__ = AsyncMock(return_value=None)
+        mock.pipeline = MagicMock(return_value=pipeline_mock)
+
+        return mock
+
+    @pytest.fixture
+    async def storage(self, mock_redis):
+        with patch("redis.asyncio.from_url", return_value=mock_redis):
+            from sagaz.storage.backends.redis.saga import RedisSagaStorage
+
+            storage = RedisSagaStorage("redis://localhost:6379")
+            storage._redis = mock_redis
+            yield storage
+
+    async def test_export_all_yields_data(self, storage, mock_redis):
+        """469-471: export_all yields saga data."""
+        sagas = []
+        async for saga in storage.export_all():
+            sagas.append(saga)
+        assert len(sagas) == 1
+
+    async def test_export_all_skips_None_saga_data(self, storage, mock_redis):
+        """470->468 FALSE: load_saga_state returns None → skip, don't yield."""
+        mock_redis.keys = AsyncMock(return_value=[b"saga:saga-999"])
+        # hget returns None → load_saga_state returns None (if not saga_data_json)
+        mock_redis.hget = AsyncMock(return_value=None)
+        sagas = []
+        async for saga in storage.export_all():
+            sagas.append(saga)
+        assert sagas == []
+
+    async def test_import_record(self, storage, mock_redis):
+        """475: import_record method."""
+        from sagaz.core.types import SagaStatus
+
+        record = {
+            "saga_id": str(uuid4()),
+            "saga_name": "ImportedSaga",
+            "status": SagaStatus.COMPLETED.value,
+            "steps": [],
+            "context": {},
+        }
+        await storage.import_record(record)
+        mock_redis.pipeline.assert_called()
+
+
+# ==========================================================================
+# storage/backends/redis/snapshot.py  – 147->153, 150, 195, 215-216

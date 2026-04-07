@@ -26,8 +26,8 @@ try:
 
     REDIS_AVAILABLE = True
 except ImportError:
-    REDIS_AVAILABLE = False  # pragma: no cover
-    redis: Any = None  # type: ignore[no-redef]  # pragma: no cover
+    REDIS_AVAILABLE = False
+    redis: Any = None  # type: ignore[no-redef]
 
 
 class RedisSagaStorage(SagaStorage):

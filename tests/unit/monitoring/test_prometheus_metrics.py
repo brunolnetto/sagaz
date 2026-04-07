@@ -170,5 +170,31 @@ class TestMetricsDisabled:
             assert "Cannot start metrics server" in caplog.text
 
 
+class TestPrometheusImportErrorFallback:
+    """Lines 40-45: PROMETHEUS_AVAILABLE=False fallback when prometheus_client absent."""
+
+    def test_prometheus_unavailable_sets_none_globals(self):
+        """Lines 40-45: when ImportError, Counter/Gauge/etc become None."""
+        import sys
+        import importlib
+        import sagaz.monitoring.prometheus as prom_mod
+
+        original = sys.modules.get("prometheus_client")
+        try:
+            sys.modules["prometheus_client"] = None  # type: ignore[assignment]
+            importlib.reload(prom_mod)
+            assert prom_mod.PROMETHEUS_AVAILABLE is False
+            assert prom_mod.Counter is None
+            assert prom_mod.Gauge is None
+            assert prom_mod.Histogram is None
+            assert prom_mod.start_http_server is None
+        finally:
+            if original is not None:
+                sys.modules["prometheus_client"] = original
+            else:
+                sys.modules.pop("prometheus_client", None)
+            importlib.reload(prom_mod)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -460,3 +460,186 @@ class TestRedisSnapshotStorageAdvanced:
                 result = await storage.get_replay_log(uuid4())
                 assert result is None
 
+
+
+class TestRedisSnapshotMissingBranches:
+    """Lines 119, 126, 147->153, 150, 195, 215-216, 231->228, 313->310, 320->exit."""
+
+    @pytest.mark.asyncio
+    async def test_serialize_with_compression(self):
+        """Line 119: _serialize uses compressor when enabled."""
+        from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+
+        try:
+            import zstandard as zstd
+        except ImportError:
+            pytest.skip("zstandard not available")
+
+        storage = RedisSnapshotStorage(redis_url="redis://localhost", enable_compression=True)
+        data = {"key": "value"}
+        result = storage._serialize(data)
+        assert isinstance(result, bytes)
+
+    @pytest.mark.asyncio
+    async def test_deserialize_with_compression(self):
+        """Line 126: _deserialize uses decompressor when enabled."""
+        from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+
+        try:
+            import zstandard as zstd
+        except ImportError:
+            pytest.skip("zstandard not available")
+
+        storage = RedisSnapshotStorage(redis_url="redis://localhost", enable_compression=True)
+        data = {"test": 123}
+        serialized = storage._serialize(data)
+        result = storage._deserialize(serialized)
+        assert result == data
+
+    @pytest.mark.asyncio
+    async def test_close_when_not_connected(self):
+        """Line 320->exit: close() is no-op when _redis is None."""
+        from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+
+        storage = RedisSnapshotStorage(redis_url="redis://localhost")
+        storage._redis = None
+        await storage.close()  # must not raise
+
+    @pytest.mark.asyncio
+    async def test_list_snapshots_filters_none(self):
+        """Line 231->228: list_snapshots skips None from get_snapshot."""
+        from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+
+        storage = RedisSnapshotStorage(redis_url="redis://localhost")
+
+        fake_id = uuid4()
+
+        mock_redis = AsyncMock()
+        mock_redis.zrevrange = AsyncMock(return_value=[str(fake_id).encode()])
+        storage._redis = mock_redis
+        storage.get_snapshot = AsyncMock(return_value=None)
+
+        result = await storage.list_snapshots(uuid4())
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_list_replay_logs_filters_none(self):
+        """Lines 313->310: list_replays skips None from get_replay_log."""
+        from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+
+        storage = RedisSnapshotStorage(redis_url="redis://localhost")
+
+        fake_id = uuid4()
+        mock_redis = AsyncMock()
+        mock_redis.zrevrange = AsyncMock(return_value=[str(fake_id).encode()])
+        storage._redis = mock_redis
+        storage.get_replay_log = AsyncMock(return_value=None)
+
+        result = await storage.list_replays(uuid4())
+        assert result == []
+
+
+class TestRedisSnapshotBranches:
+    @pytest.fixture
+    def mock_redis(self):
+        mock = AsyncMock()
+        mock.set = AsyncMock()
+        mock.get = AsyncMock(return_value=None)
+        mock.expire = AsyncMock()
+        mock.zadd = AsyncMock()
+        mock.hgetall = AsyncMock(return_value={})
+        mock.zrevrangebyscore = AsyncMock(return_value=[])
+        mock.zrevrange = AsyncMock(return_value=[])
+        mock.ping = AsyncMock(return_value=True)
+        return mock
+
+    @pytest.fixture
+    async def storage(self, mock_redis):
+        with patch("redis.asyncio.from_url", return_value=mock_redis):
+            from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+
+            storage = RedisSnapshotStorage("redis://localhost:6379", enable_compression=False)
+            storage._redis = mock_redis
+            yield storage
+
+    async def test_save_snapshot_with_default_ttl(self, storage, mock_redis):
+        """150: elif self.default_ttl: True when no retention_until."""
+        from sagaz.storage.interfaces.snapshot import SagaSnapshot
+
+        storage.default_ttl = 3600  # has default_ttl (not _default_ttl!)
+
+        snapshot = MagicMock(spec=SagaSnapshot)
+        snapshot.snapshot_id = uuid4()
+        snapshot.saga_id = uuid4()
+        snapshot.step_name = "step1"
+        snapshot.created_at = datetime.now(UTC)
+        snapshot.retention_until = None  # No retention_until → elif branch
+        snapshot.to_dict.return_value = {
+            "snapshot_id": str(snapshot.snapshot_id),
+            "saga_id": str(snapshot.saga_id),
+            "step_name": "step1",
+        }
+
+        await storage.save_snapshot(snapshot)
+        mock_redis.expire.assert_called()
+
+    async def test_save_snapshot_negative_ttl_skips_expire(self, storage, mock_redis):
+        """147->153: ttl_seconds <= 0 → skip expire call."""
+        from sagaz.storage.interfaces.snapshot import SagaSnapshot
+
+        storage.default_ttl = None
+
+        snapshot = MagicMock(spec=SagaSnapshot)
+        snapshot.snapshot_id = uuid4()
+        snapshot.saga_id = uuid4()
+        snapshot.step_name = "step1"
+        snapshot.created_at = datetime.now(UTC)
+        snapshot.retention_until = datetime(2000, 1, 1, tzinfo=UTC)  # In the past → negative TTL
+        snapshot.to_dict.return_value = {
+            "snapshot_id": str(snapshot.snapshot_id),
+            "saga_id": str(snapshot.saga_id),
+            "step_name": "step1",
+        }
+
+        await storage.save_snapshot(snapshot)
+        mock_redis.expire.assert_not_called()
+
+    async def test_get_snapshot_before_step_returns_matching(self, storage, mock_redis):
+        """195: return snapshot when before_step matches."""
+        from sagaz.storage.interfaces.snapshot import SagaSnapshot
+
+        saga_id = uuid4()
+        snap_id = uuid4()
+
+        mock_snapshot = MagicMock(spec=SagaSnapshot)
+        mock_snapshot.step_name = "target_step"
+
+        mock_redis.zrevrange = AsyncMock(return_value=[str(snap_id).encode()])
+
+        with patch.object(storage, "get_snapshot", return_value=mock_snapshot):
+            result = await storage.get_latest_snapshot(
+                saga_id=saga_id,
+                before_step="target_step",
+            )
+        assert result is mock_snapshot
+
+    async def test_get_snapshot_at_time_with_result(self, storage, mock_redis):
+        """215-216: snapshot_ids not empty → decode and fetch."""
+        from sagaz.storage.interfaces.snapshot import SagaSnapshot
+
+        saga_id = uuid4()
+        snap_id = uuid4()
+
+        mock_redis.zrevrangebyscore = AsyncMock(return_value=[str(snap_id).encode()])
+
+        mock_snapshot = MagicMock(spec=SagaSnapshot)
+        with patch.object(storage, "get_snapshot", return_value=mock_snapshot):
+            result = await storage.get_snapshot_at_time(
+                saga_id=saga_id,
+                timestamp=datetime.now(UTC),
+            )
+        assert result is mock_snapshot
+
+
+# ==========================================================================
+# storage/backends/s3/snapshot.py  – 383->368

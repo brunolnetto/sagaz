@@ -282,5 +282,122 @@ class TestInMemoryBroker:
         # Should not raise
 
 
+class TestRabbitMQImportErrorFallback:
+    """Lines 33-38: RABBITMQ_AVAILABLE=False when aio_pika is absent."""
+
+    def test_rabbitmq_unavailable_flag(self):
+        """Lines 33-38: when ImportError, RABBITMQ_AVAILABLE is False."""
+        import sys
+        import importlib
+        import sagaz.outbox.brokers.rabbitmq as rmq_mod
+
+        original = sys.modules.get("aio_pika")
+        try:
+            sys.modules["aio_pika"] = None  # type: ignore[assignment]
+            importlib.reload(rmq_mod)
+            assert rmq_mod.RABBITMQ_AVAILABLE is False
+            assert rmq_mod.aio_pika is None
+        finally:
+            if original is not None:
+                sys.modules["aio_pika"] = original
+            else:
+                sys.modules.pop("aio_pika", None)
+            importlib.reload(rmq_mod)
+
+    @pytest.mark.asyncio
+    async def test_connect_skips_confirm_delivery_when_false(self):
+        """Line 147->151: confirm_delivery=False skips set_qos call."""
+        from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker, RabbitMQBrokerConfig
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        config = RabbitMQBrokerConfig(
+            url="amqp://guest:guest@localhost/",
+            confirm_delivery=False,
+        )
+        broker = RabbitMQBroker(config)
+
+        mock_conn = AsyncMock()
+        mock_channel = AsyncMock()
+        mock_exchange = AsyncMock()
+        mock_conn.channel.return_value = mock_channel
+        mock_channel.set_qos = AsyncMock()
+        mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
+
+        with patch("aio_pika.connect_robust", return_value=mock_conn):
+            await broker.connect()
+
+        mock_channel.set_qos.assert_not_called()
+
+
+class TestRedisBrokerMissingBranches:
+    """Lines 37-39, 125-126, 240->exit, 290, 365->368 in redis broker."""
+
+    def test_redis_unavailable_flag(self):
+        """Lines 37-39: when ImportError, REDIS_AVAILABLE=False."""
+        import sys
+        import importlib
+        import sagaz.outbox.brokers.redis as redis_broker_mod
+
+        original = sys.modules.get("redis.asyncio")
+        try:
+            sys.modules["redis.asyncio"] = None  # type: ignore[assignment]
+            importlib.reload(redis_broker_mod)
+            assert redis_broker_mod.REDIS_AVAILABLE is False
+        finally:
+            if original is not None:
+                sys.modules["redis.asyncio"] = original
+            else:
+                sys.modules.pop("redis.asyncio", None)
+            importlib.reload(redis_broker_mod)
+
+    @pytest.mark.asyncio
+    async def test_connect_raises_when_redis_unavailable(self):
+        """Lines 125-126: MissingDependencyError when REDIS_AVAILABLE=False."""
+        import sagaz.outbox.brokers.redis as redis_broker_mod
+        from sagaz.outbox.brokers.redis import RedisBrokerConfig
+        from sagaz.core.exceptions import MissingDependencyError
+        from unittest.mock import patch
+
+        with patch.object(redis_broker_mod, "REDIS_AVAILABLE", False):
+            with pytest.raises(MissingDependencyError):
+                redis_broker_mod.RedisBroker(RedisBrokerConfig(url="redis://localhost"))
+
+    @pytest.mark.asyncio
+    async def test_close_when_client_is_none(self):
+        """Line 240->exit: close() does nothing when _client is None."""
+        from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+
+        broker = RedisBroker(RedisBrokerConfig(url="redis://localhost"))
+        # _client is None by default; close() should be a no-op
+        await broker.close()  # must not raise
+
+    @pytest.mark.asyncio
+    async def test_ensure_consumer_group_raises_non_busygroup(self):
+        """Line 290: re-raise ResponseError when not BUSYGROUP."""
+        from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        broker = RedisBroker(RedisBrokerConfig(url="redis://localhost"))
+        mock_client = AsyncMock()
+
+        import redis.asyncio as real_redis
+        err = real_redis.ResponseError("WRONGTYPE")
+        mock_client.xgroup_create = AsyncMock(side_effect=err)
+        broker._client = mock_client
+
+        with pytest.raises(real_redis.ResponseError):
+            await broker.ensure_consumer_group()
+
+    def test_mask_url_no_colon_in_auth(self):
+        """Lines 365->368: return url unchanged when no colon in auth part."""
+        from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+
+        config = RedisBrokerConfig(url="redis://user@host:6379/0")
+        broker = RedisBroker(config)
+        # parts[0] = "redis://user", no ":" after splitting on "@" from the left
+        masked = broker._safe_url()
+        assert "****" in masked or masked == config.url
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

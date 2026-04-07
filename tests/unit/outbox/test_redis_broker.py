@@ -366,3 +366,28 @@ class TestRedisBrokerFromEnv:
 
             assert broker.config.url == "redis://test:6379/0"
             assert broker.config.stream_name == "test-stream"
+
+
+class TestRedisBrokerBranch:
+    def test_safe_url_without_at_sign(self):
+        """365->368: url has no '@' → return url unchanged."""
+        from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+
+        config = RedisBrokerConfig(url="redis://localhost:6379")
+        broker = RedisBroker(config=config)
+        safe = broker._safe_url()
+        assert safe == "redis://localhost:6379"
+
+    def test_safe_url_with_at_but_no_colon_in_userpart(self):
+        """365->368: url has '@' but no ':' before '@' → no masking, return url."""
+        from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+
+        # URL: user@host:port — parts[0]="user", no ':' in parts[0]
+        config = RedisBrokerConfig(url="user@localhost:6379")
+        broker = RedisBroker(config=config)
+        safe = broker._safe_url()
+        assert safe == "user@localhost:6379"
+
+
+# ==========================================================================
+# outbox/types.py  – 159

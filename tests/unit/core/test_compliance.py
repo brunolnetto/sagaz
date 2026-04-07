@@ -270,3 +270,55 @@ class TestComplianceIntegration:
         )
 
         assert query_log["operation"] == "time_travel_query"
+
+
+class TestComplianceMissingBranches:
+    """Cover remaining missing lines: 118, 148, 162, 172-174, 251->254."""
+
+    def test_decrypt_context_when_encryption_disabled(self):
+        """Line 118: decrypt_context returns context unchanged when enable_encryption=False."""
+        from sagaz.core.compliance import ComplianceConfig, ComplianceManager
+
+        config = ComplianceConfig(enable_encryption=False)
+        manager = ComplianceManager(config)
+        context = {"token": "secret"}
+        result = manager.decrypt_context(context)
+        assert result == context
+
+    def test_simple_encrypt_no_key_returns_plaintext(self):
+        """Line 148: _simple_encrypt returns text unchanged when no encryption_key."""
+        from sagaz.core.compliance import ComplianceConfig, ComplianceManager
+
+        config = ComplianceConfig(enable_encryption=True, encryption_key="")
+        manager = ComplianceManager(config)
+        result = manager._simple_encrypt("hello")
+        assert result == "hello"
+
+    def test_simple_decrypt_no_key_returns_input(self):
+        """Line 162: _simple_decrypt returns input unchanged when no encryption_key."""
+        from sagaz.core.compliance import ComplianceConfig, ComplianceManager
+
+        config = ComplianceConfig(enable_encryption=True, encryption_key="")
+        manager = ComplianceManager(config)
+        result = manager._simple_decrypt("abc123")
+        assert result == "abc123"
+
+    def test_simple_decrypt_invalid_hex_returns_input(self):
+        """Lines 172-174: _simple_decrypt exception path returns encrypted_hex."""
+        from sagaz.core.compliance import ComplianceConfig, ComplianceManager
+
+        config = ComplianceConfig(enable_encryption=True, encryption_key="mykey")
+        manager = ComplianceManager(config)
+        # "notvalidhex!" can't be decoded from hex, triggers the except block
+        result = manager._simple_decrypt("notvalidhex!")
+        assert result == "notvalidhex!"
+
+    def test_create_audit_log_when_log_all_disabled(self):
+        """Lines 251->254: create_audit_log skips logger.info when log_all_operations=False."""
+        import uuid
+        from sagaz.core.compliance import ComplianceConfig, ComplianceManager
+
+        config = ComplianceConfig(log_all_operations=False)
+        manager = ComplianceManager(config)
+        log_entry = manager.create_audit_log("view", "user1", uuid.uuid4())
+        assert log_entry["operation"] == "view"

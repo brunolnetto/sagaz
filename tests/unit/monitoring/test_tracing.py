@@ -461,3 +461,239 @@ class TestTracingSetup:
         except ImportError:
             # OTLP exporter not installed, which is fine
             pytest.skip("OTLP exporter not available")
+
+
+class TestMonitoringTracingBranches:
+    def test_is_tracing_available_called(self):
+        """69: return TRACING_AVAILABLE - just needs to be called."""
+        from sagaz.monitoring.tracing import is_tracing_available
+
+        result = is_tracing_available()
+        assert isinstance(result, bool)
+
+    def test_record_saga_completion_with_recording_span_completed(self):
+        """207-218: record_saga_completion when span is_recording()=True, status=COMPLETED."""
+        from unittest.mock import MagicMock, patch
+
+        from sagaz.core.types import SagaStatus
+        from sagaz.monitoring.tracing import TRACING_AVAILABLE, SagaTracer
+
+        if not TRACING_AVAILABLE:
+            pytest.skip("OpenTelemetry not available")
+
+        mock_span = MagicMock()
+        mock_span.is_recording.return_value = True
+        tracer = SagaTracer()
+
+        with patch("sagaz.monitoring.tracing.trace") as mock_trace:
+            mock_trace.get_current_span.return_value = mock_span
+            tracer.record_saga_completion(
+                saga_id="test",
+                status=SagaStatus.COMPLETED,
+                completed_steps=3,
+                total_steps=3,
+                duration_ms=100.0,
+            )
+        mock_span.set_attributes.assert_called_once()
+        mock_span.set_status.assert_called_once()
+
+    def test_record_saga_completion_with_recording_span_failure_error(self):
+        """219-224: record_saga_completion when failed with error → record_exception."""
+        from unittest.mock import MagicMock, patch
+
+        from sagaz.core.types import SagaStatus
+        from sagaz.monitoring.tracing import TRACING_AVAILABLE, SagaTracer
+
+        if not TRACING_AVAILABLE:
+            pytest.skip("OpenTelemetry not available")
+
+        mock_span = MagicMock()
+        mock_span.is_recording.return_value = True
+        tracer = SagaTracer()
+        err = Exception("payment failed")
+
+        with patch("sagaz.monitoring.tracing.trace") as mock_trace:
+            mock_trace.get_current_span.return_value = mock_span
+            tracer.record_saga_completion(
+                saga_id="test",
+                status=SagaStatus.FAILED,
+                completed_steps=1,
+                total_steps=3,
+                duration_ms=50.0,
+                error=err,
+            )
+        mock_span.record_exception.assert_called_once_with(err)
+
+    def test_record_step_completion_with_recording_span_completed(self):
+        """250-251: record_step_completion when is_recording()=True and status=COMPLETED."""
+        from unittest.mock import MagicMock, patch
+
+        from sagaz.core.types import SagaStepStatus
+        from sagaz.monitoring.tracing import TRACING_AVAILABLE, SagaTracer
+
+        if not TRACING_AVAILABLE:
+            pytest.skip("OpenTelemetry not available")
+
+        mock_span = MagicMock()
+        mock_span.is_recording.return_value = True
+        tracer = SagaTracer()
+
+        with patch("sagaz.monitoring.tracing.trace") as mock_trace:
+            mock_trace.get_current_span.return_value = mock_span
+            tracer.record_step_completion(
+                step_name="reserve_inventory",
+                status=SagaStepStatus.COMPLETED,
+                duration_ms=20.0,
+            )
+        mock_span.set_attributes.assert_called_once()
+        mock_span.set_status.assert_called_once()
+
+    def test_record_step_completion_with_recording_span_failed_no_error(self):
+        """254->exit: record_step_completion failed with no error → if error: False."""
+        from unittest.mock import MagicMock, patch
+
+        from sagaz.core.types import SagaStepStatus
+        from sagaz.monitoring.tracing import TRACING_AVAILABLE, SagaTracer
+
+        if not TRACING_AVAILABLE:
+            pytest.skip("OpenTelemetry not available")
+
+        mock_span = MagicMock()
+        mock_span.is_recording.return_value = True
+        tracer = SagaTracer()
+
+        with patch("sagaz.monitoring.tracing.trace") as mock_trace:
+            mock_trace.get_current_span.return_value = mock_span
+            tracer.record_step_completion(
+                step_name="charge_payment",
+                status=SagaStepStatus.FAILED,
+                duration_ms=30.0,
+                error=None,
+            )
+        mock_span.set_status.assert_called_once()
+        mock_span.record_exception.assert_not_called()
+
+    def test_create_child_span_without_attributes(self):
+        """281->284: create_child_span called without attributes → if attributes: False."""
+        from sagaz.monitoring.tracing import TRACING_AVAILABLE, SagaTracer
+
+        if not TRACING_AVAILABLE:
+            pytest.skip("OpenTelemetry not available")
+
+        tracer = SagaTracer()
+        span = tracer.create_child_span(name="no-attr-span")
+        assert span is not None
+        if span:
+            span.end()
+
+    def test_record_saga_completion_failed_no_error(self):
+        """223->exit: status=FAILED with error=None → if error: False → exits block."""
+        from unittest.mock import MagicMock, patch
+
+        from sagaz.core.types import SagaStatus
+        from sagaz.monitoring.tracing import TRACING_AVAILABLE, SagaTracer
+
+        if not TRACING_AVAILABLE:
+            pytest.skip("OpenTelemetry not available")
+
+        mock_span = MagicMock()
+        mock_span.is_recording.return_value = True
+        tracer = SagaTracer()
+
+        with patch("sagaz.monitoring.tracing.trace") as mock_trace:
+            mock_trace.get_current_span.return_value = mock_span
+            tracer.record_saga_completion(
+                saga_id="test",
+                status=SagaStatus.FAILED,
+                completed_steps=1,
+                total_steps=3,
+                duration_ms=50.0,
+                error=None,
+            )
+        mock_span.set_status.assert_called_once()
+        mock_span.record_exception.assert_not_called()
+
+    def test_record_step_completion_failed_with_error(self):
+        """255: record_step_completion with status=FAILED and error set → record_exception."""
+        from unittest.mock import MagicMock, patch
+
+        from sagaz.core.types import SagaStepStatus
+        from sagaz.monitoring.tracing import TRACING_AVAILABLE, SagaTracer
+
+        if not TRACING_AVAILABLE:
+            pytest.skip("OpenTelemetry not available")
+
+        mock_span = MagicMock()
+        mock_span.is_recording.return_value = True
+        tracer = SagaTracer()
+        err = Exception("step error")
+
+        with patch("sagaz.monitoring.tracing.trace") as mock_trace:
+            mock_trace.get_current_span.return_value = mock_span
+            tracer.record_step_completion(
+                step_name="charge_payment",
+                status=SagaStepStatus.FAILED,
+                duration_ms=30.0,
+                error=err,
+            )
+        mock_span.record_exception.assert_called_once_with(err)
+
+    def test_setup_tracing_otlp_import_error(self):
+        """408-409: setup_tracing with endpoint when OTLP exporter not installed → except ImportError: pass."""
+        import sys
+        from unittest.mock import patch
+
+        from sagaz.monitoring.tracing import TRACING_AVAILABLE, SagaTracer, setup_tracing
+
+        if not TRACING_AVAILABLE:
+            pytest.skip("OpenTelemetry not available")
+
+        # Block OTLP imports to trigger ImportError in setup_tracing
+        with patch.dict(
+            sys.modules,
+            {
+                "opentelemetry.exporter.otlp.proto.grpc.trace_exporter": None,
+                "opentelemetry.sdk.resources": None,
+                "opentelemetry.sdk.trace": None,
+                "opentelemetry.sdk.trace.export": None,
+            },
+        ):
+            result = setup_tracing(service_name="test-svc", endpoint="http://localhost:4317")
+        assert isinstance(result, SagaTracer)
+
+
+# ==========================================================================
+# outbox/brokers/factory.py  – 50->49, 100, 196
+
+
+class TestTracingImportError:
+    """Cover lines 38, 40-43 in monitoring/tracing.py (except ImportError fallback)."""
+
+    def test_tracing_module_import_error_fallback(self):
+        """38, 40-43: ImportError when opentelemetry not installed → TRACING_AVAILABLE=False."""
+        import importlib
+        import sys
+
+        orig_tracing = sys.modules.get("sagaz.monitoring.tracing")
+        otel_keys = [k for k in sys.modules if "opentelemetry" in k]
+        orig_otel = {k: sys.modules[k] for k in otel_keys}
+
+        # Remove opentelemetry and the module
+        for key in otel_keys:
+            sys.modules.pop(key)
+        sys.modules["opentelemetry"] = None  # type: ignore[assignment]
+        sys.modules.pop("sagaz.monitoring.tracing", None)
+
+        try:
+            mod = importlib.import_module("sagaz.monitoring.tracing")
+            assert mod.TRACING_AVAILABLE is False
+        finally:
+            if sys.modules.get("opentelemetry") is None:
+                del sys.modules["opentelemetry"]
+            # Restore opentelemetry
+            for key, val in orig_otel.items():
+                sys.modules[key] = val
+            # Restore original module
+            sys.modules.pop("sagaz.monitoring.tracing", None)
+            if orig_tracing is not None:
+                sys.modules["sagaz.monitoring.tracing"] = orig_tracing

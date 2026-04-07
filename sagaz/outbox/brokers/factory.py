@@ -28,7 +28,7 @@ def _check_broker_availability(module_path: str, available_attr: str) -> bool:
         module = __import__(module_path, fromlist=[available_attr])
         return getattr(module, available_attr, False)
     except ImportError:
-        return False  # pragma: no cover
+        return False
 
 
 def get_available_brokers() -> list[str]:
@@ -189,7 +189,7 @@ def create_broker(
     try:
         return factory(kwargs)  # type: ignore[no-any-return]
     except ImportError:
-        if dependency:  # pragma: no cover
+        if dependency:
             raise MissingDependencyError(
                 dependency, f"{broker_type} message broker"
             )

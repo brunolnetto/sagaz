@@ -197,16 +197,6 @@ class DryRunEngine:
 
         return ValidationResult(errors=errors, warnings=warnings, checks=checks)
 
-    def _extract_steps(self, saga: "Saga") -> list:  # type: ignore # noqa: F821
-        """Extract steps from saga."""
-        if hasattr(saga, "_steps") and saga._steps:
-            return saga._steps
-        if hasattr(saga, "get_steps"):
-            return saga.get_steps()
-        if hasattr(saga, "steps"):
-            return saga.steps
-        return []
-
     def _get_step_names(self, steps: list) -> set[str]:
         """Get step names from steps."""
         return {getattr(step, "step_id", None) or getattr(step, "name", "") for step in steps}

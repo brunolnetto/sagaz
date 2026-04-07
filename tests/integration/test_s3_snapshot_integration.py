@@ -255,10 +255,12 @@ class TestS3SnapshotStorageIntegration:
         if not ZSTD_AVAILABLE:
             pytest.skip("zstandard not installed")
 
-        bucket_name = s3_storage_setup
         storage = S3SnapshotStorage(
-            bucket_name=bucket_name,
-            region_name="us-east-1",
+            bucket_name=s3_storage_setup["bucket_name"],
+            region_name=s3_storage_setup["region_name"],
+            endpoint_url=s3_storage_setup["endpoint_url"],
+            aws_access_key_id=s3_storage_setup["aws_access_key_id"],
+            aws_secret_access_key=s3_storage_setup["aws_secret_access_key"],
             enable_compression=True,
             compression_level=5,
         )
@@ -305,10 +307,12 @@ class TestS3SnapshotStorageIntegration:
         if not AIOBOTO3_AVAILABLE:
             pytest.skip("aioboto3 not installed")
 
-        bucket_name = s3_storage_setup
-
         async with S3SnapshotStorage(
-            bucket_name=bucket_name, region_name="us-east-1"
+            bucket_name=s3_storage_setup["bucket_name"],
+            region_name=s3_storage_setup["region_name"],
+            endpoint_url=s3_storage_setup["endpoint_url"],
+            aws_access_key_id=s3_storage_setup["aws_access_key_id"],
+            aws_secret_access_key=s3_storage_setup["aws_secret_access_key"],
         ) as storage:
             saga_id = uuid4()
             snapshot = SagaSnapshot(
@@ -341,10 +345,12 @@ class TestS3SnapshotStorageIntegration:
         if not AIOBOTO3_AVAILABLE:
             pytest.skip("aioboto3 not installed")
 
-        bucket_name = s3_storage_setup
         storage = S3SnapshotStorage(
-            bucket_name=bucket_name,
-            region_name="us-east-1",
+            bucket_name=s3_storage_setup["bucket_name"],
+            region_name=s3_storage_setup["region_name"],
+            endpoint_url=s3_storage_setup["endpoint_url"],
+            aws_access_key_id=s3_storage_setup["aws_access_key_id"],
+            aws_secret_access_key=s3_storage_setup["aws_secret_access_key"],
             enable_encryption=True,
         )
 

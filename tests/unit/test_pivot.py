@@ -788,3 +788,49 @@ class TestMermaidPivotVisualization:
 
         # Should use default success style
         assert "class step1,step2 success" in diagram
+
+
+class TestPivotBranches:
+    def test_mark_completed_pivot_not_in_pivots(self):
+        """361: return set() when completed_pivot not in self.pivots."""
+        from sagaz.execution.pivot import TaintPropagator
+
+        tracker = TaintPropagator(
+            step_names={"step_a", "step_b"},
+            dependencies={},
+            pivots={"step_a"},
+        )
+        result = tracker.propagate_taint("step_b")  # not a pivot
+        assert result == set()
+
+    def test_find_blocking_pivot_no_match(self):
+        """425->422: for loop over completed_pivots with no match → return None."""
+        from sagaz.execution.pivot import TaintPropagator
+
+        tracker = TaintPropagator(
+            step_names={"step2", "pivot1"},
+            dependencies={"step2": {"pivot1"}, "pivot1": set()},
+            pivots={"pivot1"},
+            completed_pivots={"pivot1"},
+        )
+        # Use a failed step that is NOT a descendant of pivot1
+        result = tracker.get_rollback_boundary("completely_unknown_step")
+        assert result is None
+
+    def test_can_compensate_incomplete_pivot(self):
+        """457: return True for step in pivots but not completed."""
+        from sagaz.execution.pivot import TaintPropagator
+
+        tracker = TaintPropagator(
+            step_names={"pivot1"},
+            dependencies={"pivot1": set()},
+            pivots={"pivot1"},
+        )
+        # pivot1 is in pivots but NOT in completed_pivots
+        assert "pivot1" not in tracker.completed_pivots
+        result = tracker.can_compensate("pivot1")
+        assert result is True
+
+
+# ==========================================================================
+# monitoring/logging.py  – 292-295

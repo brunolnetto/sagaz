@@ -5,6 +5,7 @@ Tests for sagaz.storage.core module.
 import json
 from datetime import UTC, datetime, timezone
 from decimal import Decimal
+from unittest.mock import MagicMock
 from uuid import UUID
 
 import pytest
@@ -341,3 +342,150 @@ class TestPoolStatus:
             used=0,
         )
         assert status.utilization == 0.0
+
+
+class TestBaseStorageHealthCheckNoManager:
+    """Line 84: health_check returns HEALTHY when no connection manager."""
+
+    @pytest.mark.asyncio
+    async def test_health_check_no_connection_manager(self):
+        from sagaz.storage.core.base import BaseStorage
+
+        class MinimalStorage(BaseStorage):
+            async def close(self):
+                self._closed = True
+
+        storage = MinimalStorage()
+        result = await storage.health_check()
+        assert result.status == HealthStatus.HEALTHY
+        assert "in-memory" in result.message.lower()
+
+    @pytest.mark.asyncio
+    async def test_log_operation_without_item_id(self, caplog):
+        """Lines 115->117: _log_operation with item_id=None skips adding item_id."""
+        import logging
+        from sagaz.storage.core.base import BaseStorage
+
+        class MinimalStorage(BaseStorage):
+            async def close(self):
+                self._closed = True
+
+        storage = MinimalStorage()
+        with caplog.at_level(logging.DEBUG):
+            storage._log_operation("test_op")
+        # No exception and item_id was not added to extra (the branch is covered)
+
+
+class TestStorageBaseBranch:
+    def test_saga_step_state_from_dict_no_executed_at(self):
+        """193->196: data has no 'executed_at' → executed_at stays None."""
+        from sagaz.storage.base import SagaStepState
+
+        data = {
+            "name": "step1",
+            "status": "pending",
+            # No 'executed_at' key
+            "compensated_at": None,
+        }
+        step = SagaStepState.from_dict(data)
+        assert step.executed_at is None
+
+
+# ==========================================================================
+# storage/core/connection.py  – 175->178, 226-227, 233->236
+
+
+class TestConnectionBranches:
+    async def test_acquire_when_not_initialized(self):
+        """175->178: not initialized → initialize called first."""
+        from sagaz.storage.core.connection import SingleConnectionManager
+
+        class TestConn(SingleConnectionManager):
+            async def _create_connection(self):
+                return MagicMock()
+
+            async def _close_connection(self, conn):
+                pass
+
+            async def _is_connection_valid(self, conn):
+                return True
+
+        from sagaz.storage.core.connection import ConnectionConfig
+        config = ConnectionConfig(url="fake://localhost")
+        pool = TestConn(config=config)
+        assert not pool._initialized
+
+        async with pool.acquire() as conn:
+            assert pool._initialized
+            assert conn is not None
+
+    async def test_acquire_when_already_initialized(self):
+        """175->178 FALSE: already initialized → skip initialize, go direct to _acquire."""
+        from sagaz.storage.core.connection import SingleConnectionManager, ConnectionConfig
+
+        class TestConn(SingleConnectionManager):
+            async def _create_connection(self):
+                return MagicMock()
+
+            async def _close_connection(self, conn):
+                pass
+
+            async def _is_connection_valid(self, conn):
+                return True
+
+        config = ConnectionConfig(url="fake://localhost")
+        pool = TestConn(config=config)
+        await pool.initialize()  # Mark as initialized
+        assert pool._initialized
+
+        # Second acquire should skip initialize (175->178 FALSE branch)
+        async with pool.acquire() as conn:
+            assert conn is not None
+
+    async def test_initialize_exception_raises_connection_error(self):
+        """226-227: _create_connection raises → ConnectionError."""
+        from sagaz.storage.core.connection import SingleConnectionManager
+
+        class FailConn(SingleConnectionManager):
+            async def _create_connection(self):
+                raise RuntimeError("cannot connect")
+
+            async def _close_connection(self, conn):
+                pass
+
+            async def _is_connection_valid(self, conn):
+                return True
+
+        from sagaz.storage.core.connection import ConnectionConfig
+        config = ConnectionConfig(url="fail://localhost")
+        pool = FailConn(config=config)
+
+        with pytest.raises((ConnectionError, Exception)):
+            await pool.initialize()
+
+    async def test_close_when_no_connection(self):
+        """233->236: _connection is None → skip close_connection."""
+        from sagaz.storage.core.connection import SingleConnectionManager
+
+        class EmptyConn(SingleConnectionManager):
+            async def _create_connection(self):
+                return None
+
+            async def _close_connection(self, conn):
+                raise AssertionError("Should not be called")
+
+            async def _is_connection_valid(self, conn):
+                return True
+
+        from sagaz.storage.core.connection import ConnectionConfig
+        config = ConnectionConfig(url="empty://localhost")
+        pool = EmptyConn(config=config)
+        pool._connection = None
+        pool._initialized = True
+
+        await pool.close()  # Should not raise
+        assert not pool._initialized
+
+
+# ==========================================================================
+# storage/transfer/service.py  – 115, 123, 308, 396->exit

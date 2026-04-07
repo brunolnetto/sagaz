@@ -26,16 +26,16 @@ try:
 
     AIOBOTO3_AVAILABLE = True
 except ImportError:
-    AIOBOTO3_AVAILABLE = False  # pragma: no cover
-    aioboto3 = None  # pragma: no cover
+    AIOBOTO3_AVAILABLE = False
+    aioboto3 = None
 
 try:
     import zstandard as zstd
 
     ZSTD_AVAILABLE = True
 except ImportError:
-    ZSTD_AVAILABLE = False  # pragma: no cover
-    zstd = None  # pragma: no cover
+    ZSTD_AVAILABLE = False
+    zstd = None
 
 
 class S3SnapshotStorage(SnapshotStorage):

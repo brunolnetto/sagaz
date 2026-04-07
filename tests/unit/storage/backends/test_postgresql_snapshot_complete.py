@@ -411,3 +411,67 @@ class TestPostgreSQLSnapshotComplete:
             "created_at": datetime.now(UTC),
             "retention_until": None,
         }
+
+
+class TestPostgresqlSnapshotBranches:
+    def _make_storage_with_pool(self):
+        from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+
+        storage = PostgreSQLSnapshotStorage.__new__(PostgreSQLSnapshotStorage)
+        storage._pool = None
+        return storage
+
+    async def test_get_snapshot_returns_none_when_no_row(self):
+        """218: return None when row is None in get_latest_snapshot."""
+        from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+
+        storage = self._make_storage_with_pool()
+
+        mock_conn = AsyncMock()
+        mock_conn.fetchrow = AsyncMock(return_value=None)
+
+        mock_ctx = MagicMock()
+        mock_ctx.__aenter__ = AsyncMock(return_value=mock_conn)
+        mock_ctx.__aexit__ = AsyncMock(return_value=None)
+
+        mock_pool = MagicMock()
+        mock_pool.acquire = MagicMock(return_value=mock_ctx)
+
+        with patch.object(storage, "_get_pool", return_value=mock_pool):
+            result = await storage.get_latest_snapshot(
+                saga_id=uuid4(),
+                before_step="step1",
+            )
+        assert result is None
+
+    async def test_get_replay_log_returns_none_when_no_row(self):
+        """343: return None when row is None in get_replay_log."""
+        from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+
+        storage = self._make_storage_with_pool()
+
+        mock_conn = AsyncMock()
+        mock_conn.fetchrow = AsyncMock(return_value=None)
+
+        mock_ctx = MagicMock()
+        mock_ctx.__aenter__ = AsyncMock(return_value=mock_conn)
+        mock_ctx.__aexit__ = AsyncMock(return_value=None)
+
+        mock_pool = MagicMock()
+        mock_pool.acquire = MagicMock(return_value=mock_ctx)
+
+        with patch.object(storage, "_get_pool", return_value=mock_pool):
+            result = await storage.get_replay_log(replay_id=uuid4())
+        assert result is None
+
+    async def test_close_pool_is_none(self):
+        """422->exit: close() when _pool is None."""
+        from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+
+        storage = self._make_storage_with_pool()
+        storage._pool = None
+        await storage.close()  # Should be no-op
+
+
+# ==========================================================================
+# storage/backends/redis/outbox.py  – 97-99

@@ -3,7 +3,9 @@ Tests for storage backends - memory
 """
 
 import asyncio
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
+from unittest.mock import MagicMock
+from uuid import uuid4
 
 import pytest
 
@@ -536,3 +538,81 @@ class TestInMemoryStorageListFiltering:
 
         # FAILED should be deleted
         assert await storage.load_saga_state("failed-saga") is None
+
+
+class TestMemoryOutboxBranch:
+    async def test_claim_batch_pending_event_too_recent(self):
+        """73->69: event is PENDING but created_at > cutoff → not claimed."""
+        from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
+        from sagaz.outbox.types import OutboxEvent, OutboxStatus
+
+        storage = InMemoryOutboxStorage()
+        # Insert an event with a FUTURE created_at so it's after cutoff
+        future_time = datetime(2099, 1, 1, tzinfo=UTC)
+        event = OutboxEvent(
+            event_id=str(uuid4()),
+            saga_id=str(uuid4()),
+            aggregate_type="saga",
+            aggregate_id=str(uuid4()),
+            event_type="TestEvent",
+            payload={},
+            headers={},
+            status=OutboxStatus.PENDING,
+            created_at=future_time,
+        )
+        await storage.insert(event)
+        # claim_batch uses cutoff = now - delay; future created_at won't be claimed
+        claimed = await storage.claim_batch("worker1", batch_size=10)
+        assert len(claimed) == 0
+
+
+# ==========================================================================
+# storage/backends/memory/saga.py  – 154->exit, 271
+
+
+class TestMemorySagaBranches:
+    async def test_update_step_status_without_executed_at(self):
+        """154->exit: executed_at is None → don't set executed_at field."""
+        from sagaz.storage.backends.memory.saga import InMemorySagaStorage
+        from sagaz.core.types import SagaStatus, SagaStepStatus
+
+        storage = InMemorySagaStorage()
+        saga_id = str(uuid4())
+        await storage.save_saga_state(
+            saga_id=saga_id,
+            saga_name="TestSaga",
+            status=SagaStatus.EXECUTING,
+            steps=[{"name": "step1", "status": "pending"}],
+            context={},
+        )
+        await storage.update_step_state(
+            saga_id=saga_id,
+            step_name="step1",
+            status=SagaStepStatus.COMPLETED,
+            result=None,
+            error=None,
+            executed_at=None,  # no executed_at → 154->exit branch
+        )
+
+    async def test_import_record(self):
+        """271: import_record method called."""
+        from sagaz.storage.backends.memory.saga import InMemorySagaStorage
+        from sagaz.core.types import SagaStatus
+
+        storage = InMemorySagaStorage()
+        saga_id = str(uuid4())
+        record = {
+            "saga_id": saga_id,
+            "saga_name": "ImportedSaga",
+            "status": SagaStatus.COMPLETED.value,
+            "steps": [],
+            "context": {"imported": True},
+        }
+        await storage.import_record(record)
+        # Verify it was saved
+        loaded = await storage.load_saga_state(saga_id)
+        assert loaded is not None
+
+
+# ==========================================================================
+# storage/backends/memory_snapshot.py  – 112->115

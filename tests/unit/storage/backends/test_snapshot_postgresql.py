@@ -256,14 +256,6 @@ class TestPostgreSQLSnapshotStorageUnit:
 class TestPostgreSQLSnapshotStorageIntegration:
     """Integration tests for PostgreSQL snapshot storage with real database"""
 
-    @pytest.fixture(scope="class")
-    def postgres_container(self):
-        """Start PostgreSQL container for testing"""
-        container = PostgresContainer("postgres:15-alpine")
-        container.start()
-        yield container
-        container.stop()
-
     @pytest.fixture
     async def storage(self, postgres_container):
         """Create PostgreSQL snapshot storage instance"""

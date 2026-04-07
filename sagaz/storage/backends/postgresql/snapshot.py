@@ -26,8 +26,8 @@ try:
 
     ASYNCPG_AVAILABLE = True
 except ImportError:
-    ASYNCPG_AVAILABLE = False  # pragma: no cover
-    asyncpg = None  # pragma: no cover
+    ASYNCPG_AVAILABLE = False
+    asyncpg = None
 
 
 class PostgreSQLSnapshotStorage(SnapshotStorage):
