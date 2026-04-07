@@ -477,3 +477,63 @@ class TestStrategyBase:
         assert isinstance(wait_all, WaitAllStrategy)
         assert isinstance(grace, FailFastWithGraceStrategy)
         assert grace.grace_period == 0.5
+
+
+class TestWaitAllEmptySteps:
+    """Line 38: WaitAllStrategy.execute_parallel_steps returns [] for empty steps list."""
+
+    @pytest.mark.asyncio
+    async def test_execute_empty_steps_returns_empty_list(self):
+        from sagaz.strategies.wait_all import WaitAllStrategy
+
+        strategy = WaitAllStrategy()
+        result = await strategy.execute_parallel_steps([])
+        assert result == []
+
+
+class TestFailFastBranch:
+    async def test_cancel_already_done_tasks(self):
+        """78->77: task.done() is True → do not cancel."""
+        from sagaz.strategies.fail_fast import FailFastStrategy
+
+        strategy = FailFastStrategy()
+        done_task = asyncio.create_task(asyncio.sleep(0))
+        await done_task  # Mark as done
+
+        strategy._cancel_all_tasks([done_task])
+        # Should not call cancel on done task (no error)
+        assert done_task.done()
+
+
+# ==========================================================================
+# strategies/fail_fast_grace.py  – 88, 93->92
+
+
+class TestFailFastGraceBranch:
+    async def test_cancel_pending_after_timeout(self):
+        """88: task.cancel() in TimeoutError handler."""
+        from sagaz.strategies.fail_fast_grace import FailFastWithGraceStrategy
+
+        strategy = FailFastWithGraceStrategy(grace_period=0.001)
+
+        # Create a long-running task
+        long_task = asyncio.create_task(asyncio.sleep(100))
+
+        await strategy._handle_failure_with_grace({long_task})  # set, not list
+        # Task should be cancelled by the TimeoutError handler (line 88)
+        assert long_task.cancelled() or long_task.done()
+
+    async def test_cancel_all_done_task_skipped(self):
+        """93->92: task.done() is True → skip cancel in _cancel_all_tasks."""
+        from sagaz.strategies.fail_fast_grace import FailFastWithGraceStrategy
+
+        strategy = FailFastWithGraceStrategy()
+        done_task = asyncio.create_task(asyncio.sleep(0))
+        await done_task
+
+        strategy._cancel_all_tasks({done_task})  # set
+        assert done_task.done()
+
+
+# ==========================================================================
+# visualization/mermaid.py  – 406, 437, 442, 562->564, 564->566, 572, 584, 591-593

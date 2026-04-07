@@ -26,16 +26,16 @@ try:
 
     REDIS_AVAILABLE = True
 except ImportError:
-    REDIS_AVAILABLE = False  # pragma: no cover
-    redis: Any = None  # type: ignore[no-redef]  # pragma: no cover
+    REDIS_AVAILABLE = False
+    redis: Any = None  # type: ignore[no-redef]
 
 try:
     import zstandard as zstd
 
     ZSTD_AVAILABLE = True
 except ImportError:
-    ZSTD_AVAILABLE = False  # pragma: no cover
-    zstd = None  # pragma: no cover
+    ZSTD_AVAILABLE = False
+    zstd = None
 
 
 class RedisSnapshotStorage(SnapshotStorage):

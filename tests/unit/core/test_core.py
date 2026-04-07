@@ -1869,8 +1869,12 @@ class TestConcurrency:
         saga1 = SimpleSaga("Saga1")
         saga2 = SimpleSaga("Saga2")
 
-        await saga1.add_step("step", lambda ctx: asyncio.sleep(0.5) or "done")
-        await saga2.add_step("step", lambda ctx: asyncio.sleep(0.5) or "done")
+        async def sleeping_action(ctx):
+            await asyncio.sleep(0.5)
+            return "done"
+
+        await saga1.add_step("step", sleeping_action)
+        await saga2.add_step("step", sleeping_action)
 
         start = time.time()
         results = await asyncio.gather(saga1.execute(), saga2.execute())

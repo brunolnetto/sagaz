@@ -188,9 +188,12 @@ class TestConnectionManagerEdgeCases:
         from sagaz.storage.core.connection import ConnectionConfig, SingleConnectionManager
         from sagaz.storage.core.health import HealthStatus
 
-        class TestConnectionManager(SingleConnectionManager[MagicMock]):
+        class _FakeConn:
+            pass
+
+        class TestConnectionManager(SingleConnectionManager[_FakeConn]):
             async def _create_connection(self):
-                return MagicMock()
+                return _FakeConn()
 
             async def _close_connection(self, connection):
                 pass

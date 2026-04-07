@@ -2,7 +2,9 @@
 Tests for Saga Replay functionality.
 """
 
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
@@ -470,3 +472,157 @@ class TestSagaReplay:
         history = await replay.get_replay_history()
         assert len(history) == 1
         assert history[0]["original_saga_id"] == str(saga_id)
+
+
+class TestSagaReplayExecutionPaths:
+    """Tests for lines 134-173 (execution path) and 181-186 (except Exception)."""
+
+    @pytest.fixture
+    def storage(self):
+        return InMemorySnapshotStorage()
+
+    @pytest.fixture
+    def saga_id(self):
+        return uuid4()
+
+    @pytest.fixture
+    def snapshot(self, saga_id):
+        return SagaSnapshot.create(
+            saga_id=saga_id,
+            saga_name="TestSaga",
+            step_name="step1",
+            step_index=0,
+            status="executing",
+            context={"key": "value"},
+            completed_steps=[],
+        )
+
+    @pytest.mark.asyncio
+    async def test_factory_not_provided_raises_replay_error(self, storage, saga_id, snapshot):
+        """Lines 134-139: raises ReplayError when no factory and not dry_run."""
+        await storage.save_snapshot(snapshot)
+
+        replay = SagaReplay(
+            saga_id=saga_id,
+            snapshot_storage=storage,
+            saga_factory=None,
+        )
+        with pytest.raises(ReplayError, match="no saga_factory provided"):
+            await replay.from_checkpoint(step_name="step1", dry_run=False)
+
+    @pytest.mark.asyncio
+    async def test_sync_factory_success(self, storage, saga_id, snapshot):
+        """Lines 141-173: sync factory, execute_from_snapshot success."""
+        from sagaz.core.types import SagaResult, SagaStatus
+
+        await storage.save_snapshot(snapshot)
+
+        mock_saga = MagicMock()
+        mock_saga.saga_id = str(uuid4())
+        mock_saga.steps = ["step1"]  # truthy - skip build()
+        saga_result = MagicMock()
+        saga_result.success = True
+        mock_saga.execute_from_snapshot = AsyncMock(return_value=saga_result)
+
+        def sync_factory(saga_name: str):
+            return mock_saga
+
+        replay = SagaReplay(
+            saga_id=saga_id,
+            snapshot_storage=storage,
+            saga_factory=sync_factory,
+        )
+        result = await replay.from_checkpoint(step_name="step1")
+
+        assert result.replay_status.value in ("success", "SUCCESS", "completed", "COMPLETED") or \
+               result.replay_status == ReplayStatus.SUCCESS
+
+    @pytest.mark.asyncio
+    async def test_async_factory_success(self, storage, saga_id, snapshot):
+        """Lines 146-147: async factory called with await."""
+        await storage.save_snapshot(snapshot)
+
+        mock_saga = MagicMock()
+        mock_saga.saga_id = str(uuid4())
+        mock_saga.steps = ["step1"]
+        saga_result = MagicMock()
+        saga_result.success = True
+        mock_saga.execute_from_snapshot = AsyncMock(return_value=saga_result)
+
+        async def async_factory(saga_name: str):
+            return mock_saga
+
+        replay = SagaReplay(
+            saga_id=saga_id,
+            snapshot_storage=storage,
+            saga_factory=async_factory,
+        )
+        result = await replay.from_checkpoint(step_name="step1")
+
+        assert result.replay_status == ReplayStatus.SUCCESS
+
+    @pytest.mark.asyncio
+    async def test_factory_with_no_steps_calls_build(self, storage, saga_id, snapshot):
+        """Lines 154-155: build() called if steps is empty/falsy."""
+        await storage.save_snapshot(snapshot)
+
+        mock_saga = MagicMock()
+        mock_saga.saga_id = str(uuid4())
+        mock_saga.steps = []  # falsy - triggers build()
+        mock_saga.build = AsyncMock()
+        saga_result = MagicMock()
+        saga_result.success = True
+        mock_saga.execute_from_snapshot = AsyncMock(return_value=saga_result)
+
+        def sync_factory(saga_name: str):
+            return mock_saga
+
+        replay = SagaReplay(
+            saga_id=saga_id,
+            snapshot_storage=storage,
+            saga_factory=sync_factory,
+        )
+        await replay.from_checkpoint(step_name="step1")
+
+        mock_saga.build.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_execute_failure_marks_result_failed(self, storage, saga_id, snapshot):
+        """Lines 167-168: execute_from_snapshot returns failure."""
+        await storage.save_snapshot(snapshot)
+
+        mock_saga = MagicMock()
+        mock_saga.saga_id = str(uuid4())
+        mock_saga.steps = ["step1"]
+        saga_result = MagicMock()
+        saga_result.success = False
+        saga_result.error = Exception("saga step failed")
+        mock_saga.execute_from_snapshot = AsyncMock(return_value=saga_result)
+
+        def sync_factory(saga_name: str):
+            return mock_saga
+
+        replay = SagaReplay(
+            saga_id=saga_id,
+            snapshot_storage=storage,
+            saga_factory=sync_factory,
+        )
+        result = await replay.from_checkpoint(step_name="step1")
+
+        assert result.replay_status == ReplayStatus.FAILED
+
+    @pytest.mark.asyncio
+    async def test_generic_exception_wraps_as_replay_error(self, storage, saga_id):
+        """Lines 181-186: generic Exception → ReplayError."""
+        storage_mock = AsyncMock()
+        storage_mock.get_latest_snapshot = AsyncMock(
+            side_effect=RuntimeError("db connection lost")
+        )
+        storage_mock.save_replay_log = AsyncMock()
+
+        replay = SagaReplay(
+            saga_id=saga_id,
+            snapshot_storage=storage_mock,
+        )
+        with pytest.raises(ReplayError, match="Replay failed"):
+            await replay.from_checkpoint(step_name="step1")

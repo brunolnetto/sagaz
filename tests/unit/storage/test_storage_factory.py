@@ -2,6 +2,10 @@
 Tests for the storage factory module
 """
 
+import sys
+import importlib
+from unittest.mock import patch
+
 import pytest
 
 from sagaz.core.exceptions import MissingDependencyError
@@ -275,3 +279,97 @@ class TestMissingDependencyError:
         """Test unknown packages get default pip install command"""
         error = MissingDependencyError("some-unknown-package")
         assert "pip install some-unknown-package" in str(error)
+
+
+class TestFactoryMissingDependencyRaise:
+    """Line 246: re-raise MissingDependencyError in 'both' storage_type."""
+
+    def test_missing_dep_reraises_on_both(self):
+        """Trigger MissingDependencyError inside create_storage("both")."""
+        import sagaz.storage.backends.postgresql.saga as pg_mod
+
+        original = pg_mod.ASYNCPG_AVAILABLE
+        try:
+            pg_mod.ASYNCPG_AVAILABLE = False
+            with pytest.raises(MissingDependencyError):
+                create_storage(
+                    "postgresql",
+                    storage_type="both",
+                    connection_string="postgresql://localhost/test",
+                )
+        finally:
+            pg_mod.ASYNCPG_AVAILABLE = original
+
+
+class TestGetAvailableBackendsImportErrors:
+    """Lines 286-287, 306-307, 326-327: ImportError branches in get_available_backends."""
+
+    def test_redis_unavailable_branch(self, capsys):
+        """Lines 286-287: redis.asyncio import error path."""
+        import sagaz.storage.factory as factory_mod
+
+        original = sys.modules.get("redis.asyncio")
+        try:
+            sys.modules["redis.asyncio"] = None  # type: ignore[assignment]
+            importlib.reload(factory_mod)
+            backends = factory_mod.get_available_backends()
+            assert backends.get("redis", {}).get("available") is False
+        finally:
+            if original is not None:
+                sys.modules["redis.asyncio"] = original
+            else:
+                sys.modules.pop("redis.asyncio", None)
+            importlib.reload(factory_mod)
+
+    def test_asyncpg_unavailable_branch(self, capsys):
+        """Lines 306-307: asyncpg import error path."""
+        import sagaz.storage.factory as factory_mod
+
+        original = sys.modules.get("asyncpg")
+        try:
+            sys.modules["asyncpg"] = None  # type: ignore[assignment]
+            importlib.reload(factory_mod)
+            backends = factory_mod.get_available_backends()
+            assert backends.get("postgresql", {}).get("available") is False
+        finally:
+            if original is not None:
+                sys.modules["asyncpg"] = original
+            else:
+                sys.modules.pop("asyncpg", None)
+            importlib.reload(factory_mod)
+
+    def test_aiosqlite_unavailable_branch(self, capsys):
+        """Lines 326-327: aiosqlite import error path."""
+        import sagaz.storage.factory as factory_mod
+
+        original = sys.modules.get("aiosqlite")
+        try:
+            sys.modules["aiosqlite"] = None  # type: ignore[assignment]
+            importlib.reload(factory_mod)
+            backends = factory_mod.get_available_backends()
+            assert backends.get("sqlite", {}).get("available") is False
+        finally:
+            if original is not None:
+                sys.modules["aiosqlite"] = original
+            else:
+                sys.modules.pop("aiosqlite", None)
+            importlib.reload(factory_mod)
+
+    def test_print_with_unavailable_backend_shows_install(self, capsys):
+        """Line 355: print_available_backends shows install line for unavailable backend."""
+        import sagaz.storage.factory as factory_mod
+
+        original_asyncpg = sys.modules.get("asyncpg")
+        try:
+            sys.modules["asyncpg"] = None  # type: ignore[assignment]
+            importlib.reload(factory_mod)
+            factory_mod.print_available_backends()
+        finally:
+            if original_asyncpg is not None:
+                sys.modules["asyncpg"] = original_asyncpg
+            else:
+                sys.modules.pop("asyncpg", None)
+            importlib.reload(factory_mod)
+
+        captured = capsys.readouterr()
+        assert "Install" in captured.out or "pip install" in captured.out

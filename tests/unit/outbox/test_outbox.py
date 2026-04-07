@@ -668,3 +668,17 @@ class TestOutboxConfig:
             assert config.batch_size == 50
             assert config.max_retries == 5
             assert config.optimistic_publish is False
+
+
+class TestOutboxTypesBranch:
+    def test_parse_status_already_outbox_status(self):
+        """159: return status as-is when already OutboxStatus."""
+        from sagaz.outbox.types import OutboxEvent, OutboxStatus
+
+        status = OutboxStatus.PENDING
+        result = OutboxEvent._parse_status(status)
+        assert result is status
+
+
+# ==========================================================================
+# storage/backends/memory/outbox.py  – 73->69

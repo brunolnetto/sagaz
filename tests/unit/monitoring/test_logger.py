@@ -88,3 +88,16 @@ def test_config_logging_usage():
 
     # Reset
     set_logger(None)
+
+
+class TestMonitoringLoggingBranches:
+    def test_setup_saga_logging_non_json_format(self):
+        """292-295: non-JSON formatter path when json_format=False."""
+        from sagaz.monitoring.logging import setup_saga_logging
+
+        logger = setup_saga_logging(json_format=False, include_console=True)
+        assert logger is not None
+
+
+# ==========================================================================
+# monitoring/metrics.py  – 42->exit

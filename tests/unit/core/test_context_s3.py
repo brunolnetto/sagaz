@@ -87,3 +87,31 @@ class TestS3Storage:
         await s3_storage.delete("s3://other-bucket/key")
 
         mock_s3_client.delete_object.assert_not_called()
+
+
+class TestContextAioboto3ImportError:
+    """Cover lines 32-33 in core/context.py (except ImportError for aioboto3)."""
+
+    def test_context_module_no_aioboto3_fallback(self):
+        """32-33: ImportError when aioboto3 not installed → HAS_AIOBOTO3=False."""
+        import importlib
+        import sys
+
+        orig_context = sys.modules.get("sagaz.core.context")
+        orig_aioboto3 = sys.modules.get("aioboto3")
+
+        sys.modules.pop("aioboto3", None)
+        sys.modules["aioboto3"] = None  # type: ignore[assignment]
+        sys.modules.pop("sagaz.core.context", None)
+
+        try:
+            mod = importlib.import_module("sagaz.core.context")
+            assert mod.HAS_AIOBOTO3 is False
+        finally:
+            if sys.modules.get("aioboto3") is None:
+                del sys.modules["aioboto3"]
+            if orig_aioboto3 is not None:
+                sys.modules["aioboto3"] = orig_aioboto3
+            sys.modules.pop("sagaz.core.context", None)
+            if orig_context is not None:
+                sys.modules["sagaz.core.context"] = orig_context

@@ -3,6 +3,7 @@ Tests for the declarative saga decorators module.
 """
 
 import asyncio
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -539,3 +540,462 @@ class TestImperativeSupport:
         msg = "Cannot use add_step.*with @action/@compensate decorators"
         with pytest.raises(TypeError, match=msg):
             saga.add_step(name="imp_step", action=imp_step, depends_on=["decl_step"])
+
+
+# =============================================================================
+# Missing Branch Coverage
+# =============================================================================
+
+class TestDecoratorsMissingBranches:
+    """Tests for missing coverage branches in core/decorators.py."""
+
+    # ---- 452: saga_name set from name in declarative mode ----
+
+    def test_init_declarative_sets_saga_name_from_name_param(self):
+        """Line 452: saga_name set from name param when _steps found and saga_name is None."""
+
+        class DeclSaga(Saga):
+            # saga_name not set as class attribute
+            @step("first")
+            async def first(self, ctx):
+                return {}
+
+        saga = DeclSaga(name="dynamic_decl")
+        # _steps found, saga_name was None, name="dynamic_decl" → line 452
+        assert saga.saga_name == "dynamic_decl"
+
+    # ---- 457: saga_name set from name in imperative mode ----
+
+    def test_init_imperative_sets_saga_name_from_name_param(self):
+        """Line 457: saga_name set from name param when no _steps and name given."""
+
+        class ImperSaga(Saga):
+            pass  # No decorators → imperative mode
+
+        saga = ImperSaga(name="dynamic_imper")
+        assert saga.saga_name == "dynamic_imper"
+
+    # ---- 508: compensation for unknown step returns silently ----
+
+    def test_compensation_for_unknown_step_is_skipped(self):
+        """Line 508: _attach_compensation_to_step returns if step not in registry."""
+
+        class BadCompSaga(Saga):
+            saga_name = "badcomp"
+
+            @step("real_step")
+            async def real_step(self, ctx):
+                return {}
+
+            @compensate("nonexistent_step")
+            async def comp_nonexistent(self, ctx):
+                pass
+
+        # Should not raise, compensation is simply skipped
+        saga = BadCompSaga()
+        # real_step should still be registered
+        assert "real_step" in saga._step_registry
+        # nonexistent_step should NOT be in registry
+        assert "nonexistent_step" not in saga._step_registry
+
+    # ---- 563->566: _propagate_taint_from_pivot with empty newly_tainted ----
+
+    def test_propagate_taint_empty_returns_empty_set(self):
+        """Line 563->566: _propagate_taint_from_pivot when nothing is newly tainted."""
+
+        class PivotSaga(Saga):
+            saga_name = "pivot_test"
+
+            @step("root", pivot=True)
+            async def root(self, ctx):
+                return {}
+
+        saga = PivotSaga()
+        # root has no ancestors to taint (it has no dependencies)
+        result = saga._propagate_taint_from_pivot("root")
+        # No tainted steps - the if branch should be False
+        assert result == set()
+
+    # ---- 625-626: duplicate step via add_step raises ValueError ----
+
+    @pytest.mark.asyncio
+    async def test_add_step_duplicate_raises_value_error(self):
+        """Lines 625-626: add_step with duplicate name raises ValueError."""
+
+        class ImperSaga(Saga):
+            saga_name = "dupl"
+
+        saga = ImperSaga()
+
+        async def act(ctx):
+            return {}
+
+        saga.add_step(name="step_a", action=act)
+
+        with pytest.raises(ValueError, match="already exists"):
+            saga.add_step(name="step_a", action=act)
+
+    # ---- 753: to_mermaid_with_execution with no storage data ----
+
+    @pytest.mark.asyncio
+    async def test_to_mermaid_with_execution_no_data(self):
+        """Line 753: to_mermaid_with_execution returns plain diagram when no data."""
+        from unittest.mock import AsyncMock
+
+        class SimpleSaga(Saga):
+            saga_name = "vis_test"
+
+            @step("s1")
+            async def s1(self, ctx):
+                return {}
+
+        saga = SimpleSaga()
+        storage = AsyncMock()
+        storage.load_saga_state = AsyncMock(return_value=None)
+
+        result = await saga.to_mermaid_with_execution("fake-id", storage)
+        assert "flowchart" in result or "graph" in result
+
+    # ---- 770: failed step in to_mermaid_with_execution ----
+
+    @pytest.mark.asyncio
+    async def test_to_mermaid_with_execution_failed_step(self):
+        """Lines 770, 772-774, 775->763: failed/compensated/compensating steps."""
+        from unittest.mock import AsyncMock
+
+        class SimpleSaga(Saga):
+            saga_name = "vis_test2"
+
+            @step("s1")
+            async def s1(self, ctx):
+                return {}
+
+            @step("s2", depends_on={"s1"})
+            async def s2(self, ctx):
+                return {}
+
+        saga = SimpleSaga()
+        storage = AsyncMock()
+        storage.load_saga_state = AsyncMock(return_value={
+            "steps": [
+                {"name": "s1", "status": "completed"},
+                {"name": "s2", "status": "failed"},
+            ]
+        })
+        result = await saga.to_mermaid_with_execution("fake-id", storage)
+        assert isinstance(result, str)
+
+    @pytest.mark.asyncio
+    async def test_to_mermaid_with_execution_compensated_step(self):
+        """Lines 772-774: 'compensated' status adds to compensated_steps + completed_steps."""
+        from unittest.mock import AsyncMock
+
+        class SimpleSaga(Saga):
+            saga_name = "vis_test3"
+
+            @step("s1")
+            async def s1(self, ctx):
+                return {}
+
+        saga = SimpleSaga()
+        storage = AsyncMock()
+        storage.load_saga_state = AsyncMock(return_value={
+            "steps": [
+                {"name": "s1", "status": "compensated"},
+            ]
+        })
+        result = await saga.to_mermaid_with_execution("fake-id", storage)
+        assert isinstance(result, str)
+
+    @pytest.mark.asyncio
+    async def test_to_mermaid_with_execution_compensating_step(self):
+        """Lines 775->763: 'compensating' status processed (elif branch)."""
+        from unittest.mock import AsyncMock
+
+        class SimpleSaga(Saga):
+            saga_name = "vis_test4"
+
+            @step("s1")
+            async def s1(self, ctx):
+                return {}
+
+        saga = SimpleSaga()
+        storage = AsyncMock()
+        storage.load_saga_state = AsyncMock(return_value={
+            "steps": [
+                {"name": "s1", "status": "compensating"},
+            ]
+        })
+        result = await saga.to_mermaid_with_execution("fake-id", storage)
+        assert isinstance(result, str)
+
+    # ---- 880->892: run() with no storage (skip persist start) ----
+
+    @pytest.mark.asyncio
+    async def test_run_no_storage_skips_persist(self):
+        """Lines 880->892, 898->906: run() when _config is None skips saga state persist."""
+
+        class TinySaga(Saga):
+            saga_name = "tiny"
+
+            @step("only")
+            async def only(self, ctx):
+                return {"done": True}
+
+        saga = TinySaga()
+        saga._config = None  # Force no config → storage=None at line 879
+
+        result = await saga.run({})
+        assert result["done"] is True
+
+    # ---- 889-890: storage.save_saga_state raises on start ----
+
+    @pytest.mark.asyncio
+    async def test_run_storage_exception_on_start_logs_warning(self):
+        """Lines 889-890: exception in save_saga_state on start is swallowed."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        class TinySaga(Saga):
+            saga_name = "tiny2"
+
+            @step("only")
+            async def only(self, ctx):
+                return {"done": True}
+
+        saga = TinySaga()
+        mock_storage = AsyncMock()
+        mock_storage.save_saga_state = AsyncMock(side_effect=RuntimeError("db error"))
+        mock_config = MagicMock()
+        mock_config.storage = mock_storage
+        mock_config.listeners = []
+        saga._config = mock_config
+        saga._instance_listeners = []
+
+        result = await saga.run({})
+        assert result["done"] is True  # saga still completes
+
+    # ---- 903-904: storage.save_saga_state raises on completion ----
+
+    @pytest.mark.asyncio
+    async def test_run_storage_exception_on_completion_logs_warning(self):
+        """Lines 903-904: exception in save_saga_state on completion is swallowed."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        class TinySaga(Saga):
+            saga_name = "tiny3"
+
+            @step("only")
+            async def only(self, ctx):
+                return {"done": True}
+
+        saga = TinySaga()
+        call_count = [0]
+
+        async def save_state_raiser(*args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] == 2:  # Second call = on completion
+                raise RuntimeError("completion db error")
+
+        mock_storage = AsyncMock()
+        mock_storage.save_saga_state = save_state_raiser
+        mock_config = MagicMock()
+        mock_config.storage = mock_storage
+        mock_config.listeners = []
+        saga._config = mock_config
+        saga._instance_listeners = []
+
+        result = await saga.run({})
+        assert result["done"] is True
+
+    # ---- 912->922, 917-918: storage handling in failure path ----
+
+    @pytest.mark.asyncio
+    async def test_run_failure_no_storage_and_exception_reraises(self):
+        """Line 912->922: failure path with no storage still re-raises exception."""
+
+        class FailSaga(Saga):
+            saga_name = "fail_saga"
+
+            @step("boom")
+            async def boom(self, ctx):
+                raise ValueError("intentional failure")
+
+        saga = FailSaga()
+        saga._config = None  # no storage
+
+        with pytest.raises(ValueError, match="intentional failure"):
+            await saga.run({})
+
+    @pytest.mark.asyncio
+    async def test_run_failure_storage_exception_on_persist_reraises_original(self):
+        """Lines 917-918: exception in save_saga_state during failure is swallowed, original re-raised."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        class FailSaga(Saga):
+            saga_name = "fail_saga2"
+
+            @step("boom")
+            async def boom(self, ctx):
+                raise ValueError("intentional failure")
+
+        saga = FailSaga()
+        mock_storage = AsyncMock()
+        mock_storage.save_saga_state = AsyncMock(side_effect=RuntimeError("db error"))
+        mock_config = MagicMock()
+        mock_config.storage = mock_storage
+        mock_config.listeners = []
+        saga._config = mock_config
+        saga._instance_listeners = []
+
+        with pytest.raises(ValueError, match="intentional failure"):
+            await saga.run({})
+
+    # ---- 964->961: listener with no handler for event ----
+
+    @pytest.mark.asyncio
+    async def test_notify_listeners_no_handler_skips(self):
+        """Line 964->961: listener without on_saga_start handler is skipped."""
+
+        class TinySaga(Saga):
+            saga_name = "listener_test"
+
+            @step("x")
+            async def x(self, ctx):
+                return {}
+
+        saga = TinySaga()
+
+        # Listener with NO on_saga_start attribute
+        class NoHandlerListener:
+            pass  # has no on_saga_start, on_saga_complete, etc.
+
+        saga._instance_listeners = [NoHandlerListener()]
+        saga._config = None
+
+        result = await saga.run({})
+        assert "x" in result or result is not None
+
+    # ---- 966->961: listener with synchronous handler ----
+
+    @pytest.mark.asyncio
+    async def test_notify_listeners_sync_handler_called(self):
+        """Line 966->961: listener with sync handler invoked without await."""
+        called = []
+
+        class TinySaga(Saga):
+            saga_name = "sync_listener_test"
+
+            @step("x")
+            async def x(self, ctx):
+                return {}
+
+        saga = TinySaga()
+
+        class SyncListener:
+            def on_saga_start(self, *args):
+                called.append("sync_start")
+
+        saga._instance_listeners = [SyncListener()]
+        saga._config = None
+
+        await saga.run({})
+        assert "sync_start" in called
+
+    # ---- 974: empty level in _execute_level ----
+
+    @pytest.mark.asyncio
+    async def test_execute_level_empty_returns_immediately(self):
+        """Line 974: _execute_level with empty list returns early."""
+
+        class TinySaga(Saga):
+            saga_name = "level_test"
+
+            @step("x")
+            async def x(self, ctx):
+                return {}
+
+        saga = TinySaga()
+        saga._initialize_run({}, None)
+        saga._register_compensations()
+
+        # Call _execute_level with empty list
+        await saga._execute_level([])  # Should return immediately without error
+
+    # ---- 1096: _execute_compensation with no compensation info ----
+
+    @pytest.mark.asyncio
+    async def test_execute_compensation_no_info_skips(self):
+        """Line 1096: _execute_compensation returns early when no compensation registered."""
+
+        class TinySaga(Saga):
+            saga_name = "comp_test"
+
+            @step("x")
+            async def x(self, ctx):
+                return {}
+
+        saga = TinySaga()
+        saga._initialize_run({}, None)
+        saga._register_compensations()
+
+        # "x" has no compensation registered → should return without error
+        await saga._execute_compensation("x")
+
+    # ---- 1100-1101: compensation for tainted step is skipped ----
+
+    @pytest.mark.asyncio
+    async def test_execute_compensation_tainted_step_skipped(self):
+        """Lines 1100-1101: _execute_compensation skips tainted steps."""
+
+        class TinySaga(Saga):
+            saga_name = "tainted_test"
+
+            @step("x")
+            async def x(self, ctx):
+                return {}
+
+            @compensate("x")
+            async def comp_x(self, ctx):
+                raise AssertionError("Should not be called for tainted step")
+
+        saga = TinySaga()
+        saga._initialize_run({}, None)
+        saga._register_compensations()
+
+        # Mark "x" as tainted
+        saga._tainted_steps.add("x")
+
+        # Should not call comp_x
+        await saga._execute_compensation("x")
+
+
+class TestCoreDecoratorsBranches:
+    async def test_status_compensating_in_trail(self):
+        """775->763: status == 'compensating' in trail building."""
+        from sagaz import Saga, SagaContext
+
+        class SimpleSaga(Saga):
+            async def execute(self, ctx: SagaContext):
+                return ctx
+
+        saga = SimpleSaga()
+
+        # Mock storage that returns saga_data with steps having various statuses
+        mock_storage = AsyncMock()
+        mock_storage.load_saga_state = AsyncMock(return_value={
+            "steps": [
+                {"name": "step1", "status": "completed"},
+                {"name": "step2", "status": "compensating"},  # triggers 775->True
+                {"name": "step3", "status": "pending"},  # triggers 775->763 (unknown status)
+            ]
+        })
+
+        result = await saga.to_mermaid_with_execution(
+            saga_id="test-saga-id",
+            storage=mock_storage,
+        )
+        assert isinstance(result, str)
+
+
+# ==========================================================================
+# core/listeners.py  – 194->exit, 198

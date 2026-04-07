@@ -31,7 +31,7 @@ try:
     ASYNCPG_AVAILABLE = True
 except ImportError:
     ASYNCPG_AVAILABLE = False
-    asyncpg = None  # pragma: no cover
+    asyncpg = None
 
 
 # SQL for creating the outbox schema

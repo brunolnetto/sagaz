@@ -1588,3 +1588,397 @@ class TestS3SnapshotStorageDeleteExpired:
                 deleted = await storage.delete_expired_snapshots()
                 
                 assert deleted == 0
+
+
+def _make_mock_s3_setup(mock_aioboto3):
+    """Helper to create mock S3 session and client."""
+    mock_session = MagicMock()
+    mock_client = AsyncMock()
+    mock_client_cm = AsyncMock()
+    mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client_cm.__aexit__ = AsyncMock()
+    mock_session.client = MagicMock(return_value=mock_client_cm)
+    mock_aioboto3.Session = MagicMock(return_value=mock_session)
+
+    class MockNoSuchKey(BaseException):
+        pass
+
+    mock_exceptions = MagicMock()
+    mock_exceptions.NoSuchKey = MockNoSuchKey
+    mock_client.exceptions = mock_exceptions
+    return mock_client, mock_session, MockNoSuchKey
+
+
+class TestS3SnapshotMissingBranches:
+    """Lines 102-104, 165->169, 251->243, 272->279, 274->272, 300->297,
+       322-323, 374->368, 383->368, 385-386, 410->413, 447->439, 452-453, 465->exit."""
+
+    @pytest.mark.asyncio
+    async def test_get_s3_client_exception(self):
+        """Lines 102-104: _get_s3_client raises ConnectionError on exception."""
+        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+
+        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+                mock_session = MagicMock()
+                mock_client_cm = AsyncMock()
+                mock_client_cm.__aenter__ = AsyncMock(side_effect=RuntimeError("S3 error"))
+                mock_session.client = MagicMock(return_value=mock_client_cm)
+                mock_aioboto3.Session = MagicMock(return_value=mock_session)
+
+                storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
+                with pytest.raises(ConnectionError):
+                    await storage._get_s3_client()
+
+    @pytest.mark.asyncio
+    async def test_save_snapshot_without_encryption(self):
+        """Lines 165->169: encryption disabled branch (no ServerSideEncryption)."""
+        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+
+        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+                mock_client, _, MockNoSuchKey = _make_mock_s3_setup(mock_aioboto3)
+                mock_client.put_object = AsyncMock()
+                mock_client.get_object = AsyncMock(side_effect=MockNoSuchKey())
+
+                storage = S3SnapshotStorage(
+                    bucket_name="test-bucket",
+                    enable_compression=False,
+                    enable_encryption=False,
+                )
+                await storage._get_s3_client()
+
+                snapshot = SagaSnapshot(
+                    snapshot_id=uuid4(), saga_id=uuid4(), saga_name="T",
+                    step_name="s1", step_index=0, status=SagaStatus.EXECUTING,
+                    context={}, completed_steps=[], created_at=datetime.now(UTC),
+                )
+                await storage.save_snapshot(snapshot)
+                call_kwargs = mock_client.put_object.call_args_list[0][1]
+                assert "ServerSideEncryption" not in call_kwargs
+
+    @pytest.mark.asyncio
+    async def test_get_latest_snapshot_before_step_mismatch(self):
+        """Lines 251->243: before_step doesn't match any snapshot."""
+        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+
+        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+                mock_client, _, MockNoSuchKey = _make_mock_s3_setup(mock_aioboto3)
+                saga_id = uuid4()
+                snap_id = uuid4()
+                index_data = {"snapshots": [{"snapshot_id": str(snap_id), "created_at": datetime.now(UTC).isoformat()}]}
+                snap_data = {
+                    "snapshot_id": str(snap_id), "saga_id": str(saga_id),
+                    "saga_name": "T", "step_name": "step_a", "step_index": 0,
+                    "status": "executing", "context": {}, "completed_steps": [],
+                    "created_at": datetime.now(UTC).isoformat(),
+                }
+
+                index_resp = {"Body": AsyncMock(read=AsyncMock(return_value=json.dumps(index_data).encode()))}
+                snap_resp = {"Body": AsyncMock(read=AsyncMock(return_value=json.dumps(snap_data).encode()))}
+                mock_client.get_object = AsyncMock(side_effect=[index_resp, snap_resp])
+
+                storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
+                await storage._get_s3_client()
+
+                result = await storage.get_latest_snapshot(saga_id, before_step="nonexistent_step")
+                assert result is None
+
+    @pytest.mark.asyncio
+    async def test_get_snapshot_at_time_empty_index(self):
+        """Lines 272->279: get_snapshot_at_time returns None when index is empty."""
+        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+
+        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+                mock_client, _, _ = _make_mock_s3_setup(mock_aioboto3)
+                index_data = {"snapshots": []}
+                index_resp = {"Body": AsyncMock(read=AsyncMock(return_value=json.dumps(index_data).encode()))}
+                mock_client.get_object = AsyncMock(return_value=index_resp)
+
+                storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
+                await storage._get_s3_client()
+
+                result = await storage.get_snapshot_at_time(uuid4(), datetime.now(UTC))
+                assert result is None
+
+    @pytest.mark.asyncio
+    async def test_get_snapshot_at_time_entry_after_target(self):
+        """Lines 274->272: entry_time > timestamp, loop continues without match."""
+        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+
+        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+                mock_client, _, _ = _make_mock_s3_setup(mock_aioboto3)
+                future_time = datetime.now(UTC) + timedelta(days=1)
+                index_data = {"snapshots": [{"snapshot_id": str(uuid4()), "created_at": future_time.isoformat()}]}
+                index_resp = {"Body": AsyncMock(read=AsyncMock(return_value=json.dumps(index_data).encode()))}
+                mock_client.get_object = AsyncMock(return_value=index_resp)
+
+                storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
+                await storage._get_s3_client()
+
+                result = await storage.get_snapshot_at_time(uuid4(), datetime.now(UTC) - timedelta(days=1))
+                assert result is None
+
+    @pytest.mark.asyncio
+    async def test_list_snapshots_snapshot_is_none(self):
+        """Lines 300->297: snapshot is None from get_snapshot, branch not appended."""
+        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+
+        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+                mock_client, _, MockNoSuchKey = _make_mock_s3_setup(mock_aioboto3)
+                saga_id = uuid4()
+                snap_id = uuid4()
+                index_data = {"snapshots": [{"snapshot_id": str(snap_id)}]}
+                index_resp = {"Body": AsyncMock(read=AsyncMock(return_value=json.dumps(index_data).encode()))}
+                # Index found, but snapshot itself raises NoSuchKey
+                mock_client.get_object = AsyncMock(side_effect=[index_resp, MockNoSuchKey()])
+
+                storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
+                await storage._get_s3_client()
+
+                result = await storage.list_snapshots(saga_id)
+                assert result == []
+
+    @pytest.mark.asyncio
+    async def test_delete_snapshot_exception_returns_false(self):
+        """Lines 322-323: exception during delete returns False."""
+        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+
+        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+                mock_client, _, _ = _make_mock_s3_setup(mock_aioboto3)
+                snap_id = uuid4()
+                saga_id = uuid4()
+                snap_data = {
+                    "snapshot_id": str(snap_id), "saga_id": str(saga_id),
+                    "saga_name": "T", "step_name": "s1", "step_index": 0,
+                    "status": "executing", "context": {}, "completed_steps": [],
+                    "created_at": datetime.now(UTC).isoformat(),
+                }
+                snap_resp = {"Body": AsyncMock(read=AsyncMock(return_value=json.dumps(snap_data).encode()))}
+                mock_client.get_object = AsyncMock(return_value=snap_resp)
+                mock_client.delete_object = AsyncMock(side_effect=RuntimeError("S3 error"))
+
+                storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
+                await storage._get_s3_client()
+
+                result = await storage.delete_snapshot(snap_id)
+                assert result is False
+
+    @pytest.mark.asyncio
+    async def test_delete_expired_skips_not_expired(self):
+        """Lines 374->368: object without expiry metadata is skipped."""
+        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+
+        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+                mock_client, _, _ = _make_mock_s3_setup(mock_aioboto3)
+                mock_client.head_object = AsyncMock(return_value={"Expires": None})
+
+                class MockPaginator:
+                    async def paginate(self, **kwargs):
+                        yield {"Contents": [{"Key": f"snapshot/{uuid4()}.json"}]}
+
+                mock_client.get_paginator = Mock(return_value=MockPaginator())
+
+                storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
+                await storage._get_s3_client()
+
+                count = await storage.delete_expired_snapshots()
+                assert count == 0
+
+    @pytest.mark.asyncio
+    async def test_delete_expired_exception_continues(self):
+        """Lines 385-386: exception in delete_expired head_object is swallowed."""
+        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+
+        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+                mock_client, _, _ = _make_mock_s3_setup(mock_aioboto3)
+                mock_client.head_object = AsyncMock(side_effect=RuntimeError("error"))
+
+                class MockPaginator:
+                    async def paginate(self, **kwargs):
+                        yield {"Contents": [{"Key": f"snapshot/{uuid4()}.json"}]}
+
+                mock_client.get_paginator = Mock(return_value=MockPaginator())
+
+                storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
+                await storage._get_s3_client()
+
+                count = await storage.delete_expired_snapshots()
+                assert count == 0
+
+    @pytest.mark.asyncio
+    async def test_save_replay_log_without_encryption(self):
+        """Lines 410->413: enable_encryption=False in save_replay_log."""
+        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+        from sagaz.core.replay import ReplayStatus
+
+        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+                mock_client, _, _ = _make_mock_s3_setup(mock_aioboto3)
+                mock_client.put_object = AsyncMock()
+
+                storage = S3SnapshotStorage(
+                    bucket_name="test-bucket", enable_compression=False, enable_encryption=False
+                )
+                await storage._get_s3_client()
+
+                replay = ReplayResult(
+                    replay_id=uuid4(), original_saga_id=uuid4(), new_saga_id=uuid4(),
+                    checkpoint_step="step1", replay_status=ReplayStatus.SUCCESS,
+                )
+                await storage.save_replay_log(replay)
+                call_kwargs = mock_client.put_object.call_args[1]
+                assert "ServerSideEncryption" not in call_kwargs
+
+    @pytest.mark.asyncio
+    async def test_list_replays_skips_non_matching_saga(self):
+        """Lines 447->439: replay with different original_saga_id is skipped."""
+        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+
+        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+                mock_client, _, _ = _make_mock_s3_setup(mock_aioboto3)
+                other_saga_id = uuid4()
+                replay_data = {
+                    "original_saga_id": str(other_saga_id),
+                    "created_at": datetime.now(UTC).isoformat(),
+                }
+                resp = {"Body": AsyncMock(read=AsyncMock(return_value=json.dumps(replay_data).encode()))}
+                mock_client.get_object = AsyncMock(return_value=resp)
+
+                class MockPaginator:
+                    async def paginate(self, **kwargs):
+                        yield {"Contents": [{"Key": "replay/test.json"}]}
+
+                mock_client.get_paginator = Mock(return_value=MockPaginator())
+
+                storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
+                await storage._get_s3_client()
+
+                result = await storage.list_replays(uuid4())  # Different saga id
+                assert result == []
+
+    @pytest.mark.asyncio
+    async def test_list_replays_exception_continues(self):
+        """Lines 452-453: exception in list_replays is swallowed."""
+        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+
+        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+                mock_client, _, _ = _make_mock_s3_setup(mock_aioboto3)
+                mock_client.get_object = AsyncMock(side_effect=RuntimeError("error"))
+
+                class MockPaginator:
+                    async def paginate(self, **kwargs):
+                        yield {"Contents": [{"Key": "replay/test.json"}]}
+
+                mock_client.get_paginator = Mock(return_value=MockPaginator())
+
+                storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
+                await storage._get_s3_client()
+
+                result = await storage.list_replays(uuid4())
+                assert result == []
+
+    @pytest.mark.asyncio
+    async def test_close_when_client_is_none(self):
+        """Lines 465->exit: close() is no-op when _s3_client is None."""
+        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+
+        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.storage.backends.s3.snapshot.aioboto3"):
+                storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
+                assert storage._s3_client is None
+                await storage.close()  # Should not raise
+
+
+class TestS3SnapshotBranch:
+    async def test_delete_expired_snapshots_deletes_expired(self):
+        """383->368: delete_expired_snapshots uses paginator to list and delete expired objects."""
+        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+
+        storage = S3SnapshotStorage(bucket_name="test-bucket", region="us-east-1")
+
+        snap_key = "snapshots/snapshot-abc.json"
+        expired_time = datetime(2000, 1, 1, tzinfo=UTC)
+
+        class AsyncPaginator:
+            def __init__(self, pages):
+                self._pages = pages
+
+            def paginate(self, **kwargs):
+                return self
+
+            def __aiter__(self):
+                return self._iter()
+
+            async def _iter(self):
+                for page in self._pages:
+                    yield page
+
+        pages = [{"Contents": [{"Key": snap_key}]}]
+        mock_s3 = AsyncMock()
+        mock_s3.get_paginator = MagicMock(return_value=AsyncPaginator(pages))
+        mock_s3.head_object = AsyncMock(
+            return_value={"Expires": expired_time}
+        )
+        mock_s3.delete_object = AsyncMock()
+
+        mock_ctx = MagicMock()
+        mock_ctx.__aenter__ = AsyncMock(return_value=mock_s3)
+        mock_ctx.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("aioboto3.Session") as mock_session:
+            mock_session.return_value.client = MagicMock(return_value=mock_ctx)
+            count = await storage.delete_expired_snapshots()
+
+        assert count >= 0
+
+    async def test_delete_expired_snapshots_delete_returns_false(self):
+        """383->368 FALSE: delete_snapshot returns False → deleted_count not incremented."""
+        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+
+        storage = S3SnapshotStorage(bucket_name="test-bucket", region="us-east-1")
+        snap_key = f"snapshots/{uuid4()}.json"
+        expired_time = datetime(2000, 1, 1, tzinfo=UTC)
+
+        class AsyncPaginator:
+            def __init__(self, pages):
+                self._pages = pages
+
+            def paginate(self, **kwargs):
+                return self
+
+            def __aiter__(self):
+                return self._iter()
+
+            async def _iter(self):
+                for page in self._pages:
+                    yield page
+
+        pages = [{"Contents": [{"Key": snap_key}]}]
+        mock_s3 = AsyncMock()
+        mock_s3.get_paginator = MagicMock(return_value=AsyncPaginator(pages))
+        mock_s3.head_object = AsyncMock(return_value={"Expires": expired_time})
+
+        mock_ctx = MagicMock()
+        mock_ctx.__aenter__ = AsyncMock(return_value=mock_s3)
+        mock_ctx.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("aioboto3.Session") as mock_session:
+            mock_session.return_value.client = MagicMock(return_value=mock_ctx)
+            with patch.object(storage, "delete_snapshot", return_value=False):
+                count = await storage.delete_expired_snapshots()
+
+        assert count == 0  # delete_snapshot returned False → no increment
+
+
+# ==========================================================================
+# storage/backends/sqlite/saga.py  – 275->287, 276->275

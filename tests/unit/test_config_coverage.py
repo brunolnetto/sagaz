@@ -10,10 +10,14 @@ Covers:
 """
 
 import tempfile
+from datetime import timezone
 from pathlib import Path
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 import yaml
+
+UTC = timezone.utc
 
 from sagaz.core.config import SagaConfig, configure, get_config
 
@@ -280,5 +284,138 @@ class TestGlobalConfig:
         assert result.logging is False
 
 
+class TestFromEnvComponentBuilding:
+    """Cover from_env() paths that build storage/broker from component env vars."""
+
+    def test_from_env_postgresql_storage_components(self):
+        """Lines 349-355: build postgresql storage from components."""
+        env_vars = {
+            "SAGAZ_STORAGE_TYPE": "postgresql",
+            "SAGAZ_STORAGE_HOST": "myhost",
+            "SAGAZ_STORAGE_PORT": "5432",
+            "SAGAZ_STORAGE_DB": "mydb",
+            "SAGAZ_STORAGE_USER": "myuser",
+            "SAGAZ_STORAGE_PASSWORD": "mypass",
+        }
+        with patch.dict("os.environ", env_vars, clear=False):
+            config = SagaConfig.from_env(load_dotenv=False)
+        assert config.storage is not None
+
+    def test_from_env_redis_storage_components(self):
+        """Lines 357-358: build redis storage from components."""
+        env_vars = {
+            "SAGAZ_STORAGE_TYPE": "redis",
+        }
+        with patch.dict("os.environ", env_vars, clear=False):
+            config = SagaConfig.from_env(load_dotenv=False)
+        assert config.storage is not None
+
+    def test_from_env_kafka_broker_components(self):
+        """Lines 367-370: build kafka broker from SAGAZ_BROKER_TYPE=kafka."""
+        env_vars = {
+            "SAGAZ_BROKER_TYPE": "kafka",
+            "SAGAZ_BROKER_HOST": "kafka-host",
+            "SAGAZ_BROKER_PORT": "9092",
+        }
+        with patch.dict("os.environ", env_vars, clear=False):
+            config = SagaConfig.from_env(load_dotenv=False)
+        assert config.broker is not None
+
+    def test_from_env_rabbitmq_broker_components(self):
+        """Lines 372-377: build rabbitmq broker from SAGAZ_BROKER_TYPE=rabbitmq."""
+        env_vars = {
+            "SAGAZ_BROKER_TYPE": "rabbitmq",
+            "SAGAZ_BROKER_HOST": "rmq-host",
+            "SAGAZ_BROKER_PORT": "5672",
+            "SAGAZ_BROKER_USER": "user",
+            "SAGAZ_BROKER_PASSWORD": "pass",
+        }
+        with patch.dict("os.environ", env_vars, clear=False):
+            config = SagaConfig.from_env(load_dotenv=False)
+        assert config.broker is not None
+
+    def test_from_env_redis_broker_components(self):
+        """Lines 379-380: build redis broker from SAGAZ_BROKER_TYPE=redis."""
+        env_vars = {
+            "SAGAZ_BROKER_TYPE": "redis",
+        }
+        with patch.dict("os.environ", env_vars, clear=False):
+            config = SagaConfig.from_env(load_dotenv=False)
+        assert config.broker is not None
+
+
+class TestFromFileSubstituteEnv:
+    """Cover from_file() substitute_env=False branch (line 426->432)."""
+
+    def test_from_file_no_env_substitution(self, tmp_path):
+        """Line 426->432: substitute_env=False skips env substitution."""
+        config_file = tmp_path / "sagaz.yaml"
+        config_file.write_text("metrics: true\n")
+        config = SagaConfig.from_file(str(config_file), substitute_env=False)
+        assert config is not None
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+class TestCoreConfigBranches:
+    def test_setup_from_manager_none_manager(self):
+        """156->160: manager is None inside _setup_from_manager."""
+        from sagaz.core.config import SagaConfig
+
+        config = SagaConfig.__new__(SagaConfig)
+        config.storage_manager = None
+        config._storage_manager = None
+        config.storage = None
+        config.outbox_storage = None
+        config._setup_from_manager()
+        # Manager is None → storage is not set by manager, _storage_manager set to None
+        assert config._storage_manager is None
+
+    def test_setup_from_manager_outbox_already_set(self):
+        """158->160: outbox_storage already set → skip outbox override."""
+        from sagaz.core.config import SagaConfig
+        from sagaz.storage.memory import InMemorySagaStorage
+        from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
+
+        mock_manager = MagicMock()
+        mock_saga_storage = InMemorySagaStorage()
+        mock_manager.saga = mock_saga_storage
+
+        config = SagaConfig.__new__(SagaConfig)
+        config.storage_manager = mock_manager
+        config._storage_manager = None
+        config.storage = None
+        existing_outbox = InMemoryOutboxStorage()
+        config.outbox_storage = existing_outbox  # Already set
+        config._setup_from_manager()
+        # outbox_storage should not be overwritten
+        assert config.outbox_storage is existing_outbox
+
+    def test_setup_from_manager_runtime_error_storage_already_set(self):
+        """175->exit: RuntimeError but storage already set → skip InMemorySagaStorage."""
+        from sagaz.core.config import SagaConfig
+        from sagaz.storage.memory import InMemorySagaStorage
+        from unittest.mock import PropertyMock
+
+        existing_storage = InMemorySagaStorage()
+        mock_manager = MagicMock()
+        # Make .saga attribute raise RuntimeError on access (triggers except RuntimeError:
+        type(mock_manager).saga = PropertyMock(side_effect=RuntimeError("not initialized"))
+
+        config = SagaConfig.__new__(SagaConfig)
+        config.storage_manager = mock_manager
+        config._storage_manager = None
+        config.storage = existing_storage  # Already set
+        config.outbox_storage = None
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            config._setup_from_manager()
+        # Should NOT replace existing storage with InMemorySagaStorage
+        assert config.storage is existing_storage
+
+
+# ==========================================================================
+# core/decorators.py  – 775->763

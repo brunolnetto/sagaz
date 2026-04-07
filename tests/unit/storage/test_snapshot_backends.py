@@ -409,3 +409,29 @@ class TestS3SnapshotStorageMocked:
 
                 with pytest.raises(MissingDependencyError):
                     S3SnapshotStorage(bucket_name="test-bucket", enable_compression=True)
+
+
+class TestMemorySnapshotBranch:
+    async def test_delete_snapshot_saga_id_not_in_index(self):
+        """112->115: saga_id not in _saga_snapshots → no removal from index."""
+        from sagaz.storage.backends.memory_snapshot import InMemorySnapshotStorage
+        from sagaz.storage.interfaces.snapshot import SagaSnapshot
+
+        storage = InMemorySnapshotStorage()
+        snapshot_id = uuid4()
+        saga_id = uuid4()
+
+        # Directly insert snapshot into _snapshots without adding to saga index
+        snapshot = MagicMock(spec=SagaSnapshot)
+        snapshot.snapshot_id = snapshot_id
+        snapshot.saga_id = saga_id
+        storage._snapshots[snapshot_id] = snapshot
+        # Do NOT add to _saga_snapshots → saga_id not in index
+
+        result = await storage.delete_snapshot(snapshot_id)
+        assert result is True
+        assert snapshot_id not in storage._snapshots
+
+
+# ==========================================================================
+# storage/backends/postgresql/outbox.py  – 151-159

@@ -690,3 +690,187 @@ class TestParallelAnalysis:
         assert result.max_parallel_width == 1  # No parallelization
         assert result.parallelization_ratio == 1.0  # 3 layers / 3 steps
         assert len(result.critical_path) == 3
+
+
+# =============================================================================
+# Missing Branch Coverage
+# =============================================================================
+
+class TestDryRunMissingBranches:
+    """Tests for missing coverage branches in dry_run.py."""
+
+    @pytest.mark.asyncio
+    async def test_run_mode_neither_validate_nor_simulate(self):
+        """Line 144->166: mode is not VALIDATE and not SIMULATE skips both blocks."""
+
+        class SimpleSaga(Saga):
+            saga_name = "simple"
+
+            @action("a")
+            async def a(self, ctx):
+                return {}
+
+        saga = SimpleSaga()
+        engine = DryRunEngine()
+        # Use a raw string that matches neither enum value comparison
+        # Create a mock mode: looks like SIMULATE for pass-through but won't match
+        from unittest.mock import MagicMock
+        fake_mode = MagicMock()
+        fake_mode.__eq__ = lambda self, other: False  # Never equal to either mode
+        result = await engine.run(saga, {}, fake_mode)
+        # Should reach final return result
+        assert result.success is True
+        assert result.steps_planned == []  # Not populated (no simulate block ran)
+
+    @pytest.mark.asyncio
+    async def test_extract_steps_via_get_steps(self):
+        """Lines 204-205: _extract_steps uses get_steps() when _steps is falsy."""
+
+        class NoStepsSaga(Saga):
+            saga_name = "nosteps"
+
+        saga = NoStepsSaga()
+        saga._steps = []  # falsy
+        mock_step = Mock()
+        mock_step.step_id = "mock_step"
+        saga.get_steps = Mock(return_value=[mock_step])
+
+        engine = DryRunEngine()
+        steps = engine._extract_steps(saga)
+        assert steps == [mock_step]
+
+    @pytest.mark.asyncio
+    async def test_extract_steps_via_steps_attr(self):
+        """Lines 311-312: active _extract_steps (line 305) uses saga.steps attr."""
+
+        class PlainSagaWithSteps:
+            steps = []  # will be overwritten below
+
+        mock_step = Mock()
+        mock_step.step_id = "via_steps_attr"
+        saga = PlainSagaWithSteps()
+        saga.steps = [mock_step]
+
+        engine = DryRunEngine()
+        steps = engine._extract_steps(saga)
+        assert steps == [mock_step]
+
+    @pytest.mark.asyncio
+    async def test_extract_steps_returns_empty(self):
+        """Line 313: active _extract_steps returns [] when nothing available."""
+        engine = DryRunEngine()
+        saga = object()  # plain object with none of the expected attributes
+        steps = engine._extract_steps(saga)
+        assert steps == []
+
+    @pytest.mark.asyncio
+    async def test_validate_context_fields_all_present(self):
+        """Line 253->exit: _validate_context_fields no missing fields - no error appended."""
+
+        class FieldSaga(Saga):
+            saga_name = "fieldsaga"
+            required_context_fields = ["user_id", "amount"]
+
+            @action("a")
+            async def a(self, ctx):
+                return {}
+
+        saga = FieldSaga()
+        engine = DryRunEngine()
+        errors = []
+        checks = {}
+        # Provide all required fields
+        engine._validate_context_fields(saga, {"user_id": "u1", "amount": 100}, checks, errors)
+        assert errors == []  # No missing fields error
+        assert checks["required_context_fields"] == ["user_id", "amount"]
+
+    @pytest.mark.asyncio
+    async def test_simulate_extract_steps_via_steps_attr(self):
+        """Lines 451-452: _build_dag uses saga.steps attr when no _steps/get_steps."""
+
+        class PlainSagaWithSteps:
+            pass
+
+        mock_step = Mock()
+        mock_step.step_id = "s1"
+        mock_step.depends_on = set()
+        mock_step.dependencies = set()
+        saga = PlainSagaWithSteps()
+        saga.steps = [mock_step]
+
+        engine = DryRunEngine()
+        dag = engine._build_dag(saga)
+        assert "s1" in dag
+
+    @pytest.mark.asyncio
+    async def test_simulate_extract_steps_returns_empty(self):
+        """Lines 313 / _build_dag fallback: returns [] when saga has no steps."""
+
+        engine = DryRunEngine()
+        saga = object()  # plain object with none of the expected attributes
+        result = engine._build_dag(saga)
+        assert result == {}
+
+    def test_build_reverse_dag_dep_not_seen_creates_entry(self):
+        """Lines 371-372: _build_reverse_dag creates entry when dep not in reverse_dag."""
+        engine = DryRunEngine()
+        # "a" is a dep of "b" but not a top-level node in dag keys
+        dag = {"b": ["a"]}
+        reverse_dag, in_degree = engine._build_reverse_dag(dag)
+        assert "a" in reverse_dag
+        assert in_degree["a"] == 0
+        assert "b" in reverse_dag["a"]
+
+    @pytest.mark.asyncio
+    async def test_build_dag_via_get_steps(self):
+        """Lines 449-450: _build_dag uses get_steps() when _steps falsy."""
+
+        class GetStepsSaga(Saga):
+            saga_name = "getsteps"
+
+        saga = GetStepsSaga()
+        saga._steps = []  # falsy
+
+        mock_step = Mock()
+        mock_step.step_id = "s1"
+        mock_step.depends_on = set()
+        mock_step.dependencies = set()
+        saga.get_steps = Mock(return_value=[mock_step])
+
+        engine = DryRunEngine()
+        dag = engine._build_dag(saga)
+        assert "s1" in dag
+
+    @pytest.mark.asyncio
+    async def test_build_dag_via_steps_attr_direct(self):
+        """Lines 449-450: _build_dag uses get_steps() when _steps is falsy."""
+
+        class GetStepSaga:
+            _steps = []  # falsy
+
+        mock_step = Mock()
+        mock_step.step_id = "s2"
+        mock_step.depends_on = set()
+        mock_step.dependencies = set()
+        saga = GetStepSaga()
+        saga.get_steps = Mock(return_value=[mock_step])
+
+        engine = DryRunEngine()
+        dag = engine._build_dag(saga)
+        assert "s2" in dag
+
+    def test_find_critical_path_empty_layers(self):
+        """Line 538: _find_critical_path returns [] when layers is empty."""
+        engine = DryRunEngine()
+        result = engine._find_critical_path({}, {})
+        assert result == []
+
+    def test_trace_path_dep_already_visited_skips(self):
+        """Line 572->571: _trace_path skips dep that's already in visited."""
+        engine = DryRunEngine()
+        # Create a dag where a->b->a (cycle) but visited prevents infinite recursion
+        dag = {"a": ["b"], "b": ["a"]}
+        visited = {"b"}  # Mark "b" as visited
+        result = engine._trace_path("a", dag, visited)
+        # "b" is already visited so skipped; path just contains "a"
+        assert "a" in result

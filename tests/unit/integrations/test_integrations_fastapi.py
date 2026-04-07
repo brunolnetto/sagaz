@@ -286,3 +286,65 @@ class TestWebhookStatusTracking:
 
             # Should still return accepted (fire-and-forget)
             assert response.status_code == 202
+
+
+class TestFastapiWebhookImportError:
+    """Cover lines 148-150 in integrations/fastapi.py (except ImportError for fastapi)."""
+
+    def test_create_webhook_router_no_fastapi_raises(self):
+        """148-150: ImportError when fastapi not installed → raises ImportError."""
+        import sys
+        from unittest.mock import MagicMock
+
+        import pytest
+
+        orig_fastapi = sys.modules.get("fastapi")
+        orig_fastapi_resp = sys.modules.get("fastapi.responses")
+
+        sys.modules["fastapi"] = None  # type: ignore[assignment]
+        sys.modules.pop("fastapi.responses", None)
+
+        try:
+            from sagaz.integrations.fastapi import create_webhook_router
+
+            router_config = MagicMock()
+            with pytest.raises(ImportError, match="FastAPI is required"):
+                create_webhook_router(router_config)
+        finally:
+            if sys.modules.get("fastapi") is None:
+                del sys.modules["fastapi"]
+            if orig_fastapi is not None:
+                sys.modules["fastapi"] = orig_fastapi
+            if orig_fastapi_resp is not None:
+                sys.modules["fastapi.responses"] = orig_fastapi_resp
+
+
+class TestFastapiWebhookImportError:
+    """Cover lines 148-150 in integrations/fastapi.py (except ImportError for fastapi)."""
+
+    def test_create_webhook_router_no_fastapi_raises(self):
+        """148-150: ImportError when fastapi not installed → raises ImportError."""
+        import sys
+        from unittest.mock import MagicMock
+
+        import pytest
+
+        orig_fastapi = sys.modules.get("fastapi")
+        orig_fastapi_resp = sys.modules.get("fastapi.responses")
+
+        sys.modules["fastapi"] = None  # type: ignore[assignment]
+        sys.modules.pop("fastapi.responses", None)
+
+        try:
+            from sagaz.integrations.fastapi import create_webhook_router
+
+            router_config = MagicMock()
+            with pytest.raises(ImportError, match="FastAPI is required"):
+                create_webhook_router(router_config)
+        finally:
+            if sys.modules.get("fastapi") is None:
+                del sys.modules["fastapi"]
+            if orig_fastapi is not None:
+                sys.modules["fastapi"] = orig_fastapi
+            if orig_fastapi_resp is not None:
+                sys.modules["fastapi.responses"] = orig_fastapi_resp

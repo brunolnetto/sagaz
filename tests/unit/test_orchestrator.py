@@ -269,3 +269,17 @@ class TestSagaOrchestrator:
 
         status = await orchestrator.get_saga_status("nonexistent-id")
         assert status is None
+
+
+class TestOrchestratorBranches:
+    async def test_count_failed(self):
+        """65: count_failed() calls count_by_status(FAILED)."""
+        from sagaz.execution.orchestrator import SagaOrchestrator
+
+        orch = SagaOrchestrator()
+        count = await orch.count_failed()
+        assert count == 0  # No failed sagas
+
+
+# ==========================================================================
+# execution/pivot.py  – 361, 425->422, 457

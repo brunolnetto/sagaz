@@ -545,3 +545,45 @@ class TestSingleConnectionManagerExtended:
 
         async with manager.acquire() as conn:
             assert conn == "test_connection"
+
+
+class TestSerializationMissingBranches:
+    """Cover missing serialization lines: 57, 72, 113-114, 163, 165."""
+
+    def test_storage_encoder_unknown_type_falls_back(self):
+        """Line 57: StorageEncoder.default() calls super().default() for unknown types."""
+        import json
+        from sagaz.storage.core.serialization import StorageEncoder
+
+        encoder = StorageEncoder()
+        with pytest.raises((TypeError, ValueError)):
+            encoder.default(object())
+
+    def test_storage_decoder_missing_value_key(self):
+        """Line 72: storage_decoder returns obj when __type__ present but value absent."""
+        from sagaz.storage.core.serialization import storage_decoder
+
+        obj = {"__type__": "frozenset"}  # no "value" key
+        result = storage_decoder(obj)
+        assert result == obj
+
+    def test_serialize_storage_data_raises_on_circular(self):
+        """Lines 113-114: serialize() raises SerializationError on failure."""
+        from sagaz.storage.core.serialization import serialize
+        from sagaz.storage.core.errors import SerializationError
+
+        circular = {}
+        circular["self"] = circular  # type: ignore[assignment]
+        with pytest.raises(SerializationError):
+            serialize(circular)
+
+    def test_serialize_for_redis_string_value(self):
+        """Line 163: string values stay as-is in serialize_for_redis."""
+        result = serialize_for_redis({"key": "hello"})
+        assert result["key"] == "hello"
+
+    def test_serialize_for_redis_int_and_float(self):
+        """Line 165: int and float values are converted to strings."""
+        result = serialize_for_redis({"count": 42, "ratio": 3.14})
+        assert result["count"] == "42"
+        assert result["ratio"] == "3.14"

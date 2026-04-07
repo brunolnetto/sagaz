@@ -89,15 +89,16 @@ def k8s_manifests():
 
 # ============================================
 # SESSION-SCOPED CONTAINER FIXTURES
-# Containers start in PARALLEL via conftest_containers.py
-# Automatic availability detection - no env vars needed
+# Containers start LAZILY when first requested by a test.
+# Use ``--no-containers`` or ``SAGAZ_NO_CONTAINERS=1`` to skip all.
 # ============================================
 
 @pytest.fixture(scope="session")
 def postgres_container(container_manager):
-    """PostgreSQL container (auto-initialized in parallel)."""
+    """PostgreSQL container (started lazily on first use)."""
     if not container_manager:
         pytest.skip("testcontainers not available")
+    container_manager.ensure_postgres()
     if not container_manager.available.get("postgres"):
         pytest.skip(f"PostgreSQL: {container_manager.errors.get('postgres', 'unavailable')}")
     return container_manager.containers["postgres"]
@@ -105,9 +106,10 @@ def postgres_container(container_manager):
 
 @pytest.fixture(scope="session")
 def redis_container(container_manager):
-    """Redis container (auto-initialized in parallel)."""
+    """Redis container (started lazily on first use)."""
     if not container_manager:
         pytest.skip("testcontainers not available")
+    container_manager.ensure_redis()
     if not container_manager.available.get("redis"):
         pytest.skip(f"Redis: {container_manager.errors.get('redis', 'unavailable')}")
     return container_manager.containers["redis"]
@@ -115,9 +117,10 @@ def redis_container(container_manager):
 
 @pytest.fixture(scope="session")
 def kafka_container(container_manager):
-    """Kafka container (auto-initialized in parallel)."""
+    """Kafka container (started lazily on first use)."""
     if not container_manager:
         pytest.skip("testcontainers not available")
+    container_manager.ensure_kafka()
     if not container_manager.available.get("kafka"):
         pytest.skip(f"Kafka: {container_manager.errors.get('kafka', 'unavailable')}")
     return container_manager.containers["kafka"]
@@ -125,9 +128,10 @@ def kafka_container(container_manager):
 
 @pytest.fixture(scope="session")
 def rabbitmq_container(container_manager):
-    """RabbitMQ container (auto-initialized in parallel)."""
+    """RabbitMQ container (started lazily on first use)."""
     if not container_manager:
         pytest.skip("testcontainers not available")
+    container_manager.ensure_rabbitmq()
     if not container_manager.available.get("rabbitmq"):
         pytest.skip(f"RabbitMQ: {container_manager.errors.get('rabbitmq', 'unavailable')}")
     return container_manager.containers["rabbitmq"]
@@ -135,9 +139,10 @@ def rabbitmq_container(container_manager):
 
 @pytest.fixture(scope="session")
 def localstack_container(container_manager):
-    """LocalStack S3 container (auto-initialized in parallel)."""
+    """LocalStack S3 container (started lazily on first use)."""
     if not container_manager:
         pytest.skip("testcontainers not available")
+    container_manager.ensure_localstack()
     if not container_manager.available.get("localstack"):
         pytest.skip(f"LocalStack: {container_manager.errors.get('localstack', 'unavailable')}")
     return container_manager.containers["localstack"]

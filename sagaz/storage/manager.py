@@ -289,7 +289,7 @@ class StorageManager(BaseStorageManager):
             import redis.asyncio as redis
         except ImportError:
             msg = "redis"
-            raise MissingDependencyError(msg, "Redis storage backend")  # pragma: no cover
+            raise MissingDependencyError(msg, "Redis storage backend")
 
         self._shared_pool = redis.from_url(self._saga_url)
 
@@ -437,7 +437,7 @@ class StorageManager(BaseStorageManager):
             if hasattr(self._shared_pool, "close"):
                 if hasattr(self._shared_pool, "wait_closed"):
                     # asyncpg pool
-                    self._shared_pool.close()
+                    await self._shared_pool.close()
                     await self._shared_pool.wait_closed()
                 else:
                     # redis connection

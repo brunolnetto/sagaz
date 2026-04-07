@@ -29,9 +29,9 @@ try:
 
     KAFKA_AVAILABLE = True
 except ImportError:
-    KAFKA_AVAILABLE = False  # pragma: no cover
-    AIOKafkaProducer = None  # pragma: no cover
-    KafkaError = Exception  # pragma: no cover
+    KAFKA_AVAILABLE = False
+    AIOKafkaProducer = None
+    KafkaError = Exception
 
 logger = logging.getLogger(__name__)
 

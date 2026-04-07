@@ -7,6 +7,7 @@ from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timezone
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
 import pytest
 
@@ -793,3 +794,99 @@ class TestTransferValidationEdgeCases:
 
         # Should skip due to validation failure
         assert result.skipped == 1
+
+
+class TestTransferServiceBranches:
+    def test_records_per_second_zero_when_elapsed_zero(self):
+        """115: return 0.0 when elapsed_seconds == 0."""
+        from sagaz.storage.transfer.service import TransferProgress
+
+        prog = TransferProgress(total=100)
+        prog._start_time = datetime.now(UTC)  # Make start_time = now → elapsed ≈ 0
+        # Manually force elapsed to 0
+        with patch.object(type(prog), "elapsed_seconds", property(lambda self: 0)):
+            assert prog.records_per_second == 0.0
+
+    def test_estimated_remaining_zero_when_rate_zero(self):
+        """123: return 0.0 when rate == 0."""
+        from sagaz.storage.transfer.service import TransferProgress
+
+        prog = TransferProgress(total=100)
+        with patch.object(type(prog), "records_per_second", property(lambda self: 0)):
+            assert prog.estimated_remaining_seconds == 0.0
+
+    async def test_transfer_result_errors_appended(self):
+        """308: result.errors.append(str(e)) when outer exception with on_error != ABORT."""
+        from sagaz.storage.transfer.service import TransferService, TransferConfig, TransferErrorPolicy
+
+        mock_source = AsyncMock()
+
+        async def _bad_generator():
+            yield {"saga_id": str(uuid4()), "saga_name": "Bad"}
+            raise RuntimeError("transfer error")  # Raises after yielding → outer except
+
+        mock_source.export_all = MagicMock(return_value=_bad_generator())
+
+        mock_target = AsyncMock()
+        mock_target.import_record = AsyncMock()  # succeeds so inner loop completes
+
+        config = TransferConfig(on_error=TransferErrorPolicy.SKIP)
+        service = TransferService(source=mock_source, target=mock_target, config=config)
+
+        result = await service.transfer_all()
+        assert len(result.errors) > 0  # RuntimeError appended to errors at line 308
+
+    async def test_validate_record_no_validation_method(self):
+        """396->exit FALSE: target has neither load_saga_state nor get_by_id → no validate."""
+        from sagaz.storage.transfer.service import TransferService, TransferConfig
+        from unittest.mock import MagicMock as MM
+
+        mock_target = MM()
+        # Remove both attributes manually
+        if hasattr(mock_target, "load_saga_state"):
+            del mock_target.load_saga_state
+        if hasattr(mock_target, "get_by_id"):
+            del mock_target.get_by_id
+
+        mock_source = AsyncMock()
+        config = TransferConfig(validate=True)
+        service = TransferService(source=mock_source, target=mock_target, config=config)
+
+        # No saga_id, event_id, or id → returns early; if id provided → falls through both ifs
+        await service._validate_record({"saga_id": "some-id"})  # should not raise
+
+    async def test_transfer_retry_succeeds_covers_line_358_410(self):
+        """358-359, 410: on_error=RETRY, retry succeeds → result.transferred += 1."""
+        from sagaz.storage.transfer.service import TransferService, TransferConfig, TransferErrorPolicy
+
+        mock_source = AsyncMock()
+
+        async def _single_record():
+            yield {"saga_id": str(uuid4()), "saga_name": "T"}
+
+        mock_source.export_all = MagicMock(return_value=_single_record())
+
+        call_count = 0
+
+        async def flaky_import(record):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise RuntimeError("first attempt fails")
+            # second attempt (retry) succeeds
+
+        mock_target = AsyncMock()
+        mock_target.import_record = AsyncMock(side_effect=flaky_import)
+
+        config = TransferConfig(
+            on_error=TransferErrorPolicy.RETRY,
+            max_retries=2,
+            retry_delay_seconds=0.0,
+        )
+        service = TransferService(source=mock_source, target=mock_target, config=config)
+        result = await service.transfer_all()
+        assert result.transferred >= 1  # Retry succeeded → lines 358, 359, 410 hit
+
+
+# ==========================================================================
+# strategies/fail_fast.py  – 78->77
