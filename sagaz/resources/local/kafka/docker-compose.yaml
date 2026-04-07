@@ -26,7 +26,7 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
 
   kafka:
-    image: confluentinc/cp-kafka:7.5.0
+    image: confluentinc/cp-kafka:7.9.6
     container_name: sagaz-kafka
     depends_on:
       - zookeeper
