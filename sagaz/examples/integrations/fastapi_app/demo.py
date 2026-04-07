@@ -166,7 +166,7 @@ def main():
     print("   • Each webhook call gets unique correlation_id for tracking")
     print("   • Use /orders/validate endpoint before triggering webhook")
     print()
-    print("ℹ️  Webhooks execute sagas asynchronously. Poll status endpoint for updates.")
+    print("i️  Webhooks execute sagas asynchronously. Poll status endpoint for updates.")
     print()
 
     # Ask if user wants to run the server
@@ -290,7 +290,7 @@ def main():
     print('        -d \'{"order_id": "ORD-003", "amount": 299.99, "user_id": "user-789"}\'')
     print()
 
-    print("ℹ️  Note: Webhooks execute sagas asynchronously in background.")
+    print("i️  Note: Webhooks execute sagas asynchronously in background.")
     print("   Check application logs or use Swagger UI to see execution details.")
     print("   Use /orders/validate to check for duplicate order_ids.")
     print()

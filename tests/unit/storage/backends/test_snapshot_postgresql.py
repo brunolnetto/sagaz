@@ -266,7 +266,7 @@ class TestPostgreSQLSnapshotStorageIntegration:
         connection_string = connection_string.replace("postgresql+asyncpg://", "postgresql://")
         connection_string = connection_string.replace("postgresql+psycopg2://", "postgresql://")
         connection_string = connection_string.replace("postgresql+psycopg://", "postgresql://")
-        
+
         storage = PostgreSQLSnapshotStorage(connection_string=connection_string)
         yield storage
         await storage.close()

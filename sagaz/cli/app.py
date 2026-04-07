@@ -336,16 +336,17 @@ docker-compose.override.yaml
     (project_path / ".gitignore").write_text(gitignore_content)
     click.echo(f"  CREATE {project_path / '.gitignore'}")
 
+    display_path = project_path if str(project_path) != "." else name
     if console:
         console.print("\n[bold green]Project initialized successfully![/bold green]")
         console.print("\nNext steps:")
-        console.print(f"  1. cd {project_path if path != '.' else name}")
+        console.print(f"  1. cd {display_path}")
         console.print("  2. Review and edit [bold cyan]sagas/example_saga.py[/bold cyan]")
         console.print("  3. Run [bold cyan]sagaz validate[/bold cyan] to validate your sagas")
         console.print("  4. Run [bold cyan]sagaz setup[/bold cyan] to configure deployment")
     else:
         click.echo("\nProject initialized successfully!")
-        click.echo(f"  cd {project_path if path != '.' else name}")
+        click.echo(f"  cd {display_path}")
         click.echo("  sagaz validate")
 
 
@@ -1108,7 +1109,7 @@ services:
     build: .
     environment:
       POSTGRES_URL: postgresql://sagaz:sagaz@postgres:5432/sagaz
-      BROKER_TYPE: {preset}
+      BROKER_TYPE: {broker}
       BROKER_URL: ${{BROKER_URL}}  # Set from environment
       SAGAZ_METRICS_PORT: 8000
     depends_on:
@@ -1130,7 +1131,7 @@ BROKER_URL={
         "redis://your-cloud-redis:6379"
         if broker == "redis"
         else "kafka://your-cloud-kafka:9092"
-        if preset == "kafka"
+        if broker == "kafka"
         else "amqp://user:pass@your-cloud-rabbitmq:5672"
     }
 """

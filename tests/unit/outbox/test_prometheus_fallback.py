@@ -17,9 +17,7 @@ def _without_prometheus(module_name: str):
     """Context manager that reloads a module without prometheus_client available."""
     # Save original modules
     orig_module = sys.modules.get(module_name)
-    orig_prometheus_modules = {
-        k: v for k, v in sys.modules.items() if "prometheus_client" in k
-    }
+    orig_prometheus_modules = {k: v for k, v in sys.modules.items() if "prometheus_client" in k}
 
     # Remove prometheus from sys.modules
     for key in list(sys.modules.keys()):

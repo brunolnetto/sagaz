@@ -5,7 +5,7 @@ LocalStack provides a fully functional local AWS cloud stack that supports
 aioboto3's async operations. Containers start in parallel automatically.
 
 Requires:
-    - testcontainers-localstack installed  
+    - testcontainers-localstack installed
     - aioboto3 and zstandard packages
     - Docker running with adequate resources
 
@@ -27,12 +27,13 @@ pytestmark = pytest.mark.integration
 async def s3_storage_setup(localstack_container):
     """Setup S3 storage with LocalStack (auto-initialized in parallel)."""
     import aioboto3
-    
+
     # Get LocalStack S3 endpoint
     endpoint_url = localstack_container.get_url()
-    
+
     # Create bucket using boto3 (sync) first
     import boto3
+
     s3_client = boto3.client(
         "s3",
         endpoint_url=endpoint_url,
@@ -42,9 +43,9 @@ async def s3_storage_setup(localstack_container):
     )
     bucket_name = "test-saga-snapshots"
     s3_client.create_bucket(Bucket=bucket_name)
-    
+
     # Return connection details for async client
-    yield {
+    return {
         "endpoint_url": endpoint_url,
         "bucket_name": bucket_name,
         "aws_access_key_id": "test",

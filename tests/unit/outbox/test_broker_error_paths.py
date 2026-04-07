@@ -5,10 +5,9 @@ Tests for broker error paths missing from coverage:
 """
 
 import os
-
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 
 # =============================================================================
 # KafkaBroker missing paths
@@ -59,14 +58,11 @@ class TestKafkaBrokerConnect:
         mock_producer = AsyncMock()
         mock_producer.start = AsyncMock()
 
-        with patch(
-            "sagaz.outbox.brokers.kafka.AIOKafkaProducer", return_value=mock_producer
-        ):
+        with patch("sagaz.outbox.brokers.kafka.AIOKafkaProducer", return_value=mock_producer):
             await broker.connect()
 
             assert broker._connected is True
             # Verify producer was created with SASL kwargs
-            call_kwargs = patch.object.__class__
 
     @pytest.mark.asyncio
     async def test_connect_with_compression(self):
@@ -280,7 +276,9 @@ class TestRabbitMQBrokerHealthCheck:
         broker._connection = mock_connection
 
         # Use a property that raises
-        type(mock_connection).is_closed = property(lambda _: (_ for _ in ()).throw(Exception("err")))
+        type(mock_connection).is_closed = property(
+            lambda _: (_ for _ in ()).throw(Exception("err"))
+        )
 
         result = await broker.health_check()
         assert result is False
@@ -380,9 +378,7 @@ class TestKafkaPublishPaths:
         broker = kafka_mod.KafkaBroker()
         broker._connected = True
         mock_producer = AsyncMock()
-        mock_producer.send_and_wait = AsyncMock(
-            side_effect=kafka_mod.KafkaError("send failed")
-        )
+        mock_producer.send_and_wait = AsyncMock(side_effect=kafka_mod.KafkaError("send failed"))
         broker._producer = mock_producer
 
         with pytest.raises(BrokerPublishError, match="Failed to publish to Kafka"):
@@ -497,8 +493,10 @@ class TestRabbitMQPublishPaths:
         mock_exchange.publish = AsyncMock()
         broker._exchange = mock_exchange
 
-        with patch("sagaz.outbox.brokers.rabbitmq.Message") as MockMessage, \
-             patch("sagaz.outbox.brokers.rabbitmq.DeliveryMode") as MockDeliveryMode:
+        with (
+            patch("sagaz.outbox.brokers.rabbitmq.Message") as MockMessage,
+            patch("sagaz.outbox.brokers.rabbitmq.DeliveryMode") as MockDeliveryMode,
+        ):
             MockMessage.return_value = MagicMock()
             MockDeliveryMode.PERSISTENT = "persistent"
 
@@ -509,8 +507,8 @@ class TestRabbitMQPublishPaths:
     @pytest.mark.asyncio
     async def test_publish_exception_raises_publish_error(self):
         """Lines 202-204: Exception → BrokerPublishError."""
-        from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
         from sagaz.outbox.brokers.base import BrokerPublishError
+        from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
 
         broker = RabbitMQBroker()
         broker._connected = True
@@ -519,8 +517,10 @@ class TestRabbitMQPublishPaths:
         mock_exchange.publish = AsyncMock(side_effect=Exception("channel closed"))
         broker._exchange = mock_exchange
 
-        with patch("sagaz.outbox.brokers.rabbitmq.Message") as MockMessage, \
-             patch("sagaz.outbox.brokers.rabbitmq.DeliveryMode") as MockDeliveryMode:
+        with (
+            patch("sagaz.outbox.brokers.rabbitmq.Message") as MockMessage,
+            patch("sagaz.outbox.brokers.rabbitmq.DeliveryMode") as MockDeliveryMode,
+        ):
             MockMessage.return_value = MagicMock()
             MockDeliveryMode.PERSISTENT = "persistent"
 
@@ -534,8 +534,8 @@ class TestRabbitMQDeclareQueue:
     @pytest.mark.asyncio
     async def test_declare_queue_not_connected(self):
         """Lines 247-248: not connected → BrokerConnectionError."""
-        from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
         from sagaz.outbox.brokers.base import BrokerConnectionError
+        from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
 
         broker = RabbitMQBroker()
         with pytest.raises(BrokerConnectionError, match="not connected"):
@@ -580,9 +580,7 @@ class TestRabbitMQDeclareQueue:
         broker._channel = mock_channel
         broker._exchange = MagicMock()
 
-        await broker.declare_queue(
-            "my-queue", "my.key", dead_letter_exchange="dlx.exchange"
-        )
+        await broker.declare_queue("my-queue", "my.key", dead_letter_exchange="dlx.exchange")
 
         call_args = mock_channel.declare_queue.call_args
         assert call_args[1]["arguments"] == {"x-dead-letter-exchange": "dlx.exchange"}

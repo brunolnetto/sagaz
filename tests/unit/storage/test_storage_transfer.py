@@ -817,13 +817,18 @@ class TestTransferServiceBranches:
 
     async def test_transfer_result_errors_appended(self):
         """308: result.errors.append(str(e)) when outer exception with on_error != ABORT."""
-        from sagaz.storage.transfer.service import TransferService, TransferConfig, TransferErrorPolicy
+        from sagaz.storage.transfer.service import (
+            TransferConfig,
+            TransferErrorPolicy,
+            TransferService,
+        )
 
         mock_source = AsyncMock()
 
         async def _bad_generator():
             yield {"saga_id": str(uuid4()), "saga_name": "Bad"}
-            raise RuntimeError("transfer error")  # Raises after yielding → outer except
+            msg = "transfer error"
+            raise RuntimeError(msg)  # Raises after yielding → outer except
 
         mock_source.export_all = MagicMock(return_value=_bad_generator())
 
@@ -838,10 +843,11 @@ class TestTransferServiceBranches:
 
     async def test_validate_record_no_validation_method(self):
         """396->exit FALSE: target has neither load_saga_state nor get_by_id → no validate."""
-        from sagaz.storage.transfer.service import TransferService, TransferConfig
-        from unittest.mock import MagicMock as MM
+        from unittest.mock import MagicMock
 
-        mock_target = MM()
+        from sagaz.storage.transfer.service import TransferConfig, TransferService
+
+        mock_target = MagicMock()
         # Remove both attributes manually
         if hasattr(mock_target, "load_saga_state"):
             del mock_target.load_saga_state
@@ -857,7 +863,11 @@ class TestTransferServiceBranches:
 
     async def test_transfer_retry_succeeds_covers_line_358_410(self):
         """358-359, 410: on_error=RETRY, retry succeeds → result.transferred += 1."""
-        from sagaz.storage.transfer.service import TransferService, TransferConfig, TransferErrorPolicy
+        from sagaz.storage.transfer.service import (
+            TransferConfig,
+            TransferErrorPolicy,
+            TransferService,
+        )
 
         mock_source = AsyncMock()
 
@@ -872,7 +882,8 @@ class TestTransferServiceBranches:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
-                raise RuntimeError("first attempt fails")
+                msg = "first attempt fails"
+                raise RuntimeError(msg)
             # second attempt (retry) succeeds
 
         mock_target = AsyncMock()

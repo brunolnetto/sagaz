@@ -781,8 +781,9 @@ class TestMissingCoverage:
             from rich.console import Console
 
             mock_console = MagicMock(spec=Console)
-            with patch.object(replay_mod, "HAS_RICH", True), patch.object(
-                replay_mod, "console", mock_console
+            with (
+                patch.object(replay_mod, "HAS_RICH", True),
+                patch.object(replay_mod, "console", mock_console),
             ):
                 result = runner.invoke(
                     time_travel_command,
@@ -819,9 +820,7 @@ class TestMissingCoverage:
         mock_time_travel.return_value.list_state_changes.side_effect = RuntimeError("fail")
 
         with patch("sagaz.cli.replay.HAS_RICH", False):
-            result = runner.invoke(
-                list_changes_command, ["550e8400-e29b-41d4-a716-446655440000"]
-            )
+            result = runner.invoke(list_changes_command, ["550e8400-e29b-41d4-a716-446655440000"])
             assert "fail" in result.output or result.exit_code == 1
 
     def test_replay_exception_without_rich(self, runner, mock_saga_replay, mock_memory_storage):
@@ -850,24 +849,30 @@ class TestCliReplayBranches:
         with patch("sagaz.cli.replay.HAS_RICH", False):
             with patch("sagaz.cli.replay.console", None):
                 import io
+
                 from click.testing import CliRunner
+
                 runner = CliRunner()
                 with runner.isolated_filesystem():
                     # Call directly to exercise line 252
                     import click
+
                     with runner.isolation():
                         _show_replay_result(mock_result, verbose=True, dry_run=False)
 
     def test_time_travel_naive_timestamp(self):
         """360: timestamp.replace(tzinfo=UTC) when tzinfo is None."""
         from click.testing import CliRunner
+
         from sagaz.cli.replay import time_travel_command
 
         runner = CliRunner()
+
         # Patch asyncio.run closing the coroutine to avoid resource warnings
         def _mock_run(coro):
             coro.close()
             return True
+
         with patch("sagaz.cli.replay.asyncio.run", side_effect=_mock_run):
             result = runner.invoke(
                 time_travel_command,

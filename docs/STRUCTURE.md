@@ -1,6 +1,6 @@
 # Documentation Structure Guide
 
-This guide explains how the Sagaz documentation is organized and where to add new content.
+This guide explains how the Sagaz documentation is organised and where to add new content.
 
 ---
 
@@ -18,33 +18,51 @@ docs/
 │   ├── components.md          # Service artifacts & classes
 │   ├── dataflow.md            # Event flow & state machines
 │   ├── decisions.md           # Architecture decision summary
-│   └── adr/                   # Architecture Decision Records
-│       ├── README.md          # ADR index
-│       └── adr-NNN-*.md       # Individual ADRs
+│   ├── adr/                   # Architecture Decision Records
+│   │   ├── README.md          # ADR index
+│   │   └── adr-NNN-*.md       # Individual ADRs
+│   └── diagrams/              # Visual diagrams
+│       ├── outbox-flow.md
+│       ├── k8s-topology.md
+│       └── saga-state-machine.md
 │
 ├── guides/                    # How-to guides
 │   ├── configuration.md       # SagaConfig setup
 │   ├── kubernetes.md          # K8s deployment
-│   └── benchmarking.md        # Performance testing
+│   ├── benchmarking.md        # Performance testing
+│   ├── saga-replay.md         # Saga replay guide
+│   ├── replay-storage-backends.md
+│   ├── ha-postgres-quickref.md
+│   └── mermaid.md             # Mermaid diagram generation
 │
 ├── patterns/                  # Implementation patterns
-│   ├── dead-letter-queue.md   # DLQ pattern
-│   ├── multi-sink-fanout.md   # Multi-sink pattern
-│   ├── consumer-inbox.md      # Idempotent consumption
-│   └── optimistic-sending.md  # Optimistic message sending
+│   ├── dead-letter-queue.md
+│   ├── multi-sink-fanout.md
+│   ├── consumer-inbox.md
+│   └── optimistic-sending.md
 │
-├── reference/                 # API reference
-│   └── api.md                 # API documentation
-│
-├── development/               # Development process
-│   └── testing.md             # Testing guide
+├── integrations/              # External integrations
+│   └── webhook-status-tracking.md
 │
 ├── monitoring/                # Observability
-│   └── alertmanager-rules.yml # Alert templates
+│   ├── OBSERVABILITY_REFERENCE.md
+│   └── METRICS_COMPATIBILITY.md
 │
-└── archive/                   # Historical documentation
+├── reference/                 # API reference
+│   └── configuration.md
+│
+├── development/               # Development process
+│   ├── contributing.md        # Branching, commits, TDD policy
+│   ├── engineering-policies.md # BDD, SOLID, DRY, KISS, YAGNI, ACID
+│   ├── branch-naming.md       # Branch naming convention
+│   ├── testing.md             # Test guide (TDD, categories, coverage)
+│   ├── makefile.md            # Makefile reference
+│   ├── mkdocs.md              # MkDocs local dev & ReadTheDocs setup
+│   └── changelog.md           # Release history
+│
+└── archive/                   # Historical documentation (excluded from site)
     ├── README.md              # Archive index
-    └── HISTORICAL_*.md        # Superseded docs
+    └── *.md                   # Superseded docs
 ```
 
 ---
@@ -53,14 +71,20 @@ docs/
 
 | Content Type | Location | Example |
 |-------------|----------|---------|
-| Architecture decisions | `architecture/adr/` | ADR-015 Unified API |
+| Architecture decisions | `architecture/adr/` | ADR-033 New Feature |
 | Implementation patterns | `patterns/` | Consumer Inbox |
 | How-to guides | `guides/` | Kubernetes Guide |
 | API reference | `reference/` | SagaConfig API |
-| Development process | `development/` | Testing Guide |
-| Historical/deprecated | `archive/` | Old README |
+| Development process | `development/` | Contributing Guide |
+| Outdated / superseded content | `archive/` | Old strategy docs |
 
 ---
+
+## Content Rules
+
+- Archive content is **excluded from the public site** (`mkdocs.yml` → `exclude_docs`).
+- All new features must be documented as part of the same PR (no docs-later pattern).
+- ADRs follow the `adr-NNN-short-title.md` naming convention and are indexed in `architecture/adr/README.md`.
 
 ## Content by Audience
 

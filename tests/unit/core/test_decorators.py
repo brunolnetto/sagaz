@@ -546,6 +546,7 @@ class TestImperativeSupport:
 # Missing Branch Coverage
 # =============================================================================
 
+
 class TestDecoratorsMissingBranches:
     """Tests for missing coverage branches in core/decorators.py."""
 
@@ -676,12 +677,14 @@ class TestDecoratorsMissingBranches:
 
         saga = SimpleSaga()
         storage = AsyncMock()
-        storage.load_saga_state = AsyncMock(return_value={
-            "steps": [
-                {"name": "s1", "status": "completed"},
-                {"name": "s2", "status": "failed"},
-            ]
-        })
+        storage.load_saga_state = AsyncMock(
+            return_value={
+                "steps": [
+                    {"name": "s1", "status": "completed"},
+                    {"name": "s2", "status": "failed"},
+                ]
+            }
+        )
         result = await saga.to_mermaid_with_execution("fake-id", storage)
         assert isinstance(result, str)
 
@@ -699,11 +702,13 @@ class TestDecoratorsMissingBranches:
 
         saga = SimpleSaga()
         storage = AsyncMock()
-        storage.load_saga_state = AsyncMock(return_value={
-            "steps": [
-                {"name": "s1", "status": "compensated"},
-            ]
-        })
+        storage.load_saga_state = AsyncMock(
+            return_value={
+                "steps": [
+                    {"name": "s1", "status": "compensated"},
+                ]
+            }
+        )
         result = await saga.to_mermaid_with_execution("fake-id", storage)
         assert isinstance(result, str)
 
@@ -721,11 +726,13 @@ class TestDecoratorsMissingBranches:
 
         saga = SimpleSaga()
         storage = AsyncMock()
-        storage.load_saga_state = AsyncMock(return_value={
-            "steps": [
-                {"name": "s1", "status": "compensating"},
-            ]
-        })
+        storage.load_saga_state = AsyncMock(
+            return_value={
+                "steps": [
+                    {"name": "s1", "status": "compensating"},
+                ]
+            }
+        )
         result = await saga.to_mermaid_with_execution("fake-id", storage)
         assert isinstance(result, str)
 
@@ -794,7 +801,8 @@ class TestDecoratorsMissingBranches:
         async def save_state_raiser(*args, **kwargs):
             call_count[0] += 1
             if call_count[0] == 2:  # Second call = on completion
-                raise RuntimeError("completion db error")
+                msg = "completion db error"
+                raise RuntimeError(msg)
 
         mock_storage = AsyncMock()
         mock_storage.save_saga_state = save_state_raiser
@@ -818,7 +826,8 @@ class TestDecoratorsMissingBranches:
 
             @step("boom")
             async def boom(self, ctx):
-                raise ValueError("intentional failure")
+                msg = "intentional failure"
+                raise ValueError(msg)
 
         saga = FailSaga()
         saga._config = None  # no storage
@@ -836,7 +845,8 @@ class TestDecoratorsMissingBranches:
 
             @step("boom")
             async def boom(self, ctx):
-                raise ValueError("intentional failure")
+                msg = "intentional failure"
+                raise ValueError(msg)
 
         saga = FailSaga()
         mock_storage = AsyncMock()
@@ -956,7 +966,8 @@ class TestDecoratorsMissingBranches:
 
             @compensate("x")
             async def comp_x(self, ctx):
-                raise AssertionError("Should not be called for tainted step")
+                msg = "Should not be called for tainted step"
+                raise AssertionError(msg)
 
         saga = TinySaga()
         saga._initialize_run({}, None)
@@ -982,13 +993,15 @@ class TestCoreDecoratorsBranches:
 
         # Mock storage that returns saga_data with steps having various statuses
         mock_storage = AsyncMock()
-        mock_storage.load_saga_state = AsyncMock(return_value={
-            "steps": [
-                {"name": "step1", "status": "completed"},
-                {"name": "step2", "status": "compensating"},  # triggers 775->True
-                {"name": "step3", "status": "pending"},  # triggers 775->763 (unknown status)
-            ]
-        })
+        mock_storage.load_saga_state = AsyncMock(
+            return_value={
+                "steps": [
+                    {"name": "step1", "status": "completed"},
+                    {"name": "step2", "status": "compensating"},  # triggers 775->True
+                    {"name": "step3", "status": "pending"},  # triggers 775->763 (unknown status)
+                ]
+            }
+        )
 
         result = await saga.to_mermaid_with_execution(
             saga_id="test-saga-id",

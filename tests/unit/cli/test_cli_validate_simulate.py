@@ -44,14 +44,14 @@ from sagaz import Saga, action
 
 class SimpleSaga(Saga):
     """Simple saga with two steps."""
-    
+
     def __init__(self):
         super().__init__()
-    
+
     @action("step1")
     def step1(self, ctx):
         return {"result": "done"}
-    
+
     @action("step2", depends_on=["step1"])
     def step2(self, ctx):
         return {"result": "done"}
@@ -65,22 +65,22 @@ from sagaz import Saga, action
 
 class ParallelSaga(Saga):
     """Saga with parallel steps."""
-    
+
     def __init__(self):
         super().__init__()
-    
+
     @action("init")
     def init_step(self, ctx):
         return {"initialized": True}
-    
+
     @action("process_a", depends_on=["init"])
     def process_a(self, ctx):
         return {"a": "done"}
-    
+
     @action("process_b", depends_on=["init"])
     def process_b(self, ctx):
         return {"b": "done"}
-    
+
     @action("finalize", depends_on=["process_a", "process_b"])
     def finalize(self, ctx):
         return {"final": "complete"}
@@ -113,7 +113,7 @@ class TestValidateCommand:
         # Change to the temp project directory
         import os
 
-        original_cwd = os.getcwd()
+        original_cwd = Path.cwd()
         try:
             os.chdir(temp_project)
             result = runner.invoke(validate_cmd, [])
@@ -131,7 +131,7 @@ class TestValidateCommand:
 
         import os
 
-        original_cwd = os.getcwd()
+        original_cwd = Path.cwd()
         try:
             os.chdir(temp_project)
             result = runner.invoke(validate_cmd, ["--saga", "SimpleSaga"])
@@ -148,7 +148,7 @@ class TestValidateCommand:
 
         import os
 
-        original_cwd = os.getcwd()
+        original_cwd = Path.cwd()
         try:
             os.chdir(temp_project)
             result = runner.invoke(validate_cmd, ["--saga", "NonexistentSaga"])
@@ -164,7 +164,7 @@ class TestValidateCommand:
 
         import os
 
-        original_cwd = os.getcwd()
+        original_cwd = Path.cwd()
         try:
             os.chdir(temp_project)
             ctx = json.dumps({"test_key": "test_value"})
@@ -180,7 +180,7 @@ class TestValidateCommand:
 
         import os
 
-        original_cwd = os.getcwd()
+        original_cwd = Path.cwd()
         try:
             os.chdir(empty_project)
             result = runner.invoke(validate_cmd, [])
@@ -210,7 +210,7 @@ class TestSimulateCommand:
 
         import os
 
-        original_cwd = os.getcwd()
+        original_cwd = Path.cwd()
         try:
             os.chdir(temp_project)
             result = runner.invoke(simulate_cmd, [])
@@ -230,7 +230,7 @@ class TestSimulateCommand:
 
         import os
 
-        original_cwd = os.getcwd()
+        original_cwd = Path.cwd()
         try:
             os.chdir(temp_project)
             result = runner.invoke(simulate_cmd, ["--saga", "ParallelSaga"])
@@ -249,7 +249,7 @@ class TestSimulateCommand:
 
         import os
 
-        original_cwd = os.getcwd()
+        original_cwd = Path.cwd()
         try:
             os.chdir(temp_project)
             result = runner.invoke(simulate_cmd, ["--saga", "ParallelSaga"])
@@ -271,7 +271,7 @@ class TestSimulateCommand:
 
         import os
 
-        original_cwd = os.getcwd()
+        original_cwd = Path.cwd()
         try:
             os.chdir(temp_project)
             result = runner.invoke(simulate_cmd, ["--saga", "ParallelSaga"])
@@ -287,7 +287,7 @@ class TestSimulateCommand:
 
         import os
 
-        original_cwd = os.getcwd()
+        original_cwd = Path.cwd()
         try:
             os.chdir(temp_project)
             result = runner.invoke(simulate_cmd, ["--show-parallel"])
@@ -304,7 +304,7 @@ class TestSimulateCommand:
 
         import os
 
-        original_cwd = os.getcwd()
+        original_cwd = Path.cwd()
         try:
             os.chdir(temp_project)
             result = runner.invoke(simulate_cmd, ["--saga", "NonexistentSaga"])
@@ -320,7 +320,7 @@ class TestSimulateCommand:
 
         import os
 
-        original_cwd = os.getcwd()
+        original_cwd = Path.cwd()
         try:
             os.chdir(temp_project)
             ctx = json.dumps({"test_key": "test_value"})
@@ -336,7 +336,7 @@ class TestSimulateCommand:
 
         import os
 
-        original_cwd = os.getcwd()
+        original_cwd = Path.cwd()
         try:
             os.chdir(empty_project)
             result = runner.invoke(simulate_cmd, [])
@@ -370,14 +370,14 @@ from sagaz import Saga, action
 
 class InvalidSaga(Saga):
     """Saga with circular dependency."""
-    
+
     def __init__(self):
         super().__init__()
-    
+
     @action("step1", depends_on=["step2"])
     def step1(self, ctx):
         return {}
-    
+
     @action("step2", depends_on=["step1"])
     def step2(self, ctx):
         return {}
@@ -392,7 +392,7 @@ class InvalidSaga(Saga):
 
         import os
 
-        original_cwd = os.getcwd()
+        original_cwd = Path.cwd()
         try:
             os.chdir(invalid_project)
             result = runner.invoke(validate_cmd, [])
@@ -426,7 +426,7 @@ from sagaz import Saga
 
 class EmptySaga(Saga):
     """Saga with no steps defined."""
-    
+
     def __init__(self):
         super().__init__()
 '''
@@ -440,7 +440,7 @@ class EmptySaga(Saga):
 
         import os
 
-        original_cwd = os.getcwd()
+        original_cwd = Path.cwd()
         try:
             os.chdir(empty_saga_project)
             result = runner.invoke(validate_cmd, [])

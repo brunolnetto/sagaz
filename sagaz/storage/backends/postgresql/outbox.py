@@ -512,9 +512,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
         async with self._pool.acquire() as conn, conn.transaction():  # type: ignore[union-attr]
             return await _execute(conn)  # type: ignore[no-any-return]
 
-    async def update_inbox_duration(
-        self, event_id: str, duration_ms: int
-    ) -> None:
+    async def update_inbox_duration(self, event_id: str, duration_ms: int) -> None:
         """Update processing duration for an event."""
         async with self._pool.acquire() as conn:  # type: ignore[union-attr]
             await conn.execute(
@@ -527,9 +525,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
                 event_id,
             )
 
-    async def cleanup_inbox(
-        self, consumer_name: str, older_than_days: int
-    ) -> int:
+    async def cleanup_inbox(self, consumer_name: str, older_than_days: int) -> int:
         """
         Delete old inbox entries.
 

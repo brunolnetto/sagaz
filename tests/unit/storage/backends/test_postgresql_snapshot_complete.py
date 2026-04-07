@@ -171,7 +171,7 @@ class TestPostgreSQLSnapshotComplete:
             from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
-            
+
             replay_result = ReplayResult(
                 replay_id=uuid4(),
                 original_saga_id=uuid4(),
@@ -198,7 +198,7 @@ class TestPostgreSQLSnapshotComplete:
             from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
-            
+
             replay_result = ReplayResult(
                 replay_id=uuid4(),
                 original_saga_id=uuid4(),

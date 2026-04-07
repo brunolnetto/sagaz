@@ -70,7 +70,9 @@ class TestRedisSnapshotStorageUnit:
 
                 from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
 
-                storage = RedisSnapshotStorage(redis_url="redis://invalid:9999", enable_compression=False)
+                storage = RedisSnapshotStorage(
+                    redis_url="redis://invalid:9999", enable_compression=False
+                )
 
                 with pytest.raises(ConnectionError, match="Failed to connect"):
                     await storage._get_redis()
@@ -89,7 +91,9 @@ class TestRedisSnapshotStorageUnit:
 
                 from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
 
-                storage = RedisSnapshotStorage(redis_url="redis://localhost", enable_compression=False)
+                storage = RedisSnapshotStorage(
+                    redis_url="redis://localhost", enable_compression=False
+                )
 
                 # Create test snapshot
                 saga_id = uuid4()
@@ -141,7 +145,9 @@ class TestRedisSnapshotStorageUnit:
 
                 from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
 
-                storage = RedisSnapshotStorage(redis_url="redis://localhost", enable_compression=False)
+                storage = RedisSnapshotStorage(
+                    redis_url="redis://localhost", enable_compression=False
+                )
 
                 # Test get
                 result = await storage.get_snapshot(snapshot_id)
@@ -163,7 +169,9 @@ class TestRedisSnapshotStorageUnit:
 
                 from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
 
-                storage = RedisSnapshotStorage(redis_url="redis://localhost", enable_compression=False)
+                storage = RedisSnapshotStorage(
+                    redis_url="redis://localhost", enable_compression=False
+                )
 
                 result = await storage.get_snapshot(uuid4())
                 assert result is None
@@ -198,7 +206,9 @@ class TestRedisSnapshotStorageUnit:
 
                 from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
 
-                storage = RedisSnapshotStorage(redis_url="redis://localhost", enable_compression=False)
+                storage = RedisSnapshotStorage(
+                    redis_url="redis://localhost", enable_compression=False
+                )
 
                 result = await storage.list_snapshots(saga_id=uuid4())
                 assert len(result) == 1
@@ -235,7 +245,9 @@ class TestRedisSnapshotStorageUnit:
 
                 from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
 
-                storage = RedisSnapshotStorage(redis_url="redis://localhost", enable_compression=False)
+                storage = RedisSnapshotStorage(
+                    redis_url="redis://localhost", enable_compression=False
+                )
 
                 result = await storage.delete_snapshot(snapshot_id)
                 assert result is True
@@ -254,7 +266,9 @@ class TestRedisSnapshotStorageUnit:
 
                 from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
 
-                storage = RedisSnapshotStorage(redis_url="redis://localhost", enable_compression=False)
+                storage = RedisSnapshotStorage(
+                    redis_url="redis://localhost", enable_compression=False
+                )
                 await storage._get_redis()  # Initialize connection
                 await storage.close()
 
@@ -275,7 +289,9 @@ class TestRedisSnapshotStorageUnit:
 
                 from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
 
-                async with RedisSnapshotStorage(redis_url="redis://localhost", enable_compression=False) as storage:
+                async with RedisSnapshotStorage(
+                    redis_url="redis://localhost", enable_compression=False
+                ) as storage:
                     assert storage._redis is not None
 
                 assert mock_client.close.called
@@ -356,7 +372,9 @@ class TestRedisSnapshotStorageAdvanced:
                 from sagaz.core.types import SagaStatus
                 from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
 
-                storage = RedisSnapshotStorage(redis_url="redis://localhost", enable_compression=False)
+                storage = RedisSnapshotStorage(
+                    redis_url="redis://localhost", enable_compression=False
+                )
 
                 retention_until = datetime.now(UTC) + timedelta(hours=1)
                 snapshot = SagaSnapshot(
@@ -384,9 +402,11 @@ class TestRedisSnapshotStorageAdvanced:
             with patch("sagaz.storage.backends.redis.snapshot.redis") as mock_redis:
                 mock_client = AsyncMock()
                 mock_client.ping = AsyncMock()
-                mock_client.zrevrange = AsyncMock(return_value=[
-                    str(uuid4()).encode("utf-8"),
-                ])
+                mock_client.zrevrange = AsyncMock(
+                    return_value=[
+                        str(uuid4()).encode("utf-8"),
+                    ]
+                )
 
                 snapshot_data = {
                     "snapshot_id": str(uuid4()),
@@ -405,7 +425,9 @@ class TestRedisSnapshotStorageAdvanced:
 
                 from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
 
-                storage = RedisSnapshotStorage(redis_url="redis://localhost", enable_compression=False)
+                storage = RedisSnapshotStorage(
+                    redis_url="redis://localhost", enable_compression=False
+                )
 
                 result = await storage.get_latest_snapshot(uuid4(), before_step="nonexistent_step")
                 assert result is None
@@ -422,7 +444,9 @@ class TestRedisSnapshotStorageAdvanced:
 
                 from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
 
-                storage = RedisSnapshotStorage(redis_url="redis://localhost", enable_compression=False)
+                storage = RedisSnapshotStorage(
+                    redis_url="redis://localhost", enable_compression=False
+                )
 
                 result = await storage.delete_snapshot(uuid4())
                 assert result is False
@@ -438,7 +462,9 @@ class TestRedisSnapshotStorageAdvanced:
 
                 from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
 
-                storage = RedisSnapshotStorage(redis_url="redis://localhost", enable_compression=False)
+                storage = RedisSnapshotStorage(
+                    redis_url="redis://localhost", enable_compression=False
+                )
 
                 result = await storage.delete_expired_snapshots()
                 assert result == 0
@@ -455,11 +481,12 @@ class TestRedisSnapshotStorageAdvanced:
 
                 from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
 
-                storage = RedisSnapshotStorage(redis_url="redis://localhost", enable_compression=False)
+                storage = RedisSnapshotStorage(
+                    redis_url="redis://localhost", enable_compression=False
+                )
 
                 result = await storage.get_replay_log(uuid4())
                 assert result is None
-
 
 
 class TestRedisSnapshotMissingBranches:
@@ -499,43 +526,46 @@ class TestRedisSnapshotMissingBranches:
     @pytest.mark.asyncio
     async def test_close_when_not_connected(self):
         """Line 320->exit: close() is no-op when _redis is None."""
-        from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+        with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
+            from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
 
-        storage = RedisSnapshotStorage(redis_url="redis://localhost")
-        storage._redis = None
-        await storage.close()  # must not raise
+            storage = RedisSnapshotStorage(redis_url="redis://localhost", enable_compression=False)
+            storage._redis = None
+            await storage.close()  # must not raise
 
     @pytest.mark.asyncio
     async def test_list_snapshots_filters_none(self):
         """Line 231->228: list_snapshots skips None from get_snapshot."""
-        from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+        with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
+            from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
 
-        storage = RedisSnapshotStorage(redis_url="redis://localhost")
+            storage = RedisSnapshotStorage(redis_url="redis://localhost", enable_compression=False)
 
-        fake_id = uuid4()
+            fake_id = uuid4()
 
-        mock_redis = AsyncMock()
-        mock_redis.zrevrange = AsyncMock(return_value=[str(fake_id).encode()])
-        storage._redis = mock_redis
-        storage.get_snapshot = AsyncMock(return_value=None)
+            mock_redis = AsyncMock()
+            mock_redis.zrevrange = AsyncMock(return_value=[str(fake_id).encode()])
+            storage._redis = mock_redis
+            storage.get_snapshot = AsyncMock(return_value=None)
 
-        result = await storage.list_snapshots(uuid4())
+            result = await storage.list_snapshots(uuid4())
         assert result == []
 
     @pytest.mark.asyncio
     async def test_list_replay_logs_filters_none(self):
         """Lines 313->310: list_replays skips None from get_replay_log."""
-        from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+        with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
+            from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
 
-        storage = RedisSnapshotStorage(redis_url="redis://localhost")
+            storage = RedisSnapshotStorage(redis_url="redis://localhost", enable_compression=False)
 
-        fake_id = uuid4()
-        mock_redis = AsyncMock()
-        mock_redis.zrevrange = AsyncMock(return_value=[str(fake_id).encode()])
-        storage._redis = mock_redis
-        storage.get_replay_log = AsyncMock(return_value=None)
+            fake_id = uuid4()
+            mock_redis = AsyncMock()
+            mock_redis.zrevrange = AsyncMock(return_value=[str(fake_id).encode()])
+            storage._redis = mock_redis
+            storage.get_replay_log = AsyncMock(return_value=None)
 
-        result = await storage.list_replays(uuid4())
+            result = await storage.list_replays(uuid4())
         assert result == []
 
 

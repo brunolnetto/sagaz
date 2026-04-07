@@ -210,19 +210,19 @@ def _discover_sagas_in_paths(paths: list[str]):
     return discovered
 
 
-def _discover_sagas_in_directory(directory: Path, sys, importlib, inspect, Saga):
+def _discover_sagas_in_directory(directory: Path, sys, importlib, inspect, saga_class):
     """Discover sagas in a specific directory."""
     discovered = []
 
     for file_path in directory.rglob("*.py"):
         if not file_path.name.startswith("__"):
-            saga_info = _try_load_sagas_from_file(file_path, sys, importlib, inspect, Saga)
+            saga_info = _try_load_sagas_from_file(file_path, sys, importlib, inspect, saga_class)
             discovered.extend(saga_info)
 
     return discovered
 
 
-def _try_load_sagas_from_file(file_path: Path, sys, importlib, inspect, Saga):
+def _try_load_sagas_from_file(file_path: Path, sys, importlib, inspect, saga_class):
     """Try to load sagas from a Python file."""
     try:
         module_name = f"sagaz_user_code.{file_path.stem}"
@@ -235,17 +235,17 @@ def _try_load_sagas_from_file(file_path: Path, sys, importlib, inspect, Saga):
         sys.modules[module_name] = module
         spec.loader.exec_module(module)
 
-        return _extract_sagas_from_module(module, file_path, inspect, Saga)
+        return _extract_sagas_from_module(module, file_path, inspect, saga_class)
     except Exception:
         return []
 
 
-def _extract_sagas_from_module(module, file_path: Path, inspect, Saga):
-    """Extract Saga classes from module."""
+def _extract_sagas_from_module(module, file_path: Path, inspect, saga_class):
+    """Extract saga_class classes from module."""
     discovered = []
 
     for name, obj in inspect.getmembers(module):
-        if inspect.isclass(obj) and issubclass(obj, Saga) and obj is not Saga:
+        if inspect.isclass(obj) and issubclass(obj, saga_class) and obj is not saga_class:
             discovered.append({"name": name, "file": str(file_path), "class": obj})
 
     return discovered
@@ -282,15 +282,15 @@ def _load_python_module(module_path: str, importlib):
     return module
 
 
-def _find_saga_class_in_module(module, saga_class_name: str | None, inspect, Saga):
-    """Find Saga class in module."""
+def _find_saga_class_in_module(module, saga_class_name: str | None, inspect, saga_class):
+    """Find saga_class class in module."""
     if saga_class_name:
         return _get_named_saga_class(module, saga_class_name)
-    return _auto_detect_saga_class(module, inspect, Saga)
+    return _auto_detect_saga_class(module, inspect, saga_class)
 
 
 def _get_named_saga_class(module, saga_class_name: str):
-    """Get specific Saga class by name."""
+    """Get specific saga_class class by name."""
     saga_cls = getattr(module, saga_class_name, None)
     if saga_cls is None:
         click.echo(f"Error: Saga class '{saga_class_name}' not found", err=True)
@@ -298,12 +298,12 @@ def _get_named_saga_class(module, saga_class_name: str):
     return saga_cls
 
 
-def _auto_detect_saga_class(module, inspect, Saga):
+def _auto_detect_saga_class(module, inspect, saga_class):
     """Auto-detect Saga class in module."""
     saga_classes = [
         obj
         for name, obj in inspect.getmembers(module, inspect.isclass)
-        if issubclass(obj, Saga) and obj is not Saga
+        if issubclass(obj, saga_class) and obj is not saga_class
     ]
 
     if not saga_classes:
@@ -312,7 +312,7 @@ def _auto_detect_saga_class(module, inspect, Saga):
 
     if len(saga_classes) > 1:
         click.echo(
-            f"Error: Multiple Saga classes found: {[c.__name__ for c in saga_classes]}. "
+            f"Error: Multiple saga_class classes found: {[c.__name__ for c in saga_classes]}. "
             "Use --saga-class to specify.",
             err=True,
         )
@@ -482,7 +482,7 @@ def _build_validation_table(checks: dict) -> Table:
 
 def _display_single_validation_result_rich(saga_name: str, result):
     """Display validation result for a single saga."""
-    console.print(f"\n[bold cyan]Saga: {saga_name}[/bold cyan]")
+    console.print(f"\n[bold cyan]saga_class: {saga_name}[/bold cyan]")
 
     if result.success:
         if result.validation_checks:
@@ -542,7 +542,7 @@ def _display_project_validation_results_plain(results):
 
 def _display_single_simulation_result_rich(saga_name: str, result, show_parallel: bool):
     """Display simulation result for a single saga."""
-    console.print(f"\n[bold cyan]═══ Saga: {saga_name} ═══[/bold cyan]")
+    console.print(f"\n[bold cyan]═══ saga_class: {saga_name} ═══[/bold cyan]")
 
     if not result.success:
         console.print("[red]Validation failed - cannot simulate[/red]")

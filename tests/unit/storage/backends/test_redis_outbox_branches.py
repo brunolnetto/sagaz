@@ -125,6 +125,7 @@ def _make_initialized_storage():
 async def test_initialize_non_busygroup_reraises():
     """Line 115: non-BUSYGROUP xgroup_create error is re-raised."""
     from unittest.mock import patch
+
     import redis.asyncio as redis_lib
 
     storage = RedisOutboxStorage("redis://localhost")
@@ -186,7 +187,7 @@ async def test_update_status_lazy_initialize():
     )
     storage.get_by_id = AsyncMock(return_value=exist_event)
 
-    result = await storage.update_status("up-1", OutboxStatus.SENT)
+    await storage.update_status("up-1", OutboxStatus.SENT)
     assert storage._initialized is True
 
 
@@ -232,7 +233,9 @@ async def test_claim_batch_returns_events():
         status=OutboxStatus.PENDING,
         created_at=datetime.now(UTC),
     )
-    storage._read_from_stream = AsyncMock(return_value=[[("stream", [("msg-1", {b"event_id": b"evt-claim"})])]])
+    storage._read_from_stream = AsyncMock(
+        return_value=[[("stream", [("msg-1", {b"event_id": b"evt-claim"})])]]
+    )
     storage._process_claimed_messages = AsyncMock(return_value=[exist_event])
 
     result = await storage.claim_batch("worker-1")
@@ -305,9 +308,11 @@ async def test_get_stuck_events_with_stuck():
         created_at=datetime.now(UTC),
     )
 
-    storage._redis.xpending_range = AsyncMock(return_value=[
-        {"message_id": b"stuck-1", "time_since_delivered": 9999999},
-    ])
+    storage._redis.xpending_range = AsyncMock(
+        return_value=[
+            {"message_id": b"stuck-1", "time_since_delivered": 9999999},
+        ]
+    )
     storage.get_by_id = AsyncMock(return_value=stuck_event)
 
     result = await storage.get_stuck_events(claimed_older_than_seconds=1.0)
@@ -332,9 +337,11 @@ async def test_release_stuck_events_releases():
     storage = RedisOutboxStorage("redis://localhost")
     storage._initialized = True
     storage._redis = AsyncMock()
-    storage._redis.xpending_range = AsyncMock(return_value=[
-        {"message_id": b"msg-stuck", "time_since_delivered": 999999999},
-    ])
+    storage._redis.xpending_range = AsyncMock(
+        return_value=[
+            {"message_id": b"msg-stuck", "time_since_delivered": 999999999},
+        ]
+    )
     storage._redis.xclaim = AsyncMock()
 
     count = await storage.release_stuck_events(claimed_older_than_seconds=1.0)
@@ -347,9 +354,11 @@ async def test_release_stuck_events_claim_failure():
     storage = RedisOutboxStorage("redis://localhost")
     storage._initialized = True
     storage._redis = AsyncMock()
-    storage._redis.xpending_range = AsyncMock(return_value=[
-        {"message_id": b"msg-stuck", "time_since_delivered": 999999999},
-    ])
+    storage._redis.xpending_range = AsyncMock(
+        return_value=[
+            {"message_id": b"msg-stuck", "time_since_delivered": 999999999},
+        ]
+    )
     storage._redis.xclaim = AsyncMock(side_effect=Exception("xclaim failed"))
 
     count = await storage.release_stuck_events(claimed_older_than_seconds=1.0)
@@ -571,7 +580,24 @@ class TestRedisOutboxMissingBranches:
             (5, [b"test:outbox:meta:evt-1"]),  # cursor != 0 → continue
             (0, [b"test:outbox:meta:evt-2"]),  # cursor == 0 → break
         ]
-        mock_redis.hgetall.return_value = {b"saga_id": b"other", b"event_id": b"x", b"event_type": b"T", b"payload": b"{}", b"headers": b"{}", b"status": b"pending", b"retry_count": b"0", b"created_at": b"2024-01-15T10:00:00+00:00", b"aggregate_type": b"saga", b"aggregate_id": b"x", b"claimed_at": b"", b"sent_at": b"", b"last_error": b"", b"worker_id": b"", b"routing_key": b"", b"partition_key": b""}
+        mock_redis.hgetall.return_value = {
+            b"saga_id": b"other",
+            b"event_id": b"x",
+            b"event_type": b"T",
+            b"payload": b"{}",
+            b"headers": b"{}",
+            b"status": b"pending",
+            b"retry_count": b"0",
+            b"created_at": b"2024-01-15T10:00:00+00:00",
+            b"aggregate_type": b"saga",
+            b"aggregate_id": b"x",
+            b"claimed_at": b"",
+            b"sent_at": b"",
+            b"last_error": b"",
+            b"worker_id": b"",
+            b"routing_key": b"",
+            b"partition_key": b"",
+        }
         await storage.get_events_by_saga("my-saga")
 
     async def test_find_stuck_events_below_threshold(self, storage, mock_redis):

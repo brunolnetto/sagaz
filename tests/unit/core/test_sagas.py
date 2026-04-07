@@ -7,6 +7,7 @@ Includes:
 """
 
 import asyncio
+from datetime import UTC
 from unittest.mock import MagicMock
 
 import pytest
@@ -199,6 +200,7 @@ class TestFailFastWithGraceStrategy:
 # Missing Branch Coverage for core/saga.py
 # =============================================================================
 
+
 class TestSagaMissingBranches:
     """Tests for missing branches in core/saga.py."""
 
@@ -213,7 +215,7 @@ class TestSagaMissingBranches:
 
         saga._has_dependencies = True
         saga.step_dependencies = {"a": {"external_dep"}}  # external_dep NOT in step_names
-        step_a = type("Step", (), {"name": "a", "idempotency_key": "k1"})()
+        type("Step", (), {"name": "a", "idempotency_key": "k1"})()
 
         # _build_adjacency_list uses saga.step_dependencies
         adjacency = saga._build_adjacency_list({"a"})
@@ -291,7 +293,9 @@ class TestSagaMissingBranches:
         from sagaz.core.replay import ReplayConfig, SnapshotStrategy
 
         saga = Saga("snap_warn_test")
-        saga.replay_config = ReplayConfig(enable_snapshots=True, snapshot_strategy=SnapshotStrategy.BEFORE_EACH_STEP)
+        saga.replay_config = ReplayConfig(
+            enable_snapshots=True, snapshot_strategy=SnapshotStrategy.BEFORE_EACH_STEP
+        )
         saga.snapshot_storage = None  # No storage!
 
         # Should not raise, just log warning
@@ -303,6 +307,7 @@ class TestSagaMissingBranches:
     async def test_capture_snapshot_save_exception_logged(self):
         """Lines 1100-1101: exception from snapshot_storage.save_snapshot is logged."""
         from unittest.mock import AsyncMock, MagicMock
+
         from sagaz.core.replay import ReplayConfig, SnapshotStrategy
 
         mock_storage = AsyncMock()
@@ -327,9 +332,10 @@ class TestSagaMissingBranches:
     @pytest.mark.asyncio
     async def test_execute_from_snapshot(self):
         """Lines 1121-1192: execute_from_snapshot resumes saga from saved state."""
+        from datetime import datetime, timedelta, timezone
         from uuid import uuid4
-        from datetime import datetime, timezone, timedelta
-        from sagaz.core.replay import SagaSnapshot, ReplayConfig, SnapshotStrategy
+
+        from sagaz.core.replay import ReplayConfig, SagaSnapshot, SnapshotStrategy
         from sagaz.core.saga import SagaStep
 
         results = []
@@ -348,7 +354,7 @@ class TestSagaMissingBranches:
 
         # step_a is already completed in the snapshot
         saga_id = uuid4()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         snapshot = SagaSnapshot.create(
             saga_id=saga_id,
             saga_name="resume_test",
@@ -429,7 +435,8 @@ class TestCoreSagaResumeBranches:
         saga = ImperativeSaga("bad_saga")
 
         async def failing_action(ctx):
-            raise RuntimeError("step failed")
+            msg = "step failed"
+            raise RuntimeError(msg)
 
         await saga.add_step("step1", failing_action)
 
@@ -440,7 +447,8 @@ class TestCoreSagaResumeBranches:
 
         result = await saga.execute_from_snapshot(snapshot=snapshot)
         # Exception from step should be handled via _handle_execution_failure
-        assert result is not None and not result.success
+        assert result is not None
+        assert not result.success
 
     async def test_resume_transition_not_allowed(self):
         """1150-1152: TransitionNotAllowed when state machine cannot start from snapshot."""

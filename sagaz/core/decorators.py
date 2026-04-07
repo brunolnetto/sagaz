@@ -750,9 +750,7 @@ class Saga:
 
         if not saga_data:
             # No execution found, return diagram without highlighting
-            return self.to_mermaid(
-                direction, show_compensation, None, show_state_markers
-            )
+            return self.to_mermaid(direction, show_compensation, None, show_state_markers)
 
         # Parse steps to build highlight trail
         steps_data = saga_data.get("steps", [])
@@ -915,9 +913,7 @@ class Saga:
                         self._saga_id, name, SagaStatus.ROLLED_BACK, [], self._context
                     )
                 except Exception as e_storage:
-                    logger.warning(
-                        f"Failed to persist saga failure: {e_storage}"
-                    )
+                    logger.warning(f"Failed to persist saga failure: {e_storage}")
 
             raise
 

@@ -22,7 +22,8 @@
 | **Getting Started** | [Quickstart](quickstart.md), [Configuration](guides/configuration.md) |
 | **Patterns** | [Consumer Inbox](patterns/consumer-inbox.md), [DLQ](patterns/dead-letter-queue.md) |
 | **Operations** | [Kubernetes](guides/kubernetes.md), [Benchmarking](guides/benchmarking.md) |
-| **Strategy** | [Roadmap](ROADMAP.md) *(now includes strategy)* |
+| **Contributing** | [Contributing Guide](development/contributing.md), [Testing Guide](development/testing.md) |
+| **Strategy** | [Roadmap](ROADMAP.md) |
 
 ---
 
@@ -37,6 +38,7 @@
 | **Deploy to Kubernetes** | [Kubernetes Guide](guides/kubernetes.md) |
 | **Run benchmarks** | [Benchmarking Guide](guides/benchmarking.md) |
 | **See what's planned** | [Roadmap & Strategy](ROADMAP.md) |
+| **Contribute** | [Contributing Guide](development/contributing.md) |
 
 ---
 
@@ -46,24 +48,23 @@
 docs/
 ├── quickstart.md              # 5-minute setup
 ├── ROADMAP.md                 # Roadmap & Strategy 2026
-├── STRUCTURE.md               # Documentation guide
 ├── architecture/              # System design
-│   ├── overview.md            # High-level architecture
-│   ├── components.md          # Service artifacts & classes
-│   ├── dataflow.md            # Event flow & state machines
-│   ├── decisions.md           # Architecture Decision Records
-│   └── adr/                   # Individual ADRs
-│       └── README.md          # ADR Index
+│   ├── overview.md
+│   ├── components.md
+│   ├── dataflow.md
+│   ├── decisions.md
+│   ├── adr/                   # Architecture Decision Records
+│   └── diagrams/
 ├── guides/                    # How-to guides
-│   ├── configuration.md       # SagaConfig unified setup
-│   ├── kubernetes.md          # K8s deployment
-│   └── benchmarking.md        # Performance testing
 ├── patterns/                  # Implementation patterns
-│   ├── consumer-inbox.md      # Idempotent consumption
-│   ├── dead-letter-queue.md   # DLQ pattern
-│   └── multi-sink-fanout.md   # Multi-sink pattern
-├── reference/                 # Technical reference
-│   └── api.md                 # API documentation
+├── integrations/              # External integrations
+├── monitoring/                # Observability reference
+├── reference/                 # API reference
+├── development/               # Contributing, testing, changelog
+│   ├── contributing.md        # Branching, commits, TDD policy
+│   ├── testing.md
+│   ├── makefile.md
+│   └── changelog.md
 └── archive/                   # Historical documentation
 ```
 

@@ -696,6 +696,7 @@ class TestParallelAnalysis:
 # Missing Branch Coverage
 # =============================================================================
 
+
 class TestDryRunMissingBranches:
     """Tests for missing coverage branches in dry_run.py."""
 
@@ -715,6 +716,7 @@ class TestDryRunMissingBranches:
         # Use a raw string that matches neither enum value comparison
         # Create a mock mode: looks like SIMULATE for pass-through but won't match
         from unittest.mock import MagicMock
+
         fake_mode = MagicMock()
         fake_mode.__eq__ = lambda self, other: False  # Never equal to either mode
         result = await engine.run(saga, {}, fake_mode)
