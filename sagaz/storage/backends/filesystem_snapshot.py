@@ -155,10 +155,12 @@ class FilesystemSnapshotStorage(SnapshotStorage):
                 index_data = {"saga_id": str(saga_id), "snapshots": []}
 
             # Add new snapshot
-            index_data["snapshots"].append({
-                "snapshot_id": str(snapshot_id),
-                "created_at": created_at.isoformat(),
-            })
+            index_data["snapshots"].append(
+                {
+                    "snapshot_id": str(snapshot_id),
+                    "created_at": created_at.isoformat(),
+                }
+            )
 
             # Sort by created_at DESC
             index_data["snapshots"].sort(key=lambda x: x["created_at"], reverse=True)

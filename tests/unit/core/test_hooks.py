@@ -45,11 +45,13 @@ class TestStepHooksBasic:
         success_events = []
 
         async def track_success(ctx: dict[str, Any], step_name: str, result: Any):
-            success_events.append({
-                "step": step_name,
-                "result": result,
-                "order_id": ctx.get("order_id"),
-            })
+            success_events.append(
+                {
+                    "step": step_name,
+                    "result": result,
+                    "order_id": ctx.get("order_id"),
+                }
+            )
 
         class TestSaga(Saga):
             @step("create_order", on_success=track_success)
