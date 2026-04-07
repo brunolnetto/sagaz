@@ -261,13 +261,15 @@ class TestSQLiteSagaStorage:
     @pytest.mark.asyncio
     async def test_import_record(self, storage):
         """Test importing a record."""
-        await storage.import_record({
-            "saga_id": "imported-saga",
-            "saga_name": "ImportedSaga",
-            "status": "completed",
-            "steps": [],
-            "context": {"imported": True},
-        })
+        await storage.import_record(
+            {
+                "saga_id": "imported-saga",
+                "saga_name": "ImportedSaga",
+                "status": "completed",
+                "steps": [],
+                "context": {"imported": True},
+            }
+        )
 
         saga = await storage.load_saga_state("imported-saga")
         assert saga is not None
@@ -442,12 +444,14 @@ class TestSQLiteOutboxStorage:
     @pytest.mark.asyncio
     async def test_import_record(self, storage):
         """Test importing a record."""
-        await storage.import_record({
-            "saga_id": "imported-order",
-            "event_type": "OrderImported",
-            "payload": {"imported": True},
-            "status": "pending",
-        })
+        await storage.import_record(
+            {
+                "saga_id": "imported-order",
+                "event_type": "OrderImported",
+                "payload": {"imported": True},
+                "status": "pending",
+            }
+        )
 
         count = await storage.count()
         assert count == 1

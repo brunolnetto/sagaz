@@ -110,13 +110,15 @@ class LoanOriginationSaga(Saga):
 
 async def main():
     saga = LoanOriginationSaga()
-    await saga.run({
-        "application_id": "LOAN-2026-001",
-        "applicant_id": "CUST-12345",
-        "loan_amount": Decimal("35000"),
-        "loan_term_months": 60,
-        "credit_score": 745,
-    })
+    await saga.run(
+        {
+            "application_id": "LOAN-2026-001",
+            "applicant_id": "CUST-12345",
+            "loan_amount": Decimal("35000"),
+            "loan_term_months": 60,
+            "credit_score": 745,
+        }
+    )
 
 
 if __name__ == "__main__":

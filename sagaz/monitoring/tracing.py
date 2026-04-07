@@ -125,19 +125,23 @@ class SagaTracer:
             kind=trace.SpanKind.INTERNAL,
         ) as span:
             # Set saga attributes
-            span.set_attributes({
-                "saga.id": saga_id,
-                "saga.name": saga_name,
-                "saga.total_steps": total_steps,
-                "saga.service": self.service_name,
-            })
+            span.set_attributes(
+                {
+                    "saga.id": saga_id,
+                    "saga.name": saga_name,
+                    "saga.total_steps": total_steps,
+                    "saga.service": self.service_name,
+                }
+            )
 
             # Store trace context
-            trace_context.set({
-                "saga_id": saga_id,
-                "saga_name": saga_name,
-                "span": span,
-            })
+            trace_context.set(
+                {
+                    "saga_id": saga_id,
+                    "saga_name": saga_name,
+                    "span": span,
+                }
+            )
 
             try:
                 yield span
@@ -168,12 +172,14 @@ class SagaTracer:
             name=f"saga.step.{step_type}.{step_name}", kind=trace.SpanKind.INTERNAL
         ) as span:
             # Set step attributes
-            span.set_attributes({
-                "saga.id": saga_id,
-                "saga.name": saga_name,
-                "saga.step.name": step_name,
-                "saga.step.type": step_type,
-            })
+            span.set_attributes(
+                {
+                    "saga.id": saga_id,
+                    "saga.name": saga_name,
+                    "saga.step.name": step_name,
+                    "saga.step.type": step_type,
+                }
+            )
 
             try:
                 yield span
@@ -198,12 +204,14 @@ class SagaTracer:
 
         current_span = trace.get_current_span()
         if current_span.is_recording():
-            current_span.set_attributes({
-                "saga.status": status.value,
-                "saga.completed_steps": completed_steps,
-                "saga.total_steps": total_steps,
-                "saga.duration_ms": duration_ms,
-            })
+            current_span.set_attributes(
+                {
+                    "saga.status": status.value,
+                    "saga.completed_steps": completed_steps,
+                    "saga.total_steps": total_steps,
+                    "saga.duration_ms": duration_ms,
+                }
+            )
 
             if status == SagaStatus.COMPLETED:
                 current_span.set_status(Status(StatusCode.OK))
@@ -230,11 +238,13 @@ class SagaTracer:
 
         current_span = trace.get_current_span()
         if current_span.is_recording():
-            current_span.set_attributes({
-                "saga.step.status": status.value,
-                "saga.step.duration_ms": duration_ms,
-                "saga.step.retry_count": retry_count,
-            })
+            current_span.set_attributes(
+                {
+                    "saga.step.status": status.value,
+                    "saga.step.duration_ms": duration_ms,
+                    "saga.step.retry_count": retry_count,
+                }
+            )
 
             if status == SagaStepStatus.COMPLETED:
                 current_span.set_status(Status(StatusCode.OK))
@@ -378,10 +388,12 @@ def setup_tracing(
             from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
             # Create resource
-            resource = Resource.create({
-                "service.name": service_name,
-                "service.version": "1.0.0",
-            })
+            resource = Resource.create(
+                {
+                    "service.name": service_name,
+                    "service.version": "1.0.0",
+                }
+            )
 
             # Set up tracer provider
             trace.set_tracer_provider(TracerProvider(resource=resource))
