@@ -29,6 +29,7 @@ from sagaz.cli.project import check as check_cmd
 from sagaz.cli.project import list_sagas
 from sagaz.cli.replay import replay
 
+from sagaz.cli.deploy import deploy_cmd, destroy_cmd
 try:
     from rich.console import Console
     from rich.panel import Panel
