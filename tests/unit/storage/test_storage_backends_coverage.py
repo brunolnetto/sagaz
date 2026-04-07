@@ -766,15 +766,13 @@ class TestSQLiteSagaStorageCoverage:
         from sagaz.storage.backends.sqlite.saga import SQLiteSagaStorage
 
         async with SQLiteSagaStorage(":memory:") as storage:
-            await storage.import_record(
-                {
-                    "saga_id": "imported-saga",
-                    "saga_name": "ImportedSaga",
-                    "status": "completed",
-                    "steps": [{"name": "step1"}],
-                    "context": {"data": "test"},
-                }
-            )
+            await storage.import_record({
+                "saga_id": "imported-saga",
+                "saga_name": "ImportedSaga",
+                "status": "completed",
+                "steps": [{"name": "step1"}],
+                "context": {"data": "test"},
+            })
 
             saga = await storage.load_saga_state("imported-saga")
 
@@ -909,15 +907,13 @@ class TestSQLiteOutboxStorageCoverage:
         from sagaz.storage.backends.sqlite.outbox import SQLiteOutboxStorage
 
         async with SQLiteOutboxStorage(":memory:") as storage:
-            await storage.import_record(
-                {
-                    "event_id": "evt-imported",
-                    "saga_id": "imported-saga",
-                    "event_type": "ImportedEvent",
-                    "payload": {"data": "test"},
-                    "status": "pending",
-                }
-            )
+            await storage.import_record({
+                "event_id": "evt-imported",
+                "saga_id": "imported-saga",
+                "event_type": "ImportedEvent",
+                "payload": {"data": "test"},
+                "status": "pending",
+            })
 
             event = await storage.get_by_id("evt-imported")
 
@@ -1060,15 +1056,13 @@ class TestPostgreSQLOutboxStorageCoverage:
         # Mock insert method
         storage.insert = AsyncMock()
 
-        await storage.import_record(
-            {
-                "event_id": "evt-123",
-                "saga_id": "saga-456",
-                "event_type": "TestEvent",
-                "payload": {"data": "test"},
-                "status": "pending",
-            }
-        )
+        await storage.import_record({
+            "event_id": "evt-123",
+            "saga_id": "saga-456",
+            "event_type": "TestEvent",
+            "payload": {"data": "test"},
+            "status": "pending",
+        })
 
         storage.insert.assert_called_once()
         call_args = storage.insert.call_args[0][0]
@@ -1117,15 +1111,13 @@ class TestInMemoryOutboxStorageCoverage:
 
         storage = InMemoryOutboxStorage()
 
-        await storage.import_record(
-            {
-                "event_id": "evt-imported",
-                "saga_id": "imported-saga",
-                "event_type": "ImportedEvent",
-                "payload": {"data": "test"},
-                "status": "pending",
-            }
-        )
+        await storage.import_record({
+            "event_id": "evt-imported",
+            "saga_id": "imported-saga",
+            "event_type": "ImportedEvent",
+            "payload": {"data": "test"},
+            "status": "pending",
+        })
 
         event = await storage.get_by_id("evt-imported")
 

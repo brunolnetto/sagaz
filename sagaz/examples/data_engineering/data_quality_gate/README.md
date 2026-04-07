@@ -37,9 +37,9 @@ Before loading data to production systems, you need to validate:
 
 ```python
 quality_rules = {
-    "null_threshold": 0.05,        # Max 5% nulls
-    "duplicate_threshold": 0.01,   # Max 1% duplicates
-    "max_violation_ratio": 0.03,   # Max 3% business rule violations
+    "null_threshold": 0.05,  # Max 5% nulls
+    "duplicate_threshold": 0.01,  # Max 1% duplicates
+    "max_violation_ratio": 0.03,  # Max 3% business rule violations
 }
 ```
 
@@ -74,8 +74,8 @@ Automatic actions taken:
 from great_expectations import DataContext
 from examples.data_engineering.data_quality_gate import DataQualityGateSaga
 
+
 class GreatExpectationsGateSaga(DataQualityGateSaga):
-    
     @action("validate_with_ge", depends_on=["ingest_to_landing"])
     async def validate_with_ge(self, ctx):
         context = DataContext()

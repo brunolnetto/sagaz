@@ -215,18 +215,16 @@ class CrossBorderWireTransferSaga(Saga):
 async def main():
     saga = CrossBorderWireTransferSaga()
 
-    await saga.run(
-        {
-            "transfer_id": "WIRE-2026-001",
-            "sender_account": "ACCT-SENDER-001",
-            "receiver_account": "ACCT-RECEIVER-001",
-            "sender_bic": "BOFAUS3N",
-            "receiver_bic": "DEUTDEFF",
-            "amount": Decimal("50000"),
-            "from_currency": "USD",
-            "to_currency": "EUR",
-        }
-    )
+    await saga.run({
+        "transfer_id": "WIRE-2026-001",
+        "sender_account": "ACCT-SENDER-001",
+        "receiver_account": "ACCT-RECEIVER-001",
+        "sender_bic": "BOFAUS3N",
+        "receiver_bic": "DEUTDEFF",
+        "amount": Decimal("50000"),
+        "from_currency": "USD",
+        "to_currency": "EUR",
+    })
 
 
 if __name__ == "__main__":

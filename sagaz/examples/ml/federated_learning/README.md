@@ -78,7 +78,7 @@ saga = EdgeFederatedLearningSaga(
     target_accuracy=0.85,
     min_participating_nodes=10,
     training_rounds=5,
-    simulate_failure=False
+    simulate_failure=False,
 )
 
 # Execute training round
@@ -113,12 +113,12 @@ Selects available edge devices for training based on resources.
             "battery_level": 86,
             "network_quality": "4G",
             "local_dataset_size": 1100,
-            "status": "available"
+            "status": "available",
         },
         # ... 24 more nodes
     ],
     "total_nodes": 25,
-    "total_dataset_size": 32500
+    "total_dataset_size": 32500,
 }
 ```
 
@@ -136,7 +136,7 @@ Distributes compressed global model to all edge nodes.
     "nodes_received": 25,
     "distribution_method": "P2P + CDN fallback",
     "average_download_time_sec": 12.3,
-    "failed_downloads": 0
+    "failed_downloads": 0,
 }
 ```
 
@@ -151,14 +151,10 @@ Coordinates local training rounds on edge devices.
     "participating_nodes": 25,
     "completed_nodes": 22,  # 88% completion
     "failed_nodes": 3,
-    "reasons_for_failure": {
-        "battery_died": 1,
-        "network_timeout": 1,
-        "device_suspended": 1
-    },
+    "reasons_for_failure": {"battery_died": 1, "network_timeout": 1, "device_suspended": 1},
     "average_training_time_sec": 245,
     "local_epochs_per_node": 3,
-    "batch_size": 32
+    "batch_size": 32,
 }
 ```
 
@@ -175,7 +171,7 @@ Aggregates updates using Federated Averaging (FedAvg).
     "new_model_version": "3.2.0-FL042",
     "compression_ratio": 0.15,
     "privacy_guarantee": "differential privacy (ε=1.0)",
-    "aggregation_time_sec": 18.5
+    "aggregation_time_sec": 18.5,
 }
 ```
 
@@ -194,7 +190,7 @@ Validates aggregated model on holdout dataset.
     "target_accuracy": 0.85,
     "accuracy_achieved": True,
     "previous_accuracy": 0.82,
-    "improvement": 0.07
+    "improvement": 0.07,
 }
 ```
 
@@ -213,8 +209,8 @@ Deploys validated model to edge fleet (idempotent).
     "production_metrics": {
         "inference_latency_ms": 8.5,
         "memory_usage_mb": 45,
-        "battery_impact_percent": 2.1
-    }
+        "battery_impact_percent": 2.1,
+    },
 }
 ```
 
@@ -268,12 +264,12 @@ If devices run low on battery:
 ```python
 import tensorflow_federated as tff
 
+
 @tff.federated_computation
 def federated_train(server_state, federated_data):
     # Define federated training logic
-    return tff.federated_mean(
-        tff.federated_map(local_train, federated_data)
-    )
+    return tff.federated_mean(tff.federated_map(local_train, federated_data))
+
 
 async def coordinate_tff_training(edge_nodes: list):
     # Coordinate TFF training across edge nodes
@@ -288,22 +284,18 @@ async def coordinate_tff_training(edge_nodes: list):
 ```python
 import syft as sy
 
+
 async def train_with_privacy(edge_nodes: list):
     hook = sy.TorchHook(torch)
-    
+
     # Create virtual workers for edge nodes
-    workers = {node['id']: sy.VirtualWorker(hook, id=node['id']) 
-               for node in edge_nodes}
-    
+    workers = {node["id"]: sy.VirtualWorker(hook, id=node["id"]) for node in edge_nodes}
+
     # Distribute data (stays on device)
     distributed_data = distribute_to_workers(data, workers)
-    
+
     # Train with differential privacy
-    model = train_with_differential_privacy(
-        distributed_data, 
-        epsilon=1.0,
-        delta=1e-5
-    )
+    model = train_with_differential_privacy(distributed_data, epsilon=1.0, delta=1e-5)
     return model
 ```
 
@@ -311,13 +303,12 @@ async def train_with_privacy(edge_nodes: list):
 ```python
 import aiomqtt
 
+
 async def distribute_model_via_mqtt(nodes: list, model_weights: bytes):
     async with aiomqtt.Client("edge-cluster.local") as client:
         for node in nodes:
             await client.publish(
-                f"federated-learning/{node['id']}/model",
-                payload=model_weights,
-                qos=1
+                f"federated-learning/{node['id']}/model", payload=model_weights, qos=1
             )
 ```
 

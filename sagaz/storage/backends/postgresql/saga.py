@@ -155,20 +155,18 @@ class PostgreSQLSagaStorage(SagaStorage):
                 if steps:
                     step_data = []
                     for step in steps:
-                        step_data.append(
-                            [
-                                saga_id,
-                                step["name"],
-                                step.get("status", SagaStepStatus.PENDING.value),
-                                json.dumps(step.get("result"))
-                                if step.get("result") is not None
-                                else None,
-                                step.get("error"),
-                                step.get("executed_at"),
-                                step.get("compensated_at"),
-                                step.get("retry_count", 0),
-                            ]
-                        )
+                        step_data.append([
+                            saga_id,
+                            step["name"],
+                            step.get("status", SagaStepStatus.PENDING.value),
+                            json.dumps(step.get("result"))
+                            if step.get("result") is not None
+                            else None,
+                            step.get("error"),
+                            step.get("executed_at"),
+                            step.get("compensated_at"),
+                            step.get("retry_count", 0),
+                        ])
 
                     await conn.executemany(
                         """
@@ -314,17 +312,15 @@ class PostgreSQLSagaStorage(SagaStorage):
 
             results = []
             for row in rows:
-                results.append(
-                    {
-                        "saga_id": row["saga_id"],
-                        "saga_name": row["saga_name"],
-                        "status": row["status"],
-                        "created_at": row["created_at"].isoformat(),
-                        "updated_at": row["updated_at"].isoformat(),
-                        "step_count": row["step_count"],
-                        "completed_steps": row["completed_steps"],
-                    }
-                )
+                results.append({
+                    "saga_id": row["saga_id"],
+                    "saga_name": row["saga_name"],
+                    "status": row["status"],
+                    "created_at": row["created_at"].isoformat(),
+                    "updated_at": row["updated_at"].isoformat(),
+                    "step_count": row["step_count"],
+                    "completed_steps": row["completed_steps"],
+                })
 
             return results
 

@@ -83,7 +83,7 @@ saga = SupplyChainDroneDeliverySaga(
     destination_lon=-122.3999,
     package_weight_kg=2.5,
     priority="standard",
-    simulate_failure=False
+    simulate_failure=False,
 )
 
 # Execute delivery
@@ -115,7 +115,7 @@ Selects and reserves appropriate drone from fleet.
     "range_km": 25,
     "current_location": "WH-SF-01",
     "status": "reserved",
-    "reservation_id": "RES-DEL-2026-001"
+    "reservation_id": "RES-DEL-2026-001",
 }
 ```
 
@@ -132,7 +132,7 @@ Plans optimal route avoiding obstacles and no-fly zones.
     "distance_km": 8.5,
     "estimated_duration_min": 12,
     "no_fly_zones_avoided": ["SFO_AIRPORT", "MILITARY_BASE_1"],
-    "weather_clear": True
+    "weather_clear": True,
 }
 ```
 
@@ -149,7 +149,7 @@ Requests FAA airspace authorization via LAANC system.
     "valid_from": "2026-01-01T14:30:00Z",
     "valid_until": "2026-01-01T15:00:00Z",
     "flight_plan_id": "FP-DEL-2026-001",
-    "conditions": ["daylight_only", "visual_line_of_sight"]
+    "conditions": ["daylight_only", "visual_line_of_sight"],
 }
 ```
 
@@ -165,7 +165,7 @@ Automated package loading onto drone.
     "weight_kg": 2.5,
     "secured": True,
     "pickup_timestamp": "2026-01-01T14:35:00Z",
-    "loading_bay": "BAY-3"
+    "loading_bay": "BAY-3",
 }
 ```
 
@@ -184,7 +184,7 @@ Autonomous flight execution with real-time telemetry.
     "battery_used_percent": 18,
     "final_battery_level": 77,
     "weather_encountered": "clear",
-    "incidents": []
+    "incidents": [],
 }
 ```
 
@@ -200,7 +200,7 @@ Delivery confirmation with photo proof and signature.
     "photo_id": "PHOTO-DEL-2026-001",
     "signature_id": "SIG-DEL-2026-001",
     "delivery_timestamp": "2026-01-01T14:47:30Z",
-    "proof_of_delivery": "https://cdn.example.com/delivery-proof.jpg"
+    "proof_of_delivery": "https://cdn.example.com/delivery-proof.jpg",
 }
 ```
 
@@ -214,7 +214,7 @@ Return flight to warehouse (idempotent).
     "return_flight_duration_min": 13,
     "final_battery_level": 60,
     "status": "available",
-    "next_maintenance_hours": 15
+    "next_maintenance_hours": 15,
 }
 ```
 
@@ -273,6 +273,7 @@ If drone reports mechanical issues:
 ```python
 import aiohttp
 
+
 async def request_laanc_authorization(flight_plan: dict):
     async with aiohttp.ClientSession() as session:
         response = await session.post(
@@ -282,8 +283,8 @@ async def request_laanc_authorization(flight_plan: dict):
                 "operation_area": flight_plan["waypoints"],
                 "altitude_agl_feet": 400,
                 "start_time": flight_plan["start_time"],
-                "duration_minutes": flight_plan["duration"]
-            }
+                "duration_minutes": flight_plan["duration"],
+            },
         )
         return await response.json()
 ```
@@ -298,8 +299,8 @@ async def reserve_drone(warehouse_id: str, payload_kg: float, range_km: float):
                 "warehouse_id": warehouse_id,
                 "min_payload_kg": payload_kg,
                 "min_range_km": range_km,
-                "priority": "standard"
-            }
+                "priority": "standard",
+            },
         )
         return await response.json()
 ```
@@ -309,13 +310,12 @@ async def reserve_drone(warehouse_id: str, payload_kg: float, range_km: float):
 async def check_flight_weather(waypoints: list):
     async with aiohttp.ClientSession() as session:
         response = await session.post(
-            "https://api.weather.gov/gridpoints/forecast",
-            json={"waypoints": waypoints}
+            "https://api.weather.gov/gridpoints/forecast", json={"waypoints": waypoints}
         )
         weather = await response.json()
         return {
             "safe_to_fly": weather["wind_speed_mph"] < 25 and weather["visibility_miles"] > 3,
-            "conditions": weather
+            "conditions": weather,
         }
 ```
 

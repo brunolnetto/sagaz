@@ -319,15 +319,13 @@ async def successful_lakehouse_demo():
 
     saga = LakehouseIngestionSaga()
 
-    await saga.run(
-        {
-            "source_path": "s3://data-lake-raw/events/clickstream/",
-            "bronze_table": "bronze.raw_clickstream",
-            "silver_table": "silver.cleaned_clickstream",
-            "gold_table": "gold.clickstream_metrics",
-            "partition_date": "2026-01-06",
-        }
-    )
+    await saga.run({
+        "source_path": "s3://data-lake-raw/events/clickstream/",
+        "bronze_table": "bronze.raw_clickstream",
+        "silver_table": "silver.cleaned_clickstream",
+        "gold_table": "gold.clickstream_metrics",
+        "partition_date": "2026-01-06",
+    })
 
 
 async def failed_lakehouse_demo():
@@ -337,15 +335,13 @@ async def failed_lakehouse_demo():
 
     for attempt in range(5):
         try:
-            await saga.run(
-                {
-                    "source_path": "s3://data-lake-raw/events/user_actions/",
-                    "bronze_table": "bronze.raw_user_actions",
-                    "silver_table": "silver.cleaned_user_actions",
-                    "gold_table": "gold.user_action_metrics",
-                    "partition_date": f"2026-01-0{attempt + 1}",
-                }
-            )
+            await saga.run({
+                "source_path": "s3://data-lake-raw/events/user_actions/",
+                "bronze_table": "bronze.raw_user_actions",
+                "silver_table": "silver.cleaned_user_actions",
+                "gold_table": "gold.user_action_metrics",
+                "partition_date": f"2026-01-0{attempt + 1}",
+            })
         except SagaStepError:
             break
 

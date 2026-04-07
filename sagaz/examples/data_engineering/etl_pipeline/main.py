@@ -285,19 +285,17 @@ async def successful_etl_demo():
 
     saga = ETLPipelineSaga()
 
-    await saga.run(
-        {
-            "source_table": "raw_events.clickstream",
-            "target_table": "warehouse.fact_events",
-            "batch_date": "2026-01-06",
-            "transform_config": {
-                "deduplicate": True,
-                "null_handling": "drop",
-                "normalize_dates": True,
-                "timezone": "UTC",
-            },
-        }
-    )
+    await saga.run({
+        "source_table": "raw_events.clickstream",
+        "target_table": "warehouse.fact_events",
+        "batch_date": "2026-01-06",
+        "transform_config": {
+            "deduplicate": True,
+            "null_handling": "drop",
+            "normalize_dates": True,
+            "timezone": "UTC",
+        },
+    })
 
 
 async def failed_etl_demo():
@@ -308,13 +306,11 @@ async def failed_etl_demo():
     # Run multiple times to demonstrate failure handling
     for attempt in range(3):
         try:
-            await saga.run(
-                {
-                    "source_table": "raw_events.user_actions",
-                    "target_table": "warehouse.dim_users",
-                    "batch_date": f"2026-01-0{attempt + 1}",
-                }
-            )
+            await saga.run({
+                "source_table": "raw_events.user_actions",
+                "target_table": "warehouse.dim_users",
+                "batch_date": f"2026-01-0{attempt + 1}",
+            })
         except SagaStepError:
             break
 

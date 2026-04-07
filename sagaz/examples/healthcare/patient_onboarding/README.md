@@ -75,7 +75,7 @@ saga = HealthcarePatientOnboardingSaga(
     ssn_last_4="1234",
     email="alice.johnson@email.com",
     phone="+1-555-0123",
-    simulate_failure=False
+    simulate_failure=False,
 )
 
 # Execute onboarding
@@ -105,7 +105,7 @@ Verifies patient identity using SSN, DOB, and photo ID.
     "verification_score": 98.5,
     "verified": True,
     "audit_log_id": "AUDIT-VERIFY-PAT-2026-001",
-    "timestamp": "2026-01-01T14:30:00Z"
+    "timestamp": "2026-01-01T14:30:00Z",
 }
 ```
 
@@ -121,7 +121,7 @@ Creates encrypted Electronic Health Record with PHI.
     "created_at": "2026-01-01T14:30:00Z",
     "encrypted": True,
     "phi_fields": ["ssn", "dob", "address", "phone", "email"],
-    "hipaa_compliant": True
+    "hipaa_compliant": True,
 }
 ```
 
@@ -136,7 +136,7 @@ Assigns PCP based on availability, specialty, and location.
     "specialty": "Family Medicine",
     "location": "Main Street Clinic",
     "accepting_patients": True,
-    "assignment_id": "ASSIGN-PAT-2026-001"
+    "assignment_id": "ASSIGN-PAT-2026-001",
 }
 ```
 
@@ -152,7 +152,7 @@ Creates secure patient portal account with MFA.
     "temporary_password": "TempPass123!",
     "mfa_enabled": True,
     "access_level": "patient",
-    "features": ["view_records", "schedule_appointments", "messaging", "billing"]
+    "features": ["view_records", "schedule_appointments", "messaging", "billing"],
 }
 ```
 
@@ -169,7 +169,7 @@ Schedules new patient visit with assigned PCP.
     "date": "2026-01-15",
     "time": "10:00 AM",
     "duration_minutes": 60,
-    "location": "Main Street Clinic - Room 3"
+    "location": "Main Street Clinic - Room 3",
 }
 ```
 
@@ -187,9 +187,9 @@ Sends welcome packet via email (idempotent).
         "Patient Rights and Responsibilities",
         "Insurance Information Sheet",
         "Portal Login Instructions",
-        "Appointment Confirmation (2026-01-15 10:00 AM)"
+        "Appointment Confirmation (2026-01-15 10:00 AM)",
     ],
-    "delivery_status": "delivered"
+    "delivery_status": "delivered",
 }
 ```
 
@@ -266,16 +266,13 @@ Every action logs:
 ```python
 import aiohttp
 
+
 async def verify_patient_identity(ssn: str, dob: str, name: str):
     async with aiohttp.ClientSession() as session:
         response = await session.post(
             "https://api.experian.com/identityverification/v1/verify",
             headers={"Authorization": "Bearer <token>"},
-            json={
-                "ssn": ssn,
-                "dateOfBirth": dob,
-                "fullName": name
-            }
+            json={"ssn": ssn, "dateOfBirth": dob, "fullName": name},
         )
         return await response.json()
 ```
@@ -286,16 +283,15 @@ async def create_epic_patient(patient_data: dict):
     async with aiohttp.ClientSession() as session:
         response = await session.post(
             "https://fhir.epic.com/Patient",
-            headers={
-                "Authorization": "Bearer <token>",
-                "Content-Type": "application/fhir+json"
-            },
+            headers={"Authorization": "Bearer <token>", "Content-Type": "application/fhir+json"},
             json={
                 "resourceType": "Patient",
-                "name": [{"family": patient_data["last_name"], "given": [patient_data["first_name"]]}],
+                "name": [
+                    {"family": patient_data["last_name"], "given": [patient_data["first_name"]]}
+                ],
                 "birthDate": patient_data["date_of_birth"],
                 # ... more FHIR fields
-            }
+            },
         )
         return await response.json()
 ```

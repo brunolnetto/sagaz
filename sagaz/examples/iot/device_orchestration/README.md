@@ -64,7 +64,7 @@ saga = IoTDeviceOrchestrationSaga(
     home_id="HOME-123",
     user_id="USER-456",
     device_count=100,
-    simulate_failure=False
+    simulate_failure=False,
 )
 
 # Execute routine
@@ -94,7 +94,7 @@ Locks all doors using Z-Wave protocol.
         # ... more doors
     ],
     "protocol": "Z-Wave",
-    "timestamp": "2026-01-01T14:30:00Z"
+    "timestamp": "2026-01-01T14:30:00Z",
 }
 ```
 
@@ -108,7 +108,7 @@ Sets thermostat to energy-saving away mode.
     "protocol": "Zigbee",
     "previous_temp": 72,
     "away_temp": 65,
-    "mode": "away"
+    "mode": "away",
 }
 ```
 
@@ -124,11 +124,11 @@ Turns off all lights across multiple protocols.
             "protocol": "Zigbee",
             "room": "Living Room",
             "previous_state": "on",
-            "brightness": 0
+            "brightness": 0,
         },
         # ... 100+ more lights
     ],
-    "total_count": 100
+    "total_count": 100,
 }
 ```
 
@@ -142,7 +142,7 @@ Arms security system with all sensors active.
     "mode": "away",
     "sensors_active": ["motion", "door", "window", "glass_break"],
     "armed_zones": [1, 2, 3, ..., 10],
-    "alarm_code": "ARM-ROUTINE-001"
+    "alarm_code": "ARM-ROUTINE-001",
 }
 ```
 
@@ -155,7 +155,7 @@ Sends confirmation to homeowner (idempotent - no compensation needed).
     "user_id": "USER-456",
     "title": "🏠 Leaving Home Complete",
     "message": "All 100+ devices secured...",
-    "channels": ["push", "email"]
+    "channels": ["push", "email"],
 }
 ```
 
@@ -199,6 +199,7 @@ The saga ensures the home is never left in a partial state:
 import asyncio
 import aiomqtt
 
+
 async def lock_door_via_mqtt(device_id: str):
     async with aiomqtt.Client("mqtt.home.local") as client:
         await client.publish(f"zigbee2mqtt/{device_id}/set", '{"state": "LOCK"}')
@@ -208,11 +209,12 @@ async def lock_door_via_mqtt(device_id: str):
 ```python
 import aiohttp
 
+
 async def lock_door_via_zwave(device_id: str):
     async with aiohttp.ClientSession() as session:
         await session.post(
             f"http://zwave-controller.local/api/devices/{device_id}/lock",
-            headers={"Authorization": "Bearer <token>"}
+            headers={"Authorization": "Bearer <token>"},
         )
 ```
 
@@ -223,7 +225,7 @@ async def call_home_assistant_service(service: str, entity_id: str):
         await session.post(
             "http://homeassistant.local:8123/api/services/lock/lock",
             headers={"Authorization": "Bearer <token>"},
-            json={"entity_id": entity_id}
+            json={"entity_id": entity_id},
         )
 ```
 

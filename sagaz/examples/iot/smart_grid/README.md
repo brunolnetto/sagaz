@@ -81,7 +81,7 @@ saga = SmartGridEnergySaga(
     target_reduction_mw=1.5,
     event_duration_hours=4,
     incentive_rate_per_kwh=0.15,
-    simulate_failure=False
+    simulate_failure=False,
 )
 
 # Execute demand response
@@ -111,12 +111,8 @@ ML-based energy demand forecasting for event period.
     "baseline_demand_mw": 1250.5,
     "predicted_peak_mw": 1425.0,
     "confidence_level": 0.92,
-    "weather_factors": {
-        "temperature_f": 98,
-        "humidity_percent": 75,
-        "heat_index": "extreme"
-    },
-    "time_period": "4 hours"
+    "weather_factors": {"temperature_f": 98, "humidity_percent": 75, "heat_index": "extreme"},
+    "time_period": "4 hours",
 }
 ```
 
@@ -132,14 +128,14 @@ Selects participating buildings and DERs based on reduction potential.
             "type": "office",
             "baseline_kw": 160,
             "reduction_potential_kw": 32,
-            "location": "Zone-1"
+            "location": "Zone-1",
         },
         # ... 19 more buildings
     ],
     "industrial_facilities": [...],  # 5 facilities
-    "battery_storage": [...],        # 3 BESS units
+    "battery_storage": [...],  # 3 BESS units
     "total_participants": 28,
-    "total_reduction_potential_mw": 2.15
+    "total_reduction_potential_mw": 2.15,
 }
 ```
 
@@ -156,7 +152,7 @@ Sends DR requests via OpenADR 2.0b protocol.
     "opt_outs": 2,
     "target_reduction_mw": 1.5,
     "event_start": "2026-01-01T15:00:00Z",
-    "event_end": "2026-01-01T19:00:00Z"
+    "event_end": "2026-01-01T19:00:00Z",
 }
 ```
 
@@ -172,11 +168,7 @@ Real-time consumption monitoring via smart meters.
     "actual_reduction_mw": 1.31,
     "baseline_consumption_mw": 1250.5,
     "event_consumption_mw": 1141.3,
-    "participant_compliance": {
-        "full_compliance": 20,
-        "partial_compliance": 6,
-        "non_compliance": 2
-    }
+    "participant_compliance": {"full_compliance": 20, "partial_compliance": 6, "non_compliance": 2},
 }
 ```
 
@@ -191,7 +183,7 @@ Verifies reduction targets were achieved.
     "actual_reduction_mw": 1.31,
     "target_met": True,  # 87% ≥ 85% threshold
     "achievement_percent": 87.3,
-    "grid_stability_maintained": True
+    "grid_stability_maintained": True,
 }
 ```
 
@@ -206,13 +198,9 @@ Calculates performance-based incentive payments.
     "incentive_rate_per_kwh": 0.15,
     "total_payment_usd": 783.00,
     "participant_payments": [
-        {
-            "participant_id": "PART-1",
-            "reduction_kwh": 190.5,
-            "payment_usd": 28.58
-        },
+        {"participant_id": "PART-1", "reduction_kwh": 190.5, "payment_usd": 28.58},
         # ... 25 more participants
-    ]
+    ],
 }
 ```
 
@@ -227,7 +215,7 @@ Financial settlement with grid operator (idempotent).
     "settlement_amount_usd": 783.00,
     "settlement_timestamp": "2026-01-01T19:00:00Z",
     "payment_method": "ACH Transfer",
-    "confirmation_id": "SETTLE-DR-2026-HEATWAVE-001"
+    "confirmation_id": "SETTLE-DR-2026-HEATWAVE-001",
 }
 ```
 
@@ -278,6 +266,7 @@ If participants don't reduce load:
 ```python
 import aiohttp
 
+
 async def send_openadr_event(participants: list, target_reduction: float):
     async with aiohttp.ClientSession() as session:
         for participant in participants:
@@ -289,7 +278,7 @@ async def send_openadr_event(participants: list, target_reduction: float):
                     <oadrSignedObject>
                         <oadrEvent>
                             <eventID>{event_id}</eventID>
-                            <venID>{participant['id']}</venID>
+                            <venID>{participant["id"]}</venID>
                             <oadrSignals>
                                 <oadrSignal>
                                     <signalName>LOAD_CONTROL</signalName>
@@ -300,7 +289,7 @@ async def send_openadr_event(participants: list, target_reduction: float):
                         </oadrEvent>
                     </oadrSignedObject>
                 </oadrPayload>
-                """
+                """,
             )
 ```
 
@@ -313,8 +302,8 @@ async def monitor_smart_meters(participant_ids: list):
             json={
                 "meter_ids": participant_ids,
                 "interval_seconds": 15,
-                "metrics": ["active_power_kw", "reactive_power_kvar"]
-            }
+                "metrics": ["active_power_kw", "reactive_power_kvar"],
+            },
         )
         return await response.json()
 ```
@@ -330,8 +319,8 @@ async def settle_with_iso(event_id: str, total_payment: float):
                 "event_id": event_id,
                 "program": "demand_response",
                 "amount": total_payment,
-                "settlement_type": "ACH"
-            }
+                "settlement_type": "ACH",
+            },
         )
         return await response.json()
 ```
