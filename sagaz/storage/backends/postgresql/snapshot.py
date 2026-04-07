@@ -317,7 +317,9 @@ class PostgreSQLSnapshotStorage(SnapshotStorage):
                 if replay_result.context_override
                 else None,
                 replay_result.initiated_by,
-                replay_result.replay_status.value if hasattr(replay_result.replay_status, 'value') else replay_result.replay_status,
+                replay_result.replay_status.value
+                if hasattr(replay_result.replay_status, "value")
+                else replay_result.replay_status,
                 replay_result.error_message,
                 replay_result.created_at,
                 replay_result.completed_at,

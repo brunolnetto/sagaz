@@ -175,8 +175,9 @@ class TestPrometheusImportErrorFallback:
 
     def test_prometheus_unavailable_sets_none_globals(self):
         """Lines 40-45: when ImportError, Counter/Gauge/etc become None."""
-        import sys
         import importlib
+        import sys
+
         import sagaz.monitoring.prometheus as prom_mod
 
         original = sys.modules.get("prometheus_client")

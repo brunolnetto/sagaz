@@ -138,7 +138,7 @@ class TestEnvManager:
                 "TEST_VAR_1=value1\nTEST_VAR_2=value2\n# Comment line\nTEST_VAR_3=value3"
             )
 
-            env = EnvManager(project_root=tmpdir, auto_load=True)
+            EnvManager(project_root=tmpdir, auto_load=True)
 
             assert os.environ.get("TEST_VAR_1") == "value1"
             assert os.environ.get("TEST_VAR_2") == "value2"

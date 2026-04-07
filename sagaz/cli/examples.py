@@ -467,9 +467,7 @@ def _build_example_menu_entries(sorted_examples: list) -> list[str]:
     return menu_entries
 
 
-def _handle_menu_selection(
-    menu_entries: list[str], sorted_examples: list
-) -> str:
+def _handle_menu_selection(menu_entries: list[str], sorted_examples: list) -> str:
     """Handle menu selection. Returns 'back', 'exit', or 'continue'."""
     menu = TerminalMenu(
         menu_entries,

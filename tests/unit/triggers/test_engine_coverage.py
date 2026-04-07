@@ -154,9 +154,8 @@ class TestResolveSagaIdIdempotent:
         # Pre-save a saga state so idempotency check finds it
         derived_id = engine._derive_saga_id(metadata, payload, FakeSaga)
         from sagaz.core.types import SagaStatus
-        await memory_storage.save_saga_state(
-            derived_id, "FakeSaga", SagaStatus.COMPLETED, [], {}
-        )
+
+        await memory_storage.save_saga_state(derived_id, "FakeSaga", SagaStatus.COMPLETED, [], {})
 
         saga_id, is_new = await engine._resolve_saga_id(metadata, payload, FakeSaga)
 
@@ -370,11 +369,17 @@ class TestContextNoneAfterValidCheck:
         )
 
         # Transformer returns a valid dict context but we'll override _is_valid_context
-        with patch.object(engine, "_run_transformer", new_callable=AsyncMock, return_value=None), \
-             patch.object(engine, "_is_valid_context", return_value=True), \
-             patch.object(engine, "_resolve_saga_id", new_callable=AsyncMock, return_value=("saga-123", True)), \
-             patch.object(engine, "_is_concurrency_allowed", new_callable=AsyncMock, return_value=True), \
-             patch.object(engine, "_run_saga", new_callable=AsyncMock) as mock_run:
+        with (
+            patch.object(engine, "_run_transformer", new_callable=AsyncMock, return_value=None),
+            patch.object(engine, "_is_valid_context", return_value=True),
+            patch.object(
+                engine, "_resolve_saga_id", new_callable=AsyncMock, return_value=("saga-123", True)
+            ),
+            patch.object(
+                engine, "_is_concurrency_allowed", new_callable=AsyncMock, return_value=True
+            ),
+            patch.object(engine, "_run_saga", new_callable=AsyncMock) as mock_run,
+        ):
             result = await engine._process_trigger(mock_trigger, {"event": "data"})
 
         # _run_saga called with empty dict (context was None → {})
@@ -440,7 +445,8 @@ class TestExtractCallableKeyException:
         engine = TriggerEngine()
 
         def bad_extractor(payload):
-            raise ValueError("extraction failed")
+            msg = "extraction failed"
+            raise ValueError(msg)
 
         result = engine._extract_callable_key(bad_extractor, {"key": "val"})
         assert result is None

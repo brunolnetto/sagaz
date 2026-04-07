@@ -364,6 +364,7 @@ class TestBaseStorageHealthCheckNoManager:
     async def test_log_operation_without_item_id(self, caplog):
         """Lines 115->117: _log_operation with item_id=None skips adding item_id."""
         import logging
+
         from sagaz.storage.core.base import BaseStorage
 
         class MinimalStorage(BaseStorage):
@@ -411,6 +412,7 @@ class TestConnectionBranches:
                 return True
 
         from sagaz.storage.core.connection import ConnectionConfig
+
         config = ConnectionConfig(url="fake://localhost")
         pool = TestConn(config=config)
         assert not pool._initialized
@@ -421,7 +423,7 @@ class TestConnectionBranches:
 
     async def test_acquire_when_already_initialized(self):
         """175->178 FALSE: already initialized → skip initialize, go direct to _acquire."""
-        from sagaz.storage.core.connection import SingleConnectionManager, ConnectionConfig
+        from sagaz.storage.core.connection import ConnectionConfig, SingleConnectionManager
 
         class TestConn(SingleConnectionManager):
             async def _create_connection(self):
@@ -448,7 +450,8 @@ class TestConnectionBranches:
 
         class FailConn(SingleConnectionManager):
             async def _create_connection(self):
-                raise RuntimeError("cannot connect")
+                msg = "cannot connect"
+                raise RuntimeError(msg)
 
             async def _close_connection(self, conn):
                 pass
@@ -457,6 +460,7 @@ class TestConnectionBranches:
                 return True
 
         from sagaz.storage.core.connection import ConnectionConfig
+
         config = ConnectionConfig(url="fail://localhost")
         pool = FailConn(config=config)
 
@@ -472,12 +476,14 @@ class TestConnectionBranches:
                 return None
 
             async def _close_connection(self, conn):
-                raise AssertionError("Should not be called")
+                msg = "Should not be called"
+                raise AssertionError(msg)
 
             async def _is_connection_valid(self, conn):
                 return True
 
         from sagaz.storage.core.connection import ConnectionConfig
+
         config = ConnectionConfig(url="empty://localhost")
         pool = EmptyConn(config=config)
         pool._connection = None

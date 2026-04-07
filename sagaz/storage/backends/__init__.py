@@ -15,26 +15,27 @@ Available backends:
 # These are imported lazily to avoid import errors when dependencies are missing
 
 __all__ = [
+    "FilesystemSnapshotStorage",
     "InMemoryOutboxStorage",
-    # Memory
     "InMemorySagaStorage",
     "InMemorySnapshotStorage",
-    # Filesystem
-    "FilesystemSnapshotStorage",
     "PostgreSQLOutboxStorage",
-    # PostgreSQL
     "PostgreSQLSagaStorage",
     "PostgreSQLSnapshotStorage",
     "RedisOutboxStorage",
-    # Redis
     "RedisSagaStorage",
     "RedisSnapshotStorage",
-    # S3
     "S3SnapshotStorage",
     "SQLiteOutboxStorage",
-    # SQLite
     "SQLiteSagaStorage",
 ]
+
+# Provide a stub so static analysers (CodeQL, mypy) can resolve names exported
+# via __getattr__. The real implementations are loaded lazily at runtime.
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # pragma: no cover
+    from sagaz.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
 
 
 _BACKEND_IMPORTS = {

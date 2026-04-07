@@ -14,12 +14,12 @@ Enables:
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 from uuid import UUID, uuid4
 
 
-class SnapshotStrategy(str, Enum):
+class SnapshotStrategy(StrEnum):
     """When to capture snapshots"""
 
     BEFORE_EACH_STEP = "before_each_step"
@@ -29,7 +29,7 @@ class SnapshotStrategy(str, Enum):
     MANUAL = "manual"
 
 
-class ReplayStatus(str, Enum):
+class ReplayStatus(StrEnum):
     """Status of replay execution"""
 
     PENDING = "pending"

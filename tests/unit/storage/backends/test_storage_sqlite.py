@@ -2,8 +2,8 @@
 Tests for SQLite storage backends.
 """
 
-import sys
 import importlib
+import sys
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
@@ -603,8 +603,9 @@ class TestSQLiteSagaImportError:
     @pytest.mark.asyncio
     async def test_get_saga_statistics_empty_db(self):
         """Line 311: if not row path in get_saga_statistics."""
-        from sagaz.storage.backends.sqlite.saga import SQLiteSagaStorage
         from unittest.mock import AsyncMock, MagicMock
+
+        from sagaz.storage.backends.sqlite.saga import SQLiteSagaStorage
 
         storage = SQLiteSagaStorage(":memory:")
         mock_conn = AsyncMock()
@@ -667,9 +668,10 @@ class TestSQLiteOutboxImportError:
     @pytest.mark.asyncio
     async def test_outbox_statistics_empty_db(self):
         """Line 414: if not row path returns StorageStatistics(0, 0)."""
+        from unittest.mock import AsyncMock
+
         from sagaz.storage.backends.sqlite.outbox import SQLiteOutboxStorage
         from sagaz.storage.core import StorageStatistics
-        from unittest.mock import AsyncMock
 
         storage = SQLiteOutboxStorage(":memory:")
         mock_conn = AsyncMock()
@@ -687,8 +689,8 @@ class TestSQLiteOutboxImportError:
 class TestSqliteSagaBranches:
     async def test_update_step_status_step_not_found(self):
         """275->287: for loop exhausted without break (step_name not found)."""
-        from sagaz.storage.backends.sqlite.saga import SQLiteSagaStorage
         from sagaz.core.types import SagaStatus, SagaStepStatus
+        from sagaz.storage.backends.sqlite.saga import SQLiteSagaStorage
 
         storage = SQLiteSagaStorage(":memory:")
         await storage.initialize()
@@ -709,8 +711,8 @@ class TestSqliteSagaBranches:
 
     async def test_update_step_status_step_name_mismatch(self):
         """276->275: if step.get('name') == step_name: False → continue loop."""
-        from sagaz.storage.backends.sqlite.saga import SQLiteSagaStorage
         from sagaz.core.types import SagaStatus, SagaStepStatus
+        from sagaz.storage.backends.sqlite.saga import SQLiteSagaStorage
 
         storage = SQLiteSagaStorage(":memory:")
         await storage.initialize()

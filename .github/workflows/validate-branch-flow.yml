@@ -1,0 +1,21 @@
+name: Validate PR Branch Flow
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+jobs:
+  validate-branch-flow:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate source branch naming
+        run: |
+          HEAD="${{ github.head_ref }}"
+
+          echo "Head branch: $HEAD"
+
+          if [[ ! "$HEAD" =~ ^(feature|fix|docs|chore|refactor|test|ci)/.+$ ]]; then
+            echo "Branch '$HEAD' does not follow the naming convention."
+            echo "Allowed patterns: feature/*, fix/*, docs/*, chore/*, refactor/*, test/*, ci/*"
+            exit 1
+          fi

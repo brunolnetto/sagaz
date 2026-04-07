@@ -44,6 +44,7 @@ class TestMain:
         with patch("sagaz.__main__.__name__", "__main__"):
             # Import triggers execution
             import importlib
+
             import sagaz.__main__ as main_module
 
             importlib.reload(main_module)

@@ -143,7 +143,7 @@ def main():
     print("   Each correlation_id tracks a separate webhook invocation")
     print("   If you send order_id='ORD-001' again, webhook returns existing saga status")
     print()
-    print("ℹ️  Webhooks execute sagas asynchronously. Poll status endpoint for updates.")
+    print("i️  Webhooks execute sagas asynchronously. Poll status endpoint for updates.")
     print()
 
     print("=" * 70)

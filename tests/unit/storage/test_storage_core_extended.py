@@ -553,6 +553,7 @@ class TestSerializationMissingBranches:
     def test_storage_encoder_unknown_type_falls_back(self):
         """Line 57: StorageEncoder.default() calls super().default() for unknown types."""
         import json
+
         from sagaz.storage.core.serialization import StorageEncoder
 
         encoder = StorageEncoder()
@@ -569,8 +570,8 @@ class TestSerializationMissingBranches:
 
     def test_serialize_storage_data_raises_on_circular(self):
         """Lines 113-114: serialize() raises SerializationError on failure."""
-        from sagaz.storage.core.serialization import serialize
         from sagaz.storage.core.errors import SerializationError
+        from sagaz.storage.core.serialization import serialize
 
         circular = {}
         circular["self"] = circular  # type: ignore[assignment]

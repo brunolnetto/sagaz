@@ -1057,6 +1057,7 @@ class TestRedisSagaStorageUnitMissing:
     @pytest.fixture
     def storage(self):
         from sagaz.storage.backends.redis.saga import RedisSagaStorage
+
         return RedisSagaStorage(redis_url="redis://localhost:6379", key_prefix="unit-test:")
 
     @pytest.mark.asyncio
@@ -1070,6 +1071,7 @@ class TestRedisSagaStorageUnitMissing:
     async def test_cleanup_with_explicit_statuses(self, storage):
         """Lines 349->352: cleanup_completed_sagas skips statuses default when provided."""
         from datetime import timedelta
+
         from sagaz.core.types import SagaStatus
 
         mock_redis = AsyncMock()
@@ -1113,7 +1115,9 @@ class TestRedisSagaStorageUnitMissing:
     @pytest.mark.asyncio
     async def test_export_all_empty(self, storage):
         """Lines 465-471: export_all() yields nothing when no data."""
-        storage._get_redis = AsyncMock(return_value=AsyncMock(smembers=AsyncMock(return_value=set())))
+        storage._get_redis = AsyncMock(
+            return_value=AsyncMock(smembers=AsyncMock(return_value=set()))
+        )
 
         results = []
         async for record in storage.export_all():
@@ -1127,16 +1131,20 @@ class TestRedisSagaBranches:
         mock = AsyncMock()
         # export_all uses keys() not smembers()
         mock.keys = AsyncMock(return_value=[b"saga:saga-123"])
-        mock.hget = AsyncMock(return_value=b'{"saga_id": "saga-123", "saga_name": "TestSaga", "status": "completed", "steps": [], "context": {}, "created_at": "2024-01-15T10:00:00+00:00", "updated_at": "2024-01-15T10:01:00+00:00"}')
-        mock.hgetall = AsyncMock(return_value={
-            b"saga_id": b"saga-123",
-            b"saga_name": b"TestSaga",
-            b"status": b"completed",
-            b"steps": b"[]",
-            b"context": b"{}",
-            b"created_at": b"2024-01-15T10:00:00+00:00",
-            b"updated_at": b"2024-01-15T10:01:00+00:00",
-        })
+        mock.hget = AsyncMock(
+            return_value=b'{"saga_id": "saga-123", "saga_name": "TestSaga", "status": "completed", "steps": [], "context": {}, "created_at": "2024-01-15T10:00:00+00:00", "updated_at": "2024-01-15T10:01:00+00:00"}'
+        )
+        mock.hgetall = AsyncMock(
+            return_value={
+                b"saga_id": b"saga-123",
+                b"saga_name": b"TestSaga",
+                b"status": b"completed",
+                b"steps": b"[]",
+                b"context": b"{}",
+                b"created_at": b"2024-01-15T10:00:00+00:00",
+                b"updated_at": b"2024-01-15T10:01:00+00:00",
+            }
+        )
         mock.sadd = AsyncMock()
         mock.expire = AsyncMock()
         mock.aclose = AsyncMock()

@@ -53,7 +53,9 @@ class TestS3SnapshotStorageUnit:
                     bucket_name="test-bucket",
                     region_name="us-west-2",
                     prefix="snapshots/",
-                    enable_encryption=True, enable_compression=False)
+                    enable_encryption=True,
+                    enable_compression=False,
+                )
                 assert storage.bucket_name == "test-bucket"
                 assert storage.region_name == "us-west-2"
                 assert storage.prefix == "snapshots/"
@@ -67,19 +69,19 @@ class TestS3SnapshotStorageUnit:
                 # Mock S3 client
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
-                
+
                 # Mock the client context manager
                 mock_client_cm = AsyncMock()
                 mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
                 mock_client_cm.__aexit__ = AsyncMock()
-                
+
                 mock_session.client = MagicMock(return_value=mock_client_cm)
                 mock_aioboto3.Session = MagicMock(return_value=mock_session)
 
                 # Mock NoSuchKey exception - must inherit from BaseException
                 class MockNoSuchKey(BaseException):
                     pass
-                
+
                 mock_exceptions = MagicMock()
                 mock_exceptions.NoSuchKey = MockNoSuchKey
                 mock_client.exceptions = mock_exceptions
@@ -130,11 +132,11 @@ class TestS3SnapshotStorageUnit:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
-                
+
                 mock_client_cm = AsyncMock()
                 mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
                 mock_client_cm.__aexit__ = AsyncMock()
-                
+
                 mock_session.client = MagicMock(return_value=mock_client_cm)
                 mock_aioboto3.Session = MagicMock(return_value=mock_session)
 
@@ -182,18 +184,18 @@ class TestS3SnapshotStorageUnit:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
-                
+
                 mock_client_cm = AsyncMock()
                 mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
                 mock_client_cm.__aexit__ = AsyncMock()
-                
+
                 mock_session.client = MagicMock(return_value=mock_client_cm)
                 mock_aioboto3.Session = MagicMock(return_value=mock_session)
 
                 # Mock NoSuchKey exception - must inherit from BaseException
                 class MockNoSuchKey(BaseException):
                     pass
-                
+
                 mock_exceptions = MagicMock()
                 mock_exceptions.NoSuchKey = MockNoSuchKey
                 mock_client.exceptions = mock_exceptions
@@ -214,11 +216,11 @@ class TestS3SnapshotStorageUnit:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
-                
+
                 mock_client_cm = AsyncMock()
                 mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
                 mock_client_cm.__aexit__ = AsyncMock()
-                
+
                 mock_session.client = MagicMock(return_value=mock_client_cm)
                 mock_aioboto3.Session = MagicMock(return_value=mock_session)
 
@@ -226,18 +228,15 @@ class TestS3SnapshotStorageUnit:
                 snapshot_id = uuid4()
                 saga_id = uuid4()
                 created_at = datetime.now(UTC)
-                
+
                 # Mock saga index data
                 index_data = {
                     "saga_id": str(saga_id),
                     "snapshots": [
-                        {
-                            "snapshot_id": str(snapshot_id),
-                            "created_at": created_at.isoformat()
-                        }
-                    ]
+                        {"snapshot_id": str(snapshot_id), "created_at": created_at.isoformat()}
+                    ],
                 }
-                
+
                 # Mock snapshot data
                 snapshot_data = {
                     "snapshot_id": str(snapshot_id),
@@ -251,20 +250,23 @@ class TestS3SnapshotStorageUnit:
                     "created_at": created_at.isoformat(),
                     "retention_until": None,
                 }
-                
+
                 # Mock get_object to return index first, then snapshot
                 async def mock_get_object(**kwargs):
                     if "index/saga" in kwargs["Key"]:
                         # Return index
                         mock_body = AsyncMock()
-                        mock_body.read = AsyncMock(return_value=json.dumps(index_data).encode("utf-8"))
+                        mock_body.read = AsyncMock(
+                            return_value=json.dumps(index_data).encode("utf-8")
+                        )
                         return {"Body": mock_body}
-                    else:
-                        # Return snapshot
-                        mock_body = AsyncMock()
-                        mock_body.read = AsyncMock(return_value=json.dumps(snapshot_data).encode("utf-8"))
-                        return {"Body": mock_body}
-                
+                    # Return snapshot
+                    mock_body = AsyncMock()
+                    mock_body.read = AsyncMock(
+                        return_value=json.dumps(snapshot_data).encode("utf-8")
+                    )
+                    return {"Body": mock_body}
+
                 mock_client.get_object = mock_get_object
 
                 from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
@@ -283,11 +285,11 @@ class TestS3SnapshotStorageUnit:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
-                
+
                 mock_client_cm = AsyncMock()
                 mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
                 mock_client_cm.__aexit__ = AsyncMock()
-                
+
                 mock_session.client = MagicMock(return_value=mock_client_cm)
                 mock_aioboto3.Session = MagicMock(return_value=mock_session)
 
@@ -308,29 +310,29 @@ class TestS3SnapshotStorageUnit:
                     "created_at": created_at.isoformat(),
                     "retention_until": None,
                 }
-                
+
                 # Mock index data
                 index_data = {
                     "saga_id": str(saga_id),
                     "snapshots": [
-                        {
-                            "snapshot_id": str(snapshot_id),
-                            "created_at": created_at.isoformat()
-                        }
-                    ]
+                        {"snapshot_id": str(snapshot_id), "created_at": created_at.isoformat()}
+                    ],
                 }
-                
+
                 # Mock get_object to return snapshot and index
                 async def mock_get_object(**kwargs):
                     if "index/saga" in kwargs["Key"]:
                         mock_body = AsyncMock()
-                        mock_body.read = AsyncMock(return_value=json.dumps(index_data).encode("utf-8"))
+                        mock_body.read = AsyncMock(
+                            return_value=json.dumps(index_data).encode("utf-8")
+                        )
                         return {"Body": mock_body}
-                    else:
-                        mock_body = AsyncMock()
-                        mock_body.read = AsyncMock(return_value=json.dumps(snapshot_data).encode("utf-8"))
-                        return {"Body": mock_body}
-                
+                    mock_body = AsyncMock()
+                    mock_body.read = AsyncMock(
+                        return_value=json.dumps(snapshot_data).encode("utf-8")
+                    )
+                    return {"Body": mock_body}
+
                 mock_client.get_object = mock_get_object
                 mock_client.delete_object = AsyncMock()
                 mock_client.put_object = AsyncMock()
@@ -351,11 +353,11 @@ class TestS3SnapshotStorageUnit:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
-                
+
                 mock_client_cm = AsyncMock()
                 mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
                 mock_client_cm.__aexit__ = AsyncMock()
-                
+
                 mock_session.client = MagicMock(return_value=mock_client_cm)
                 mock_aioboto3.Session = MagicMock(return_value=mock_session)
 
@@ -377,11 +379,11 @@ class TestS3SnapshotStorageUnit:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
-                
+
                 mock_client_cm = AsyncMock()
                 mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
                 mock_client_cm.__aexit__ = AsyncMock()
-                
+
                 mock_session.client = MagicMock(return_value=mock_client_cm)
                 mock_aioboto3.Session = MagicMock(return_value=mock_session)
 
@@ -389,7 +391,9 @@ class TestS3SnapshotStorageUnit:
 
                 from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
 
-                async with S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False) as storage:
+                async with S3SnapshotStorage(
+                    bucket_name="test-bucket", enable_compression=False
+                ) as storage:
                     assert storage is not None
 
                 assert storage._s3_client is None
@@ -454,8 +458,8 @@ class TestS3SnapshotStorageEncryption:
                 from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(
-                    bucket_name="test-bucket",
-                    enable_encryption=True, enable_compression=False)
+                    bucket_name="test-bucket", enable_encryption=True, enable_compression=False
+                )
 
                 assert storage.enable_encryption is True
 
@@ -467,8 +471,8 @@ class TestS3SnapshotStorageEncryption:
                 from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(
-                    bucket_name="test-bucket",
-                    storage_class="GLACIER", enable_compression=False)
+                    bucket_name="test-bucket", storage_class="GLACIER", enable_compression=False
+                )
 
                 assert storage.storage_class == "GLACIER"
 
@@ -520,8 +524,8 @@ class TestS3SnapshotStorageKeyGeneration:
                 from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(
-                    bucket_name="test-bucket",
-                    prefix="snapshots/", enable_compression=False)
+                    bucket_name="test-bucket", prefix="snapshots/", enable_compression=False
+                )
 
                 saga_id = uuid4()
                 key = storage._saga_index_key(saga_id)
@@ -535,8 +539,8 @@ class TestS3SnapshotStorageKeyGeneration:
                 from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(
-                    bucket_name="test-bucket",
-                    prefix="snapshots/", enable_compression=False)
+                    bucket_name="test-bucket", prefix="snapshots/", enable_compression=False
+                )
 
                 replay_id = uuid4()
                 key = storage._replay_log_key(replay_id)
@@ -560,7 +564,7 @@ class TestS3SnapshotStorageSerializationIntegration:
 
                 data = {"test": "value", "number": 123}
                 serialized = storage._serialize(data)
-                
+
                 assert isinstance(serialized, bytes)
                 assert json.loads(serialized.decode("utf-8")) == data
 
@@ -585,7 +589,7 @@ class TestS3SnapshotStorageSerializationIntegration:
 
                         data = {"test": "value"}
                         serialized = storage._serialize(data)
-                        
+
                         assert serialized == b"compressed"
                         assert mock_compressor.compress.called
 
@@ -604,7 +608,7 @@ class TestS3SnapshotStorageSerializationIntegration:
                 data = {"test": "value", "number": 123}
                 serialized = json.dumps(data).encode("utf-8")
                 deserialized = storage._deserialize(serialized)
-                
+
                 assert deserialized == data
 
     @pytest.mark.asyncio
@@ -616,7 +620,7 @@ class TestS3SnapshotStorageSerializationIntegration:
                     with patch("sagaz.storage.backends.s3.snapshot.aioboto3"):
                         data_dict = {"test": "value"}
                         json_bytes = json.dumps(data_dict).encode("utf-8")
-                        
+
                         mock_decompressor = Mock()
                         mock_decompressor.decompress = Mock(return_value=json_bytes)
                         mock_zstd.ZstdDecompressor = Mock(return_value=mock_decompressor)
@@ -631,7 +635,7 @@ class TestS3SnapshotStorageSerializationIntegration:
 
                         compressed_data = b"compressed"
                         deserialized = storage._deserialize(compressed_data)
-                        
+
                         assert deserialized == data_dict
                         assert mock_decompressor.decompress.called
 
@@ -646,22 +650,23 @@ class TestS3SnapshotStorageAdvancedOperations:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
-                
+
                 mock_client_cm = AsyncMock()
                 mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
                 mock_client_cm.__aexit__ = AsyncMock()
-                
+
                 mock_session.client = MagicMock(return_value=mock_client_cm)
                 mock_aioboto3.Session = MagicMock(return_value=mock_session)
 
                 # Mock S3 operations
                 mock_client.put_object = AsyncMock()
-                
+
                 # Mock get_object for index (not found initially)
-                class NoSuchKeyException(Exception):
+                class NoSuchKeyError(Exception):
                     pass
-                mock_client.exceptions = type('obj', (object,), {'NoSuchKey': NoSuchKeyException})
-                mock_client.get_object = AsyncMock(side_effect=NoSuchKeyException())
+
+                mock_client.exceptions = type("obj", (object,), {"NoSuchKey": NoSuchKeyError})
+                mock_client.get_object = AsyncMock(side_effect=NoSuchKeyError())
 
                 from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
 
@@ -675,7 +680,7 @@ class TestS3SnapshotStorageAdvancedOperations:
                 snapshot_id = uuid4()
                 created_at = datetime.now(UTC)
                 retention_until = created_at + timedelta(days=30)
-                
+
                 snapshot = SagaSnapshot(
                     snapshot_id=snapshot_id,
                     saga_id=saga_id,
@@ -702,19 +707,20 @@ class TestS3SnapshotStorageAdvancedOperations:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
-                
+
                 mock_client_cm = AsyncMock()
                 mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
                 mock_client_cm.__aexit__ = AsyncMock()
-                
+
                 mock_session.client = MagicMock(return_value=mock_client_cm)
                 mock_aioboto3.Session = MagicMock(return_value=mock_session)
 
                 # Mock S3 exception for not found
-                class NoSuchKeyException(Exception):
+                class NoSuchKeyError(Exception):
                     pass
-                mock_client.exceptions = type('obj', (object,), {'NoSuchKey': NoSuchKeyException})
-                mock_client.get_object = AsyncMock(side_effect=NoSuchKeyException())
+
+                mock_client.exceptions = type("obj", (object,), {"NoSuchKey": NoSuchKeyError})
+                mock_client.get_object = AsyncMock(side_effect=NoSuchKeyError())
                 mock_client.put_object = AsyncMock()
 
                 from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
@@ -738,25 +744,28 @@ class TestS3SnapshotStorageAdvancedOperations:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
-                
+
                 mock_client_cm = AsyncMock()
                 mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
                 mock_client_cm.__aexit__ = AsyncMock()
-                
+
                 mock_session.client = MagicMock(return_value=mock_client_cm)
                 mock_aioboto3.Session = MagicMock(return_value=mock_session)
 
                 saga_id = uuid4()
                 existing_snapshot = uuid4()
-                
+
                 # Mock existing index
                 existing_index = {
                     "saga_id": str(saga_id),
                     "snapshots": [
-                        {"snapshot_id": str(existing_snapshot), "created_at": datetime.now(UTC).isoformat()}
-                    ]
+                        {
+                            "snapshot_id": str(existing_snapshot),
+                            "created_at": datetime.now(UTC).isoformat(),
+                        }
+                    ],
                 }
-                
+
                 mock_body = AsyncMock()
                 mock_body.read = AsyncMock(return_value=json.dumps(existing_index).encode("utf-8"))
                 mock_client.get_object = AsyncMock(return_value={"Body": mock_body})
@@ -780,25 +789,28 @@ class TestS3SnapshotStorageAdvancedOperations:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
-                
+
                 mock_client_cm = AsyncMock()
                 mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
                 mock_client_cm.__aexit__ = AsyncMock()
-                
+
                 mock_session.client = MagicMock(return_value=mock_client_cm)
                 mock_aioboto3.Session = MagicMock(return_value=mock_session)
 
                 saga_id = uuid4()
                 snapshot_id = uuid4()
-                
+
                 # Mock index
                 index_data = {
                     "saga_id": str(saga_id),
                     "snapshots": [
-                        {"snapshot_id": str(snapshot_id), "created_at": datetime.now(UTC).isoformat()}
-                    ]
+                        {
+                            "snapshot_id": str(snapshot_id),
+                            "created_at": datetime.now(UTC).isoformat(),
+                        }
+                    ],
                 }
-                
+
                 # Mock snapshot
                 snapshot_data = {
                     "snapshot_id": str(snapshot_id),
@@ -812,19 +824,24 @@ class TestS3SnapshotStorageAdvancedOperations:
                     "created_at": datetime.now(UTC).isoformat(),
                     "retention_until": None,
                 }
-                
+
                 call_count = [0]
+
                 async def mock_get_object(**kwargs):
                     call_count[0] += 1
                     mock_body = AsyncMock()
                     if call_count[0] == 1:
                         # First call - index
-                        mock_body.read = AsyncMock(return_value=json.dumps(index_data).encode("utf-8"))
+                        mock_body.read = AsyncMock(
+                            return_value=json.dumps(index_data).encode("utf-8")
+                        )
                     else:
                         # Second call - snapshot
-                        mock_body.read = AsyncMock(return_value=json.dumps(snapshot_data).encode("utf-8"))
+                        mock_body.read = AsyncMock(
+                            return_value=json.dumps(snapshot_data).encode("utf-8")
+                        )
                     return {"Body": mock_body}
-                
+
                 mock_client.get_object = mock_get_object
 
                 from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
@@ -833,7 +850,7 @@ class TestS3SnapshotStorageAdvancedOperations:
                 await storage._get_s3_client()
 
                 result = await storage.get_latest_snapshot(saga_id, before_step="target_step")
-                
+
                 assert result is not None
                 assert result.step_name == "target_step"
 
@@ -844,18 +861,19 @@ class TestS3SnapshotStorageAdvancedOperations:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
-                
+
                 mock_client_cm = AsyncMock()
                 mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
                 mock_client_cm.__aexit__ = AsyncMock()
-                
+
                 mock_session.client = MagicMock(return_value=mock_client_cm)
                 mock_aioboto3.Session = MagicMock(return_value=mock_session)
 
-                class NoSuchKeyException(Exception):
+                class NoSuchKeyError(Exception):
                     pass
-                mock_client.exceptions = type('obj', (object,), {'NoSuchKey': NoSuchKeyException})
-                mock_client.get_object = AsyncMock(side_effect=NoSuchKeyException())
+
+                mock_client.exceptions = type("obj", (object,), {"NoSuchKey": NoSuchKeyError})
+                mock_client.get_object = AsyncMock(side_effect=NoSuchKeyError())
 
                 from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
 
@@ -872,26 +890,29 @@ class TestS3SnapshotStorageAdvancedOperations:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
-                
+
                 mock_client_cm = AsyncMock()
                 mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
                 mock_client_cm.__aexit__ = AsyncMock()
-                
+
                 mock_session.client = MagicMock(return_value=mock_client_cm)
                 mock_aioboto3.Session = MagicMock(return_value=mock_session)
 
                 saga_id = uuid4()
                 snapshot_id = uuid4()
                 target_time = datetime.now(UTC)
-                
+
                 # Mock index
                 index_data = {
                     "saga_id": str(saga_id),
                     "snapshots": [
-                        {"snapshot_id": str(snapshot_id), "created_at": (target_time - timedelta(hours=1)).isoformat()}
-                    ]
+                        {
+                            "snapshot_id": str(snapshot_id),
+                            "created_at": (target_time - timedelta(hours=1)).isoformat(),
+                        }
+                    ],
                 }
-                
+
                 # Mock snapshot
                 snapshot_data = {
                     "snapshot_id": str(snapshot_id),
@@ -905,17 +926,22 @@ class TestS3SnapshotStorageAdvancedOperations:
                     "created_at": (target_time - timedelta(hours=1)).isoformat(),
                     "retention_until": None,
                 }
-                
+
                 call_count = [0]
+
                 async def mock_get_object(**kwargs):
                     call_count[0] += 1
                     mock_body = AsyncMock()
                     if call_count[0] == 1:
-                        mock_body.read = AsyncMock(return_value=json.dumps(index_data).encode("utf-8"))
+                        mock_body.read = AsyncMock(
+                            return_value=json.dumps(index_data).encode("utf-8")
+                        )
                     else:
-                        mock_body.read = AsyncMock(return_value=json.dumps(snapshot_data).encode("utf-8"))
+                        mock_body.read = AsyncMock(
+                            return_value=json.dumps(snapshot_data).encode("utf-8")
+                        )
                     return {"Body": mock_body}
-                
+
                 mock_client.get_object = mock_get_object
 
                 from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
@@ -924,7 +950,7 @@ class TestS3SnapshotStorageAdvancedOperations:
                 await storage._get_s3_client()
 
                 result = await storage.get_snapshot_at_time(saga_id, target_time)
-                
+
                 assert result is not None
                 assert result.snapshot_id == snapshot_id
 
@@ -935,34 +961,37 @@ class TestS3SnapshotStorageAdvancedOperations:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
-                
+
                 mock_client_cm = AsyncMock()
                 mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
                 mock_client_cm.__aexit__ = AsyncMock()
-                
+
                 mock_session.client = MagicMock(return_value=mock_client_cm)
                 mock_aioboto3.Session = MagicMock(return_value=mock_session)
 
                 saga_id = uuid4()
                 snapshot_ids = [uuid4(), uuid4(), uuid4()]
-                
+
                 # Mock index
                 index_data = {
                     "saga_id": str(saga_id),
                     "snapshots": [
                         {"snapshot_id": str(sid), "created_at": datetime.now(UTC).isoformat()}
                         for sid in snapshot_ids
-                    ]
+                    ],
                 }
-                
+
                 call_counter = [0]
+
                 async def mock_get_object(**kwargs):
                     call_counter[0] += 1
                     mock_body = AsyncMock()
-                    
+
                     if call_counter[0] == 1:
                         # Index
-                        mock_body.read = AsyncMock(return_value=json.dumps(index_data).encode("utf-8"))
+                        mock_body.read = AsyncMock(
+                            return_value=json.dumps(index_data).encode("utf-8")
+                        )
                     else:
                         # Snapshots
                         idx = call_counter[0] - 2
@@ -979,10 +1008,12 @@ class TestS3SnapshotStorageAdvancedOperations:
                                 "created_at": datetime.now(UTC).isoformat(),
                                 "retention_until": None,
                             }
-                            mock_body.read = AsyncMock(return_value=json.dumps(snapshot_data).encode("utf-8"))
-                    
+                            mock_body.read = AsyncMock(
+                                return_value=json.dumps(snapshot_data).encode("utf-8")
+                            )
+
                     return {"Body": mock_body}
-                
+
                 mock_client.get_object = mock_get_object
 
                 from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
@@ -991,7 +1022,7 @@ class TestS3SnapshotStorageAdvancedOperations:
                 await storage._get_s3_client()
 
                 result = await storage.list_snapshots(saga_id, limit=2)
-                
+
                 assert len(result) == 2
 
     @pytest.mark.asyncio
@@ -1001,17 +1032,17 @@ class TestS3SnapshotStorageAdvancedOperations:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
-                
+
                 mock_client_cm = AsyncMock()
                 mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
                 mock_client_cm.__aexit__ = AsyncMock()
-                
+
                 mock_session.client = MagicMock(return_value=mock_client_cm)
                 mock_aioboto3.Session = MagicMock(return_value=mock_session)
 
                 saga_id = uuid4()
                 snapshot_id = uuid4()
-                
+
                 # Mock get_snapshot
                 snapshot_data = {
                     "snapshot_id": str(snapshot_id),
@@ -1025,27 +1056,35 @@ class TestS3SnapshotStorageAdvancedOperations:
                     "created_at": datetime.now(UTC).isoformat(),
                     "retention_until": None,
                 }
-                
+
                 # Mock index
                 index_data = {
                     "saga_id": str(saga_id),
                     "snapshots": [
-                        {"snapshot_id": str(snapshot_id), "created_at": datetime.now(UTC).isoformat()}
-                    ]
+                        {
+                            "snapshot_id": str(snapshot_id),
+                            "created_at": datetime.now(UTC).isoformat(),
+                        }
+                    ],
                 }
-                
+
                 call_counter = [0]
+
                 async def mock_get_object(**kwargs):
                     call_counter[0] += 1
                     mock_body = AsyncMock()
                     if call_counter[0] == 1:
                         # Snapshot
-                        mock_body.read = AsyncMock(return_value=json.dumps(snapshot_data).encode("utf-8"))
+                        mock_body.read = AsyncMock(
+                            return_value=json.dumps(snapshot_data).encode("utf-8")
+                        )
                     else:
                         # Index
-                        mock_body.read = AsyncMock(return_value=json.dumps(index_data).encode("utf-8"))
+                        mock_body.read = AsyncMock(
+                            return_value=json.dumps(index_data).encode("utf-8")
+                        )
                     return {"Body": mock_body}
-                
+
                 mock_client.get_object = mock_get_object
                 mock_client.delete_object = AsyncMock()
                 mock_client.put_object = AsyncMock()
@@ -1056,7 +1095,7 @@ class TestS3SnapshotStorageAdvancedOperations:
                 await storage._get_s3_client()
 
                 result = await storage.delete_snapshot(snapshot_id)
-                
+
                 assert result is True
                 assert mock_client.delete_object.called
 
@@ -1067,18 +1106,19 @@ class TestS3SnapshotStorageAdvancedOperations:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
-                
+
                 mock_client_cm = AsyncMock()
                 mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
                 mock_client_cm.__aexit__ = AsyncMock()
-                
+
                 mock_session.client = MagicMock(return_value=mock_client_cm)
                 mock_aioboto3.Session = MagicMock(return_value=mock_session)
 
-                class NoSuchKeyException(Exception):
+                class NoSuchKeyError(Exception):
                     pass
-                mock_client.exceptions = type('obj', (object,), {'NoSuchKey': NoSuchKeyException})
-                mock_client.get_object = AsyncMock(side_effect=NoSuchKeyException())
+
+                mock_client.exceptions = type("obj", (object,), {"NoSuchKey": NoSuchKeyError})
+                mock_client.get_object = AsyncMock(side_effect=NoSuchKeyError())
 
                 from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
 
@@ -1099,20 +1139,22 @@ class TestS3SnapshotStorageReplayOperations:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
-                
+
                 mock_client_cm = AsyncMock()
                 mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
                 mock_client_cm.__aexit__ = AsyncMock()
-                
+
                 mock_session.client = MagicMock(return_value=mock_client_cm)
                 mock_aioboto3.Session = MagicMock(return_value=mock_session)
 
                 mock_client.put_object = AsyncMock()
 
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
                 from sagaz.core.replay import ReplayStatus
+                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
 
-                storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False, enable_encryption=True)
+                storage = S3SnapshotStorage(
+                    bucket_name="test-bucket", enable_compression=False, enable_encryption=True
+                )
                 await storage._get_s3_client()
 
                 replay_result = ReplayResult(
@@ -1126,7 +1168,7 @@ class TestS3SnapshotStorageReplayOperations:
                 )
 
                 await storage.save_replay_log(replay_result)
-                
+
                 assert mock_client.put_object.called
 
     @pytest.mark.asyncio
@@ -1136,11 +1178,11 @@ class TestS3SnapshotStorageReplayOperations:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
-                
+
                 mock_client_cm = AsyncMock()
                 mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
                 mock_client_cm.__aexit__ = AsyncMock()
-                
+
                 mock_session.client = MagicMock(return_value=mock_client_cm)
                 mock_aioboto3.Session = MagicMock(return_value=mock_session)
 
@@ -1154,7 +1196,7 @@ class TestS3SnapshotStorageReplayOperations:
                     "status": "completed",
                     "created_at": datetime.now(UTC).isoformat(),
                 }
-                
+
                 mock_body = AsyncMock()
                 mock_body.read = AsyncMock(return_value=json.dumps(replay_data).encode("utf-8"))
                 mock_client.get_object = AsyncMock(return_value={"Body": mock_body})
@@ -1165,7 +1207,7 @@ class TestS3SnapshotStorageReplayOperations:
                 await storage._get_s3_client()
 
                 result = await storage.get_replay_log(replay_id)
-                
+
                 assert result is not None
                 assert result["replay_id"] == str(replay_id)
 
@@ -1176,18 +1218,19 @@ class TestS3SnapshotStorageReplayOperations:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
-                
+
                 mock_client_cm = AsyncMock()
                 mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
                 mock_client_cm.__aexit__ = AsyncMock()
-                
+
                 mock_session.client = MagicMock(return_value=mock_client_cm)
                 mock_aioboto3.Session = MagicMock(return_value=mock_session)
 
-                class NoSuchKeyException(Exception):
+                class NoSuchKeyError(Exception):
                     pass
-                mock_client.exceptions = type('obj', (object,), {'NoSuchKey': NoSuchKeyException})
-                mock_client.get_object = AsyncMock(side_effect=NoSuchKeyException())
+
+                mock_client.exceptions = type("obj", (object,), {"NoSuchKey": NoSuchKeyError})
+                mock_client.get_object = AsyncMock(side_effect=NoSuchKeyError())
 
                 from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
 
@@ -1204,18 +1247,18 @@ class TestS3SnapshotStorageReplayOperations:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
-                
+
                 mock_client_cm = AsyncMock()
                 mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
                 mock_client_cm.__aexit__ = AsyncMock()
-                
+
                 mock_session.client = MagicMock(return_value=mock_client_cm)
                 mock_aioboto3.Session = MagicMock(return_value=mock_session)
 
                 original_saga_id = uuid4()
                 replay_id1 = uuid4()
                 replay_id2 = uuid4()
-                
+
                 replay_data1 = {
                     "replay_id": str(replay_id1),
                     "original_saga_id": str(original_saga_id),
@@ -1225,7 +1268,7 @@ class TestS3SnapshotStorageReplayOperations:
                     "status": "completed",
                     "created_at": datetime.now(UTC).isoformat(),
                 }
-                
+
                 replay_data2 = {
                     "replay_id": str(replay_id2),
                     "original_saga_id": str(original_saga_id),
@@ -1245,19 +1288,24 @@ class TestS3SnapshotStorageReplayOperations:
                                 {"Key": f"snapshots/replay/{replay_id2}.json"},
                             ]
                         }
-                
+
                 mock_client.get_paginator = Mock(return_value=MockPaginator())
-                
+
                 call_counter = [0]
+
                 async def mock_get_object(**kwargs):
                     call_counter[0] += 1
                     mock_body = AsyncMock()
                     if call_counter[0] == 1:
-                        mock_body.read = AsyncMock(return_value=json.dumps(replay_data1).encode("utf-8"))
+                        mock_body.read = AsyncMock(
+                            return_value=json.dumps(replay_data1).encode("utf-8")
+                        )
                     else:
-                        mock_body.read = AsyncMock(return_value=json.dumps(replay_data2).encode("utf-8"))
+                        mock_body.read = AsyncMock(
+                            return_value=json.dumps(replay_data2).encode("utf-8")
+                        )
                     return {"Body": mock_body}
-                
+
                 mock_client.get_object = mock_get_object
 
                 from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
@@ -1266,7 +1314,7 @@ class TestS3SnapshotStorageReplayOperations:
                 await storage._get_s3_client()
 
                 result = await storage.list_replays(original_saga_id, limit=10)
-                
+
                 assert len(result) == 2
                 # Should be sorted by created_at DESC
                 assert result[0]["replay_id"] == str(replay_id1)
@@ -1278,28 +1326,30 @@ class TestS3SnapshotStorageReplayOperations:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
-                
+
                 mock_client_cm = AsyncMock()
                 mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
                 mock_client_cm.__aexit__ = AsyncMock()
-                
+
                 mock_session.client = MagicMock(return_value=mock_client_cm)
                 mock_aioboto3.Session = MagicMock(return_value=mock_session)
 
                 original_saga_id = uuid4()
-                
+
                 # Create multiple replays
                 replays = []
                 for i in range(5):
-                    replays.append({
-                        "replay_id": str(uuid4()),
-                        "original_saga_id": str(original_saga_id),
-                        "replay_saga_id": str(uuid4()),
-                        "snapshot_id": str(uuid4()),
-                        "success": True,
-                        "status": "completed",
-                        "created_at": (datetime.now(UTC) - timedelta(hours=i)).isoformat(),
-                    })
+                    replays.append(
+                        {
+                            "replay_id": str(uuid4()),
+                            "original_saga_id": str(original_saga_id),
+                            "replay_saga_id": str(uuid4()),
+                            "snapshot_id": str(uuid4()),
+                            "success": True,
+                            "status": "completed",
+                            "created_at": (datetime.now(UTC) - timedelta(hours=i)).isoformat(),
+                        }
+                    )
 
                 # Mock paginator
                 class MockPaginator:
@@ -1307,19 +1357,23 @@ class TestS3SnapshotStorageReplayOperations:
                         yield {
                             "Contents": [{"Key": f"snapshots/replay/{i}.json"} for i in range(5)]
                         }
-                
+
                 mock_client.get_paginator = Mock(return_value=MockPaginator())
-                
+
                 call_counter = [0]
+
                 async def mock_get_object(**kwargs):
                     idx = call_counter[0]
                     call_counter[0] += 1
                     if idx < len(replays):
                         mock_body = AsyncMock()
-                        mock_body.read = AsyncMock(return_value=json.dumps(replays[idx]).encode("utf-8"))
+                        mock_body.read = AsyncMock(
+                            return_value=json.dumps(replays[idx]).encode("utf-8")
+                        )
                         return {"Body": mock_body}
-                    raise Exception("Out of range")
-                
+                    msg = "Out of range"
+                    raise Exception(msg)
+
                 mock_client.get_object = mock_get_object
 
                 from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
@@ -1328,7 +1382,7 @@ class TestS3SnapshotStorageReplayOperations:
                 await storage._get_s3_client()
 
                 result = await storage.list_replays(original_saga_id, limit=2)
-                
+
                 assert len(result) <= 2
 
 
@@ -1342,18 +1396,19 @@ class TestS3SnapshotStorageEdgeCases:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
-                
+
                 mock_client_cm = AsyncMock()
                 mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
                 mock_client_cm.__aexit__ = AsyncMock()
-                
+
                 mock_session.client = MagicMock(return_value=mock_client_cm)
                 mock_aioboto3.Session = MagicMock(return_value=mock_session)
 
-                class NoSuchKeyException(Exception):
+                class NoSuchKeyError(Exception):
                     pass
-                mock_client.exceptions = type('obj', (object,), {'NoSuchKey': NoSuchKeyException})
-                mock_client.get_object = AsyncMock(side_effect=NoSuchKeyException())
+
+                mock_client.exceptions = type("obj", (object,), {"NoSuchKey": NoSuchKeyError})
+                mock_client.get_object = AsyncMock(side_effect=NoSuchKeyError())
 
                 from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
 
@@ -1370,18 +1425,19 @@ class TestS3SnapshotStorageEdgeCases:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
-                
+
                 mock_client_cm = AsyncMock()
                 mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
                 mock_client_cm.__aexit__ = AsyncMock()
-                
+
                 mock_session.client = MagicMock(return_value=mock_client_cm)
                 mock_aioboto3.Session = MagicMock(return_value=mock_session)
 
-                class NoSuchKeyException(Exception):
+                class NoSuchKeyError(Exception):
                     pass
-                mock_client.exceptions = type('obj', (object,), {'NoSuchKey': NoSuchKeyException})
-                mock_client.get_object = AsyncMock(side_effect=NoSuchKeyException())
+
+                mock_client.exceptions = type("obj", (object,), {"NoSuchKey": NoSuchKeyError})
+                mock_client.get_object = AsyncMock(side_effect=NoSuchKeyError())
 
                 from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
 
@@ -1398,18 +1454,19 @@ class TestS3SnapshotStorageEdgeCases:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
-                
+
                 mock_client_cm = AsyncMock()
                 mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
                 mock_client_cm.__aexit__ = AsyncMock()
-                
+
                 mock_session.client = MagicMock(return_value=mock_client_cm)
                 mock_aioboto3.Session = MagicMock(return_value=mock_session)
 
-                class NoSuchKeyException(Exception):
+                class NoSuchKeyError(Exception):
                     pass
-                mock_client.exceptions = type('obj', (object,), {'NoSuchKey': NoSuchKeyException})
-                mock_client.get_object = AsyncMock(side_effect=NoSuchKeyException())
+
+                mock_client.exceptions = type("obj", (object,), {"NoSuchKey": NoSuchKeyError})
+                mock_client.get_object = AsyncMock(side_effect=NoSuchKeyError())
 
                 from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
 
@@ -1426,40 +1483,43 @@ class TestS3SnapshotStorageEdgeCases:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
-                
+
                 mock_client_cm = AsyncMock()
                 mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
                 mock_client_cm.__aexit__ = AsyncMock()
-                
+
                 mock_session.client = MagicMock(return_value=mock_client_cm)
                 mock_aioboto3.Session = MagicMock(return_value=mock_session)
 
                 saga_id = uuid4()
-                
+
                 # Mock index with snapshots
                 index_data = {
                     "saga_id": str(saga_id),
                     "snapshots": [
                         {"snapshot_id": str(uuid4()), "created_at": datetime.now(UTC).isoformat()}
-                    ]
+                    ],
                 }
-                
+
                 call_counter = [0]
-                class NoSuchKeyException(Exception):
+
+                class NoSuchKeyError(Exception):
                     pass
-                mock_client.exceptions = type('obj', (object,), {'NoSuchKey': NoSuchKeyException})
-                
+
+                mock_client.exceptions = type("obj", (object,), {"NoSuchKey": NoSuchKeyError})
+
                 async def mock_get_object(**kwargs):
                     call_counter[0] += 1
                     if call_counter[0] == 1:
                         # Index found
                         mock_body = AsyncMock()
-                        mock_body.read = AsyncMock(return_value=json.dumps(index_data).encode("utf-8"))
+                        mock_body.read = AsyncMock(
+                            return_value=json.dumps(index_data).encode("utf-8")
+                        )
                         return {"Body": mock_body}
-                    else:
-                        # Snapshot not found
-                        raise NoSuchKeyException()
-                
+                    # Snapshot not found
+                    raise NoSuchKeyError
+
                 mock_client.get_object = mock_get_object
 
                 from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
@@ -1481,34 +1541,28 @@ class TestS3SnapshotStorageDeleteExpired:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
-                
+
                 mock_client_cm = AsyncMock()
                 mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
                 mock_client_cm.__aexit__ = AsyncMock()
-                
+
                 mock_session.client = MagicMock(return_value=mock_client_cm)
                 mock_aioboto3.Session = MagicMock(return_value=mock_session)
 
                 saga_id = uuid4()
                 snapshot_id = uuid4()
-                
+
                 # Mock paginator for listing
                 class MockPaginator:
                     async def paginate(self, **kwargs):
-                        yield {
-                            "Contents": [
-                                {"Key": f"snapshots/snapshot/{snapshot_id}.json"}
-                            ]
-                        }
-                
+                        yield {"Contents": [{"Key": f"snapshots/snapshot/{snapshot_id}.json"}]}
+
                 mock_client.get_paginator = Mock(return_value=MockPaginator())
-                
+
                 # Mock head_object to return expired snapshot
                 expired_time = datetime.now(UTC) - timedelta(days=1)
-                mock_client.head_object = AsyncMock(return_value={
-                    "Expires": expired_time
-                })
-                
+                mock_client.head_object = AsyncMock(return_value={"Expires": expired_time})
+
                 # Mock get_snapshot
                 snapshot_data = {
                     "snapshot_id": str(snapshot_id),
@@ -1522,27 +1576,35 @@ class TestS3SnapshotStorageDeleteExpired:
                     "created_at": datetime.now(UTC).isoformat(),
                     "retention_until": None,
                 }
-                
+
                 # Mock index
                 index_data = {
                     "saga_id": str(saga_id),
                     "snapshots": [
-                        {"snapshot_id": str(snapshot_id), "created_at": datetime.now(UTC).isoformat()}
-                    ]
+                        {
+                            "snapshot_id": str(snapshot_id),
+                            "created_at": datetime.now(UTC).isoformat(),
+                        }
+                    ],
                 }
-                
+
                 call_counter = [0]
+
                 async def mock_get_object(**kwargs):
                     call_counter[0] += 1
                     mock_body = AsyncMock()
                     if call_counter[0] == 1:
                         # Snapshot
-                        mock_body.read = AsyncMock(return_value=json.dumps(snapshot_data).encode("utf-8"))
+                        mock_body.read = AsyncMock(
+                            return_value=json.dumps(snapshot_data).encode("utf-8")
+                        )
                     else:
                         # Index
-                        mock_body.read = AsyncMock(return_value=json.dumps(index_data).encode("utf-8"))
+                        mock_body.read = AsyncMock(
+                            return_value=json.dumps(index_data).encode("utf-8")
+                        )
                     return {"Body": mock_body}
-                
+
                 mock_client.get_object = mock_get_object
                 mock_client.delete_object = AsyncMock()
                 mock_client.put_object = AsyncMock()
@@ -1553,7 +1615,7 @@ class TestS3SnapshotStorageDeleteExpired:
                 await storage._get_s3_client()
 
                 deleted = await storage.delete_expired_snapshots()
-                
+
                 # Should have deleted 1 expired snapshot
                 assert deleted == 1
                 assert mock_client.delete_object.called
@@ -1565,11 +1627,11 @@ class TestS3SnapshotStorageDeleteExpired:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
-                
+
                 mock_client_cm = AsyncMock()
                 mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
                 mock_client_cm.__aexit__ = AsyncMock()
-                
+
                 mock_session.client = MagicMock(return_value=mock_client_cm)
                 mock_aioboto3.Session = MagicMock(return_value=mock_session)
 
@@ -1577,7 +1639,7 @@ class TestS3SnapshotStorageDeleteExpired:
                 class MockPaginator:
                     async def paginate(self, **kwargs):
                         yield {"Contents": []}
-                
+
                 mock_client.get_paginator = Mock(return_value=MockPaginator())
 
                 from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
@@ -1586,7 +1648,7 @@ class TestS3SnapshotStorageDeleteExpired:
                 await storage._get_s3_client()
 
                 deleted = await storage.delete_expired_snapshots()
-                
+
                 assert deleted == 0
 
 
@@ -1611,7 +1673,7 @@ def _make_mock_s3_setup(mock_aioboto3):
 
 class TestS3SnapshotMissingBranches:
     """Lines 102-104, 165->169, 251->243, 272->279, 274->272, 300->297,
-       322-323, 374->368, 383->368, 385-386, 410->413, 447->439, 452-453, 465->exit."""
+    322-323, 374->368, 383->368, 385-386, 410->413, 447->439, 452-453, 465->exit."""
 
     @pytest.mark.asyncio
     async def test_get_s3_client_exception(self):
@@ -1649,9 +1711,15 @@ class TestS3SnapshotMissingBranches:
                 await storage._get_s3_client()
 
                 snapshot = SagaSnapshot(
-                    snapshot_id=uuid4(), saga_id=uuid4(), saga_name="T",
-                    step_name="s1", step_index=0, status=SagaStatus.EXECUTING,
-                    context={}, completed_steps=[], created_at=datetime.now(UTC),
+                    snapshot_id=uuid4(),
+                    saga_id=uuid4(),
+                    saga_name="T",
+                    step_name="s1",
+                    step_index=0,
+                    status=SagaStatus.EXECUTING,
+                    context={},
+                    completed_steps=[],
+                    created_at=datetime.now(UTC),
                 )
                 await storage.save_snapshot(snapshot)
                 call_kwargs = mock_client.put_object.call_args_list[0][1]
@@ -1667,16 +1735,29 @@ class TestS3SnapshotMissingBranches:
                 mock_client, _, MockNoSuchKey = _make_mock_s3_setup(mock_aioboto3)
                 saga_id = uuid4()
                 snap_id = uuid4()
-                index_data = {"snapshots": [{"snapshot_id": str(snap_id), "created_at": datetime.now(UTC).isoformat()}]}
+                index_data = {
+                    "snapshots": [
+                        {"snapshot_id": str(snap_id), "created_at": datetime.now(UTC).isoformat()}
+                    ]
+                }
                 snap_data = {
-                    "snapshot_id": str(snap_id), "saga_id": str(saga_id),
-                    "saga_name": "T", "step_name": "step_a", "step_index": 0,
-                    "status": "executing", "context": {}, "completed_steps": [],
+                    "snapshot_id": str(snap_id),
+                    "saga_id": str(saga_id),
+                    "saga_name": "T",
+                    "step_name": "step_a",
+                    "step_index": 0,
+                    "status": "executing",
+                    "context": {},
+                    "completed_steps": [],
                     "created_at": datetime.now(UTC).isoformat(),
                 }
 
-                index_resp = {"Body": AsyncMock(read=AsyncMock(return_value=json.dumps(index_data).encode()))}
-                snap_resp = {"Body": AsyncMock(read=AsyncMock(return_value=json.dumps(snap_data).encode()))}
+                index_resp = {
+                    "Body": AsyncMock(read=AsyncMock(return_value=json.dumps(index_data).encode()))
+                }
+                snap_resp = {
+                    "Body": AsyncMock(read=AsyncMock(return_value=json.dumps(snap_data).encode()))
+                }
                 mock_client.get_object = AsyncMock(side_effect=[index_resp, snap_resp])
 
                 storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
@@ -1694,7 +1775,9 @@ class TestS3SnapshotMissingBranches:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_client, _, _ = _make_mock_s3_setup(mock_aioboto3)
                 index_data = {"snapshots": []}
-                index_resp = {"Body": AsyncMock(read=AsyncMock(return_value=json.dumps(index_data).encode()))}
+                index_resp = {
+                    "Body": AsyncMock(read=AsyncMock(return_value=json.dumps(index_data).encode()))
+                }
                 mock_client.get_object = AsyncMock(return_value=index_resp)
 
                 storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
@@ -1712,14 +1795,22 @@ class TestS3SnapshotMissingBranches:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_client, _, _ = _make_mock_s3_setup(mock_aioboto3)
                 future_time = datetime.now(UTC) + timedelta(days=1)
-                index_data = {"snapshots": [{"snapshot_id": str(uuid4()), "created_at": future_time.isoformat()}]}
-                index_resp = {"Body": AsyncMock(read=AsyncMock(return_value=json.dumps(index_data).encode()))}
+                index_data = {
+                    "snapshots": [
+                        {"snapshot_id": str(uuid4()), "created_at": future_time.isoformat()}
+                    ]
+                }
+                index_resp = {
+                    "Body": AsyncMock(read=AsyncMock(return_value=json.dumps(index_data).encode()))
+                }
                 mock_client.get_object = AsyncMock(return_value=index_resp)
 
                 storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
                 await storage._get_s3_client()
 
-                result = await storage.get_snapshot_at_time(uuid4(), datetime.now(UTC) - timedelta(days=1))
+                result = await storage.get_snapshot_at_time(
+                    uuid4(), datetime.now(UTC) - timedelta(days=1)
+                )
                 assert result is None
 
     @pytest.mark.asyncio
@@ -1733,7 +1824,9 @@ class TestS3SnapshotMissingBranches:
                 saga_id = uuid4()
                 snap_id = uuid4()
                 index_data = {"snapshots": [{"snapshot_id": str(snap_id)}]}
-                index_resp = {"Body": AsyncMock(read=AsyncMock(return_value=json.dumps(index_data).encode()))}
+                index_resp = {
+                    "Body": AsyncMock(read=AsyncMock(return_value=json.dumps(index_data).encode()))
+                }
                 # Index found, but snapshot itself raises NoSuchKey
                 mock_client.get_object = AsyncMock(side_effect=[index_resp, MockNoSuchKey()])
 
@@ -1754,12 +1847,19 @@ class TestS3SnapshotMissingBranches:
                 snap_id = uuid4()
                 saga_id = uuid4()
                 snap_data = {
-                    "snapshot_id": str(snap_id), "saga_id": str(saga_id),
-                    "saga_name": "T", "step_name": "s1", "step_index": 0,
-                    "status": "executing", "context": {}, "completed_steps": [],
+                    "snapshot_id": str(snap_id),
+                    "saga_id": str(saga_id),
+                    "saga_name": "T",
+                    "step_name": "s1",
+                    "step_index": 0,
+                    "status": "executing",
+                    "context": {},
+                    "completed_steps": [],
                     "created_at": datetime.now(UTC).isoformat(),
                 }
-                snap_resp = {"Body": AsyncMock(read=AsyncMock(return_value=json.dumps(snap_data).encode()))}
+                snap_resp = {
+                    "Body": AsyncMock(read=AsyncMock(return_value=json.dumps(snap_data).encode()))
+                }
                 mock_client.get_object = AsyncMock(return_value=snap_resp)
                 mock_client.delete_object = AsyncMock(side_effect=RuntimeError("S3 error"))
 
@@ -1816,8 +1916,8 @@ class TestS3SnapshotMissingBranches:
     @pytest.mark.asyncio
     async def test_save_replay_log_without_encryption(self):
         """Lines 410->413: enable_encryption=False in save_replay_log."""
-        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
         from sagaz.core.replay import ReplayStatus
+        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
 
         with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
@@ -1830,8 +1930,11 @@ class TestS3SnapshotMissingBranches:
                 await storage._get_s3_client()
 
                 replay = ReplayResult(
-                    replay_id=uuid4(), original_saga_id=uuid4(), new_saga_id=uuid4(),
-                    checkpoint_step="step1", replay_status=ReplayStatus.SUCCESS,
+                    replay_id=uuid4(),
+                    original_saga_id=uuid4(),
+                    new_saga_id=uuid4(),
+                    checkpoint_step="step1",
+                    replay_status=ReplayStatus.SUCCESS,
                 )
                 await storage.save_replay_log(replay)
                 call_kwargs = mock_client.put_object.call_args[1]
@@ -1850,7 +1953,9 @@ class TestS3SnapshotMissingBranches:
                     "original_saga_id": str(other_saga_id),
                     "created_at": datetime.now(UTC).isoformat(),
                 }
-                resp = {"Body": AsyncMock(read=AsyncMock(return_value=json.dumps(replay_data).encode()))}
+                resp = {
+                    "Body": AsyncMock(read=AsyncMock(return_value=json.dumps(replay_data).encode()))
+                }
                 mock_client.get_object = AsyncMock(return_value=resp)
 
                 class MockPaginator:
@@ -1902,80 +2007,94 @@ class TestS3SnapshotMissingBranches:
 class TestS3SnapshotBranch:
     async def test_delete_expired_snapshots_deletes_expired(self):
         """383->368: delete_expired_snapshots uses paginator to list and delete expired objects."""
-        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
 
-        storage = S3SnapshotStorage(bucket_name="test-bucket", region="us-east-1")
+                storage = S3SnapshotStorage(
+                    bucket_name="test-bucket",
+                    region="us-east-1",
+                    enable_compression=False,
+                )
 
-        snap_key = "snapshots/snapshot-abc.json"
-        expired_time = datetime(2000, 1, 1, tzinfo=UTC)
+                snap_key = "snapshots/snapshot-abc.json"
+                expired_time = datetime(2000, 1, 1, tzinfo=UTC)
 
-        class AsyncPaginator:
-            def __init__(self, pages):
-                self._pages = pages
+                class AsyncPaginator:
+                    def __init__(self, pages):
+                        self._pages = pages
 
-            def paginate(self, **kwargs):
-                return self
+                    def paginate(self, **kwargs):
+                        return self
 
-            def __aiter__(self):
-                return self._iter()
+                    def __aiter__(self):
+                        return self._iter()
 
-            async def _iter(self):
-                for page in self._pages:
-                    yield page
+                    async def _iter(self):
+                        for page in self._pages:
+                            yield page
 
-        pages = [{"Contents": [{"Key": snap_key}]}]
-        mock_s3 = AsyncMock()
-        mock_s3.get_paginator = MagicMock(return_value=AsyncPaginator(pages))
-        mock_s3.head_object = AsyncMock(
-            return_value={"Expires": expired_time}
-        )
-        mock_s3.delete_object = AsyncMock()
+                pages = [{"Contents": [{"Key": snap_key}]}]
+                mock_s3 = AsyncMock()
+                mock_s3.get_paginator = MagicMock(return_value=AsyncPaginator(pages))
+                mock_s3.head_object = AsyncMock(return_value={"Expires": expired_time})
+                mock_s3.delete_object = AsyncMock()
 
-        mock_ctx = MagicMock()
-        mock_ctx.__aenter__ = AsyncMock(return_value=mock_s3)
-        mock_ctx.__aexit__ = AsyncMock(return_value=None)
+                mock_ctx = MagicMock()
+                mock_ctx.__aenter__ = AsyncMock(return_value=mock_s3)
+                mock_ctx.__aexit__ = AsyncMock(return_value=None)
 
-        with patch("aioboto3.Session") as mock_session:
-            mock_session.return_value.client = MagicMock(return_value=mock_ctx)
-            count = await storage.delete_expired_snapshots()
+                mock_session = MagicMock()
+                mock_session.client = MagicMock(return_value=mock_ctx)
+                mock_aioboto3.Session.return_value = mock_session
+
+                count = await storage.delete_expired_snapshots()
 
         assert count >= 0
 
     async def test_delete_expired_snapshots_delete_returns_false(self):
         """383->368 FALSE: delete_snapshot returns False → deleted_count not incremented."""
-        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
 
-        storage = S3SnapshotStorage(bucket_name="test-bucket", region="us-east-1")
-        snap_key = f"snapshots/{uuid4()}.json"
-        expired_time = datetime(2000, 1, 1, tzinfo=UTC)
+                storage = S3SnapshotStorage(
+                    bucket_name="test-bucket",
+                    region="us-east-1",
+                    enable_compression=False,
+                )
+                snap_key = f"snapshots/{uuid4()}.json"
+                expired_time = datetime(2000, 1, 1, tzinfo=UTC)
 
-        class AsyncPaginator:
-            def __init__(self, pages):
-                self._pages = pages
+                class AsyncPaginator:
+                    def __init__(self, pages):
+                        self._pages = pages
 
-            def paginate(self, **kwargs):
-                return self
+                    def paginate(self, **kwargs):
+                        return self
 
-            def __aiter__(self):
-                return self._iter()
+                    def __aiter__(self):
+                        return self._iter()
 
-            async def _iter(self):
-                for page in self._pages:
-                    yield page
+                    async def _iter(self):
+                        for page in self._pages:
+                            yield page
 
-        pages = [{"Contents": [{"Key": snap_key}]}]
-        mock_s3 = AsyncMock()
-        mock_s3.get_paginator = MagicMock(return_value=AsyncPaginator(pages))
-        mock_s3.head_object = AsyncMock(return_value={"Expires": expired_time})
+                pages = [{"Contents": [{"Key": snap_key}]}]
+                mock_s3 = AsyncMock()
+                mock_s3.get_paginator = MagicMock(return_value=AsyncPaginator(pages))
+                mock_s3.head_object = AsyncMock(return_value={"Expires": expired_time})
 
-        mock_ctx = MagicMock()
-        mock_ctx.__aenter__ = AsyncMock(return_value=mock_s3)
-        mock_ctx.__aexit__ = AsyncMock(return_value=None)
+                mock_ctx = MagicMock()
+                mock_ctx.__aenter__ = AsyncMock(return_value=mock_s3)
+                mock_ctx.__aexit__ = AsyncMock(return_value=None)
 
-        with patch("aioboto3.Session") as mock_session:
-            mock_session.return_value.client = MagicMock(return_value=mock_ctx)
-            with patch.object(storage, "delete_snapshot", return_value=False):
-                count = await storage.delete_expired_snapshots()
+                mock_session = MagicMock()
+                mock_session.client = MagicMock(return_value=mock_ctx)
+                mock_aioboto3.Session.return_value = mock_session
+
+                with patch.object(storage, "delete_snapshot", return_value=False):
+                    count = await storage.delete_expired_snapshots()
 
         assert count == 0  # delete_snapshot returned False → no increment
 

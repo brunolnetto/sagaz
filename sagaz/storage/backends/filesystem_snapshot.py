@@ -113,9 +113,7 @@ class FilesystemSnapshotStorage(SnapshotStorage):
 
     async def _write_json(self, path: Path, data: dict[str, Any]) -> None:
         """Write JSON data to file with optional compression"""
-        json_str = json.dumps(
-            data, default=str, indent=2 if self.pretty_json else None
-        )
+        json_str = json.dumps(data, default=str, indent=2 if self.pretty_json else None)
 
         if self.enable_compression:
             # Write compressed
@@ -130,7 +128,8 @@ class FilesystemSnapshotStorage(SnapshotStorage):
     async def _read_json(self, path: Path) -> dict[str, Any]:
         """Read JSON data from file with optional decompression"""
         if not path.exists():
-            raise FileNotFoundError(f"Snapshot file not found: {path}")
+            msg = f"Snapshot file not found: {path}"
+            raise FileNotFoundError(msg)
 
         if self.enable_compression or path.suffix == ".gz":
             # Read compressed
@@ -139,7 +138,7 @@ class FilesystemSnapshotStorage(SnapshotStorage):
             json_str = gzip.decompress(compressed).decode("utf-8")
         else:
             # Read plain JSON
-            async with aiofiles.open(path, "r") as f:
+            async with aiofiles.open(path) as f:
                 json_str = await f.read()
 
         return json.loads(json_str)
@@ -164,9 +163,7 @@ class FilesystemSnapshotStorage(SnapshotStorage):
             )
 
             # Sort by created_at DESC
-            index_data["snapshots"].sort(
-                key=lambda x: x["created_at"], reverse=True
-            )
+            index_data["snapshots"].sort(key=lambda x: x["created_at"], reverse=True)
 
             # Save index
             await self._write_json(index_path, index_data)
@@ -185,9 +182,7 @@ class FilesystemSnapshotStorage(SnapshotStorage):
         await self._write_json(snapshot_path, snapshot_data)
 
         # Update index
-        await self._update_index(
-            snapshot.saga_id, snapshot.snapshot_id, snapshot.created_at
-        )
+        await self._update_index(snapshot.saga_id, snapshot.snapshot_id, snapshot.created_at)
 
     async def get_snapshot(self, snapshot_id: UUID) -> SagaSnapshot | None:
         """
@@ -237,9 +232,7 @@ class FilesystemSnapshotStorage(SnapshotStorage):
 
         return None
 
-    async def get_snapshot_at_time(
-        self, saga_id: UUID, timestamp: datetime
-    ) -> SagaSnapshot | None:
+    async def get_snapshot_at_time(self, saga_id: UUID, timestamp: datetime) -> SagaSnapshot | None:
         """Get snapshot at or before given timestamp"""
         index_path = self._get_index_path(saga_id)
         if not index_path.exists():
@@ -363,9 +356,7 @@ class FilesystemSnapshotStorage(SnapshotStorage):
 
         return await self._read_json(replay_path)
 
-    async def list_replays(
-        self, original_saga_id: UUID, limit: int = 100
-    ) -> list[dict[str, Any]]:
+    async def list_replays(self, original_saga_id: UUID, limit: int = 100) -> list[dict[str, Any]]:
         """List replays for original saga"""
         replays = []
 
@@ -388,7 +379,6 @@ class FilesystemSnapshotStorage(SnapshotStorage):
 
     async def close(self) -> None:
         """Close storage (no-op for filesystem)"""
-        pass
 
     async def __aenter__(self):
         """Async context manager entry"""

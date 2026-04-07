@@ -13,7 +13,6 @@ from uuid import uuid4
 
 import pytest
 
-
 # =============================================================================
 # logger.py - missing: 30, 36, 42, 45, 104, 107-108
 # =============================================================================
@@ -357,6 +356,7 @@ class TestEnvManagerGetMethods:
     def test_get_returns_value(self):
         """Line 90+: get() returns the env var value."""
         import os
+
         from sagaz.core.env import EnvManager
 
         env = EnvManager(auto_load=False)
@@ -369,6 +369,7 @@ class TestEnvManagerGetMethods:
     def test_get_missing_required_raises(self):
         """Lines 92-94: get() raises ValueError when required and missing."""
         import os
+
         from sagaz.core.env import EnvManager
 
         env = EnvManager(auto_load=False)
@@ -379,6 +380,7 @@ class TestEnvManagerGetMethods:
     def test_get_missing_optional_returns_default(self):
         """Line 96: get() returns default when key missing (not required)."""
         import os
+
         from sagaz.core.env import EnvManager
 
         env = EnvManager(auto_load=False)
@@ -389,6 +391,7 @@ class TestEnvManagerGetMethods:
     def test_get_bool_true_values(self):
         """Lines 100-102: get_bool() recognises truthy strings."""
         import os
+
         from sagaz.core.env import EnvManager
 
         env = EnvManager(auto_load=False)
@@ -400,6 +403,7 @@ class TestEnvManagerGetMethods:
     def test_get_bool_false_values(self):
         """Lines 103-104: get_bool() recognises falsy strings."""
         import os
+
         from sagaz.core.env import EnvManager
 
         env = EnvManager(auto_load=False)
@@ -411,6 +415,7 @@ class TestEnvManagerGetMethods:
     def test_get_bool_default_on_unknown(self):
         """Line 105: get_bool() returns default for unrecognised strings."""
         import os
+
         from sagaz.core.env import EnvManager
 
         env = EnvManager(auto_load=False)
@@ -422,6 +427,7 @@ class TestEnvManagerGetMethods:
     def test_get_int_valid(self):
         """Line 110: get_int() parses an integer."""
         import os
+
         from sagaz.core.env import EnvManager
 
         env = EnvManager(auto_load=False)
@@ -432,6 +438,7 @@ class TestEnvManagerGetMethods:
     def test_get_int_invalid_returns_default(self):
         """Lines 111-112: get_int() returns default on parse failure."""
         import os
+
         from sagaz.core.env import EnvManager
 
         env = EnvManager(auto_load=False)
@@ -447,6 +454,7 @@ class TestEnvSubstituteExtra:
     def test_substitute_default_with_existing_value(self):
         """Line 145: ${VAR:-default} returns actual value when var is set."""
         import os
+
         from sagaz.core.env import EnvManager
 
         env = EnvManager(auto_load=False)
@@ -460,6 +468,7 @@ class TestEnvSubstituteExtra:
     def test_substitute_required_missing_with_custom_message(self):
         """Lines 148-149: ${VAR:?custom_error} raises with custom message."""
         import os
+
         from sagaz.core.env import EnvManager
 
         env = EnvManager(auto_load=False)
@@ -470,13 +479,14 @@ class TestEnvSubstituteExtra:
     def test_substitute_dict_non_string_non_list_value(self):
         """Line 186: substitute_dict keeps non-string, non-list values as-is."""
         import os
+
         from sagaz.core.env import EnvManager
 
         env = EnvManager(auto_load=False)
         data = {
-            "count": 42,          # int - kept as-is
-            "enabled": True,      # bool - kept as-is
-            "ratio": 0.75,        # float - kept as-is
+            "count": 42,  # int - kept as-is
+            "enabled": True,  # bool - kept as-is
+            "ratio": 0.75,  # float - kept as-is
         }
         result = env.substitute_dict(data)
         assert result["count"] == 42
@@ -653,4 +663,3 @@ class TestEnvCreateTemplate:
         )
         content = target.read_text()
         assert "SAGAZ_BROKER_TYPE=pulsar" in content
-

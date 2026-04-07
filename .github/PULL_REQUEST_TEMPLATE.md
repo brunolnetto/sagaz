@@ -1,33 +1,21 @@
-## Description
-<!-- Describe your changes in detail -->
+## Changes
+-
 
-## Type of Change
-<!-- Mark the appropriate option with an x -->
-- [ ] 🐛 Bug fix (non-breaking change which fixes an issue)
-- [ ] ✨ New feature (non-breaking change which adds functionality)
-- [ ] 💥 Breaking change (fix or feature that would cause existing functionality to change)
-- [ ] 📚 Documentation update
-- [ ] 🧹 Code refactoring (no functional changes)
-- [ ] ✅ Test coverage improvement
-- [ ] 🔧 CI/CD or tooling changes
+## Motivation
+-
 
-## Related Issues
-<!-- Link any related issues here using "Fixes #123" or "Relates to #456" -->
+## Impact
+- [ ] Documentation only (no runtime impact)
+- [ ] Code change (affects runtime behaviour)
 
 ## Checklist
-<!-- Ensure all items are checked before requesting review -->
-- [ ] My code follows the project's code style (ruff check passes)
-- [ ] I have run the tests locally (`pytest tests/`)
-- [ ] I have added tests that prove my fix/feature works
-- [ ] New and existing unit tests pass locally
-- [ ] I have updated documentation if needed
-- [ ] I have added type hints where appropriate
+- [ ] Branch follows naming convention (`docs/development/branch-naming.md`)
+- [ ] Commits follow Conventional Commits (`commitlint.config.cjs`)
+- [ ] Tests written before implementation (TDD red-green-refactor) _(code changes only)_
+- [ ] `ruff check` passes _(code changes only)_
+- [ ] `pytest --cov=sagaz --cov-fail-under=95` passes _(code changes only)_ _(code changes only)_
+- [ ] Documentation updated if needed
+- [ ] CI is passing
 
-## Test Coverage
-<!-- Describe how you tested your changes -->
-
-## Screenshots/Recordings
-<!-- If applicable, add screenshots or recordings to help explain your changes -->
-
-## Additional Notes
-<!-- Any additional information that reviewers should know -->
+## Related Issue
+Closes #

@@ -81,7 +81,6 @@ nav:
       - CDC Support: architecture/adr/adr-011-cdc-support.md
       - ADR Dependencies: architecture/adr-dependencies-complete.md
       - Idempotency Webhook: architecture/idempotency-webhook-behavior.md
-      - Coverage Analysis: architecture/coverage-analysis.md
     - Diagrams:
       - Outbox Flow: architecture/diagrams/outbox-flow.md
       - K8s Topology: architecture/diagrams/k8s-topology.md
@@ -104,7 +103,12 @@ nav:
     - Configuration API: reference/configuration.md
   
   - Development:
+    - Contributing: development/contributing.md
+    - Engineering Policies: development/engineering-policies.md
+    - Branch Naming: development/branch-naming.md
     - Testing Guide: development/testing.md
+    - Makefile Reference: development/makefile.md
+    - MkDocs Setup: development/mkdocs.md
     - Changelog: development/changelog.md
   
   - Roadmap: ROADMAP.md
@@ -128,4 +132,3 @@ extra:
 exclude_docs: |
   archive/
   STRUCTURE.md
-  REPLAY_IMPLEMENTATION_COMPLETE.md

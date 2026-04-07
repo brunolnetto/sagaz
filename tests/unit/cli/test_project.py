@@ -118,8 +118,9 @@ class TestProjectMissingCoverage:
 
     def test_console_is_none_without_rich(self):
         """Lines 13-14: when rich is not importable, console=None."""
-        import sys
         import importlib
+        import sys
+
         import sagaz.cli.project as proj_mod
 
         original_rich = sys.modules.get("rich.console")
@@ -136,8 +137,9 @@ class TestProjectMissingCoverage:
 
     def test_discover_sagas_from_file_bad_spec(self, tmp_path):
         """Line 104: returns [] when spec_from_file_location returns None."""
-        from sagaz.cli.project import _inspect_module
         from unittest.mock import patch
+
+        from sagaz.cli.project import _inspect_module
 
         with patch("importlib.util.spec_from_file_location", return_value=None):
             result = _inspect_module("fake_mod", tmp_path / "fake.py")
@@ -154,17 +156,15 @@ class TestProjectMissingCoverage:
 
     def test_discover_sagas_from_file_default_docstring(self, tmp_path):
         """Lines 113->116: doc set to 'No description' when it matches Saga base docstring."""
-        from sagaz.cli.project import _inspect_module
-        from sagaz import Saga
         import inspect
+
+        from sagaz import Saga
+        from sagaz.cli.project import _inspect_module
 
         base_doc = inspect.getdoc(Saga) or ""
         saga_py = tmp_path / "saga_with_base_doc.py"
         saga_py.write_text(
-            f'from sagaz import Saga\n'
-            f'class MySaga(Saga):\n'
-            f'    """{base_doc}"""\n'
-            f'    pass\n'
+            f'from sagaz import Saga\nclass MySaga(Saga):\n    """{base_doc}"""\n    pass\n'
         )
         results = _inspect_module("saga_with_base_doc", saga_py)
         assert any(r["doc"] == "No description" for r in results)

@@ -85,7 +85,7 @@ class FailFastWithGraceStrategy(ParallelExecutionStrategy):
         except TimeoutError:
             for task in pending:
                 if not task.done():
-                    task.cancel()  # pragma: no cover – Python 3.12+ wait_for cancels tasks before raising TimeoutError
+                    task.cancel()  # pragma: no cover - Python 3.12+ wait_for cancels tasks before raising TimeoutError
 
     def _cancel_all_tasks(self, tasks: list):
         """Cancel all incomplete tasks."""

@@ -602,10 +602,11 @@ class TestMonitoringIntegration:
 class TestMonitoringMetricsBranches:
     def test_update_status_counter_unknown_status(self):
         """42->exit: counter is None (status not in map) → no increment."""
-        from sagaz.monitoring.metrics import SagaMetrics
         from sagaz.core.types import SagaStatus
+        from sagaz.monitoring.metrics import SagaMetrics
 
         metrics = SagaMetrics()
+
         # Use a status not in the map to test 42->exit branch
         class FakeStatus:
             pass

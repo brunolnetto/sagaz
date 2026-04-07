@@ -534,8 +534,10 @@ class TestSagaReplayExecutionPaths:
         )
         result = await replay.from_checkpoint(step_name="step1")
 
-        assert result.replay_status.value in ("success", "SUCCESS", "completed", "COMPLETED") or \
-               result.replay_status == ReplayStatus.SUCCESS
+        assert (
+            result.replay_status.value in ("success", "SUCCESS", "completed", "COMPLETED")
+            or result.replay_status == ReplayStatus.SUCCESS
+        )
 
     @pytest.mark.asyncio
     async def test_async_factory_success(self, storage, saga_id, snapshot):
@@ -615,9 +617,7 @@ class TestSagaReplayExecutionPaths:
     async def test_generic_exception_wraps_as_replay_error(self, storage, saga_id):
         """Lines 181-186: generic Exception → ReplayError."""
         storage_mock = AsyncMock()
-        storage_mock.get_latest_snapshot = AsyncMock(
-            side_effect=RuntimeError("db connection lost")
-        )
+        storage_mock.get_latest_snapshot = AsyncMock(side_effect=RuntimeError("db connection lost"))
         storage_mock.save_replay_log = AsyncMock()
 
         replay = SagaReplay(
