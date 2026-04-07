@@ -123,7 +123,7 @@ async def example_2_environment_variables():
     saga.add_step("charge_payment", saga.charge_payment, depends_on=["create_order"])
     saga.add_step("send_confirmation", saga.send_confirmation, depends_on=["charge_payment"])
 
-    await saga.execute(order_id="ORD-123")
+    await saga.run({"order_id": "ORD-123"})
 
     # Cleanup
     for key in list(os.environ.keys()):
@@ -158,7 +158,7 @@ async def example_3_programmatic():
     saga.add_step("charge_payment", saga.charge_payment, depends_on=["create_order"])
     saga.add_step("send_confirmation", saga.send_confirmation, depends_on=["charge_payment"])
 
-    await saga.execute(order_id="ORD-456")
+    await saga.run({"order_id": "ORD-456"})
 
 
 async def example_4_variable_substitution():

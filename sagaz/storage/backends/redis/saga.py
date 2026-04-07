@@ -27,7 +27,7 @@ try:
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
-    redis: Any = None  # type: ignore[no-redef]
+    redis: Any = None  # type: ignore[assignment, no-redef]
 
 
 class RedisSagaStorage(SagaStorage):
@@ -63,7 +63,7 @@ class RedisSagaStorage(SagaStorage):
         self.key_prefix = key_prefix
         self.default_ttl = default_ttl
         self.redis_kwargs = redis_kwargs
-        self._redis = None
+        self._redis: Any = None
         self._lock = asyncio.Lock()
 
     async def _get_redis(self):

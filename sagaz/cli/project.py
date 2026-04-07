@@ -11,7 +11,7 @@ try:
 
     console = Console()
 except ImportError:
-    console = None
+    console = None  # type: ignore[assignment]
 
 
 def echo(message: str, **kwargs):

@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import click
 
@@ -395,7 +396,7 @@ def _display_setup_header():
 
 def _gather_setup_configuration() -> dict:
     """Gather configuration from user interactively."""
-    config = {}
+    config: dict[str, Any] = {}
 
     config["mode"] = _prompt_deployment_mode()
     config["oltp_storage"], config["with_ha"] = _prompt_oltp_storage(config["mode"])
@@ -421,7 +422,7 @@ def _prompt_deployment_mode() -> str:
     click.echo("  3. selfhost   - Systemd for on-premise servers")
     click.echo("  4. hybrid     - Local services + cloud broker")
 
-    mode_choice = click.prompt("Choice", type=click.IntRange(1, 4), default=1)
+    mode_choice: int = click.prompt("Choice", type=click.IntRange(1, 4), default=1)
     return ["local", "k8s", "selfhost", "hybrid"][mode_choice - 1]
 
 
@@ -451,7 +452,7 @@ def _prompt_message_broker() -> str:
     click.echo("  2. rabbitmq   - Flexible routing, reliable")
     click.echo("  3. kafka      - High-throughput, event streaming")
 
-    broker_choice = click.prompt("Choice", type=click.IntRange(1, 3), default=1)
+    broker_choice: int = click.prompt("Choice", type=click.IntRange(1, 3), default=1)
     return ["redis", "rabbitmq", "kafka"][broker_choice - 1]
 
 
