@@ -304,7 +304,14 @@ class TestManagerAdditionalMissingPaths:
         from sagaz.storage.manager import StorageManager
 
         manager = StorageManager()
-        result = await manager._create_outbox_storage("redis", "redis://localhost:6379")
+
+        class RedisOutboxStorage:
+            pass
+
+        mock_outbox = RedisOutboxStorage()
+        with patch.object(manager, "_create_redis_outbox", new_callable=AsyncMock) as mock_create:
+            mock_create.return_value = mock_outbox
+            result = await manager._create_outbox_storage("redis", "redis://localhost:6379")
         assert result.__class__.__name__ == "RedisOutboxStorage"
 
     @pytest.mark.asyncio

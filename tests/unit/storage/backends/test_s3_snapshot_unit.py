@@ -2007,78 +2007,86 @@ class TestS3SnapshotMissingBranches:
 class TestS3SnapshotBranch:
     async def test_delete_expired_snapshots_deletes_expired(self):
         """383->368: delete_expired_snapshots uses paginator to list and delete expired objects."""
-        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
 
-        storage = S3SnapshotStorage(bucket_name="test-bucket", region="us-east-1")
+                storage = S3SnapshotStorage(bucket_name="test-bucket", region="us-east-1")
 
-        snap_key = "snapshots/snapshot-abc.json"
-        expired_time = datetime(2000, 1, 1, tzinfo=UTC)
+                snap_key = "snapshots/snapshot-abc.json"
+                expired_time = datetime(2000, 1, 1, tzinfo=UTC)
 
-        class AsyncPaginator:
-            def __init__(self, pages):
-                self._pages = pages
+                class AsyncPaginator:
+                    def __init__(self, pages):
+                        self._pages = pages
 
-            def paginate(self, **kwargs):
-                return self
+                    def paginate(self, **kwargs):
+                        return self
 
-            def __aiter__(self):
-                return self._iter()
+                    def __aiter__(self):
+                        return self._iter()
 
-            async def _iter(self):
-                for page in self._pages:
-                    yield page
+                    async def _iter(self):
+                        for page in self._pages:
+                            yield page
 
-        pages = [{"Contents": [{"Key": snap_key}]}]
-        mock_s3 = AsyncMock()
-        mock_s3.get_paginator = MagicMock(return_value=AsyncPaginator(pages))
-        mock_s3.head_object = AsyncMock(return_value={"Expires": expired_time})
-        mock_s3.delete_object = AsyncMock()
+                pages = [{"Contents": [{"Key": snap_key}]}]
+                mock_s3 = AsyncMock()
+                mock_s3.get_paginator = MagicMock(return_value=AsyncPaginator(pages))
+                mock_s3.head_object = AsyncMock(return_value={"Expires": expired_time})
+                mock_s3.delete_object = AsyncMock()
 
-        mock_ctx = MagicMock()
-        mock_ctx.__aenter__ = AsyncMock(return_value=mock_s3)
-        mock_ctx.__aexit__ = AsyncMock(return_value=None)
+                mock_ctx = MagicMock()
+                mock_ctx.__aenter__ = AsyncMock(return_value=mock_s3)
+                mock_ctx.__aexit__ = AsyncMock(return_value=None)
 
-        with patch("aioboto3.Session") as mock_session:
-            mock_session.return_value.client = MagicMock(return_value=mock_ctx)
-            count = await storage.delete_expired_snapshots()
+                mock_session = MagicMock()
+                mock_session.client = MagicMock(return_value=mock_ctx)
+                mock_aioboto3.Session.return_value = mock_session
+
+                count = await storage.delete_expired_snapshots()
 
         assert count >= 0
 
     async def test_delete_expired_snapshots_delete_returns_false(self):
         """383->368 FALSE: delete_snapshot returns False → deleted_count not incremented."""
-        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
 
-        storage = S3SnapshotStorage(bucket_name="test-bucket", region="us-east-1")
-        snap_key = f"snapshots/{uuid4()}.json"
-        expired_time = datetime(2000, 1, 1, tzinfo=UTC)
+                storage = S3SnapshotStorage(bucket_name="test-bucket", region="us-east-1")
+                snap_key = f"snapshots/{uuid4()}.json"
+                expired_time = datetime(2000, 1, 1, tzinfo=UTC)
 
-        class AsyncPaginator:
-            def __init__(self, pages):
-                self._pages = pages
+                class AsyncPaginator:
+                    def __init__(self, pages):
+                        self._pages = pages
 
-            def paginate(self, **kwargs):
-                return self
+                    def paginate(self, **kwargs):
+                        return self
 
-            def __aiter__(self):
-                return self._iter()
+                    def __aiter__(self):
+                        return self._iter()
 
-            async def _iter(self):
-                for page in self._pages:
-                    yield page
+                    async def _iter(self):
+                        for page in self._pages:
+                            yield page
 
-        pages = [{"Contents": [{"Key": snap_key}]}]
-        mock_s3 = AsyncMock()
-        mock_s3.get_paginator = MagicMock(return_value=AsyncPaginator(pages))
-        mock_s3.head_object = AsyncMock(return_value={"Expires": expired_time})
+                pages = [{"Contents": [{"Key": snap_key}]}]
+                mock_s3 = AsyncMock()
+                mock_s3.get_paginator = MagicMock(return_value=AsyncPaginator(pages))
+                mock_s3.head_object = AsyncMock(return_value={"Expires": expired_time})
 
-        mock_ctx = MagicMock()
-        mock_ctx.__aenter__ = AsyncMock(return_value=mock_s3)
-        mock_ctx.__aexit__ = AsyncMock(return_value=None)
+                mock_ctx = MagicMock()
+                mock_ctx.__aenter__ = AsyncMock(return_value=mock_s3)
+                mock_ctx.__aexit__ = AsyncMock(return_value=None)
 
-        with patch("aioboto3.Session") as mock_session:
-            mock_session.return_value.client = MagicMock(return_value=mock_ctx)
-            with patch.object(storage, "delete_snapshot", return_value=False):
-                count = await storage.delete_expired_snapshots()
+                mock_session = MagicMock()
+                mock_session.client = MagicMock(return_value=mock_ctx)
+                mock_aioboto3.Session.return_value = mock_session
+
+                with patch.object(storage, "delete_snapshot", return_value=False):
+                    count = await storage.delete_expired_snapshots()
 
         assert count == 0  # delete_snapshot returned False → no increment
 
