@@ -2011,7 +2011,11 @@ class TestS3SnapshotBranch:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
 
-                storage = S3SnapshotStorage(bucket_name="test-bucket", region="us-east-1")
+                storage = S3SnapshotStorage(
+                    bucket_name="test-bucket",
+                    region="us-east-1",
+                    enable_compression=False,
+                )
 
                 snap_key = "snapshots/snapshot-abc.json"
                 expired_time = datetime(2000, 1, 1, tzinfo=UTC)
@@ -2054,7 +2058,11 @@ class TestS3SnapshotBranch:
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
 
-                storage = S3SnapshotStorage(bucket_name="test-bucket", region="us-east-1")
+                storage = S3SnapshotStorage(
+                    bucket_name="test-bucket",
+                    region="us-east-1",
+                    enable_compression=False,
+                )
                 snap_key = f"snapshots/{uuid4()}.json"
                 expired_time = datetime(2000, 1, 1, tzinfo=UTC)
 

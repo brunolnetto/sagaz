@@ -529,7 +529,7 @@ class TestRedisSnapshotMissingBranches:
         with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
             from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
 
-            storage = RedisSnapshotStorage(redis_url="redis://localhost")
+            storage = RedisSnapshotStorage(redis_url="redis://localhost", enable_compression=False)
             storage._redis = None
             await storage.close()  # must not raise
 
@@ -539,7 +539,7 @@ class TestRedisSnapshotMissingBranches:
         with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
             from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
 
-            storage = RedisSnapshotStorage(redis_url="redis://localhost")
+            storage = RedisSnapshotStorage(redis_url="redis://localhost", enable_compression=False)
 
             fake_id = uuid4()
 
@@ -557,7 +557,7 @@ class TestRedisSnapshotMissingBranches:
         with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
             from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
 
-            storage = RedisSnapshotStorage(redis_url="redis://localhost")
+            storage = RedisSnapshotStorage(redis_url="redis://localhost", enable_compression=False)
 
             fake_id = uuid4()
             mock_redis = AsyncMock()
