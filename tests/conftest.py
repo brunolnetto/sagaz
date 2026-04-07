@@ -93,6 +93,7 @@ def k8s_manifests():
 # Use ``--no-containers`` or ``SAGAZ_NO_CONTAINERS=1`` to skip all.
 # ============================================
 
+
 @pytest.fixture(scope="session")
 def postgres_container(container_manager):
     """PostgreSQL container (started lazily on first use)."""

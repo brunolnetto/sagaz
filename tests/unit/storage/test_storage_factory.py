@@ -2,8 +2,8 @@
 Tests for the storage factory module
 """
 
-import sys
 import importlib
+import sys
 from unittest.mock import patch
 
 import pytest

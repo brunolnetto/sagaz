@@ -543,8 +543,8 @@ class TestInMemoryStorageListFiltering:
 class TestMemoryOutboxBranch:
     async def test_claim_batch_pending_event_too_recent(self):
         """73->69: event is PENDING but created_at > cutoff → not claimed."""
-        from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
         from sagaz.outbox.types import OutboxEvent, OutboxStatus
+        from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
 
         storage = InMemoryOutboxStorage()
         # Insert an event with a FUTURE created_at so it's after cutoff
@@ -573,8 +573,8 @@ class TestMemoryOutboxBranch:
 class TestMemorySagaBranches:
     async def test_update_step_status_without_executed_at(self):
         """154->exit: executed_at is None → don't set executed_at field."""
-        from sagaz.storage.backends.memory.saga import InMemorySagaStorage
         from sagaz.core.types import SagaStatus, SagaStepStatus
+        from sagaz.storage.backends.memory.saga import InMemorySagaStorage
 
         storage = InMemorySagaStorage()
         saga_id = str(uuid4())
@@ -596,8 +596,8 @@ class TestMemorySagaBranches:
 
     async def test_import_record(self):
         """271: import_record method called."""
-        from sagaz.storage.backends.memory.saga import InMemorySagaStorage
         from sagaz.core.types import SagaStatus
+        from sagaz.storage.backends.memory.saga import InMemorySagaStorage
 
         storage = InMemorySagaStorage()
         saga_id = str(uuid4())

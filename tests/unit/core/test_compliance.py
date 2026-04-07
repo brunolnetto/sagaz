@@ -316,6 +316,7 @@ class TestComplianceMissingBranches:
     def test_create_audit_log_when_log_all_disabled(self):
         """Lines 251->254: create_audit_log skips logger.info when log_all_operations=False."""
         import uuid
+
         from sagaz.core.compliance import ComplianceConfig, ComplianceManager
 
         config = ComplianceConfig(log_all_operations=False)

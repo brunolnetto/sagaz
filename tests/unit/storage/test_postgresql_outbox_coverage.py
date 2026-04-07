@@ -6,16 +6,16 @@ Missing lines: 32-33, 141-142, 163->exit, 170, 172-173, 209-210, 220-221,
               381-382, 394-407, 414-435, 440->443, 444->447, 568-586
 """
 
-import sys
 import importlib
-import pytest
-from datetime import datetime, UTC
+import sys
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from sagaz.outbox.types import OutboxEvent, OutboxStatus
 from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 from sagaz.storage.interfaces.outbox import OutboxStorageError
-
 
 # ==========================================================================
 # Helpers
@@ -31,7 +31,7 @@ def _make_mock_row(
     status="pending",
 ):
     """Return a dict-like mock that supports row['field'] access."""
-    row = {
+    return {
         "event_id": event_id,
         "saga_id": saga_id,
         "aggregate_type": "saga",
@@ -47,7 +47,6 @@ def _make_mock_row(
         "last_error": None,
         "worker_id": None,
     }
-    return row
 
 
 def _make_pool_with_conn(mock_conn):
@@ -110,8 +109,8 @@ class TestAsyncpgImportErrorFallback:
 
     def test_import_without_asyncpg_sets_flag_false(self):
         """Lines 32-33: ASYNCPG_AVAILABLE=False / asyncpg=None path."""
-        import sagaz.storage.backends.postgresql.outbox as outbox_mod
         import sagaz.storage.backends.postgresql as pg_pkg
+        import sagaz.storage.backends.postgresql.outbox as outbox_mod
 
         original_asyncpg = sys.modules.get("asyncpg")
         try:
@@ -639,7 +638,8 @@ class TestExportAll:
                 return self
 
             async def __anext__(self):
-                raise RuntimeError("cursor exploded")
+                msg = "cursor exploded"
+                raise RuntimeError(msg)
 
         mock_conn = AsyncMock()
         mock_conn.cursor = AsyncMock(return_value=ErrorCursor())
@@ -683,9 +683,7 @@ class TestConsumerInboxMethods:
         storage = _uninitialized_storage()
         mock_conn = AsyncMock()
         # Simulate UniqueViolationError for duplicate
-        mock_conn.execute = AsyncMock(
-            side_effect=asyncpg.UniqueViolationError("duplicate")
-        )
+        mock_conn.execute = AsyncMock(side_effect=asyncpg.UniqueViolationError("duplicate"))
 
         result = await storage.check_and_insert_inbox(
             event_id="evt-dup",

@@ -60,7 +60,7 @@ SAGAZ_METRICS_ENABLED=true
 SAGAZ_LOG_LEVEL=DEBUG
 """
 
-    with open(".env.example", "w") as f:
+    with Path(".env.example").open("w") as f:
         f.write(env_content)
 
     # Create sagaz.yaml with variable substitution
@@ -85,7 +85,7 @@ observability:
     level: "${SAGAZ_LOG_LEVEL:-INFO}"
 """
 
-    with open("sagaz.example.yaml", "w") as f:
+    with Path("sagaz.example.yaml").open("w") as f:
         f.write(yaml_content)
 
     # Load configuration
@@ -93,8 +93,8 @@ observability:
     # config = SagaConfig.from_file("sagaz.example.yaml")
 
     # Cleanup
-    os.remove(".env.example")
-    os.remove("sagaz.example.yaml")
+    Path(".env.example").unlink()
+    Path("sagaz.example.yaml").unlink()
 
 
 async def example_2_environment_variables():

@@ -15,12 +15,12 @@ Available backends:
 # These are imported lazily to avoid import errors when dependencies are missing
 
 __all__ = [
+    # Filesystem
+    "FilesystemSnapshotStorage",
     "InMemoryOutboxStorage",
     # Memory
     "InMemorySagaStorage",
     "InMemorySnapshotStorage",
-    # Filesystem
-    "FilesystemSnapshotStorage",
     "PostgreSQLOutboxStorage",
     # PostgreSQL
     "PostgreSQLSagaStorage",

@@ -90,42 +90,52 @@ class ContainerManager:
     def ensure_postgres(self):
         def _factory():
             from testcontainers.postgres import PostgresContainer
+
             c = PostgresContainer("postgres:16-alpine")
             c.start()
             return c
+
         self._start("postgres", _factory)
 
     def ensure_redis(self):
         def _factory():
             from testcontainers.redis import RedisContainer
+
             c = RedisContainer("redis:7-alpine")
             c.start()
             return c
+
         self._start("redis", _factory)
 
     def ensure_rabbitmq(self):
         def _factory():
             from testcontainers.rabbitmq import RabbitMqContainer
+
             c = RabbitMqContainer("rabbitmq:3.12-alpine")
             c.start()
             return c
+
         self._start("rabbitmq", _factory)
 
     def ensure_kafka(self):
         def _factory():
             from testcontainers.kafka import KafkaContainer
+
             c = KafkaContainer("confluentinc/cp-kafka:7.6.0")
             c.start(timeout=120)
             return c
+
         self._start("kafka", _factory)
 
     def ensure_localstack(self):
         def _factory():
             from testcontainers.localstack import LocalStackContainer
+
             c = LocalStackContainer("localstack/localstack:3.0")
             c.with_services("s3")
             c.start()
             return c
+
         self._start("localstack", _factory)
 
     def stop_all(self):
@@ -204,6 +214,7 @@ def pytest_configure(config):
 
     try:
         import testcontainers  # noqa: F401
+
         _manager = ContainerManager()
     except ImportError:
         print("\n⏭️  testcontainers not installed — integration tests will skip\n")

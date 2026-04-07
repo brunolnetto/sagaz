@@ -148,9 +148,9 @@ class TestWebhookStatusTracking:
     async def test_webhook_status_listener_on_complete(self):
         """Test webhook status listener tracks saga completion."""
         from sagaz.integrations.flask import (
-            _WebhookStatusListener,
-            _webhook_tracking,
             _saga_to_webhook,
+            _webhook_tracking,
+            _WebhookStatusListener,
         )
 
         # Setup tracking
@@ -174,9 +174,9 @@ class TestWebhookStatusTracking:
     async def test_webhook_status_listener_on_failed(self):
         """Test webhook status listener tracks saga failure."""
         from sagaz.integrations.flask import (
-            _WebhookStatusListener,
-            _webhook_tracking,
             _saga_to_webhook,
+            _webhook_tracking,
+            _WebhookStatusListener,
         )
 
         # Setup tracking
@@ -214,8 +214,9 @@ class TestWebhookStatusTracking:
 
     def test_webhook_endpoint_fires_event(self):
         """Test webhook endpoint fires event on POST."""
-        from flask import Flask
         from unittest.mock import AsyncMock, patch
+
+        from flask import Flask
 
         app = Flask(__name__)
         saga_ext = SagaFlask(app)
@@ -249,7 +250,7 @@ class TestWebhookStatusTracking:
         from flask import Flask
 
         app = Flask(__name__)
-        saga_ext = SagaFlask(app)
+        SagaFlask(app)
 
         # Don't register blueprint
         # Should still work for correlation ID tracking

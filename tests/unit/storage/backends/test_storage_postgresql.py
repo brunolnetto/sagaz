@@ -693,9 +693,11 @@ class TestPostgreSQLSagaMissingBranches:
         from sagaz.storage.base import SagaStorageError
 
         pool, conn = mock_pool
-        conn.execute = AsyncMock(side_effect=[
-            None,  # first execute for UPDATE steps
-        ])
+        conn.execute = AsyncMock(
+            side_effect=[
+                None,  # first execute for UPDATE steps
+            ]
+        )
         # Simulate 0 rows affected
         conn.execute = AsyncMock(return_value="UPDATE 0")
 
@@ -757,8 +759,10 @@ class TestPostgreSQLSagaMissingBranches:
         class AsyncRowIter:
             def __init__(self, items):
                 self._iter = iter(items)
+
             def __aiter__(self):
                 return self
+
             async def __anext__(self):
                 try:
                     return next(self._iter)
@@ -787,13 +791,15 @@ class TestPostgreSQLSagaMissingBranches:
         storage = PostgreSQLSagaStorage("postgresql://localhost/test")
         storage.save_saga_state = AsyncMock()
 
-        await storage.import_record({
-            "saga_id": "saga-1",
-            "saga_name": "TestSaga",
-            "status": "completed",
-            "steps": [],
-            "context": {},
-        })
+        await storage.import_record(
+            {
+                "saga_id": "saga-1",
+                "saga_name": "TestSaga",
+                "status": "completed",
+                "steps": [],
+                "context": {},
+            }
+        )
         storage.save_saga_state.assert_called_once()
 
 
@@ -855,8 +861,8 @@ class TestPostgresqlSagaBranch:
 
     async def test_cleanup_completed_sagas_explicit_statuses(self):
         """406->409 FALSE branch: statuses provided → skip default setting."""
-        from sagaz.storage.backends.postgresql.saga import PostgreSQLSagaStorage
         from sagaz.core.types import SagaStatus
+        from sagaz.storage.backends.postgresql.saga import PostgreSQLSagaStorage
 
         storage = PostgreSQLSagaStorage.__new__(PostgreSQLSagaStorage)
         storage._pool = None

@@ -10,14 +10,14 @@ Covers:
 """
 
 import tempfile
-from datetime import timezone
+from datetime import UTC, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 import yaml
 
-UTC = timezone.utc
+UTC = UTC
 
 from sagaz.core.config import SagaConfig, configure, get_config
 
@@ -376,8 +376,8 @@ class TestCoreConfigBranches:
     def test_setup_from_manager_outbox_already_set(self):
         """158->160: outbox_storage already set → skip outbox override."""
         from sagaz.core.config import SagaConfig
-        from sagaz.storage.memory import InMemorySagaStorage
         from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
+        from sagaz.storage.memory import InMemorySagaStorage
 
         mock_manager = MagicMock()
         mock_saga_storage = InMemorySagaStorage()
@@ -395,9 +395,10 @@ class TestCoreConfigBranches:
 
     def test_setup_from_manager_runtime_error_storage_already_set(self):
         """175->exit: RuntimeError but storage already set → skip InMemorySagaStorage."""
+        from unittest.mock import PropertyMock
+
         from sagaz.core.config import SagaConfig
         from sagaz.storage.memory import InMemorySagaStorage
-        from unittest.mock import PropertyMock
 
         existing_storage = InMemorySagaStorage()
         mock_manager = MagicMock()
@@ -410,6 +411,7 @@ class TestCoreConfigBranches:
         config.storage = existing_storage  # Already set
         config.outbox_storage = None
         import warnings
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             config._setup_from_manager()

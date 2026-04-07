@@ -170,9 +170,9 @@ class TestWebhookStatusTracking:
     async def test_webhook_status_listener_on_complete(self):
         """Test webhook status listener tracks saga completion."""
         from sagaz.integrations.fastapi import (
-            _WebhookStatusListener,
-            _webhook_tracking,
             _saga_to_webhook,
+            _webhook_tracking,
+            _WebhookStatusListener,
         )
 
         # Setup tracking
@@ -196,9 +196,9 @@ class TestWebhookStatusTracking:
     async def test_webhook_status_listener_on_failed(self):
         """Test webhook status listener tracks saga failure."""
         from sagaz.integrations.fastapi import (
-            _WebhookStatusListener,
-            _webhook_tracking,
             _saga_to_webhook,
+            _webhook_tracking,
+            _WebhookStatusListener,
         )
 
         # Setup tracking
@@ -242,6 +242,7 @@ class TestWebhookStatusTracking:
         """Test webhook router fires event on POST."""
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
+
         from sagaz.integrations.fastapi import create_webhook_router
 
         app = FastAPI()
@@ -270,6 +271,7 @@ class TestWebhookStatusTracking:
         """Test webhook router handles fire_event errors gracefully."""
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
+
         from sagaz.integrations.fastapi import create_webhook_router
 
         app = FastAPI()

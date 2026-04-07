@@ -32,8 +32,8 @@ class TestStorageManagerPostgreSQLIntegration:
 
         pytest.importorskip("asyncpg")
 
-        from sagaz.storage.manager import StorageManager
         from sagaz.core.types import SagaStatus
+        from sagaz.storage.manager import StorageManager
 
         conn_string = postgres_container.get_connection_url().replace(
             "postgresql+psycopg2://", "postgresql://"
@@ -79,8 +79,8 @@ class TestStorageManagerPostgreSQLIntegration:
 
         pytest.importorskip("asyncpg")
 
-        from sagaz.storage.manager import StorageManager
         from sagaz.core.types import SagaStatus
+        from sagaz.storage.manager import StorageManager
 
         conn_string = postgres_container.get_connection_url().replace(
             "postgresql+psycopg2://", "postgresql://"
@@ -112,8 +112,8 @@ class TestStorageManagerRedisIntegration:
 
         pytest.importorskip("redis")
 
-        from sagaz.storage.manager import StorageManager
         from sagaz.core.types import SagaStatus
+        from sagaz.storage.manager import StorageManager
 
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)
@@ -159,8 +159,8 @@ class TestStorageManagerRedisIntegration:
 
         pytest.importorskip("redis")
 
-        from sagaz.storage.manager import StorageManager
         from sagaz.core.types import SagaStatus
+        from sagaz.storage.manager import StorageManager
 
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)
@@ -186,9 +186,7 @@ class TestStorageManagerHybridIntegration:
 
     @pytest.mark.asyncio
     @pytest.mark.timeout(120)
-    async def test_hybrid_postgresql_redis_manager(
-        self, postgres_container, redis_container
-    ):
+    async def test_hybrid_postgresql_redis_manager(self, postgres_container, redis_container):
         """Test StorageManager with PostgreSQL for saga and Redis for outbox."""
         if postgres_container is None:
             pytest.skip("PostgreSQL container not available")
@@ -198,9 +196,9 @@ class TestStorageManagerHybridIntegration:
         pytest.importorskip("asyncpg")
         pytest.importorskip("redis")
 
-        from sagaz.storage.manager import StorageManager
         from sagaz.core.types import SagaStatus
         from sagaz.outbox.types import OutboxEvent
+        from sagaz.storage.manager import StorageManager
 
         pg_conn = postgres_container.get_connection_url().replace(
             "postgresql+psycopg2://", "postgresql://"
@@ -260,8 +258,8 @@ class TestStorageManagerSQLiteIntegration:
         """Test StorageManager with SQLite for both saga and outbox."""
         pytest.importorskip("aiosqlite")
 
-        from sagaz.storage.manager import StorageManager
         from sagaz.core.types import SagaStatus
+        from sagaz.storage.manager import StorageManager
 
         async with StorageManager(url="sqlite://:memory:") as manager:
             # Verify storages are initialized
@@ -299,8 +297,8 @@ class TestCreateStorageManagerFactoryIntegration:
 
         pytest.importorskip("asyncpg")
 
-        from sagaz.storage.manager import create_storage_manager
         from sagaz.core.types import SagaStatus
+        from sagaz.storage.manager import create_storage_manager
 
         conn_string = postgres_container.get_connection_url().replace(
             "postgresql+psycopg2://", "postgresql://"
@@ -331,8 +329,8 @@ class TestCreateStorageManagerFactoryIntegration:
 
         pytest.importorskip("redis")
 
-        from sagaz.storage.manager import create_storage_manager
         from sagaz.core.types import SagaStatus
+        from sagaz.storage.manager import create_storage_manager
 
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)
@@ -364,8 +362,8 @@ class TestCreateStorageManagerFactoryIntegration:
 
         pytest.importorskip("redis")
 
-        from sagaz.storage.manager import create_storage_manager
         from sagaz.core.types import SagaStatus
+        from sagaz.storage.manager import create_storage_manager
 
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)

@@ -781,11 +781,12 @@ class TestExecuteCompensationsEdgeCases:
 
 class TestGraphMissingBranches:
     """Cover lines 108, 116, 128-129, 205, 334->exit, 432, 438->437, 440->437,
-       443-444, 448->446, 451, 546, 688, 734-736, 760 in execution/graph.py."""
+    443-444, 448->446, 451, 546, 688, 734-736, 760 in execution/graph.py."""
 
     def test_compensation_context_get_result(self):
         """Line 108: SagaCompensationContext.get_result returns stored result."""
         from sagaz.execution.graph import SagaCompensationContext
+
         ctx = SagaCompensationContext(saga_id="saga-1", step_id="s1", original_context={})
         ctx.set_result("s1", "my_result")
         assert ctx.get_result("s1") == "my_result"
@@ -794,9 +795,12 @@ class TestGraphMissingBranches:
     def test_compensation_context_to_dict(self):
         """Line 116: SagaCompensationContext.to_dict converts fields."""
         from sagaz.execution.graph import SagaCompensationContext
+
         ctx = SagaCompensationContext(
-            saga_id="saga-1", step_id="s1",
-            original_context={"k": "v"}, compensation_results={"s1": "r"},
+            saga_id="saga-1",
+            step_id="s1",
+            original_context={"k": "v"},
+            compensation_results={"s1": "r"},
         )
         d = ctx.to_dict()
         assert d["saga_id"] == "saga-1"
@@ -804,12 +808,17 @@ class TestGraphMissingBranches:
 
     def test_compensation_context_from_dict(self):
         """Lines 128-129: SagaCompensationContext.from_dict restores fields."""
-        from sagaz.execution.graph import SagaCompensationContext
         from datetime import UTC, datetime
+
+        from sagaz.execution.graph import SagaCompensationContext
+
         data = {
-            "saga_id": "saga-1", "step_id": "s1",
-            "original_context": {}, "compensation_results": {},
-            "metadata": {}, "created_at": datetime.now(UTC).isoformat()
+            "saga_id": "saga-1",
+            "step_id": "s1",
+            "original_context": {},
+            "compensation_results": {},
+            "metadata": {},
+            "created_at": datetime.now(UTC).isoformat(),
         }
         ctx = SagaCompensationContext.from_dict(data)
         assert ctx.saga_id == "saga-1"
@@ -817,6 +826,7 @@ class TestGraphMissingBranches:
     def test_compensation_context_from_dict_no_created_at(self):
         """Line 129: from_dict uses datetime.now when created_at is missing."""
         from sagaz.execution.graph import SagaCompensationContext
+
         data = {"saga_id": "saga-1", "step_id": "s1", "original_context": {}}
         ctx = SagaCompensationContext.from_dict(data)
         assert ctx.created_at is not None
@@ -865,7 +875,12 @@ class TestGraphMissingBranches:
     @pytest.mark.asyncio
     async def test_execute_compensation_node_not_found_returns_none(self):
         """Line 688: _execute_single_compensation returns None for missing node."""
-        from sagaz.execution.graph import SagaExecutionGraph, SagaCompensationContext, CompensationFailureStrategy
+        from sagaz.execution.graph import (
+            CompensationFailureStrategy,
+            SagaCompensationContext,
+            SagaExecutionGraph,
+        )
+
         graph = SagaExecutionGraph()
         ctx = SagaCompensationContext(saga_id="s", step_id="nonexistent", original_context={})
         result = await graph._execute_single_compensation(
@@ -879,7 +894,8 @@ class TestGraphMissingBranches:
         from sagaz.execution.graph import SagaExecutionGraph
 
         async def failing_comp(ctx):
-            raise ValueError("always fails")
+            msg = "always fails"
+            raise ValueError(msg)
 
         graph = SagaExecutionGraph()
         graph.register_compensation("step1", failing_comp, max_retries=2)
@@ -890,7 +906,8 @@ class TestGraphMissingBranches:
 
     def test_should_skip_step_node_not_found(self):
         """Line 760: _should_skip_step returns False when node not found."""
-        from sagaz.execution.graph import SagaExecutionGraph, CompensationFailureStrategy
+        from sagaz.execution.graph import CompensationFailureStrategy, SagaExecutionGraph
+
         graph = SagaExecutionGraph()
         result = graph._should_skip_step(
             "nonexistent_step", set(), CompensationFailureStrategy.SKIP_DEPENDENTS
@@ -900,7 +917,8 @@ class TestGraphMissingBranches:
     @pytest.mark.asyncio
     async def test_prepare_context_returns_non_dict_context_unchanged(self):
         """Line 546: _ensure_compensation_context returns context if not dict."""
-        from sagaz.execution.graph import SagaExecutionGraph, SagaCompensationContext
+        from sagaz.execution.graph import SagaCompensationContext, SagaExecutionGraph
+
         ctx = SagaCompensationContext(saga_id="s", step_id="x", original_context={})
         graph = SagaExecutionGraph()
         result = graph._ensure_compensation_context(ctx, "step1")

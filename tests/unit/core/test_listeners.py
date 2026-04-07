@@ -391,6 +391,7 @@ class TestCoreListenersBranches:
     def test_record_step_duration_calls_metrics(self):
         """198: metrics.record_step_duration called when key found and method exists."""
         import time
+
         from sagaz.core.listeners import MetricsSagaListener
 
         mock_metrics = MagicMock()

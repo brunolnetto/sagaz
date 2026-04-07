@@ -208,7 +208,7 @@ class TestRecoverStuckEvents:
 
 class TestWorkerPrometheusBranches:
     """Cover lines 218, 224->231, 228-229, 240-243, 283->288, 295,
-       300->304, 329->338, 378->382, 383, 410->414 in outbox/worker.py."""
+    300->304, 329->338, 378->382, 383, 410->414 in outbox/worker.py."""
 
     @pytest.mark.asyncio
     async def test_run_loop_breaks_on_cancelled_error(self):
@@ -232,6 +232,7 @@ class TestWorkerPrometheusBranches:
     async def test_process_iteration_pending_count_exception(self):
         """Lines 228-229: exception ignored when get_pending_count raises."""
         from unittest.mock import patch
+
         from sagaz.outbox.worker import OutboxWorker
 
         storage = AsyncMock()
@@ -240,8 +241,10 @@ class TestWorkerPrometheusBranches:
         storage.get_pending_count = AsyncMock(side_effect=RuntimeError("db error"))
 
         worker = OutboxWorker(storage, broker, worker_id="test-pcount-err")
-        with patch("sagaz.outbox.worker.PROMETHEUS_AVAILABLE", True), \
-             patch("sagaz.outbox.worker.OUTBOX_PENDING_EVENTS") as mock_gauge:
+        with (
+            patch("sagaz.outbox.worker.PROMETHEUS_AVAILABLE", True),
+            patch("sagaz.outbox.worker.OUTBOX_PENDING_EVENTS") as mock_gauge,
+        ):
             mock_gauge.set = MagicMock()
             result = await worker._process_iteration()
         assert result is False  # loop continues
@@ -250,6 +253,7 @@ class TestWorkerPrometheusBranches:
     async def test_process_iteration_no_prometheus(self):
         """Lines 224->231: PROMETHEUS_AVAILABLE=False skips pending count block."""
         from unittest.mock import patch
+
         from sagaz.outbox.worker import OutboxWorker
 
         storage = AsyncMock()
@@ -265,6 +269,7 @@ class TestWorkerPrometheusBranches:
     async def test_process_iteration_exception_handler(self):
         """Lines 240-243: generic exception increments sleep and returns False."""
         from unittest.mock import patch
+
         from sagaz.outbox.worker import OutboxWorker
 
         storage = AsyncMock()
@@ -272,8 +277,10 @@ class TestWorkerPrometheusBranches:
         storage.claim_batch = AsyncMock(side_effect=RuntimeError("boom"))
 
         worker = OutboxWorker(storage, broker, worker_id="test-exc")
-        with patch("sagaz.outbox.worker.PROMETHEUS_AVAILABLE", False), \
-             patch("asyncio.sleep", new_callable=AsyncMock):
+        with (
+            patch("sagaz.outbox.worker.PROMETHEUS_AVAILABLE", False),
+            patch("asyncio.sleep", new_callable=AsyncMock),
+        ):
             result = await worker._process_iteration()
         assert result is False
 
@@ -281,8 +288,9 @@ class TestWorkerPrometheusBranches:
     async def test_process_batch_failed_event_logged(self):
         """Line 295: logger.error when gather returns Exception for an event."""
         from unittest.mock import patch
-        from sagaz.outbox.worker import OutboxWorker, OutboxConfig
+
         from sagaz.outbox.types import OutboxEvent, OutboxStatus
+        from sagaz.outbox.worker import OutboxConfig, OutboxWorker
 
         storage = AsyncMock()
         broker = AsyncMock()
@@ -291,7 +299,8 @@ class TestWorkerPrometheusBranches:
 
         # Make _process_event raise so gather returns Exception
         async def fail_event(ev):
-            raise ValueError("publish failed")
+            msg = "publish failed"
+            raise ValueError(msg)
 
         worker = OutboxWorker(storage, broker, worker_id="test-fail-log")
         worker._process_event = fail_event
@@ -304,8 +313,9 @@ class TestWorkerPrometheusBranches:
     async def test_process_batch_no_prometheus(self):
         """Lines 283->288 and 300->304: PROMETHEUS_AVAILABLE=False in process_batch."""
         from unittest.mock import patch
-        from sagaz.outbox.worker import OutboxWorker
+
         from sagaz.outbox.types import OutboxEvent
+        from sagaz.outbox.worker import OutboxWorker
 
         storage = AsyncMock()
         broker = AsyncMock()
@@ -323,8 +333,9 @@ class TestWorkerPrometheusBranches:
     async def test_process_event_with_callback_and_prometheus(self):
         """Lines 329->338: on_event_published callback called when set."""
         from unittest.mock import patch
-        from sagaz.outbox.worker import OutboxWorker
+
         from sagaz.outbox.types import OutboxEvent
+        from sagaz.outbox.worker import OutboxWorker
 
         published_events = []
 
@@ -346,8 +357,9 @@ class TestWorkerPrometheusBranches:
     async def test_handle_publish_failure_with_callback(self):
         """Lines 378->382, 383: on_event_failed callback + no prometheus."""
         from unittest.mock import patch
-        from sagaz.outbox.worker import OutboxWorker, OutboxConfig
+
         from sagaz.outbox.types import OutboxEvent
+        from sagaz.outbox.worker import OutboxConfig, OutboxWorker
 
         failed_events = []
 
@@ -361,8 +373,7 @@ class TestWorkerPrometheusBranches:
 
         config = OutboxConfig(max_retries=3)
         worker = OutboxWorker(
-            storage, broker, config=config,
-            on_event_failed=on_fail, worker_id="test-fail-cb"
+            storage, broker, config=config, on_event_failed=on_fail, worker_id="test-fail-cb"
         )
         err = Exception("broker error")
         with patch("sagaz.outbox.worker.PROMETHEUS_AVAILABLE", False):
@@ -373,8 +384,9 @@ class TestWorkerPrometheusBranches:
     async def test_move_to_dead_letter_no_prometheus(self):
         """Lines 410->414: PROMETHEUS_AVAILABLE=False in _move_to_dead_letter."""
         from unittest.mock import patch
-        from sagaz.outbox.worker import OutboxWorker
+
         from sagaz.outbox.types import OutboxEvent
+        from sagaz.outbox.worker import OutboxWorker
 
         storage = AsyncMock()
         broker = AsyncMock()

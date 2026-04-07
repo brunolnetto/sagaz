@@ -661,10 +661,8 @@ class TestBrokerFactoryMissingBranches:
 
     def test_create_broker_import_error_no_dependency(self):
         """196: raise ImportError when no dependency (dependency is None)."""
-        from sagaz.outbox.brokers.factory import create_broker
-
         # memory has no dependency - inject a factory that raises ImportError
-        from sagaz.outbox.brokers.factory import _BROKER_REGISTRY
+        from sagaz.outbox.brokers.factory import _BROKER_REGISTRY, create_broker
 
         original = _BROKER_REGISTRY.get("memory")
         try:

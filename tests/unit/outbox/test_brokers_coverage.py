@@ -287,8 +287,9 @@ class TestRabbitMQImportErrorFallback:
 
     def test_rabbitmq_unavailable_flag(self):
         """Lines 33-38: when ImportError, RABBITMQ_AVAILABLE is False."""
-        import sys
         import importlib
+        import sys
+
         import sagaz.outbox.brokers.rabbitmq as rmq_mod
 
         original = sys.modules.get("aio_pika")
@@ -307,8 +308,9 @@ class TestRabbitMQImportErrorFallback:
     @pytest.mark.asyncio
     async def test_connect_skips_confirm_delivery_when_false(self):
         """Line 147->151: confirm_delivery=False skips set_qos call."""
-        from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker, RabbitMQBrokerConfig
         from unittest.mock import AsyncMock, MagicMock, patch
+
+        from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker, RabbitMQBrokerConfig
 
         config = RabbitMQBrokerConfig(
             url="amqp://guest:guest@localhost/",
@@ -334,8 +336,9 @@ class TestRedisBrokerMissingBranches:
 
     def test_redis_unavailable_flag(self):
         """Lines 37-39: when ImportError, REDIS_AVAILABLE=False."""
-        import sys
         import importlib
+        import sys
+
         import sagaz.outbox.brokers.redis as redis_broker_mod
 
         original = sys.modules.get("redis.asyncio")
@@ -353,10 +356,11 @@ class TestRedisBrokerMissingBranches:
     @pytest.mark.asyncio
     async def test_connect_raises_when_redis_unavailable(self):
         """Lines 125-126: MissingDependencyError when REDIS_AVAILABLE=False."""
-        import sagaz.outbox.brokers.redis as redis_broker_mod
-        from sagaz.outbox.brokers.redis import RedisBrokerConfig
-        from sagaz.core.exceptions import MissingDependencyError
         from unittest.mock import patch
+
+        import sagaz.outbox.brokers.redis as redis_broker_mod
+        from sagaz.core.exceptions import MissingDependencyError
+        from sagaz.outbox.brokers.redis import RedisBrokerConfig
 
         with patch.object(redis_broker_mod, "REDIS_AVAILABLE", False):
             with pytest.raises(MissingDependencyError):
@@ -374,13 +378,15 @@ class TestRedisBrokerMissingBranches:
     @pytest.mark.asyncio
     async def test_ensure_consumer_group_raises_non_busygroup(self):
         """Line 290: re-raise ResponseError when not BUSYGROUP."""
-        from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
         from unittest.mock import AsyncMock, MagicMock, patch
+
+        from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
 
         broker = RedisBroker(RedisBrokerConfig(url="redis://localhost"))
         mock_client = AsyncMock()
 
         import redis.asyncio as real_redis
+
         err = real_redis.ResponseError("WRONGTYPE")
         mock_client.xgroup_create = AsyncMock(side_effect=err)
         broker._client = mock_client

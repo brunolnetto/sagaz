@@ -11,20 +11,20 @@ import pytest
 fastapi_mod = pytest.importorskip("fastapi")
 httpx_mod = pytest.importorskip("httpx")
 
-import httpx
-from httpx._transports.asgi import ASGITransport
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 from fastapi import FastAPI
+from httpx._transports.asgi import ASGITransport
 
 from sagaz.integrations.fastapi import (
     _saga_to_webhook,
     _webhook_tracking,
+    _WebhookStatusListener,
     create_webhook_router,
     get_webhook_status,
-    sagaz_startup,
     sagaz_shutdown,
-    _WebhookStatusListener,
+    sagaz_startup,
 )
 
 
@@ -75,9 +75,7 @@ class TestSagaLifecycleHooks:
         with patch("sagaz.core.config.get_config", return_value=mock_config):
             await sagaz_startup()
 
-        assert any(
-            isinstance(l, _WebhookStatusListener) for l in mock_config._listeners
-        )
+        assert any(isinstance(l, _WebhookStatusListener) for l in mock_config._listeners)
 
     async def test_sagaz_startup_does_not_duplicate_listener(self):
         """Lines 103-110: sagaz_startup won't add listener if already present."""
@@ -749,7 +747,6 @@ class TestWebhookBackgroundStorageLookup:
         app = _make_app()
         saga_id_1 = "saga-first"
         saga_id_2 = "saga-second"
-        call_count = 0
 
         async def mock_load(sid):
             return {"status": SagaStatus.COMPLETED, "error": None}

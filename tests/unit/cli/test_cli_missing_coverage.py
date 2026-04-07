@@ -28,8 +28,9 @@ class TestProjectCliRichFallback:
 
     def test_echo_uses_click_when_console_none(self):
         """Lines 13-14, 24: When rich not installed, echo() delegates to click.echo."""
-        import sagaz.cli.project as project_mod
         from unittest.mock import patch as mock_patch
+
+        import sagaz.cli.project as project_mod
 
         # Patch console to None inside the module, then call echo()
         with mock_patch("sagaz.cli.project.console", None):
@@ -125,17 +126,17 @@ paths:
 
 
 from sagaz.cli.replay import (
+    _display_failure,
+    _display_replay_config,
+    _display_success,
     _execute_list_changes,
     _execute_replay,
     _execute_time_travel,
+    _handle_exception,
     list_changes_command,
     replay,
     replay_command,
     time_travel_command,
-    _display_replay_config,
-    _display_success,
-    _display_failure,
-    _handle_exception,
 )
 
 

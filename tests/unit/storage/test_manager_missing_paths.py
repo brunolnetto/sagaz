@@ -286,11 +286,15 @@ class TestManagerAdditionalMissingPaths:
     @pytest.mark.asyncio
     async def test_create_outbox_storage_postgresql(self):
         """Line 395: _create_outbox_storage dispatches to postgresql."""
-        from unittest.mock import patch, AsyncMock
+        from unittest.mock import AsyncMock, patch
+
         from sagaz.storage.manager import StorageManager
 
         manager = StorageManager()
-        with patch("sagaz.storage.backends.postgresql.outbox.PostgreSQLOutboxStorage.initialize", new_callable=lambda: lambda self: AsyncMock()()) as _:
+        with patch(
+            "sagaz.storage.backends.postgresql.outbox.PostgreSQLOutboxStorage.initialize",
+            new_callable=lambda: lambda self: AsyncMock()(),
+        ) as _:
             result = await manager._create_outbox_storage("postgresql", "postgresql://localhost/db")
         assert result.__class__.__name__ == "PostgreSQLOutboxStorage"
 

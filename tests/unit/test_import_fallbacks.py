@@ -16,8 +16,7 @@ def _reload_module(mod_key: str, blocked_imports: dict) -> object:
     saved_mod = sys.modules.pop(mod_key, None)
     try:
         with patch.dict(sys.modules, blocked_imports):
-            mod = importlib.import_module(mod_key)
-            return mod
+            return importlib.import_module(mod_key)
     finally:
         # Always restore the *original* (working) module so other tests continue to work
         if saved_mod is not None:
@@ -124,6 +123,7 @@ class TestBrokerFactoryFallback:
     def test_create_broker_raises_on_import_error_with_dependency(self):
         """create_broker raises MissingDependencyError when dependency import fails."""
         import pytest
+
         from sagaz.core.exceptions import MissingDependencyError
         from sagaz.outbox.brokers.factory import _BROKER_REGISTRY
 
@@ -133,7 +133,8 @@ class TestBrokerFactoryFallback:
             return  # skip if kafka not registered
 
         def _raise_import(_kwargs):
-            raise ImportError("no module")
+            msg = "no module"
+            raise ImportError(msg)
 
         try:
             _BROKER_REGISTRY["kafka"] = (_raise_import, "aiokafka")

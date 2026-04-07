@@ -54,7 +54,7 @@ class TestRedisSnapshotStorageIntegration:
 
         # Get connection URL from container
         redis_url = f"redis://{redis_container.get_container_host_ip()}:{redis_container.get_exposed_port(6379)}"
-        
+
         storage = RedisSnapshotStorage(
             redis_url=redis_url,
             enable_compression=False,  # Disable to avoid zstd requirement
@@ -236,7 +236,7 @@ class TestRedisSnapshotStorageIntegration:
         from sagaz.core.types import SagaStatus
 
         redis_url = f"redis://{redis_container.get_container_host_ip()}:{redis_container.get_exposed_port(6379)}"
-        
+
         # Use short TTL for testing
         storage = RedisSnapshotStorage(
             redis_url=redis_url,
@@ -292,7 +292,7 @@ class TestRedisSnapshotStorageIntegration:
             pytest.skip("zstandard not installed")
 
         redis_url = f"redis://{redis_container.get_container_host_ip()}:{redis_container.get_exposed_port(6379)}"
-        
+
         storage = RedisSnapshotStorage(
             redis_url=redis_url,
             enable_compression=True,  # Test compression functionality
@@ -301,7 +301,7 @@ class TestRedisSnapshotStorageIntegration:
 
         try:
             saga_id = uuid4()
-            
+
             # Create snapshot with large context
             large_context = {"data": "x" * 10000}  # 10KB of data
             snapshot = SagaSnapshot(
@@ -348,7 +348,7 @@ class TestRedisSnapshotStorageIntegration:
 
         async with RedisSnapshotStorage(
             redis_url=redis_url,
-            enable_compression=False  # Avoid zstd requirement
+            enable_compression=False,  # Avoid zstd requirement
         ) as storage:
             saga_id = uuid4()
             snapshot = SagaSnapshot(
