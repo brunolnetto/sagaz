@@ -18,11 +18,12 @@ from pydantic_ai import Agent, RunContext
 
 # Structured output with validation
 outline_agent = Agent(
-    'openai:gpt-4o-mini',
+    "openai:gpt-4o-mini",
     deps_type=ResearchDeps,
     output_type=ResearchOutline,  # Pydantic model
-    system_prompt="You are a research planning assistant..."
+    system_prompt="You are a research planning assistant...",
 )
+
 
 @outline_agent.tool
 async def get_research_context(ctx: RunContext[ResearchDeps]) -> str:
@@ -45,9 +46,7 @@ graph = StateGraph(SupportTicketState)
 graph.add_node("analyze", analyze_node)
 graph.add_node("generate_response", generate_response_node)
 graph.add_conditional_edges(
-    "attempt_resolution",
-    route_after_resolution,
-    {"resolve": "resolve", "escalate": "escalate"}
+    "attempt_resolution", route_after_resolution, {"resolve": "resolve", "escalate": "escalate"}
 )
 ```
 
@@ -98,10 +97,10 @@ python ai_content_pipeline.py
 class ResearchSaga(Saga):
     @action("analyze")
     async def analyze_with_ai(self, ctx: dict) -> dict:
-        agent = Agent('openai:gpt-4o-mini', output_type=Analysis)
-        result = await agent.run(ctx['prompt'])
+        agent = Agent("openai:gpt-4o-mini", output_type=Analysis)
+        result = await agent.run(ctx["prompt"])
         return {"analysis": result.output.model_dump()}
-    
+
     @compensate("analyze")
     async def handle_ai_failure(self, ctx: dict) -> None:
         # Log failure, notify, or retry with different model
@@ -139,7 +138,7 @@ class ContentSaga(Saga):
 @trigger(
     source="webhook",
     idempotency_key="request_id",  # Prevent duplicate processing
-    max_concurrent=5  # Limit concurrent AI calls
+    max_concurrent=5,  # Limit concurrent AI calls
 )
 def on_request(self, event):
     return {"topic": event["topic"]}

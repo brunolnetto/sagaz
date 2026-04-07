@@ -199,7 +199,7 @@ result = await saga.run({
     "order_id": "ORD-123",
     "user_id": "USER-456",
     "items": [{"id": "ITEM-1", "quantity": 2}],
-    "total_amount": 99.99
+    "total_amount": 99.99,
 })
 ```
 
@@ -218,7 +218,7 @@ saga = PaymentProcessingSaga()
 result = await saga.run({
     "payment_id": "PAY-101",
     "amount": 250.00,
-    "providers": ["Stripe", "PayPal", "Square"]
+    "providers": ["Stripe", "PayPal", "Square"],
 })
 ```
 
@@ -239,7 +239,7 @@ result = await saga.run({
     "symbol": "AAPL",
     "quantity": 100,
     "price": 150.00,
-    "user_id": 789
+    "user_id": 789,
 })
 ```
 
@@ -260,7 +260,7 @@ result = await saga.run({
     "user_id": "USER-789",
     "flight_details": {"flight_number": "AA123", "from": "NYC", "to": "LAX"},
     "hotel_details": {"hotel_name": "Grand Hotel", "nights": 3},
-    "car_details": {"car_type": "Sedan", "days": 3}
+    "car_details": {"car_type": "Sedan", "days": 3},
 })
 ```
 
@@ -283,7 +283,7 @@ result = await saga.run({
     "date_of_birth": "1985-06-15",
     "ssn_last_4": "1234",
     "email": "alice.johnson@email.com",
-    "phone": "+1-555-0123"
+    "phone": "+1-555-0123",
 })
 ```
 
@@ -303,7 +303,7 @@ result = await saga.run({
     "routine_id": "ROUTINE-001",
     "home_id": "HOME-123",
     "user_id": "USER-456",
-    "device_count": 100
+    "device_count": 100,
 })
 ```
 
@@ -324,7 +324,7 @@ result = await saga.run({
     "grid_operator_id": "GRID-CAISO",
     "target_reduction_mw": 1.5,
     "event_duration_hours": 4,
-    "incentive_rate_per_kwh": 0.15
+    "incentive_rate_per_kwh": 0.15,
 })
 ```
 
@@ -347,7 +347,7 @@ result = await saga.run({
     "destination_lat": 37.7899,
     "destination_lon": -122.3999,
     "package_weight_kg": 2.5,
-    "priority": "standard"
+    "priority": "standard",
 })
 ```
 
@@ -373,7 +373,7 @@ result = await saga.run({
     "dataset_path": "/data/training/dataset.parquet",
     "model_name": "churn-predictor",
     "accuracy_threshold": 0.85,
-    "hyperparameters": {"learning_rate": 0.001, "epochs": 15}
+    "hyperparameters": {"learning_rate": 0.001, "epochs": 15},
 })
 ```
 
@@ -395,7 +395,7 @@ result = await saga.run({
     "model_version": "3.2.0",
     "target_accuracy": 0.85,
     "min_participating_nodes": 10,
-    "training_rounds": 5
+    "training_rounds": 5,
 })
 ```
 
@@ -421,26 +421,27 @@ All examples use the modern **declarative approach** with decorators:
 ```python
 from sagaz import Saga, SagaContext, action, compensate
 
+
 class OrderProcessingSaga(Saga):
     """Stateless saga - all data passed through run() context."""
-    
+
     saga_name = "order-processing"
-    
+
     @action("reserve_inventory")
     async def reserve_inventory(self, ctx: SagaContext):
         # Get data from context
         order_id = ctx.get("order_id")
         items = ctx.get("items", [])
-        
+
         # Forward action logic
         return {"reserved": True, "order_id": order_id}
-    
+
     @compensate("reserve_inventory")
     async def release_inventory(self, ctx: SagaContext):
         # Compensation uses context data
         order_id = ctx.get("order_id")
         # Release logic here
-    
+
     @action("process_payment", depends_on=["reserve_inventory"])
     async def process_payment(self, ctx: SagaContext):
         # Access data from previous steps and initial context

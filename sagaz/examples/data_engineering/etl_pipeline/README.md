@@ -95,6 +95,7 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from examples.data_engineering.etl_pipeline import ETLPipelineSaga
 
+
 async def run_etl(**context):
     saga = ETLPipelineSaga()
     result = await saga.run({
@@ -103,6 +104,7 @@ async def run_etl(**context):
         "batch_date": context["ds"],
     })
     return result
+
 
 with DAG("etl_with_sagaz", ...) as dag:
     etl_task = PythonOperator(

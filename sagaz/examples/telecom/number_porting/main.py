@@ -418,19 +418,17 @@ async def main():
 
     # Scenario 1: Successful port
 
-    await saga.run(
-        {
-            "port_request_id": "PORT-2026-001",
-            "phone_number": "+1-555-123-4567",
-            "customer_name": "John Doe",
-            "account_number": "ACCT-987654",
-            "account_pin": "1234",
-            "donor_carrier": "OldMobile",
-            "new_carrier": "NewTelco",
-            "customer_email": "john.doe@email.com",
-            "sim_iccid": "8901260123456789012",
-        }
-    )
+    await saga.run({
+        "port_request_id": "PORT-2026-001",
+        "phone_number": "+1-555-123-4567",
+        "customer_name": "John Doe",
+        "account_number": "ACCT-987654",
+        "account_pin": "1234",
+        "donor_carrier": "OldMobile",
+        "new_carrier": "NewTelco",
+        "customer_email": "john.doe@email.com",
+        "sim_iccid": "8901260123456789012",
+    })
 
     # Scenario 2: Pre-pivot failure
 

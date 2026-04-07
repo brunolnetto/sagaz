@@ -61,19 +61,23 @@ SAGAZ = {
 from sagaz.integrations.django import run_saga_sync, create_saga
 from sagaz.integrations._base import SagaContextManager
 
+
 def create_order(request):
     # Correlation ID is set by middleware
     correlation_id = SagaContextManager.get("correlation_id")
-    
+
     # Create saga with correlation ID injected
     saga = create_saga(OrderSaga)
-    
+
     # Run async saga synchronously
-    result = run_saga_sync(saga, {
-        "order_id": "123",
-        "correlation_id": correlation_id,
-    })
-    
+    result = run_saga_sync(
+        saga,
+        {
+            "order_id": "123",
+            "correlation_id": correlation_id,
+        },
+    )
+
     return JsonResponse(result)
 ```
 

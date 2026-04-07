@@ -91,26 +91,22 @@ class OrderValidateView(View):
                     status=409,  # Conflict
                 )
             if status in (SagaStatus.FAILED, SagaStatus.ROLLED_BACK):
-                return JsonResponse(
-                    {
-                        "valid": True,
-                        "order_id": order_id,
-                        "saga_id": saga_id,
-                        "message": "Order previously failed, can be retried",
-                        "saga_status": status.value,
-                        "advice": "This order can be resubmitted via webhook.",
-                    }
-                )
+                return JsonResponse({
+                    "valid": True,
+                    "order_id": order_id,
+                    "saga_id": saga_id,
+                    "message": "Order previously failed, can be retried",
+                    "saga_status": status.value,
+                    "advice": "This order can be resubmitted via webhook.",
+                })
 
-        return JsonResponse(
-            {
-                "valid": True,
-                "order_id": order_id,
-                "message": "Order can be processed",
-                "saga_id": saga_id,
-                "advice": "Submit order via POST /webhooks/order_created/",
-            }
-        )
+        return JsonResponse({
+            "valid": True,
+            "order_id": order_id,
+            "message": "Order can be processed",
+            "saga_id": saga_id,
+            "advice": "Submit order via POST /webhooks/order_created/",
+        })
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -119,13 +115,11 @@ class OrderDiagramView(View):
 
     def get(self, request, order_id):
         saga = OrderSaga()
-        return JsonResponse(
-            {
-                "order_id": order_id,
-                "diagram": saga.to_mermaid(),
-                "format": "mermaid",
-            }
-        )
+        return JsonResponse({
+            "order_id": order_id,
+            "diagram": saga.to_mermaid(),
+            "format": "mermaid",
+        })
 
 
 @method_decorator(csrf_exempt, name="dispatch")

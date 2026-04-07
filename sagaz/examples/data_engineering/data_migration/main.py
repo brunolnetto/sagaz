@@ -401,14 +401,12 @@ async def successful_migration_demo():
     try:
         # Disable checksum verification for reliable "successful" demo
         # (Checksum verification is demonstrated in the failure demo)
-        await saga.run(
-            {
-                "source_system": "legacy_mysql",
-                "target_system": "new_postgres",
-                "tables": ["customers", "orders", "order_items"],
-                "verify_checksums": False,  # Skip for reliable demo
-            }
-        )
+        await saga.run({
+            "source_system": "legacy_mysql",
+            "target_system": "new_postgres",
+            "tables": ["customers", "orders", "order_items"],
+            "verify_checksums": False,  # Skip for reliable demo
+        })
 
     except SagaStepError:
         pass
@@ -422,20 +420,18 @@ async def failed_migration_demo():
     # Multiple tables increase chance of checksum failure
     for _attempt in range(3):
         try:
-            await saga.run(
-                {
-                    "source_system": "old_warehouse",
-                    "target_system": "new_lakehouse",
-                    "tables": [
-                        "fact_sales",
-                        "dim_customers",
-                        "dim_products",
-                        "dim_dates",
-                        "fact_inventory",
-                    ],
-                    "verify_checksums": True,
-                }
-            )
+            await saga.run({
+                "source_system": "old_warehouse",
+                "target_system": "new_lakehouse",
+                "tables": [
+                    "fact_sales",
+                    "dim_customers",
+                    "dim_products",
+                    "dim_dates",
+                    "fact_inventory",
+                ],
+                "verify_checksums": True,
+            })
         except SagaStepError:
             break
 

@@ -791,15 +791,13 @@ class TestPostgreSQLSagaMissingBranches:
         storage = PostgreSQLSagaStorage("postgresql://localhost/test")
         storage.save_saga_state = AsyncMock()
 
-        await storage.import_record(
-            {
-                "saga_id": "saga-1",
-                "saga_name": "TestSaga",
-                "status": "completed",
-                "steps": [],
-                "context": {},
-            }
-        )
+        await storage.import_record({
+            "saga_id": "saga-1",
+            "saga_name": "TestSaga",
+            "status": "completed",
+            "steps": [],
+            "context": {},
+        })
         storage.save_saga_state.assert_called_once()
 
 

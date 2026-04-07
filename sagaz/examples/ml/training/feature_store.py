@@ -116,16 +116,14 @@ class FeatureStoreSaga(Saga):
             max_unique = records_ingested // 10
             unique_values = random.randint(min_unique, max(min_unique, max_unique))
 
-            computed_features.append(
-                {
-                    "name": feature_name,
-                    "type": feature_type,
-                    "null_count": null_count,
-                    "unique_values": unique_values,
-                    "mean": random.uniform(-10, 10) if feature_type == "numeric" else None,
-                    "std": random.uniform(0, 5) if feature_type == "numeric" else None,
-                }
-            )
+            computed_features.append({
+                "name": feature_name,
+                "type": feature_type,
+                "null_count": null_count,
+                "unique_values": unique_values,
+                "mean": random.uniform(-10, 10) if feature_type == "numeric" else None,
+                "std": random.uniform(0, 5) if feature_type == "numeric" else None,
+            })
 
         # Save computed features
         feature_location = (

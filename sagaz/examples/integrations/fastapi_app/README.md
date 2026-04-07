@@ -40,11 +40,13 @@ from sagaz.integrations.fastapi import (
 )
 from sagaz.triggers import trigger
 
+
 # Define saga with trigger
 class OrderSaga(Saga):
     @trigger(source="order_created", idempotency_key="order_id")
     def handle_order_created(self, event: dict) -> dict | None:
         return {"order_id": event["order_id"], "amount": event["amount"]}
+
 
 # Create FastAPI app with lifespan
 @asynccontextmanager
@@ -52,6 +54,7 @@ async def lifespan(app: FastAPI):
     await sagaz_startup()
     yield
     await sagaz_shutdown()
+
 
 app = FastAPI(lifespan=lifespan)
 

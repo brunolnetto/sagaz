@@ -36,11 +36,13 @@ sagaz examples run integrations/flask_app
 from sagaz.integrations.flask import SagaFlask
 from sagaz.triggers import trigger
 
+
 # Define saga with trigger
 class OrderSaga(Saga):
     @trigger(source="order_created", idempotency_key="order_id")
     def handle_order_created(self, event: dict) -> dict | None:
         return {"order_id": event["order_id"], "amount": event["amount"]}
+
 
 # Create Flask app
 app = Flask(__name__)

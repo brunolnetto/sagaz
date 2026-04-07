@@ -150,6 +150,7 @@ async def load_to_staging(self, ctx):
     # Load data to staging
     return {"staging_table": staging_table}
 
+
 @compensate("load_to_staging")
 async def drop_staging(self, ctx):
     # DROP TABLE staging_xxx
@@ -175,6 +176,7 @@ async def swap_tables(self, ctx):
     # RENAME old_table TO old_table_backup
     # RENAME new_table TO old_table
     return {"backup_table": f"{ctx['table']}_backup"}
+
 
 @compensate("swap_tables")
 async def restore_backup(self, ctx):

@@ -37,11 +37,8 @@ from examples.order_processing import OrderProcessingSaga
 saga = OrderProcessingSaga(
     order_id="ORD-123",
     user_id="USER-456",
-    items=[
-        {"sku": "ITEM-001", "quantity": 2},
-        {"sku": "ITEM-002", "quantity": 1}
-    ],
-    total_amount=99.99
+    items=[{"sku": "ITEM-001", "quantity": 2}, {"sku": "ITEM-002", "quantity": 1}],
+    total_amount=99.99,
 )
 
 # Execute
@@ -55,11 +52,7 @@ Reserves items in inventory system.
 
 **Returns:**
 ```python
-{
-    "reserved_items": [
-        {"sku": "ITEM-001", "quantity": 2, "reservation_id": "RES-..."}
-    ]
-}
+{"reserved_items": [{"sku": "ITEM-001", "quantity": 2, "reservation_id": "RES-..."}]}
 ```
 
 ### process_payment(ctx)
@@ -67,11 +60,7 @@ Charges customer's payment method.
 
 **Returns:**
 ```python
-{
-    "transaction_id": "TXN-...",
-    "amount": 99.99,
-    "status": "completed"
-}
+{"transaction_id": "TXN-...", "amount": 99.99, "status": "completed"}
 ```
 
 ### create_shipment(ctx)
@@ -79,11 +68,7 @@ Creates shipment and generates tracking number.
 
 **Returns:**
 ```python
-{
-    "shipment_id": "SHIP-...",
-    "tracking_number": "TRK-...",
-    "estimated_delivery": "2024-01-15"
-}
+{"shipment_id": "SHIP-...", "tracking_number": "TRK-...", "estimated_delivery": "2024-01-15"}
 ```
 
 ### send_confirmation_email(ctx)
@@ -91,10 +76,7 @@ Sends order confirmation to customer.
 
 **Returns:**
 ```python
-{
-    "email_sent": True,
-    "email_id": "EMAIL-..."
-}
+{"email_sent": True, "email_id": "EMAIL-..."}
 ```
 
 ## Compensations

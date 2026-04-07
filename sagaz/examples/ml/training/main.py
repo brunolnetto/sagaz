@@ -348,21 +348,19 @@ async def successful_pipeline_demo():
     # Instantiate reusable saga
     saga = MLTrainingPipelineSaga()
 
-    await saga.run(
-        {
-            "experiment_id": "exp-20240115-001",
-            "dataset_path": "/data/training/customer_churn.parquet",
-            "model_name": "churn-predictor",
-            "accuracy_threshold": 0.80,  # Lenient threshold for demo
-            "hyperparameters": {
-                "learning_rate": 0.001,
-                "batch_size": 64,
-                "epochs": 15,
-                "optimizer": "adam",
-                "dropout": 0.3,
-            },
-        }
-    )
+    await saga.run({
+        "experiment_id": "exp-20240115-001",
+        "dataset_path": "/data/training/customer_churn.parquet",
+        "model_name": "churn-predictor",
+        "accuracy_threshold": 0.80,  # Lenient threshold for demo
+        "hyperparameters": {
+            "learning_rate": 0.001,
+            "batch_size": 64,
+            "epochs": 15,
+            "optimizer": "adam",
+            "dropout": 0.3,
+        },
+    })
 
 
 async def failed_pipeline_demo():
@@ -371,20 +369,18 @@ async def failed_pipeline_demo():
     saga = MLTrainingPipelineSaga()
 
     try:
-        await saga.run(
-            {
-                "experiment_id": "exp-20240115-002",
-                "dataset_path": "/data/training/customer_churn.parquet",
-                "model_name": "churn-predictor",
-                "accuracy_threshold": 0.95,  # Very high threshold - likely to fail
-                "hyperparameters": {
-                    "learning_rate": 0.01,  # High learning rate - may cause instability
-                    "batch_size": 32,
-                    "epochs": 5,  # Too few epochs
-                    "optimizer": "sgd",
-                },
-            }
-        )
+        await saga.run({
+            "experiment_id": "exp-20240115-002",
+            "dataset_path": "/data/training/customer_churn.parquet",
+            "model_name": "churn-predictor",
+            "accuracy_threshold": 0.95,  # Very high threshold - likely to fail
+            "hyperparameters": {
+                "learning_rate": 0.01,  # High learning rate - may cause instability
+                "batch_size": 32,
+                "epochs": 5,  # Too few epochs
+                "optimizer": "sgd",
+            },
+        })
     except SagaStepError:
         pass
 

@@ -181,6 +181,7 @@ async def train_model(self, ctx: dict[str, Any]) -> dict[str, Any]:
     # ... training logic
     return {"model_dir": str(model_dir)}
 
+
 @compensate("train_model")
 async def cleanup_model_artifacts(self, ctx: dict[str, Any]) -> None:
     # Automatic cleanup on ANY downstream failure
@@ -200,6 +201,7 @@ async def cleanup_model_artifacts(self, ctx: dict[str, Any]) -> None:
 async def register_model(self, ctx: dict[str, Any]) -> dict[str, Any]:
     model_version = mlflow.register_model(model_uri, model_name)
     return {"model_version": model_version}
+
 
 @compensate("register_model")
 async def deregister_model(self, ctx: dict[str, Any]) -> None:
@@ -229,6 +231,7 @@ async def distributed_training(self, ctx: dict[str, Any]) -> dict[str, Any]:
     cluster_endpoints = ctx.get("cluster_endpoints")
     # ... distributed training
     return {"model_checkpoint": checkpoint_path}
+
 
 @compensate("distributed_training")
 async def teardown_cluster(self, ctx: dict[str, Any]) -> None:
@@ -374,22 +377,23 @@ class FeatureUpdateSaga(Saga):
 import mlflow
 from sagaz import Saga, action, compensate
 
+
 class MLflowTrainingSaga(Saga):
     saga_name = "mlflow-training"
-    
+
     @action("start_mlflow_run")
     async def start_mlflow_run(self, ctx: dict[str, Any]):
         run = mlflow.start_run()
         mlflow.log_params(self.hyperparameters)
         return {"mlflow_run_id": run.info.run_id}
-    
+
     @action("train_and_log", depends_on=["start_mlflow_run"])
     async def train_and_log(self, ctx: dict[str, Any]):
         model = train_model()
         mlflow.log_metrics({"accuracy": model.accuracy})
         mlflow.sklearn.log_model(model, "model")
         return {"model": model}
-    
+
     @compensate("start_mlflow_run")
     async def end_mlflow_run(self, ctx: dict[str, Any]):
         mlflow.end_run(status="FAILED")
@@ -403,18 +407,18 @@ class MLflowTrainingSaga(Saga):
 from kfp import dsl
 from sagaz import Saga, action, compensate
 
+
 class KubeflowSaga(Saga):
     saga_name = "kubeflow-pipeline"
-    
+
     @action("create_pipeline_run")
     async def create_pipeline_run(self, ctx: dict[str, Any]):
         client = kfp.Client()
         run = client.create_run_from_pipeline_func(
-            pipeline_func=training_pipeline,
-            arguments=self.arguments
+            pipeline_func=training_pipeline, arguments=self.arguments
         )
         return {"run_id": run.id}
-    
+
     @action("wait_for_completion", depends_on=["create_pipeline_run"])
     async def wait_for_completion(self, ctx: dict[str, Any]):
         run_id = ctx.get("run_id")
@@ -432,21 +436,22 @@ class KubeflowSaga(Saga):
 import wandb
 from sagaz import Saga, action, compensate
 
+
 class WandBTrainingSaga(Saga):
     saga_name = "wandb-training"
-    
+
     @action("init_wandb")
     async def init_wandb(self, ctx: dict[str, Any]):
         run = wandb.init(project="my-project", config=self.config)
         return {"wandb_run_id": run.id}
-    
+
     @action("train_with_logging", depends_on=["init_wandb"])
     async def train_with_logging(self, ctx: dict[str, Any]):
         for epoch in range(epochs):
             loss = train_epoch()
             wandb.log({"loss": loss, "epoch": epoch})
         return {"final_loss": loss}
-    
+
     @compensate("init_wandb")
     async def finish_wandb(self, ctx: dict[str, Any]):
         wandb.finish(exit_code=1)
@@ -460,18 +465,16 @@ class WandBTrainingSaga(Saga):
 from seldon_core import SeldonClient
 from sagaz import Saga, action, compensate
 
+
 class SeldonDeploymentSaga(Saga):
     saga_name = "seldon-deployment"
-    
+
     @action("create_seldon_deployment")
     async def create_seldon_deployment(self, ctx: dict[str, Any]):
         client = SeldonClient()
-        deployment = client.create_deployment(
-            name=self.model_name,
-            model_uri=self.model_uri
-        )
+        deployment = client.create_deployment(name=self.model_name, model_uri=self.model_uri)
         return {"deployment_name": deployment.name}
-    
+
     @compensate("create_seldon_deployment")
     async def delete_seldon_deployment(self, ctx: dict[str, Any]):
         deployment_name = ctx.get("deployment_name")
@@ -589,9 +592,7 @@ from opentelemetry import trace
 
 # Configure tracing
 tracer = trace.get_tracer(__name__)
-config = SagaConfig(
-    listeners=[TracingSagaListener(tracer=tracer)]
-)
+config = SagaConfig(listeners=[TracingSagaListener(tracer=tracer)])
 configure(config)
 
 # Your saga automatically gets distributed tracing
@@ -617,9 +618,7 @@ Export saga metrics to Prometheus:
 ```python
 from sagaz.listeners import MetricsSagaListener
 
-config = SagaConfig(
-    listeners=[MetricsSagaListener()]
-)
+config = SagaConfig(listeners=[MetricsSagaListener()])
 configure(config)
 
 # Metrics automatically exported:
@@ -677,15 +676,19 @@ async def cleanup_complex(self, ctx):
     cleanup_database()
     cleanup_storage()
 
+
 # ✅ Good: Separate steps with individual compensations
 @action("save_model")
 async def save_model(self, ctx): ...
 
+
 @compensate("save_model")
 async def delete_model(self, ctx): ...
 
+
 @action("save_artifacts")
 async def save_artifacts(self, ctx): ...
+
 
 @compensate("save_artifacts")
 async def delete_artifacts(self, ctx): ...
@@ -698,16 +701,15 @@ Use specific exceptions:
 ```python
 from sagaz.exceptions import SagaStepError
 
+
 @action("validate_accuracy")
 async def validate_accuracy(self, ctx: dict[str, Any]):
     accuracy = ctx.get("accuracy")
-    
+
     if accuracy < self.threshold:
         # This triggers automatic compensation
-        raise SagaStepError(
-            f"Model accuracy {accuracy:.4f} below threshold {self.threshold:.4f}"
-        )
-    
+        raise SagaStepError(f"Model accuracy {accuracy:.4f} below threshold {self.threshold:.4f}")
+
     return {"validation_passed": True}
 ```
 
@@ -720,20 +722,17 @@ Pass data between steps via context:
 async def train_model(self, ctx: dict[str, Any]):
     dataset_size = ctx.get("dataset_size")  # From previous step
     features = ctx.get("features")  # From previous step
-    
+
     model = train(features, dataset_size)
-    
-    return {
-        "model_path": "/tmp/model.pkl",
-        "accuracy": 0.95,
-        "training_time": 120.5
-    }
+
+    return {"model_path": "/tmp/model.pkl", "accuracy": 0.95, "training_time": 120.5}
+
 
 @action("deploy_model", depends_on=["train_model"])
 async def deploy_model(self, ctx: dict[str, Any]):
     model_path = ctx.get("model_path")  # From train_model
     accuracy = ctx.get("accuracy")  # From train_model
-    
+
     deploy(model_path, accuracy)
 ```
 
@@ -747,6 +746,7 @@ async def train_model(self, ctx: dict[str, Any]):
     # Long-running training
     model = train_for_hours()
     return {"model": model}
+
 
 @action("deploy_model", timeout_seconds=300.0)  # 5 minutes for deployment
 async def deploy_model(self, ctx: dict[str, Any]):
@@ -799,6 +799,7 @@ If running on GPU-enabled machines:
 ```python
 import torch
 
+
 @action("train_model")
 async def train_model(self, ctx: dict[str, Any]):
     if torch.cuda.is_available():
@@ -807,7 +808,7 @@ async def train_model(self, ctx: dict[str, Any]):
     else:
         device = "cpu"
         logger.warning("GPU not available, using CPU")
-    
+
     model = train_on_device(device)
     return {"model": model, "device": device}
 ```

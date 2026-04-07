@@ -120,14 +120,12 @@ class RentalApplicationSaga(Saga):
 
 async def main():
     saga = RentalApplicationSaga()
-    await saga.run(
-        {
-            "application_id": "APP-2026-001",
-            "applicant_name": "Jane Smith",
-            "unit_id": "UNIT-A101",
-            "deposit_amount": Decimal("2500"),
-        }
-    )
+    await saga.run({
+        "application_id": "APP-2026-001",
+        "applicant_name": "Jane Smith",
+        "unit_id": "UNIT-A101",
+        "deposit_amount": Decimal("2500"),
+    })
 
 
 if __name__ == "__main__":

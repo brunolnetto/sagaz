@@ -345,32 +345,28 @@ async def main():
 
     # Scenario 1: Successful trade
 
-    await saga.run(
-        {
-            "trade_id": "TRADE-001",
-            "user_id": "USER-456",
-            "from_currency": "BTC",
-            "to_currency": "ETH",
-            "amount": Decimal("0.5"),
-            "destination_wallet": "0x742d35Cc6634C0532925a3b844Bc9e7595f2bAcE",
-            "network": "ethereum",
-        }
-    )
+    await saga.run({
+        "trade_id": "TRADE-001",
+        "user_id": "USER-456",
+        "from_currency": "BTC",
+        "to_currency": "ETH",
+        "amount": Decimal("0.5"),
+        "destination_wallet": "0x742d35Cc6634C0532925a3b844Bc9e7595f2bAcE",
+        "network": "ethereum",
+    })
 
     # Scenario 2: Pre-pivot failure (rollback)
 
     try:
-        await saga.run(
-            {
-                "trade_id": "TRADE-002",
-                "user_id": "USER-789",
-                "from_currency": "ETH",
-                "to_currency": "BTC",
-                "amount": Decimal("5.0"),
-                "destination_wallet": "invalid-wallet",  # Invalid!
-                "network": "bitcoin",
-            }
-        )
+        await saga.run({
+            "trade_id": "TRADE-002",
+            "user_id": "USER-789",
+            "from_currency": "ETH",
+            "to_currency": "BTC",
+            "amount": Decimal("5.0"),
+            "destination_wallet": "invalid-wallet",  # Invalid!
+            "network": "bitcoin",
+        })
     except SagaStepError:
         pass
 

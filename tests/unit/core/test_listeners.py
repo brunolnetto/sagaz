@@ -24,9 +24,11 @@ class TestSagaListenerBasic:
 
         class TestListener(SagaListener):
             async def on_saga_start(self, saga_name: str, saga_id: str, ctx: dict):
-                received_events.append(
-                    {"event": "saga_start", "saga_name": saga_name, "saga_id": saga_id}
-                )
+                received_events.append({
+                    "event": "saga_start",
+                    "saga_name": saga_name,
+                    "saga_id": saga_id,
+                })
 
         class TestSaga(Saga):
             saga_name = "test-saga"
@@ -85,9 +87,11 @@ class TestSagaListenerBasic:
 
         class TestListener(SagaListener):
             async def on_step_success(self, saga_name: str, step_name: str, ctx: dict, result: Any):
-                received_events.append(
-                    {"event": "step_success", "step_name": step_name, "result": result}
-                )
+                received_events.append({
+                    "event": "step_success",
+                    "step_name": step_name,
+                    "result": result,
+                })
 
         class TestSaga(Saga):
             saga_name = "test-saga"
@@ -116,9 +120,11 @@ class TestSagaListenerBasic:
             async def on_step_failure(
                 self, saga_name: str, step_name: str, ctx: dict, error: Exception
             ):
-                received_events.append(
-                    {"event": "step_failure", "step_name": step_name, "error": str(error)}
-                )
+                received_events.append({
+                    "event": "step_failure",
+                    "step_name": step_name,
+                    "error": str(error),
+                })
 
         class TestSaga(Saga):
             saga_name = "test-saga"
@@ -148,13 +154,11 @@ class TestSagaListenerBasic:
 
         class TestListener(SagaListener):
             async def on_saga_complete(self, saga_name: str, saga_id: str, ctx: dict):
-                received_events.append(
-                    {
-                        "event": "saga_complete",
-                        "saga_name": saga_name,
-                        "order_id": ctx.get("order_id"),
-                    }
-                )
+                received_events.append({
+                    "event": "saga_complete",
+                    "saga_name": saga_name,
+                    "order_id": ctx.get("order_id"),
+                })
 
         class TestSaga(Saga):
             saga_name = "order-saga"
