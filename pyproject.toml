@@ -1,6 +1,6 @@
 [project]
 name = "sagaz"
-version = "1.0.3"
+version = "1.1.2"
 description = "Production-ready Saga pattern with DAG support"
 readme = "README.md"
 dependencies = [
@@ -137,14 +137,11 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-# Explicitly configure package discovery to avoid flat-layout ambiguity
-packages = ["sagaz"]
+# Explicitly configure package discovery
+packages = {find = {where = ["."], include = ["sagaz*"]}}
 
 [tool.setuptools.package-data]
 sagaz = ["py.typed", "resources/**/*", "resources/**/.*"]
-
-[dependencies]
-python = "^3.11"
 
 # ============================================================================
 # Tool Configurations
@@ -155,7 +152,7 @@ python = "^3.11"
 line-length = 100
 indent-width = 4
 
-# Python 3.11
+# Python 3.11+
 target-version = "py311"
 
 # Exclude patterns

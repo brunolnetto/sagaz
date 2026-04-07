@@ -55,15 +55,15 @@ test: ## Run tests (TYPE=fast|all|integration|performance|watch, PARALLEL=yes|no
 	@echo "$(GREEN)Running tests (TYPE=$(TYPE), PARALLEL=$(PARALLEL))...$(RESET)"
 ifeq ($(TYPE),all)
 ifeq ($(PARALLEL),yes)
-	$(PYTEST) -n auto -v -m ""
+	$(PYTEST) -n auto -v -m "" --parallel-containers
 else
-	$(PYTEST) -v -m ""
+	$(PYTEST) -v -m "" --parallel-containers
 endif
 else ifeq ($(TYPE),integration)
 ifeq ($(PARALLEL),yes)
-	$(PYTEST) -n auto -v -m integration
+	$(PYTEST) -n auto -v -m integration --parallel-containers
 else
-	$(PYTEST) -v -m integration
+	$(PYTEST) -v -m integration --parallel-containers
 endif
 else ifeq ($(TYPE),performance)
 	$(PYTEST) -v -m performance

@@ -135,3 +135,34 @@ Look at `sagas/order_processing.py`, `sagas/trade_execution.py` for patterns:
 - **Core modifications**: Modify `saga/core.py` with extreme caution (affects all sagas)
 - **State machine changes**: Update `saga/state_machine.py` for new states/transitions
 - **Monitoring**: Extend `saga/monitoring/` modules for new observability features
+
+## Development Policies
+
+- Any new feature must be assigned to a PR; do not publish directly to `main`.
+- New work should be implemented on a dedicated feature branch and reviewed via PR before merging.
+- Regression-sensitive features must preserve coverage at or above `95%` relative to `main`.
+- Follow TDD with a red-green-refactor cycle: write failing tests first, then implement code to pass them.
+- Keep unit, integration, end-to-end, and performance tests clearly separated.
+- Use lightweight testcontainers or ephemeral container fixtures when available.
+- Commits must follow conventional commit style and the repository's commitlint rules:
+  - `type` must be one of `feat`, `fix`, `docs`, `refactor`, `test`, `perf`, `build`, `ci`, `chore`, `revert`
+  - `scope` must be present and non-empty
+  - `subject` must not use sentence case, start case, or pascal case
+  - `subject` must not end with a full stop
+- When repo-specific `scope` values are defined, use the approved scope list:
+  `saga`, `dag`, `outbox`, `storage`, `strategies`, `monitoring`, `cli`, `execution`,
+  `triggers`, `visualization`, `integrations`, `sagaz`, `docs`, `ci`, `deps`, `tests`
+
+## Branch Naming
+
+Branches must follow `<type>/<topic>` — see `docs/development/branch-naming.md`.
+
+| Prefix | Purpose |
+|--------|---------|
+| `feature/` | New functionality |
+| `fix/` | Bug fixes |
+| `docs/` | Documentation |
+| `refactor/` | Restructuring without behaviour change |
+| `test/` | Tests only |
+| `chore/` | Maintenance / deps |
+| `ci/` | CI/CD workflows |

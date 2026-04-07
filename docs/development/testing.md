@@ -1,6 +1,51 @@
 # Testing Guide
 
-How to run tests for thesagaz library.
+How to run and write tests for the Sagaz library.
+
+---
+
+## TDD Workflow
+
+All production code must be developed using **red-green-refactor**:
+
+1. **Red** — Write a failing test that describes the desired behaviour.
+2. **Green** — Write the minimal code to make the test pass.
+3. **Refactor** — Clean up without changing observable behaviour; keep all tests green.
+
+Never write implementation code before a failing test exists.
+
+---
+
+## Test Structure
+
+Tests are separated into four categories. **Do not mix them.**
+
+```
+tests/
+├── unit/                    # Fast, isolated — no I/O, no containers
+│   ├── test_core.py
+│   ├── test_context.py
+│   ├── test_types.py
+│   └── outbox/
+│       ├── test_worker.py
+│       ├── test_storage.py
+│       └── test_brokers.py
+│
+├── integration/             # Real dependencies via testcontainers
+│   ├── test_postgresql.py
+│   ├── test_rabbitmq.py
+│   └── test_kafka.py
+│
+├── e2e/                     # Full workflow across services
+│   └── test_order_saga.py
+│
+├── performance/             # Benchmarks and throughput assertions
+│   └── test_saga_throughput.py
+│
+└── conftest.py              # Shared fixtures
+```
+
+---
 
 ## Quick Start
 
@@ -11,92 +56,111 @@ pip install -e ".[dev]"
 # Run all tests
 pytest
 
-# Run with coverage
-pytest --cov=sage --cov-report=html
+# Run with coverage (enforces 95% threshold)
+make coverage
 ```
 
-## Test Structure
+---
 
-```
-tests/
-├── unit/                    # Fast, isolated tests
-│   ├── test_core.py         # Saga engine tests
-│   ├── test_context.py      # SagaContext tests
-│   ├── test_types.py        # Type/enum tests
-│   └── outbox/
-│       ├── test_worker.py   # OutboxWorker tests
-│       ├── test_storage.py  # Storage backend tests
-│       └── test_brokers.py  # Broker tests
-│
-├── integration/             # Tests with real dependencies
-│   ├── test_postgresql.py   # PostgreSQL integration
-│   ├── test_rabbitmq.py     # RabbitMQ integration
-│   └── test_kafka.py        # Kafka integration
-│
-└── conftest.py              # Shared fixtures
-```
-
-## Running Specific Tests
+## Running by Category
 
 ```bash
-# Unit tests only (fast)
+# Unit tests only (fast, no dependencies)
 pytest tests/unit/
 
-# Integration tests (requires Docker)
-pytest tests/integration/ --integration
+# Integration tests (spins up containers automatically)
+pytest tests/integration/
 
-# Specific file
-pytest tests/unit/test_core.py
+# End-to-end tests
+pytest tests/e2e/
 
-# Specific test
-pytest tests/unit/test_core.py::test_saga_execute_success
+# Performance benchmarks
+pytest tests/performance/
 
-# With verbose output
-pytest -v tests/unit/
+# Single file or test
+pytest tests/unit/test_core.py::test_saga_execute_success -v
 ```
 
-## Integration Tests
+---
 
-Integration tests require Docker containers:
+## Integration & E2E Tests
+
+Integration and e2e tests use **testcontainers** — no manual Docker setup required.
+Containers are started and stopped automatically by the fixture.
+
+```python
+from testcontainers.postgres import PostgresContainer
+
+@pytest.fixture(scope="session")
+def postgres_url():
+    with PostgresContainer("postgres:16") as pg:
+        yield pg.get_connection_url()
+```
+
+If testcontainers is unavailable, start dependencies manually:
 
 ```bash
-# Start containers
-docker-compose -f docker-compose.test.yml up -d
-
-# Run integration tests
-pytest tests/integration/ --integration
-
-# Stop containers
-docker-compose -f docker-compose.test.yml down
+docker compose up -d
+pytest tests/integration/
+docker compose down
 ```
 
-## Coverage
+---
 
-```bash
-# Run with coverage
-pytest --cov=sage --cov-report=term-missing
+## Coverage Policy
 
-# Generate HTML report
-pytest --cov=sage --cov-report=html
-open htmlcov/index.html
+- **Minimum threshold**: 95% — PRs that drop below this will fail CI.
+- Check before opening a PR:
+  ```bash
+  make coverage              # terminal report
+  make coverage-html         # HTML report → htmlcov/index.html
+  ```
+- The CI pipeline enforces the threshold via `--cov-fail-under=95`.
 
-# Check minimum coverage
-pytest --cov=sage --cov-fail-under=80
+---
+
+## Writing Tests
+
+### Async Tests
+
+All saga code is async. Use `@pytest.mark.asyncio`:
+
+```python
+import pytest
+from sagaz import Saga, SagaContext
+
+@pytest.mark.asyncio
+async def test_saga_executes_all_steps():
+    # Arrange
+    executed = []
+
+    async def step1(ctx: SagaContext):
+        executed.append("step1")
+
+    async def step2(ctx: SagaContext):
+        executed.append("step2")
+
+    saga = Saga("test")
+    await saga.add_step("first", action=step1)
+    await saga.add_step("second", action=step2)
+
+    # Act
+    result = await saga.execute(SagaContext(saga_id="test-001"))
+
+    # Assert
+    assert result.status == "completed"
+    assert executed == ["step1", "step2"]
 ```
 
-## Fixtures
-
-Common fixtures in `conftest.py`:
+### Common Fixtures
 
 ```python
 @pytest.fixture
 def saga_context():
-    """Create a fresh SagaContext for testing."""
     return SagaContext(saga_id="test-saga-001")
 
 @pytest.fixture
 async def memory_storage():
-    """In-memory storage for testing."""
     storage = InMemoryOutboxStorage()
     await storage.initialize()
     yield storage
@@ -104,69 +168,15 @@ async def memory_storage():
 
 @pytest.fixture
 async def memory_broker():
-    """In-memory broker for testing."""
     broker = InMemoryBroker()
     await broker.connect()
     yield broker
     await broker.close()
 ```
 
-## Writing Tests
-
-### Unit Test Example
-
-```python
-import pytest
-from sagaz import Saga, SagaContext
-
-async def test_saga_executes_all_steps():
-    # Arrange
-    executed = []
-    
-    async def step1(ctx):
-        executed.append("step1")
-    
-    async def step2(ctx):
-        executed.append("step2")
-    
-    saga = (
-        Saga("test")
-        .step("first").action(step1)
-        .step("second").action(step2)
-        .build()
-    )
-    
-    # Act
-    result = await saga.execute(SagaContext())
-    
-    # Assert
-    assert result.status == "completed"
-    assert executed == ["step1", "step2"]
-```
-
-### Async Test Example
-
-```python
-import pytest
-
-@pytest.mark.asyncio
-async def test_worker_processes_events(memory_storage, memory_broker):
-    # Insert test event
-    await memory_storage.save_event(OutboxEvent(...))
-    
-    # Create worker
-    worker = OutboxWorker(memory_storage, memory_broker)
-    
-    # Process
-    processed = await worker.process_batch()
-    
-    # Verify
-    assert processed == 1
-```
+---
 
 ## CI/CD
-
-GitHub Actions workflow:
 
 ```yaml
 name: Tests
@@ -180,23 +190,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      
       - name: Install dependencies
         run: pip install -e ".[dev]"
-      
-      - name: Run tests
-        run: pytest --cov=sage --cov-fail-under=80
+      - name: Run tests with coverage
+        run: pytest --cov=sagaz --cov-fail-under=95
 ```
+
+---
 
 ## Troubleshooting
 
-### Tests Hang
-
 ```bash
-# Set timeout
+# Set per-test timeout to catch hangs
 pytest --timeout=30
 
-# Run with debug output
+# Verbose output with full tracebacks
 pytest -v --tb=long
 ```
 

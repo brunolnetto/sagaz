@@ -1,0 +1,29 @@
+name: Require Issue Reference
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  require-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR description for issue reference
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = (context.payload.pull_request.body || "").toLowerCase()
+
+            const patterns = [
+              /closes\s+#\d+/,
+              /fixes\s+#\d+/,
+              /resolves\s+#\d+/
+            ]
+
+            const found = patterns.some(p => p.test(body))
+
+            if (!found) {
+              core.setFailed(
+                "Pull Request must reference an Issue using 'Closes #<number>', 'Fixes #<number>' or 'Resolves #<number>'."
+              )
+            }

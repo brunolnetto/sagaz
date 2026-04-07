@@ -2,7 +2,7 @@
 
 Historical documentation superseded by current docs.
 
-**Last Updated**: 2026-01-05
+**Last Updated**: 2026-04-07
 
 ## Archived Files
 
@@ -26,18 +26,33 @@ Historical documentation superseded by current docs.
 - [CHAOS_IMPLEMENTATION_SUMMARY.md](CHAOS_IMPLEMENTATION_SUMMARY.md) - Chaos implementation details
 - [implementation-plan.md](implementation-plan.md) - Original implementation plan
 
+### Coverage Tracking (now in CI)
+- [COVERAGE.md](COVERAGE.md) - Coverage status snapshot (superseded by CI reports)
+- [COVERAGE_REPORT.md](COVERAGE_REPORT.md) - Phase 1 & 2 coverage improvement report
+- [coverage_quick_ref.md](coverage_quick_ref.md) - Quick reference card for 95% target
+- [coverage_roadmap.md](coverage_roadmap.md) - Step-by-step coverage improvement plan
+- [COVERAGE_95_PLAN.md](COVERAGE_95_PLAN.md) - Detailed ROI-based action plan for 95%
+- [coverage_integration_tests.md](coverage_integration_tests.md) - Integration test coverage notes
+
+### Internal Planning
+- [IMPROVEMENTS_SUMMARY.md](IMPROVEMENTS_SUMMARY.md) - 2026-01-12 housekeeping summary
+- [COMPREHENSIVE_ANSWERS.md](COMPREHENSIVE_ANSWERS.md) - Internal Q&A during planning
+
+### ADR History
+- [ADR_019_CLI_STATUS.md](ADR_019_CLI_STATUS.md) - ADR-019 implementation status
+- [ADR_019_DRY_RUN_COMPLETE.md](ADR_019_DRY_RUN_COMPLETE.md)
+- [ADR_019_FINAL_STATUS.md](ADR_019_FINAL_STATUS.md)
+- [ADR_019_IMPLEMENTATION_SUMMARY.md](ADR_019_IMPLEMENTATION_SUMMARY.md)
+- [ADR_030_IMPLEMENTATION_SUMMARY.md](ADR_030_IMPLEMENTATION_SUMMARY.md)
+- [ADR_EFFORT_ESTIMATES.md](ADR_EFFORT_ESTIMATES.md)
+- [ASCII_TO_MERMAID_CONVERSION.md](ASCII_TO_MERMAID_CONVERSION.md)
+- [COMPLEXITY_REFACTORING_SUMMARY.md](COMPLEXITY_REFACTORING_SUMMARY.md)
+- [IDEMPOTENCY_ENFORCEMENT.md](IDEMPOTENCY_ENFORCEMENT.md)
+- [resources-reorganization-summary.md](resources-reorganization-summary.md)
+
 ## Why These Were Archived
 
-These files represent the development journey to v1.0.0. They contain:
-- Incremental progress tracking
-- Coverage improvement strategies
-- Development notes and iterations
-- Historical context
-
-They have been superseded by the final production documentation but are preserved for:
-- Historical reference
-- Development process transparency
-- Future contributors understanding the evolution
+These files represent the development journey to v1.0.0 and early 1.x work. They are preserved for historical reference but superseded by the live documentation and automated CI reports.
 
 ## Current Documentation
 
