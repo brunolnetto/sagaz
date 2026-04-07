@@ -48,6 +48,11 @@ tracing = [
 prometheus = [
     "prometheus-client>=0.23.1",
 ]
+analytics = [
+    "duckdb>=1.0.0",
+    "sqldim>=0.1.1,<0.2",
+    "narwhals>=1.0.0",
+]
 aws = [
     "aioboto3>=12.0.0",
     "zstandard>=0.22.0",  # For S3 snapshot compression
