@@ -169,7 +169,7 @@ class TenantAwareSagaExecutor:
         saga: Saga,
         context: dict[str, Any],
         tenant_context: TenantContext,
-    ) -> SagaResult:
+    ) -> dict[str, Any]:
         """Execute *saga* scoped to *tenant_context*."""
         try:
             await self._validate_tenant(tenant_context)
@@ -184,13 +184,12 @@ class TenantAwareSagaExecutor:
             enriched_context = {**context, "tenant_context": tenant_context}
 
             self.logger.info("Executing saga with tenant %s", tenant_context.tenant_id)
-            result = await saga.run(enriched_context)
+            result: dict[str, Any] = await saga.run(enriched_context)
 
             await self._record_usage(tenant_context, result)
             self.logger.info(
-                "Saga completed for tenant %s: %s",
+                "Saga completed for tenant %s",
                 tenant_context.tenant_id,
-                result.status,
             )
             return result
         finally:
@@ -246,13 +245,11 @@ class TenantAwareSagaExecutor:
             return
         self.logger.debug("Clearing DB session tenant")
 
-    async def _record_usage(self, tenant_ctx: TenantContext, result: SagaResult) -> None:
+    async def _record_usage(self, tenant_ctx: TenantContext, result: dict[str, Any]) -> None:
         """Record saga usage for quota accounting."""
         self.logger.debug(
-            "Usage recorded for tenant %s: status=%s, duration=%.3fs",
+            "Usage recorded for tenant %s",
             tenant_ctx.tenant_id,
-            result.status,
-            result.execution_time,
         )
 
 
