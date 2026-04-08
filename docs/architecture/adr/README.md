@@ -22,10 +22,10 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-027](adr-027-project-cli.md) | Project CLI | v1.3.0 | 2026-01 |
 | [ADR-030](adr-030-dry-run-parallel-analysis.md) | Dry-Run Parallel Analysis | v1.3.0 | 2026-01 |
 | [ADR-031](adr-031-dry-run-simplification.md) | Dry-Run Simplification | v1.3.0 | 2026-01 |
-| [ADR-032](adr-032-cli-command-organization.md) | CLI Command Organization | v1.3.0 | 2026-01 |
 | [ADR-017](adr-017-chaos-engineering.md) | Chaos Engineering | v1.4.0 | 2026-04 |
 | [ADR-018](adr-018-saga-versioning.md) | Saga Versioning | v2.0.0 | 2026-04 |
 | [ADR-020](adr-020-multi-tenancy.md) | Multi-Tenancy | v1.4.0 | 2026-04 |
+| [ADR-032](adr-032-cli-command-organization.md) | CLI Command Organization | v1.3.0 | 2026-01 |
 
 ---
 
