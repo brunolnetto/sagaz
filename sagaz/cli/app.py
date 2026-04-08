@@ -27,6 +27,7 @@ from sagaz.cli._setup_handlers import (
 from sagaz.cli.dry_run import simulate_cmd, validate_cmd
 from sagaz.cli.project import check as check_cmd
 from sagaz.cli.project import list_sagas
+from sagaz.cli.dlq import dlq_cli
 from sagaz.cli.replay import replay
 
 try:
@@ -708,6 +709,9 @@ cli.add_command(benchmark_cmd, name="benchmark")
 
 # Utilities
 cli.add_command(version_cmd, name="version")
+
+# DLQ Management
+cli.add_command(dlq_cli, name="dlq")
 
 # State Modification (Highest Risk)
 cli.add_command(replay, name="replay")
