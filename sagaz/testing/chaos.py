@@ -159,7 +159,7 @@ class ChaosMonkey:
         if self.random.random() < self.timeout_probability:
             self.injections[FaultType.TIMEOUT] += 1
             msg = f"Chaos: injected timeout in '{step_name}'"
-            raise TimeoutError(msg)
+            raise asyncio.TimeoutError(msg)
 
         # 3 - Random failure injection
         if self.random.random() < self.failure_rate:
