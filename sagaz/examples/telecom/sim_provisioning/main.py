@@ -127,11 +127,13 @@ class SIMProvisioningSaga(Saga):
 
 async def main():
     saga = SIMProvisioningSaga()
-    await saga.run({
-        "order_id": "SIM-2026-001",
-        "customer_id": "CUST-12345",
-        "plan": "Unlimited Plus",
-    })
+    await saga.run(
+        {
+            "order_id": "SIM-2026-001",
+            "customer_id": "CUST-12345",
+            "plan": "Unlimited Plus",
+        }
+    )
 
 
 if __name__ == "__main__":

@@ -44,11 +44,13 @@ class InMemoryBroker(BaseBroker):
         if topic not in self._messages:
             self._messages[topic] = []
 
-        self._messages[topic].append({
-            "message": message,
-            "headers": headers or {},
-            "key": key,
-        })
+        self._messages[topic].append(
+            {
+                "message": message,
+                "headers": headers or {},
+                "key": key,
+            }
+        )
 
     async def close(self) -> None:
         """Close connection."""

@@ -109,15 +109,17 @@ async def seed_storage_with_scenario(storage: InMemorySagaStorage, saga_id: str,
     if scenario == "success":
         saga_status = SagaStatus.COMPLETED
         for step_name in all_steps:
-            steps_data.append({
-                "name": step_name,
-                "status": SagaStepStatus.COMPLETED.value,
-                "result": None,
-                "error": None,
-                "executed_at": datetime.now().isoformat(),
-                "compensated_at": None,
-                "retry_count": 0,
-            })
+            steps_data.append(
+                {
+                    "name": step_name,
+                    "status": SagaStepStatus.COMPLETED.value,
+                    "result": None,
+                    "error": None,
+                    "executed_at": datetime.now().isoformat(),
+                    "compensated_at": None,
+                    "retry_count": 0,
+                }
+            )
 
     elif scenario == "failure":
         # Fails at process_payment, compensates previous steps
@@ -150,15 +152,17 @@ async def seed_storage_with_scenario(storage: InMemorySagaStorage, saga_id: str,
                 status = "failed"
 
             if status != "pending":
-                steps_data.append({
-                    "name": step_name,
-                    "status": status,
-                    "result": None,
-                    "error": None,
-                    "executed_at": datetime.now().isoformat(),
-                    "compensated_at": compensated_at,
-                    "retry_count": 0,
-                })
+                steps_data.append(
+                    {
+                        "name": step_name,
+                        "status": status,
+                        "result": None,
+                        "error": None,
+                        "executed_at": datetime.now().isoformat(),
+                        "compensated_at": compensated_at,
+                        "retry_count": 0,
+                    }
+                )
 
     # Save directly to storage
     await storage.save_saga_state(

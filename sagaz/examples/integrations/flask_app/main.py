@@ -149,50 +149,60 @@ def validate_order():
 
         status = state.get("status")
         if status == SagaStatus.COMPLETED:
-            return jsonify({
-                "valid": False,
-                "order_id": order_id,
-                "saga_id": saga_id,
-                "reason": "Order already processed successfully",
-                "saga_status": "completed",
-                "advice": "This order has been completed. Use a different order_id.",
-            }), 409  # Conflict
+            return jsonify(
+                {
+                    "valid": False,
+                    "order_id": order_id,
+                    "saga_id": saga_id,
+                    "reason": "Order already processed successfully",
+                    "saga_status": "completed",
+                    "advice": "This order has been completed. Use a different order_id.",
+                }
+            ), 409  # Conflict
         if status == SagaStatus.EXECUTING:
-            return jsonify({
-                "valid": False,
-                "order_id": order_id,
-                "saga_id": saga_id,
-                "reason": "Order is currently being processed",
-                "saga_status": "executing",
-                "advice": "Wait for this order to complete before resubmitting.",
-            }), 409  # Conflict
+            return jsonify(
+                {
+                    "valid": False,
+                    "order_id": order_id,
+                    "saga_id": saga_id,
+                    "reason": "Order is currently being processed",
+                    "saga_status": "executing",
+                    "advice": "Wait for this order to complete before resubmitting.",
+                }
+            ), 409  # Conflict
         if status in (SagaStatus.FAILED, SagaStatus.ROLLED_BACK):
-            return jsonify({
-                "valid": True,
-                "order_id": order_id,
-                "saga_id": saga_id,
-                "message": "Order previously failed, can be retried",
-                "saga_status": status.value,
-                "advice": "This order can be resubmitted via webhook.",
-            })
+            return jsonify(
+                {
+                    "valid": True,
+                    "order_id": order_id,
+                    "saga_id": saga_id,
+                    "message": "Order previously failed, can be retried",
+                    "saga_status": status.value,
+                    "advice": "This order can be resubmitted via webhook.",
+                }
+            )
 
-    return jsonify({
-        "valid": True,
-        "order_id": order_id,
-        "message": "Order can be processed",
-        "saga_id": saga_id,
-        "advice": "Submit order via POST /webhooks/order_created",
-    })
+    return jsonify(
+        {
+            "valid": True,
+            "order_id": order_id,
+            "message": "Order can be processed",
+            "saga_id": saga_id,
+            "advice": "Submit order via POST /webhooks/order_created",
+        }
+    )
 
 
 @app.route("/orders/<order_id>/diagram")
 def get_order_diagram(order_id: str):
     saga = OrderSaga()
-    return jsonify({
-        "order_id": order_id,
-        "diagram": saga.to_mermaid(),
-        "format": "mermaid",
-    })
+    return jsonify(
+        {
+            "order_id": order_id,
+            "diagram": saga.to_mermaid(),
+            "format": "mermaid",
+        }
+    )
 
 
 # =============================================================================

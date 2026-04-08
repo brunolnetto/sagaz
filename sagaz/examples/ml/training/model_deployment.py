@@ -291,12 +291,14 @@ class ModelDeploymentSaga(Saga):
             latency = random.uniform(0.05, 0.20)
             throughput = random.randint(100, 500)
 
-            samples.append({
-                "timestamp": datetime.now().isoformat(),
-                "error_rate": error_rate,
-                "latency": latency,
-                "throughput": throughput,
-            })
+            samples.append(
+                {
+                    "timestamp": datetime.now().isoformat(),
+                    "error_rate": error_rate,
+                    "latency": latency,
+                    "throughput": throughput,
+                }
+            )
 
             if i % 2 == 0:
                 logger.info(

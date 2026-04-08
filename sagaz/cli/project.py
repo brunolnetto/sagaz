@@ -115,12 +115,14 @@ def _inspect_module(module_name: str, file_path: Path) -> list[dict[str, Any]]:
 
                 first_line = doc.split("\n")[0] if doc else "No description"
 
-                discovered.append({
-                    "name": name,
-                    "file": str(file_path),
-                    "doc": first_line,
-                    "class": obj,
-                })
+                discovered.append(
+                    {
+                        "name": name,
+                        "file": str(file_path),
+                        "doc": first_line,
+                        "class": obj,
+                    }
+                )
     except Exception:
         pass
     return discovered

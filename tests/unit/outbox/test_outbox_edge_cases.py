@@ -317,16 +317,18 @@ class TestRedisSagaStorageEdgeCases:
             client.smembers.side_effect = mock_smembers
 
             # Mock saga data for saga-2
-            saga_data = json.dumps({
-                "saga_id": "saga-2",
-                "saga_name": "OrderSaga",
-                "status": "completed",
-                "steps": [],
-                "context": {},
-                "metadata": {},
-                "created_at": "2024-01-01T00:00:00+00:00",
-                "updated_at": "2024-01-01T00:00:00+00:00",
-            })
+            saga_data = json.dumps(
+                {
+                    "saga_id": "saga-2",
+                    "saga_name": "OrderSaga",
+                    "status": "completed",
+                    "steps": [],
+                    "context": {},
+                    "metadata": {},
+                    "created_at": "2024-01-01T00:00:00+00:00",
+                    "updated_at": "2024-01-01T00:00:00+00:00",
+                }
+            )
             client.hget.return_value = saga_data.encode()
 
             result = await storage.list_sagas(status=SagaStatus.COMPLETED, saga_name="OrderSaga")
@@ -353,16 +355,18 @@ class TestRedisSagaStorageEdgeCases:
             ]
 
             # Mock saga data
-            saga_data = json.dumps({
-                "saga_id": "id-1",
-                "saga_name": "TestSaga",
-                "status": "completed",
-                "steps": [],
-                "context": {},
-                "metadata": {},
-                "created_at": "2024-01-01T00:00:00+00:00",
-                "updated_at": "2024-01-01T00:00:00+00:00",
-            })
+            saga_data = json.dumps(
+                {
+                    "saga_id": "id-1",
+                    "saga_name": "TestSaga",
+                    "status": "completed",
+                    "steps": [],
+                    "context": {},
+                    "metadata": {},
+                    "created_at": "2024-01-01T00:00:00+00:00",
+                    "updated_at": "2024-01-01T00:00:00+00:00",
+                }
+            )
             client.hget.return_value = saga_data.encode()
 
             result = await storage.list_sagas(limit=10)
@@ -381,16 +385,18 @@ class TestRedisSagaStorageEdgeCases:
             storage = RedisSagaStorage("redis://localhost:6379")
             storage._redis = client
 
-            saga_data = json.dumps({
-                "saga_id": "saga-123",
-                "saga_name": "TestSaga",
-                "status": "executing",
-                "steps": [{"name": "step1", "status": "pending"}],
-                "context": {},
-                "metadata": {},
-                "created_at": "2024-01-01T00:00:00+00:00",
-                "updated_at": "2024-01-01T00:00:00+00:00",
-            })
+            saga_data = json.dumps(
+                {
+                    "saga_id": "saga-123",
+                    "saga_name": "TestSaga",
+                    "status": "executing",
+                    "steps": [{"name": "step1", "status": "pending"}],
+                    "context": {},
+                    "metadata": {},
+                    "created_at": "2024-01-01T00:00:00+00:00",
+                    "updated_at": "2024-01-01T00:00:00+00:00",
+                }
+            )
             client.hget.return_value = saga_data.encode()
 
             # Use executed_at which IS a valid parameter

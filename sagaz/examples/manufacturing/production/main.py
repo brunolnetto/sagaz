@@ -380,21 +380,23 @@ async def main():
 
     # Scenario 1: Successful production run
 
-    await saga.run({
-        "work_order_id": "WO-2026-001",
-        "product_sku": "WIDGET-PRO-X1",
-        "quantity": 10,
-        "materials": [
-            {"sku": "STEEL-304", "quantity": 5, "lot": "LOT-A1"},
-            {"sku": "BEARING-6205", "quantity": 10, "lot": "LOT-B2"},
-        ],
-        "machine_id": "CNC-MILL-01",
-        "operator_id": "OP-123",
-        "quality_specs": {
-            "tolerance_mm": 0.05,
-            "surface_finish": "Ra 0.8",
-        },
-    })
+    await saga.run(
+        {
+            "work_order_id": "WO-2026-001",
+            "product_sku": "WIDGET-PRO-X1",
+            "quantity": 10,
+            "materials": [
+                {"sku": "STEEL-304", "quantity": 5, "lot": "LOT-A1"},
+                {"sku": "BEARING-6205", "quantity": 10, "lot": "LOT-B2"},
+            ],
+            "machine_id": "CNC-MILL-01",
+            "operator_id": "OP-123",
+            "quality_specs": {
+                "tolerance_mm": 0.05,
+                "surface_finish": "Ra 0.8",
+            },
+        }
+    )
 
     # Scenario 2: Pre-pivot failure
 

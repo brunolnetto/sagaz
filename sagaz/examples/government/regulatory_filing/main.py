@@ -96,12 +96,14 @@ class RegulatoryFilingSaga(Saga):
 
 async def main():
     saga = RegulatoryFilingSaga()
-    await saga.run({
-        "filing_id": "10K-2026-Q4",
-        "company": "Acme Corp",
-        "authority": "SEC",
-        "filing_type": "10-K",
-    })
+    await saga.run(
+        {
+            "filing_id": "10K-2026-Q4",
+            "company": "Acme Corp",
+            "authority": "SEC",
+            "filing_type": "10-K",
+        }
+    )
 
 
 if __name__ == "__main__":

@@ -58,12 +58,14 @@ class SagaJsonFormatter(logging.Formatter):
         """Add saga context to log entry if available."""
         context = saga_context.get({})
         if context:
-            log_entry.update({
-                "saga_id": context.get("saga_id"),
-                "saga_name": context.get("saga_name"),
-                "step_name": context.get("step_name"),
-                "correlation_id": context.get("correlation_id"),
-            })
+            log_entry.update(
+                {
+                    "saga_id": context.get("saga_id"),
+                    "saga_name": context.get("saga_name"),
+                    "step_name": context.get("step_name"),
+                    "correlation_id": context.get("correlation_id"),
+                }
+            )
 
     def _add_record_extras(self, log_entry: dict[str, Any], record: logging.LogRecord) -> None:
         """Add extra fields from log record."""

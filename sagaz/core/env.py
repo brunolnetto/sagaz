@@ -215,87 +215,109 @@ class EnvManager:
         broker_type = config_data.get("broker", {}).get("type", "redis")
 
         # Storage configuration
-        lines.extend([
-            "# Storage Configuration",
-            f"SAGAZ_STORAGE_TYPE={storage_type}",
-        ])
+        lines.extend(
+            [
+                "# Storage Configuration",
+                f"SAGAZ_STORAGE_TYPE={storage_type}",
+            ]
+        )
 
         if storage_type == "postgresql":
-            lines.extend([
-                "SAGAZ_STORAGE_HOST=localhost",
-                "SAGAZ_STORAGE_PORT=5432",
-                "SAGAZ_STORAGE_DB=sagaz",
-                "SAGAZ_STORAGE_USER=postgres",
-                "SAGAZ_STORAGE_PASSWORD=  # Set your password",
-                "# Or use full URL:",
-                "# SAGAZ_STORAGE_URL=postgresql://user:pass@host:port/db",
-            ])
+            lines.extend(
+                [
+                    "SAGAZ_STORAGE_HOST=localhost",
+                    "SAGAZ_STORAGE_PORT=5432",
+                    "SAGAZ_STORAGE_DB=sagaz",
+                    "SAGAZ_STORAGE_USER=postgres",
+                    "SAGAZ_STORAGE_PASSWORD=  # Set your password",
+                    "# Or use full URL:",
+                    "# SAGAZ_STORAGE_URL=postgresql://user:pass@host:port/db",
+                ]
+            )
         elif storage_type == "redis":
-            lines.extend([
-                "SAGAZ_STORAGE_URL=redis://localhost:6379/0",
-            ])
+            lines.extend(
+                [
+                    "SAGAZ_STORAGE_URL=redis://localhost:6379/0",
+                ]
+            )
 
         lines.append("")
 
         # Broker configuration
-        lines.extend([
-            "# Message Broker Configuration",
-            f"SAGAZ_BROKER_TYPE={broker_type}",
-        ])
+        lines.extend(
+            [
+                "# Message Broker Configuration",
+                f"SAGAZ_BROKER_TYPE={broker_type}",
+            ]
+        )
 
         if broker_type == "kafka":
-            lines.extend([
-                "SAGAZ_BROKER_HOST=localhost",
-                "SAGAZ_BROKER_PORT=9092",
-                "# Or use full URL:",
-                "# SAGAZ_BROKER_URL=kafka://localhost:9092",
-            ])
+            lines.extend(
+                [
+                    "SAGAZ_BROKER_HOST=localhost",
+                    "SAGAZ_BROKER_PORT=9092",
+                    "# Or use full URL:",
+                    "# SAGAZ_BROKER_URL=kafka://localhost:9092",
+                ]
+            )
         elif broker_type == "rabbitmq":
-            lines.extend([
-                "SAGAZ_BROKER_HOST=localhost",
-                "SAGAZ_BROKER_PORT=5672",
-                "SAGAZ_BROKER_USER=guest",
-                "SAGAZ_BROKER_PASSWORD=guest",
-                "# Or use full URL:",
-                "# SAGAZ_BROKER_URL=amqp://guest:guest@localhost:5672/",
-            ])
+            lines.extend(
+                [
+                    "SAGAZ_BROKER_HOST=localhost",
+                    "SAGAZ_BROKER_PORT=5672",
+                    "SAGAZ_BROKER_USER=guest",
+                    "SAGAZ_BROKER_PASSWORD=guest",
+                    "# Or use full URL:",
+                    "# SAGAZ_BROKER_URL=amqp://guest:guest@localhost:5672/",
+                ]
+            )
         elif broker_type == "redis":
-            lines.extend([
-                "SAGAZ_BROKER_URL=redis://localhost:6379/1",
-            ])
+            lines.extend(
+                [
+                    "SAGAZ_BROKER_URL=redis://localhost:6379/1",
+                ]
+            )
 
         lines.append("")
 
         # Observability
         obs_config = config_data.get("observability", {})
         if obs_config.get("prometheus", {}).get("enabled"):
-            lines.extend([
-                "# Observability",
-                "SAGAZ_METRICS_ENABLED=true",
-                "SAGAZ_METRICS_PORT=9090",
-            ])
+            lines.extend(
+                [
+                    "# Observability",
+                    "SAGAZ_METRICS_ENABLED=true",
+                    "SAGAZ_METRICS_PORT=9090",
+                ]
+            )
 
         if obs_config.get("tracing", {}).get("enabled"):
-            lines.extend([
-                "SAGAZ_TRACING_ENABLED=true",
-                "SAGAZ_TRACING_ENDPOINT=http://localhost:4317",
-            ])
+            lines.extend(
+                [
+                    "SAGAZ_TRACING_ENABLED=true",
+                    "SAGAZ_TRACING_ENDPOINT=http://localhost:4317",
+                ]
+            )
 
-        lines.extend([
-            "",
-            "# Logging",
-            "SAGAZ_LOG_LEVEL=INFO  # DEBUG, INFO, WARNING, ERROR",
-            "",
-        ])
+        lines.extend(
+            [
+                "",
+                "# Logging",
+                "SAGAZ_LOG_LEVEL=INFO  # DEBUG, INFO, WARNING, ERROR",
+                "",
+            ]
+        )
 
         # Outbox configuration
-        lines.extend([
-            "# Outbox Worker Configuration (if using separate outbox database)",
-            "# SAGAZ_OUTBOX_STORAGE_URL=postgresql://user:pass@host:port/outbox_db",
-            "# SAGAZ_OUTBOX_BATCH_SIZE=100",
-            "# SAGAZ_OUTBOX_POLL_INTERVAL=1.0",
-            "",
-        ])
+        lines.extend(
+            [
+                "# Outbox Worker Configuration (if using separate outbox database)",
+                "# SAGAZ_OUTBOX_STORAGE_URL=postgresql://user:pass@host:port/outbox_db",
+                "# SAGAZ_OUTBOX_BATCH_SIZE=100",
+                "# SAGAZ_OUTBOX_POLL_INTERVAL=1.0",
+                "",
+            ]
+        )
 
         path.write_text("\n".join(lines))
 

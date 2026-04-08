@@ -105,19 +105,23 @@ async def main():
     saga = PaymentProcessingSaga()
 
     # Pass payment data through the run() method
-    await saga.run({
-        "payment_id": "PAY-12345",
-        "amount": 250.00,
-        "providers": ["Stripe", "PayPal", "Square"],
-    })
+    await saga.run(
+        {
+            "payment_id": "PAY-12345",
+            "amount": 250.00,
+            "providers": ["Stripe", "PayPal", "Square"],
+        }
+    )
 
     # Demonstrate reusability - same saga, different payment
 
-    await saga.run({
-        "payment_id": "PAY-67890",
-        "amount": 99.99,
-        "providers": ["PayPal", "Stripe"],
-    })
+    await saga.run(
+        {
+            "payment_id": "PAY-67890",
+            "amount": 99.99,
+            "providers": ["PayPal", "Stripe"],
+        }
+    )
 
 
 if __name__ == "__main__":
