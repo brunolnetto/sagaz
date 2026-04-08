@@ -2,14 +2,13 @@
 Event and EventBus for saga choreography.
 
 ``Event`` is a lightweight, immutable message.
-``EventBus`` is an in-process pub/sub bus based on asyncio queues.  It is
-intentionally decoupled from Kafka / RabbitMQ — those are adapters that can
-*publish to* or *subscribe from* this bus.
+``EventBus`` is an in-process pub/sub bus that directly awaits handlers.
+It is intentionally decoupled from Kafka / RabbitMQ — those are adapters
+that can *publish to* or *subscribe from* this bus.
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
@@ -77,7 +76,6 @@ class EventBus:
     def __init__(self) -> None:
         self._handlers: dict[str, list[HandlerT]] = defaultdict(list)
         self._published: list[Event] = []
-        self._lock = asyncio.Lock()
 
     # ------------------------------------------------------------------
     # Subscription

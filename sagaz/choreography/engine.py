@@ -8,7 +8,6 @@ bus and tracking active saga instances.
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from sagaz.choreography.events import Event, EventBus
 from sagaz.choreography.saga import ChoreographedSaga
