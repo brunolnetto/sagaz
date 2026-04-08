@@ -1,0 +1,118 @@
+name: Maintenance
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+# ─── Permissions ──────────────────────────────────────────────────────────────
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  # ─── Auto-label dependency PRs ─────────────────────────────────────────────
+  label-dependencies:
+    name: Label dependency PRs
+    runs-on: ubuntu-latest
+    # Only run for Dependabot or Renovate PRs
+    if: |
+      startsWith(github.head_ref, 'dependabot/') ||
+      startsWith(github.head_ref, 'renovate/')
+    steps:
+      - name: Apply "dependencies" label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pr_number = context.payload.pull_request.number;
+            const head = context.payload.pull_request.head.ref;
+
+            const labelMap = [
+              { prefix: 'dependabot/', label: 'dependencies' },
+              { prefix: 'renovate/',  label: 'dependencies' },
+            ];
+
+            const labelsToAdd = labelMap
+              .filter(({ prefix }) => head.startsWith(prefix))
+              .map(({ label }) => label);
+
+            if (labelsToAdd.length > 0) {
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number: pr_number,
+                labels: [...new Set(labelsToAdd)],
+              });
+              core.info(`Applied labels: ${labelsToAdd.join(', ')} to PR #${pr_number}`);
+            }
+
+  # ─── Auto-label by branch prefix (extensible) ──────────────────────────────
+  label-by-branch:
+    name: Label PR by branch type
+    runs-on: ubuntu-latest
+    # Skip Dependabot/Renovate — handled above
+    if: |
+      !startsWith(github.head_ref, 'dependabot/') &&
+      !startsWith(github.head_ref, 'renovate/')
+    steps:
+      - name: Apply label matching branch prefix
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pr_number = context.payload.pull_request.number;
+            const head = context.payload.pull_request.head.ref;
+
+            // Map branch prefix -> label name (extend this list over time)
+            const prefixToLabel = {
+              'feature/':  'enhancement',
+              'fix/':      'bug',
+              'docs/':     'documentation',
+              'refactor/': 'refactor',
+              'test/':     'tests',
+              'ci/':       'ci',
+              'chore/':    'chore',
+            };
+
+            const match = Object.entries(prefixToLabel)
+              .find(([prefix]) => head.startsWith(prefix));
+
+            if (!match) {
+              core.info(`No label mapping found for branch: ${head}`);
+              return;
+            }
+
+            const [, label] = match;
+
+            // Ensure the label exists before applying (create if needed)
+            const labelColors = {
+              enhancement:  'a2eeef',
+              bug:          'd73a4a',
+              documentation:'0075ca',
+              refactor:     'fbca04',
+              tests:        '0e8a16',
+              ci:           '1d76db',
+              chore:        'ededed',
+            };
+
+            try {
+              await github.rest.issues.getLabel({ owner, repo, name: label });
+            } catch (e) {
+              if (e.status === 404) {
+                await github.rest.issues.createLabel({
+                  owner,
+                  repo,
+                  name: label,
+                  color: labelColors[label] || 'ededed',
+                });
+                core.info(`Created missing label: ${label}`);
+              }
+            }
+
+            await github.rest.issues.addLabels({
+              owner,
+              repo,
+              issue_number: pr_number,
+              labels: [label],
+            });
+            core.info(`Applied label '${label}' to PR #${pr_number} (branch: ${head})`);
