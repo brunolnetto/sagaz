@@ -106,6 +106,8 @@ class OutboxEvent:
     worker_id: str | None = None
     routing_key: str | None = None
     partition_key: str | None = None
+    dead_letter_at: datetime | None = None
+    dead_letter_reason: str | None = None
 
     def __post_init__(self):
         """Set aggregate_id to saga_id if not specified."""
@@ -129,6 +131,8 @@ class OutboxEvent:
             "retry_count": self.retry_count,
             "last_error": self.last_error,
             "worker_id": self.worker_id,
+            "dead_letter_at": self.dead_letter_at.isoformat() if self.dead_letter_at else None,
+            "dead_letter_reason": self.dead_letter_reason,
         }
 
     @classmethod
@@ -149,6 +153,8 @@ class OutboxEvent:
             retry_count=data.get("retry_count", 0),
             last_error=data.get("last_error"),
             worker_id=data.get("worker_id"),
+            dead_letter_at=cls._parse_datetime(data.get("dead_letter_at")),
+            dead_letter_reason=data.get("dead_letter_reason"),
         )
 
     @staticmethod
