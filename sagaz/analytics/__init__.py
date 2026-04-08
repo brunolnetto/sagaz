@@ -16,9 +16,14 @@ Public API::
 
 from __future__ import annotations
 
-from sagaz.analytics.pipeline import SagaAnalyticsPipeline
-from sagaz.analytics.queries import SagaQueries
-from sagaz.analytics.schema import DimSaga, DimStep, FactExecution
+try:
+    from sagaz.analytics.pipeline import SagaAnalyticsPipeline
+    from sagaz.analytics.queries import SagaQueries
+    from sagaz.analytics.schema import DimSaga, DimStep, FactExecution
+except ImportError:
+    # duckdb / sqldim / narwhals not installed; analytics is an optional extra.
+    # Import error is only raised when the symbols are actually accessed.
+    pass
 
 __all__ = [
     "DimSaga",
