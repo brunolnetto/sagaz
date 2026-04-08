@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Callable, Coroutine
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from sagaz.integrations.cdc.metrics import CDCMetrics
@@ -52,7 +52,7 @@ class PgLogicalSource:
         dsn: str,
         slot_name: str = "sagaz_cdc",
         publication: str = "sagaz_pub",
-        on_event: Callable[[CDCEvent], Coroutine] | None = None,
+        on_event: Callable[[CDCEvent], Awaitable[None]] | None = None,
         metrics: CDCMetrics | None = None,
     ) -> None:
         self._dsn = dsn
@@ -67,7 +67,7 @@ class PgLogicalSource:
     # Lifecycle
     # ------------------------------------------------------------------
 
-    async def start(self, on_event: Callable[[CDCEvent], Coroutine] | None = None) -> None:
+    async def start(self, on_event: Callable[[CDCEvent], Awaitable[None]] | None = None) -> None:
         if on_event:
             self._on_event = on_event
         self._running = True
@@ -142,13 +142,11 @@ class PgLogicalSource:
                 after={"raw": str(msg)},
             )
         except Exception:
-            return None
-
-    async def _close(self, conn: Any) -> None:
+            return None  # Unparseable message — skip silently
         try:
             await conn.close()
         except Exception:
-            pass
+            pass  # Best-effort close; ignore errors on teardown
 
     @property
     def is_running(self) -> bool:
