@@ -20,7 +20,6 @@ Gold layer outputs live in ``sagaz.analytics.queries`` as DuckDB SQL strings.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 from sqldim import DimensionModel, FactModel, Field
 
@@ -48,7 +47,7 @@ class FactExecution(FactModel, table=True):
     """Step-grain execution event — one row per step execution attempt."""
 
     id: int | None = Field(default=None, primary_key=True)
-    saga_id: str = Field(foreign_key="dimsaga.saga_id")
+    saga_id: str = Field(foreign_key="dim_saga.saga_id")
     step_key: str = Field(foreign_key="dimstep.step_key")
     attempt: int = Field(default=1, measure=True, additive=False)
     duration_ms: float = Field(default=0.0, measure=True)
