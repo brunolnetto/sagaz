@@ -1339,15 +1339,17 @@ class TestS3SnapshotStorageReplayOperations:
                 # Create multiple replays
                 replays = []
                 for i in range(5):
-                    replays.append({
-                        "replay_id": str(uuid4()),
-                        "original_saga_id": str(original_saga_id),
-                        "replay_saga_id": str(uuid4()),
-                        "snapshot_id": str(uuid4()),
-                        "success": True,
-                        "status": "completed",
-                        "created_at": (datetime.now(UTC) - timedelta(hours=i)).isoformat(),
-                    })
+                    replays.append(
+                        {
+                            "replay_id": str(uuid4()),
+                            "original_saga_id": str(original_saga_id),
+                            "replay_saga_id": str(uuid4()),
+                            "snapshot_id": str(uuid4()),
+                            "success": True,
+                            "status": "completed",
+                            "created_at": (datetime.now(UTC) - timedelta(hours=i)).isoformat(),
+                        }
+                    )
 
                 # Mock paginator
                 class MockPaginator:

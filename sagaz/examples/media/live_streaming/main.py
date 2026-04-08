@@ -419,14 +419,16 @@ async def main():
 
     # Scenario 1: Successful live stream
 
-    await saga.run({
-        "event_id": "EVENT-2026-001",
-        "stream_key": "sk_a1b2c3d4e5f6",
-        "title": "🎮 Epic Gaming Championship Finals",
-        "scheduled_time": datetime.now().isoformat(),
-        "quality_profiles": ["1080p", "720p", "480p", "360p"],
-        "estimated_viewers": 50000,
-    })
+    await saga.run(
+        {
+            "event_id": "EVENT-2026-001",
+            "stream_key": "sk_a1b2c3d4e5f6",
+            "title": "🎮 Epic Gaming Championship Finals",
+            "scheduled_time": datetime.now().isoformat(),
+            "quality_profiles": ["1080p", "720p", "480p", "360p"],
+            "estimated_viewers": 50000,
+        }
+    )
 
     # Scenario 2: Pre-pivot failure
 

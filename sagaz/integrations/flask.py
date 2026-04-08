@@ -182,18 +182,20 @@ class SagaFlask:
                             )
             except IdempotencyKeyMissingInPayloadError as e:
                 return (
-                    jsonify({
-                        "status": "rejected",
-                        "source": source,
-                        "error": "missing_idempotency_key",
-                        "message": f"Required field '{e.key_name}' is missing from payload",
-                        "details": {
-                            "saga": e.saga_name,
-                            "required_field": e.key_name,
-                            "payload_keys": e.payload_keys,
-                        },
-                        "help": f"Include '{e.key_name}' in your request payload to ensure idempotent processing",
-                    }),
+                    jsonify(
+                        {
+                            "status": "rejected",
+                            "source": source,
+                            "error": "missing_idempotency_key",
+                            "message": f"Required field '{e.key_name}' is missing from payload",
+                            "details": {
+                                "saga": e.saga_name,
+                                "required_field": e.key_name,
+                                "payload_keys": e.payload_keys,
+                            },
+                            "help": f"Include '{e.key_name}' in your request payload to ensure idempotent processing",
+                        }
+                    ),
                     400,
                 )
 
@@ -270,12 +272,14 @@ class SagaFlask:
             thread = threading.Thread(target=process_in_thread, daemon=True)
             thread.start()
 
-            return jsonify({
-                "status": "accepted",
-                "source": source,
-                "message": "Event queued for processing",
-                "correlation_id": correlation_id,
-            }), 202  # Accepted
+            return jsonify(
+                {
+                    "status": "accepted",
+                    "source": source,
+                    "message": "Event queued for processing",
+                    "correlation_id": correlation_id,
+                }
+            ), 202  # Accepted
 
         @bp.route("/<source>/status/<correlation_id>", methods=["GET"])
         def webhook_status_handler(source: str, correlation_id: str):
@@ -287,12 +291,14 @@ class SagaFlask:
             status = get_webhook_status(correlation_id)
 
             if not status:
-                return jsonify({
-                    "correlation_id": correlation_id,
-                    "source": source,
-                    "status": "not_found",
-                    "message": "No webhook event found with this correlation ID",
-                }), 404
+                return jsonify(
+                    {
+                        "correlation_id": correlation_id,
+                        "source": source,
+                        "status": "not_found",
+                        "message": "No webhook event found with this correlation ID",
+                    }
+                ), 404
 
             # Compute overall status based on individual saga statuses
             saga_statuses = status.get("saga_statuses", {})
