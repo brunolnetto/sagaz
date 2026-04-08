@@ -1,9 +1,6 @@
 """
 Unit tests for AlertManager rules template — issue #45.
 
-TDD red phase: these tests define the acceptance criteria and must
-run before the artefacts are created.
-
 Acceptance Criteria (from issue #45):
 - docs/monitoring/alertmanager-rules.yml exists and is valid YAML
 - Required alert rules present: SagazCompensationRateHigh,
@@ -24,18 +21,6 @@ import yaml
 REPO_ROOT = Path(__file__).parents[3]
 ALERTMANAGER_RULES_PATH = REPO_ROOT / "docs" / "monitoring" / "alertmanager-rules.yml"
 ALERTING_GUIDE_PATH = REPO_ROOT / "docs" / "monitoring" / "alerting.md"
-GRAFANA_DASHBOARD_PATH = (
-    REPO_ROOT
-    / "sagaz"
-    / "resources"
-    / "local"
-    / "redis"
-    / "monitoring"
-    / "grafana"
-    / "dashboards"
-    / "grafana-dashboard-outbox.json"
-)
-
 REQUIRED_ALERT_NAMES = {
     "SagazCompensationRateHigh",
     "SagazDLQDepthHigh",
