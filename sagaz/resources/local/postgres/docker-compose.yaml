@@ -199,7 +199,7 @@ services:
   # Grafana (Dashboards)
   # ============================================================================
   grafana:
-    image: grafana/grafana:10.1.0
+    image: grafana/grafana:10.4.19
     container_name: sagaz-grafana
     environment:
       - GF_AUTH_ANONYMOUS_ENABLED=true
