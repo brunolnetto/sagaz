@@ -42,13 +42,23 @@ class SagaVersionResolver:
         saga_id:
             ID of an existing saga being resumed, or ``None`` for new sagas.
         pinned_version:
-            Explicit version string to force (used when resuming).
+            Explicit version string to force.  Required when resuming an
+            existing saga and authoritative whenever provided.
 
         Returns
         -------
         SagaVersion
             The resolved saga version record.
+
+        Raises
+        ------
+        ValueError
+            If ``saga_id`` is provided without a corresponding
+            ``pinned_version``.
         """
-        if saga_id is not None and pinned_version is not None:
+        if pinned_version is not None:
             return self._registry.get(saga_name, Version.parse(pinned_version))
+        if saga_id is not None:
+            msg = "pinned_version is required when resolving a resumed saga"
+            raise ValueError(msg)
         return self._registry.get_latest(saga_name)

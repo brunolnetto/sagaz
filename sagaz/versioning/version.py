@@ -16,12 +16,28 @@ class Version:
     Supports parsing, comparison, and minor-version compatibility checks.
     """
 
-    __slots__ = ("major", "minor", "patch")
+    __slots__ = ("_major", "_minor", "_patch")
 
     def __init__(self, major: int, minor: int, patch: int) -> None:
-        self.major = major
-        self.minor = minor
-        self.patch = patch
+        object.__setattr__(self, "_major", major)
+        object.__setattr__(self, "_minor", minor)
+        object.__setattr__(self, "_patch", patch)
+
+    def __setattr__(self, _name: str, _value: object) -> None:
+        msg = "Version instances are immutable"
+        raise AttributeError(msg)
+
+    @property
+    def major(self) -> int:
+        return self._major
+
+    @property
+    def minor(self) -> int:
+        return self._minor
+
+    @property
+    def patch(self) -> int:
+        return self._patch
 
     # ── construction ──
 
@@ -45,15 +61,15 @@ class Version:
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Version):
             return NotImplemented
-        return (self.major, self.minor, self.patch) == (other.major, other.minor, other.patch)
+        return (self._major, self._minor, self._patch) == (other._major, other._minor, other._patch)
 
     def __lt__(self, other: object) -> bool:
         if not isinstance(other, Version):
             return NotImplemented
-        return (self.major, self.minor, self.patch) < (other.major, other.minor, other.patch)
+        return (self._major, self._minor, self._patch) < (other._major, other._minor, other._patch)
 
     def __hash__(self) -> int:
-        return hash((self.major, self.minor, self.patch))
+        return hash((self._major, self._minor, self._patch))
 
     # ── compatibility ──
 
@@ -62,7 +78,7 @@ class Version:
         Return True if this version is backward-compatible with *other*.
 
         Two versions are compatible when they share the same major version
-        and this version's minor is >= other's minor (new minor releases
-        are backward-compatible with older ones in the same major line).
+        and this version is not older than the other version within that
+        major line.
         """
-        return self.major == other.major and self.minor >= other.minor
+        return self.major == other.major and self >= other
