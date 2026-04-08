@@ -16,7 +16,7 @@ Public API::
         on_event,
     )
 
-Quick start::
+Quick start (in-process bus)::
 
     bus = EventBus()
     engine = ChoreographyEngine(bus)
@@ -31,8 +31,19 @@ Quick start::
     await engine.start()
     await bus.publish(Event("order.created", {"order_id": "ORD-1"}))
     await engine.stop()
+
+Distributed bus (Redis Streams — requires ``sagaz[redis]``)::
+
+    from sagaz.choreography import RedisStreamsEventBus, RedisStreamsBusConfig
+
+    config = RedisStreamsBusConfig(url="redis://localhost:6379/0")
+    bus = RedisStreamsEventBus(config)
+    await bus.start()
+    # ... same engine/saga setup ...
+    await bus.stop()
 """
 
+from sagaz.choreography.buses import RedisStreamsBusConfig, RedisStreamsEventBus
 from sagaz.choreography.decorators import on_event
 from sagaz.choreography.engine import ChoreographyEngine
 from sagaz.choreography.events import Event, EventBus
@@ -43,5 +54,7 @@ __all__ = [
     "ChoreographyEngine",
     "Event",
     "EventBus",
+    "RedisStreamsBusConfig",
+    "RedisStreamsEventBus",
     "on_event",
 ]
