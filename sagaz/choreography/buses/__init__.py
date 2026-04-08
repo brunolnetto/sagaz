@@ -3,10 +3,10 @@ sagaz.choreography.buses — EventBus transport backends.
 
 Two implementations are provided:
 
-``InMemoryEventBus``
+``EventBus``
     In-process asyncio pub/sub.  Zero dependencies; ideal for single-process
     sagas, unit tests, and local development.  Imported from
-    ``sagaz.choreography.events`` for backward compatibility.
+    ``sagaz.choreography.events``.
 
 ``RedisStreamsEventBus``
     Distributed pub/sub backed by Redis Streams (XADD / XREADGROUP).  Requires
