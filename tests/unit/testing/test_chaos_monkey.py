@@ -10,7 +10,6 @@ Coverage targets:
 - Targeted vs. global chaos
 - Seed-based reproducibility
 - ChaosReport generation and metrics
-- Context manager (enable/disable)
 - reset() clears metrics
 """
 
