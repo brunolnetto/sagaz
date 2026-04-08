@@ -135,6 +135,23 @@ from sagaz.dry_run import (
     ValidationResult,
 )
 
+
+# =============================================================================
+# Versioning & Schema Evolution (ADR-018)
+# =============================================================================
+from sagaz.versioning import (
+    MigrationEngine,
+    MigrationPathNotFoundError,
+    SagaVersion,
+    SagaVersionError,
+    SagaVersionNotFoundError,
+    SagaVersionRegistry,
+    SagaVersionResolver,
+    VersionAlreadyRegisteredError,
+)
+from sagaz.versioning.version import Version
+
+
 __all__ = [
     "CircularDependencyError",
     "CompensationFailureStrategy",
@@ -154,6 +171,8 @@ __all__ = [
     "IdempotencyKeyRequiredError",
     "LoggingSagaListener",
     "MetricsSagaListener",
+    "MigrationEngine",
+    "MigrationPathNotFoundError",
     "MissingDependencyError",
     "OutboxSagaListener",
     "ParallelFailureStrategy",
@@ -194,12 +213,19 @@ __all__ = [
     "SagaStepError",
     "SagaStepStatus",
     "SagaTimeoutError",
+    "SagaVersion",
+    "SagaVersionError",
+    "SagaVersionNotFoundError",
+    "SagaVersionRegistry",
+    "SagaVersionResolver",
     "SagaZones",
     "SimulationResult",
     "StepZone",
     "TaintPropagator",
     "TracingSagaListener",
     "ValidationResult",
+    "Version",
+    "VersionAlreadyRegisteredError",
     "action",
     "compensate",
     "configure",
