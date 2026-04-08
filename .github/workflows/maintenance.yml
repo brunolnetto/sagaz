@@ -163,21 +163,47 @@ jobs:
             }
 
             // ===== PROCESS ISSUE =====
-            // Issue labeling: extract scope from issue title patterns
+            // Issue labeling: parse conventional commit format or fallback to pattern matching
             if (context.eventName === 'issues') {
               const issueNumber = context.payload.issue.number;
               const issueTitle = context.payload.issue.title;
-              
-              // Try to detect scope from issue title patterns like "[scope]" or "scope:"
-              const titleMatch = issueTitle.match(/^\[([^\]]+)\]|^([a-z-]+):/i);
               const labelsToApply = [];
 
-              if (titleMatch) {
-                const scope = (titleMatch[1] || titleMatch[2]).toLowerCase();
-                const labelInfo = SCOPE_LABEL_MAP[scope];
-                if (labelInfo) {
+              // First: try to parse as conventional commit (highest priority)
+              const conventionalMatch = PR_TITLE_RE.exec(issueTitle);
+              if (conventionalMatch) {
+                const [, type, , scopeStr] = conventionalMatch;
+                
+                // Apply type label
+                if (TYPE_LABEL_MAP[type]) {
+                  const labelInfo = TYPE_LABEL_MAP[type];
                   await ensureLabel(labelInfo);
                   labelsToApply.push(labelInfo.name);
+                }
+                
+                // Apply scope labels
+                if (scopeStr) {
+                  const scopes = scopeStr.split(',').map(s => s.trim());
+                  for (const sc of scopes) {
+                    const labelInfo = SCOPE_LABEL_MAP[sc];
+                    if (labelInfo) {
+                      await ensureLabel(labelInfo);
+                      labelsToApply.push(labelInfo.name);
+                    } else {
+                      core.warning(`Unknown scope in issue title: ${sc}`);
+                    }
+                  }
+                }
+              } else {
+                // Fallback: detect scope from issue title patterns like "[scope]" or "scope:"
+                const patternMatch = issueTitle.match(/^\[([^\]]+)\]|^([a-z-]+):/i);
+                if (patternMatch) {
+                  const scope = (patternMatch[1] || patternMatch[2]).toLowerCase();
+                  const labelInfo = SCOPE_LABEL_MAP[scope];
+                  if (labelInfo) {
+                    await ensureLabel(labelInfo);
+                    labelsToApply.push(labelInfo.name);
+                  }
                 }
               }
 
