@@ -30,7 +30,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.5.10"
+          version: "0.11.4"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
