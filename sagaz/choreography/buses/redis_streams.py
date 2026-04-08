@@ -38,7 +38,7 @@ import json
 import logging
 import os
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC
 from typing import Any
 
@@ -126,17 +126,17 @@ def _event_to_fields(event: Event) -> dict[str, str]:
 
 def _fields_to_event(fields: dict[bytes, bytes]) -> Event:
     """Deserialise Redis stream fields back to an ``Event``."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     saga_id_raw = fields.get(_FIELD_SAGA_ID, b"").decode()
+    raw_dt = datetime.fromisoformat(fields[_FIELD_CREATED_AT].decode())
+    created_at = raw_dt.astimezone(UTC) if raw_dt.tzinfo else raw_dt.replace(tzinfo=UTC)
     return Event(
         event_type=fields[_FIELD_EVENT_TYPE].decode(),
         data=json.loads(fields[_FIELD_DATA].decode()),
         event_id=fields[_FIELD_EVENT_ID].decode(),
         saga_id=saga_id_raw or None,
-        created_at=datetime.fromisoformat(
-            fields[_FIELD_CREATED_AT].decode()
-        ).replace(tzinfo=UTC),
+        created_at=created_at,
     )
 
 
@@ -161,11 +161,8 @@ class RedisStreamsEventBus:
 
     def __init__(self, config: RedisStreamsBusConfig | None = None) -> None:
         if not _REDIS_AVAILABLE:
-            msg = (
-                "RedisStreamsEventBus requires the 'redis' package. "
-                "Install it with: pip install sagaz[redis]"
-            )
-            raise MissingDependencyError(msg)
+            pkg = "redis"
+            raise MissingDependencyError(pkg, feature="RedisStreamsEventBus")
         self._config = config or RedisStreamsBusConfig.from_env()
         self._handlers: dict[str, list[HandlerT]] = defaultdict(list)
         self._client: Any = None
@@ -178,6 +175,8 @@ class RedisStreamsEventBus:
 
     async def start(self) -> None:
         """Connect to Redis, ensure the consumer group exists, start reader."""
+        if self._reader_task is not None and not self._reader_task.done():
+            return
         self._client = aioredis.from_url(
             self._config.url, decode_responses=False
         )
@@ -210,6 +209,7 @@ class RedisStreamsEventBus:
                 await self._reader_task
             except asyncio.CancelledError:
                 pass
+            self._reader_task = None
         if self._client:
             await self._client.aclose()
             self._client = None
