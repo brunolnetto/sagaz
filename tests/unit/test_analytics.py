@@ -141,7 +141,7 @@ class TestLoadFromRecords:
             )
         assert not stats.ok
 
-    def test_upsert_deduplkicates_saga_records(self):
+    def test_upsert_deduplicates_saga_records(self):
         """Loading the same saga_id twice replaces, not duplicates."""
         with SagaAnalyticsPipeline() as p:
             p.load_from_records(
