@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import pytest
 
+pytest.importorskip("duckdb", reason="duckdb not installed; install sagaz[analytics]")
+
 from sagaz.analytics.pipeline import PipelineStats, SagaAnalyticsPipeline
 from sagaz.analytics.queries import SagaQueries
 from sagaz.analytics.schema import DimSaga, DimStep, FactExecution
