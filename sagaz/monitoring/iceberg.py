@@ -24,7 +24,6 @@ import asyncio
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -98,6 +97,8 @@ class IcebergTieringJob:
     # ------------------------------------------------------------------
 
     async def start(self) -> None:
+        if self._running:
+            return
         self._running = True
         self._tier_task = asyncio.create_task(self._tiering_loop())
         logger.info("IcebergTieringJob started — table=%s", self._table)
@@ -110,6 +111,7 @@ class IcebergTieringJob:
                 await self._tier_task
             except asyncio.CancelledError:
                 pass
+            self._tier_task = None
         # Final flush
         await self._do_tier()
         logger.info("IcebergTieringJob stopped — %d records written", self._records_written)
