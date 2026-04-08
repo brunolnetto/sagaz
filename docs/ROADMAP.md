@@ -2,7 +2,7 @@
 
 Active development roadmap for the Sagaz saga pattern library.
 
-> **Updated**: 2026-04-07 | **Version**: 1.3.x → 2.x
+> **Updated**: 2026-04-08 | **Version**: 1.1.2 → 2.x
 
 ---
 
@@ -20,7 +20,7 @@ Sagaz competes with AWS Step Functions, Temporal, and Azure Durable Functions by
 
 ---
 
-## Current Version: 1.0.x
+## Current Version: 1.1.2
 
 ### ✅ Completed Features
 

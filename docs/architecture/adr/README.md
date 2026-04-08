@@ -24,6 +24,8 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-025](adr-025-event-driven-triggers.md) | Event-Driven Triggers | v1.3.0 | 2026-01 |
 | [ADR-026](adr-026-industry-examples-expansion.md) | Industry Examples Expansion | v1.4-1.6 | 2026-01 |
 | [ADR-027](adr-027-project-cli.md) | Project CLI | v1.3.0 | 2026-01 |
+| [ADR-028](adr-028-framework-integration.md) | Framework Integration (FastAPI/Django/Flask) | v1.3.0 | 2026-01 |
+| [ADR-019](adr-019-dry-run-mode.md) | Dry-Run Mode | v1.3.0 | 2026-01 |
 | [ADR-030](adr-030-dry-run-parallel-analysis.md) | Dry-Run Parallel Analysis | v1.3.0 | 2026-01 |
 | [ADR-031](adr-031-dry-run-simplification.md) | Dry-Run Simplification | v1.3.0 | 2026-01 |
 | [ADR-032](adr-032-cli-command-organization.md) | CLI Command Organization | v1.3.0 | 2026-01 |
@@ -36,18 +38,25 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 
 | ADR | Title | Target | Description |
 |-----|-------|--------|-------------|
-| [ADR-029](adr-029-saga-choreography.md) | Saga Choreography Pattern | v2.2.0 | Event-driven distributed coordination (10-15 weeks) |
+| [ADR-029](adr-029-saga-choreography.md) | Saga Choreography Pattern | v2.2.0 | Event-driven distributed coordination |
+| [ADR-020](adr-020-multi-tenancy.md) | Multi-Tenancy | v2.1.0 | Tenant isolation, quotas, and compliance |
+
+### Medium Priority
+
+| ADR | Title | Target | Description |
+|-----|-------|--------|-------------|
+| [ADR-018](adr-018-saga-versioning.md) | Saga Versioning | v2.1.0 | Version management for saga definitions |
+| [ADR-017](adr-017-chaos-engineering.md) | Chaos Engineering | v2.0.0 | Fault injection and resilience testing |
 
 ### Low Priority / Future
 
 | ADR | Title | Target | Description |
 |-----|-------|--------|-------------|
-| [ADR-011](adr-011-cdc-support.md) | CDC Support | Future | Change Data Capture with Debezium for 50K+ events/sec |
-| [ADR-013](adr-013-fluss-iceberg-analytics.md) | Fluss Analytics | Future | Real-time + historical analytics with Iceberg |
+| [ADR-011](adr-011-cdc-support.md) | CDC Support | v2.1.0 | Change Data Capture with Debezium for 50K+ events/sec |
+| [ADR-013](adr-013-fluss-iceberg-analytics.md) | Fluss Analytics | v2.0.0 | Real-time + historical analytics with Iceberg |
 | [ADR-033](adr-033-event-sourcing-integration.md) | Event Sourcing Integration | v2.3.0 | Opt-in event-sourced storage strategy for full audit trail |
-| [ADR-034](adr-034-multi-region-coordination.md) | Multi-Region Coordination | v2.4.0 | Cross-region step routing, data residency, and failover |
-| [ADR-035](adr-035-saga-visualization-ui.md) | Saga Visualization UI | v2.2.0 | Browser-based live saga monitoring dashboard |
-| [ADR-036](adr-036-sqldim-analytics-pipeline.md) | sqldim Analytics Pipeline | v2.2.0 | Star schema + DGM query layer over saga OLTP data (opt-in `sagaz[analytics]`) |
+| [ADR-034](adr-034-multi-region-coordination.md) | Multi-Region Coordination | v2.3.0 | Cross-region step routing, data residency, and failover |
+| [ADR-035](adr-035-saga-visualization-ui.md) | Saga Visualization UI | v2.0.0 | Browser-based live saga monitoring dashboard |
 
 ---
 

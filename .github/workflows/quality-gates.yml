@@ -43,7 +43,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.5.10"
+          version: "0.11.4"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
@@ -80,12 +80,12 @@ jobs:
       - name: Set up Python 3.13
         uses: actions/setup-python@v6
         with:
-          python-version: '3.13'
+          python-version: '3.14'
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.5.10"
+          version: "0.11.4"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
@@ -154,12 +154,12 @@ jobs:
       - name: Set up Python 3.13
         uses: actions/setup-python@v6
         with:
-          python-version: '3.13'
+          python-version: '3.14'
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.5.10"
+          version: "0.11.4"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
@@ -224,7 +224,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.14"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
