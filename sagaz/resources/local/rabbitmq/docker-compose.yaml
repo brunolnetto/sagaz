@@ -19,7 +19,7 @@ services:
 
   # RabbitMQ: Robust message broker
   rabbitmq:
-    image: rabbitmq:3.12-management-alpine
+    image: rabbitmq:3.13-management-alpine
     container_name: sagaz-rabbitmq
     ports:
       - "5672:5672"
@@ -35,7 +35,7 @@ services:
 
   # Prometheus: Monitoring
   prometheus:
-    image: prom/prometheus:v2.47.0
+    image: prom/prometheus:v2.55.1
     container_name: sagaz-prometheus
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
@@ -44,7 +44,7 @@ services:
 
   # Grafana: Dashboards
   grafana:
-    image: grafana/grafana:10.1.0
+    image: grafana/grafana:10.4.19
     container_name: sagaz-grafana
     environment:
       - GF_AUTH_ANONYMOUS_ENABLED=true

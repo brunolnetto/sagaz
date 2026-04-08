@@ -19,14 +19,14 @@ services:
 
   # Kafka: High-performance message broker
   zookeeper:
-    image: confluentinc/cp-zookeeper:7.5.0
+    image: confluentinc/cp-zookeeper:7.9.6
     container_name: sagaz-zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
 
   kafka:
-    image: confluentinc/cp-kafka:7.5.0
+    image: confluentinc/cp-kafka:7.9.6
     container_name: sagaz-kafka
     depends_on:
       - zookeeper
@@ -47,7 +47,7 @@ services:
 
   # Prometheus: Monitoring
   prometheus:
-    image: prom/prometheus:v2.47.0
+    image: prom/prometheus:v2.55.1
     container_name: sagaz-prometheus
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
@@ -56,7 +56,7 @@ services:
 
   # Grafana: Dashboards
   grafana:
-    image: grafana/grafana:10.1.0
+    image: grafana/grafana:10.4.19
     container_name: sagaz-grafana
     environment:
       - GF_AUTH_ANONYMOUS_ENABLED=true
