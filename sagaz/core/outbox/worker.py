@@ -25,6 +25,9 @@ import sys
 import time
 import uuid
 from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime
+from datetime import UTC, datetime
+from datetime import UTC, datetime
 
 from sagaz.core.outbox.brokers.base import BrokerError, MessageBroker
 from sagaz.core.outbox.state_machine import OutboxStateMachine
@@ -102,6 +105,20 @@ try:
         ["state"],
     )
 
+    OUTBOX_DLQ_DEPTH = Gauge(
+        "sagaz_dlq_depth",
+        "Current number of events in the dead letter queue",
+    )
+        "outbox_events_by_state",
+        "Number of events per state",
+        ["state"],
+    )
+
+    OUTBOX_DLQ_DEPTH = Gauge(
+        "sagaz_dlq_depth",
+        "Current number of events in the dead letter queue",
+    )
+
     # Histograms
     OUTBOX_PUBLISH_DURATION = Histogram(
         "outbox_publish_duration_seconds",
@@ -121,6 +138,7 @@ except ImportError:
     OUTBOX_PROCESSING_EVENTS = None
     OUTBOX_BATCH_SIZE = None
     OUTBOX_EVENTS_BY_STATE = None
+    OUTBOX_DLQ_DEPTH = None
     OUTBOX_PUBLISH_DURATION = None
     logger.debug("prometheus-client not installed, metrics disabled")
 
@@ -410,6 +428,9 @@ class OutboxWorker:
         Args:
             event: The event to move
         """
+        event.dead_letter_at = datetime.now(UTC)
+        event.dead_letter_reason = event.last_error or "max_retries_exceeded"
+
         await self.storage.update_status(
             event.event_id,
             OutboxStatus.DEAD_LETTER,
@@ -421,6 +442,7 @@ class OutboxWorker:
         if PROMETHEUS_AVAILABLE:
             event_type = event.event_type or "unknown"
             OUTBOX_DEAD_LETTER_EVENTS.labels(worker_id=self.worker_id, event_type=event_type).inc()
+            OUTBOX_DLQ_DEPTH.inc()
 
         logger.error(
             f"Event {event.event_id} moved to dead letter queue "
