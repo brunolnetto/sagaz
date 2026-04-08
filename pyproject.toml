@@ -77,7 +77,8 @@ dev = [
     # Code Quality
     "ruff>=0.1.6",
     "mypy==1.20.0",
-    "ipython==9.10.1",
+    "ipython==9.11.0; python_version >= '3.12'",
+    "ipython==9.10.1; python_version < '3.12'",
     # Git Hooks (Rust-based pre-commit alternative - faster and more efficient)
     "prek>=0.2.13",
     # Security
