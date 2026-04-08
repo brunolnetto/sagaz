@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed** | Date: 2026-01-05 | Priority: Medium | Target: v1.4.0
+**Accepted** | Date: 2026-01-05 | Implemented: 2026-04-08 | Priority: Medium | Target: v1.4.0 | PR: #68
 
 ## Dependencies
 

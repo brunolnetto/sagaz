@@ -1,7 +1,7 @@
 # Sagaz High-Availability PostgreSQL - Quick Reference
 
-**Version:** 1.1.0  
-**Last Updated:** 2025-12-30
+**Version:** 1.1.2  
+**Last Updated:** 2026-04-08
 
 ---
 

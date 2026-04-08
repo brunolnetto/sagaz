@@ -1,17 +1,29 @@
 # Wiring Guide: Adding Flexible Compensation to Existing Outbox Implementation
 
+> **⚠️ Historical Design Document** — This guide was written for the original `saga/` package layout.
+> The current package is `sagaz/`. For current implementation details see:
+> - `sagaz/core/saga.py` — Saga base class
+> - `sagaz/execution/graph.py` — Compensation dependency graph
+> - `sagaz/core/decorators.py` — `@action` / `@compensate` decorators
+> - `sagaz/storage/` — Storage backends (PostgreSQL, Redis, SQLite)
+
 ## Quick Start: 3 Files to Add
 
 ```
-saga/
-├── compensation_graph.py          # NEW: Compensation dependency graph
-├── saga_orchestrator.py           # NEW: Integrated orchestrator
-├── decorators.py                  # NEW: @step and @compensate decorators
-├── storage_postgres.py            # EXISTING (no changes needed)
-├── outbox_worker.py               # EXISTING (no changes needed)
-├── optimistic_publisher.py        # EXISTING (no changes needed)
-└── outbox_statemachine.py         # EXISTING (no changes needed)
+sagaz/
+├── execution/graph.py             # Compensation dependency graph
+├── core/decorators.py             # @action and @compensate decorators
+├── storage/postgresql.py         # PostgreSQL storage backend
+├── outbox/worker.py               # Outbox polling worker
+└── outbox/optimistic_publisher.py # <10ms optimistic publishing
 ```
+
+---
+
+> The code samples below preserve the original conceptual design. File paths and class names
+> may differ from the current `sagaz/` codebase.
+
+---
 
 ## File 1: `saga/compensation_graph.py`
 

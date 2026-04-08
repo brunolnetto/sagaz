@@ -43,10 +43,10 @@
 | [ADR-014](adr/adr-014-schema-registry.md) | Schema Registry | ⚪ Proposed | 🔵 Low | Medium | 1-1.5 weeks |
 | [ADR-015](adr/adr-015-unified-saga-api.md) | Unified Saga API | 🟢 **Implemented** | - | - | - |
 | [ADR-016](adr/adr-016-unified-storage-layer.md) | Unified Storage Layer | 🟢 **Implemented** | - | - | - |
-| [ADR-017](adr/adr-017-chaos-engineering.md) | Chaos Engineering | ⚪ Proposed | 🟡 Medium | Medium | 1-1.5 weeks |
-| [ADR-018](adr/adr-018-saga-versioning.md) | Saga Versioning | ⚪ Proposed | 🟡 Medium | High | 2-2.5 weeks |
+| [ADR-017](adr/adr-017-chaos-engineering.md) | Chaos Engineering | ✅ **Accepted** | 🟡 Medium | Medium | 1-1.5 weeks |
+| [ADR-018](adr/adr-018-saga-versioning.md) | Saga Versioning | ✅ **Accepted** | 🟡 Medium | High | 2-2.5 weeks |
 | [ADR-019](adr/adr-019-dry-run-mode.md) | Dry Run Mode | 🟢 **Implemented** | - | - | - |
-| [ADR-020](adr/adr-020-multi-tenancy.md) | Multi-Tenancy | ⚪ Proposed | 🔴 High | High | 2-2.5 weeks |
+| [ADR-020](adr/adr-020-multi-tenancy.md) | Multi-Tenancy | ✅ **Accepted** | 🔴 High | High | 2-2.5 weeks |
 | [ADR-021](adr/adr-021-lightweight-context-streaming.md) | Context Streaming | 🟢 **Implemented** | - | - | - |
 | [ADR-022](adr/adr-022-compensation-result-passing.md) | Compensation Result Passing | 🟢 **Implemented** | - | - | - |
 | [ADR-023](adr/adr-023-pivot-irreversible-steps.md) | Pivot/Irreversible Steps | 🟢 **Implemented** | - | - | - |
