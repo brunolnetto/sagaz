@@ -74,3 +74,23 @@ class SagaQueries:
         GROUP BY dst.saga_name, dst.step_name
         ORDER BY compensation_count DESC
     """
+
+    SAGA_LIFECYCLE_MILESTONES = """
+        SELECT
+            ds.saga_name,
+            sl.saga_id,
+            sl.created_at,
+            sl.started_at,
+            COALESCE(sl.completed_at, sl.rolled_back_at)               AS ended_at,
+            ROUND(
+                EXTRACT(EPOCH FROM (
+                    COALESCE(sl.completed_at, sl.rolled_back_at) - sl.created_at
+                )) * 1000, 2
+            )                                                           AS lifecycle_ms,
+            sl.total_duration_ms,
+            sl.step_count,
+            sl.compensation_count
+        FROM fact_saga_lifecycle sl
+        JOIN dim_saga ds ON sl.saga_id = ds.saga_id
+        ORDER BY sl.created_at DESC NULLS LAST
+    """
