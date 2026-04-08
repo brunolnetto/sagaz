@@ -102,7 +102,7 @@ class TestEventBus:
 
     def test_clear_history(self):
         bus = EventBus()
-        asyncio.get_event_loop().run_until_complete(bus.publish(Event("x")))
+        asyncio.run(bus.publish(Event("x")))
         bus.clear_history()
         assert bus.published == []
 
@@ -244,7 +244,7 @@ class TestChoreographedSaga:
                 pass
 
         saga = MySaga()
-        asyncio.get_event_loop().run_until_complete(saga.handle(Event("order.created")))
+        asyncio.run(saga.handle(Event("order.created")))
         assert len(saga.events_handled) == 1
 
     def test_default_saga_id_is_assigned(self):
