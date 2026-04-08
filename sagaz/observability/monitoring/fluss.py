@@ -23,24 +23,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
-
-_FLUSS_SCHEMA = {
-    "table": "sagaz.saga_events",
-    "columns": [
-        ("saga_id", "STRING"),
-        ("event_type", "STRING"),
-        ("duration_ms", "DOUBLE"),
-        ("status", "STRING"),
-        ("step_name", "STRING"),
-        ("ts", "TIMESTAMP"),
-    ],
-}
 
 
 @dataclass
@@ -93,6 +80,7 @@ class FlussAnalyticsListener:
         self._buffer: list[FlussEvent] = []
         self._running = False
         self._flush_task: asyncio.Task | None = None
+        self._one_off_flush: asyncio.Task | None = None
         self._events_written: int = 0
         self._errors: int = 0
 
@@ -101,6 +89,8 @@ class FlussAnalyticsListener:
     # ------------------------------------------------------------------
 
     async def start(self) -> None:
+        if self._running:
+            return
         self._running = True
         self._flush_task = asyncio.create_task(self._flush_loop())
         logger.info("FlussAnalyticsListener started — table=%s", self._table)
@@ -166,7 +156,7 @@ class FlussAnalyticsListener:
     def _emit(self, event: FlussEvent) -> None:
         self._buffer.append(event)
         if len(self._buffer) >= self._buffer_size:
-            self._flush_task = asyncio.ensure_future(self._do_flush())
+            self._one_off_flush = asyncio.ensure_future(self._do_flush())
 
     async def _flush_loop(self) -> None:
         while self._running:
