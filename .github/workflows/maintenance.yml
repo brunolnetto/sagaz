@@ -13,10 +13,11 @@ permissions:
   issues: write
 
 jobs:
-  # ─── Commit & Scope-based Labeling ─────────────────────────────────────────
-  # Extracts labels from commit conventional messages and applies to PR + issues
-  label-by-commit:
-    name: Label by commit scope & type
+  # ─── PR Title & Scope-based Labeling ──────────────────────────────────────
+  # Extracts labels from PR title (which now MUST follow conventional commit)
+  # Applies to PR and any referenced issues
+  label-pr-and-issues:
+    name: Label PR and linked issues
     runs-on: ubuntu-latest
     if: |
       !startsWith(github.head_ref, 'dependabot/') &&
@@ -26,13 +27,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Label PR and referenced issues
+      - name: Parse PR title and apply labels
         uses: actions/github-script@v7
         with:
           script: |
             // ===== CONFIGURATION =====
             const SCOPE_LABEL_MAP = {
-              sage: { name: 'saga', color: '5319e7' },
+              saga: { name: 'saga', color: '5319e7' },
               dag: { name: 'dag', color: '3f51b5' },
               outbox: { name: 'outbox', color: '0099cc' },
               storage: { name: 'storage', color: '0e8a16' },
@@ -63,7 +64,7 @@ jobs:
               revert: { name: 'revert', color: 'ee0701' },
             };
 
-            const COMMIT_MSG_RE = /^(\w+)(?:\(([^)]+)\))?!?:\s+(.+)/;
+            const PR_TITLE_RE = /^(feat|fix|docs|refactor|test|perf|build|ci|chore|revert)(\(([^)]+)\))?!?:\s+(.+)/;
             const FOOTER_RE = /^(?:closes?|fixes?|resolves?)\s*:?\s+#(\d+)/gim;
 
             const owner = context.repo.owner;
@@ -107,62 +108,46 @@ jobs:
             // ===== PROCESS PR =====
             if (context.eventName === 'pull_request') {
               const prNumber = context.payload.pull_request.number;
+              const prTitle = context.payload.pull_request.title;
+              const prBody = context.payload.pull_request.body || '';
               
-              // Fetch all commits in this PR
-              const { data: commits } = await github.rest.pulls.listCommits({
-                owner, repo, pull_number: prNumber, per_page: 100,
-              });
-
-              if (commits.length === 0) {
-                core.info('No commits found in PR');
-                return;
-              }
-
-              // Parse first commit for primary type/scope
-              const firstCommitMsg = commits[0].commit.message;
-              const match = COMMIT_MSG_RE.exec(firstCommitMsg);
+              // Parse PR title (already validated by gitflow-compliance)
+              const match = PR_TITLE_RE.exec(prTitle);
               
               if (!match) {
-                core.info(`First commit doesn't follow conventional format: ${firstCommitMsg.slice(0, 50)}`);
+                core.warning(`PR title doesn't match expected format: ${prTitle}`);
                 return;
               }
 
-              const [, type, scope] = match;
+              const [, type, , scopeStr] = match;
               const labelsToApply = [];
               const referencedIssues = new Set();
 
-              // Apply primary type label (from first commit only)
+              // Apply primary type label
               if (TYPE_LABEL_MAP[type]) {
                 const labelInfo = TYPE_LABEL_MAP[type];
                 await ensureLabel(labelInfo);
                 labelsToApply.push(labelInfo.name);
               }
 
-              // Collect ALL scopes from all commits
-              const allScopes = new Set();
-              for (const commit of commits) {
-                const m = COMMIT_MSG_RE.exec(commit.commit.message);
-                if (m && m[2]) {
-                  // m[2] is the scope; can be comma-separated for multiple scopes
-                  m[2].split(',').forEach(s => allScopes.add(s.trim()));
-                }
-                
-                // Collect issue references
-                let ref;
-                while ((ref = FOOTER_RE.exec(commit.commit.message)) !== null) {
-                  referencedIssues.add(parseInt(ref[1], 10));
+              // Apply scope labels (scopeStr is comma-separated if multiple)
+              if (scopeStr) {
+                const scopes = scopeStr.split(',').map(s => s.trim());
+                for (const sc of scopes) {
+                  const labelInfo = SCOPE_LABEL_MAP[sc];
+                  if (labelInfo) {
+                    await ensureLabel(labelInfo);
+                    labelsToApply.push(labelInfo.name);
+                  } else {
+                    core.warning(`Unknown scope in PR title: ${sc}`);
+                  }
                 }
               }
 
-              // Apply scope labels
-              for (const sc of allScopes) {
-                const labelInfo = SCOPE_LABEL_MAP[sc];
-                if (labelInfo) {
-                  await ensureLabel(labelInfo);
-                  labelsToApply.push(labelInfo.name);
-                } else {
-                  core.warning(`Unknown scope: ${sc}`);
-                }
+              // Collect issue references from PR body
+              let ref;
+              while ((ref = FOOTER_RE.exec(prBody)) !== null) {
+                referencedIssues.add(parseInt(ref[1], 10));
               }
 
               // Deduplicate and apply to PR
@@ -178,11 +163,10 @@ jobs:
             }
 
             // ===== PROCESS ISSUE =====
-            // Issue labeling: extract scope from issue title/body patterns
+            // Issue labeling: extract scope from issue title patterns
             if (context.eventName === 'issues') {
               const issueNumber = context.payload.issue.number;
               const issueTitle = context.payload.issue.title;
-              const issueBody = context.payload.issue.body || '';
               
               // Try to detect scope from issue title patterns like "[scope]" or "scope:"
               const titleMatch = issueTitle.match(/^\[([^\]]+)\]|^([a-z-]+):/i);
