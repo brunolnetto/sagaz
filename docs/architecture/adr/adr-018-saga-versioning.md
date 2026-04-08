@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed** | Date: 2025-01-01 | Target: v2.0.0
+**Accepted** | Date: 2025-01-01 | Implemented: 2026-04-08 | Target: v2.0.0 | PR: #81
 
 ## Dependencies
 
