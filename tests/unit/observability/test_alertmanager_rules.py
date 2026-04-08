@@ -85,7 +85,7 @@ class TestAlertManagerRulesFile:
         missing = REQUIRED_ALERT_NAMES - names
         assert not missing, f"Missing alert rules: {missing}"
 
-    @pytest.mark.parametrize("alert_name", list(REQUIRED_ALERT_NAMES))
+    @pytest.mark.parametrize("alert_name", sorted(REQUIRED_ALERT_NAMES))
     def test_each_rule_has_summary_annotation(self, alert_name):
         rules = self._collect_alert_rules()
         rule = next((r for r in rules if r["alert"] == alert_name), None)
@@ -93,7 +93,7 @@ class TestAlertManagerRulesFile:
         annotations = rule.get("annotations", {})
         assert "summary" in annotations, f"Alert '{alert_name}' missing 'summary' annotation"
 
-    @pytest.mark.parametrize("alert_name", list(REQUIRED_ALERT_NAMES))
+    @pytest.mark.parametrize("alert_name", sorted(REQUIRED_ALERT_NAMES))
     def test_each_rule_has_description_annotation(self, alert_name):
         rules = self._collect_alert_rules()
         rule = next((r for r in rules if r["alert"] == alert_name), None)
@@ -103,7 +103,7 @@ class TestAlertManagerRulesFile:
             f"Alert '{alert_name}' missing 'description' annotation"
         )
 
-    @pytest.mark.parametrize("alert_name", list(REQUIRED_ALERT_NAMES))
+    @pytest.mark.parametrize("alert_name", sorted(REQUIRED_ALERT_NAMES))
     def test_each_rule_has_runbook_url_annotation(self, alert_name):
         rules = self._collect_alert_rules()
         rule = next((r for r in rules if r["alert"] == alert_name), None)
@@ -113,7 +113,7 @@ class TestAlertManagerRulesFile:
             f"Alert '{alert_name}' missing 'runbook_url' annotation"
         )
 
-    @pytest.mark.parametrize("alert_name", list(REQUIRED_ALERT_NAMES))
+    @pytest.mark.parametrize("alert_name", sorted(REQUIRED_ALERT_NAMES))
     def test_each_rule_has_severity_label(self, alert_name):
         rules = self._collect_alert_rules()
         rule = next((r for r in rules if r["alert"] == alert_name), None)
@@ -121,7 +121,7 @@ class TestAlertManagerRulesFile:
         labels = rule.get("labels", {})
         assert "severity" in labels, f"Alert '{alert_name}' missing 'severity' label"
 
-    @pytest.mark.parametrize("alert_name", list(REQUIRED_ALERT_NAMES))
+    @pytest.mark.parametrize("alert_name", sorted(REQUIRED_ALERT_NAMES))
     def test_each_rule_has_expr(self, alert_name):
         rules = self._collect_alert_rules()
         rule = next((r for r in rules if r["alert"] == alert_name), None)
@@ -129,7 +129,7 @@ class TestAlertManagerRulesFile:
         assert "expr" in rule, f"Alert '{alert_name}' missing 'expr' field"
         assert rule["expr"], f"Alert '{alert_name}' has empty 'expr'"
 
-    @pytest.mark.parametrize("alert_name", list(REQUIRED_ALERT_NAMES))
+    @pytest.mark.parametrize("alert_name", sorted(REQUIRED_ALERT_NAMES))
     def test_each_rule_has_for_field(self, alert_name):
         rules = self._collect_alert_rules()
         rule = next((r for r in rules if r["alert"] == alert_name), None)
