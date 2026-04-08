@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-**Last Updated**: 2026-04-07
+**Last Updated**: 2026-04-08
 
 This directory contains Architecture Decision Records (ADRs) documenting significant technical decisions for Sagaz.
 
@@ -23,6 +23,9 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-030](adr-030-dry-run-parallel-analysis.md) | Dry-Run Parallel Analysis | v1.3.0 | 2026-01 |
 | [ADR-031](adr-031-dry-run-simplification.md) | Dry-Run Simplification | v1.3.0 | 2026-01 |
 | [ADR-032](adr-032-cli-command-organization.md) | CLI Command Organization | v1.3.0 | 2026-01 |
+| [ADR-017](adr-017-chaos-engineering.md) | Chaos Engineering | v1.4.0 | 2026-04 |
+| [ADR-018](adr-018-saga-versioning.md) | Saga Versioning | v2.0.0 | 2026-04 |
+| [ADR-020](adr-020-multi-tenancy.md) | Multi-Tenancy | v1.4.0 | 2026-04 |
 
 ---
 
@@ -33,13 +36,11 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | ADR | Title | Target | Description |
 |-----|-------|--------|-------------|
 | [ADR-029](adr-029-saga-choreography.md) | Saga Choreography Pattern | v2.2.0 | Event-driven distributed coordination (10-15 weeks) |
-| [ADR-020](adr-020-multi-tenancy.md) | Multi-Tenancy | v2.0.0 | Tenant isolation, quotas, and compliance |
 
 ### Medium Priority
 
 | ADR | Title | Target | Description |
 |-----|-------|--------|-------------|
-| [ADR-018](adr-018-saga-versioning.md) | Saga Versioning | v2.0.0 | Version management for saga definitions |
 | [ADR-019](adr-019-dry-run-mode.md) | Dry-Run Mode | v1.3.0 | Validate and preview saga execution |
 
 ### Low Priority / Future
@@ -48,7 +49,6 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 |-----|-------|--------|-------------|
 | [ADR-011](adr-011-cdc-support.md) | CDC Support | Future | Change Data Capture with Debezium for 50K+ events/sec |
 | [ADR-013](adr-013-fluss-iceberg-analytics.md) | Fluss Analytics | Future | Real-time + historical analytics with Iceberg |
-| [ADR-017](adr-017-chaos-engineering.md) | Chaos Engineering | TBD | Fault injection and resilience testing |
 | [ADR-033](adr-033-event-sourcing-integration.md) | Event Sourcing Integration | v2.3.0 | Opt-in event-sourced storage strategy for full audit trail |
 | [ADR-034](adr-034-multi-region-coordination.md) | Multi-Region Coordination | v2.4.0 | Cross-region step routing, data residency, and failover |
 | [ADR-035](adr-035-saga-visualization-ui.md) | Saga Visualization UI | v2.2.0 | Browser-based live saga monitoring dashboard |
