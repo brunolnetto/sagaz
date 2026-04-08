@@ -72,6 +72,11 @@ try:
         ["worker_id", "event_type"],
     )
 
+    OUTBOX_DLQ_DEPTH = Gauge(
+        "sagaz_dlq_depth",
+        "Current number of events in the dead letter queue",
+    )
+
     OUTBOX_RETRY_ATTEMPTS = Counter(
         "outbox_retry_attempts_total",
         "Total retry attempts",
@@ -399,6 +404,11 @@ class OutboxWorker:
         Args:
             event: The event to move
         """
+        from datetime import UTC, datetime
+
+        event.dead_letter_at = datetime.now(UTC)
+        event.dead_letter_reason = event.last_error or "max_retries_exceeded"
+
         await self.storage.update_status(
             event.event_id,
             OutboxStatus.DEAD_LETTER,
@@ -410,6 +420,7 @@ class OutboxWorker:
         if PROMETHEUS_AVAILABLE:
             event_type = event.event_type or "unknown"
             OUTBOX_DEAD_LETTER_EVENTS.labels(worker_id=self.worker_id, event_type=event_type).inc()
+            OUTBOX_DLQ_DEPTH.inc()
 
         logger.error(
             f"Event {event.event_id} moved to dead letter queue "

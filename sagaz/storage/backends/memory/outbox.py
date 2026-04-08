@@ -160,6 +160,41 @@ class InMemoryOutboxStorage(OutboxStorage):
             if e.status == outbox_status_cls.DEAD_LETTER
         ]
 
+    async def requeue_dead_letter_event(self, event_id: str) -> OutboxEvent:
+        """Move a DLQ event back to PENDING for reprocessing."""
+        outbox_status_cls = _get_outbox_status()
+        event = self._events.get(event_id)
+        if event is None:
+            msg = f"Event {event_id} not found"
+            raise KeyError(msg)
+        event.status = outbox_status_cls.PENDING
+        event.retry_count = 0
+        event.dead_letter_at = None
+        event.dead_letter_reason = None
+        event.worker_id = None
+        event.claimed_at = None
+        return event
+
+    async def purge_dead_letter_events(
+        self,
+        older_than: timedelta | None = None,
+    ) -> int:
+        """Permanently remove DLQ events."""
+        outbox_status_cls = _get_outbox_status()
+        now = datetime.now(UTC)
+        to_delete: list[str] = []
+        for event in list(self._events.values()):
+            if event.status != outbox_status_cls.DEAD_LETTER:
+                continue
+            if older_than is not None:
+                dl_at = event.dead_letter_at
+                if dl_at is None or (now - dl_at) < older_than:
+                    continue
+            to_delete.append(event.event_id)
+        for eid in to_delete:
+            del self._events[eid]
+        return len(to_delete)
+
     def clear(self) -> None:
         """Clear all events (for testing)."""
         self._events.clear()
