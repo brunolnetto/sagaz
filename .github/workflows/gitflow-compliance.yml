@@ -1,0 +1,124 @@
+name: GitFlow Compliance
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+env:
+  CI: true
+
+# ─── PR Title Validation (Conventional Commit) ────────────────────────────────
+
+jobs:
+  pr-title:
+    name: Validate PR Title Format
+    runs-on: ubuntu-latest
+    if: ${{ !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'renovate/') }}
+    steps:
+      - name: Validate PR title follows conventional commit format
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = context.payload.pull_request.title;
+            const commitRegex = /^(feat|fix|docs|refactor|test|perf|build|ci|chore|revert)(\([a-z-]+(?:,[a-z-]+)*\))?!?:\s+\S/;
+            
+            if (!commitRegex.test(title)) {
+              core.setFailed(
+                `PR title must follow conventional commit format: type(scope): subject\n` +
+                `\n` +
+                `Current title: "${title}"\n` +
+                `\n` +
+                `Valid types: feat, fix, docs, refactor, test, perf, build, ci, chore, revert\n` +
+                `Valid scopes: saga, dag, outbox, storage, strategies, monitoring, cli, execution, triggers, visualization, integrations, sagaz, docs, ci, deps, tests\n` +
+                `\n` +
+                `Examples:\n` +
+                `  feat(saga): add replay capability\n` +
+                `  fix(storage): resolve connection pool leak\n` +
+                `  ci(ci): consolidate workflows\n` +
+                `  docs(sagaz): update architecture guide`
+              );
+            }
+
+# ─── PR Description Validation ────────────────────────────────────────────────
+
+  pr-description:
+    name: Validate PR Description
+    runs-on: ubuntu-latest
+    if: ${{ !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'renovate/') }}
+    steps:
+      - name: Validate PR description sections
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = (context.payload.pull_request.body || "").toLowerCase();
+
+            const requiredSections = [
+              "## changes",
+              "## motivation",
+              "## impact"
+            ];
+
+            const missing = requiredSections.filter(s => !body.includes(s));
+
+            if (missing.length > 0) {
+              core.setFailed(
+                `PR description is missing required section(s): ${missing.join(", ")}\n` +
+                `Please include: ## Changes, ## Motivation, ## Impact`
+              );
+            }
+
+# ─── Issue Reference Validation ───────────────────────────────────────────────
+
+  require-issue:
+    name: Require Issue Reference
+    runs-on: ubuntu-latest
+    if: ${{ !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'renovate/') }}
+    steps:
+      - name: Check PR description for issue reference
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = (context.payload.pull_request.body || "").toLowerCase()
+
+            const patterns = [
+              /closes\s*:?\s+#\d+(?:[.,;!?]|\s|$)/,
+              /fixes\s*:?\s+#\d+(?:[.,;!?]|\s|$)/,
+              /resolves\s*:?\s+#\d+(?:[.,;!?]|\s|$)/
+            ]
+
+            const found = patterns.some(p => p.test(body))
+
+            if (!found) {
+              core.setFailed(
+                "Pull Request must reference an Issue using 'Closes #<number>', 'Fixes #<number>' or 'Resolves #<number>'."
+              )
+            }
+
+# ─── Branch Flow Validation ───────────────────────────────────────────────────
+
+  validate-branch-flow:
+    name: Validate Branch Flow
+    runs-on: ubuntu-latest
+    if: ${{ !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'renovate/') }}
+    steps:
+      - name: Validate source branch naming and flow
+        run: |
+          HEAD="${{ github.head_ref }}"
+          BASE="${{ github.base_ref }}"
+
+          echo "Head branch: $HEAD"
+          echo "Base branch: $BASE"
+
+          # Allow develop -> main as a standard gitflow promotion merge
+          if [[ "$HEAD" == "develop" && "$BASE" == "main" ]]; then
+            echo "✅ Allowing develop -> main gitflow promotion merge."
+            exit 0
+          fi
+
+          if [[ ! "$HEAD" =~ ^(feature|fix|docs|chore|refactor|test|ci)/.+$ ]]; then
+            echo "❌ Branch '$HEAD' does not follow the naming convention."
+            echo "Allowed patterns: feature/*, fix/*, docs/*, chore/*, refactor/*, test/*, ci/*"
+            echo "Exception: develop -> main is also allowed for gitflow promotion."
+            exit 1
+          fi
+          echo "✅ Branch '$HEAD' follows the naming convention."
