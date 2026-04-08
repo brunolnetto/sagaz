@@ -83,9 +83,9 @@ Wave 5  ─── v2.3.0 ──────── Core extensions               
 | #67 | feature/fluss-iceberg-analytics | Fluss streaming + Iceberg tiering (ADR-013) | #51 | none |
 
 **Gap watch**:
-- #79: add real `Saga` E2E integration test through `ChaosMonkey` → compensation fires (see issue #108)
-- #81: versioning deferred to Wave 3 (depends on schema validation closure — see issue #109)
-- #71: add SSE endpoint smoke test; document CORS/auth policy (see issue #110)
+- #79: add real `Saga` E2E integration test through `ChaosMonkey` → compensation fires (see issue #111)
+- #81: versioning deferred to Wave 3 (depends on schema validation closure — see issue #112)
+- #71: add SSE endpoint smoke test; document CORS/auth policy (see issue #113)
 
 ---
 
@@ -118,13 +118,13 @@ Wave 5  ─── v2.3.0 ──────── Core extensions               
 
 | PR | Branch | Feature | Issue | Merge pre-req |
 |----|--------|---------|-------|--------------|
-| feature/redis-streams-eventbus | *(planned)* | `RedisStreamsEventBus` — distributed choreography bus | *(new issue)* | none |
-| #69 | feature/saga-choreography | Saga choreography engine (ADR-029) | #56 | redis-streams-eventbus integrated |
+| #115 | feature/redis-streams-eventbus | `RedisStreamsEventBus` — distributed choreography bus | #108 | none |
+| #69 | feature/saga-choreography | Saga choreography engine (ADR-029) | #56 | #115 merged |
 
 **Notes**:
-- `RedisStreamsEventBus` is a new class wrapping `sagaz/outbox/brokers/redis.py` to bridge the choreography `EventBus` interface to Redis Streams.
-- Once shipped, saga choreography works without Kafka or RabbitMQ — only `redis` extra is required.
-- `#69` review gap: add compensating event / choreographed rollback test.
+- PR #115 (`feature/redis-streams-eventbus`) implements `RedisStreamsEventBus` using Redis Streams (XADD/XREADGROUP) — no Kafka or RabbitMQ needed.
+- Once shipped, saga choreography works without heavy brokers — only `sagaz[redis]` extra is required.
+- `#69` review gap (issue #114): add compensating event / choreographed rollback integration test.
 
 ---
 
@@ -156,12 +156,13 @@ Wave 5  ─── v2.3.0 ──────── Core extensions               
 
 | Issue | Affects PR / Wave | Summary |
 |-------|-------------------|---------|
-| #105 *(planned)* | #62 / Wave 1 | Add SQLite unit tests |
-| #106 *(planned)* | #60 / Wave 1 | Add DLQ fill-and-replay integration test |
-| #108 *(planned)* | #79 / Wave 2 | Add E2E chaos test: real Saga + ChaosMonkey → compensation fires |
-| #109 *(planned)* | #81 / Wave 3 | Add runtime schema validation + persistent registry to saga versioning |
-| #110 *(planned)* | #71 / Wave 2 | Add SSE smoke test; document CORS/auth policy for viz UI |
-| *(new)* | #69 / Wave 4 | Add Redis Streams EventBus; add compensating-event rollback test |
+| #109 | #62 / Wave 1 | Add SQLite unit tests |
+| #110 | #60 / Wave 1 | Add DLQ fill-and-replay integration test |
+| #111 | #79 / Wave 2 | Add E2E chaos test: real Saga + ChaosMonkey → compensation fires |
+| #112 | #81 / Wave 3 | Add runtime schema validation + persistent registry to saga versioning |
+| #113 | #71 / Wave 2 | Add SSE smoke test; document CORS/auth policy for viz UI |
+| #114 | #69 / Wave 4 | Add compensating-event integration test for choreographed rollback |
+| #108 | #115 / Wave 4 | ✅ Closed — Redis Streams EventBus adapter (PR #115) |
 
 ---
 
