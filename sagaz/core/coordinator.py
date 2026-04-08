@@ -15,7 +15,7 @@ import time
 import uuid
 from collections import defaultdict
 from collections.abc import Callable, Coroutine
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from sagaz.core.regions import Region, RegionHealth, RegionRegistry
@@ -165,8 +165,7 @@ class MultiRegionCoordinator:
             try:
                 await self._health_task
             except asyncio.CancelledError:
-                pass
-        logger.info("MultiRegionCoordinator stopped")
+                pass  # Expected during graceful shutdown
 
     # ------------------------------------------------------------------
     # Step routing
