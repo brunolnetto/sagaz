@@ -13,6 +13,10 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-012](adr-012-synchronous-orchestration-model.md) | Synchronous Orchestration Model | v1.0.0 | 2024-12 |
 | [ADR-015](adr-015-unified-saga-api.md) | Unified Saga API | v1.0.3 | 2024-12 |
 | [ADR-016](adr-016-unified-storage-layer.md) | Unified Storage Layer | v1.2.0 | 2026-01 |
+| [ADR-017](adr-017-chaos-engineering.md) | Chaos Engineering | v1.4.0 | 2026-04 |
+| [ADR-018](adr-018-saga-versioning.md) | Saga Versioning | v2.0.0 | 2026-04 |
+| [ADR-019](adr-019-dry-run-mode.md) | Dry-Run Mode | v1.3.0 | 2026-01 |
+| [ADR-020](adr-020-multi-tenancy.md) | Multi-Tenancy | v1.4.0 | 2026-04 |
 | [ADR-021](adr-021-lightweight-context-streaming.md) | Context Streaming | v1.4.0 | 2026-01 |
 | [ADR-022](adr-022-compensation-result-passing.md) | Compensation Result Passing | v1.2.0 | 2026-01 |
 | [ADR-023](adr-023-pivot-irreversible-steps.md) | Pivot/Irreversible Steps | v1.3.0 | 2026-01 |
@@ -22,9 +26,6 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-027](adr-027-project-cli.md) | Project CLI | v1.3.0 | 2026-01 |
 | [ADR-030](adr-030-dry-run-parallel-analysis.md) | Dry-Run Parallel Analysis | v1.3.0 | 2026-01 |
 | [ADR-031](adr-031-dry-run-simplification.md) | Dry-Run Simplification | v1.3.0 | 2026-01 |
-| [ADR-017](adr-017-chaos-engineering.md) | Chaos Engineering | v1.4.0 | 2026-04 |
-| [ADR-018](adr-018-saga-versioning.md) | Saga Versioning | v2.0.0 | 2026-04 |
-| [ADR-020](adr-020-multi-tenancy.md) | Multi-Tenancy | v1.4.0 | 2026-04 |
 | [ADR-032](adr-032-cli-command-organization.md) | CLI Command Organization | v1.3.0 | 2026-01 |
 
 ---
@@ -36,12 +37,6 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | ADR | Title | Target | Description |
 |-----|-------|--------|-------------|
 | [ADR-029](adr-029-saga-choreography.md) | Saga Choreography Pattern | v2.2.0 | Event-driven distributed coordination (10-15 weeks) |
-
-### Medium Priority
-
-| ADR | Title | Target | Description |
-|-----|-------|--------|-------------|
-| [ADR-019](adr-019-dry-run-mode.md) | Dry-Run Mode | v1.3.0 | Validate and preview saga execution |
 
 ### Low Priority / Future
 
