@@ -18,9 +18,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from collections.abc import Callable, Coroutine
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
@@ -117,7 +116,7 @@ class CDCWorker:
         connect_url: str,
         connector_name: str = "sagaz-pg",
         poll_interval: float = _DEFAULT_POLL_INTERVAL,
-        on_event: Callable[[CDCEvent], Coroutine] | None = None,
+        on_event: Callable[[CDCEvent], Awaitable[None]] | None = None,
         metrics: CDCMetrics | None = None,
     ) -> None:
         self._url = connect_url.rstrip("/")
@@ -186,7 +185,6 @@ class CDCWorker:
         return events
 
     async def _process(self, event: CDCEvent) -> None:
-        time.monotonic()
         lag_ms = (time.time() * 1000 - event.ts_ms) if event.ts_ms else 0.0
         self._metrics.record_event(lag_ms=lag_ms)
         if self._on_event:
