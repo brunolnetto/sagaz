@@ -6,7 +6,7 @@ TDD red phase — tests define the exact public API before implementation.
 Coverage targets:
 - Version value object: parsing, comparison, compatibility
 - SagaVersion dataclass: fields and deprecation helpers
-- SagaVersionRegistry: register, latest, lookup, deprecate, remove
+- SagaVersionRegistry: register, latest, lookup, deprecate
 - MigrationEngine: register, single-hop, multi-hop, no-op, missing path
 - SagaVersionResolver: new saga → latest; resume → pinned version
 """
@@ -104,6 +104,15 @@ class TestVersion:
 
     def test_lt_with_non_version_returns_not_implemented(self):
         assert Version.parse("1.0.0").__lt__("1.0.0") is NotImplemented
+
+    def test_immutability_prevents_attribute_set(self):
+        v = Version.parse("1.2.3")
+        with pytest.raises(AttributeError, match="immutable"):
+            v.major = 9
+
+    def test_is_compatible_older_patch_not_compatible(self):
+        """1.1.0 is older than 1.1.5 → NOT compatible."""
+        assert not Version.parse("1.1.0").is_compatible_with(Version.parse("1.1.5"))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -306,6 +315,18 @@ class TestSagaVersionResolver:
         resolver = self._make_resolver()
         with pytest.raises(SagaVersionNotFoundError):
             resolver.resolve("order-processing", saga_id="x", pinned_version="9.9.9")
+
+    def test_saga_id_without_pinned_version_raises(self):
+        """Providing saga_id without pinned_version must raise ValueError."""
+        resolver = self._make_resolver()
+        with pytest.raises(ValueError, match="pinned_version is required"):
+            resolver.resolve("order-processing", saga_id="abc-123")
+
+    def test_pinned_version_without_saga_id_uses_pinned(self):
+        """Pinned version is authoritative even without saga_id."""
+        resolver = self._make_resolver()
+        sv = resolver.resolve("order-processing", saga_id=None, pinned_version="1.0.0")
+        assert str(sv.version) == "1.0.0"
 
 
 # ─────────────────────────────────────────────────────────────────────────────

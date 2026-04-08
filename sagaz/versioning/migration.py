@@ -38,17 +38,21 @@ class MigrationEngine:
         migrate_fn: Callable[[dict], dict],
     ) -> None:
         """Register a single-hop migration function."""
-        self._migrations[saga_name][from_version][to_version] = migrate_fn
+        from sagaz.versioning.version import Version
+
+        nfrom = str(Version.parse(from_version))
+        nto = str(Version.parse(to_version))
+        self._migrations[saga_name][nfrom][nto] = migrate_fn
 
     # ── read ──
 
     def list_migrations(self, saga_name: str) -> list[tuple[str, str]]:
         """Return all registered ``(from_version, to_version)`` pairs."""
-        result = []
-        for from_ver, targets in self._migrations.get(saga_name, {}).items():
-            for to_ver in targets:
-                result.append((from_ver, to_ver))
-        return result
+        return [
+            (from_ver, to_ver)
+            for from_ver, targets in self._migrations.get(saga_name, {}).items()
+            for to_ver in targets
+        ]
 
     # ── apply ──
 
@@ -67,6 +71,10 @@ class MigrationEngine:
 
         Raises :class:`MigrationPathNotFoundError` when no path exists.
         """
+        from sagaz.versioning.version import Version
+
+        from_version = str(Version.parse(from_version))
+        to_version = str(Version.parse(to_version))
         if from_version == to_version:
             return context
 
