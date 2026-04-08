@@ -3,13 +3,215 @@ name: Maintenance
 on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
+  issues:
+    types: [opened, edited]
 
 # ─── Permissions ──────────────────────────────────────────────────────────────
 permissions:
   contents: read
   pull-requests: write
+  issues: write
 
 jobs:
+  # ─── PR Title & Scope-based Labeling ──────────────────────────────────────
+  # Extracts labels from PR title (which now MUST follow conventional commit)
+  # Applies to PR and any referenced issues
+  label-pr-and-issues:
+    name: Label PR and linked issues
+    runs-on: ubuntu-latest
+    if: |
+      !startsWith(github.head_ref, 'dependabot/') &&
+      !startsWith(github.head_ref, 'renovate/')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Parse PR title and apply labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // ===== CONFIGURATION =====
+            const SCOPE_LABEL_MAP = {
+              saga: { name: 'saga', color: '5319e7' },
+              dag: { name: 'dag', color: '3f51b5' },
+              outbox: { name: 'outbox', color: '0099cc' },
+              storage: { name: 'storage', color: '0e8a16' },
+              strategies: { name: 'strategies', color: '1f6feb' },
+              monitoring: { name: 'monitoring', color: 'f0883e' },
+              cli: { name: 'cli', color: 'a2eeef' },
+              execution: { name: 'execution', color: '8e44ad' },
+              triggers: { name: 'triggers', color: 'e11d21' },
+              visualization: { name: 'visualization', color: '009800' },
+              integrations: { name: 'integrations', color: 'ffd700' },
+              sagaz: { name: 'sagaz', color: '1d76db' },
+              docs: { name: 'documentation', color: '0075ca' },
+              ci: { name: 'ci', color: '1d76db' },
+              deps: { name: 'dependencies', color: 'bfd4f2' },
+              tests: { name: 'tests', color: '0e8a16' },
+            };
+
+            const TYPE_LABEL_MAP = {
+              feat: { name: 'enhancement', color: 'a2eeef' },
+              fix: { name: 'bug', color: 'd73a4a' },
+              docs: { name: 'documentation', color: '0075ca' },
+              refactor: { name: 'refactor', color: 'fbca04' },
+              test: { name: 'tests', color: 'bfd4f2' },
+              perf: { name: 'performance', color: 'e99695' },
+              build: { name: 'build', color: 'f9d0c4' },
+              ci: { name: 'ci', color: '1d76db' },
+              chore: { name: 'chore', color: 'ededed' },
+              revert: { name: 'revert', color: 'ee0701' },
+            };
+
+            const PR_TITLE_RE = /^(feat|fix|docs|refactor|test|perf|build|ci|chore|revert)(\(([^)]+)\))?!?:\s+(.+)/;
+            const FOOTER_RE = /^(?:closes?|fixes?|resolves?)\s*:?\s+#(\d+)/gim;
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // Helper: create label if missing
+            async function ensureLabel(labelInfo) {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name: labelInfo.name });
+              } catch (e) {
+                if (e.status === 404) {
+                  await github.rest.issues.createLabel({
+                    owner, repo,
+                    name: labelInfo.name,
+                    color: labelInfo.color,
+                    description: labelInfo.name,
+                  });
+                  core.info(`Created label: ${labelInfo.name}`);
+                } else {
+                  throw e;
+                }
+              }
+            }
+
+            // Helper: apply labels to an issue
+            async function applyLabels(issue_number, labelNames) {
+              if (labelNames.length === 0) return;
+              
+              try {
+                await github.rest.issues.addLabels({
+                  owner, repo,
+                  issue_number,
+                  labels: labelNames,
+                });
+                core.info(`Applied labels [${labelNames.join(', ')}] to #${issue_number}`);
+              } catch (e) {
+                core.warning(`Failed to label #${issue_number}: ${e.message}`);
+              }
+            }
+
+            // ===== PROCESS PR =====
+            if (context.eventName === 'pull_request') {
+              const prNumber = context.payload.pull_request.number;
+              const prTitle = context.payload.pull_request.title;
+              const prBody = context.payload.pull_request.body || '';
+              
+              // Parse PR title (already validated by gitflow-compliance)
+              const match = PR_TITLE_RE.exec(prTitle);
+              
+              if (!match) {
+                core.warning(`PR title doesn't match expected format: ${prTitle}`);
+                return;
+              }
+
+              const [, type, , scopeStr] = match;
+              const labelsToApply = [];
+              const referencedIssues = new Set();
+
+              // Apply primary type label
+              if (TYPE_LABEL_MAP[type]) {
+                const labelInfo = TYPE_LABEL_MAP[type];
+                await ensureLabel(labelInfo);
+                labelsToApply.push(labelInfo.name);
+              }
+
+              // Apply scope labels (scopeStr is comma-separated if multiple)
+              if (scopeStr) {
+                const scopes = scopeStr.split(',').map(s => s.trim());
+                for (const sc of scopes) {
+                  const labelInfo = SCOPE_LABEL_MAP[sc];
+                  if (labelInfo) {
+                    await ensureLabel(labelInfo);
+                    labelsToApply.push(labelInfo.name);
+                  } else {
+                    core.warning(`Unknown scope in PR title: ${sc}`);
+                  }
+                }
+              }
+
+              // Collect issue references from PR body
+              let ref;
+              while ((ref = FOOTER_RE.exec(prBody)) !== null) {
+                referencedIssues.add(parseInt(ref[1], 10));
+              }
+
+              // Deduplicate and apply to PR
+              const uniqueLabels = [...new Set(labelsToApply)];
+              if (uniqueLabels.length > 0) {
+                await applyLabels(prNumber, uniqueLabels);
+              }
+
+              // Apply same labels to referenced issues
+              for (const issueNumber of referencedIssues) {
+                await applyLabels(issueNumber, uniqueLabels);
+              }
+            }
+
+            // ===== PROCESS ISSUE =====
+            // Issue labeling: parse conventional commit format or fallback to pattern matching
+            if (context.eventName === 'issues') {
+              const issueNumber = context.payload.issue.number;
+              const issueTitle = context.payload.issue.title;
+              const labelsToApply = [];
+
+              // First: try to parse as conventional commit (highest priority)
+              const conventionalMatch = PR_TITLE_RE.exec(issueTitle);
+              if (conventionalMatch) {
+                const [, type, , scopeStr] = conventionalMatch;
+                
+                // Apply type label
+                if (TYPE_LABEL_MAP[type]) {
+                  const labelInfo = TYPE_LABEL_MAP[type];
+                  await ensureLabel(labelInfo);
+                  labelsToApply.push(labelInfo.name);
+                }
+                
+                // Apply scope labels
+                if (scopeStr) {
+                  const scopes = scopeStr.split(',').map(s => s.trim());
+                  for (const sc of scopes) {
+                    const labelInfo = SCOPE_LABEL_MAP[sc];
+                    if (labelInfo) {
+                      await ensureLabel(labelInfo);
+                      labelsToApply.push(labelInfo.name);
+                    } else {
+                      core.warning(`Unknown scope in issue title: ${sc}`);
+                    }
+                  }
+                }
+              } else {
+                // Fallback: detect scope from issue title patterns like "[scope]" or "scope:"
+                const patternMatch = issueTitle.match(/^\[([^\]]+)\]|^([a-z-]+):/i);
+                if (patternMatch) {
+                  const scope = (patternMatch[1] || patternMatch[2]).toLowerCase();
+                  const labelInfo = SCOPE_LABEL_MAP[scope];
+                  if (labelInfo) {
+                    await ensureLabel(labelInfo);
+                    labelsToApply.push(labelInfo.name);
+                  }
+                }
+              }
+
+              if (labelsToApply.length > 0) {
+                await applyLabels(issueNumber, labelsToApply);
+              }
+            }
+
   # ─── Auto-label dependency PRs ─────────────────────────────────────────────
   label-dependencies:
     name: Label dependency PRs
