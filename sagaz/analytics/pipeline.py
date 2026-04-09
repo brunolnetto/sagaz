@@ -132,13 +132,9 @@ class SagaBronzeProcessor:
         """Normalise raw saga Bronze records (lowercase status, fill saga_name)."""
         return self._run(records, _SAGA_PIPELINE, _SAGA_SCHEMA, "_bronze_sagas")
 
-    def process_executions(
-        self, records: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def process_executions(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Normalise step-execution Bronze records (lowercase outcome, cast types)."""
-        return self._run(
-            records, _EXECUTION_PIPELINE, _EXECUTION_SCHEMA, "_bronze_executions"
-        )
+        return self._run(records, _EXECUTION_PIPELINE, _EXECUTION_SCHEMA, "_bronze_executions")
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -155,9 +151,7 @@ class SagaBronzeProcessor:
             return []
 
         cols_ddl = ", ".join(f'"{k}" {v}' for k, v in schema.items())
-        self._conn.execute(
-            f"CREATE OR REPLACE TEMP TABLE {tmp_name} ({cols_ddl})"
-        )
+        self._conn.execute(f"CREATE OR REPLACE TEMP TABLE {tmp_name} ({cols_ddl})")
 
         keys = list(schema.keys())
         placeholders = ", ".join("?" for _ in keys)
@@ -167,11 +161,9 @@ class SagaBronzeProcessor:
         )
 
         rel = self._conn.table(tmp_name)
-        result_rel = nw.to_native(
-            pipeline.apply(nw.from_native(rel, eager_only=False))
-        )
+        result_rel = nw.to_native(pipeline.apply(nw.from_native(rel, eager_only=False)))
         cols_out = result_rel.columns
-        return [dict(zip(cols_out, row)) for row in result_rel.fetchall()]
+        return [dict(zip(cols_out, row, strict=False)) for row in result_rel.fetchall()]
 
 
 class SagaAnalyticsPipeline:
@@ -297,8 +289,28 @@ class SagaAnalyticsPipeline:
         self._ensure_schema()
         stats = PipelineStats()
 
-        # ---- Bronze → Silver: dim_saga (upsert) ----
         clean_sagas = self._bronze.process_sagas(saga_records)
+        clean_steps = self._bronze.process_executions(step_records)
+
+        self._load_saga_records(stats, clean_sagas)
+        self._load_step_records(stats, clean_steps)
+        self._load_lifecycle_records(clean_sagas, clean_steps)
+
+        logger.info(
+            "Pipeline load: sagas=%d steps=%d facts=%d errors=%d",
+            stats.sagas_loaded,
+            stats.steps_loaded,
+            stats.facts_loaded,
+            len(stats.quality_errors),
+        )
+        return stats
+
+    def _load_saga_records(
+        self,
+        stats: PipelineStats,
+        clean_sagas: list[dict[str, Any]],
+    ) -> None:
+        """Insert validated saga records into ``dim_saga``."""
         for rec in clean_sagas:
             err = self._validate_saga_record(rec)
             if err:
@@ -320,19 +332,20 @@ class SagaAnalyticsPipeline:
             )
             stats.sagas_loaded += 1
 
-        # ---- Bronze → Silver: dim_step + fact_execution ----
-        clean_steps = self._bronze.process_executions(step_records)
+    def _load_step_records(
+        self,
+        stats: PipelineStats,
+        clean_steps: list[dict[str, Any]],
+    ) -> None:
+        """Insert validated step records into ``dim_step`` and ``fact_execution``."""
         for idx, rec in enumerate(clean_steps):
             err = self._validate_step_record(rec)
             if err:
                 stats.quality_errors.append(err)
                 continue
-
             saga_name = rec.get("saga_name") or "unknown"
             step_name = rec["step_name"]
             step_key = f"{saga_name}::{step_name}"
-
-            # dim_step upsert
             self._conn.execute(
                 """
                 INSERT OR IGNORE INTO dim_step (step_key, saga_name, step_name, action)
@@ -341,8 +354,6 @@ class SagaAnalyticsPipeline:
                 [step_key, saga_name, step_name, rec.get("action")],
             )
             stats.steps_loaded += 1
-
-            # fact_execution insert
             self._conn.execute(
                 """
                 INSERT INTO fact_execution
@@ -361,7 +372,12 @@ class SagaAnalyticsPipeline:
             )
             stats.facts_loaded += 1
 
-        # ---- Silver: fact_saga_lifecycle (accumulating snapshot) ----
+    def _load_lifecycle_records(
+        self,
+        clean_sagas: list[dict[str, Any]],
+        clean_steps: list[dict[str, Any]],
+    ) -> None:
+        """Build and insert ``fact_saga_lifecycle`` accumulating snapshots."""
         valid_sagas = [r for r in clean_sagas if not self._validate_saga_record(r)]
         valid_steps = [r for r in clean_steps if not self._validate_step_record(r)]
         for lifecycle_rec in self._build_lifecycle_records(valid_sagas, valid_steps):
@@ -383,15 +399,6 @@ class SagaAnalyticsPipeline:
                     lifecycle_rec["compensation_count"],
                 ],
             )
-
-        logger.info(
-            "Pipeline load: sagas=%d steps=%d facts=%d errors=%d",
-            stats.sagas_loaded,
-            stats.steps_loaded,
-            stats.facts_loaded,
-            len(stats.quality_errors),
-        )
-        return stats
 
     # ------------------------------------------------------------------
     # Gold: query
@@ -456,33 +463,33 @@ class SagaAnalyticsPipeline:
         for rec in step_records:
             step_groups[rec["saga_id"]].append(rec)
 
-        lifecycle = []
-        for saga_id, saga in saga_index.items():
-            steps = step_groups.get(saga_id, [])
-            exec_times = [s["executed_at"] for s in steps if s.get("executed_at")]
-
-            status = saga.get("status", "")
-            completed_at = saga.get("updated_at") if status == "completed" else None
-            rolled_back_at = (
-                saga.get("updated_at")
-                if status in ("rolled_back", "compensating")
-                else None
+        return [
+            SagaAnalyticsPipeline._build_single_lifecycle_record(
+                saga_id, saga, step_groups.get(saga_id, [])
             )
+            for saga_id, saga in saga_index.items()
+        ]
 
-            lifecycle.append(
-                {
-                    "saga_id": saga_id,
-                    "created_at": saga.get("created_at"),
-                    "started_at": min(exec_times) if exec_times else None,
-                    "completed_at": completed_at,
-                    "rolled_back_at": rolled_back_at,
-                    "total_duration_ms": sum(
-                        float(s.get("duration_ms") or 0) for s in steps
-                    ),
-                    "step_count": len(steps),
-                    "compensation_count": sum(
-                        1 for s in steps if s.get("outcome") == "compensated"
-                    ),
-                }
-            )
-        return lifecycle
+    @staticmethod
+    def _build_single_lifecycle_record(
+        saga_id: str,
+        saga: dict[str, Any],
+        steps: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """Build one ``FactSagaLifecycle`` record from a saga and its steps."""
+        exec_times = [s["executed_at"] for s in steps if s.get("executed_at")]
+        status = saga.get("status", "")
+        completed_at = saga.get("updated_at") if status == "completed" else None
+        rolled_back_at = (
+            saga.get("updated_at") if status in ("rolled_back", "compensating") else None
+        )
+        return {
+            "saga_id": saga_id,
+            "created_at": saga.get("created_at"),
+            "started_at": min(exec_times) if exec_times else None,
+            "completed_at": completed_at,
+            "rolled_back_at": rolled_back_at,
+            "total_duration_ms": sum(float(s.get("duration_ms") or 0) for s in steps),
+            "step_count": len(steps),
+            "compensation_count": sum(1 for s in steps if s.get("outcome") == "compensated"),
+        }
