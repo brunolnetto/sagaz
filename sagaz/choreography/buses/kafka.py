@@ -107,15 +107,11 @@ class KafkaEventBusConfig:
     def from_env(cls) -> KafkaEventBusConfig:
         """Build config from environment variables."""
         return cls(
-            bootstrap_servers=os.environ.get(
-                "SAGAZ_BUS_KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"
-            ),
+            bootstrap_servers=os.environ.get("SAGAZ_BUS_KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"),
             topic=os.environ.get("SAGAZ_BUS_KAFKA_TOPIC", "sagaz.choreography"),
             consumer_group=os.environ.get("SAGAZ_BUS_KAFKA_CONSUMER_GROUP", "sagaz"),
             consumer_name=os.environ.get("SAGAZ_BUS_KAFKA_CONSUMER_NAME", "worker-1"),
-            security_protocol=os.environ.get(
-                "SAGAZ_BUS_KAFKA_SECURITY_PROTOCOL", "PLAINTEXT"
-            ),
+            security_protocol=os.environ.get("SAGAZ_BUS_KAFKA_SECURITY_PROTOCOL", "PLAINTEXT"),
             sasl_mechanism=os.environ.get("SAGAZ_BUS_KAFKA_SASL_MECHANISM"),
             sasl_username=os.environ.get("SAGAZ_BUS_KAFKA_SASL_USERNAME"),
             sasl_password=os.environ.get("SAGAZ_BUS_KAFKA_SASL_PASSWORD"),
@@ -217,9 +213,7 @@ class KafkaEventBus(AbstractEventBus):
         await self._producer.start()
         await self._consumer.start()
 
-        self._reader_task = asyncio.create_task(
-            self._reader_loop(), name="sagaz-kafka-reader"
-        )
+        self._reader_task = asyncio.create_task(self._reader_loop(), name="sagaz-kafka-reader")
         logger.info(
             "KafkaEventBus started (topic=%s, group=%s)",
             self._config.topic,
@@ -319,9 +313,7 @@ class KafkaEventBus(AbstractEventBus):
             try:
                 await handler(event)
             except Exception:
-                logger.exception(
-                    "Handler %s raised on event %r", handler, event.event_type
-                )
+                logger.exception("Handler %s raised on event %r", handler, event.event_type)
 
     # ------------------------------------------------------------------
     # Introspection

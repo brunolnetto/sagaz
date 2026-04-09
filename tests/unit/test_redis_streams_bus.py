@@ -215,9 +215,7 @@ async def test_dispatch_calls_wildcard_handler() -> None:
         ("order.created", "*", True),
     ],
 )
-async def test_dispatch_routing(
-    event_type: str, subscribed_to: str, should_call: bool
-) -> None:
+async def test_dispatch_routing(event_type: str, subscribed_to: str, should_call: bool) -> None:
     bus = _make_bus()
     handler = AsyncMock()
     bus.subscribe(subscribed_to, handler)

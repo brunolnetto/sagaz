@@ -90,18 +90,10 @@ class RabbitMQEventBusConfig:
     def from_env(cls) -> RabbitMQEventBusConfig:
         """Build config from environment variables."""
         return cls(
-            url=os.environ.get(
-                "SAGAZ_BUS_RABBITMQ_URL", "amqp://guest:guest@localhost/"
-            ),
-            exchange_name=os.environ.get(
-                "SAGAZ_BUS_RABBITMQ_EXCHANGE", "sagaz.choreography"
-            ),
-            queue_name=os.environ.get(
-                "SAGAZ_BUS_RABBITMQ_QUEUE", "sagaz.choreography.queue"
-            ),
-            prefetch_count=int(
-                os.environ.get("SAGAZ_BUS_RABBITMQ_PREFETCH", "100")
-            ),
+            url=os.environ.get("SAGAZ_BUS_RABBITMQ_URL", "amqp://guest:guest@localhost/"),
+            exchange_name=os.environ.get("SAGAZ_BUS_RABBITMQ_EXCHANGE", "sagaz.choreography"),
+            queue_name=os.environ.get("SAGAZ_BUS_RABBITMQ_QUEUE", "sagaz.choreography.queue"),
+            prefetch_count=int(os.environ.get("SAGAZ_BUS_RABBITMQ_PREFETCH", "100")),
             heartbeat=int(os.environ.get("SAGAZ_BUS_RABBITMQ_HEARTBEAT", "60")),
         )
 
@@ -253,9 +245,7 @@ class RabbitMQEventBus(AbstractEventBus):
             try:
                 payload = json.loads(message.body.decode())
                 raw_dt = datetime.fromisoformat(payload["created_at"])
-                created_at = (
-                    raw_dt.astimezone(UTC) if raw_dt.tzinfo else raw_dt.replace(tzinfo=UTC)
-                )
+                created_at = raw_dt.astimezone(UTC) if raw_dt.tzinfo else raw_dt.replace(tzinfo=UTC)
                 event = Event(
                     event_type=payload["event_type"],
                     data=payload["data"],
@@ -273,9 +263,7 @@ class RabbitMQEventBus(AbstractEventBus):
                 try:
                     await handler(event)
                 except Exception:
-                    logger.exception(
-                        "Handler %s raised on event %r", handler, event.event_type
-                    )
+                    logger.exception("Handler %s raised on event %r", handler, event.event_type)
 
     # ------------------------------------------------------------------
     # Introspection
