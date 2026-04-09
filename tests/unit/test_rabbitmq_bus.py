@@ -35,9 +35,7 @@ def _make_bus(config: RabbitMQEventBusConfig | None = None) -> RabbitMQEventBus:
     return RabbitMQEventBus(config or _make_config())
 
 
-def _make_event(
-    event_type: str = "order.created", saga_id: str | None = "s-1"
-) -> Event:
+def _make_event(event_type: str = "order.created", saga_id: str | None = "s-1") -> Event:
     return Event(event_type=event_type, data={"order_id": "ORD-1"}, saga_id=saga_id)
 
 
@@ -183,9 +181,7 @@ async def test_on_message_calls_wildcard_handler() -> None:
         ("order.created", "*", True),
     ],
 )
-async def test_on_message_routing(
-    event_type: str, subscribed_to: str, should_call: bool
-) -> None:
+async def test_on_message_routing(event_type: str, subscribed_to: str, should_call: bool) -> None:
     bus = _make_bus()
     handler = AsyncMock()
     bus.subscribe(subscribed_to, handler)
