@@ -208,7 +208,7 @@ class RedisStreamsEventBus(AbstractEventBus):
             try:
                 await self._reader_task
             except asyncio.CancelledError:
-                pass
+                pass  # expected when cancelling the reader task — not an error
             self._reader_task = None
         if self._client:
             await self._client.aclose()
@@ -229,7 +229,7 @@ class RedisStreamsEventBus(AbstractEventBus):
         try:
             self._handlers[event_type].remove(handler)
         except ValueError:
-            pass
+            pass  # handler was not registered — silent no-op
 
     # ------------------------------------------------------------------
     # Publishing

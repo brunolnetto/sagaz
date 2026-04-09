@@ -42,7 +42,7 @@ import json
 import logging
 import os
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
@@ -233,7 +233,7 @@ class KafkaEventBus(AbstractEventBus):
             try:
                 await self._reader_task
             except asyncio.CancelledError:
-                pass
+                pass  # expected when cancelling the reader task — not an error
             self._reader_task = None
         if self._consumer is not None:
             await self._consumer.stop()
@@ -257,7 +257,7 @@ class KafkaEventBus(AbstractEventBus):
         try:
             self._handlers[event_type].remove(handler)
         except ValueError:
-            pass
+            pass  # handler was not registered — silent no-op
 
     # ------------------------------------------------------------------
     # Publishing
