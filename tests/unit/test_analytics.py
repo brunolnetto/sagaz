@@ -293,51 +293,100 @@ class TestBronzeProcessor:
 
     def _processor(self) -> SagaBronzeProcessor:
         import duckdb
+
         return SagaBronzeProcessor(duckdb.connect(":memory:"))
 
     def test_process_sagas_lowercases_status(self):
         proc = self._processor()
-        records = [{"saga_id": "s1", "saga_name": "OrderSaga", "status": "COMPLETED",
-                    "created_at": None, "updated_at": None}]
+        records = [
+            {
+                "saga_id": "s1",
+                "saga_name": "OrderSaga",
+                "status": "COMPLETED",
+                "created_at": None,
+                "updated_at": None,
+            }
+        ]
         result = proc.process_sagas(records)
         assert result[0]["status"] == "completed"
 
     def test_process_sagas_fills_null_saga_name(self):
         proc = self._processor()
-        records = [{"saga_id": "s1", "saga_name": None, "status": "executing",
-                    "created_at": None, "updated_at": None}]
+        records = [
+            {
+                "saga_id": "s1",
+                "saga_name": None,
+                "status": "executing",
+                "created_at": None,
+                "updated_at": None,
+            }
+        ]
         result = proc.process_sagas(records)
         assert result[0]["saga_name"] == "unknown"
 
     def test_process_sagas_preserves_known_saga_name(self):
         proc = self._processor()
-        records = [{"saga_id": "s1", "saga_name": "PaySaga", "status": "completed",
-                    "created_at": None, "updated_at": None}]
+        records = [
+            {
+                "saga_id": "s1",
+                "saga_name": "PaySaga",
+                "status": "completed",
+                "created_at": None,
+                "updated_at": None,
+            }
+        ]
         result = proc.process_sagas(records)
         assert result[0]["saga_name"] == "PaySaga"
 
     def test_process_executions_lowercases_outcome(self):
         proc = self._processor()
-        records = [{"saga_id": "s1", "saga_name": "OrderSaga", "step_name": "pay",
-                    "action": None, "outcome": "SUCCESS", "duration_ms": "50.0",
-                    "attempt": "1", "executed_at": None}]
+        records = [
+            {
+                "saga_id": "s1",
+                "saga_name": "OrderSaga",
+                "step_name": "pay",
+                "action": None,
+                "outcome": "SUCCESS",
+                "duration_ms": "50.0",
+                "attempt": "1",
+                "executed_at": None,
+            }
+        ]
         result = proc.process_executions(records)
         assert result[0]["outcome"] == "success"
 
     def test_process_executions_casts_duration_ms_to_float(self):
         proc = self._processor()
-        records = [{"saga_id": "s1", "saga_name": "OrderSaga", "step_name": "pay",
-                    "action": None, "outcome": "success", "duration_ms": "75.5",
-                    "attempt": "1", "executed_at": None}]
+        records = [
+            {
+                "saga_id": "s1",
+                "saga_name": "OrderSaga",
+                "step_name": "pay",
+                "action": None,
+                "outcome": "success",
+                "duration_ms": "75.5",
+                "attempt": "1",
+                "executed_at": None,
+            }
+        ]
         result = proc.process_executions(records)
         assert isinstance(result[0]["duration_ms"], float)
         assert result[0]["duration_ms"] == 75.5
 
     def test_process_executions_casts_attempt_to_int(self):
         proc = self._processor()
-        records = [{"saga_id": "s1", "saga_name": "OrderSaga", "step_name": "pay",
-                    "action": None, "outcome": "success", "duration_ms": "10.0",
-                    "attempt": "3", "executed_at": None}]
+        records = [
+            {
+                "saga_id": "s1",
+                "saga_name": "OrderSaga",
+                "step_name": "pay",
+                "action": None,
+                "outcome": "success",
+                "duration_ms": "10.0",
+                "attempt": "3",
+                "executed_at": None,
+            }
+        ]
         result = proc.process_executions(records)
         assert isinstance(result[0]["attempt"], int)
         assert result[0]["attempt"] == 3
@@ -352,9 +401,18 @@ class TestBronzeProcessor:
 
     def test_process_executions_fills_null_saga_name(self):
         proc = self._processor()
-        records = [{"saga_id": "s1", "saga_name": None, "step_name": "charge",
-                    "action": None, "outcome": "success", "duration_ms": "10.0",
-                    "attempt": "1", "executed_at": None}]
+        records = [
+            {
+                "saga_id": "s1",
+                "saga_name": None,
+                "step_name": "charge",
+                "action": None,
+                "outcome": "success",
+                "duration_ms": "10.0",
+                "attempt": "1",
+                "executed_at": None,
+            }
+        ]
         result = proc.process_executions(records)
         assert result[0]["saga_name"] == "unknown"
 
@@ -370,8 +428,7 @@ class TestLifecycleLoading:
     def _setup_with_steps(self) -> SagaAnalyticsPipeline:
         p = SagaAnalyticsPipeline()
         p.load_from_records(
-            [_saga("s1", "OrderSaga", "completed"),
-             _saga("s2", "OrderSaga", "rolled_back")],
+            [_saga("s1", "OrderSaga", "completed"), _saga("s2", "OrderSaga", "rolled_back")],
             [
                 _step("s1", "reserve", "success", 20.0),
                 _step("s1", "charge", "success", 80.0),
@@ -387,16 +444,12 @@ class TestLifecycleLoading:
 
     def test_lifecycle_step_count_correct(self):
         with self._setup_with_steps() as p:
-            rows = p.query(
-                "SELECT step_count FROM fact_saga_lifecycle WHERE saga_id = 's1'"
-            )
+            rows = p.query("SELECT step_count FROM fact_saga_lifecycle WHERE saga_id = 's1'")
         assert rows[0]["step_count"] == 2
 
     def test_lifecycle_total_duration_ms_correct(self):
         with self._setup_with_steps() as p:
-            rows = p.query(
-                "SELECT total_duration_ms FROM fact_saga_lifecycle WHERE saga_id = 's1'"
-            )
+            rows = p.query("SELECT total_duration_ms FROM fact_saga_lifecycle WHERE saga_id = 's1'")
         assert rows[0]["total_duration_ms"] == pytest.approx(100.0)
 
     def test_lifecycle_compensation_count_correct(self):
@@ -412,4 +465,3 @@ class TestLifecycleLoading:
         assert len(rows) == 2
         cols = set(rows[0].keys())
         assert {"saga_name", "saga_id", "total_duration_ms", "step_count"}.issubset(cols)
-
