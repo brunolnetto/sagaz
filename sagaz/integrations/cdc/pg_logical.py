@@ -143,10 +143,6 @@ class PgLogicalSource:
             )
         except Exception:
             return None  # Unparseable message — skip silently
-        try:
-            await conn.close()
-        except Exception:
-            pass  # Best-effort close; ignore errors on teardown
 
     @property
     def is_running(self) -> bool:
