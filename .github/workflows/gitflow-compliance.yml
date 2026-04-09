@@ -190,24 +190,48 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'renovate/') }}
     steps:
-      - name: Check PR description for issue reference
+      - name: Check PR description for issue reference (if required by PR type)
         uses: actions/github-script@v7
         with:
           script: |
-            const body = (context.payload.pull_request.body || "").toLowerCase()
+            const head = context.payload.pull_request.head_ref || "";
+            const body = (context.payload.pull_request.body || "").toLowerCase();
 
+            // PR types that DO NOT require issue references (per docs/development/ISSUE-PR-POLICY.md)
+            const exemptTypes = [
+              "test/",      // Test improvements
+              "ci/",        // CI/CD workflow updates
+              "build/",     // Build process updates
+              "chore/",     // Routine maintenance
+              "docs/",      // Documentation (most cases)
+            ];
+
+            // Check if this PR type is exempt
+            const isExempt = exemptTypes.some(type => head.startsWith(type));
+
+            if (isExempt) {
+              core.info(`✅ PR type '${head.split('/')[0]}/' is exempt from issue reference requirement.`);
+              return;
+            }
+
+            // For feature/fix/refactor/perf/revert: require issue reference
             const patterns = [
               /closes\s*:?\s+#\d+(?:[.,;!?]|\s|$)/,
               /fixes\s*:?\s+#\d+(?:[.,;!?]|\s|$)/,
-              /resolves\s*:?\s+#\d+(?:[.,;!?]|\s|$)/
-            ]
+              /resolves\s*:?\s+#\d+(?:[.,;!?]|\s|$)/,
+              /relates\s+to\s*:?\s+#\d+(?:[.,;!?]|\s|$)/,
+              /ref\s*:?\s+#\d+(?:[.,;!?]|\s|$)/
+            ];
 
-            const found = patterns.some(p => p.test(body))
+            const found = patterns.some(p => p.test(body));
 
             if (!found) {
               core.setFailed(
-                "Pull Request must reference an Issue using 'Closes #<number>', 'Fixes #<number>' or 'Resolves #<number>'."
-              )
+                `Pull Request of type '${head.split('/')[0]}/' must reference an Issue.\n\n` +
+                `Use one of: 'Closes #<number>', 'Fixes #<number>', 'Resolves #<number>', 'Relates to #<number>', or 'Ref #<number>'.\n\n` +
+                `See: docs/development/ISSUE-PR-POLICY.md for details on when issues are required.\n\n` +
+                `Exempt PR types: test/, ci/, build/, chore/, docs/`
+              );
             }
 
 # ─── Branch Flow Validation ───────────────────────────────────────────────────
