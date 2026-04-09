@@ -102,14 +102,10 @@ class RedisStreamsBusConfig:
         """Build config from environment variables."""
         return cls(
             url=os.environ.get("SAGAZ_BUS_REDIS_URL", "redis://localhost:6379/0"),
-            stream_name=os.environ.get(
-                "SAGAZ_BUS_REDIS_STREAM_NAME", "sagaz.choreography"
-            ),
+            stream_name=os.environ.get("SAGAZ_BUS_REDIS_STREAM_NAME", "sagaz.choreography"),
             consumer_group=os.environ.get("SAGAZ_BUS_REDIS_CONSUMER_GROUP", "sagaz"),
             consumer_name=os.environ.get("SAGAZ_BUS_REDIS_CONSUMER_NAME", "worker-1"),
-            block_timeout_ms=int(
-                os.environ.get("SAGAZ_BUS_REDIS_BLOCK_TIMEOUT_MS", "1000")
-            ),
+            block_timeout_ms=int(os.environ.get("SAGAZ_BUS_REDIS_BLOCK_TIMEOUT_MS", "1000")),
         )
 
 
@@ -177,9 +173,7 @@ class RedisStreamsEventBus(AbstractEventBus):
         """Connect to Redis, ensure the consumer group exists, start reader."""
         if self._reader_task is not None and not self._reader_task.done():
             return
-        self._client = aioredis.from_url(
-            self._config.url, decode_responses=False
-        )
+        self._client = aioredis.from_url(self._config.url, decode_responses=False)
         # Create consumer group (idempotent — OK if already exists)
         try:
             await self._client.xgroup_create(
@@ -192,9 +186,7 @@ class RedisStreamsEventBus(AbstractEventBus):
             # BUSYGROUP means the group already exists — not an error
             if "BUSYGROUP" not in str(exc):
                 raise
-        self._reader_task = asyncio.create_task(
-            self._reader_loop(), name="sagaz-chorus-reader"
-        )
+        self._reader_task = asyncio.create_task(self._reader_loop(), name="sagaz-chorus-reader")
         logger.info(
             "RedisStreamsEventBus started (stream=%s, group=%s)",
             self._config.stream_name,
@@ -301,9 +293,7 @@ class RedisStreamsEventBus(AbstractEventBus):
             try:
                 await handler(event)
             except Exception:
-                logger.exception(
-                    "Handler %s raised on event %r", handler, event.event_type
-                )
+                logger.exception("Handler %s raised on event %r", handler, event.event_type)
 
     # ------------------------------------------------------------------
     # Introspection
