@@ -42,7 +42,7 @@ from dataclasses import dataclass
 from datetime import UTC
 from typing import Any
 
-from sagaz.choreography.events import Event, HandlerT
+from sagaz.choreography.events import AbstractEventBus, Event, HandlerT
 from sagaz.core.exceptions import MissingDependencyError
 
 try:
@@ -140,7 +140,7 @@ def _fields_to_event(fields: dict[bytes, bytes]) -> Event:
     )
 
 
-class RedisStreamsEventBus:
+class RedisStreamsEventBus(AbstractEventBus):
     """
     Distributed ``EventBus`` backed by Redis Streams.
 
