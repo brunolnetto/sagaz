@@ -132,13 +132,9 @@ class SagaBronzeProcessor:
         """Normalise raw saga Bronze records (lowercase status, fill saga_name)."""
         return self._run(records, _SAGA_PIPELINE, _SAGA_SCHEMA, "_bronze_sagas")
 
-    def process_executions(
-        self, records: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def process_executions(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Normalise step-execution Bronze records (lowercase outcome, cast types)."""
-        return self._run(
-            records, _EXECUTION_PIPELINE, _EXECUTION_SCHEMA, "_bronze_executions"
-        )
+        return self._run(records, _EXECUTION_PIPELINE, _EXECUTION_SCHEMA, "_bronze_executions")
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -155,9 +151,7 @@ class SagaBronzeProcessor:
             return []
 
         cols_ddl = ", ".join(f'"{k}" {v}' for k, v in schema.items())
-        self._conn.execute(
-            f"CREATE OR REPLACE TEMP TABLE {tmp_name} ({cols_ddl})"
-        )
+        self._conn.execute(f"CREATE OR REPLACE TEMP TABLE {tmp_name} ({cols_ddl})")
 
         keys = list(schema.keys())
         placeholders = ", ".join("?" for _ in keys)
@@ -167,9 +161,7 @@ class SagaBronzeProcessor:
         )
 
         rel = self._conn.table(tmp_name)
-        result_rel = nw.to_native(
-            pipeline.apply(nw.from_native(rel, eager_only=False))
-        )
+        result_rel = nw.to_native(pipeline.apply(nw.from_native(rel, eager_only=False)))
         cols_out = result_rel.columns
         return [dict(zip(cols_out, row, strict=False)) for row in result_rel.fetchall()]
 
@@ -501,4 +493,3 @@ class SagaAnalyticsPipeline:
             "step_count": len(steps),
             "compensation_count": sum(1 for s in steps if s.get("outcome") == "compensated"),
         }
-
