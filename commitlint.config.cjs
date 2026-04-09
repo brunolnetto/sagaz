@@ -44,5 +44,6 @@ module.exports = {
     "subject-full-stop": [2, "never", "."],
     "scope-empty": [2, "never"],
     "type-empty": [2, "never"],
+    "footer-leading-blank": [1, "always"],  // warn instead of fail for footer formatting
   },
 };
