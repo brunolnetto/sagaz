@@ -11,7 +11,7 @@ pytest.importorskip("duckdb", reason="duckdb not installed; install sagaz[analyt
 
 from sqldim import AccumulatingFact, TransactionFact
 
-from sagaz.analytics.pipeline import PipelineStats, SagaBronzeProcessor, SagaAnalyticsPipeline
+from sagaz.analytics.pipeline import PipelineStats, SagaAnalyticsPipeline, SagaBronzeProcessor
 from sagaz.analytics.queries import SagaQueries
 from sagaz.analytics.schema import DimSaga, DimStep, FactExecution, FactSagaLifecycle
 
