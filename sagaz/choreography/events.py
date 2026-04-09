@@ -2,14 +2,16 @@
 Event and EventBus for saga choreography.
 
 ``Event`` is a lightweight, immutable message.
+``AbstractEventBus`` is the shared protocol every transport backend implements.
 ``EventBus`` is an in-process pub/sub bus that directly awaits handlers.
-It is intentionally decoupled from Kafka / RabbitMQ — those are adapters
-that can *publish to* or *subscribe from* this bus.
+Distributed transports (Redis Streams, Kafka, RabbitMQ) live in
+``sagaz.choreography.buses`` and all extend ``AbstractEventBus``.
 """
 
 from __future__ import annotations
 
 import logging
+from abc import ABC, abstractmethod
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -61,7 +63,78 @@ class Event:
         return f"Event({self.event_type!r}, saga={self.saga_id!r}, id={self.event_id[:8]})"
 
 
-class EventBus:
+class AbstractEventBus(ABC):
+    """
+    Shared contract for all EventBus transport backends.
+
+    Implementations
+    ---------------
+    - ``EventBus``              — in-process asyncio (zero dependencies)
+    - ``RedisStreamsEventBus``  — Redis Streams (requires ``sagaz[redis]``)
+    - ``KafkaEventBus``        — Apache Kafka   (requires ``sagaz[kafka]``)
+    - ``RabbitMQEventBus``     — RabbitMQ/AMQP  (requires ``sagaz[rabbitmq]``)
+
+    Lifecycle
+    ---------
+    Call ``await bus.start()`` before publishing or subscribing with
+    distributed backends.  In-process ``EventBus`` treats ``start``/``stop``
+    as no-ops.
+    """
+
+    # ------------------------------------------------------------------
+    # Subscription (abstract — every backend must implement)
+    # ------------------------------------------------------------------
+
+    @abstractmethod
+    def subscribe(self, event_type: str, handler: HandlerT) -> None:
+        """Register *handler* for *event_type* (``"*"`` = all events)."""
+
+    @abstractmethod
+    def unsubscribe(self, event_type: str, handler: HandlerT) -> None:
+        """Remove *handler* from *event_type* subscribers."""
+
+    # ------------------------------------------------------------------
+    # Publishing (abstract)
+    # ------------------------------------------------------------------
+
+    @abstractmethod
+    async def publish(self, event: Event) -> None:
+        """Publish *event* to all registered handlers."""
+
+    # ------------------------------------------------------------------
+    # Lifecycle (optional — default implementations are no-ops)
+    # ------------------------------------------------------------------
+
+    async def start(self) -> None:
+        """Connect and start background reader, if applicable.
+
+        No-op for in-process buses.  Distributed backends must override.
+        """
+
+    async def stop(self) -> None:
+        """Disconnect and stop background reader, if applicable.
+
+        No-op for in-process buses.  Distributed backends must override.
+        """
+
+    # ------------------------------------------------------------------
+    # Testing helpers (default implementations return safe empty values)
+    # ------------------------------------------------------------------
+
+    @property
+    def published(self) -> list[Event]:
+        """Events published via this bus instance (empty if not tracked)."""
+        return []
+
+    def clear_history(self) -> None:
+        """Discard recorded publish history (no-op if not tracked)."""
+
+    def handler_count(self, event_type: str) -> int:
+        """Number of handlers registered for *event_type*."""
+        return 0
+
+
+class EventBus(AbstractEventBus):
     """
     In-process publish/subscribe event bus.
 

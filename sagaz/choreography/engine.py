@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 
-from sagaz.choreography.events import Event, EventBus
+from sagaz.choreography.events import AbstractEventBus, Event
 from sagaz.choreography.saga import ChoreographedSaga
 
 logger = logging.getLogger(__name__)
@@ -43,7 +43,7 @@ class ChoreographyEngine:
         await engine.stop()
     """
 
-    def __init__(self, bus: EventBus) -> None:
+    def __init__(self, bus: AbstractEventBus) -> None:
         self._bus = bus
         self._sagas: dict[str, ChoreographedSaga] = {}
         self._running = False
