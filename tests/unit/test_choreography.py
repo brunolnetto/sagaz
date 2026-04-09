@@ -170,6 +170,25 @@ class TestEventBus:
         await bus.start()
         await bus.stop()
 
+    def test_abstract_eventbus_default_published_and_handler_count(self):
+        """AbstractEventBus default published/handler_count return empty values."""
+        from sagaz.choreography.events import AbstractEventBus
+
+        class _MinimalBus(AbstractEventBus):
+            async def publish(self, event: Event) -> None:  # type: ignore[override]
+                pass
+
+            def subscribe(self, event_type: str, handler) -> None:  # type: ignore[override]
+                pass
+
+            def unsubscribe(self, event_type: str, handler) -> None:  # type: ignore[override]
+                pass
+
+        bus = _MinimalBus()
+        assert bus.published == []
+        assert bus.handler_count("any") == 0
+        bus.clear_history()  # must not raise
+
 
 # ---------------------------------------------------------------------------
 # @on_event decorator
@@ -444,3 +463,41 @@ class TestChoreographyEngine:
         await engine.stop()
 
         assert calls == 1, f"Expected 1 call, got {calls} (duplicate handler registered)"
+
+    @pytest.mark.asyncio
+    async def test_unregister_nonexistent_saga_id_is_noop(self):
+        """Calling unregister() for an unknown saga_id must not raise."""
+        bus = EventBus()
+        engine = ChoreographyEngine(bus)
+        engine.unregister("does-not-exist")  # must not raise
+
+    def test_duplicate_event_type_logs_warning(self):
+        """Two @on_event handlers for the same event type trigger a warning."""
+        import logging
+
+        import sagaz.choreography.saga as saga_mod
+
+        class DuplicateSaga(ChoreographedSaga):
+            @on_event("same.event")
+            async def handler_one(self, event: Event) -> None:
+                pass
+
+            @on_event("same.event")
+            async def handler_two(self, event: Event) -> None:
+                pass
+
+        records: list[logging.LogRecord] = []
+
+        class _Capture(logging.Handler):
+            def emit(self, record: logging.LogRecord) -> None:
+                records.append(record)
+
+        cap = _Capture()
+        saga_mod.logger.addHandler(cap)
+        try:
+            DuplicateSaga(saga_id="dup-1")
+        finally:
+            saga_mod.logger.removeHandler(cap)
+
+        warning_records = [r for r in records if r.levelno == logging.WARNING]
+        assert any("multiple handlers" in r.getMessage() for r in warning_records)
