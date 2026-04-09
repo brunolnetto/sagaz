@@ -24,6 +24,119 @@ from sagaz.cli.project import check as check_cmd
 from sagaz.cli.project import list_sagas
 from sagaz.cli.replay import replay
 
+# ---------------------------------------------------------------------------
+# region sub-group (multi-region coordination)
+# ---------------------------------------------------------------------------
+
+
+@click.group("region")
+def region_group() -> None:
+    """Inspect and manage multi-region coordinator state."""
+
+
+@region_group.command("list")
+@click.option(
+    "--config",
+    "config_path",
+    default=None,
+    help="Path to sagaz.yaml with a 'regions:' block.",
+)
+def region_list_cmd(config_path: str | None) -> None:
+    """Show health status for all registered regions."""
+    import asyncio
+    from pathlib import Path
+
+    import yaml as _yaml  # optional; may not be installed in all envs
+
+    from sagaz.core.regions import Region, RegionRegistry
+
+    registry = RegionRegistry()
+
+    if config_path:
+        try:
+            with Path(config_path).open() as f:
+                cfg = _yaml.safe_load(f)
+            for entry in cfg.get("regions", []):
+                reg = Region(
+                    name=entry["name"],
+                    storage_url=entry.get("storage_url", ""),
+                    broker_url=entry.get("broker_url", ""),
+                    priority=entry.get("priority", 0),
+                )
+                registry.register(reg)
+        except Exception as exc:
+            click.echo(f"Could not load config: {exc}", err=True)
+            return
+    else:
+        click.echo("No --config provided; showing empty registry.")
+        return
+
+    regions = registry.all_regions()
+    if not regions:
+        click.echo("No regions registered.")
+        return
+
+    if console:
+        from rich.table import Table as RichTable
+
+        table = RichTable(title="Regions", show_lines=True)
+        table.add_column("Name", style="bold cyan")
+        table.add_column("Priority")
+        table.add_column("Health")
+        table.add_column("Latency (ms)")
+        table.add_column("Broker URL")
+        for r in sorted(regions, key=lambda x: x.priority):
+            table.add_row(
+                r.name,
+                str(r.priority),
+                r.health.value,
+                str(r.latency_ms) if r.latency_ms != float("inf") else "—",
+                r.broker_url or "—",
+            )
+        console.print(table)
+    else:
+        for r in sorted(regions, key=lambda x: x.priority):
+            click.echo(f"{r.name:20} priority={r.priority} health={r.health.value}")
+
+
+@region_group.command("failover")
+@click.option("--from", "from_region", required=True, help="Source region to fail away from.")
+@click.option("--to", "to_region", default=None, help="Target region (auto-select if omitted).")
+@click.option("--yes", is_flag=True, default=False, help="Skip confirmation prompt.")
+def region_failover_cmd(from_region: str, to_region: str | None, yes: bool) -> None:
+    """Trigger a manual failover from one region to another."""
+    import asyncio
+
+    from sagaz.core.coordinator import MultiRegionCoordinator
+    from sagaz.core.regions import Region, RegionHealth, RegionRegistry
+
+    if not yes:
+        confirmed = click.confirm(
+            f"Fail over from '{from_region}' to '{to_region or 'auto'}'?", default=False
+        )
+        if not confirmed:
+            click.echo("Aborted.")
+            return
+
+    registry = RegionRegistry()
+    # Seed registry with from/to for demo purposes
+    registry.register(Region(from_region, priority=0), home=True)
+    if to_region:
+        registry.register(Region(to_region, priority=1))
+        registry.update_health(to_region, RegionHealth.HEALTHY)
+
+    coordinator = MultiRegionCoordinator(registry)
+
+    async def run():
+        return await coordinator.failover(from_region, to_region)
+
+    result = asyncio.run(run())
+    if result:
+        click.echo(f"Failover complete: now serving from '{result.name}'.")
+    else:
+        click.echo("Failover failed: no healthy target region.", err=True)
+
+
 try:
     from rich.console import Console
     from rich.panel import Panel
@@ -1628,6 +1741,7 @@ cli.add_command(version_cmd, name="version")
 
 # State Modification (Highest Risk)
 cli.add_command(replay, name="replay")
+cli.add_command(region_group, name="region")
 
 if __name__ == "__main__":
     cli()
