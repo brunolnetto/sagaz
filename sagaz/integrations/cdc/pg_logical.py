@@ -110,6 +110,13 @@ class PgLogicalSource:
         finally:
             await self._close(conn)
 
+    async def _close(self, conn: Any) -> None:
+        """Close the replication connection.  Overridden in tests."""
+        try:
+            await conn.close()
+        except Exception:
+            pass
+
     async def _connect(self) -> Any:
         """Open asyncpg replication connection.  Overridden in tests."""
         try:
