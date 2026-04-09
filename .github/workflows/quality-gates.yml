@@ -44,7 +44,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.5.10"
+          version: "0.11.5"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
@@ -71,13 +71,13 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'renovate/') }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
 
       - run: npm ci
 
@@ -102,12 +102,12 @@ jobs:
       - name: Set up Python 3.13
         uses: actions/setup-python@v6
         with:
-          python-version: '3.13'
+          python-version: '3.14'
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.5.10"
+          version: "0.11.5"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
@@ -176,12 +176,12 @@ jobs:
       - name: Set up Python 3.13
         uses: actions/setup-python@v6
         with:
-          python-version: '3.13'
+          python-version: '3.14'
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.5.10"
+          version: "0.11.5"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
@@ -246,7 +246,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.14"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -387,7 +387,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.5.10"
+          version: "0.11.5"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
@@ -445,12 +445,12 @@ jobs:
       - name: Set up Python 3.13
         uses: actions/setup-python@v6
         with:
-          python-version: '3.13'
+          python-version: '3.14'
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.5.10"
+          version: "0.11.5"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
