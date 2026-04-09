@@ -39,9 +39,7 @@ def _make_bus(config: KafkaEventBusConfig | None = None) -> KafkaEventBus:
     return KafkaEventBus(config or _make_config())
 
 
-def _make_event(
-    event_type: str = "order.created", saga_id: str | None = "s-1"
-) -> Event:
+def _make_event(event_type: str = "order.created", saga_id: str | None = "s-1") -> Event:
     return Event(event_type=event_type, data={"order_id": "ORD-1"}, saga_id=saga_id)
 
 
@@ -191,9 +189,7 @@ async def test_dispatch_calls_wildcard_handler() -> None:
         ("order.created", "*", True),
     ],
 )
-async def test_dispatch_routing(
-    event_type: str, subscribed_to: str, should_call: bool
-) -> None:
+async def test_dispatch_routing(event_type: str, subscribed_to: str, should_call: bool) -> None:
     bus = _make_bus()
     handler = AsyncMock()
     bus.subscribe(subscribed_to, handler)
