@@ -10,6 +10,11 @@ on:
 
 env:
   CI: true
+  # Improvement #2: Configurable bot list for easy maintenance
+  ALLOWED_BOTS: |
+    dependabot[bot]
+    renovate[bot]
+    github-actions[bot]
 
 # ─── Prevent Direct Pushes ────────────────────────────────────────────────────
 
@@ -18,6 +23,9 @@ jobs:
     name: Prevent Direct Push to Protected Branches
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
+    permissions:
+      contents: read
+      issues: write  # Improvement #8: Permission to create issues for violations
     steps:
       - name: Check for direct push to main or develop
         uses: actions/github-script@v7
@@ -27,37 +35,93 @@ jobs:
             const ref = event.ref;
             const branch = ref.replace('refs/heads/', '');
             const pusher = event.pusher.name;
+            const commitSha = event.head_commit.id;
+            const commitMessage = event.head_commit.message || '';
+            const timestamp = new Date().toISOString();
             
-            // Allow bot pushes (Dependabot, Renovate, GitHub Actions)
-            if (pusher === 'dependabot[bot]' || 
-                pusher === 'renovate[bot]' || 
-                pusher === 'github-actions[bot]' ||
-                event.user?.type === 'Bot') {
+            // Improvement #2: Use configurable bot list from environment
+            const allowedBotsEnv = process.env.ALLOWED_BOTS || '';
+            const allowedBots = allowedBotsEnv
+              .split('\n')
+              .map(b => b.trim())
+              .filter(b => b.length > 0);
+            
+            // Check if pusher is an allowed bot
+            const isAllowedBot = allowedBots.includes(pusher) || event.user?.type === 'Bot';
+            
+            // Improvement #4: Enhanced structured logging for audit trail
+            const auditLog = {
+              timestamp,
+              event_type: 'push_protection_check',
+              pusher,
+              pusher_type: event.user?.type || 'User',
+              branch,
+              commit_sha: commitSha,
+              is_merge_commit: /^Merge (pull request|branch)/.test(commitMessage),
+              is_bot_push: isAllowedBot,
+              protected_branch: branch === 'main' || branch === 'develop',
+              action: null,
+              reason: null
+            };
+            
+            if (isAllowedBot) {
+              auditLog.action = 'ALLOWED';
+              auditLog.reason = 'bot_push';
               core.info(`✅ Bot push allowed: ${pusher}`);
+              core.info(JSON.stringify(auditLog));
               return;
             }
             
             // Check if this is a merge commit (from GitHub auto-merge or merge workflow)
-            const commit = event.head_commit;
-            const message = commit.message || '';
-            if (/^Merge (pull request|branch)/.test(message)) {
+            if (/^Merge (pull request|branch)/.test(commitMessage)) {
+              auditLog.action = 'ALLOWED';
+              auditLog.reason = 'merge_commit';
               core.info('✅ Merge commit allowed');
+              core.info(JSON.stringify(auditLog));
               return;
             }
             
             // Only protect main and develop from direct pushes
             if (branch === 'main' || branch === 'develop') {
-              core.setFailed(
-                `❌ Direct pushes to '${branch}' are not allowed.\n\n` +
+              auditLog.action = 'BLOCKED';
+              auditLog.reason = 'direct_push_to_protected_branch';
+              
+              const errorMessage = `❌ Direct pushes to '${branch}' are not allowed.\n\n` +
                 `Please use the GitFlow workflow:\n` +
                 `  1. Create a feature branch: git checkout -b feature/your-feature\n` +
                 `  2. Push your branch: git push -u origin feature/your-feature\n` +
                 `  3. Create a Pull Request on GitHub\n` +
                 `  4. Get approval and merge via GitHub UI\n\n` +
-                `This ensures all commits follow conventional format and pass CI/CD checks.`
-              );
+                `This ensures all commits follow conventional format and pass CI/CD checks.`;
+              
+              core.setFailed(errorMessage);
+              core.info(JSON.stringify(auditLog));
+              
+              // Improvement #8: Create issue for audit trail and team notification
+              try {
+                await github.rest.issues.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  title: `🚨 Direct push blocked to '${branch}' by ${pusher}`,
+                  body: `**Direct Push Protection Triggered**\n\n` +
+                    `- **Pusher**: ${pusher}\n` +
+                    `- **Branch**: ${branch}\n` +
+                    `- **Commit**: ${commitSha.substring(0, 7)}\n` +
+                    `- **Message**: ${commitMessage.split('\n')[0]}\n` +
+                    `- **Timestamp**: ${timestamp}\n\n` +
+                    `**Action Required**: Use GitFlow workflow (feature branch → PR → review → merge)\n\n` +
+                    `See [Development Policy](docs/.github/skills/development-policy/SKILL.md) for details.`,
+                  labels: ['violation', 'push-protection', 'ci']
+                });
+                core.notice(`📋 Created issue for audit trail`);
+              } catch (error) {
+                core.warning(`⚠️ Failed to create audit issue: ${error.message}`);
+              }
             } else {
+              auditLog.action = 'ALLOWED';
+              auditLog.reason = 'non_protected_branch';
               core.info(`✅ Direct push to '${branch}' allowed (not a protected branch)`);
+              core.info(JSON.stringify(auditLog));
             }
 
 # ─── PR Title Validation (Conventional Commit) ────────────────────────────────
