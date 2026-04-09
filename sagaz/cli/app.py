@@ -1596,6 +1596,142 @@ def run_example(name: str):
     """
 
 
+@click.command()
+@click.argument("import_path")
+@click.option(
+    "--direction",
+    type=click.Choice(["TB", "LR", "BT", "RL"], case_sensitive=True),
+    default="TB",
+    show_default=True,
+    help="Mermaid flowchart direction",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["mermaid", "markdown", "url"], case_sensitive=False),
+    default="mermaid",
+    show_default=True,
+    help="Output format",
+)
+@click.option(
+    "--output",
+    "output_file",
+    type=click.Path(dir_okay=False, writable=True),
+    default=None,
+    help="Write output to FILE instead of stdout",
+)
+@click.option(
+    "--no-compensation",
+    "show_compensation",
+    is_flag=True,
+    default=True,
+    help="Hide compensation branches in the diagram",
+)
+def visualize_cmd(
+    import_path: str,
+    direction: str,
+    output_format: str,
+    output_file: str | None,
+    show_compensation: bool,
+) -> None:
+    """Generate a Mermaid flowchart for a Saga class.
+
+    IMPORT_PATH — dotted module path and class name separated by ':'.
+
+    \b
+    Examples:
+      sagaz visualize myapp.sagas:OrderSaga
+      sagaz visualize myapp.sagas:OrderSaga --format markdown --output diagram.md
+      sagaz visualize myapp.sagas:OrderSaga --format url
+    """
+    import asyncio
+    import base64
+    import importlib
+    import json
+    import sys
+
+    from rich.console import Console
+    from rich.syntax import Syntax
+
+    console = Console(stderr=True)
+
+    # Parse import_path
+    if ":" not in import_path:
+        console.print(
+            f"[red]Error:[/red] IMPORT_PATH must be 'module.path:ClassName', got {import_path!r}",
+        )
+        raise SystemExit(1)
+
+    module_path, class_name = import_path.rsplit(":", 1)
+
+    try:
+        module = importlib.import_module(module_path)
+    except ModuleNotFoundError as exc:
+        console.print(f"[red]Cannot import module {module_path!r}:[/red] {exc}")
+        raise SystemExit(1) from exc
+
+    cls = getattr(module, class_name, None)
+    if cls is None:
+        console.print(f"[red]Class {class_name!r} not found in module {module_path!r}[/red]")
+        raise SystemExit(1)
+
+    # Instantiate + build
+    async def _build_and_generate() -> str:
+        try:
+            instance = cls()
+        except TypeError as exc:
+            console.print(
+                f"[red]Cannot instantiate {class_name}() with no arguments:[/red] {exc}\n"
+                "[yellow]Tip:[/yellow] Ensure the class has default values for all "
+                "constructor parameters."
+            )
+            raise SystemExit(1) from exc
+
+        if hasattr(instance, "build"):
+            try:
+                await instance.build()
+            except Exception as exc:
+                console.print(
+                    f"[yellow]Warning:[/yellow] build() raised {type(exc).__name__}: {exc}. "
+                    "Diagram may be incomplete."
+                )
+
+        if not hasattr(instance, "to_mermaid"):
+            console.print(
+                f"[red]{class_name} does not have a to_mermaid() method.[/red]\n"
+                "Only Saga subclasses are supported."
+            )
+            raise SystemExit(1)
+
+        return instance.to_mermaid(
+            direction=direction,
+            show_compensation=show_compensation,
+        )
+
+    diagram = asyncio.run(_build_and_generate())
+
+    # Format
+    if output_format == "markdown":
+        content = f"```mermaid\n{diagram}\n```\n"
+    elif output_format == "url":
+        payload = json.dumps({"code": diagram, "mermaid": {"theme": "default"}})
+        encoded = base64.urlsafe_b64encode(payload.encode()).decode().rstrip("=")
+        content = f"https://mermaid.live/edit#base64:{encoded}\n"
+    else:
+        content = diagram + "\n"
+
+    if output_file:
+        from pathlib import Path
+
+        Path(output_file).write_text(content, encoding="utf-8")
+        console.print(f"[green]Diagram written to {output_file}[/green]")
+    else:
+        if output_format in ("mermaid", "markdown") and sys.stdout.isatty():
+            click.echo(Syntax(content, "markdown", theme="ansi_dark"))
+        else:
+            click.echo(content, nl=False)
+
+
 # ============================================================================
 # Command Registration (Progressive Risk Order)
 # ============================================================================
@@ -1605,6 +1741,7 @@ def run_example(name: str):
 # Analysis/Validation (Read-only, zero risk)
 cli.add_command(validate_cmd, name="validate")
 cli.add_command(simulate_cmd, name="simulate")
+cli.add_command(visualize_cmd, name="visualize")
 
 # Project Management (Structure & Configuration)
 cli.add_command(init_cmd, name="init")
