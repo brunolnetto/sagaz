@@ -181,7 +181,7 @@ services:
   # Prometheus (Monitoring)
   # ============================================================================
   prometheus:
-    image: prom/prometheus:v2.55.1
+    image: prom/prometheus:v3.11.1
     container_name: sagaz-prometheus
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
