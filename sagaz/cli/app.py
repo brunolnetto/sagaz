@@ -1596,6 +1596,124 @@ def run_example(name: str):
     """
 
 
+@click.command()
+@click.option(
+    "--from",
+    "from_url",
+    required=True,
+    help="Source storage URL (e.g. sqlite:///./old.db or postgresql://...)",
+)
+@click.option(
+    "--to",
+    "to_url",
+    required=True,
+    help="Destination storage URL",
+)
+@click.option(
+    "--batch-size",
+    default=100,
+    show_default=True,
+    help="Records transferred per batch",
+)
+@click.option(
+    "--on-error",
+    type=click.Choice(["skip", "abort", "retry"], case_sensitive=False),
+    default="skip",
+    show_default=True,
+    help="Error handling policy",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Read from source but do not write to destination",
+)
+@click.option(
+    "--verify",
+    "run_verify",
+    is_flag=True,
+    help="Verify record counts match after migration",
+)
+def migrate_cmd(
+    from_url: str,
+    to_url: str,
+    batch_size: int,
+    on_error: str,
+    dry_run: bool,
+    run_verify: bool,
+) -> None:
+    """Migrate saga state and outbox events between storage backends.
+
+    \b
+    Examples:
+      sagaz migrate --from sqlite:///./dev.db --to postgresql://localhost/sagaz
+      sagaz migrate --from postgresql://old-host/sagaz --to redis://new-host --dry-run
+    """
+    import asyncio
+
+    from rich.console import Console
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+
+    from sagaz.storage.manager import StorageManager
+    from sagaz.storage.migration import SagaStorageMigrator
+
+    console = Console()
+
+    async def _run() -> None:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            transient=True,
+        ) as progress:
+            task = progress.add_task("Connecting to storage backends…", total=None)
+
+            async with StorageManager(url=from_url) as source, StorageManager(url=to_url) as dest:
+                migrator = SagaStorageMigrator(source, dest)
+
+                if dry_run:
+                    console.print("[yellow]Dry-run: no writes to destination[/yellow]")
+
+                progress.update(task, description="Migrating saga state and events…")
+
+                def _cb(transferred: int, failed: int, total: int) -> None:
+                    progress.update(
+                        task,
+                        description=(
+                            f"Migrating… {transferred}/{total} "
+                            f"({'✓' if failed == 0 else f'{failed} errors'})"
+                        ),
+                    )
+
+                result = await migrator.migrate(
+                    dry_run=dry_run,
+                    batch_size=batch_size,
+                    on_error=on_error,
+                    progress_callback=_cb,
+                )
+                progress.stop()
+
+                console.print(
+                    f"[green]Migration {'(dry-run) ' if dry_run else ''}complete:[/green]"
+                    f" sagas={result.sagas_transferred}"
+                    f" (+{result.sagas_failed} failed),"
+                    f" events={result.events_transferred}"
+                    f" (+{result.events_failed} failed)"
+                )
+
+                if run_verify:
+                    vr = await migrator.verify()
+                    if vr.ok:
+                        console.print("[green]✓ Verification passed: counts match[/green]")
+                    else:
+                        console.print(
+                            f"[red]✗ Verification failed:[/red]"
+                            f" sagas src={vr.source_sagas} dst={vr.dest_sagas},"
+                            f" events src={vr.source_events} dst={vr.dest_events}"
+                        )
+                        raise SystemExit(1)
+
+    asyncio.run(_run())
+
+
 # ============================================================================
 # Command Registration (Progressive Risk Order)
 # ============================================================================
@@ -1628,6 +1746,7 @@ cli.add_command(version_cmd, name="version")
 
 # State Modification (Highest Risk)
 cli.add_command(replay, name="replay")
+cli.add_command(migrate_cmd, name="migrate")
 
 if __name__ == "__main__":
     cli()
