@@ -3,17 +3,69 @@ name: GitFlow Compliance
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
+  push:
+    branches:
+      - main
+      - develop
 
 env:
   CI: true
 
-# ─── PR Title Validation (Conventional Commit) ────────────────────────────────
+# ─── Prevent Direct Pushes ────────────────────────────────────────────────────
 
 jobs:
+  prevent-direct-push:
+    name: Prevent Direct Push to Protected Branches
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - name: Check for direct push to main or develop
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const event = context.payload;
+            const ref = event.ref;
+            const branch = ref.replace('refs/heads/', '');
+            const pusher = event.pusher.name;
+            
+            // Allow bot pushes (Dependabot, Renovate, GitHub Actions)
+            if (pusher === 'dependabot[bot]' || 
+                pusher === 'renovate[bot]' || 
+                pusher === 'github-actions[bot]' ||
+                event.user?.type === 'Bot') {
+              core.info(`✅ Bot push allowed: ${pusher}`);
+              return;
+            }
+            
+            // Check if this is a merge commit (from GitHub auto-merge or merge workflow)
+            const commit = event.head_commit;
+            const message = commit.message || '';
+            if (/^Merge (pull request|branch)/.test(message)) {
+              core.info('✅ Merge commit allowed');
+              return;
+            }
+            
+            // Only protect main and develop from direct pushes
+            if (branch === 'main' || branch === 'develop') {
+              core.setFailed(
+                `❌ Direct pushes to '${branch}' are not allowed.\n\n` +
+                `Please use the GitFlow workflow:\n` +
+                `  1. Create a feature branch: git checkout -b feature/your-feature\n` +
+                `  2. Push your branch: git push -u origin feature/your-feature\n` +
+                `  3. Create a Pull Request on GitHub\n` +
+                `  4. Get approval and merge via GitHub UI\n\n` +
+                `This ensures all commits follow conventional format and pass CI/CD checks.`
+              );
+            } else {
+              core.info(`✅ Direct push to '${branch}' allowed (not a protected branch)`);
+            }
+
+# ─── PR Title Validation (Conventional Commit) ────────────────────────────────
+
   pr-title:
     name: Validate PR Title Format
     runs-on: ubuntu-latest
-    if: ${{ !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'renovate/') }}
+    if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'renovate/') }}
     steps:
       - name: Validate PR title follows conventional commit format
         uses: actions/github-script@v7
@@ -44,7 +96,7 @@ jobs:
   pr-description:
     name: Validate PR Description
     runs-on: ubuntu-latest
-    if: ${{ !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'renovate/') }}
+    if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'renovate/') }}
     steps:
       - name: Validate PR description sections
         uses: actions/github-script@v7
@@ -72,7 +124,7 @@ jobs:
   require-issue:
     name: Require Issue Reference
     runs-on: ubuntu-latest
-    if: ${{ !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'renovate/') }}
+    if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'renovate/') }}
     steps:
       - name: Check PR description for issue reference
         uses: actions/github-script@v7
@@ -99,7 +151,7 @@ jobs:
   validate-branch-flow:
     name: Validate Branch Flow
     runs-on: ubuntu-latest
-    if: ${{ !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'renovate/') }}
+    if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'renovate/') }}
     steps:
       - name: Validate source branch naming and flow
         run: |
