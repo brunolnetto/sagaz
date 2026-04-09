@@ -5,8 +5,6 @@ ChoreographyEngine, and @on_event decorator.
 
 from __future__ import annotations
 
-import asyncio
-
 import pytest
 
 from sagaz.choreography import (
@@ -47,6 +45,15 @@ class TestEvent:
     def test_repr_contains_type(self):
         e = Event("order.created")
         assert "order.created" in repr(e)
+
+    def test_with_saga_does_not_share_data_dict(self):
+        """with_saga() must return an independent copy of the data dict."""
+        original_data = {"order_id": "ORD-1"}
+        e = Event("order.created", original_data)
+        e2 = e.with_saga("saga-123")
+        # Mutations to one dict must not affect the other
+        original_data["order_id"] = "MUTATED"
+        assert e2.data["order_id"] == "ORD-1"
 
 
 # ---------------------------------------------------------------------------
@@ -100,9 +107,10 @@ class TestEventBus:
         await bus.publish(Event("payment.charged"))
         assert len(bus.published) == 2
 
-    def test_clear_history(self):
+    @pytest.mark.asyncio
+    async def test_clear_history(self):
         bus = EventBus()
-        asyncio.run(bus.publish(Event("x")))
+        await bus.publish(Event("x"))
         bus.clear_history()
         assert bus.published == []
 
@@ -144,6 +152,23 @@ class TestEventBus:
         # No handlers registered — should not raise
         await bus.publish(Event("unknown.event"))
         assert len(bus.published) == 1
+
+    def test_unsubscribe_nonexistent_handler_is_silent(self):
+        """Unsubscribing a handler that was never registered must not raise."""
+        bus = EventBus()
+
+        async def never_subscribed(e: Event) -> None:
+            pass
+
+        # Must not raise ValueError
+        bus.unsubscribe("order.created", never_subscribed)
+
+    @pytest.mark.asyncio
+    async def test_start_and_stop_are_noops(self):
+        """EventBus.start() and stop() are no-ops — must not raise."""
+        bus = EventBus()
+        await bus.start()
+        await bus.stop()
 
 
 # ---------------------------------------------------------------------------
@@ -237,14 +262,15 @@ class TestChoreographedSaga:
         await saga.handle(Event("payment.failed"))
         assert received == ["order.created", "payment.failed"]
 
-    def test_events_handled_tracks_dispatched_events(self):
+    @pytest.mark.asyncio
+    async def test_events_handled_tracks_dispatched_events(self):
         class MySaga(ChoreographedSaga):
             @on_event("order.created")
             async def handle_order(self, event: Event) -> None:
                 pass
 
         saga = MySaga()
-        asyncio.run(saga.handle(Event("order.created")))
+        await saga.handle(Event("order.created"))
         assert len(saga.events_handled) == 1
 
     def test_default_saga_id_is_assigned(self):
@@ -369,3 +395,52 @@ class TestChoreographyEngine:
         await engine.stop()
 
         assert trace == ["inventory.reserved", "payment.charged", "order.confirmed"]
+
+    @pytest.mark.asyncio
+    async def test_deregister_unsubscribes_handlers(self):
+        """After unregister, the saga no longer receives events from the bus."""
+        bus = EventBus()
+        engine = ChoreographyEngine(bus)
+        received: list[str] = []
+
+        class MySaga(ChoreographedSaga):
+            @on_event("order.created")
+            async def handle_order(self, event: Event) -> None:
+                received.append(event.data.get("id", ""))
+
+        saga = MySaga(saga_id="s1")
+        engine.register(saga)
+        await engine.start()
+
+        await bus.publish(Event("order.created", {"id": "before"}))
+        assert "before" in received
+
+        engine.unregister("s1")
+        received.clear()
+        await bus.publish(Event("order.created", {"id": "after"}))
+        assert "after" not in received, "Handler still called after unregister"
+
+        await engine.stop()
+
+    @pytest.mark.asyncio
+    async def test_re_register_replaces_old_handlers(self):
+        """Re-registering a saga with the same ID must not duplicate handler calls."""
+        bus = EventBus()
+        engine = ChoreographyEngine(bus)
+        calls = 0
+
+        class MySaga(ChoreographedSaga):
+            @on_event("x.event")
+            async def handle(self, event: Event) -> None:
+                nonlocal calls
+                calls += 1
+
+        # Register the same saga ID twice — second call should replace the first.
+        engine.register(MySaga(saga_id="s1"))
+        engine.register(MySaga(saga_id="s1"))
+        await engine.start()
+
+        await bus.publish(Event("x.event"))
+        await engine.stop()
+
+        assert calls == 1, f"Expected 1 call, got {calls} (duplicate handler registered)"
