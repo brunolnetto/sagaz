@@ -1,5 +1,6 @@
 module.exports = {
   extends: ["@commitlint/config-conventional"],
+  ignores: [(commit) => /^Merge (pull request|branch)/.test(commit)],
   rules: {
     "type-enum": [
       2,
