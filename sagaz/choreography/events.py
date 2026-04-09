@@ -53,7 +53,7 @@ class Event:
         """Return a new Event with the given saga_id."""
         return Event(
             event_type=self.event_type,
-            data=self.data,
+            data=dict(self.data),  # shallow copy — avoids sharing the mutable dict reference
             event_id=self.event_id,
             saga_id=saga_id,
             created_at=self.created_at,
@@ -173,7 +173,7 @@ class EventBus(AbstractEventBus):
         try:
             self._handlers[event_type].remove(handler)
         except ValueError:
-            pass
+            pass  # handler was not registered — silent no-op
 
     # ------------------------------------------------------------------
     # Publishing

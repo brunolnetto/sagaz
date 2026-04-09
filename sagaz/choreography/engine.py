@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 
-from sagaz.choreography.events import AbstractEventBus, Event
+from sagaz.choreography.events import AbstractEventBus, Event, HandlerT
 from sagaz.choreography.saga import ChoreographedSaga
 
 logger = logging.getLogger(__name__)
@@ -47,6 +47,8 @@ class ChoreographyEngine:
         self._bus = bus
         self._sagas: dict[str, ChoreographedSaga] = {}
         self._running = False
+        # Tracks dispatch closures created per saga so they can be properly unsubscribed.
+        self._closures: dict[str, dict[str, HandlerT]] = {}
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -85,21 +87,22 @@ class ChoreographyEngine:
 
         self._sagas[saga.saga_id] = saga
 
-        for event_type, _method in saga._handlers.items():
-            # Wrap the method so the bus calls saga.handle() → proper routing
+        for event_type in saga._handlers:
+            # Capture saga via default arg to avoid closure-over-loop-variable.
             async def _dispatch(event: Event, _saga: ChoreographedSaga = saga) -> None:
                 await _saga.handle(event)
 
-            # Subscribe once per event type per saga; use the dispatch wrapper
+            # Store the closure so _deregister() can later call bus.unsubscribe().
+            self._closures.setdefault(saga.saga_id, {})[event_type] = _dispatch
             self._bus.subscribe(event_type, _dispatch)
 
         logger.debug("Registered saga %r (%s)", saga.saga_id, saga.name)
 
     def _deregister(self, saga: ChoreographedSaga) -> None:
-        """Unsubscribe the saga's handlers from the bus."""
-        # We cannot easily unsubscribe the closures we created, so we rely on
-        # the engine's stopped state to skip dispatch.  For production use
-        # with external adapters, explicit unsubscription would be wired here.
+        """Unsubscribe the saga's dispatch closures from the bus."""
+        closures = self._closures.pop(saga.saga_id, {})
+        for event_type, closure in closures.items():
+            self._bus.unsubscribe(event_type, closure)
         logger.debug("Deregistered saga %r", saga.saga_id)
 
     def unregister(self, saga_id: str) -> None:

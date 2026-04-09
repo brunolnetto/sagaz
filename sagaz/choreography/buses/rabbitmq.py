@@ -204,7 +204,7 @@ class RabbitMQEventBus(AbstractEventBus):
         try:
             self._handlers[event_type].remove(handler)
         except ValueError:
-            pass
+            pass  # handler was not registered — silent no-op
 
     # ------------------------------------------------------------------
     # Publishing
