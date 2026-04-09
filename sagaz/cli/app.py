@@ -24,6 +24,87 @@ from sagaz.cli.project import check as check_cmd
 from sagaz.cli.project import list_sagas
 from sagaz.cli.replay import replay
 
+# ---------------------------------------------------------------------------
+# Event-log command (event-sourcing)
+# ---------------------------------------------------------------------------
+
+
+def _print_event_log_plain(saga_id: str, events: list, status: str) -> None:
+    click.echo(f"Saga: {saga_id}  Status: {status}")
+    for i, ev in enumerate(events, 1):
+        d = ev.to_dict()
+        click.echo(f"  {i:3}. [{d['occurred_at']}] {d['event_type']}")
+
+
+def _print_event_log_rich(saga_id: str, events: list, status: str) -> None:
+    from rich.table import Table as RichTable
+
+    table = RichTable(title=f"Event Log — {saga_id}", show_lines=True)
+    table.add_column("#", style="dim", width=4)
+    table.add_column("Event Type", style="bold cyan")
+    table.add_column("Details")
+    table.add_column("Timestamp")
+    for i, ev in enumerate(events, 1):
+        d = ev.to_dict()
+        details = ", ".join(
+            f"{k}={v}"
+            for k, v in d.items()
+            if k not in {"event_type", "saga_id", "event_id", "occurred_at", "metadata"}
+            and v not in (None, {}, "")
+        )
+        table.add_row(str(i), d["event_type"], details or "—", d["occurred_at"])
+    console.print(table)  # type: ignore[union-attr]
+    click.echo(f"\nProjected status: {status}")
+
+
+@click.command("event-log")
+@click.argument("saga_id")
+@click.option(
+    "--db",
+    "db_path",
+    default=":memory:",
+    show_default=True,
+    help="Path to the SQLite event store (use ':memory:' for ephemeral).",
+)
+@click.option(
+    "--json",
+    "output_json",
+    is_flag=True,
+    default=False,
+    help="Output raw JSON instead of a formatted timeline.",
+)
+def event_log_cmd(saga_id: str, db_path: str, output_json: bool) -> None:
+    """Pretty-print the event timeline for SAGA_ID from an event store."""
+    import asyncio
+    import json as _json
+
+    from sagaz.projections.summary import build_projection
+    from sagaz.storage.event_store import SQLiteEventStore
+
+    store = SQLiteEventStore(db_path=db_path)
+
+    try:
+        events = asyncio.run(store.load_stream(saga_id))
+    finally:
+        store.close()
+
+    if not events:
+        click.echo(f"No events found for saga '{saga_id}'.")
+        return
+
+    if output_json:
+        click.echo(_json.dumps([e.to_dict() for e in events], indent=2))
+        return
+
+    proj = build_projection(saga_id, events)
+    status = proj.to_dict()["status"]
+
+    if console:
+        _print_event_log_rich(saga_id, events, status)
+    else:
+        _print_event_log_plain(saga_id, events, status)
+
+
 try:
     from rich.console import Console
     from rich.panel import Panel
@@ -1628,6 +1709,7 @@ cli.add_command(version_cmd, name="version")
 
 # State Modification (Highest Risk)
 cli.add_command(replay, name="replay")
+cli.add_command(event_log_cmd, name="event-log")
 
 if __name__ == "__main__":
     cli()
