@@ -4,15 +4,24 @@ sagaz.choreography — Saga Choreography Pattern.
 Choreography is an alternative to orchestration where services react to events
 independently. Unlike ``Saga`` (which has a central coordinator), a
 ``ChoreographedSaga`` declares event handlers using the ``@on_event`` decorator
-and publishes new events via ``EventBus.publish()``.
+and publishes new events via an ``AbstractEventBus`` implementation.
 
 Public API::
 
     from sagaz.choreography import (
+        AbstractEventBus,
+        BusBackend,
         ChoreographedSaga,
         Event,
         EventBus,
         ChoreographyEngine,
+        KafkaEventBus,
+        KafkaEventBusConfig,
+        RabbitMQEventBus,
+        RabbitMQEventBusConfig,
+        RedisStreamsBusConfig,
+        RedisStreamsEventBus,
+        create_event_bus,
         on_event,
     )
 
@@ -32,29 +41,45 @@ Quick start (in-process bus)::
     await bus.publish(Event("order.created", {"order_id": "ORD-1"}))
     await engine.stop()
 
-Distributed bus (Redis Streams — requires ``sagaz[redis]``)::
+Selecting a broker at runtime::
 
-    from sagaz.choreography import RedisStreamsEventBus, RedisStreamsBusConfig
+    from sagaz.choreography import create_event_bus, BusBackend
 
-    config = RedisStreamsBusConfig(url="redis://localhost:6379/0")
-    bus = RedisStreamsEventBus(config)
-    await bus.start()
-    # ... same engine/saga setup ...
-    await bus.stop()
+    bus = create_event_bus(BusBackend.REDIS)          # Redis Streams
+    bus = create_event_bus(BusBackend.KAFKA)          # Apache Kafka
+    bus = create_event_bus(BusBackend.RABBITMQ)       # RabbitMQ / AMQP
+    bus = create_event_bus(BusBackend.MEMORY)         # in-process (default)
 """
 
-from sagaz.choreography.buses import RedisStreamsBusConfig, RedisStreamsEventBus
+from sagaz.choreography.buses import (
+    BusBackend,
+    KafkaEventBus,
+    KafkaEventBusConfig,
+    RabbitMQEventBus,
+    RabbitMQEventBusConfig,
+    RedisStreamsBusConfig,
+    RedisStreamsEventBus,
+    create_event_bus,
+)
 from sagaz.choreography.decorators import on_event
 from sagaz.choreography.engine import ChoreographyEngine
-from sagaz.choreography.events import Event, EventBus
+from sagaz.choreography.events import AbstractEventBus, Event, EventBus
 from sagaz.choreography.saga import ChoreographedSaga
 
 __all__ = [
+    "AbstractEventBus",
+    "BusBackend",
     "ChoreographedSaga",
     "ChoreographyEngine",
     "Event",
     "EventBus",
+    "KafkaEventBus",
+    "KafkaEventBusConfig",
+    "RabbitMQEventBus",
+    "RabbitMQEventBusConfig",
     "RedisStreamsBusConfig",
     "RedisStreamsEventBus",
+    "create_event_bus",
     "on_event",
 ]
+
