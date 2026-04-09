@@ -24,6 +24,132 @@ from sagaz.cli.project import check as check_cmd
 from sagaz.cli.project import list_sagas
 from sagaz.cli.replay import replay
 
+# ---------------------------------------------------------------------------
+# Cloud deployment commands (CLI v2.0)
+# ---------------------------------------------------------------------------
+
+_PROVIDERS = ("aws", "gcp", "k8s")
+
+# Cost estimates (USD/month, approximate) per provider
+_COST_ESTIMATES = {
+    "aws": {"services": "ECS + RDS + ElastiCache", "estimate_usd": 185},
+    "gcp": {"services": "Cloud Run + Cloud SQL + Memorystore", "estimate_usd": 160},
+    "k8s": {"services": "Helm chart (your cluster)", "estimate_usd": 0},
+}
+
+
+def _run_tool(cmd: list[str], dry_run: bool) -> int:
+    """
+    Run *cmd* as a subprocess.  In dry-run mode, print the command and return 0.
+    Returns the process exit code.
+    """
+    if dry_run:
+        click.echo(f"[dry-run] Would run: {' '.join(cmd)}")
+        return 0
+    result = subprocess.run(cmd, check=False)
+    return result.returncode
+
+
+@click.command("deploy")
+@click.option(
+    "--provider",
+    type=click.Choice(_PROVIDERS),
+    required=True,
+    help="Cloud provider: aws (ECS/RDS), gcp (Cloud Run), k8s (Helm).",
+)
+@click.option(
+    "--namespace", default="sagaz", show_default=True, help="Kubernetes namespace (k8s only)."
+)
+@click.option("--dry-run", is_flag=True, default=False, help="Show plan without applying changes.")
+@click.option(
+    "--cost-estimate", is_flag=True, default=False, help="Print estimated monthly cost and exit."
+)
+def deploy_cmd(provider: str, namespace: str, dry_run: bool, cost_estimate: bool) -> None:
+    """Deploy the sagaz infrastructure stack to a cloud provider."""
+    if cost_estimate:
+        info = _COST_ESTIMATES[provider]
+        click.echo(f"Provider : {provider}")
+        click.echo(f"Services : {info['services']}")
+        if info["estimate_usd"] == 0:
+            click.echo("Est. cost: depends on your cluster size")
+        else:
+            click.echo(f"Est. cost: ~${info['estimate_usd']}/month (USD)")
+        return
+
+    if provider == "k8s":
+        click.echo(
+            f"Deploying sagaz Helm chart → namespace '{namespace}'{' (dry-run)' if dry_run else ''}…"
+        )
+        helm_flags = ["--dry-run", "--debug"] if dry_run else []
+        rc = _run_tool(
+            [
+                "helm",
+                "upgrade",
+                "--install",
+                "sagaz",
+                "charts/sagaz/",
+                "--namespace",
+                namespace,
+                *helm_flags,
+            ],
+            dry_run=False,
+        )
+    else:
+        infra_dir = f"infra/{provider}"
+        click.echo(f"Deploying sagaz to {provider.upper()}{' (dry-run)' if dry_run else ''}…")
+        _run_tool(["terraform", "-chdir", infra_dir, "init", "-input=false"], dry_run)
+        if dry_run:
+            rc = _run_tool(["terraform", "-chdir", infra_dir, "plan", "-input=false"], dry_run)
+        else:
+            rc = _run_tool(
+                ["terraform", "-chdir", infra_dir, "apply", "-auto-approve", "-input=false"],
+                dry_run,
+            )
+
+    if rc == 0:
+        click.echo("Deploy complete." if not dry_run else "Dry-run complete.")
+    else:
+        click.echo(f"Deploy failed (exit code {rc}).", err=True)
+
+
+@click.command("teardown")
+@click.option(
+    "--provider",
+    type=click.Choice(_PROVIDERS),
+    required=True,
+    help="Cloud provider to tear down.",
+)
+@click.option(
+    "--namespace", default="sagaz", show_default=True, help="Kubernetes namespace (k8s only)."
+)
+@click.option("--yes", is_flag=True, default=False, help="Skip confirmation prompt.")
+def teardown_cmd(provider: str, namespace: str, yes: bool) -> None:
+    """Destroy the sagaz cloud infrastructure for a given provider."""
+    if not yes:
+        confirmed = click.confirm(
+            f"This will DESTROY all sagaz resources on {provider}. Continue?", default=False
+        )
+        if not confirmed:
+            click.echo("Aborted.")
+            return
+
+    if provider == "k8s":
+        click.echo(f"Uninstalling sagaz Helm release from namespace '{namespace}'…")
+        rc = _run_tool(["helm", "uninstall", "sagaz", "--namespace", namespace], dry_run=False)
+    else:
+        infra_dir = f"infra/{provider}"
+        click.echo(f"Destroying sagaz infrastructure on {provider.upper()}…")
+        rc = _run_tool(
+            ["terraform", "-chdir", infra_dir, "destroy", "-auto-approve", "-input=false"],
+            dry_run=False,
+        )
+
+    if rc == 0:
+        click.echo("Teardown complete.")
+    else:
+        click.echo(f"Teardown failed (exit code {rc}).", err=True)
+
+
 try:
     from rich.console import Console
     from rich.panel import Panel
@@ -1628,6 +1754,8 @@ cli.add_command(version_cmd, name="version")
 
 # State Modification (Highest Risk)
 cli.add_command(replay, name="replay")
+cli.add_command(deploy_cmd, name="deploy")
+cli.add_command(teardown_cmd, name="teardown")
 
 if __name__ == "__main__":
     cli()
