@@ -1,7 +1,7 @@
 services:
   # PostgreSQL: Core state storage for Sagaz
   postgres:
-    image: postgres:15-alpine
+    image: postgres:18-alpine
     container_name: sagaz-postgres
     environment:
       POSTGRES_DB: sagaz
