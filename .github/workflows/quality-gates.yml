@@ -69,7 +69,7 @@ jobs:
   commitlint:
     name: Commitlint
     runs-on: ubuntu-latest
-    if: ${{ !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'renovate/') }}
+    if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'renovate/') }}
     steps:
       - uses: actions/checkout@v4
         with:
