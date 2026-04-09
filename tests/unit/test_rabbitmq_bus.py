@@ -367,3 +367,30 @@ async def test_stop_cancels_consumer_and_closes_connection() -> None:
 async def test_stop_when_not_started_is_safe() -> None:
     bus = _make_bus()
     await bus.stop()  # Should not raise
+
+
+# ---------------------------------------------------------------------------
+# Import-error fallback (module-level except ImportError branch)
+# ---------------------------------------------------------------------------
+
+
+def test_rabbitmq_import_error_sets_unavailable_flag() -> None:
+    """When aio_pika cannot be imported the module falls back gracefully."""
+    import importlib
+    import sys
+
+    import sagaz.choreography.buses.rabbitmq as rmod
+
+    saved = sys.modules.pop("aio_pika", None)
+    sys.modules["aio_pika"] = None  # type: ignore[assignment]
+    try:
+        importlib.reload(rmod)
+        assert not rmod._RABBITMQ_AVAILABLE
+        assert rmod.aio_pika is None
+        assert rmod.Message is None
+    finally:
+        if saved is not None:
+            sys.modules["aio_pika"] = saved
+        else:
+            sys.modules.pop("aio_pika", None)
+        importlib.reload(rmod)  # Restore module to working state

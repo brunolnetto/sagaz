@@ -373,3 +373,157 @@ async def test_stop_closes_producer_and_consumer() -> None:
 async def test_stop_when_not_started_is_safe() -> None:
     bus = _make_bus()
     await bus.stop()  # Should not raise
+
+
+# ---------------------------------------------------------------------------
+# Import-error fallback (module-level except ImportError branch)
+# ---------------------------------------------------------------------------
+
+
+def test_kafka_import_error_sets_unavailable_flag() -> None:
+    """When aiokafka cannot be imported the module falls back gracefully."""
+    import importlib
+    import sys
+
+    import sagaz.choreography.buses.kafka as kmod
+
+    saved = sys.modules.pop("aiokafka", None)
+    sys.modules["aiokafka"] = None  # type: ignore[assignment]
+    try:
+        importlib.reload(kmod)
+        assert not kmod._KAFKA_AVAILABLE
+        assert kmod.AIOKafkaProducer is None
+        assert kmod.AIOKafkaConsumer is None
+    finally:
+        if saved is not None:
+            sys.modules["aiokafka"] = saved
+        else:
+            sys.modules.pop("aiokafka", None)
+        importlib.reload(kmod)  # Restore module to working state
+
+
+# ---------------------------------------------------------------------------
+# SASL configuration branch in start()
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_start_with_sasl_mechanism_passes_sasl_options() -> None:
+    """start() must include SASL kwargs when sasl_mechanism is configured."""
+    config = KafkaEventBusConfig(
+        bootstrap_servers="broker:9093",
+        topic="test.topic",
+        consumer_group="grp",
+        consumer_name="w1",
+        sasl_mechanism="PLAIN",
+        sasl_username="user",
+        sasl_password="pass",
+        security_protocol="SASL_PLAINTEXT",
+    )
+    bus = _make_bus(config)
+    mock_producer = AsyncMock()
+    mock_consumer = AsyncMock()
+    mock_consumer.getmany = AsyncMock(side_effect=asyncio.CancelledError())
+
+    with (
+        patch(
+            "sagaz.choreography.buses.kafka.AIOKafkaProducer",
+            return_value=mock_producer,
+        ) as mock_producer_cls,
+        patch(
+            "sagaz.choreography.buses.kafka.AIOKafkaConsumer",
+            return_value=mock_consumer,
+        ) as mock_consumer_cls,
+    ):
+        await bus.start()
+        task = bus._reader_task
+        try:
+            await asyncio.wait_for(asyncio.shield(task), timeout=1.0)
+        except (asyncio.CancelledError, TimeoutError):
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+    # Both producer and consumer must have received SASL kwargs
+    _, producer_kwargs = mock_producer_cls.call_args
+    _, consumer_kwargs = mock_consumer_cls.call_args
+    for kwargs in (producer_kwargs, producer_kwargs):
+        assert kwargs.get("sasl_mechanism") == "PLAIN" or "sasl_mechanism" in str(
+            mock_producer_cls.call_args
+        )
+    assert "sasl_mechanism" in str(mock_producer_cls.call_args)
+    assert "sasl_mechanism" in str(mock_consumer_cls.call_args)
+
+
+# ---------------------------------------------------------------------------
+# _reader_loop coverage
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_reader_loop_cancelled_error_exits_cleanly() -> None:
+    """CancelledError from getmany causes reader loop to exit via break."""
+    bus = _make_bus()
+    bus._consumer = AsyncMock()
+    bus._consumer.getmany = AsyncMock(side_effect=asyncio.CancelledError())
+
+    # Task should complete normally (loop breaks on CancelledError)
+    await asyncio.wait_for(bus._reader_loop(), timeout=2.0)
+
+
+@pytest.mark.asyncio
+async def test_reader_loop_dispatches_messages() -> None:
+    """Reader loop commits each message after successful dispatch."""
+    bus = _make_bus()
+    handler = AsyncMock()
+    bus.subscribe("order.created", handler)
+
+    event = _make_event("order.created")
+    serialised = _serialise(event)
+
+    call_count = 0
+    tp = MagicMock()
+    msg = MagicMock()
+    msg.value = serialised
+    msg.offset = 0
+
+    async def fake_getmany(**kwargs: object) -> dict:  # type: ignore[type-arg]
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return {tp: [msg]}
+        raise asyncio.CancelledError
+
+    bus._consumer = AsyncMock()
+    bus._consumer.getmany = fake_getmany
+
+    await asyncio.wait_for(bus._reader_loop(), timeout=2.0)
+
+    handler.assert_awaited()
+    bus._consumer.commit.assert_awaited()
+
+
+@pytest.mark.asyncio
+async def test_reader_loop_exception_is_logged_and_loop_retries() -> None:
+    """Non-CancelledError exceptions are caught, logged, and the loop retries."""
+    bus = _make_bus()
+    bus._consumer = AsyncMock()
+
+    call_count = 0
+
+    async def fake_getmany(**kwargs: object) -> dict:  # type: ignore[type-arg]
+        nonlocal call_count
+        call_count += 1
+        msg = "broker gone"
+        if call_count == 1:
+            raise RuntimeError(msg)
+        raise asyncio.CancelledError
+
+    bus._consumer.getmany = fake_getmany
+
+    with patch("asyncio.sleep", new_callable=AsyncMock):
+        await asyncio.wait_for(bus._reader_loop(), timeout=2.0)
+
+    assert call_count == 2

@@ -337,3 +337,166 @@ async def test_stop_cancels_reader_and_closes_client() -> None:
 async def test_stop_when_not_started_is_safe() -> None:
     bus = _make_bus()
     await bus.stop()  # Should not raise
+
+
+# ---------------------------------------------------------------------------
+# Import-error fallback (module-level except ImportError branch)
+# ---------------------------------------------------------------------------
+
+
+def test_redis_import_error_sets_unavailable_flag() -> None:
+    """When redis cannot be imported the module falls back gracefully."""
+    import importlib
+    import sys
+
+    import sagaz.choreography.buses.redis_streams as rmod
+
+    saved = sys.modules.pop("redis", None)
+    saved_asyncio = sys.modules.pop("redis.asyncio", None)
+    sys.modules["redis"] = None  # type: ignore[assignment]
+    try:
+        importlib.reload(rmod)
+        assert not rmod._REDIS_AVAILABLE
+        assert rmod.aioredis is None
+    finally:
+        if saved is not None:
+            sys.modules["redis"] = saved
+        else:
+            sys.modules.pop("redis", None)
+        if saved_asyncio is not None:
+            sys.modules["redis.asyncio"] = saved_asyncio
+        else:
+            sys.modules.pop("redis.asyncio", None)
+        importlib.reload(rmod)  # Restore module to working state
+
+
+# ---------------------------------------------------------------------------
+# start() idempotency and non-BUSYGROUP error propagation
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_start_is_idempotent() -> None:
+    """A second start() while the reader is running must be a no-op."""
+    bus = _make_bus()
+    mock_client = AsyncMock()
+
+    with patch(
+        "sagaz.choreography.buses.redis_streams.aioredis.from_url",
+        return_value=mock_client,
+    ):
+        await bus.start()
+        first_task = bus._reader_task
+        await bus.start()  # second call must not replace the task
+
+    assert bus._reader_task is first_task
+    first_task.cancel()
+    try:
+        await first_task
+    except asyncio.CancelledError:
+        pass
+
+
+@pytest.mark.asyncio
+async def test_start_raises_non_busygroup_xgroup_error() -> None:
+    """xgroup_create errors not containing 'BUSYGROUP' must propagate."""
+    bus = _make_bus()
+    mock_client = AsyncMock()
+    mock_client.xgroup_create.side_effect = RuntimeError("unexpected redis error")
+
+    with patch(
+        "sagaz.choreography.buses.redis_streams.aioredis.from_url",
+        return_value=mock_client,
+    ):
+        with pytest.raises(RuntimeError, match="unexpected redis error"):
+            await bus.start()
+
+
+# ---------------------------------------------------------------------------
+# _reader_loop coverage
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_reader_loop_cancelled_error_exits_cleanly() -> None:
+    """CancelledError from xreadgroup causes reader loop to exit via break."""
+    bus = _make_bus()
+    bus._client = AsyncMock()
+    bus._client.xreadgroup = AsyncMock(side_effect=asyncio.CancelledError())
+
+    await asyncio.wait_for(bus._reader_loop(), timeout=2.0)
+
+
+@pytest.mark.asyncio
+async def test_reader_loop_empty_results_continues() -> None:
+    """Empty xreadgroup results cause the loop to continue without processing."""
+    bus = _make_bus()
+    bus._client = AsyncMock()
+
+    call_count = 0
+
+    async def fake_xreadgroup(*args: object, **kwargs: object) -> list:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return []  # empty — triggers `if not results: continue`
+        raise asyncio.CancelledError
+
+    bus._client.xreadgroup = fake_xreadgroup
+
+    await asyncio.wait_for(bus._reader_loop(), timeout=2.0)
+    assert call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_reader_loop_dispatches_messages() -> None:
+    """Reader loop acknowledges each message after successful dispatch."""
+    bus = _make_bus()
+    handler = AsyncMock()
+    bus.subscribe("order.created", handler)
+
+    event = _make_event("order.created")
+    fields = _serialise_event(event)
+    msg_id = b"1-0"
+
+    call_count = 0
+
+    async def fake_xreadgroup(*args: object, **kwargs: object) -> list:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            stream = b"test.stream"
+            return [(stream, [(msg_id, fields)])]
+        raise asyncio.CancelledError
+
+    bus._client = AsyncMock()
+    bus._client.xreadgroup = fake_xreadgroup
+
+    await asyncio.wait_for(bus._reader_loop(), timeout=2.0)
+
+    handler.assert_awaited()
+    bus._client.xack.assert_awaited()
+
+
+@pytest.mark.asyncio
+async def test_reader_loop_exception_is_logged_and_loop_retries() -> None:
+    """Non-CancelledError exceptions in xreadgroup are caught and retried."""
+    bus = _make_bus()
+    bus._client = AsyncMock()
+
+    call_count = 0
+
+    async def fake_xreadgroup(*args: object, **kwargs: object) -> list:
+        nonlocal call_count
+        call_count += 1
+        msg = "redis gone"
+        if call_count == 1:
+            raise RuntimeError(msg)
+        raise asyncio.CancelledError
+
+    bus._client.xreadgroup = fake_xreadgroup
+
+    with patch("asyncio.sleep", new_callable=AsyncMock):
+        await asyncio.wait_for(bus._reader_loop(), timeout=2.0)
+
+    assert call_count == 2
