@@ -28,7 +28,7 @@ jobs:
       issues: write  # Improvement #8: Permission to create issues for violations
     steps:
       - name: Check for direct push to main or develop
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const event = context.payload;
@@ -132,7 +132,7 @@ jobs:
     if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'renovate/') }}
     steps:
       - name: Validate PR title follows conventional commit format
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const title = context.payload.pull_request.title;
@@ -163,7 +163,7 @@ jobs:
     if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'renovate/') }}
     steps:
       - name: Validate PR description sections
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const body = (context.payload.pull_request.body || "").toLowerCase();
@@ -191,7 +191,7 @@ jobs:
     if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'renovate/') }}
     steps:
       - name: Check PR description for issue reference (if required by PR type)
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const head = context.payload.pull_request.head_ref || "";

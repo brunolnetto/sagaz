@@ -28,7 +28,7 @@ jobs:
           fetch-depth: 0
 
       - name: Parse PR title and apply labels
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             // ===== CONFIGURATION =====
@@ -222,7 +222,7 @@ jobs:
       startsWith(github.head_ref, 'renovate/')
     steps:
       - name: Apply "dependencies" label
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const { owner, repo } = context.repo;
@@ -258,7 +258,7 @@ jobs:
       !startsWith(github.head_ref, 'renovate/')
     steps:
       - name: Apply label matching branch prefix
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const { owner, repo } = context.repo;
