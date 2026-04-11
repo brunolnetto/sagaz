@@ -444,9 +444,8 @@ class TestStorageFromEnvRedisFallback:
             "SAGAZ_STORAGE_TYPE": "redis",
             "SAGAZ_STORAGE_URL": "",  # empty string: falsy but not None
         }
-        result = SagaConfig._storage_from_env(env)
-        # _parse_storage_url("") may return None, that's fine — branch coverage is the goal
-        assert True  # exercising the False branch of `if redis_url is None`
+        # _parse_storage_url("") may return None; exercising the False branch is the goal
+        SagaConfig._storage_from_env(env)
 
 
 class TestBrokerFromEnvRedisFallback:
