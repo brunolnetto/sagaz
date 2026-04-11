@@ -9,8 +9,6 @@ This module contains the actual CLI commands for all deployment scenarios:
 - Benchmarking
 """
 
-import importlib.resources as pkg_resources
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -20,9 +18,7 @@ import click
 
 from sagaz.cli import examples as cli_examples
 from sagaz.cli._init_handlers import (
-    _copy_dir_resource,
     _copy_example_saga,
-    _copy_resource,
     _init_benchmarks,
     _init_hybrid,
     _init_k8s,
@@ -37,7 +33,6 @@ from sagaz.cli.replay import replay
 try:
     from rich.console import Console
     from rich.panel import Panel
-    from rich.progress import Progress, SpinnerColumn, TextColumn
     from rich.table import Table
 
     console: Console | None = Console()
