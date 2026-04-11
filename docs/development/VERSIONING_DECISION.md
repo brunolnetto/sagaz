@@ -1,8 +1,84 @@
 # Versioning Strategy Decision Document
 
 **Date**: April 11, 2026  
-**Status**: ⚠️ DECISION REQUIRED  
+**Status**: ✅ DECIDED & IMPLEMENTED  
 **Issue**: Version gap from 1.1.2 → 1.5.0 with skipped intermediate versions
+
+## Decisions Made (April 11, 2026)
+
+| Decision | Choice | Status |
+|----------|--------|--------|
+| Backfill v1.2-1.4? | **Option A — YES** | ✅ Done |
+| v2.0.0 → v1.7.0 (SemVer)? | **Option B — YES** | ✅ Done |
+| Automation? | **Option A — GitHub Actions** | ✅ Done |
+
+## What Was Implemented
+
+### 1. Backfill Tags & Releases Created
+
+| Version | Commit | Date | Key Features |
+|---------|--------|------|--------------|
+| **v1.2.0** | `26347969` | 2026-01-02 | Unified Storage Layer (ADR-016), Compensation Result Passing (ADR-022) |
+| **v1.3.0** | `7add0ade` | 2026-01-11 | CLI v1.0, Dry-Run Mode (ADR-019/031), Pivot Steps (ADR-023), Framework Integration |
+| **v1.4.0** | `89472a9b` | 2026-01-12 | Context Streaming (ADR-021), 24 Industry Examples, Saga Replay (ADR-024) |
+
+All three are published as GitHub Releases at https://github.com/brunolnetto/sagaz/releases
+
+### 2. Milestones Renamed (SemVer Compliant)
+
+| Old Name | New Name | Milestone # | PRs |
+|----------|----------|-------------|-----|
+| v2.0.0: Analytics & Chaos | **v1.7.0: Analytics & Chaos** | 9 | #67, #71, #74, #79 |
+| v2.1.0: CLI v2 + CDC + Tenancy | **v1.8.0: CLI v2 + CDC + Tenancy** | 10 | #64, #65, #66, #68, #81 |
+| v2.2.0: Choreography | **v1.9.0: Choreography** | 11 | #69 |
+| v2.3.0: Core Extensions | **v1.10.0: Core Extensions** | 12 | #70, #72 |
+
+v2.0.0 is now **reserved for actual breaking API changes**.
+
+### 3. GitHub Actions Release Automation
+
+**File**: `.github/workflows/release.yml`
+
+Triggers:
+- Automatically on **milestone close** → extracts version from title (e.g., `v1.5.0: Governance & Ops` → `1.5.0`)  
+- Manually via `workflow_dispatch` with optional version override
+
+Pipeline:
+```
+1. resolve-version   → parse version from milestone title or manual input
+2. test              → run full test suite (pytest)
+3. publish           → bump pyproject.toml, build, publish to PyPI
+4. tag-and-release   → commit version bump, create git tag, generate release notes, create GitHub Release
+```
+
+---
+
+## Final Version Plan
+
+```
+v1.0.0  (Dec 25, 2025) — Initial release
+v1.0.1  (Dec 26, 2025) — Patch
+v1.0.2  (Dec 26, 2025) — Patch
+v1.0.3  (Dec 27, 2025) — Patch
+v1.1.0  (Feb 24, 2026) — Stability & testing improvements
+v1.1.1  (Feb 24, 2026) — Patch
+v1.1.2  (Feb 24, 2026) — Patch                        ← current latest on PyPI
+
+v1.2.0  (Jan 2, 2026)  — Unified Storage, Compensation Passing ← RETROACTIVELY TAGGED
+v1.3.0  (Jan 11, 2026) — CLI, Dry-Run, Framework Integration   ← RETROACTIVELY TAGGED
+v1.4.0  (Jan 12, 2026) — Context Streaming, Examples, Replay   ← RETROACTIVELY TAGGED
+
+v1.5.0  (Apr 2026)     — Governance & Ops          [PRs #60, #61]
+v1.6.0  (May 2026)     — Storage Extensions        [PRs #62, #63]
+v1.7.0  (Jun 2026)     — Analytics & Chaos         [PRs #67, #71, #74, #79]
+v1.8.0  (Jul 2026)     — CLI v2 + CDC + Tenancy    [PRs #64-66, #68, #81]
+v1.9.0  (Sep 2026)     — Choreography              [PR #69]
+v1.10.0 (Nov 2026)     — Core Extensions           [PRs #70, #72]
+
+v2.0.0  (TBD)          — RESERVED for breaking API changes only
+```
+
+---
 
 ---
 
