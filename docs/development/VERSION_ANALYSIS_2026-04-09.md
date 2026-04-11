@@ -281,4 +281,18 @@ git tag -a v1.5.0 -m "Release v1.5.0: Governance & Ops (DLQ, AlertManager, docs)
 | **Version policy** | None documented | Create versioning-policy.md |
 | **Automation** | Manual tagging | Setup GitHub Actions tagging |
 
+---
+
+## ⚠️ DECISION REQUIRED
+
+**See `VERSIONING_DECISION.md` for detailed decision framework.**
+
+Three clear decisions needed this week:
+
+1. **Backfill v1.2-1.4?** (Recommended: YES)
+2. **Change v2.0→v1.7.0 for SemVer?** (Recommended: YES)  
+3. **Setup GitHub Actions release automation?** (Recommended: YES)
+
+Choose your versioning path and we can implement immediately.
+
 EOF
