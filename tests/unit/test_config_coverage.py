@@ -431,21 +431,27 @@ class TestStorageFromEnvRedisFallback:
             # SAGAZ_STORAGE_URL omitted → env.get returns None → line 368 sets default
         }
         result = SagaConfig._storage_from_env(env)
+
+        # Verify default Redis URL is used (not None or empty)
         assert result is not None
+        assert "Redis" in type(result).__name__
 
     def test_redis_storage_empty_url_skips_default(self):
-        """367->369 (False branch): SAGAZ_STORAGE_URL='' → not None, skips default line 368."""
+        """367->369 (False branch): SAGAZ_STORAGE_URL='' skips default URL, uses in-memory storage."""
         from sagaz.core.config import SagaConfig
+        from sagaz.storage.memory import InMemorySagaStorage
 
         # SAGAZ_STORAGE_URL="" is falsy → the early-exit at line 353 is skipped,
         # but env.get("SAGAZ_STORAGE_URL") at line 365 returns "" (not None),
         # so the branch at 367 is False and we jump directly to line 369.
+        # SagaConfig._parse_storage_url("") explicitly maps the empty string to
+        # InMemorySagaStorage, so assert that behavior here as well.
         env = {
             "SAGAZ_STORAGE_TYPE": "redis",
             "SAGAZ_STORAGE_URL": "",  # empty string: falsy but not None
         }
-        # _parse_storage_url("") may return None; exercising the False branch is the goal
-        SagaConfig._storage_from_env(env)
+        result = SagaConfig._storage_from_env(env)
+        assert isinstance(result, InMemorySagaStorage)
 
 
 class TestBrokerFromEnvRedisFallback:
@@ -460,21 +466,26 @@ class TestBrokerFromEnvRedisFallback:
             # SAGAZ_BROKER_URL omitted → env.get returns None → line 392 sets default
         }
         result = SagaConfig._broker_from_env(env)
+
+        # Verify default Redis broker is used
         assert result is not None
+        assert "redis" in type(result).__name__.lower()
 
     def test_redis_broker_empty_url_skips_default(self):
         """391->393 (False branch): SAGAZ_BROKER_URL='' → not None, skips default line 392."""
         from sagaz.core.config import SagaConfig
+        from sagaz.outbox.brokers.memory import InMemoryBroker
 
         # SAGAZ_BROKER_URL="" is falsy → early-exit at line 375 is skipped,
         # but env.get("SAGAZ_BROKER_URL") at line 390 returns "" (not None),
         # so the branch at 391 is False and we jump directly to line 393.
+        # Empty string parses to the in-memory broker, so assert that behavior.
         env = {
             "SAGAZ_BROKER_TYPE": "redis",
             "SAGAZ_BROKER_URL": "",  # empty string: falsy but not None
         }
-        SagaConfig._broker_from_env(env)
-        assert True  # exercising the False branch of `if redis_url is None`
+        result = SagaConfig._broker_from_env(env)
+        assert isinstance(result, InMemoryBroker)
 
 
 # ==========================================================================
