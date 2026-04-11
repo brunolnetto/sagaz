@@ -349,6 +349,12 @@ class SagaConfig:
 
     @classmethod
     def _storage_from_env(cls, env: Any) -> Any:
+        """Construct a storage backend descriptor from environment variables.
+
+        Checks ``SAGAZ_STORAGE_URL`` first; falls back to
+        ``SAGAZ_STORAGE_TYPE`` + individual host/port/db/user/password vars.
+        Returns ``None`` when no storage is configured.
+        """
         storage_url = env.get("SAGAZ_STORAGE_URL", "")
         if storage_url:
             return cls._parse_storage_url(storage_url)
@@ -371,6 +377,12 @@ class SagaConfig:
 
     @classmethod
     def _broker_from_env(cls, env: Any) -> Any:
+        """Construct a broker descriptor from environment variables.
+
+        Checks ``SAGAZ_BROKER_URL`` first; falls back to
+        ``SAGAZ_BROKER_TYPE`` + individual connection vars.
+        Returns ``None`` when no broker is configured.
+        """
         broker_url = env.get("SAGAZ_BROKER_URL", "")
         if broker_url:
             return cls._parse_broker_url(broker_url)
