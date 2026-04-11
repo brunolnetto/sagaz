@@ -99,6 +99,19 @@ class PostgreSQLSnapshotStorage(SnapshotStorage):
         pool_max_size: int = 20,
         **pool_kwargs,
     ):
+        """
+        Configure the storage backend.
+
+        Args:
+            connection_string: asyncpg-compatible DSN
+                (e.g. ``postgresql://user:pass@host/db``).
+            pool_min_size: Minimum number of connections to keep alive.
+            pool_max_size: Maximum connections; extra requests will wait.
+            **pool_kwargs: Forwarded verbatim to ``asyncpg.create_pool``.
+
+        Raises:
+            MissingDependencyError: If *asyncpg* is not installed.
+        """
         if not ASYNCPG_AVAILABLE:
             msg = "asyncpg"
             raise MissingDependencyError(msg, "PostgreSQL snapshot storage backend")

@@ -70,6 +70,18 @@ class MermaidGenerator:
         highlight_trail: HighlightTrail | None = None,
         show_pivot_zones: bool = True,
     ):
+        """
+        Initialise the generator with saga step metadata.
+
+        Args:
+            steps: Normalised step descriptors (name, deps, compensation flag).
+            direction: Mermaid graph direction — ``TB`` (top-to-bottom),
+                ``LR`` (left-to-right), etc.
+            show_compensation: Include compensation subgraph in the diagram.
+            show_state_markers: Render START / SUCCESS / ROLLED_BACK markers.
+            highlight_trail: Optional execution trail for colouring visited nodes.
+            show_pivot_zones: Highlight pivot (point-of-no-return) zones.
+        """
         self.steps = steps
         self.direction = direction
         self.show_compensation = show_compensation

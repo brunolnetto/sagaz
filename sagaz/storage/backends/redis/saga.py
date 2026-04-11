@@ -55,6 +55,20 @@ class RedisSagaStorage(SagaStorage):
         default_ttl: int | None = None,  # TTL in seconds for completed sagas
         **redis_kwargs,
     ):
+        """
+        Configure the Redis saga storage backend.
+
+        Args:
+            redis_url: Redis connection URL (supports ``redis://``, ``rediss://``,
+                and ``unix://`` schemes).
+            key_prefix: Namespace prefix prepended to every Redis key.
+            default_ttl: Optional TTL (seconds) applied to completed/rolled-back
+                saga records; ``None`` means keys never expire.
+            **redis_kwargs: Extra keyword arguments forwarded to the Redis client.
+
+        Raises:
+            MissingDependencyError: If *redis* (``redis[asyncio]``) is not installed.
+        """
         if not REDIS_AVAILABLE:
             msg = "redis"
             raise MissingDependencyError(msg, "Redis storage backend")

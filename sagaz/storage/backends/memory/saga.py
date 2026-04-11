@@ -22,6 +22,7 @@ class InMemorySagaStorage(SagaStorage):
     """
 
     def __init__(self):
+        """Initialise an empty in-memory saga store with an async lock."""
         self._sagas: dict[str, dict[str, Any]] = {}
         self._lock = asyncio.Lock()
 
