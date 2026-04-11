@@ -46,6 +46,7 @@ class MemoryFootprintError(Exception):
     """Raised when memory footprint exceeds strict limit"""
 
     def __init__(self, key: str, size_bytes: int, limit_bytes: int, message: str):
+        """Record the offending key, actual size, and configured limit."""
         self.key = key
         self.size_bytes = size_bytes
         self.limit_bytes = limit_bytes
@@ -89,12 +90,14 @@ class FileSystemExternalStorage(ExternalStorage):
     """Local filesystem implementation for external storage"""
 
     def __init__(self, base_path: str):
+        """Create (or re-use) the directory at *base_path* for artefact storage."""
         self.base_path = Path(base_path)
         self.base_path.mkdir(parents=True, exist_ok=True)
 
     async def store(
         self, saga_id: str, key: str, value: Any, ttl_seconds: int | None = None
     ) -> ExternalReference:
+        """Pickle *value* and write it to ``<base_path>/saga-<saga_id>/<key>-<uuid>.bin``."""
         # Serialize
         data = pickle.dumps(value)
 
@@ -123,6 +126,7 @@ class FileSystemExternalStorage(ExternalStorage):
         )
 
     async def load(self, uri: str) -> Any:
+        """Deserialise and return the artefact stored at the ``file://`` *uri*."""
         if not uri.startswith("file://"):
             msg = f"Invalid URI scheme for FileSystemStorage: {uri}"
             raise ValueError(msg)
@@ -140,6 +144,7 @@ class FileSystemExternalStorage(ExternalStorage):
         return pickle.loads(data)
 
     async def delete(self, uri: str) -> None:
+        """Remove the local artefact file at *uri*; silently ignores missing files."""
         if not uri.startswith("file://"):
             return
 
@@ -166,6 +171,20 @@ class S3ExternalStorage(ExternalStorage):
         aws_secret_access_key: str | None = None,
         session_kwargs: dict[str, Any] | None = None,
     ):
+        """
+        Configure the S3 external storage backend.
+
+        Args:
+            bucket: Target S3 bucket name.
+            region_name: AWS region; inferred from environment when ``None``.
+            endpoint_url: Override endpoint for S3-compatible stores (e.g. MinIO).
+            aws_access_key_id: Explicit AWS credentials; uses default chain when ``None``.
+            aws_secret_access_key: Companion secret for *aws_access_key_id*.
+            session_kwargs: Extra kwargs forwarded to ``aioboto3.Session``.
+
+        Raises:
+            ImportError: If *aioboto3* is not installed.
+        """
         if not HAS_AIOBOTO3:
             msg = (
                 "aioboto3 is required for S3ExternalStorage. Install with 'pip install sagaz[aws]'"
@@ -182,6 +201,7 @@ class S3ExternalStorage(ExternalStorage):
     async def store(
         self, saga_id: str, key: str, value: Any, ttl_seconds: int | None = None
     ) -> ExternalReference:
+        """Pickle *value* and upload it to S3 under ``<bucket>/<saga_id>/<key>-<uuid>.bin``."""
         # Serialize
         data = pickle.dumps(value)
         data_len = len(data)
@@ -224,6 +244,7 @@ class S3ExternalStorage(ExternalStorage):
         )
 
     async def load(self, uri: str) -> Any:
+        """Download and deserialise the S3 object at *uri* (``s3://bucket/key``)."""
         if not uri.startswith("s3://"):
             msg = f"Invalid URI scheme for S3ExternalStorage: {uri}"
             raise ValueError(msg)
@@ -264,6 +285,7 @@ class S3ExternalStorage(ExternalStorage):
         return pickle.loads(data)
 
     async def delete(self, uri: str) -> None:
+        """Delete the S3 object at *uri*; silently ignores non-matching URIs."""
         if not uri.startswith("s3://"):
             return
 

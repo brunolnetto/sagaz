@@ -17,6 +17,12 @@ class SagaOrchestrator:
     """
 
     def __init__(self, logger: logging.Logger | None = None, verbose: bool = False):
+        """Create an empty orchestrator.
+
+        Args:
+            logger: Optional pre-configured logger; defaults to module logger.
+            verbose: Emit INFO log on every saga completion when ``True``.
+        """
         self.sagas: dict[str, Saga] = {}
         self._lock = asyncio.Lock()
         self.logger = logger or logging.getLogger(__name__)

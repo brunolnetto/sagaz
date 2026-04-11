@@ -43,6 +43,7 @@ class InMemoryOutboxStorage(OutboxStorage):
     """
 
     def __init__(self):
+        """Initialise an empty in-memory outbox with no pending events."""
         self._events: dict[str, OutboxEvent] = {}
 
     async def insert(

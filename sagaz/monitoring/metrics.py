@@ -15,6 +15,7 @@ class SagaMetrics:
     """Collect and expose saga metrics"""
 
     def __init__(self):
+        """Initialise all counters and per-saga statistics to zero."""
         self.metrics: dict[str, Any] = {
             "total_executed": 0,
             "total_successful": 0,

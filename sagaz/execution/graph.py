@@ -171,6 +171,7 @@ class CircularDependencyError(CompensationGraphError):
     """Raised when circular dependencies are detected in the graph."""
 
     def __init__(self, cycle: list[str]):
+        """Record the full cycle path for diagnostic messages."""
         self.cycle = cycle
         super().__init__(f"Circular dependency detected: {' -> '.join(cycle)}")
 
@@ -179,6 +180,7 @@ class MissingDependencyError(CompensationGraphError):
     """Raised when a step depends on a non-existent step."""
 
     def __init__(self, step_id: str, missing_dep: str):
+        """Record the dependant step and the absent dependency name."""
         self.step_id = step_id
         self.missing_dep = missing_dep
         super().__init__(f"Step '{step_id}' depends on non-existent step '{missing_dep}'")
@@ -245,6 +247,7 @@ class SagaExecutionGraph:
     """
 
     def __init__(self):
+        """Initialise an empty execution graph with no registered compensations."""
         self.nodes: dict[str, CompensationNode] = {}
         self.executed_steps: list[str] = []
         self._compensation_results: dict[str, Any] = {}
@@ -425,6 +428,7 @@ class SagaExecutionGraph:
         path: list[str] = []
 
         def dfs(node: str) -> list[str] | None:
+            """Depth-first search; returns closed cycle path or ``None``."""
             if node in path:
                 cycle_start = path.index(node)
                 return [*path[cycle_start:], node]
@@ -780,6 +784,7 @@ class SagaExecutionGraph:
         self._compensation_results.clear()
 
     def __repr__(self) -> str:
+        """Return a concise summary of node count and execution progress."""
         return f"SagaExecutionGraph(nodes={len(self.nodes)}, executed={len(self.executed_steps)})"
 
 
@@ -789,6 +794,7 @@ class _CompensationTracker:
     __slots__ = ("errors", "executed", "failed", "failed_set", "should_stop", "skipped")
 
     def __init__(self):
+        """Initialise all tracking collections to empty/default state."""
         self.executed: list[str] = []
         self.failed: list[str] = []
         self.skipped: list[str] = []
