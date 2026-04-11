@@ -30,7 +30,7 @@ import asyncio
 import inspect
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from sagaz.storage.base import SagaStorage
@@ -54,8 +54,6 @@ from sagaz.core.types import SagaStatus
 from sagaz.execution.graph import CompensationType, SagaExecutionGraph
 
 logger = get_logger(__name__)
-
-F = TypeVar("F", bound=Callable[..., Awaitable[Any]])
 
 
 @dataclass
