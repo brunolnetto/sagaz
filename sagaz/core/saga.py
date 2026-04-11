@@ -83,6 +83,7 @@ class _StepExecutor:
     """Helper class to wrap SagaStep for strategy execution"""
 
     def __init__(self, step: "SagaStep", saga_context: "SagaContext"):
+        """Bind a step and its execution context for deferred strategy use."""
         self.step = step
         self.saga_context = saga_context
         self.result = None
@@ -111,6 +112,7 @@ class _StepExecutor:
 
     @property
     def name(self) -> str:
+        """Delegate name lookup to the wrapped step."""
         return self.step.name
 
 
@@ -134,6 +136,22 @@ class Saga(ABC):
         replay_config: "ReplayConfig | None" = None,
         snapshot_storage: "SnapshotStorage | None" = None,
     ):
+        """
+        Initialise the saga with optional parallel-failure strategy and replay support.
+
+        Args:
+            name: Human-readable saga name used in logs and diagrams.
+            version: Schema version string; bump when step layout changes to
+                support replay compatibility checks.
+            failure_strategy: How to handle failures in parallel step batches
+                (``FAIL_FAST``, ``WAIT_ALL``, or ``FAIL_FAST_WITH_GRACE``).
+            retry_backoff_base: Base delay (seconds) for exponential back-off
+                between retry attempts on transient step failures.
+            replay_config: Optional configuration enabling point-in-time replay
+                from a saved snapshot checkpoint.
+            snapshot_storage: Backend used to persist and retrieve checkpoints
+                when replay is enabled.
+        """
         self.name = name
         self.version = version
         self.saga_id = str(uuid4())
@@ -1268,6 +1286,7 @@ class SagaStep:
     """True if this step is locked from rollback (ancestor of completed pivot)."""
 
     def __hash__(self):
+        """Hash by idempotency key so steps can be stored in sets/dicts."""
         return hash(self.idempotency_key)
 
     def can_compensate(self) -> bool:

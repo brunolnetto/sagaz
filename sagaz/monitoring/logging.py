@@ -99,6 +99,7 @@ class SagaLogger:
     """
 
     def __init__(self, name: str):
+        """Create a logger named *name* and attach the saga context filter."""
         self.logger = logging.getLogger(name)
 
         # Add saga context filter

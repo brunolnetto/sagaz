@@ -82,6 +82,18 @@ class PostgreSQLSagaStorage(SagaStorage):
     def __init__(
         self, connection_string: str, pool_min_size: int = 5, pool_max_size: int = 20, **pool_kwargs
     ):
+        """
+        Configure the PostgreSQL saga storage backend.
+
+        Args:
+            connection_string: asyncpg-compatible DSN.
+            pool_min_size: Minimum idle connections in the pool.
+            pool_max_size: Maximum concurrent connections.
+            **pool_kwargs: Forwarded verbatim to ``asyncpg.create_pool``.
+
+        Raises:
+            MissingDependencyError: If *asyncpg* is not installed.
+        """
         if not ASYNCPG_AVAILABLE:
             msg = "asyncpg"
             raise MissingDependencyError(msg, "PostgreSQL storage backend")
