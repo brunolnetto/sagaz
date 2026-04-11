@@ -65,6 +65,7 @@ if TYPE_CHECKING:
 
 from statemachine.exceptions import TransitionNotAllowed
 
+from sagaz.core._step_executor import _StepExecutor
 from sagaz.core.context import SagaContext
 from sagaz.core.exceptions import (
     SagaCompensationError,
@@ -77,43 +78,6 @@ from sagaz.execution.state_machine import SagaStateMachine
 
 # Configure logging
 logger = logging.getLogger(__name__)
-
-
-class _StepExecutor:
-    """Helper class to wrap SagaStep for strategy execution"""
-
-    def __init__(self, step: "SagaStep", saga_context: "SagaContext"):
-        """Bind a step and its execution context for deferred strategy use."""
-        self.step = step
-        self.saga_context = saga_context
-        self.result = None
-        self.error: Exception | None = None
-        self.completed = False
-
-    async def execute(self) -> Any:
-        """Execute the step action and store result or error"""
-        try:
-            result = await self.step.action(self.saga_context)
-            self.result = result
-            self.step.result = result
-            # Store result in context for dependent steps
-            self.saga_context.set(self.step.name, result)
-            self.completed = True
-            return result
-        except Exception as e:
-            self.error = e
-            self.step.error = e
-            raise
-
-    async def compensate(self) -> None:
-        """Execute the step compensation if available"""
-        if self.step.compensation:
-            await self.step.compensation(self.result, self.saga_context)
-
-    @property
-    def name(self) -> str:
-        """Delegate name lookup to the wrapped step."""
-        return self.step.name
 
 
 class Saga(ABC):
@@ -136,22 +100,6 @@ class Saga(ABC):
         replay_config: "ReplayConfig | None" = None,
         snapshot_storage: "SnapshotStorage | None" = None,
     ):
-        """
-        Initialise the saga with optional parallel-failure strategy and replay support.
-
-        Args:
-            name: Human-readable saga name used in logs and diagrams.
-            version: Schema version string; bump when step layout changes to
-                support replay compatibility checks.
-            failure_strategy: How to handle failures in parallel step batches
-                (``FAIL_FAST``, ``WAIT_ALL``, or ``FAIL_FAST_WITH_GRACE``).
-            retry_backoff_base: Base delay (seconds) for exponential back-off
-                between retry attempts on transient step failures.
-            replay_config: Optional configuration enabling point-in-time replay
-                from a saved snapshot checkpoint.
-            snapshot_storage: Backend used to persist and retrieve checkpoints
-                when replay is enabled.
-        """
         self.name = name
         self.version = version
         self.saga_id = str(uuid4())
@@ -1286,7 +1234,6 @@ class SagaStep:
     """True if this step is locked from rollback (ancestor of completed pivot)."""
 
     def __hash__(self):
-        """Hash by idempotency key so steps can be stored in sets/dicts."""
         return hash(self.idempotency_key)
 
     def can_compensate(self) -> bool:
