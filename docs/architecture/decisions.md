@@ -429,4 +429,6 @@ Implement **Reference-Based Context** and **Streaming**:
 | 23 | Pivot/Irreversible Steps | Handle irreversible operations |
 | 25 | Event-Driven Triggers | Auto-discovered, reactive sagas |
 | 21 | Context Streaming | Reference-based context for large payloads (Implemented) |
+| 36 | Lifecycle Hooks & Observers | Cross-cutting observability without per-step boilerplate |
+| 37 | Compliance & Data Governance | GDPR, encryption, access control for replay snapshots |
 
