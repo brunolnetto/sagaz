@@ -55,6 +55,23 @@ saga = PaymentSaga(
 result = await saga.execute()
 ```
 
+### 📚 Live Example
+
+See a complete, runnable example in [examples/monitoring_and_observability/filesystem_snapshot_demo.py](../../examples/monitoring_and_observability/filesystem_snapshot_demo.py).
+
+Run it with:
+
+```bash
+python examples/monitoring_and_observability/filesystem_snapshot_demo.py
+```
+
+This demonstrates:
+- Creating filesystem snapshot storage
+- Creating and saving snapshots
+- Retrieving snapshots
+- Checking storage statistics
+- Inspecting snapshot files
+
 ### Directory Structure
 
 ```
