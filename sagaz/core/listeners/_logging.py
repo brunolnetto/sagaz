@@ -4,14 +4,15 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from sagaz.core.listeners import SagaListener
+    pass
 
+from sagaz.core.listeners._base import SagaListener
 from sagaz.core.logger import get_logger
 
 logger = get_logger(__name__)
 
 
-class LoggingSagaListener:
+class LoggingSagaListener(SagaListener):
     """
     Logs all saga lifecycle events.
 

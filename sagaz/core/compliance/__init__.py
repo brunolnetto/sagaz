@@ -21,9 +21,16 @@ Example:
 
 from dataclasses import dataclass
 
-from sagaz.core.compliance._access import AccessLevel, check_access, delete_user_data
-from sagaz.core.compliance._audit import anonymize_context, create_audit_log
-from sagaz.core.compliance._encryption import decrypt_context, encrypt_context
+from sagaz.core.compliance._access import AccessLevel
+from sagaz.core.compliance._access import check_access
+from sagaz.core.compliance._access import delete_user_data
+from sagaz.core.compliance._audit import anonymize_context
+from sagaz.core.compliance._audit import create_audit_log
+from sagaz.core.compliance._encryption import decrypt_context
+from sagaz.core.compliance._encryption import encrypt_context
+from sagaz.core.compliance._encryption import is_sensitive
+from sagaz.core.compliance._encryption import simple_decrypt
+from sagaz.core.compliance._encryption import simple_encrypt
 
 
 @dataclass
@@ -117,6 +124,19 @@ class ComplianceManager:
         """Anonymize sensitive data in context (for GDPR/privacy)."""
         return anonymize_context(context)
 
+    # Backward compatibility: expose private methods as is_sensitive, simple_encrypt, simple_decrypt
+    def _is_sensitive(self, key: str) -> bool:
+        """Backward compatible: determine if a context key contains sensitive data"""
+        return is_sensitive(key)
+
+    def _simple_encrypt(self, text: str) -> str:
+        """Backward compatible: simple encryption"""
+        return simple_encrypt(text, self.config.encryption_key)
+
+    def _simple_decrypt(self, encrypted_hex: str) -> str:
+        """Backward compatible: simple decryption"""
+        return simple_decrypt(encrypted_hex, self.config.encryption_key)
+
 
 __all__ = [
     "AccessLevel",
@@ -128,4 +148,7 @@ __all__ = [
     "decrypt_context",
     "delete_user_data",
     "encrypt_context",
+    "is_sensitive",
+    "simple_decrypt",
+    "simple_encrypt",
 ]
