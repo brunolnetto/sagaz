@@ -19,8 +19,8 @@ from sagaz.core.replay import (
     SnapshotNotFoundError,
     SnapshotStrategy,
 )
-from sagaz.core.saga_replay import SagaReplay
-from sagaz.storage.backends.memory_snapshot import InMemorySnapshotStorage
+from sagaz.core.replay.saga_replay import SagaReplay
+from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
 
 
 class TestReplayConfig:

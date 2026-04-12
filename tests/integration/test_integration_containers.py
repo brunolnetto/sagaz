@@ -41,7 +41,7 @@ class TestPostgreSQLOutboxStorageIntegration:
     @pytest.mark.asyncio
     async def test_postgresql_storage_lifecycle(self, postgres_container):
         """Test full lifecycle: initialize, insert, claim, update, close."""
-        from sagaz.storage.backends.postgresql.outbox import ASYNCPG_AVAILABLE
+        from sagaz.core.storage.backends.postgresql.outbox import ASYNCPG_AVAILABLE
 
         if not ASYNCPG_AVAILABLE:
             pytest.skip("asyncpg not installed")
@@ -58,7 +58,7 @@ class TestPostgreSQLOutboxStorageIntegration:
 
     def _create_storage(self, postgres_container):
         """Create PostgreSQL storage from container."""
-        from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
+        from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
         connection_string = postgres_container.get_connection_url().replace(
             "postgresql+psycopg2://", "postgresql://"
@@ -71,7 +71,7 @@ class TestPostgreSQLOutboxStorageIntegration:
 
     async def _insert_test_event(self, storage):
         """Insert a test event and return it."""
-        from sagaz.outbox.types import OutboxEvent
+        from sagaz.core.outbox.types import OutboxEvent
 
         event = OutboxEvent(
             saga_id="saga-integration-test",
@@ -83,7 +83,7 @@ class TestPostgreSQLOutboxStorageIntegration:
 
     async def _verify_insert_and_claim(self, storage, event):
         """Verify event was inserted and can be claimed."""
-        from sagaz.outbox.types import OutboxStatus
+        from sagaz.core.outbox.types import OutboxStatus
 
         retrieved = await storage.get_by_id(event.event_id)
         assert retrieved is not None
@@ -99,7 +99,7 @@ class TestPostgreSQLOutboxStorageIntegration:
 
     async def _verify_update_and_query(self, storage, event):
         """Verify status update and saga query."""
-        from sagaz.outbox.types import OutboxStatus
+        from sagaz.core.outbox.types import OutboxStatus
 
         # Need to re-claim since previous claim consumed the event
         claimed = await storage.claim_batch(worker_id="test-worker-2", batch_size=10)
@@ -116,8 +116,8 @@ class TestPostgreSQLOutboxStorageIntegration:
     @pytest.mark.asyncio
     async def test_postgresql_concurrent_claim(self, postgres_container):
         """Test that concurrent claims work correctly with FOR UPDATE SKIP LOCKED."""
-        from sagaz.outbox.types import OutboxEvent
-        from sagaz.storage.backends.postgresql.outbox import (
+        from sagaz.core.outbox.types import OutboxEvent
+        from sagaz.core.storage.backends.postgresql.outbox import (
             ASYNCPG_AVAILABLE,
             PostgreSQLOutboxStorage,
         )
@@ -166,8 +166,8 @@ class TestPostgreSQLOutboxStorageIntegration:
     @pytest.mark.asyncio
     async def test_postgresql_stuck_events(self, postgres_container):
         """Test stuck event detection and release."""
-        from sagaz.outbox.types import OutboxEvent, OutboxStatus
-        from sagaz.storage.backends.postgresql.outbox import (
+        from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
+        from sagaz.core.storage.backends.postgresql.outbox import (
             ASYNCPG_AVAILABLE,
             PostgreSQLOutboxStorage,
         )
@@ -210,7 +210,7 @@ class TestPostgreSQLOutboxStorageIntegration:
     async def test_postgresql_inbox_deduplication(self, postgres_container):
         """Test consumer inbox deduplication pattern."""
 
-        from sagaz.storage.backends.postgresql.outbox import (
+        from sagaz.core.storage.backends.postgresql.outbox import (
             ASYNCPG_AVAILABLE,
             PostgreSQLOutboxStorage,
         )
@@ -265,7 +265,7 @@ class TestPostgreSQLOutboxStorageIntegration:
     async def test_postgresql_inbox_with_connection(self, postgres_container):
         """Test inbox insert with provided connection (transactional)."""
 
-        from sagaz.storage.backends.postgresql.outbox import (
+        from sagaz.core.storage.backends.postgresql.outbox import (
             ASYNCPG_AVAILABLE,
             PostgreSQLOutboxStorage,
         )
@@ -311,7 +311,7 @@ class TestPostgreSQLOutboxStorageIntegration:
     @pytest.mark.asyncio
     async def test_postgresql_update_inbox_duration(self, postgres_container):
         """Test updating processing duration for inbox events."""
-        from sagaz.storage.backends.postgresql.outbox import (
+        from sagaz.core.storage.backends.postgresql.outbox import (
             ASYNCPG_AVAILABLE,
             PostgreSQLOutboxStorage,
         )
@@ -350,7 +350,7 @@ class TestPostgreSQLOutboxStorageIntegration:
     @pytest.mark.asyncio
     async def test_postgresql_cleanup_inbox(self, postgres_container):
         """Test cleaning up old inbox entries."""
-        from sagaz.storage.backends.postgresql.outbox import (
+        from sagaz.core.storage.backends.postgresql.outbox import (
             ASYNCPG_AVAILABLE,
             PostgreSQLOutboxStorage,
         )
@@ -407,7 +407,7 @@ class TestKafkaBrokerIntegration:
     @pytest.mark.asyncio
     async def test_kafka_broker_publish(self, kafka_container):
         """Test connecting and publishing to Kafka."""
-        from sagaz.outbox.brokers.kafka import KAFKA_AVAILABLE, KafkaBroker, KafkaBrokerConfig
+        from sagaz.core.outbox.brokers.kafka import KAFKA_AVAILABLE, KafkaBroker, KafkaBrokerConfig
 
         if not KAFKA_AVAILABLE:
             pytest.skip("aiokafka not installed")
@@ -450,7 +450,7 @@ class TestKafkaBrokerIntegration:
     @pytest.mark.asyncio
     async def test_kafka_broker_from_env(self, kafka_container, monkeypatch):
         """Test creating Kafka broker from environment variables."""
-        from sagaz.outbox.brokers.kafka import KAFKA_AVAILABLE, KafkaBroker
+        from sagaz.core.outbox.brokers.kafka import KAFKA_AVAILABLE, KafkaBroker
 
         if not KAFKA_AVAILABLE:
             pytest.skip("aiokafka not installed")
@@ -483,7 +483,7 @@ class TestRabbitMQBrokerIntegration:
     @pytest.mark.asyncio
     async def test_rabbitmq_broker_publish(self, rabbitmq_container):
         """Test connecting and publishing to RabbitMQ."""
-        from sagaz.outbox.brokers.rabbitmq import (
+        from sagaz.core.outbox.brokers.rabbitmq import (
             RABBITMQ_AVAILABLE,
             RabbitMQBroker,
             RabbitMQBrokerConfig,
@@ -549,10 +549,10 @@ class TestOutboxWorkerIntegration:
     @pytest.mark.asyncio
     async def test_worker_process_batch(self, postgres_container):
         """Test worker processing a batch of events."""
-        from sagaz.outbox.brokers.memory import InMemoryBroker
-        from sagaz.outbox.types import OutboxConfig, OutboxEvent
-        from sagaz.outbox.worker import OutboxWorker
-        from sagaz.storage.backends.postgresql.outbox import (
+        from sagaz.core.outbox.brokers.memory import InMemoryBroker
+        from sagaz.core.outbox.types import OutboxConfig, OutboxEvent
+        from sagaz.core.outbox.worker import OutboxWorker
+        from sagaz.core.storage.backends.postgresql.outbox import (
             ASYNCPG_AVAILABLE,
             PostgreSQLOutboxStorage,
         )

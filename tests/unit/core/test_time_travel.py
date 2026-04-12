@@ -10,8 +10,8 @@ from uuid import uuid4
 import pytest
 
 from sagaz.core.replay import SagaSnapshot
-from sagaz.core.time_travel import HistoricalState, SagaTimeTravel
-from sagaz.storage.backends.memory_snapshot import InMemorySnapshotStorage
+from sagaz.core.replay.time_travel import HistoricalState, SagaTimeTravel
+from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
 
 
 class TestHistoricalState:

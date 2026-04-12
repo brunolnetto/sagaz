@@ -8,7 +8,7 @@ import asyncio
 from typing import Any
 
 from sagaz import Saga, action, compensate
-from sagaz.triggers import trigger
+from sagaz.core.triggers import trigger
 
 
 class OrderSaga(Saga):

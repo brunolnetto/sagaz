@@ -183,14 +183,14 @@ async def test_postgresql_outbox_storage():
     test_name = "PostgreSQL Outbox Storage"
 
     try:
-        from sagaz.storage.backends.postgresql.outbox import ASYNCPG_AVAILABLE
+        from sagaz.core.storage.backends.postgresql.outbox import ASYNCPG_AVAILABLE
 
         if not ASYNCPG_AVAILABLE:
             record_result(test_name, False, "asyncpg not installed - skipping")
             return
 
-        from sagaz.outbox.types import OutboxEvent
-        from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
+        from sagaz.core.outbox.types import OutboxEvent
+        from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
         # Connect to local PostgreSQL (from docker-compose)
         storage = PostgreSQLOutboxStorage(
@@ -242,13 +242,13 @@ async def test_redis_broker():
     test_name = "Redis Broker"
 
     try:
-        from sagaz.outbox.brokers.redis import REDIS_AVAILABLE
+        from sagaz.core.outbox.brokers.redis import REDIS_AVAILABLE
 
         if not REDIS_AVAILABLE:
             record_result(test_name, False, "redis not installed - skipping")
             return
 
-        from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+        from sagaz.core.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
 
         config = RedisBrokerConfig(
             url="redis://localhost:6379/0",
@@ -298,8 +298,8 @@ async def test_outbox_pattern():
     test_name = "Outbox Pattern E2E"
 
     try:
-        from sagaz.outbox.brokers.redis import REDIS_AVAILABLE
-        from sagaz.storage.backends.postgresql.outbox import ASYNCPG_AVAILABLE
+        from sagaz.core.outbox.brokers.redis import REDIS_AVAILABLE
+        from sagaz.core.storage.backends.postgresql.outbox import ASYNCPG_AVAILABLE
 
         if not ASYNCPG_AVAILABLE:
             record_result(test_name, False, "asyncpg not installed - skipping")
@@ -309,10 +309,10 @@ async def test_outbox_pattern():
             record_result(test_name, False, "redis not installed - skipping")
             return
 
-        from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
-        from sagaz.outbox.types import OutboxConfig, OutboxEvent
-        from sagaz.outbox.worker import OutboxWorker
-        from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
+        from sagaz.core.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+        from sagaz.core.outbox.types import OutboxConfig, OutboxEvent
+        from sagaz.core.outbox.worker import OutboxWorker
+        from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
         # Setup storage
         storage = PostgreSQLOutboxStorage(

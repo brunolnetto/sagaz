@@ -29,11 +29,11 @@ from sagaz.listeners import (
     MetricsSagaListener,
     OutboxSagaListener,
 )
-from sagaz.monitoring.prometheus import PrometheusMetrics, start_metrics_server
-from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
-from sagaz.outbox.types import OutboxConfig
-from sagaz.outbox.worker import OutboxWorker
-from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
+from sagaz.observability.monitoring.prometheus import PrometheusMetrics, start_metrics_server
+from sagaz.core.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+from sagaz.core.outbox.types import OutboxConfig
+from sagaz.core.outbox.worker import OutboxWorker
+from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
 # Configure logging
 logging.basicConfig(

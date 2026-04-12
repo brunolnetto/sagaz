@@ -22,6 +22,7 @@
 | **Getting Started** | [Quickstart](quickstart.md), [Configuration](guides/configuration.md) |
 | **Patterns** | [Consumer Inbox](patterns/consumer-inbox.md), [DLQ](patterns/dead-letter-queue.md) |
 | **Operations** | [Kubernetes](guides/kubernetes.md), [Benchmarking](guides/benchmarking.md) |
+| **Examples** | [Runnable Examples](../examples/) |
 | **Contributing** | [Contributing Guide](development/contributing.md), [Testing Guide](development/testing.md) |
 | **Strategy** | [Roadmap](ROADMAP.md) |
 
@@ -33,6 +34,7 @@
 |-------------|-------|
 | **Get started quickly** | [Quickstart Guide](quickstart.md) |
 | **Configure storage/broker/observability** | [Configuration Guide](guides/configuration.md) |
+| **See runnable examples** | [Examples](../examples/) |
 | **Understand the architecture** | [Architecture Overview](architecture/overview.md) |
 | **See how data flows** | [Dataflow & Events](architecture/dataflow.md) |
 | **Deploy to Kubernetes** | [Kubernetes Guide](guides/kubernetes.md) |

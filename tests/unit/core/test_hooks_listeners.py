@@ -508,7 +508,7 @@ class TestMetricsSagaListener:
     def test_creates_default_metrics_if_not_provided(self):
         """Test MetricsSagaListener creates default metrics."""
         from sagaz.core.listeners import MetricsSagaListener
-        from sagaz.monitoring.metrics import SagaMetrics
+        from sagaz.observability.monitoring.metrics import SagaMetrics
 
         listener = MetricsSagaListener()
 

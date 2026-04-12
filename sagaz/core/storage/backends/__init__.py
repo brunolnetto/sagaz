@@ -1,0 +1,88 @@
+"""
+Sagaz Storage Backends.
+
+Provides storage implementations for different backends.
+
+Available backends:
+- memory: In-memory storage for testing
+- filesystem: Local filesystem storage for development/research
+- redis: Redis-based storage for distributed systems
+- postgresql: PostgreSQL storage for ACID compliance
+- sqlite: SQLite embedded storage for local development
+- s3: AWS S3 storage for scalable object storage
+"""
+
+# These are imported lazily to avoid import errors when dependencies are missing
+
+__all__ = [
+    "FilesystemSnapshotStorage",
+    "InMemoryOutboxStorage",
+    "InMemorySagaStorage",
+    "InMemorySnapshotStorage",
+    "PostgreSQLOutboxStorage",
+    "PostgreSQLSagaStorage",
+    "PostgreSQLSnapshotStorage",
+    "RedisOutboxStorage",
+    "RedisSagaStorage",
+    "RedisSnapshotStorage",
+    "S3SnapshotStorage",
+    "SQLiteOutboxStorage",
+    "SQLiteSagaStorage",
+]
+
+# Provide a stub so static analysers (CodeQL, mypy) can resolve names exported
+# via __getattr__. The real implementations are loaded lazily at runtime.
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # pragma: no cover
+    from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
+    from sagaz.core.storage.backends.memory import (
+        InMemoryOutboxStorage,
+        InMemorySagaStorage,
+    )
+    from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
+    from sagaz.core.storage.backends.postgresql import (
+        PostgreSQLOutboxStorage,
+        PostgreSQLSagaStorage,
+    )
+    from sagaz.core.storage.backends.postgresql.snapshot import (
+        PostgreSQLSnapshotStorage,
+    )
+    from sagaz.core.storage.backends.redis import (
+        RedisOutboxStorage,
+        RedisSagaStorage,
+    )
+    from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
+    from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
+    from sagaz.core.storage.backends.sqlite import (
+        SQLiteOutboxStorage,
+        SQLiteSagaStorage,
+    )
+
+
+_BACKEND_IMPORTS = {
+    "InMemorySagaStorage": ("memory", "InMemorySagaStorage"),
+    "InMemoryOutboxStorage": ("memory", "InMemoryOutboxStorage"),
+    "InMemorySnapshotStorage": ("memory_snapshot", "InMemorySnapshotStorage"),
+    "FilesystemSnapshotStorage": ("filesystem_snapshot", "FilesystemSnapshotStorage"),
+    "RedisSagaStorage": ("redis", "RedisSagaStorage"),
+    "RedisOutboxStorage": ("redis", "RedisOutboxStorage"),
+    "RedisSnapshotStorage": ("redis", "RedisSnapshotStorage"),
+    "PostgreSQLSagaStorage": ("postgresql", "PostgreSQLSagaStorage"),
+    "PostgreSQLOutboxStorage": ("postgresql", "PostgreSQLOutboxStorage"),
+    "PostgreSQLSnapshotStorage": ("postgresql", "PostgreSQLSnapshotStorage"),
+    "SQLiteSagaStorage": ("sqlite", "SQLiteSagaStorage"),
+    "SQLiteOutboxStorage": ("sqlite", "SQLiteOutboxStorage"),
+    "S3SnapshotStorage": ("s3", "S3SnapshotStorage"),
+}
+
+
+def __getattr__(name: str):
+    """Lazy import of storage backends."""
+    if name in _BACKEND_IMPORTS:
+        module_name, class_name = _BACKEND_IMPORTS[name]
+        module = __import__(f"sagaz.core.storage.backends.{module_name}", fromlist=[class_name])
+        return getattr(module, class_name)
+
+    msg = f"module {__name__!r} has no attribute {name!r}"
+    raise AttributeError(msg)

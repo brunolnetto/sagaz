@@ -307,7 +307,7 @@ class TestBuiltInListeners:
         """MetricsSagaListener should record saga metrics."""
         from sagaz.core.decorators import Saga, step
         from sagaz.core.listeners import MetricsSagaListener
-        from sagaz.monitoring.metrics import SagaMetrics
+        from sagaz.observability.monitoring.metrics import SagaMetrics
 
         metrics = SagaMetrics()
         listener = MetricsSagaListener(metrics=metrics)
@@ -332,7 +332,7 @@ class TestBuiltInListeners:
         """OutboxSagaListener should publish events to storage."""
         from sagaz.core.decorators import Saga, step
         from sagaz.core.listeners import OutboxSagaListener
-        from sagaz.outbox import InMemoryOutboxStorage
+        from sagaz.core.outbox import InMemoryOutboxStorage
 
         storage = InMemoryOutboxStorage()
         listener = OutboxSagaListener(storage=storage)
