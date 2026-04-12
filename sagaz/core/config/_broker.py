@@ -44,9 +44,7 @@ class BrokerConfigManager:
             port = env.get("SAGAZ_BROKER_PORT", "5672")  # type: ignore
             user = env.get("SAGAZ_BROKER_USER", "guest")  # type: ignore
             password = env.get("SAGAZ_BROKER_PASSWORD", "guest")  # type: ignore
-            return cls._parse_broker_url(
-                f"amqp://{user}:{password}@{host}:{port}/"
-            )
+            return cls._parse_broker_url(f"amqp://{user}:{password}@{host}:{port}/")
         if broker_type == "redis":
             redis_url = env.get("SAGAZ_BROKER_URL")  # type: ignore
             if redis_url is None:
@@ -133,9 +131,7 @@ class BrokerConfigManager:
                 RabbitMQBrokerConfig,
             )
 
-            rmq_config = RabbitMQBrokerConfig(
-                url=url.replace("rabbitmq://", "amqp://")
-            )
+            rmq_config = RabbitMQBrokerConfig(url=url.replace("rabbitmq://", "amqp://"))
             return RabbitMQBroker(rmq_config)
         if url == "memory://" or url == "":
             from sagaz.core.outbox.brokers.memory import InMemoryBroker

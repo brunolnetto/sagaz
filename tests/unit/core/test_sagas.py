@@ -257,7 +257,9 @@ class TestSagaMissingBranches:
 
         # Patch _dag_executor._execute_batch to raise unexpectedly
         saga._build_plan()  # Populate execution_batches first
-        with patch.object(saga._dag_executor, "_execute_batch", new=AsyncMock(side_effect=RuntimeError("boom"))):
+        with patch.object(
+            saga._dag_executor, "_execute_batch", new=AsyncMock(side_effect=RuntimeError("boom"))
+        ):
             result = await saga._execute_dag()
 
         assert result.success is False

@@ -454,4 +454,3 @@ class TestOutboxWorkerPromethusFallback:
 
         with _without_prometheus_for_worker() as worker_mod:
             assert worker_mod.PROMETHEUS_AVAILABLE is False
-

@@ -56,9 +56,7 @@ def simple_decrypt(encrypted_hex: str, encryption_key: str | None) -> str:
         return encrypted_hex
 
 
-def encrypt_context(
-    context: dict[str, Any], encryption_key: str | None
-) -> dict[str, Any]:
+def encrypt_context(context: dict[str, Any], encryption_key: str | None) -> dict[str, Any]:
     """
     Encrypt sensitive context data.
 

@@ -218,8 +218,7 @@ class S3ExternalStorage(ExternalStorage):
         """
         if not HAS_AIOBOTO3:
             msg = (
-                "aioboto3 is required for S3ExternalStorage. "
-                "Install with 'pip install sagaz[aws]'"
+                "aioboto3 is required for S3ExternalStorage. Install with 'pip install sagaz[aws]'"
             )
             raise ImportError(msg)
 
