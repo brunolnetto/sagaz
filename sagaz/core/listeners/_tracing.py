@@ -1,6 +1,6 @@
 """Tracing listener for distributed tracing support."""
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     pass

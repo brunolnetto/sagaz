@@ -21,16 +21,15 @@ Example:
 
 from dataclasses import dataclass
 
-from sagaz.core.compliance._access import AccessLevel
-from sagaz.core.compliance._access import check_access
-from sagaz.core.compliance._access import delete_user_data
-from sagaz.core.compliance._audit import anonymize_context
-from sagaz.core.compliance._audit import create_audit_log
-from sagaz.core.compliance._encryption import decrypt_context
-from sagaz.core.compliance._encryption import encrypt_context
-from sagaz.core.compliance._encryption import is_sensitive
-from sagaz.core.compliance._encryption import simple_decrypt
-from sagaz.core.compliance._encryption import simple_encrypt
+from sagaz.core.compliance._access import AccessLevel, check_access, delete_user_data
+from sagaz.core.compliance._audit import anonymize_context, create_audit_log
+from sagaz.core.compliance._encryption import (
+    decrypt_context,
+    encrypt_context,
+    is_sensitive,
+    simple_decrypt,
+    simple_encrypt,
+)
 
 
 @dataclass
