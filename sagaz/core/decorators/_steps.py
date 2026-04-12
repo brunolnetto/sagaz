@@ -24,6 +24,7 @@ OnEnterHook = Callable[[dict[str, Any], str], Awaitable[None] | None]
 OnSuccessHook = Callable[[dict[str, Any], str, Any], Awaitable[None] | None]
 OnFailureHook = Callable[[dict[str, Any], str, Exception], Awaitable[None] | None]
 OnCompensateHook = Callable[[dict[str, Any], str], Awaitable[None] | None]
+OnExitHook = Callable[[dict[str, Any], str], Awaitable[None] | None]
 
 
 @dataclass
@@ -41,6 +42,7 @@ class StepMetadata:
     on_enter: OnEnterHook | None = None
     on_success: OnSuccessHook | None = None
     on_failure: OnFailureHook | None = None
+    on_exit: OnExitHook | None = None
     # v1.3.0: Pivot support
     pivot: bool = False
     """If True, marks this step as a point of no return (irreversible)."""
@@ -71,6 +73,7 @@ def step(
     on_enter: OnEnterHook | None = None,
     on_success: OnSuccessHook | None = None,
     on_failure: OnFailureHook | None = None,
+    on_exit: OnExitHook | None = None,
     pivot: bool = False,
 ) -> Callable[[F], F]:
     """
@@ -116,6 +119,7 @@ def step(
             on_enter=on_enter,
             on_success=on_success,
             on_failure=on_failure,
+            on_exit=on_exit,
             pivot=pivot,
         )
         return func

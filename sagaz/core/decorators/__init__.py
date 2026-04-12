@@ -37,6 +37,7 @@ from sagaz.core.decorators._steps import (
     ForwardRecoveryMetadata,
     OnCompensateHook,
     OnEnterHook,
+    OnExitHook,
     OnFailureHook,
     OnSuccessHook,
     StepMetadata,
@@ -78,6 +79,7 @@ class SagaStepDefinition:
     on_enter: OnEnterHook | None = None
     on_success: OnSuccessHook | None = None
     on_failure: OnFailureHook | None = None
+    on_exit: OnExitHook | None = None
     on_compensate: OnCompensateHook | None = None
     # v1.3.0: Pivot support
     pivot: bool = False
