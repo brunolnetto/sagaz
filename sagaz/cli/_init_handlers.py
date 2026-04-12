@@ -648,9 +648,6 @@ echo "Benchmark complete!"
 def _copy_example_saga(example_template: str, target_dir: Path):
     """Copy an example saga from the package to the target directory."""
     try:
-        import shutil
-        from pathlib import Path
-
         # Map simple name to full path
         if example_template == "simple":
             # Create simple inline example

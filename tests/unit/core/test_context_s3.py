@@ -98,6 +98,7 @@ class TestContextAioboto3ImportError:
         import sys
 
         orig_context = sys.modules.get("sagaz.core.context")
+        orig_storage = sys.modules.get("sagaz.core.context._storage")
         orig_aioboto3 = sys.modules.get("aioboto3")
 
         sys.modules.pop("aioboto3", None)
@@ -117,5 +118,7 @@ class TestContextAioboto3ImportError:
                 sys.modules["aioboto3"] = orig_aioboto3
             sys.modules.pop("sagaz.core.context", None)
             sys.modules.pop("sagaz.core.context._storage", None)
+            if orig_storage is not None:
+                sys.modules["sagaz.core.context._storage"] = orig_storage
             if orig_context is not None:
                 sys.modules["sagaz.core.context"] = orig_context

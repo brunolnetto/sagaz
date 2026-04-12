@@ -28,9 +28,8 @@ from sagaz.core.context._storage import (
     S3ExternalStorage,
 )
 
-# For backward compatibility, also try to import aioboto3 at package level
 try:
-    import aioboto3
+    import aioboto3  # exposed for test patching (sagaz.core.context.aioboto3)
 except ImportError:
     aioboto3 = None  # type: ignore[assignment]
 

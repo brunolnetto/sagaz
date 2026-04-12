@@ -14,7 +14,7 @@ from sagaz.core.decorators._steps import (
 from sagaz.core.logger import get_logger
 
 if TYPE_CHECKING:
-    from sagaz.core.decorators import Saga, SagaStepDefinition
+    from sagaz.core.decorators import Saga
 
 logger = get_logger(__name__)
 

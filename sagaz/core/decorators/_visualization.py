@@ -50,7 +50,11 @@ class _DecoratorVisualizationMixin:
             ...     "compensated_steps": ["charge", "reserve"]
             ... })
         """
-        from sagaz.observability.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+        from sagaz.observability.visualization.mermaid import (
+            HighlightTrail,
+            MermaidGenerator,
+            StepInfo,
+        )
 
         # Convert steps to StepInfo format
         steps = [

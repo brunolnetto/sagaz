@@ -643,7 +643,11 @@ class TestMonitoringTracingBranches:
         import sys
         from unittest.mock import patch
 
-        from sagaz.observability.monitoring.tracing import TRACING_AVAILABLE, SagaTracer, setup_tracing
+        from sagaz.observability.monitoring.tracing import (
+            TRACING_AVAILABLE,
+            SagaTracer,
+            setup_tracing,
+        )
 
         if not TRACING_AVAILABLE:
             pytest.skip("OpenTelemetry not available")

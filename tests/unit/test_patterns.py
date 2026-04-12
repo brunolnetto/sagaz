@@ -304,8 +304,8 @@ class TestStatusBranchCoverage:
     async def test_to_mermaid_with_execution_compensating_status(self):
         """Test Mermaid diagram with 'compensating' status."""
         from sagaz.core.saga import Saga
-        from sagaz.core.types import SagaStatus
         from sagaz.core.storage.memory import InMemorySagaStorage
+        from sagaz.core.types import SagaStatus
 
         storage = InMemorySagaStorage()
 
@@ -354,8 +354,8 @@ class TestDecoratorStatusBranches:
     async def test_saga_compensated_status_handling(self):
         """Test saga with compensated status."""
         from sagaz.core.saga import Saga
-        from sagaz.core.types import SagaStatus
         from sagaz.core.storage.memory import InMemorySagaStorage
+        from sagaz.core.types import SagaStatus
 
         storage = InMemorySagaStorage()
 

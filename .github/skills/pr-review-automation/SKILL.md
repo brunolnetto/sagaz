@@ -65,7 +65,7 @@ gh api repos/{owner}/{repo}/pulls/{number}/comments --jq '.[] | select(.user.log
 **Detection strategy**:
 ```bash
 # Get failed status checks
-gh pr view <NUMBER> --json statusCheckRollup --jq '.statusCheckRollup[] | select(.state != "SUCCESS")'
+gh pr view <NUMBER> --json statusCheckRollup --jq '.statusCheckRollup[] | select(.conclusion != "SUCCESS" and .conclusion != "SKIPPED")'
 
 # Or get logs (if available)
 gh run list --status failure --branch <branch> --limit 1 --json databaseId,conclusion
@@ -126,7 +126,7 @@ gh pr edit <NUMBER> --add-assignee @me
 
 4. **Verify guard checks pass**
    ```bash
-   gh pr view <NUMBER> --json statusCheckRollup --jq '.statusCheckRollup[] | select(.state != "SUCCESS")'
+   gh pr view <NUMBER> --json statusCheckRollup --jq '.statusCheckRollup[] | select(.conclusion != "SUCCESS" and .conclusion != "SKIPPED")'
    # Should return empty if all pass
    ```
 
@@ -174,7 +174,7 @@ gh pr view 161 --json comments,reviews \
 **Step 2: Identify guard failure**
 ```bash
 gh pr view 161 --json statusCheckRollup \
-  --jq '.statusCheckRollup[] | select(.state != "SUCCESS")'
+  --jq '.statusCheckRollup[] | select(.conclusion != "SUCCESS" and .conclusion != "SKIPPED")'
 # Output: Commitlint failed
 ```
 
@@ -249,7 +249,7 @@ See `.github/skills/development-policy/SKILL.md` for full policy.
 gh pr view <NUMBER> --json comments --jq '.comments[] | select(.author.login | contains("copilot"))'
 
 # Check failed guard checks
-gh pr view <NUMBER> --json statusCheckRollup --jq '.statusCheckRollup[] | select(.state != "SUCCESS")'
+gh pr view <NUMBER> --json statusCheckRollup --jq '.statusCheckRollup[] | select(.conclusion != "SUCCESS" and .conclusion != "SKIPPED")'
 
 # See commit history (for checking commitlint compliance)
 git log --format="%h %s" | head -10

@@ -22,13 +22,13 @@ from typing import Any
 from flask import Flask, jsonify, request
 
 from sagaz import Saga, SagaConfig, action, compensate, configure
-
-# Import Flask integration
-from sagaz.integrations.flask import SagaFlask
 from sagaz.core.storage import InMemorySagaStorage
 
 # Import trigger decorator
 from sagaz.core.triggers import trigger
+
+# Import Flask integration
+from sagaz.integrations.flask import SagaFlask
 
 # =============================================================================
 # Configuration

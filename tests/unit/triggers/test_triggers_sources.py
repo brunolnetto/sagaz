@@ -453,7 +453,8 @@ class TestCronSchedulerCoverage:
             nonlocal call_count
             call_count += 1
             scheduler._running = False  # stop after this tick
-            raise RuntimeError("tick error")
+            msg = "tick error"
+            raise RuntimeError(msg)
 
         scheduler._running = True
         with patch.object(scheduler, "_tick", failing_tick):

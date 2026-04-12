@@ -52,6 +52,11 @@ class SagaStep:
     def __hash__(self):
         return hash(self.idempotency_key)
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, SagaStep):
+            return NotImplemented
+        return self.idempotency_key == other.idempotency_key
+
     def can_compensate(self) -> bool:
         """
         Check if this step can be compensated.

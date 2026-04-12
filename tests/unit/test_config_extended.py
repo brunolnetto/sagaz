@@ -372,7 +372,11 @@ class TestMermaidAdditionalCoverage:
 
     def test_mermaid_add_start_to_roots_skips_unexecuted(self):
         """Test _add_start_to_roots skips unexecuted steps (line 249)."""
-        from sagaz.observability.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+        from sagaz.observability.visualization.mermaid import (
+            HighlightTrail,
+            MermaidGenerator,
+            StepInfo,
+        )
 
         steps = [
             StepInfo(name="root_a", has_compensation=True),
@@ -391,7 +395,11 @@ class TestMermaidAdditionalCoverage:
 
     def test_mermaid_add_leaves_to_success_skips_unexecuted(self):
         """Test _add_leaves_to_success skips unexecuted steps (line 280)."""
-        from sagaz.observability.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+        from sagaz.observability.visualization.mermaid import (
+            HighlightTrail,
+            MermaidGenerator,
+            StepInfo,
+        )
 
         steps = [
             StepInfo(name="leaf_a", has_compensation=True),
@@ -424,7 +432,11 @@ class TestMermaidAdditionalCoverage:
 
     def test_mermaid_dag_compensation_chain_skip_non_compensated(self):
         """Test _add_dag_compensation_chain skips non-compensated steps (lines 368, 385)."""
-        from sagaz.observability.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+        from sagaz.observability.visualization.mermaid import (
+            HighlightTrail,
+            MermaidGenerator,
+            StepInfo,
+        )
 
         steps = [
             StepInfo(name="root", has_compensation=True),

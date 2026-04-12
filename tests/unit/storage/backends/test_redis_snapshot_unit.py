@@ -369,8 +369,8 @@ class TestRedisSnapshotStorageAdvanced:
                 mock_redis.from_url = MagicMock(return_value=mock_client)
 
                 from sagaz.core.replay import SagaSnapshot
-                from sagaz.core.types import SagaStatus
                 from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
+                from sagaz.core.types import SagaStatus
 
                 storage = RedisSnapshotStorage(
                     redis_url="redis://localhost", enable_compression=False

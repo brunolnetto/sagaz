@@ -9,9 +9,9 @@ from uuid import uuid4
 
 import pytest
 
-from sagaz.core.types import SagaStatus, SagaStepStatus
 from sagaz.core.storage.base import SagaStepState, SagaStorageError
 from sagaz.core.storage.memory import InMemorySagaStorage
+from sagaz.core.types import SagaStatus, SagaStepStatus
 
 
 class TestSagaStepState:
@@ -573,8 +573,8 @@ class TestMemoryOutboxBranch:
 class TestMemorySagaBranches:
     async def test_update_step_status_without_executed_at(self):
         """154->exit: executed_at is None → don't set executed_at field."""
-        from sagaz.core.types import SagaStatus, SagaStepStatus
         from sagaz.core.storage.backends.memory.saga import InMemorySagaStorage
+        from sagaz.core.types import SagaStatus, SagaStepStatus
 
         storage = InMemorySagaStorage()
         saga_id = str(uuid4())
@@ -596,8 +596,8 @@ class TestMemorySagaBranches:
 
     async def test_import_record(self):
         """271: import_record method called."""
-        from sagaz.core.types import SagaStatus
         from sagaz.core.storage.backends.memory.saga import InMemorySagaStorage
+        from sagaz.core.types import SagaStatus
 
         storage = InMemorySagaStorage()
         saga_id = str(uuid4())

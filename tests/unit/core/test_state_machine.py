@@ -7,12 +7,12 @@ Tests the state machine logic that manages saga and step lifecycle transitions.
 import pytest
 from statemachine.exceptions import TransitionNotAllowed
 
-from sagaz.core.saga import Saga
 from sagaz.core.execution.state_machine import (
     SagaStepStateMachine,
     get_valid_next_states,
     validate_state_transition,
 )
+from sagaz.core.saga import Saga
 
 
 class TestSagaStateMachine:

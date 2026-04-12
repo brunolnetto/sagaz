@@ -36,7 +36,11 @@ class _SagaVisualizationMixin:
         Returns:
             Mermaid diagram string that can be rendered in markdown.
         """
-        from sagaz.observability.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+        from sagaz.observability.visualization.mermaid import (
+            HighlightTrail,
+            MermaidGenerator,
+            StepInfo,
+        )
 
         # Convert steps to StepInfo format
         steps = [

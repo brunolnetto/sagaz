@@ -13,8 +13,8 @@ from uuid import uuid4
 import pytest
 
 from sagaz.core.replay import ReplayResult, ReplayStatus, SagaSnapshot
-from sagaz.core.types import SagaStatus
 from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
+from sagaz.core.types import SagaStatus
 
 
 class TestFilesystemSnapshotStorage:

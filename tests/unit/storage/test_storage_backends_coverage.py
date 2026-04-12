@@ -605,8 +605,8 @@ class TestSQLiteSagaStorageCoverage:
     @pytest.mark.asyncio
     async def test_sqlite_saga_update_step_not_found(self):
         """Test update_step_state when saga not found."""
-        from sagaz.core.types import SagaStepStatus
         from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
+        from sagaz.core.types import SagaStepStatus
 
         async with SQLiteSagaStorage(":memory:") as storage:
             # Try to update step for non-existent saga
@@ -620,8 +620,8 @@ class TestSQLiteSagaStorageCoverage:
     @pytest.mark.asyncio
     async def test_sqlite_saga_update_step_success(self):
         """Test update_step_state success path."""
-        from sagaz.core.types import SagaStatus, SagaStepStatus
         from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
+        from sagaz.core.types import SagaStatus, SagaStepStatus
 
         async with SQLiteSagaStorage(":memory:") as storage:
             # Create saga with step
@@ -649,8 +649,8 @@ class TestSQLiteSagaStorageCoverage:
     @pytest.mark.asyncio
     async def test_sqlite_saga_update_step_with_error(self):
         """Test update_step_state with error."""
-        from sagaz.core.types import SagaStatus, SagaStepStatus
         from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
+        from sagaz.core.types import SagaStatus, SagaStepStatus
 
         async with SQLiteSagaStorage(":memory:") as storage:
             await storage.save_saga_state(
@@ -675,8 +675,8 @@ class TestSQLiteSagaStorageCoverage:
     @pytest.mark.asyncio
     async def test_sqlite_saga_update_step_with_executed_at(self):
         """Test update_step_state with executed_at timestamp."""
-        from sagaz.core.types import SagaStatus, SagaStepStatus
         from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
+        from sagaz.core.types import SagaStatus, SagaStepStatus
 
         async with SQLiteSagaStorage(":memory:") as storage:
             await storage.save_saga_state(
@@ -701,8 +701,8 @@ class TestSQLiteSagaStorageCoverage:
     @pytest.mark.asyncio
     async def test_sqlite_saga_cleanup_completed(self):
         """Test cleanup_completed_sagas method."""
-        from sagaz.core.types import SagaStatus
         from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
+        from sagaz.core.types import SagaStatus
 
         async with SQLiteSagaStorage(":memory:") as storage:
             # Create old completed saga
@@ -739,8 +739,8 @@ class TestSQLiteSagaStorageCoverage:
     @pytest.mark.asyncio
     async def test_sqlite_saga_export_all(self):
         """Test export_all generator."""
-        from sagaz.core.types import SagaStatus
         from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
+        from sagaz.core.types import SagaStatus
 
         async with SQLiteSagaStorage(":memory:") as storage:
             # Create some sagas
@@ -784,8 +784,8 @@ class TestSQLiteSagaStorageCoverage:
     @pytest.mark.asyncio
     async def test_sqlite_saga_list_with_filters(self):
         """Test list_sagas with status and name filters."""
-        from sagaz.core.types import SagaStatus
         from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
+        from sagaz.core.types import SagaStatus
 
         async with SQLiteSagaStorage(":memory:") as storage:
             # Create sagas with different statuses

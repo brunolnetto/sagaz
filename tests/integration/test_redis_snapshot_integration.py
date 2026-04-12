@@ -279,12 +279,12 @@ class TestRedisSnapshotStorageIntegration:
     async def test_redis_compression(self, redis_container):
         """Test snapshot compression functionality."""
         from sagaz.core.replay import SagaSnapshot
-        from sagaz.core.types import SagaStatus
         from sagaz.core.storage.backends.redis.snapshot import (
             REDIS_AVAILABLE,
             ZSTD_AVAILABLE,
             RedisSnapshotStorage,
         )
+        from sagaz.core.types import SagaStatus
 
         if not REDIS_AVAILABLE:
             pytest.skip("redis not installed")

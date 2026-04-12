@@ -6,8 +6,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 if TYPE_CHECKING:
-    from sagaz.core.replay import ReplayConfig, SagaSnapshot, SnapshotStrategy
-    from sagaz.core.storage.interfaces.snapshot import SnapshotStorage
+    from sagaz.core.replay import SagaSnapshot, SnapshotStrategy
 
 from statemachine.exceptions import TransitionNotAllowed
 
