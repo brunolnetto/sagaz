@@ -334,6 +334,25 @@ class SagaConfig:
             logging=obs_data.get("logging", {}).get("enabled", True),
         )
 
+    # Backward compatibility: delegate to submodule methods
+    @staticmethod
+    def _parse_storage_url(url: str):
+        """Backward compatible: parse storage URL and return storage instance."""
+        return StorageConfigManager._parse_storage_url(url)
+
+    @staticmethod
+    def _parse_broker_url(url: str):
+        """Backward compatible: parse broker URL and return broker instance."""
+        return BrokerConfigManager._parse_broker_url(url)
+
+    def _setup_from_manager(self):
+        """Backward compatible: setup from storage manager (instance method)."""
+        storage, storage_manager = StorageConfigManager.setup_from_manager(
+            self.storage, self.storage_manager
+        )
+        self.storage = storage
+        self._storage_manager = storage_manager
+
 
 # Global configuration singleton
 _global_config: SagaConfig | None = None

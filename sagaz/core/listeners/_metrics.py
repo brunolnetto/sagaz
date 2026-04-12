@@ -1,13 +1,17 @@
 """Metrics listener for saga performance tracking."""
 
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
+if TYPE_CHECKING:
+    pass
+
+from sagaz.core.listeners._base import SagaListener
 from sagaz.core.logger import get_logger
 
 logger = get_logger(__name__)
 
 
-class MetricsSagaListener:
+class MetricsSagaListener(SagaListener):
     """
     Records saga metrics using a metrics backend.
 

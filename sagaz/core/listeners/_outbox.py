@@ -1,13 +1,17 @@
 """Outbox listener for reliable event delivery."""
 
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
+if TYPE_CHECKING:
+    pass
+
+from sagaz.core.listeners._base import SagaListener
 from sagaz.core.logger import get_logger
 
 logger = get_logger(__name__)
 
 
-class OutboxSagaListener:
+class OutboxSagaListener(SagaListener):
     """
     Publishes saga events to outbox storage for reliable event delivery.
 

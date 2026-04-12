@@ -1,13 +1,17 @@
 """Tracing listener for distributed tracing support."""
 
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
+if TYPE_CHECKING:
+    pass
+
+from sagaz.core.listeners._base import SagaListener
 from sagaz.core.logger import get_logger
 
 logger = get_logger(__name__)
 
 
-class TracingSagaListener:
+class TracingSagaListener(SagaListener):
     """
     Provides distributed tracing using the existing SagaTracer class.
 

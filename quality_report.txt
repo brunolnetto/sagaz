@@ -2,10 +2,10 @@
 ════════════════════════════════════════════════════════════════════════════════
   COVERAGE DISTRIBUTION HISTOGRAM
 ════════════════════════════════════════════════════════════════════════════════
-  Files: 84   Project coverage: 99.0%
+  Files: 85   Project coverage: 100.0%
 
     0.0–10.0 % │                                        0 ( 0.0%)
-   10.0–20.0 % │                                        1 ( 1.2%)
+   10.0–20.0 % │                                        0 ( 0.0%)
    20.0–30.0 % │                                        0 ( 0.0%)
    30.0–40.0 % │                                        0 ( 0.0%)
    40.0–50.0 % │                                        0 ( 0.0%)
@@ -13,7 +13,7 @@
    60.0–70.0 % │                                        0 ( 0.0%)
    70.0–80.0 % │                                        0 ( 0.0%)
    80.0–90.0 % │                                        0 ( 0.0%)
-   90.0–100.0% │████████████████████████████████████   83 (98.8%)
+   90.0–100.0% │████████████████████████████████████   85 (100.0%)
 
 ────────────────────────────────────────────────────────────────────────────────
   PERCENTILES
@@ -24,30 +24,12 @@
   p90       100.0%
   p95       100.0%
   p99       100.0%
-  avg        99.0%
-  min        17.3%
+  avg       100.0%
+  min       100.0%
   max       100.0%
-  not-100% 3 files (3.6%)
-  <80%     1 files (1.2%)
-  <60%     1 files (1.2%)
-
-────────────────────────────────────────────────────────────────────────────────
-  MISSING LINES DISTRIBUTION  (non-100% files: 3)
-  [linear scale, 10 bins]
-
-      0–8     lines │████████████████████████████████████    2 (66.7%)
-      8–17    lines │                                        0 ( 0.0%)
-     17–25    lines │                                        0 ( 0.0%)
-     25–34    lines │                                        0 ( 0.0%)
-     34–43    lines │                                        0 ( 0.0%)
-     43–51    lines │                                        0 ( 0.0%)
-     51–60    lines │                                        0 ( 0.0%)
-     60–68    lines │                                        0 ( 0.0%)
-     68–77    lines │                                        0 ( 0.0%)
-     77–86    lines │██████████████████                      1 (33.3%)
-
-  p50: 2      p75: 2      p90: 2      p99: 2     
-  avg: 29.3   max: 86     total missing: 88 lines
+  not-100% 0 files (0.0%)
+  <80%     0 files (0.0%)
+  <60%     0 files (0.0%)
 
 ════════════════════════════════════════════════════════════════════════════════
   PRAGMA INTERVAL LENGTH HISTOGRAM  (sequential blocks, 3 intervals)
@@ -71,7 +53,7 @@
   PRAGMA INTERVAL ROWS  3
 
 ════════════════════════════════════════════════════════════════════════════════
-  sagaz/execution/graph.py  rows 738-740 (3 rows)
+  sagaz/execution/graph/_core.py  rows 542-544 (3 rows)
   sagaz/storage/backends/__init__.py  rows 37-37 (1 rows)
   sagaz/strategies/fail_fast_grace.py  rows 88-88 (1 rows)
 
@@ -97,15 +79,14 @@
   PRAGMA FILES  3
 
 ════════════════════════════════════════════════════════════════════════════════
-     3 pragmas  execution/graph.py
+     3 pragmas  execution/graph/_core.py
      1 pragmas  storage/backends/__init__.py
      1 pragmas  strategies/fail_fast_grace.py
 
 ────────────────────────────────────────────────────────────────────────────────
-  QUALITY BLAME — below 90.0% (Q1=100.0% capped at 90%)   1
+  QUALITY BLAME — below 90.0% (Q1=100.0% capped at 90%)   0
 ────────────────────────────────────────────────────────────────────────────────
-   17.3%    86 lines missing  sagaz/cli/_setup_handlers.py
-         📍 27-29, 34-37, 42-43, 51, 56, 58-67, 71, 76-80, 82-83, 88-91, 93-94, 96-98, 102, 107-110, 112-113, 118-121, 123-125, 127, 132-133, 138-139, 144-145, 150-151, 156-160, 165-167, 169-171, 173-174, 187, 196, 198-199, 208-209, 216-217, 225-226, 228-229
+  ✅  No files below quality boundary.
 
 ════════════════════════════════════════════════════════════════════════════════
 
@@ -113,433 +94,483 @@
 ════════════════════════════════════════════════════════════════════════════════
   TEST DURATION ANALYSIS
 ════════════════════════════════════════════════════════════════════════════════
-  Tests: 2777   Total: 2m 57.0s (3m 23.8s wall time)   passed: 2777
-           (includes ~26.74s collection/overhead)
+  Tests: 2832   Total: 2m 21.5s (2m 55.8s wall time)   passed: 2832
+           (includes ~34.32s collection/overhead)
 
   PHASE: SETUP
   [log scale, 10 bins, slow >= 1.00s]
 
-      0ms–1ms    │█████████████████████                 793 (28.6%)  ░
-      1ms–3ms    │████████████████████████████████████ 1329 (47.9%)  ░
-      3ms–8ms    │█████████████                         490 (17.6%)  ░  ← p90
-      8ms–26ms   │███                                   128 ( 4.6%)  ░
-     26ms–81ms   │                                       18 ( 0.6%)  ░
-     81ms–258ms  │                                        7 ( 0.3%)  ▒
-    258ms–818ms  │                                        6 ( 0.2%)  ▒
-    818ms–2.59s  │                                        2 ( 0.1%)  █  ← 1.00s threshold
-    2.59s–8.23s  │                                        0 ( 0.0%)  █
-    8.23s–26.10s │                                        4 ( 0.1%)  █
+      0ms–0ms    │███████████████████                   709 (25.0%)  ░
+      0ms–1ms    │████████████████████████████████████ 1360 (48.0%)  ░
+      1ms–4ms    │██████████████                        533 (18.8%)  ░  ← p90
+      4ms–14ms   │████                                  169 ( 6.0%)  ░
+     14ms–49ms   │█                                      37 ( 1.3%)  ░
+     49ms–165ms  │                                       12 ( 0.4%)  ▒
+    165ms–558ms  │                                        6 ( 0.2%)  ▒
+    558ms–1.89s  │                                        1 ( 0.0%)  █  ← 1.00s threshold
+    1.89s–6.38s  │                                        1 ( 0.0%)  █
+    6.38s–21.59s │                                        4 ( 0.1%)  █
 
-  p50: 1ms       p75: 2ms       p90: 6ms       p95: 9ms       p99: 62ms    
-  avg: 31ms      max: 26.10s    total: 1m 26.3s  slow: 6      n: 2777
+  p50: 1ms       p75: 1ms       p90: 3ms       p95: 7ms       p99: 41ms    
+  avg: 23ms      max: 21.58s    total: 1m 06.3s  slow: 5      n: 2832
 
   ----------------------------------------------------------------------------
 
   PHASE: CALL
   [log scale, 10 bins, slow >= 1.00s]
 
-      0ms–1ms    │███████████████████████               613 (22.1%)  ░
-      1ms–3ms    │████████████████████████████████████  947 (34.1%)  ░
-      3ms–7ms    │████████████████████████              643 (23.2%)  ░
-      7ms–21ms   │████████████                          303 (10.9%)  ░  ← p90
-     21ms–58ms   │████                                   99 ( 3.6%)  ░
-     58ms–162ms  │███                                    77 ( 2.8%)  ▒
-    162ms–455ms  │██                                     46 ( 1.7%)  ▒
-    455ms–1.27s  │██                                     41 ( 1.5%)  █  ← 1.00s threshold
-    1.27s–3.57s  │                                        7 ( 0.3%)  █
-    3.57s–10.01s │                                        1 ( 0.0%)  █
+      0ms–0ms    │██████████████████                    508 (17.9%)  ░
+      0ms–1ms    │████████████████████████████████████  990 (35.0%)  ░
+      1ms–4ms    │███████████████████████████           748 (26.4%)  ░
+      4ms–12ms   │███████████                           302 (10.7%)  ░  ← p90
+     12ms–38ms   │███                                    93 ( 3.3%)  ░
+     38ms–116ms  │███                                    92 ( 3.2%)  ▒
+    116ms–354ms  │██                                     50 ( 1.8%)  ▒
+    354ms–1.08s  │██                                     42 ( 1.5%)  █  ← 1.00s threshold
+    1.08s–3.30s  │                                        6 ( 0.2%)  █
+    3.30s–10.09s │                                        1 ( 0.0%)  █
 
-  p50: 2ms       p75: 6ms       p90: 19ms      p95: 88ms      p99: 613ms   
-  avg: 31ms      max: 10.01s    total: 1m 26.4s  slow: 15     n: 2777
+  p50: 1ms       p75: 3ms       p90: 12ms      p95: 78ms      p99: 505ms   
+  avg: 26ms      max: 10.09s    total: 1m 12.3s  slow: 11     n: 2832
 
   ----------------------------------------------------------------------------
 
   PHASE: TEARDOWN
   [log scale, 10 bins, slow >= 1.00s]
 
-      0ms–0ms   │███████████████████                   568 (20.5%)  ░
-      0ms–1ms   │████████████████████████████████████ 1090 (39.3%)  ░
-      1ms–2ms   │████████████████████████████          843 (30.4%)  ░  ← p90
-      2ms–6ms   │████████                              236 ( 8.5%)  ░
-      6ms–13ms  │█                                      32 ( 1.2%)  ░
-     13ms–30ms  │                                        6 ( 0.2%)  ░
-     30ms–70ms  │                                        1 ( 0.0%)  ░
-     70ms–162ms │                                        0 ( 0.0%)  ▒
-    162ms–376ms │                                        0 ( 0.0%)  ▒
-    376ms–872ms │                                        1 ( 0.0%)  ▒
+      0ms–0ms   │███████████████                       475 (16.8%)  ░
+      0ms–1ms   │████████████████████████████████████ 1114 (39.3%)  ░
+      1ms–1ms   │██████████████████████████████        938 (33.1%)  ░
+      1ms–3ms   │████████                              246 ( 8.7%)  ░  ← p90
+      3ms–8ms   │█                                      38 ( 1.3%)  ░
+      8ms–20ms  │█                                      19 ( 0.7%)  ░
+     20ms–49ms  │                                        1 ( 0.0%)  ░
+     49ms–121ms │                                        0 ( 0.0%)  ▒
+    121ms–299ms │                                        0 ( 0.0%)  ▒
+    299ms–739ms │                                        1 ( 0.0%)  ▒
 
-  p50: 1ms       p75: 1ms       p90: 2ms       p95: 3ms       p99: 7ms     
-  avg: 2ms       max: 872ms     total: 4.34s     slow: 0      n: 2777
+  p50: 0ms       p75: 1ms       p90: 1ms       p95: 2ms       p99: 6ms     
+  avg: 1ms       max: 739ms     total: 2.87s     slow: 0      n: 2832
 
   ----------------------------------------------------------------------------
 
   AGGREGATE: TOTAL DURATION
   [log scale, 10 bins, slow >= 1.00s]
 
-      1ms–2ms    │████████████████████████              649 (23.4%)  ░
-      2ms–7ms    │████████████████████████████████████  965 (34.7%)  ░
-      7ms–19ms   │████████████████████████████          761 (27.4%)  ░
-     19ms–54ms   │███████                               195 ( 7.0%)  ░  ← p90
-     54ms–150ms  │████                                   96 ( 3.5%)  ▒
-    150ms–422ms  │██                                     43 ( 1.5%)  ▒
-    422ms–1.19s  │██                                     54 ( 1.9%)  █  ← 1.00s threshold
-    1.19s–3.33s  │                                        9 ( 0.3%)  █
-    3.33s–9.36s  │                                        0 ( 0.0%)  █
-    9.36s–26.28s │                                        5 ( 0.2%)  █
+      0ms–1ms    │███████████████████                   517 (18.3%)  ░
+      1ms–3ms    │████████████████████████████████████  992 (35.0%)  ░
+      3ms–10ms   │██████████████████████████████        813 (28.7%)  ░
+     10ms–29ms   │██████████                            273 ( 9.6%)  ░  ← p90
+     29ms–88ms   │███                                    96 ( 3.4%)  ░
+     88ms–265ms  │██                                     61 ( 2.2%)  ▒
+    265ms–798ms  │██                                     62 ( 2.2%)  ▒
+    798ms–2.40s  │                                       10 ( 0.4%)  █  ← 1.00s threshold
+    2.40s–7.24s  │                                        3 ( 0.1%)  █
+    7.24s–21.81s │                                        5 ( 0.2%)  █
 
-  p50: 5ms       p75: 12ms      p90: 29ms      p95: 103ms     p99: 790ms   
-  avg: 64ms      max: 26.28s    total: 2m 57.0s  slow: 21     n: 2777
+  p50: 3ms       p75: 7ms       p90: 20ms      p95: 83ms      p99: 554ms   
+  avg: 50ms      max: 21.81s    total: 2m 21.5s  slow: 16     n: 2832
 
 ────────────────────────────────────────────────────────────────────────────────
-  QUALITY BLAME — duration outliers  Q3 + 1.5×IQR > 26ms   311
+  QUALITY BLAME — duration outliers  Q3 + 1.5×IQR > 14ms   361
 ────────────────────────────────────────────────────────────────────────────────
-  ✅   26.28s (s:26.10s c:178ms)  …TestRabbitMQBrokerIntegration::test_rabbitmq_full_lifecycle
-  ✅   24.49s (s:23.57s c:922ms)  …s.py::TestKafkaBrokerIntegration::test_kafka_full_lifecycle
-  ✅   13.13s (s:12.72s c:409ms)  …estS3SnapshotStorageIntegration::test_s3_snapshot_lifecycle
-  ✅   10.03s (s:9.62s c:412ms)  …OutboxStorageIntegration::test_postgresql_storage_lifecycle
-  ✅   10.01s (s:2ms c:10.01s)  …ion/test_performance.py::TestEndurance::test_sustained_load
-  ✅    3.08s (s:2ms c:3.08s)  …disSnapshotStorageIntegration::test_redis_snapshot_with_ttl
-  ✅    3.08s (s:1ms c:3.07s)  …tRedisSnapshotStorageIntegration::test_redis_ttl_expiration
-  ✅    2.69s (s:2.51s c:182ms)  …:TestOTLPCollectorIntegration::test_send_trace_to_collector
-  ✅    2.59s (s:3ms c:2.59s)  …edisStorageIntegration::test_ttl_applied_to_completed_sagas
-  ✅    2.14s (s:1.77s c:357ms)  …sOutboxStorageIntegration::test_redis_outbox_full_lifecycle
-  ✅    1.57s (s:1ms c:1.56s)  …::TestRedisStorageIntegration::test_cleanup_completed_sagas
-  ✅    1.56s (s:1ms c:1.55s)  …/core/test_core.py::TestTimeouts::test_compensation_timeout
-  ✅    1.55s (s:4ms c:1.55s)  …:TestRealWorldScenarios::test_microservice_timeout_recovery
-  ✅    1.38s (s:0ms c:1.38s)  tests/unit/test_main.py::TestMain::test_main_cli_invocation
-  ✅    1.18s (s:3ms c:1.18s)  …resql.py::TestPostgreSQLStorageIntegration::test_list_sagas
-  ✅    1.16s (s:1ms c:1.16s)  tests/unit/test_main.py::TestMain::test_main_version
-  ✅    1.13s (s:3ms c:1.12s)  …tgreSQLSagaStorageIntegration::test_postgresql_saga_cleanup
-  ✅    1.04s (s:0ms c:1.03s)  …t/test_main.py::TestMain::test_main_module_direct_execution
+  ✅   21.81s (s:21.58s c:223ms)  …TestRabbitMQBrokerIntegration::test_rabbitmq_full_lifecycle
+  ✅   15.60s (s:14.54s c:1.06s)  …s.py::TestKafkaBrokerIntegration::test_kafka_full_lifecycle
+  ✅   12.10s (s:11.69s c:413ms)  …estS3SnapshotStorageIntegration::test_s3_snapshot_lifecycle
+  ✅   10.09s (s:1ms c:10.09s)  …ion/test_performance.py::TestEndurance::test_sustained_load
+  ✅    8.51s (s:8.28s c:226ms)  …OutboxStorageIntegration::test_postgresql_storage_lifecycle
+  ✅    3.05s (s:1ms c:3.05s)  …disSnapshotStorageIntegration::test_redis_snapshot_with_ttl
+  ✅    3.05s (s:1ms c:3.04s)  …tRedisSnapshotStorageIntegration::test_redis_ttl_expiration
+  ✅    2.60s (s:1ms c:2.59s)  …edisStorageIntegration::test_ttl_applied_to_completed_sagas
+  ✅    2.33s (s:2.23s c:92ms)  …:TestOTLPCollectorIntegration::test_send_trace_to_collector
+  ✅    1.56s (s:1ms c:1.56s)  …::TestRedisStorageIntegration::test_cleanup_completed_sagas
+  ✅    1.55s (s:1ms c:1.55s)  …/core/test_core.py::TestTimeouts::test_compensation_timeout
+  ✅    1.54s (s:1ms c:1.54s)  …:TestRealWorldScenarios::test_microservice_timeout_recovery
+  ✅    1.03s (s:945ms c:87ms)  …sOutboxStorageIntegration::test_redis_outbox_full_lifecycle
   ✅    1.02s (s:1ms c:1.02s)  …sts/unit/core/test_core.py::TestTimeouts::test_step_timeout
-  ✅    1.02s (s:3ms c:1.01s)  …eusBranches::test_process_iteration_pending_count_exception
-  ✅    1.01s (s:3ms c:1.01s)  …kerPrometheusBranches::test_process_iteration_no_prometheus
-  ✅    974ms (s:2ms c:968ms)  …QLSagaStorageIntegration::test_postgresql_saga_list_filters
-  ✅    935ms (s:151ms c:781ms)  …tS3SnapshotStorageIntegration::test_s3_get_snapshot_at_time
-  ✅    875ms (s:1ms c:1ms)  …y::TestTracingWithMockedCollector::test_child_span_creation
-  ✅    851ms (s:98ms c:751ms)  …estS3SnapshotStorageIntegration::test_s3_multiple_snapshots
-  ✅    841ms (s:1ms c:838ms)  …hotStorageIntegration::test_postgresql_get_snapshot_at_time
-  ✅    840ms (s:2ms c:834ms)  …ntegration::test_postgresql_storage_manager_context_manager
-  ✅    816ms (s:5ms c:808ms)  …y::TestPostgreSQLStorageIntegration::test_update_step_state
-  ✅    790ms (s:3ms c:784ms)  …agerHybridIntegration::test_hybrid_postgresql_redis_manager
-  ✅    755ms (s:3ms c:750ms)  ….py::TestOutboxWorkerIntegration::test_worker_process_batch
-  ✅    744ms (s:2ms c:739ms)  …y::TestPostgreSQLStorageIntegration::test_delete_saga_state
-  ✅    722ms (s:143ms c:576ms)  …::TestS3SnapshotStorageIntegration::test_s3_context_manager
-  ✅    704ms (s:2ms c:699ms)  …eSQLSagaStorageIntegration::test_postgresql_saga_statistics
-  ✅    680ms (s:5ms c:671ms)  …SQLSagaStorageIntegration::test_postgresql_saga_step_update
-  ✅    664ms (s:2ms c:662ms)  …:TestThroughput::test_multi_step_saga_throughput_production
-  ✅    617ms (s:2ms c:613ms)  …g.py::TestDataConsistency::test_no_data_loss_under_failures
-  ✅    613ms (s:1ms c:610ms)  …ore.py::TestDAGCompensation::test_dag_parallel_compensation
-  ✅    610ms (s:2ms c:607ms)  …aseConnectionLoss::test_connection_pool_exhaustion_recovery
-  ✅    591ms (s:101ms c:478ms)  …reSQLSnapshotStorageIntegration::test_save_and_get_snapshot
-  ✅    576ms (s:52ms c:510ms)  …tgreSQLSnapshotStorageIntegration::test_get_latest_snapshot
-  ✅    575ms (s:87ms c:484ms)  …n.py::TestS3SnapshotStorageIntegration::test_s3_compression
-  ✅    570ms (s:1ms c:567ms)  …e.py::TestThroughput::test_heavy_saga_throughput_production
-  ✅    548ms (s:2ms c:543ms)  …geManagerFactoryIntegration::test_create_postgresql_manager
-  ✅    545ms (s:1ms c:539ms)  …LOutboxStorageIntegration::test_postgresql_concurrent_claim
-  ✅    523ms (s:4ms c:518ms)  …re.py::TestCoreSaga::test_cannot_add_steps_during_execution
-  ✅    515ms (s:1ms c:513ms)  …::TestConcurrency::test_multiple_sagas_execute_concurrently
-  ✅    511ms (s:1ms c:509ms)  …lFailureStrategies::test_fail_fast_grace_waits_for_inflight
-  ✅    511ms (s:1ms c:508ms)  …_cases.py::TestCoreTo100::test_saga_already_executing_error
-  ✅    511ms (s:2ms c:508ms)  …test_core.py::TestPerformance::test_execution_time_recorded
-  ✅    511ms (s:1ms c:508ms)  …::TestConcurrency::test_concurrent_saga_execution_protected
-  ✅    509ms (s:4ms c:504ms)  …s.py::TestOptimisticPublisher::test_optimistic_send_timeout
-  ✅    508ms (s:2ms c:503ms)  …rashRecovery::test_worker_graceful_shutdown_preserves_state
-  ✅    505ms (s:2ms c:501ms)  …reSQLOutboxStorageIntegration::test_postgresql_stuck_events
-  ✅    500ms (s:2ms c:494ms)  …tgreSQLIntegration::test_postgresql_unified_storage_manager
-  ✅    487ms (s:79ms c:395ms)  …LSnapshotStorageIntegration::test_list_snapshots_with_limit
-  ✅    484ms (s:476ms c:6ms)  …ravelCommand::test_time_travel_query_specific_key_not_found
-  ✅    474ms (s:68ms c:389ms)  …stPostgreSQLSnapshotStorageIntegration::test_list_snapshots
-  ✅    472ms (s:11ms c:455ms)  …disOutboxStorageIntegration::test_redis_outbox_stuck_events
-  ✅    470ms (s:2ms c:465ms)  …PostgreSQLStorageIntegration::test_save_and_load_saga_state
-  ✅    468ms (s:68ms c:388ms)  …tgreSQLSnapshotStorageIntegration::test_prune_old_snapshots
-  ✅    457ms (s:2ms c:453ms)  ….py::TestThroughput::test_simple_saga_throughput_production
-  ✅    457ms (s:105ms c:349ms)  …on.py::TestS3SnapshotStorageIntegration::test_s3_encryption
-  ✅    445ms (s:1ms c:441ms)  …tboxStorageIntegration::test_postgresql_inbox_deduplication
-  ✅    444ms (s:2ms c:439ms)  …estPostgreSQLStorageIntegration::test_load_nonexistent_saga
-  ✅    439ms (s:1ms c:435ms)  …pshotStorageIntegration::test_postgresql_multiple_snapshots
-  ✅    437ms (s:1ms c:433ms)  …oxStorageIntegration::test_postgresql_inbox_with_connection
-  ✅    437ms (s:1ms c:433ms)  …eSQLOutboxStorageIntegration::test_postgresql_cleanup_inbox
-  ✅    424ms (s:1ms c:420ms)  …oxStorageIntegration::test_postgresql_update_inbox_duration
-  ✅    420ms (s:1ms c:416ms)  …torageIntegration::test_postgresql_delete_expired_snapshots
-  ✅    415ms (s:56ms c:348ms)  …tPostgreSQLSnapshotStorageIntegration::test_delete_snapshot
-  ✅    395ms (s:374ms c:10ms)  …egration.py::TestPostgreSQLIntegration::test_get_statistics
-  ✅    394ms (s:1ms c:390ms)  …SnapshotStorageIntegration::test_redis_get_snapshot_at_time
-  ✅    370ms (s:327ms c:34ms)  …_integration.py::TestPostgreSQLIntegration::test_list_sagas
-  ✅    364ms (s:2ms c:360ms)  …s.py::TestKafkaBrokerIntegration::test_kafka_broker_publish
-  ✅    350ms (s:332ms c:7ms)  …ntegration.py::TestPostgreSQLIntegration::test_health_check
-  ✅    315ms (s:283ms c:22ms)  …integration.py::TestPostgreSQLIntegration::test_delete_saga
-  ✅    315ms (s:3ms c:311ms)  …estParallelFailureStrategies::test_wait_all_lets_all_finish
-  ✅    313ms (s:3ms c:309ms)  …py::TestWaitAllStrategy::test_wait_all_completes_everything
-  ✅    312ms (s:1ms c:310ms)  …re.py::TestRetryLogic::test_configurable_retry_backoff_base
-  ✅    311ms (s:2ms c:308ms)  …tWithGraceStrategy::test_fail_fast_grace_waits_for_inflight
-  ✅    301ms (s:2ms c:298ms)  …age.py::TestExportAll::test_export_all_with_null_created_at
-  ✅    292ms (s:259ms c:25ms)  …ation.py::TestPostgreSQLIntegration::test_update_saga_state
-  ✅    258ms (s:1ms c:255ms)  …ion/test_performance.py::TestStress::test_heavy_saga_stress
-  ✅    246ms (s:221ms c:17ms)  …tion.py::TestPostgreSQLIntegration::test_save_and_load_saga
-  ✅    242ms (s:4ms c:207ms)  …pleSources::test_same_saga_triggered_from_different_sources
-  ✅    234ms (s:2ms c:230ms)  …:TestIntegration::test_complete_ecommerce_flow_with_failure
-  ✅    232ms (s:1ms c:228ms)  …pshotStorageIntegration::test_postgresql_snapshot_lifecycle
-  ✅    219ms (s:2ms c:215ms)  …rallelFailureStrategies::test_fail_fast_cancels_other_tasks
-  ✅    217ms (s:2ms c:208ms)  …oncurrencyControl::test_concurrency_allows_after_completion
-  ✅    208ms (s:2ms c:204ms)  …py::TestSagaPersistence::test_saga_persists_completed_state
-  ✅    208ms (s:2ms c:204ms)  …ersistence::test_saga_persists_rolled_back_state_on_failure
-  ✅    206ms (s:1ms c:204ms)  …atabaseConnectionLoss::test_outbox_storage_connection_retry
-  ✅    206ms (s:2ms c:203ms)  …ring.py::TestNetworkPartitions::test_delayed_acknowledgment
-  ✅    205ms (s:1ms c:202ms)  …ategies.py::TestWaitAllStrategy::test_wait_for_slowest_step
-  ✅    204ms (s:1ms c:202ms)  …gies.py::TestWaitAllStrategy::test_some_steps_fail_wait_all
-  ✅    187ms (s:2ms c:181ms)  …TestRabbitMQBrokerIntegration::test_rabbitmq_broker_publish
-  ✅    187ms (s:3ms c:179ms)  …RedisOutboxStorageIntegration::test_redis_outbox_statistics
-  ✅    184ms (s:3ms c:180ms)  …t_performance.py::TestLatency::test_multi_step_saga_latency
-  ✅    182ms (s:7ms c:170ms)  …RedisOutboxStorageIntegration::test_redis_outbox_saga_query
-  ✅    176ms (s:2ms c:173ms)  …e.py::TestThroughput::test_multi_step_saga_throughput_local
-  ✅    173ms (s:5ms c:162ms)  …isOutboxStorageIntegration::test_redis_outbox_export_import
-  ✅    167ms (s:1ms c:165ms)  …y::TestSaga::test_parallel_execution_faster_than_sequential
-  ✅    166ms (s:1ms c:164ms)  …layErrorHandling::test_replay_marks_failure_when_saga_fails
-  ✅    165ms (s:2ms c:158ms)  …disSagaStorageIntegration::test_redis_saga_list_and_cleanup
-  ✅    164ms (s:3ms c:159ms)  …:TestIdempotency::test_idempotency_same_key_returns_same_id
-  ✅    163ms (s:1ms c:152ms)  …_strategies.py::TestWaitAllStrategy::test_all_steps_succeed
-  ✅    161ms (s:2ms c:157ms)  …ers.py::TestIdempotency::test_idempotency_with_callable_key
-  ✅    156ms (s:2ms c:154ms)  …rage_transfer.py::TestTransferService::test_transfer_cancel
-  ✅    156ms (s:1ms c:154ms)  …estStrategyIntegration::test_strategy_with_successful_steps
-  ✅    154ms (s:2ms c:150ms)  …isSnapshotStorageIntegration::test_redis_multiple_snapshots
-  ✅    151ms (s:4ms c:141ms)  …edisOutboxStorageIntegration::test_redis_outbox_dead_letter
-  ✅    127ms (s:2ms c:123ms)  …okHandlerAccepted::test_webhook_returns_202_and_sets_queued
-  ✅    125ms (s:28ms c:95ms)  …te.py::TestValidateCommand::test_validate_all_sagas_success
-  ✅    121ms (s:2ms c:115ms)  …ManagerRedisIntegration::test_redis_unified_storage_manager
-  ✅    120ms (s:1ms c:117ms)  …stFailureAndCompensation::test_partial_compensation_failure
-  ✅    119ms (s:1ms c:117ms)  …reAndCompensation::test_compensation_failure_changes_status
-  ✅    119ms (s:1ms c:117ms)  …t_exception_in_compensation_doesnt_stop_other_compensations
-  ✅    118ms (s:2ms c:114ms)  …tegyIntegration::test_strategy_failure_behavior_differences
-  ✅    115ms (s:2ms c:112ms)  …orchestrator.py::TestSagaOrchestrator::test_count_by_status
-  ✅    115ms (s:1ms c:113ms)  …::TestFailFastWithGraceStrategy::test_graceful_cancellation
-  ✅    114ms (s:1ms c:111ms)  …y::TestFailFastStrategy::test_fail_fast_cancels_immediately
-  ✅    112ms (s:2ms c:107ms)  …rker.py::TestOutboxWorkerStart::test_start_processes_events
-  ✅    111ms (s:8ms c:102ms)  …:TestSimulateCommand::test_simulate_with_show_parallel_flag
-  ✅    111ms (s:3ms c:106ms)  …y::TestFailureStrategies::test_retry_then_continue_strategy
-  ✅    110ms (s:1ms c:107ms)  …utbox_worker.py::TestOutboxWorkerStart::test_start_and_stop
-  ✅    110ms (s:3ms c:104ms)  …y::TestExecuteCompensationsEdgeCases::test_timeout_handling
-  ✅    110ms (s:2ms c:104ms)  …ctoryIntegration::test_create_manager_with_backend_override
-  ✅    109ms (s:5ms c:103ms)  …::TestSQLiteStorageFactory::test_create_sqlite_with_db_path
-  ✅    107ms (s:2ms c:104ms)  …triggers.py::TestTriggerEngine::test_fire_calls_transformer
-  ✅    107ms (s:1ms c:105ms)  …/core/test_core.py::TestTimeouts::test_fast_step_no_timeout
-  ✅    107ms (s:1ms c:104ms)  …e/test_decorators.py::TestSaga::test_run_parallel_execution
-  ✅    106ms (s:2ms c:103ms)  …HealthCheckExtended::test_check_health_with_timeout_timeout
-  ✅    106ms (s:2ms c:103ms)  …strategies.py::TestFailFastStrategy::test_all_steps_succeed
-  ✅    105ms (s:2ms c:102ms)  …rategies.py::TestFailFastStrategy::test_multiple_steps_fail
-  ✅    105ms (s:1ms c:103ms)  …it/core/test_decorators.py::TestSaga::test_run_with_timeout
-  ✅    105ms (s:2ms c:99ms)  …edisIntegration::test_redis_storage_manager_context_manager
-  ✅    104ms (s:2ms c:102ms)  …/test_strategies.py::TestFailFastStrategy::test_single_step
-  ✅    104ms (s:1ms c:102ms)  …e.py::TestInMemorySagaStorage::test_cleanup_completed_sagas
-  ✅    104ms (s:1ms c:102ms)  …moryStorageListFiltering::test_cleanup_with_custom_statuses
-  ✅    103ms (s:1ms c:102ms)  …py::TestWaitAllStrategy::test_multiple_failures_collect_all
-  ✅    103ms (s:1ms c:102ms)  ….py::TestStrategiesTo100::test_fail_fast_grace_timeout_path
-  ✅    103ms (s:2ms c:100ms)  …strator.py::TestSagaOrchestrator::test_orchestrator_metrics
-  ✅    102ms (s:2ms c:99ms)  …playIntegration::test_replay_from_step2_after_step1_failure
-  ✅    101ms (s:3ms c:95ms)  ….py::TestKafkaBrokerIntegration::test_kafka_broker_from_env
-  ✅     99ms (s:2ms c:96ms)  …st_performance.py::TestStress::test_high_concurrency_stress
-  ✅     98ms (s:3ms c:93ms)  …RedisSagaStorageIntegration::test_redis_saga_full_lifecycle
-  ✅     93ms (s:2ms c:87ms)  ….py::TestRedisStorageIntegration::test_list_sagas_by_status
-  ✅     93ms (s:1ms c:90ms)  …re.py::TestSagaIntegration::test_ecommerce_order_processing
-  ✅     91ms (s:14ms c:76ms)  …te.py::TestSimulateCommand::test_simulate_all_sagas_success
-  ✅     91ms (s:1ms c:88ms)  …ureAndCompensation::test_step_failure_triggers_compensation
-  ✅     91ms (s:4ms c:85ms)  …mance.py::TestThroughput::test_simple_saga_throughput_local
-  ✅     89ms (s:2ms c:85ms)  …isSnapshotStorageIntegration::test_redis_multiple_snapshots
-  ✅     89ms (s:2ms c:86ms)  …or.py::TestSagaOrchestrator::test_mixed_success_and_failure
-  ✅     88ms (s:1ms c:86ms)  …tFailureAndCompensation::test_compensation_in_reverse_order
-  ✅     88ms (s:1ms c:82ms)  …trator.py::TestSagaOrchestrator::test_saga_failure_handling
-  ✅     88ms (s:1ms c:85ms)  …tRealWorldScenarios::test_partial_success_with_compensation
-  ✅     87ms (s:70ms c:13ms)  ….py::TestRedisOutboxStorageIntegration::test_full_lifecycle
-  ✅     86ms (s:2ms c:83ms)  …ore.py::TestOrchestrator::test_orchestrator_count_by_status
-  ✅     85ms (s:8ms c:76ms)  …imulate.py::TestSimulateCommand::test_simulate_with_context
-  ✅     85ms (s:1ms c:82ms)  …:TestFailureAndCompensation::test_step_without_compensation
-  ✅     84ms (s:3ms c:78ms)  …ithExceptionHandling::test_replay_command_exception_handled
-  ✅     84ms (s:1ms c:82ms)  …oreTo100::test_saga_no_completed_steps_compensation_attempt
-  ✅     84ms (s:1ms c:81ms)  …tExecuteFromSnapshot::test_execute_from_snapshot_step_fails
-  ✅     84ms (s:2ms c:81ms)  …ore.py::TestRetryLogic::test_retry_with_exponential_backoff
-  ✅     83ms (s:1ms c:79ms)  …isSnapshotStorageIntegration::test_redis_snapshot_lifecycle
-  ✅     83ms (s:1ms c:82ms)  …:TestSagaStateMachine::test_state_machine_compensation_flow
-  ✅     83ms (s:1ms c:81ms)  …ensation::test_step_without_compensation_no_rollback_needed
-  ✅     82ms (s:1ms c:81ms)  …TestCoreSagaResumeBranches::test_resume_execution_exception
-  ✅     82ms (s:2ms c:77ms)  …dis.py::TestRedisStorageIntegration::test_delete_saga_state
-  ✅     82ms (s:1ms c:80ms)  …re/test_core.py::TestRetryLogic::test_step_retry_exhaustion
-  ✅     81ms (s:1ms c:79ms)  …teMachine::test_transition_to_compensating_then_rolled_back
-  ✅     79ms (s:2ms c:74ms)  …py::TestRedisStorageIntegration::test_load_nonexistent_saga
-  ✅     77ms (s:1ms c:73ms)  …:TestRedisStorageIntegration::test_save_and_load_saga_state
-  ✅     76ms (s:69ms c:4ms)  …ration.py::TestRedisBrokerIntegration::test_get_stream_info
-  ✅     76ms (s:1ms c:72ms)  …isSnapshotStorageIntegration::test_redis_snapshot_lifecycle
-  ✅     75ms (s:69ms c:3ms)  …tegration.py::TestRedisBrokerIntegration::test_health_check
-  ✅     75ms (s:11ms c:62ms)  …y::TestSimulateCommand::test_simulate_shows_parallel_layers
-  ✅     74ms (s:68ms c:3ms)  …ration.py::TestRedisBrokerIntegration::test_publish_message
-  ✅     72ms (s:1ms c:68ms)  …StorageManagerFactoryIntegration::test_create_redis_manager
-  ✅     71ms (s:15ms c:52ms)  …tRedisOutboxStorageIntegration::test_multiple_workers_claim
-  ✅     71ms (s:62ms c:6ms)  …rage_integration.py::TestRedisIntegration::test_delete_saga
-  ✅     70ms (s:61ms c:6ms)  …age_integration.py::TestRedisIntegration::test_health_check
-  ✅     69ms (s:2ms c:67ms)  …ncurrency::test_orchestrator_handles_concurrent_submissions
-  ✅     69ms (s:62ms c:4ms)  …tegration.py::TestRedisIntegration::test_save_and_load_saga
-  ✅     69ms (s:55ms c:11ms)  …e_integration.py::TestRedisIntegration::test_get_statistics
-  ✅     68ms (s:12ms c:53ms)  ….py::TestSimulateCommand::test_simulate_shows_critical_path
-  ✅     68ms (s:62ms c:3ms)  ….py::TestRedisBrokerIntegration::test_ensure_consumer_group
-  ✅     68ms (s:1ms c:65ms)  …disStorageIntegration::test_cleanup_with_invalid_timestamps
-  ✅     68ms (s:11ms c:55ms)  …imulate.py::TestValidateCommand::test_validate_with_context
-  ✅     67ms (s:13ms c:53ms)  …mulate.py::TestValidateCommand::test_validate_specific_saga
-  ✅     67ms (s:57ms c:6ms)  …ntegration.py::TestRedisIntegration::test_update_step_state
-  ✅     65ms (s:1ms c:63ms)  …FailFastWithGraceStrategy::test_timeout_during_grace_period
-  ✅     64ms (s:2ms c:61ms)  …re/test_core.py::TestSagaParallel::test_parallel_saga_basic
-  ✅     64ms (s:5ms c:55ms)  …treaming.py::TestContextStreaming::test_streaming_generator
-  ✅     63ms (s:2ms c:56ms)  …estConcurrencyControl::test_concurrency_allows_within_limit
-  ✅     63ms (s:11ms c:51ms)  …mulate.py::TestSimulateCommand::test_simulate_specific_saga
-  ✅     61ms (s:2ms c:58ms)  …agerTransferIntegration::test_storage_transfer_cancellation
-  ✅     61ms (s:1ms c:58ms)  …disStorageIntegration::test_list_sagas_no_filter_pagination
-  ✅     59ms (s:4ms c:49ms)  …shot.py::TestFilesystemSnapshotStorage::test_list_snapshots
-  ✅     58ms (s:13ms c:32ms)  …ve.py::TestExampleExecution::test_example_execution_success
-  ✅     58ms (s:2ms c:54ms)  …:TestOutboxWorkerCoverage::test_worker_start_stop_lifecycle
-  ✅     57ms (s:3ms c:53ms)  …ExecuteCompensationsEdgeCases::test_execution_time_tracking
-  ✅     57ms (s:1ms c:53ms)  …::TestRedisStorageIntegration::test_delete_nonexistent_saga
-  ✅     56ms (s:2ms c:53ms)  …es.py::TestFailFastStrategy::test_strategy_itself_cancelled
-  ✅     55ms (s:2ms c:52ms)  …rategies.py::TestFailFastStrategy::test_one_step_fails_fast
-  ✅     54ms (s:1ms c:52ms)  …s.py::TestFailFastWithGraceStrategy::test_all_steps_succeed
-  ✅     54ms (s:2ms c:50ms)  …ageIntegration::test_list_sagas_with_status_and_name_filter
-  ✅     53ms (s:1ms c:52ms)  …lFastWithGraceStrategy::test_strategy_cancellation_handling
-  ✅     53ms (s:1ms c:50ms)  …ore.py::TestSagaIntegration::test_financial_trade_execution
-  ✅     53ms (s:8ms c:43ms)  …rojectCliRichFallback::test_list_sagas_rich_import_fallback
-  ✅     53ms (s:2ms c:49ms)  …s.py::TestRedisStorageIntegration::test_get_saga_statistics
-  ✅     51ms (s:1ms c:48ms)  …py::TestRedisStorageIntegration::test_list_sagas_with_limit
-  ✅     49ms (s:1ms c:46ms)  …rageIntegration::test_update_step_state_on_nonexistent_step
-  ✅     48ms (s:2ms c:43ms)  …est_core.py::TestSagaSequential::test_sequential_saga_basic
-  ✅     46ms (s:1ms c:43ms)  …ge_redis.py::TestRedisStorageIntegration::test_health_check
-  ✅     46ms (s:1ms c:43ms)  …TestRedisSnapshotStorageIntegration::test_redis_compression
-  ✅     46ms (s:1ms c:43ms)  …tImperativeModePerformance::test_imperative_saga_throughput
-  ✅     45ms (s:6ms c:35ms)  …age.py::TestListSnapshots::test_list_snapshots_with_results
-  ✅     44ms (s:4ms c:39ms)  …y::TestWebhookStatusHandler::test_status_completed_directly
-  ✅     44ms (s:2ms c:41ms)  …/test_core.py::TestSagaParallel::test_dag_with_dependencies
-  ✅     44ms (s:1ms c:41ms)  …rageIntegration::test_update_step_state_on_nonexistent_saga
-  ✅     44ms (s:17ms c:25ms)  …:TestProjectCliRichFallback::test_list_sagas_no_sagas_found
-  ✅     43ms (s:1ms c:40ms)  …RedisSnapshotStorageIntegration::test_redis_context_manager
-  ✅     42ms (s:1ms c:40ms)  …dis.py::TestRedisStorageIntegration::test_update_step_state
-  ✅     42ms (s:4ms c:37ms)  …ageLookup::test_background_executing_state_no_status_update
-  ✅     42ms (s:1ms c:39ms)  ….py::TestRedisStorageIntegration::test_update_existing_saga
-  ✅     41ms (s:2ms c:37ms)  …bhookBackgroundStorageLookup::test_background_state_is_none
-  ✅     41ms (s:10ms c:28ms)  …y::TestCleanupSaga::test_cleanup_saga_removes_all_snapshots
-  ✅     40ms (s:2ms c:36ms)  …estSagaOrchestrator::test_orchestrator_concurrent_execution
-  ✅     39ms (s:1ms c:37ms)  …/test_core.py::TestRetryLogic::test_step_retries_on_failure
-  ✅     39ms (s:1ms c:37ms)  …ValidationResults::test_display_validation_results_multiple
-  ✅     38ms (s:22ms c:2ms)  …e.py::TestExampleValidation::test_validate_example_runnable
-  ✅     38ms (s:6ms c:27ms)  …estFilesystemSnapshotStorage::test_delete_expired_snapshots
-  ✅     37ms (s:2ms c:34ms)  …rageTypeValidation::test_replay_accepts_valid_storage_types
-  ✅     37ms (s:2ms c:34ms)  …stTransferService::test_transfer_with_failures_retry_policy
-  ✅     37ms (s:3ms c:32ms)  …StatusHandler::test_status_unknown_falls_through_elif_chain
-  ✅     36ms (s:2ms c:33ms)  …y::TestStrategyIntegration::test_strategy_polymorphic_usage
-  ✅     36ms (s:8ms c:25ms)  …plete.py::TestPostgreSQLSnapshotComplete::test_list_replays
-  ✅     36ms (s:2ms c:33ms)  …test_core.py::TestSagaMixed::test_mixed_sequential_parallel
-  ✅     36ms (s:1ms c:34ms)  …yValidationResults::test_display_validation_results_success
-  ✅     36ms (s:8ms c:27ms)  …ay.py::TestRichConsoleOutput::test_replay_verbose_with_rich
-  ✅     36ms (s:29ms c:3ms)  …edisOutboxMissingBranches::test_dead_letter_event_not_found
-  ✅     35ms (s:1ms c:33ms)  …strator.py::TestSagaOrchestrator::test_get_all_sagas_status
-  ✅     35ms (s:13ms c:16ms)  …py::TestExecuteListChanges::test_execute_list_changes_empty
-  ✅     35ms (s:3ms c:30ms)  …ebhookStatusHandler::test_status_failed_single_saga_message
-  ✅     34ms (s:1ms c:32ms)  …py::TestSagaConfigWithEnv::test_from_file_with_substitution
-  ✅     34ms (s:2ms c:31ms)  …/test_performance.py::TestLatency::test_simple_saga_latency
-  ✅     34ms (s:16ms c:15ms)  …ilesystemCompression::test_save_and_get_snapshot_compressed
-  ✅     34ms (s:3ms c:29ms)  …hookStatusHandler::test_status_triggered_with_pending_sagas
-  ✅     34ms (s:5ms c:24ms)  …apshot.py::TestFilesystemSnapshotStorage::test_cleanup_saga
-  ✅     34ms (s:5ms c:25ms)  …py::TestFilesystemSnapshotStorage::test_get_latest_snapshot
-  ✅     33ms (s:4ms c:26ms)  …SQLSnapshotComplete::test_save_replay_log_with_null_context
-  ✅     33ms (s:5ms c:27ms)  …lay.py::TestReplayCommand::test_replay_command_verbose_mode
-  ✅     33ms (s:3ms c:27ms)  …TestIntegration::test_orchestrator_with_multiple_saga_types
-  ✅     33ms (s:3ms c:27ms)  …rage_async.py::TestWebhookStatusHandler::test_status_queued
-  ✅     32ms (s:13ms c:18ms)  …ate.py::TestValidateCommand::test_validate_nonexistent_saga
-  ✅     32ms (s:27ms c:2ms)  …xMissingBranches::test_claim_batch_response_no_valid_events
-  ✅     32ms (s:3ms c:27ms)  …:TestWebhookStatusHandler::test_status_triggered_all_failed
-  ✅     32ms (s:4ms c:26ms)  …ebhookStatusHandler::test_status_triggered_partial_failures
-  ✅     31ms (s:9ms c:21ms)  …mulate.py::TestSagaWithNoSteps::test_validate_saga_no_steps
-  ✅     31ms (s:6ms c:20ms)  …y::TestFilesystemSnapshotStorage::test_get_snapshot_at_time
-  ✅     31ms (s:1ms c:28ms)  …::TestWebhookIntegration::test_webhook_returns_202_accepted
-  ✅     31ms (s:3ms c:26ms)  …y::TestWebhookStatusHandler::test_status_with_general_error
-  ✅     31ms (s:2ms c:27ms)  …ageLookup::test_background_handles_storage_with_failed_saga
-  ✅     31ms (s:2ms c:27ms)  …_examples.py::TestFallbackInteractive::test_selects_example
-  ✅     31ms (s:3ms c:24ms)  …::TestPostgreSQLSnapshotComplete::test_get_replay_log_found
-  ✅     30ms (s:8ms c:17ms)  …ntext_streaming.py::TestContextStreaming::test_auto_offload
-  ✅     30ms (s:6ms c:20ms)  …ot.py::TestFilesystemSnapshotStorage::test_get_storage_info
-  ✅     30ms (s:2ms c:25ms)  …hotMissingBranches::test_save_replay_log_without_encryption
-  ✅     30ms (s:6ms c:21ms)  …etLatestSnapshot::test_get_latest_snapshot_with_before_step
-  ✅     30ms (s:2ms c:25ms)  …LSnapshotComplete::test_get_replay_log_with_null_timestamps
-  ✅     29ms (s:2ms c:25ms)  …stWebhookStatusHandler::test_status_triggered_all_completed
-  ✅     29ms (s:6ms c:23ms)  …un_comprehensive.py::TestEdgeCases::test_saga_with_no_steps
-  ✅     29ms (s:4ms c:24ms)  …ookStatusHandler::test_status_failed_multiple_sagas_message
-  ✅     29ms (s:11ms c:17ms)  …ate.py::TestSimulateCommand::test_simulate_nonexistent_saga
-  ✅     29ms (s:10ms c:17ms)  …tExecuteListChanges::test_execute_list_changes_with_results
-  ✅     29ms (s:3ms c:24ms)  …okStatusHandler::test_status_with_saga_statuses_in_response
-  ✅     29ms (s:9ms c:19ms)  …ts/unit/cli/test_project.py::test_check_warns_missing_paths
-  ✅     29ms (s:3ms c:23ms)  …geLookup::test_background_checks_storage_for_existing_sagas
-  ✅     29ms (s:8ms c:19ms)  ….py::TestListChangesCommand::test_list_changes_with_results
-  ✅     28ms (s:5ms c:18ms)  …n.py::TestPriorityOrder::test_all_features_enabled_priority
-  ✅     28ms (s:2ms c:25ms)  …ndStorageLookup::test_background_existing_saga_statuses_key
-  ✅     28ms (s:2ms c:24ms)  …ookup::test_background_handles_storage_exception_gracefully
-  ✅     28ms (s:21ms c:3ms)  …stRedisOutboxMissingBranches::test_export_all_empty_hgetall
-  ✅     28ms (s:5ms c:16ms)  …eSQLSnapshotComplete::test_row_to_snapshot_with_string_json
-  ✅     28ms (s:4ms c:10ms)  …ming.py::TestContextStreaming::test_external_storage_manual
-  ✅     28ms (s:6ms c:18ms)  …xpiredSnapshots::test_delete_expired_snapshots_with_expired
-  ✅     28ms (s:3ms c:23ms)  …_async.py::TestWebhookStatusHandler::test_status_processing
-  ✅     28ms (s:2ms c:24ms)  …ndStorageLookup::test_background_failed_without_error_field
-  ✅     27ms (s:2ms c:23ms)  …kBackgroundStorageLookup::test_background_rolled_back_state
-  ✅     27ms (s:5ms c:19ms)  …te.py::TestPostgreSQLSnapshotComplete::test_context_manager
-  ✅     27ms (s:21ms c:2ms)  …xMissingBranches::test_release_stuck_events_below_threshold
-  ✅     27ms (s:11ms c:15ms)  …::TestReplayCommand::test_replay_command_exception_handling
-  ✅     27ms (s:13ms c:13ms)  …::TestExampleDiscovery::test_discover_in_standard_locations
-  ✅     27ms (s:2ms c:23ms)  …nagerSQLiteIntegration::test_sqlite_unified_storage_manager
-  ✅     27ms (s:2ms c:24ms)  …stWebhookStatusTracking::test_webhook_router_handles_errors
-  ✅     27ms (s:2ms c:23ms)  …dempotencyMissing::test_missing_idempotency_key_returns_400
-  ✅     27ms (s:1ms c:24ms)  …or.py::TestSagaOrchestrator::test_multiple_concurrent_sagas
-  ✅     27ms (s:22ms c:1ms)  …tbox.py::TestRedisOutboxStorageUnit::test_get_pending_count
-  ✅     27ms (s:1ms c:24ms)  …anches::test_time_travel_empty_context_skips_context_output
-  ✅     26ms (s:2ms c:24ms)  …PCollectorIntegration::test_saga_tracer_with_real_collector
-  ✅     26ms (s:6ms c:18ms)  tests/unit/cli/test_project.py::test_list_sagas
-  ✅     26ms (s:4ms c:16ms)  …coverage.py::TestExecuteReplay::test_execute_replay_success
-  ✅     26ms (s:3ms c:21ms)  …hookStatusHandler::test_status_with_saga_errors_in_response
-  ✅     26ms (s:18ms c:4ms)  …oxMissingBranches::test_get_events_by_saga_id_empty_hgetall
-  ✅     26ms (s:3ms c:22ms)  …TestWebhookStatusHandler::test_status_not_found_returns_404
-  ✅     26ms (s:2ms c:22ms)  …hookHandlerAccepted::test_webhook_background_sets_triggered
-  ✅     26ms (s:9ms c:11ms)  …st_context_s3.py::TestS3Storage::test_load_calls_get_object
-  ✅     26ms (s:7ms c:16ms)  …py::TestProjectCliRichFallback::test_check_yaml_parse_error
-  ✅     26ms (s:2ms c:22ms)  …dempotencyMissing::test_idempotency_key_present_returns_202
-  ✅     26ms (s:1ms c:23ms)  …TestRedisStorageIntegration::test_connection_error_handling
+  ✅    1.01s (s:1ms c:1.00s)  …eusBranches::test_process_iteration_pending_count_exception
+  ✅    1.01s (s:1ms c:1.00s)  …kerPrometheusBranches::test_process_iteration_no_prometheus
+  ✅    873ms (s:74ms c:796ms)  …estS3SnapshotStorageIntegration::test_s3_multiple_snapshots
+  ✅    837ms (s:0ms c:836ms)  …t/test_main.py::TestMain::test_main_module_direct_execution
+  ✅    796ms (s:0ms c:796ms)  tests/unit/test_main.py::TestMain::test_main_version
+  ✅    796ms (s:0ms c:795ms)  tests/unit/test_main.py::TestMain::test_main_cli_invocation
+  ✅    746ms (s:6ms c:1ms)  …y::TestTracingWithMockedCollector::test_child_span_creation
+  ✅    673ms (s:69ms c:602ms)  …tS3SnapshotStorageIntegration::test_s3_get_snapshot_at_time
+  ✅    671ms (s:6ms c:662ms)  …resql.py::TestPostgreSQLStorageIntegration::test_list_sagas
+  ✅    628ms (s:3ms c:623ms)  …tgreSQLSagaStorageIntegration::test_postgresql_saga_cleanup
+  ✅    613ms (s:3ms c:610ms)  …::TestSQLiteStorageFactory::test_create_sqlite_with_db_path
+  ✅    613ms (s:1ms c:611ms)  …g.py::TestDataConsistency::test_no_data_loss_under_failures
+  ✅    609ms (s:2ms c:606ms)  …aseConnectionLoss::test_connection_pool_exhaustion_recovery
+  ✅    607ms (s:1ms c:606ms)  …ore.py::TestDAGCompensation::test_dag_parallel_compensation
+  ✅    598ms (s:1ms c:595ms)  …hotStorageIntegration::test_postgresql_get_snapshot_at_time
+  ✅    554ms (s:1ms c:550ms)  …eSQLSagaStorageIntegration::test_postgresql_saga_statistics
+  ✅    550ms (s:1ms c:547ms)  …y::TestPostgreSQLStorageIntegration::test_delete_saga_state
+  ✅    526ms (s:82ms c:435ms)  …LSnapshotStorageIntegration::test_list_snapshots_with_limit
+  ✅    511ms (s:1ms c:509ms)  …_cases.py::TestCoreTo100::test_saga_already_executing_error
+  ✅    510ms (s:1ms c:508ms)  …re.py::TestCoreSaga::test_cannot_add_steps_during_execution
+  ✅    510ms (s:1ms c:508ms)  …::TestConcurrency::test_concurrent_saga_execution_protected
+  ✅    509ms (s:1ms c:507ms)  …::TestConcurrency::test_multiple_sagas_execute_concurrently
+  ✅    509ms (s:1ms c:505ms)  …rashRecovery::test_worker_graceful_shutdown_preserves_state
+  ✅    506ms (s:0ms c:505ms)  …lFailureStrategies::test_fail_fast_grace_waits_for_inflight
+  ✅    506ms (s:1ms c:504ms)  …test_core.py::TestPerformance::test_execution_time_recorded
+  ✅    505ms (s:2ms c:502ms)  …s.py::TestOptimisticPublisher::test_optimistic_send_timeout
+  ✅    466ms (s:3ms c:461ms)  …oxStorageIntegration::test_postgresql_update_inbox_duration
+  ✅    466ms (s:3ms c:461ms)  …eSQLOutboxStorageIntegration::test_postgresql_cleanup_inbox
+  ✅    460ms (s:2ms c:456ms)  …estPostgreSQLStorageIntegration::test_load_nonexistent_saga
+  ✅    453ms (s:1ms c:451ms)  ….py::TestOutboxWorkerIntegration::test_worker_process_batch
+  ✅    449ms (s:1ms c:443ms)  …ntegration::test_postgresql_storage_manager_context_manager
+  ✅    444ms (s:8ms c:434ms)  …QLSagaStorageIntegration::test_postgresql_saga_list_filters
+  ✅    437ms (s:58ms c:369ms)  …tPostgreSQLSnapshotStorageIntegration::test_delete_snapshot
+  ✅    429ms (s:5ms c:421ms)  …y::TestPostgreSQLStorageIntegration::test_update_step_state
+  ✅    426ms (s:1ms c:423ms)  …SQLSagaStorageIntegration::test_postgresql_saga_step_update
+  ✅    418ms (s:3ms c:413ms)  …agerHybridIntegration::test_hybrid_postgresql_redis_manager
+  ✅    396ms (s:35ms c:343ms)  …tgreSQLSnapshotStorageIntegration::test_prune_old_snapshots
+  ✅    389ms (s:329ms c:49ms)  …ation.py::TestPostgreSQLIntegration::test_update_saga_state
+  ✅    388ms (s:1ms c:385ms)  …pshotStorageIntegration::test_postgresql_multiple_snapshots
+  ✅    377ms (s:1ms c:374ms)  …s.py::TestKafkaBrokerIntegration::test_kafka_broker_publish
+  ✅    371ms (s:332ms c:27ms)  …tion.py::TestPostgreSQLIntegration::test_save_and_load_saga
+  ✅    370ms (s:1ms c:368ms)  …tSagaStepStateMachine::test_step_state_machine_failure_path
+  ✅    363ms (s:1ms c:361ms)  …:TestThroughput::test_multi_step_saga_throughput_production
+  ✅    356ms (s:1ms c:353ms)  …SnapshotStorageIntegration::test_redis_get_snapshot_at_time
+  ✅    343ms (s:39ms c:295ms)  …tgreSQLSnapshotStorageIntegration::test_get_latest_snapshot
+  ✅    340ms (s:1ms c:336ms)  …tgreSQLIntegration::test_postgresql_unified_storage_manager
+  ✅    339ms (s:1ms c:337ms)  …PostgreSQLStorageIntegration::test_save_and_load_saga_state
+  ✅    338ms (s:62ms c:274ms)  …::TestS3SnapshotStorageIntegration::test_s3_context_manager
+  ✅    333ms (s:41ms c:282ms)  …stPostgreSQLSnapshotStorageIntegration::test_list_snapshots
+  ✅    328ms (s:287ms c:33ms)  …_integration.py::TestPostgreSQLIntegration::test_list_sagas
+  ✅    310ms (s:1ms c:308ms)  …py::TestWaitAllStrategy::test_wait_all_completes_everything
+  ✅    310ms (s:1ms c:308ms)  …tWithGraceStrategy::test_fail_fast_grace_waits_for_inflight
+  ✅    309ms (s:296ms c:4ms)  …ntegration.py::TestPostgreSQLIntegration::test_health_check
+  ✅    308ms (s:1ms c:304ms)  …pshotStorageIntegration::test_postgresql_snapshot_lifecycle
+  ✅    308ms (s:1ms c:306ms)  …re.py::TestRetryLogic::test_configurable_retry_backoff_base
+  ✅    307ms (s:1ms c:305ms)  …tboxStorageIntegration::test_postgresql_inbox_deduplication
+  ✅    307ms (s:1ms c:305ms)  ….py::TestThroughput::test_simple_saga_throughput_production
+  ✅    306ms (s:1ms c:305ms)  …estParallelFailureStrategies::test_wait_all_lets_all_finish
+  ✅    304ms (s:1ms c:302ms)  …geManagerFactoryIntegration::test_create_postgresql_manager
+  ✅    304ms (s:274ms c:21ms)  …integration.py::TestPostgreSQLIntegration::test_delete_saga
+  ✅    304ms (s:285ms c:10ms)  …egration.py::TestPostgreSQLIntegration::test_get_statistics
+  ✅    300ms (s:1ms c:297ms)  …oxStorageIntegration::test_postgresql_inbox_with_connection
+  ✅    294ms (s:37ms c:248ms)  …reSQLSnapshotStorageIntegration::test_save_and_get_snapshot
+  ✅    283ms (s:1ms c:280ms)  …reSQLOutboxStorageIntegration::test_postgresql_stuck_events
+  ✅    270ms (s:52ms c:215ms)  …n.py::TestS3SnapshotStorageIntegration::test_s3_compression
+  ✅    269ms (s:1ms c:265ms)  …torageIntegration::test_postgresql_delete_expired_snapshots
+  ✅    260ms (s:1ms c:258ms)  …LOutboxStorageIntegration::test_postgresql_concurrent_claim
+  ✅    259ms (s:58ms c:199ms)  …on.py::TestS3SnapshotStorageIntegration::test_s3_encryption
+  ✅    257ms (s:1ms c:255ms)  …e.py::TestThroughput::test_heavy_saga_throughput_production
+  ✅    233ms (s:1ms c:206ms)  …pleSources::test_same_saga_triggered_from_different_sources
+  ✅    211ms (s:1ms c:210ms)  …:TestIntegration::test_complete_ecommerce_flow_with_failure
+  ✅    208ms (s:2ms c:204ms)  …oncurrencyControl::test_concurrency_allows_after_completion
+  ✅    207ms (s:1ms c:206ms)  …rallelFailureStrategies::test_fail_fast_cancels_other_tasks
+  ✅    206ms (s:2ms c:203ms)  …atabaseConnectionLoss::test_outbox_storage_connection_retry
+  ✅    206ms (s:2ms c:203ms)  …py::TestSagaPersistence::test_saga_persists_completed_state
+  ✅    205ms (s:1ms c:204ms)  …ion/test_performance.py::TestStress::test_heavy_saga_stress
+  ✅    204ms (s:1ms c:202ms)  …ersistence::test_saga_persists_rolled_back_state_on_failure
+  ✅    204ms (s:1ms c:202ms)  …ring.py::TestNetworkPartitions::test_delayed_acknowledgment
+  ✅    203ms (s:1ms c:202ms)  …ategies.py::TestWaitAllStrategy::test_wait_for_slowest_step
+  ✅    203ms (s:1ms c:201ms)  …gies.py::TestWaitAllStrategy::test_some_steps_fail_wait_all
+  ✅    202ms (s:2ms c:197ms)  …disOutboxStorageIntegration::test_redis_outbox_stuck_events
+  ✅    179ms (s:1ms c:177ms)  …TestRabbitMQBrokerIntegration::test_rabbitmq_broker_publish
+  ✅    161ms (s:1ms c:159ms)  …layErrorHandling::test_replay_marks_failure_when_saga_fails
+  ✅    157ms (s:4ms c:150ms)  …isOutboxStorageIntegration::test_redis_outbox_export_import
+  ✅    157ms (s:2ms c:154ms)  …ers.py::TestIdempotency::test_idempotency_with_callable_key
+  ✅    157ms (s:0ms c:156ms)  …y::TestSaga::test_parallel_execution_faster_than_sequential
+  ✅    155ms (s:1ms c:153ms)  …:TestIdempotency::test_idempotency_same_key_returns_same_id
+  ✅    154ms (s:1ms c:152ms)  …rage_transfer.py::TestTransferService::test_transfer_cancel
+  ✅    153ms (s:1ms c:152ms)  …estStrategyIntegration::test_strategy_with_successful_steps
+  ✅    153ms (s:1ms c:152ms)  …_strategies.py::TestWaitAllStrategy::test_all_steps_succeed
+  ✅    142ms (s:2ms c:135ms)  …RedisOutboxStorageIntegration::test_redis_outbox_statistics
+  ✅    129ms (s:3ms c:121ms)  …RedisOutboxStorageIntegration::test_redis_outbox_saga_query
+  ✅    121ms (s:1ms c:119ms)  …t_exception_in_compensation_doesnt_stop_other_compensations
+  ✅    120ms (s:1ms c:119ms)  …t_performance.py::TestLatency::test_multi_step_saga_latency
+  ✅    116ms (s:2ms c:113ms)  …stFailureAndCompensation::test_partial_compensation_failure
+  ✅    115ms (s:1ms c:112ms)  …tegyIntegration::test_strategy_failure_behavior_differences
+  ✅    114ms (s:1ms c:112ms)  …::TestFailFastWithGraceStrategy::test_graceful_cancellation
+  ✅    113ms (s:1ms c:112ms)  …orchestrator.py::TestSagaOrchestrator::test_count_by_status
+  ✅    113ms (s:3ms c:109ms)  …e.py::TestThroughput::test_multi_step_saga_throughput_local
+  ✅    111ms (s:1ms c:109ms)  …reAndCompensation::test_compensation_failure_changes_status
+  ✅    109ms (s:1ms c:107ms)  …y::TestFailFastStrategy::test_fail_fast_cancels_immediately
+  ✅    108ms (s:3ms c:103ms)  …e.py::TestInMemorySagaStorage::test_cleanup_completed_sagas
+  ✅    107ms (s:1ms c:106ms)  …/core/test_core.py::TestTimeouts::test_fast_step_no_timeout
+  ✅    107ms (s:1ms c:105ms)  …rker.py::TestOutboxWorkerStart::test_start_processes_events
+  ✅    107ms (s:1ms c:105ms)  …utbox_worker.py::TestOutboxWorkerStart::test_start_and_stop
+  ✅    106ms (s:1ms c:105ms)  …it/core/test_decorators.py::TestSaga::test_run_with_timeout
+  ✅    106ms (s:1ms c:104ms)  …e/test_decorators.py::TestSaga::test_run_parallel_execution
+  ✅    104ms (s:14ms c:83ms)  …:TestSimulateCommand::test_simulate_with_show_parallel_flag
+  ✅    104ms (s:1ms c:102ms)  …triggers.py::TestTriggerEngine::test_fire_calls_transformer
+  ✅    104ms (s:2ms c:101ms)  …okHandlerAccepted::test_webhook_returns_202_and_sets_queued
+  ✅    103ms (s:1ms c:102ms)  …y::TestExecuteCompensationsEdgeCases::test_timeout_handling
+  ✅    103ms (s:1ms c:101ms)  …/test_strategies.py::TestFailFastStrategy::test_single_step
+  ✅    103ms (s:1ms c:102ms)  …y::TestFailureStrategies::test_retry_then_continue_strategy
+  ✅    103ms (s:1ms c:101ms)  …strategies.py::TestFailFastStrategy::test_all_steps_succeed
+  ✅    103ms (s:1ms c:101ms)  …rategies.py::TestFailFastStrategy::test_multiple_steps_fail
+  ✅    103ms (s:1ms c:101ms)  ….py::TestStrategiesTo100::test_fail_fast_grace_timeout_path
+  ✅    103ms (s:1ms c:101ms)  …py::TestWaitAllStrategy::test_multiple_failures_collect_all
+  ✅    103ms (s:1ms c:101ms)  …moryStorageListFiltering::test_cleanup_with_custom_statuses
+  ✅    102ms (s:1ms c:101ms)  …HealthCheckExtended::test_check_health_with_timeout_timeout
+  ✅    101ms (s:80ms c:15ms)  ….py::TestRedisOutboxStorageIntegration::test_full_lifecycle
+  ✅    100ms (s:7ms c:88ms)  …edisOutboxStorageIntegration::test_redis_outbox_dead_letter
+  ✅     94ms (s:1ms c:91ms)  …isSnapshotStorageIntegration::test_redis_multiple_snapshots
+  ✅     93ms (s:1ms c:92ms)  …strator.py::TestSagaOrchestrator::test_orchestrator_metrics
+  ✅     93ms (s:1ms c:91ms)  …ureAndCompensation::test_step_failure_triggers_compensation
+  ✅     90ms (s:1ms c:87ms)  …playIntegration::test_replay_from_step2_after_step1_failure
+  ✅     88ms (s:1ms c:87ms)  …re.py::TestSagaIntegration::test_ecommerce_order_processing
+  ✅     88ms (s:1ms c:87ms)  …trator.py::TestSagaOrchestrator::test_saga_failure_handling
+  ✅     88ms (s:1ms c:86ms)  …or.py::TestSagaOrchestrator::test_mixed_success_and_failure
+  ✅     83ms (s:1ms c:81ms)  …oreTo100::test_saga_no_completed_steps_compensation_attempt
+  ✅     83ms (s:1ms c:81ms)  …:TestFailureAndCompensation::test_step_without_compensation
+  ✅     82ms (s:15ms c:64ms)  …tRedisOutboxStorageIntegration::test_multiple_workers_claim
+  ✅     82ms (s:1ms c:81ms)  …tRealWorldScenarios::test_partial_success_with_compensation
+  ✅     82ms (s:4ms c:76ms)  …disSagaStorageIntegration::test_redis_saga_list_and_cleanup
+  ✅     82ms (s:1ms c:79ms)  …re/test_core.py::TestRetryLogic::test_step_retry_exhaustion
+  ✅     82ms (s:1ms c:80ms)  …ore.py::TestRetryLogic::test_retry_with_exponential_backoff
+  ✅     81ms (s:1ms c:80ms)  …TestCoreSagaResumeBranches::test_resume_execution_exception
+  ✅     81ms (s:1ms c:79ms)  …ensation::test_step_without_compensation_no_rollback_needed
+  ✅     80ms (s:1ms c:78ms)  …teMachine::test_transition_to_compensating_then_rolled_back
+  ✅     79ms (s:1ms c:78ms)  …:TestSagaStateMachine::test_state_machine_compensation_flow
+  ✅     79ms (s:53ms c:15ms)  …age_integration.py::TestRedisIntegration::test_health_check
+  ✅     79ms (s:1ms c:77ms)  …tFailureAndCompensation::test_compensation_in_reverse_order
+  ✅     78ms (s:1ms c:76ms)  …tExecuteFromSnapshot::test_execute_from_snapshot_step_fails
+  ✅     77ms (s:0ms c:76ms)  …ore.py::TestOrchestrator::test_orchestrator_count_by_status
+  ✅     73ms (s:5ms c:66ms)  …disStorageIntegration::test_cleanup_with_invalid_timestamps
+  ✅     68ms (s:10ms c:57ms)  …agerTransferIntegration::test_storage_transfer_cancellation
+  ✅     66ms (s:10ms c:56ms)  …te.py::TestValidateCommand::test_validate_all_sagas_success
+  ✅     66ms (s:46ms c:17ms)  …e_integration.py::TestRedisIntegration::test_get_statistics
+  ✅     66ms (s:2ms c:62ms)  …ManagerRedisIntegration::test_redis_unified_storage_manager
+  ✅     65ms (s:53ms c:6ms)  …rage_integration.py::TestRedisIntegration::test_delete_saga
+  ✅     64ms (s:1ms c:62ms)  …TestRedisStorageIntegration::test_connection_error_handling
+  ✅     64ms (s:1ms c:62ms)  …FailFastWithGraceStrategy::test_timeout_during_grace_period
+  ✅     63ms (s:11ms c:52ms)  …te.py::TestSimulateCommand::test_simulate_all_sagas_success
+  ✅     63ms (s:7ms c:55ms)  …imulate.py::TestSimulateCommand::test_simulate_with_context
+  ✅     63ms (s:2ms c:59ms)  …RedisSagaStorageIntegration::test_redis_saga_full_lifecycle
+  ✅     62ms (s:8ms c:52ms)  …treaming.py::TestContextStreaming::test_streaming_generator
+  ✅     60ms (s:1ms c:57ms)  …py::TestRedisStorageIntegration::test_list_sagas_with_limit
+  ✅     60ms (s:1ms c:54ms)  …estConcurrencyControl::test_concurrency_allows_within_limit
+  ✅     60ms (s:51ms c:3ms)  …ration.py::TestRedisBrokerIntegration::test_get_stream_info
+  ✅     58ms (s:2ms c:53ms)  …dis.py::TestRedisStorageIntegration::test_delete_saga_state
+  ✅     57ms (s:1ms c:53ms)  …:TestRedisStorageIntegration::test_save_and_load_saga_state
+  ✅     57ms (s:1ms c:52ms)  …edisIntegration::test_redis_storage_manager_context_manager
+  ✅     57ms (s:1ms c:54ms)  …:TestOutboxWorkerCoverage::test_worker_start_stop_lifecycle
+  ✅     57ms (s:1ms c:54ms)  ….py::TestKafkaBrokerIntegration::test_kafka_broker_from_env
+  ✅     56ms (s:5ms c:49ms)  …rageIntegration::test_update_step_state_on_nonexistent_saga
+  ✅     56ms (s:50ms c:3ms)  …ration.py::TestRedisBrokerIntegration::test_publish_message
+  ✅     55ms (s:0ms c:54ms)  …re/test_core.py::TestSagaParallel::test_parallel_saga_basic
+  ✅     54ms (s:6ms c:48ms)  …y::TestSimulateCommand::test_simulate_shows_parallel_layers
+  ✅     54ms (s:2ms c:50ms)  …::TestRedisStorageIntegration::test_delete_nonexistent_saga
+  ✅     54ms (s:1ms c:52ms)  …rategies.py::TestFailFastStrategy::test_one_step_fails_fast
+  ✅     54ms (s:1ms c:50ms)  …ageIntegration::test_list_sagas_with_status_and_name_filter
+  ✅     53ms (s:2ms c:49ms)  …py::TestRedisStorageIntegration::test_load_nonexistent_saga
+  ✅     53ms (s:1ms c:51ms)  …es.py::TestFailFastStrategy::test_strategy_itself_cancelled
+  ✅     53ms (s:2ms c:49ms)  ….py::TestRedisStorageIntegration::test_list_sagas_by_status
+  ✅     53ms (s:47ms c:4ms)  …tegration.py::TestRedisIntegration::test_save_and_load_saga
+  ✅     53ms (s:44ms c:6ms)  …ntegration.py::TestRedisIntegration::test_update_step_state
+  ✅     53ms (s:1ms c:51ms)  …ExecuteCompensationsEdgeCases::test_execution_time_tracking
+  ✅     52ms (s:1ms c:51ms)  …s.py::TestFailFastWithGraceStrategy::test_all_steps_succeed
+  ✅     52ms (s:1ms c:49ms)  …disStorageIntegration::test_list_sagas_no_filter_pagination
+  ✅     52ms (s:0ms c:51ms)  …lFastWithGraceStrategy::test_strategy_cancellation_handling
+  ✅     50ms (s:1ms c:47ms)  …TestRedisSnapshotStorageIntegration::test_redis_compression
+  ✅     50ms (s:45ms c:2ms)  ….py::TestRedisBrokerIntegration::test_ensure_consumer_group
+  ✅     49ms (s:6ms c:43ms)  …mulate.py::TestValidateCommand::test_validate_specific_saga
+  ✅     49ms (s:14ms c:35ms)  ….py::TestSimulateCommand::test_simulate_shows_critical_path
+  ✅     49ms (s:1ms c:47ms)  …ore.py::TestSagaIntegration::test_financial_trade_execution
+  ✅     49ms (s:12ms c:36ms)  …mulate.py::TestSimulateCommand::test_simulate_specific_saga
+  ✅     49ms (s:1ms c:46ms)  …isSnapshotStorageIntegration::test_redis_snapshot_lifecycle
+  ✅     48ms (s:1ms c:44ms)  …ctoryIntegration::test_create_manager_with_backend_override
+  ✅     48ms (s:1ms c:45ms)  …rageIntegration::test_update_step_state_on_nonexistent_step
+  ✅     47ms (s:41ms c:2ms)  …tegration.py::TestRedisBrokerIntegration::test_health_check
+  ✅     46ms (s:1ms c:43ms)  …s.py::TestRedisStorageIntegration::test_get_saga_statistics
+  ✅     45ms (s:1ms c:41ms)  …RedisSnapshotStorageIntegration::test_redis_context_manager
+  ✅     44ms (s:1ms c:42ms)  …isSnapshotStorageIntegration::test_redis_multiple_snapshots
+  ✅     43ms (s:1ms c:41ms)  …StorageManagerFactoryIntegration::test_create_redis_manager
+  ✅     43ms (s:1ms c:41ms)  …st_performance.py::TestStress::test_high_concurrency_stress
+  ✅     42ms (s:41ms c:1ms)  …e.py::TestContextCoverage::test_fs_storage_invalid_uri_load
+  ✅     41ms (s:1ms c:39ms)  …y::TestDiscoverAndSelectSagas::test_specific_saga_not_found
+  ✅     41ms (s:1ms c:37ms)  …ge_redis.py::TestRedisStorageIntegration::test_health_check
+  ✅     40ms (s:1ms c:37ms)  …dis.py::TestRedisStorageIntegration::test_update_step_state
+  ✅     39ms (s:1ms c:36ms)  ….py::TestRedisStorageIntegration::test_update_existing_saga
+  ✅     37ms (s:1ms c:35ms)  …mance.py::TestThroughput::test_simple_saga_throughput_local
+  ✅     37ms (s:1ms c:36ms)  …est_core.py::TestSagaSequential::test_sequential_saga_basic
+  ✅     37ms (s:1ms c:35ms)  …/test_core.py::TestSagaParallel::test_dag_with_dependencies
+  ✅     36ms (s:1ms c:34ms)  …isSnapshotStorageIntegration::test_redis_snapshot_lifecycle
+  ✅     36ms (s:1ms c:34ms)  …/test_core.py::TestRetryLogic::test_step_retries_on_failure
+  ✅     35ms (s:9ms c:25ms)  …rojectCliRichFallback::test_list_sagas_rich_import_fallback
+  ✅     35ms (s:21ms c:11ms)  …edis_outbox.py::TestRedisOutboxStorageUnit::test_export_all
+  ✅     35ms (s:30ms c:3ms)  …is_outbox.py::TestRedisOutboxStorageUnit::test_insert_event
+  ✅     34ms (s:14ms c:19ms)  …xpiredSnapshots::test_delete_expired_snapshots_with_expired
+  ✅     34ms (s:1ms c:32ms)  …stTransferService::test_transfer_with_failures_retry_policy
+  ✅     33ms (s:1ms c:32ms)  …y::TestStrategyIntegration::test_strategy_polymorphic_usage
+  ✅     33ms (s:2ms c:29ms)  …e.py::TestContextCoverage::test_load_external_marker_direct
+  ✅     33ms (s:20ms c:10ms)  …tboxStorageUnit::test_import_record_without_optional_fields
+  ✅     33ms (s:15ms c:17ms)  …mulate.py::TestSagaWithNoSteps::test_validate_saga_no_steps
+  ✅     31ms (s:1ms c:30ms)  …strator.py::TestSagaOrchestrator::test_get_all_sagas_status
+  ✅     31ms (s:25ms c:3ms)  …py::TestRedisOutboxStorageUnit::test_health_check_unhealthy
+  ✅     31ms (s:2ms c:28ms)  …ndStorageLookup::test_background_existing_saga_statuses_key
+  ✅     30ms (s:0ms c:21ms)  …py::TestSagaConfigWithEnv::test_from_file_with_substitution
+  ✅     30ms (s:2ms c:24ms)  …ndStorageLookup::test_background_failed_without_error_field
+  ✅     30ms (s:8ms c:19ms)  …ay.py::TestRichConsoleOutput::test_replay_verbose_with_rich
+  ✅     30ms (s:20ms c:1ms)  …_outbox.py::TestRedisOutboxStorageUnit::test_get_statistics
+  ✅     29ms (s:13ms c:15ms)  …eExpiredSnapshots::test_delete_expired_snapshots_no_expired
+  ✅     29ms (s:5ms c:22ms)  …age.py::TestListSnapshots::test_list_snapshots_with_results
+  ✅     29ms (s:4ms c:24ms)  …ageLookup::test_background_failed_with_existing_saga_errors
+  ✅     29ms (s:27ms c:1ms)  …t_coverage.py::TestReplayLog::test_get_replay_log_not_found
+  ✅     28ms (s:1ms c:27ms)  …estSagaOrchestrator::test_orchestrator_concurrent_execution
+  ✅     28ms (s:16ms c:5ms)  …orageEdgeCases::test_update_step_with_executed_at_timestamp
+  ✅     28ms (s:1ms c:25ms)  …::TestWebhookIntegration::test_webhook_returns_202_accepted
+  ✅     28ms (s:6ms c:20ms)  …ssingCoverage::test_time_travel_with_table_format_with_rich
+  ✅     28ms (s:2ms c:19ms)  …y::TestWebhookStatusHandler::test_status_completed_directly
+  ✅     28ms (s:1ms c:26ms)  …tImperativeModePerformance::test_imperative_saga_throughput
+  ✅     27ms (s:25ms c:2ms)  …disSagaStorageMocked::test_update_step_state_saga_not_found
+  ✅     27ms (s:15ms c:9ms)  ….py::TestListChangesCommand::test_list_changes_with_results
+  ✅     26ms (s:1ms c:24ms)  …test_core.py::TestSagaMixed::test_mixed_sequential_parallel
+  ✅     26ms (s:19ms c:4ms)  …_outbox.py::TestRedisOutboxStorageUnit::test_initialization
+  ✅     26ms (s:17ms c:3ms)  …dgeCases::test_list_sagas_with_both_status_and_name_filters
+  ✅     26ms (s:21ms c:4ms)  …y::TestRedisSagaStorageMocked::test_cleanup_completed_sagas
+  ✅     26ms (s:4ms c:21ms)  …un_comprehensive.py::TestEdgeCases::test_saga_with_no_steps
+  ✅     26ms (s:7ms c:18ms)  …imulate.py::TestValidateCommand::test_validate_with_context
+  ✅     25ms (s:2ms c:21ms)  …bhookBackgroundStorageLookup::test_background_state_is_none
+  ✅     25ms (s:1ms c:24ms)  …ValidationResults::test_display_validation_results_multiple
+  ✅     25ms (s:7ms c:16ms)  …y::TestCleanupSaga::test_cleanup_saga_removes_all_snapshots
+  ✅     25ms (s:18ms c:5ms)  …outbox.py::TestRedisOutboxStorageUnit::test_context_manager
+  ✅     25ms (s:1ms c:23ms)  …/unit/core/test_core.py::TestEdgeCases::test_very_long_saga
+  ✅     25ms (s:3ms c:21ms)  …ithExceptionHandling::test_replay_command_exception_handled
+  ✅     24ms (s:18ms c:2ms)  …utbox.py::TestRedisOutboxStorageUnit::test_export_all_empty
+  ✅     24ms (s:17ms c:5ms)  …edis.py::TestRedisSagaStorageMocked::test_update_step_state
+  ✅     24ms (s:10ms c:1ms)  …Integration::test_storage_manager_memory_to_memory_transfer
+  ✅     24ms (s:1ms c:21ms)  …StatusHandler::test_status_unknown_falls_through_elif_chain
+  ✅     23ms (s:14ms c:1ms)  …imeTravel::test_execute_time_travel_not_implemented_storage
+  ✅     23ms (s:9ms c:13ms)  …tExecuteListChanges::test_execute_list_changes_with_results
+  ✅     23ms (s:1ms c:22ms)  …PCollectorIntegration::test_saga_tracer_with_real_collector
+  ✅     23ms (s:1ms c:22ms)  …yValidationResults::test_display_validation_results_success
+  ✅     23ms (s:15ms c:3ms)  …storage_redis.py::TestRedisSagaBranches::test_import_record
+  ✅     22ms (s:2ms c:19ms)  …shot.py::TestFilesystemSnapshotStorage::test_list_snapshots
+  ✅     22ms (s:15ms c:3ms)  …::TestRedisOutboxStorageIntegration::test_health_check_real
+  ✅     22ms (s:1ms c:21ms)  …rageTypeValidation::test_replay_accepts_valid_storage_types
+  ✅     22ms (s:1ms c:20ms)  …or.py::TestSagaOrchestrator::test_multiple_concurrent_sagas
+  ✅     22ms (s:1ms c:19ms)  …geLookup::test_background_checks_storage_for_existing_sagas
+  ✅     21ms (s:6ms c:13ms)  …ilesystemCompression::test_save_and_get_snapshot_compressed
+  ✅     21ms (s:16ms c:4ms)  …estRedisOutboxStorageUnit::test_initialization_group_exists
+  ✅     21ms (s:16ms c:3ms)  …box.py::TestRedisOutboxStorageUnit::test_update_status_sent
+  ✅     21ms (s:1ms c:18ms)  …trator.py::TestSagaOrchestrator::test_single_saga_execution
+  ✅     20ms (s:1ms c:19ms)  …ncurrency::test_orchestrator_handles_concurrent_submissions
+  ✅     20ms (s:18ms c:2ms)  …isSagaStorageEdgeCases::test_list_sagas_no_filters_gets_all
+  ✅     20ms (s:13ms c:2ms)  …age_redis_outbox.py::TestRedisOutboxStorageUnit::test_count
+  ✅     20ms (s:16ms c:1ms)  …py::TestRedisOutboxStorageUnit::test_get_dead_letter_events
+  ✅     20ms (s:1ms c:16ms)  …TestSagaStateMachine::test_state_machine_with_saga_no_steps
+  ✅     20ms (s:1ms c:18ms)  …nagerSQLiteIntegration::test_sqlite_unified_storage_manager
+  ✅     20ms (s:2ms c:17ms)  …ageLookup::test_background_handles_storage_with_failed_saga
+  ✅     20ms (s:13ms c:4ms)  …s_outbox.py::TestRedisOutboxStorageUnit::test_import_record
+  ✅     20ms (s:18ms c:1ms)  …xt_coverage.py::TestContextCoverage::test_estimate_size_str
+  ✅     19ms (s:9ms c:9ms)  …s.py::TestRedisSagaStorageMocked::test_list_sagas_by_status
+  ✅     19ms (s:11ms c:6ms)  …torage_sqlite.py::TestSQLiteOutboxStorage::test_claim_batch
+  ✅     19ms (s:2ms c:17ms)  ….py::TestWaitForNextPoll::test_wait_for_next_poll_times_out
+  ✅     19ms (s:15ms c:2ms)  …StorageEdgeCases::test_cleanup_completed_sagas_parses_count
+  ✅     19ms (s:1ms c:18ms)  …edge_cases.py::TestWorkerTo100::test_worker_signal_handlers
+  ✅     19ms (s:9ms c:10ms)  …ate.py::TestSimulateCommand::test_simulate_nonexistent_saga
+  ✅     19ms (s:13ms c:3ms)  …edisOutboxStorageUnit::test_update_status_failed_with_error
+  ✅     19ms (s:14ms c:2ms)  …y::TestRedisOutboxStorageUnit::test_claim_batch_with_events
+  ✅     19ms (s:3ms c:16ms)  …lay.py::TestReplayCommand::test_replay_command_verbose_mode
+  ✅     19ms (s:3ms c:14ms)  …etLatestSnapshot::test_get_latest_snapshot_with_before_step
+  ✅     18ms (s:1ms c:16ms)  …ring.py::TestConcurrentFailures::test_high_load_degradation
+  ✅     18ms (s:13ms c:4ms)  …sSagaStorageEdgeCases::test_health_check_with_ping_and_info
+  ✅     18ms (s:1ms c:16ms)  …kBackgroundStorageLookup::test_background_rolled_back_state
+  ✅     18ms (s:8ms c:8ms)  …age.py::TestDeleteSnapshot::test_delete_snapshot_plain_json
+  ✅     18ms (s:14ms c:2ms)  …ntext_s3.py::TestS3Storage::test_delete_calls_delete_object
+  ✅     18ms (s:1ms c:15ms)  …sql_outbox_coverage.py::TestArchiveSentEvents::test_success
+  ✅     18ms (s:1ms c:16ms)  …ationValidation::test_storage_without_auto_offload_succeeds
+  ✅     18ms (s:5ms c:12ms)  …te_simulate.py::TestInvalidSaga::test_validate_invalid_saga
+  ✅     18ms (s:14ms c:1ms)  …outbox.py::TestRedisOutboxStorageUnit::test_get_by_id_found
+  ✅     18ms (s:1ms c:16ms)  …ookStatusHandler::test_status_failed_multiple_sagas_message
+  ✅     18ms (s:2ms c:15ms)  …ookup::test_background_handles_storage_exception_gracefully
+  ✅     18ms (s:15ms c:2ms)  …tgreSQLStorageEdgeCases::test_load_saga_with_no_executed_at
+  ✅     18ms (s:13ms c:2ms)  …x.py::TestRedisOutboxStorageUnit::test_health_check_healthy
+  ✅     18ms (s:4ms c:12ms)  …stem_snapshot_coverage.py::TestReplayLog::test_list_replays
+  ✅     17ms (s:15ms c:2ms)  …is.py::TestRedisSagaStorageMocked::test_get_saga_statistics
+  ✅     17ms (s:2ms c:14ms)  …rashRecovery::test_multiple_workers_no_duplicate_processing
+  ✅     17ms (s:12ms c:3ms)  …TestRedisSagaBranches::test_export_all_skips_None_saga_data
+  ✅     17ms (s:11ms c:6ms)  …ate.py::TestValidateCommand::test_validate_nonexistent_saga
+  ✅     17ms (s:2ms c:14ms)  ….py::TestRedisSagaStorageUnitMissing::test_export_all_empty
+  ✅     17ms (s:7ms c:8ms)  …estSagaStateMachine::test_state_machine_callbacks_with_saga
+  ✅     17ms (s:9ms c:7ms)  …ensive.py::TestSimulateCommand::test_simulate_specific_saga
+  ✅     17ms (s:4ms c:11ms)  …napshot::test_get_latest_snapshot_none_matching_before_step
+  ✅     17ms (s:4ms c:13ms)  …ensive.py::TestEdgeCases::test_multiple_validation_failures
+  ✅     17ms (s:1ms c:15ms)  …tencyMissing::test_trigger_without_idempotency_key_proceeds
+  ✅     17ms (s:13ms c:1ms)  …tbox.py::TestRedisOutboxStorageUnit::test_get_pending_count
+  ✅     17ms (s:1ms c:15ms)  …ng.py::TestMonitoringIntegration::test_saga_with_monitoring
+  ✅     17ms (s:13ms c:3ms)  …prehensive.py::TestSimulateCommand::test_simulate_all_sagas
+  ✅     16ms (s:1ms c:15ms)  …_cli_examples.py::TestListExamplesCmd::test_examples_listed
+  ✅     16ms (s:12ms c:4ms)  …ive.py::TestSimulateCommand::test_simulate_interactive_mode
+  ✅     16ms (s:1ms c:14ms)  …toring.py::TestSagaTracer::test_trace_saga_action_decorator
+  ✅     16ms (s:5ms c:10ms)  …tGetSnapshotAtTime::test_get_snapshot_at_time_finds_closest
+  ✅     16ms (s:1ms c:15ms)  …/test_performance.py::TestLatency::test_simple_saga_latency
+  ✅     16ms (s:4ms c:10ms)  …t_storage_sqlite.py::TestSQLiteSagaStorage::test_export_all
+  ✅     16ms (s:13ms c:2ms)  …stExecuteTimeTravel::test_execute_time_travel_key_not_found
+  ✅     16ms (s:1ms c:15ms)  …stWebhookStatusTracking::test_webhook_router_handles_errors
+  ✅     16ms (s:9ms c:4ms)  …ntext_streaming.py::TestContextStreaming::test_auto_offload
+  ✅     16ms (s:1ms c:14ms)  …orchestrator.py::TestSagaOrchestrator::test_get_saga_status
+  ✅     16ms (s:1ms c:13ms)  …ers.py::TestTriggerEngine::test_fire_with_async_transformer
+  ✅     16ms (s:13ms c:2ms)  …TestS3Storage::test_delete_ignores_invalid_and_wrong_bucket
+  ✅     15ms (s:11ms c:1ms)  …ox.py::TestRedisOutboxStorageUnit::test_get_by_id_not_found
+  ✅     15ms (s:3ms c:11ms)  …estFilesystemSnapshotStorage::test_delete_expired_snapshots
+  ✅     15ms (s:1ms c:14ms)  …tTransferServiceEdgeCases::test_transfer_with_retry_success
+  ✅     15ms (s:1ms c:13ms)  …/unit/core/test_core.py::TestCoreSaga::test_execution_order
+  ✅     15ms (s:2ms c:8ms)  …utbox_coverage.py::TestClaimBatch::test_claim_batch_success
+  ✅     15ms (s:11ms c:4ms)  …e.py::TestSimulateCommand::test_simulate_with_parallel_flag
+  ✅     15ms (s:10ms c:1ms)  …tbox.py::TestRedisOutboxStorageUnit::test_claim_batch_empty
+  ✅     15ms (s:1ms c:13ms)  …ebhookStatusHandler::test_status_triggered_partial_failures
+  ✅     15ms (s:1ms c:13ms)  …TestWebhookStatusHandler::test_status_not_found_returns_404
+  ✅     15ms (s:6ms c:9ms)  …ts/unit/cli/test_project.py::test_check_warns_missing_paths
+  ✅     15ms (s:1ms c:11ms)  …age.py::TestExportAll::test_export_all_with_null_created_at
+  ✅     15ms (s:12ms c:2ms)  …edis.py::TestRedisSagaBranches::test_export_all_yields_data
+  ✅     15ms (s:0ms c:14ms)  ….py::TestSagaFlask::test_before_request_sets_correlation_id
+  ✅     15ms (s:5ms c:9ms)  tests/unit/cli/test_project.py::test_list_sagas
+  ✅     15ms (s:1ms c:12ms)  …y::TestKafkaBrokerConnect::test_connect_with_sasl_mechanism
+  ✅     15ms (s:6ms c:8ms)  …LSnapshotStorageFocused::test_save_and_get_snapshot_methods
+  ✅     15ms (s:1ms c:13ms)  …kHandlerAccepted::test_webhook_background_error_sets_failed
+  ✅     15ms (s:1ms c:12ms)  …_async.py::TestWebhookStatusHandler::test_status_processing
+  ✅     15ms (s:2ms c:11ms)  …py::TestFilesystemSnapshotStorage::test_get_latest_snapshot
+  ✅     15ms (s:1ms c:13ms)  …:TestWebhookStatusHandler::test_status_triggered_all_failed
+  ✅     15ms (s:1ms c:13ms)  …lerAccepted::test_webhook_empty_body_defaults_to_empty_dict
+  ✅     14ms (s:1ms c:12ms)  …stWebhookStatusHandler::test_status_triggered_all_completed
+  ✅     14ms (s:3ms c:12ms)  …i_examples.py::TestGetExampleDescription::test_no_docstring
+  ✅     14ms (s:5ms c:7ms)  …age.py::TestGetStorageInfo::test_get_storage_info_with_data
+  ✅     14ms (s:1ms c:12ms)  …rage_async.py::TestWebhookStatusHandler::test_status_queued
+  ✅     14ms (s:1ms c:13ms)  …okStatusHandler::test_status_with_saga_statuses_in_response
+  ✅     14ms (s:2ms c:9ms)  …resql_outbox_coverage.py::TestGetEventsBySaga::test_success
 
 ════════════════════════════════════════════════════════════════════════════════
 
 ════════════════════════════════════════════════════════════════════════════════
   FILE SIZE DISTRIBUTION  (*.py under 'sagaz')
 ════════════════════════════════════════════════════════════════════════════════
-  Files: 221   Total lines: 43,352   Mean: 196 lines
+  Files: 226   Total lines: 43,409   Mean: 192 lines
 
-      0–80    lines │████████████████████████████████████   82 (37.1%)
-     80–160   lines │█████████████████                      38 (17.2%)
-    160–241   lines │██████████████                         31 (14.0%)
-    241–321   lines │██████                                 13 ( 5.9%)
-    321–402   lines │██████████                             23 (10.4%)
-    402–482   lines │███████                                16 ( 7.2%)
-    482–562   lines │█                                       2 ( 0.9%)
-    562–643   lines │████                                   10 ( 4.5%)
-    643–723   lines │█                                       2 ( 0.9%)
-    723–804   lines │██                                      4 ( 1.8%)
+      0–78    lines │████████████████████████████████████   84 (37.2%)
+     78–157   lines │█████████████████                      40 (17.7%)
+    157–236   lines │████████████                           29 (12.8%)
+    236–315   lines │███████                                16 ( 7.1%)
+    315–394   lines │█████████                              20 ( 8.8%)
+    394–473   lines │███████                                17 ( 7.5%)
+    473–552   lines │██                                      4 ( 1.8%)
+    552–631   lines │███                                     8 ( 3.5%)
+    631–710   lines │██                                      4 ( 1.8%)
+    710–789   lines │██                                      4 ( 1.8%)
 
 ────────────────────────────────────────────────────────────────────────────────
   PERCENTILES
 ────────────────────────────────────────────────────────────────────────────────
   min           0 lines
-  Q1           15 lines
-  Q2/med      137 lines
-  Q3          329 lines
-  p90         456 lines
-  p95         606 lines
-  p99         730 lines
-  max         803 lines
-  mean        196 lines
+  Q1           16 lines
+  Q2/med      134 lines
+  Q3          312 lines
+  p90         453 lines
+  p95         594 lines
+  p99         713 lines
+  max         788 lines
+  mean        192 lines
 
 ────────────────────────────────────────────────────────────────────────────────
-  QUALITY BLAME — size outliers  Q3 + 1.5×IQR > 800 lines   1
+  QUALITY BLAME — size outliers  Q3 + 1.5×IQR > 756 lines   1
 ────────────────────────────────────────────────────────────────────────────────
-     803 lines  sagaz/execution/graph.py
+     788 lines  sagaz/core/saga/__init__.py
 
 ════════════════════════════════════════════════════════════════════════════════
 
@@ -547,50 +578,25 @@
   LOW COVERAGE (< 90%) — sorted: priority↓
 ════════════════════════════════════════════════════════════════════════════════════════════════════
 
-Found 1 files   (showing 1)
-
-#    Prio   Coverage   Missing              Layer           File
-────────────────────────────────────────────────────────────────────────────────────────────────────
-1    🔴 40     17.3%      86 ( 82.7%)       Other            CC 2.6A  MI 43.7A  sagaz/cli/_setup_handlers.py
-
-────────────────────────────────────────────────────────────────────────────────────────────────────
-📊 SUMMARY
-────────────────────────────────────────────────────────────────────────────────────────────────────
-   Files                : 1
-   Coverage P25/P50/P75 : 17.3% | 17.3% | 17.3%
-   Total missing lines  : 86  (78.9% of their statements)
-
-────────────────────────────────────────────────────────────────────────────────────────────────────
-🚀 COVERAGE PROJECTION (if these files reach 100%)
-────────────────────────────────────────────────────────────────────────────────────────────────────
-   Current  : 99.0%
-   Projected: 100.0%  (+1.0pp)
-   Lines to cover: 86 / 8,879 total
-
-────────────────────────────────────────────────────────────────────────────────────────────────────
-🎯 TOP 5 BY PRIORITY
-────────────────────────────────────────────────────────────────────────────────────────────────────
-   1. [Other] sagaz/cli/_setup_handlers.py
-      → 86 lines (82.7%) | Impact: HIGH | Effort: HARD
-
+✅  No files below 90%!
 ════════════════════════════════════════════════════════════════════════════════════════════════════
 
 ════════════════════════════════════════════════════════════════════════════════
   CYCLOMATIC COMPLEXITY HISTOGRAM  (per function / method)
 ════════════════════════════════════════════════════════════════════════════════
-  Functions: 1316   Files: 82   Mean CC: 2.6   Ranks: A=1-5  B=6-10  C=11-15  D=16-20  E/F=21+
-  Rank distribution: A:1208  B:108
+  Functions: 1226   Files: 83   Mean CC: 2.6   Ranks: A=1-5  B=6-10  C=11-15  D=16-20  E/F=21+
+  Rank distribution: A:1123  B:103
 
-  CC 1   │████████████████████████████████████  485 (36.9%)  A
-  CC 2   │██████████████████████                296 (22.5%)  A
-  CC 3   │█████████████████                     230 (17.5%)  A
-  CC 4   │████████                              112 ( 8.5%)  A
-  CC 5   │██████                                 85 ( 6.5%)  A
-  CC 6   │██                                     33 ( 2.5%)  B
-  CC 7   │██                                     31 ( 2.4%)  B
-  CC 8   │█                                      17 ( 1.3%)  B
-  CC 9   │█                                      15 ( 1.1%)  B
-  CC 10+ │█                                      12 ( 0.9%)  B
+  CC 1   │████████████████████████████████████  459 (37.4%)  A
+  CC 2   │██████████████████████                275 (22.4%)  A
+  CC 3   │█████████████████                     215 (17.5%)  A
+  CC 4   │████████                               99 ( 8.1%)  A
+  CC 5   │██████                                 75 ( 6.1%)  A
+  CC 6   │██                                     31 ( 2.5%)  B
+  CC 7   │██                                     31 ( 2.5%)  B
+  CC 8   │█                                      17 ( 1.4%)  B
+  CC 9   │█                                      13 ( 1.1%)  B
+  CC 10+ │█                                      11 ( 0.9%)  B
 
 ────────────────────────────────────────────────────────────────────────────────
   PERCENTILES  (function-level)
@@ -604,7 +610,7 @@ Found 1 files   (showing 1)
   max        10  (B)
 
 ────────────────────────────────────────────────────────────────────────────────
-  QUALITY BLAME — files with avg CC > 5.4 AND coverage < 80%   0
+  QUALITY BLAME — files with avg CC > 5.5 AND coverage < 80%   0
 ────────────────────────────────────────────────────────────────────────────────
   ✅  No high-complexity low-coverage files.
 
@@ -613,68 +619,67 @@ Found 1 files   (showing 1)
 ════════════════════════════════════════════════════════════════════════════════
   MAINTAINABILITY INDEX HISTOGRAM  (higher = more maintainable)
 ════════════════════════════════════════════════════════════════════════════════
-  Files: 84   Mean MI: 64.8   Ranks: A=20-100  B=10-19  C=0-9
+  Files: 85   Mean MI: 67.0   Ranks: A=20-100  B=10-19  C=0-9
 
     0.0–10.0  MI │                                        0 ( 0.0%)  C
    10.0–20.0  MI │██                                      1 ( 1.2%)  B
    20.0–30.0  MI │██                                      1 ( 1.2%)  A
-   30.0–40.0  MI │█████████████████                       7 ( 8.3%)  A
-   40.0–50.0  MI │███████████████████████████████        13 (15.5%)  A
-   50.0–60.0  MI │████████████████████████████████████   15 (17.9%)  A
-   60.0–70.0  MI │███████████████████████████████        13 (15.5%)  A
-   70.0–80.0  MI │████████████████████████████████████   15 (17.9%)  A
-   80.0–90.0  MI │████████████████████████               10 (11.9%)  A
-   90.0–100.0 MI │██████████████████████                  9 (10.7%)  A
+   30.0–40.0  MI │████████████                            5 ( 5.9%)  A
+   40.0–50.0  MI │███████████████████████████████        13 (15.3%)  A
+   50.0–60.0  MI │██████████████████████████████████     14 (16.5%)  A
+   60.0–70.0  MI │███████████████████████████████        13 (15.3%)  A
+   70.0–80.0  MI │████████████████████████████████████   15 (17.6%)  A
+   80.0–90.0  MI │█████████████████████████████          12 (14.1%)  A
+   90.0–100.0 MI │██████████████████████████             11 (12.9%)  A
 
 ────────────────────────────────────────────────────────────────────────────────
   PERCENTILES
 ────────────────────────────────────────────────────────────────────────────────
-  Q1        48.1  (A)
-  Q2/med    63.2  (A)
-  Q3        78.9  (A)
-  p90       87.7  (A)
+  Q1        51.9  (A)
+  Q2/med    65.8  (A)
+  Q3        80.5  (A)
+  p90      100.0  (A)
   min       18.0  (B)
 
 ────────────────────────────────────────────────────────────────────────────────
-  QUALITY BLAME — MI below Q1 (48.1)   20
+  QUALITY BLAME — MI below Q1 (51.9)   21
 ────────────────────────────────────────────────────────────────────────────────
   MI       Coverage    File
   ─────  ────────  ──────────────────────────────────────────────────
    18.0B    100.0%    sagaz/visualization/mermaid.py
    29.0A    100.0%    sagaz/storage/backends/redis/outbox.py
-   33.2A    100.0%    sagaz/core/saga.py
    34.5A    100.0%    sagaz/dry_run.py
-   35.2A     98.8%    sagaz/cli/_init_handlers.py
-                 📍 23-24
+   35.2A    100.0%    sagaz/cli/_init_handlers.py
    35.5A    100.0%    sagaz/storage/manager.py
-   37.0A    100.0%    sagaz/core/decorators.py
    37.5A    100.0%    sagaz/cli/replay.py
    37.6A    100.0%    sagaz/execution/pivot.py
-   40.2A    100.0%    sagaz/execution/graph.py
    40.6A    100.0%    sagaz/storage/backends/redis/saga.py
    43.5A    100.0%    sagaz/core/context.py
-   43.7A     17.3%    sagaz/cli/_setup_handlers.py
-                 📍 27-29, 34-37, 42-43, 51, 56, 58-67, 71, 76-80, 82-83, 88-91, 93-94, 96-98, 102, 107-110, 112-113, 118-121, 123-125, 127, 132-133, 138-139, 144-145, 150-151, 156-160, 165-167, 169-171, 173-174, 187, 196, 198-199, 208-209, 216-217, 225-226, 228-229
-   44.2A     99.4%    sagaz/core/config.py
+   43.7A    100.0%    sagaz/cli/_setup_handlers.py
+   44.2A    100.0%    sagaz/core/config.py
    44.3A    100.0%    sagaz/storage/backends/s3/snapshot.py
    46.3A    100.0%    sagaz/storage/backends/sqlite/outbox.py
    46.4A    100.0%    sagaz/storage/backends/postgresql/saga.py
+   46.8A    100.0%    sagaz/execution/graph/_core.py
    47.1A    100.0%    sagaz/storage/backends/filesystem_snapshot.py
    47.7A    100.0%    sagaz/storage/backends/sqlite/saga.py
    48.0A    100.0%    sagaz/storage/backends/memory/saga.py
+   48.1A    100.0%    sagaz/storage/transfer/service.py
+   48.5A    100.0%    sagaz/storage/backends/postgresql/outbox.py
+   50.6A    100.0%    sagaz/outbox/worker.py
 
 ════════════════════════════════════════════════════════════════════════════════
 
 ════════════════════════════════════════════════════════════════════════════════
   COMMENT RATIO HISTOGRAM  (comments + docstrings / SLOC)
 ════════════════════════════════════════════════════════════════════════════════
-  Files: 84   Total SLOC: 14,017   Overall comment ratio: 39.2%
+  Files: 85   Total SLOC: 12,983   Overall comment ratio: 39.6%
 
-     0–28  % comment │████████████████████████████████████   28 (33.3%)
-    28–56  % comment │████████████████████████████████       25 (29.8%)
-    56–84  % comment │█████████████████████                  16 (19.0%)
-    84–111 % comment │█████████                               7 ( 8.3%)
-   111–139 % comment │████                                    3 ( 3.6%)
+     0–28  % comment │████████████████████████████████████   28 (32.9%)
+    28–56  % comment │████████████████████████████████       25 (29.4%)
+    56–84  % comment │█████████████████████                  16 (18.8%)
+    84–111 % comment │██████████                              8 ( 9.4%)
+   111–139 % comment │████                                    3 ( 3.5%)
    139–167 % comment │███                                     2 ( 2.4%)
    167–195 % comment │███                                     2 ( 2.4%)
    195–223 % comment │                                        0 ( 0.0%)
@@ -685,32 +690,31 @@ Found 1 files   (showing 1)
   PERCENTILES
 ────────────────────────────────────────────────────────────────────────────────
   Q1        18.0%
-  Q2/med    42.7%
-  Q3        62.9%
+  Q2/med    43.3%
+  Q3        63.8%
   p90      107.7%
   mean      53.6%
 
 ────────────────────────────────────────────────────────────────────────────────
-  QUALITY BLAME — comment ratio below Q1 (18.0%)   20
+  QUALITY BLAME — comment ratio below Q1 (18.0%)   21
 ────────────────────────────────────────────────────────────────────────────────
   Comment%    SLOC     Coverage    File
   ────────  ─────  ────────  ──────────────────────────────────────────────────
      0.0%        3   100.0%    sagaz/__main__.py
+     0.0%       10   100.0%    sagaz/execution/graph/_exceptions.py
+     0.0%        9   100.0%    sagaz/execution/graph/_tracker.py
      0.0%        2   100.0%    sagaz/storage/memory.py
      0.0%        2   100.0%    sagaz/storage/postgresql.py
      0.0%        2   100.0%    sagaz/storage/redis.py
-     3.7%      163    17.3%    sagaz/cli/_setup_handlers.py
-                         📍 27-29, 34-37, 42-43, 51, 56, 58-67, 71, 76-80, 82-83, 88-91, 93-94, 96-98, 102, 107-110, 112-113, 118-121, 123-125, 127, 132-133, 138-139, 144-145, 150-151, 156-160, 165-167, 169-171, 173-174, 187, 196, 198-199, 208-209, 216-217, 225-226, 228-229
-     6.0%      562    98.8%    sagaz/cli/_init_handlers.py
-                         📍 23-24
+     3.7%      163   100.0%    sagaz/cli/_setup_handlers.py
+     6.0%      562   100.0%    sagaz/cli/_init_handlers.py
      9.2%      338   100.0%    sagaz/storage/backends/postgresql/snapshot.py
     10.8%      130   100.0%    sagaz/storage/backends/memory/outbox.py
     11.3%       53   100.0%    sagaz/monitoring/metrics.py
     11.4%      324   100.0%    sagaz/storage/backends/sqlite/outbox.py
-    11.7%       77   100.0%    sagaz/core/_saga_compensation.py
+    11.7%       77   100.0%    sagaz/core/saga/_compensation.py
     11.9%      194   100.0%    sagaz/storage/backends/memory/saga.py
     12.9%      450   100.0%    sagaz/cli/replay.py
-    14.1%      142   100.0%    sagaz/core/replay.py
     14.6%      371   100.0%    sagaz/storage/backends/postgresql/saga.py
     15.3%      203   100.0%    sagaz/monitoring/logging.py
     15.4%      273   100.0%    sagaz/storage/backends/sqlite/saga.py
@@ -723,14 +727,14 @@ Found 1 files   (showing 1)
 ════════════════════════════════════════════════════════════════════════════════
   HALSTEAD METRICS HISTOGRAM  (estimated bug count per file)
 ════════════════════════════════════════════════════════════════════════════════
-  Files: 84   Total estimated bugs: 7.2   Mean per file: 0.09
+  Files: 85   Total estimated bugs: 6.5   Mean per file: 0.08
 
-   0.00–0.06  bugs │████████████████████████████████████   47 (56.0%)
-   0.06–0.12  bugs │███████████████                        19 (22.6%)
-   0.12–0.18  bugs │████                                    5 ( 6.0%)
-   0.18–0.24  bugs │██                                      3 ( 3.6%)
-   0.24–0.30  bugs │████                                    5 ( 6.0%)
-   0.30–0.36  bugs │██                                      2 ( 2.4%)
+   0.00–0.06  bugs │████████████████████████████████████   50 (58.8%)
+   0.06–0.12  bugs │██████████████                         19 (22.4%)
+   0.12–0.18  bugs │████                                    5 ( 5.9%)
+   0.18–0.24  bugs │███                                     4 ( 4.7%)
+   0.24–0.30  bugs │██                                      3 ( 3.5%)
+   0.30–0.36  bugs │█                                       1 ( 1.2%)
    0.36–0.42  bugs │█                                       1 ( 1.2%)
    0.42–0.48  bugs │█                                       1 ( 1.2%)
    0.48–0.54  bugs │                                        0 ( 0.0%)
@@ -740,13 +744,13 @@ Found 1 files   (showing 1)
   PERCENTILES  (bugs estimate)
 ────────────────────────────────────────────────────────────────────────────────
   Q2/med     0.04 bugs
-  Q3         0.11 bugs
-  p90        0.25 bugs
-  p95        0.30 bugs
+  Q3         0.10 bugs
+  p90        0.19 bugs
+  p95        0.29 bugs
   max        0.60 bugs
 
 ────────────────────────────────────────────────────────────────────────────────
-  QUALITY BLAME — Halstead bug outliers  Q3+1.5×IQR > 0.26 bugs   9
+  QUALITY BLAME — Halstead bug outliers  Q3+1.5×IQR > 0.23 bugs   7
 ────────────────────────────────────────────────────────────────────────────────
   Bugs      Difficulty    Coverage    File
   ──────  ──────────  ────────  ──────────────────────────────────────────────────
@@ -754,52 +758,50 @@ Found 1 files   (showing 1)
     0.47         6.6     100.0%    sagaz/storage/manager.py
     0.41         6.3     100.0%    sagaz/storage/backends/redis/outbox.py
     0.33         7.3     100.0%    sagaz/dry_run.py
-    0.31         8.9     100.0%    sagaz/core/saga.py
-    0.30         8.0     100.0%    sagaz/execution/graph.py
     0.29         7.8     100.0%    sagaz/storage/transfer/service.py
     0.29         6.4     100.0%    sagaz/core/context.py
-    0.28         5.7      99.4%    sagaz/core/config.py
+    0.28         5.7     100.0%    sagaz/core/config.py
 
 ════════════════════════════════════════════════════════════════════════════════
 
 ════════════════════════════════════════════════════════════════════════════════
   FILE TREE ANALYSIS: /home/pingu/github/sagaz/sagaz
 ════════════════════════════════════════════════════════════════════════════════
-  Total Nodes: 118      Total Files: 310      Total Folders: 117
+  Total Nodes: 119      Total Files: 315      Total Folders: 118
 
   DISTRIBUTION: FILES PER FOLDER
 ────────────────────────────────────────────────────────────────────────────────
-     0–2    files │████████████████████████████████████   59 (50.0%)
-     2–4    files │███████████████████████████            44 (37.3%)
-     4–6    files │██████                                 10 ( 8.5%)
-     6–8    files │█                                       2 ( 1.7%)
-     8–11   files │█                                       2 ( 1.7%)
-    11–13   files │                                        0 ( 0.0%)
-    13–15   files │                                        0 ( 0.0%)
-    15–17   files │                                        0 ( 0.0%)
-    17–19   files │                                        0 ( 0.0%)
-    19–22   files │█                                       1 ( 0.8%)
+     0–1    files │████████████████████████████████████   34 (28.6%)
+     1–2    files │███████████████████████                22 (18.5%)
+     2–3    files │██████████████████████████████████     32 (26.9%)
+     3–4    files │████████████████                       15 (12.6%)
+     4–5    files │███████                                 7 ( 5.9%)
+     5–6    files │████                                    4 ( 3.4%)
+     6–7    files │██                                      2 ( 1.7%)
+     7–8    files │                                        0 ( 0.0%)
+     8–9    files │██                                      2 ( 1.7%)
+     9–10   files │█                                       1 ( 0.8%)
 
   STATS (Files per Folder):
-  min: 0      max: 22     mean:   2.6
-  p50: 2      p75: 3      p90: 5     
+  min: 0      max: 10     mean:   2.6
+  p50: 3      p75: 4      p90: 5     
 
   DISTRIBUTION: SUBFOLDERS PER FOLDER
 ────────────────────────────────────────────────────────────────────────────────
-     0–2    dirs  │████████████████████████████████████  106 (89.8%)
-     2–4    dirs  │███                                     8 ( 6.8%)
+     0–2    dirs  │████████████████████████████████████  106 (89.1%)
+     2–4    dirs  │███                                     9 ( 7.6%)
      4–6    dirs  │█                                       2 ( 1.7%)
      6–8    dirs  │                                        0 ( 0.0%)
      8–10   dirs  │                                        0 ( 0.0%)
-    10–12   dirs  │                                        0 ( 0.0%)
-    12–14   dirs  │                                        1 ( 0.8%)
+    10–12   dirs  │                                        1 ( 0.8%)
+    12–14   dirs  │                                        0 ( 0.0%)
     14–16   dirs  │                                        0 ( 0.0%)
     16–18   dirs  │                                        0 ( 0.0%)
     18–20   dirs  │                                        1 ( 0.8%)
 
   STATS (Subfolders per Folder):
   min: 0      max: 20     mean:   1.0
-  p50: 0      p75: 1      p90: 2     
+  p50: 0      p75: 1      p90: 3     
 
 ════════════════════════════════════════════════════════════════════════════════
 
