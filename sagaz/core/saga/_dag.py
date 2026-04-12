@@ -17,7 +17,6 @@ from sagaz.core.types import ParallelFailureStrategy, SagaResult, SagaStatus
 
 if TYPE_CHECKING:
     from sagaz.core.saga import Saga
-    from sagaz.core.saga._step import SagaStep
 
 logger = logging.getLogger(__name__)
 
