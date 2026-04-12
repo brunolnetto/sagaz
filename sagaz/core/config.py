@@ -54,6 +54,9 @@ if TYPE_CHECKING:
     from sagaz.outbox.brokers.base import BaseBroker
     from sagaz.storage.base import SagaStorage
 
+from sagaz.core.config._broker import BrokerConfigManager
+from sagaz.core.config._storage import StorageConfigManager
+
 logger = logging.getLogger(__name__)
 
 
@@ -123,16 +126,22 @@ class SagaConfig:
             if self.storage is not None:
                 msg = (
                     "Cannot specify both 'storage_manager' and 'storage'. "
-                    "Use storage_manager for unified storage, or storage/outbox_storage separately."
+                    "Use storage_manager for unified storage, or "
+                    "storage/outbox_storage separately."
                 )
                 raise ValueError(msg)
             if self.outbox_storage is not None:
                 msg = (
                     "Cannot specify both 'storage_manager' and 'outbox_storage'. "
-                    "Use storage_manager for unified storage, or storage/outbox_storage separately."
+                    "Use storage_manager for unified storage, or "
+                    "storage/outbox_storage separately."
                 )
                 raise ValueError(msg)
-            self._setup_from_manager()
+            self.storage, self._storage_manager = (
+                StorageConfigManager.setup_from_manager(
+                    self.storage, self.storage_manager
+                )
+            )
         else:
             # Default to in-memory storage if not specified
             if self.storage is None:
@@ -142,94 +151,12 @@ class SagaConfig:
                 logger.debug("Using default InMemorySagaStorage")
 
         # Handle outbox storage derivation
-        self._derive_outbox_storage()
+        self._derived_outbox_storage = StorageConfigManager.derive_outbox_storage(
+            self.storage, self.broker, self.outbox_storage
+        )
 
         # Build listeners list from config
         self._listeners = self._build_listeners()
-
-    def _setup_from_manager(self) -> None:
-        """Extract storage instances from StorageManager."""
-        manager = self.storage_manager
-
-        # Check if manager is initialized
-        try:
-            if manager is not None:
-                self.storage = manager.saga
-                if self.outbox_storage is None:
-                    self.outbox_storage = manager.outbox
-            self._storage_manager = manager
-            logger.info("Using StorageManager for unified storage access")
-        except RuntimeError:
-            # Manager not initialized - store reference and use lazy access
-            # Manager not initialized - store reference and use lazy access
-            import warnings
-
-            warnings.warn(
-                "StorageManager provided but not initialized. "
-                "Call await storage_manager.initialize() before using Saga.",
-                RuntimeWarning,
-                stacklevel=2,
-            )
-            self._storage_manager = manager
-            # Fall back to defaults for now
-            if self.storage is None:
-                from sagaz.storage.memory import InMemorySagaStorage
-
-                self.storage = InMemorySagaStorage()
-
-    def _derive_outbox_storage(self) -> None:
-        """
-        Derive outbox storage from saga storage if not explicitly set.
-
-        For transactional guarantees, outbox storage should ideally use
-        the same database as saga storage.
-        """
-        if self.broker is None:
-            # No broker = no outbox needed
-            return
-
-        if self.outbox_storage is not None:
-            # Explicitly set - use as-is
-            self._derived_outbox_storage = self.outbox_storage
-            return
-
-        # Broker is set but outbox_storage is not - derive from saga storage
-        storage_type = type(self.storage).__name__
-
-        if storage_type == "PostgreSQLSagaStorage":
-            # Derive PostgreSQL outbox storage from same connection
-            from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
-
-            conn_string = getattr(self.storage, "connection_string", None)
-            if conn_string:
-                self._derived_outbox_storage = PostgreSQLOutboxStorage(conn_string)
-                logger.warning(
-                    "Broker configured without explicit outbox_storage. "
-                    "Defaulting to PostgreSQLOutboxStorage with same connection "
-                    "for transactional guarantees."
-                )
-            else:
-                self._use_memory_outbox_with_warning()
-
-        elif storage_type == "RedisSagaStorage":
-            # Redis doesn't support transactions across saga + outbox
-            # Use in-memory with warning
-            self._use_memory_outbox_with_warning()
-
-        else:
-            # InMemory or unknown - use in-memory outbox
-            self._use_memory_outbox_with_warning()
-
-    def _use_memory_outbox_with_warning(self) -> None:
-        """Use in-memory outbox storage with a warning."""
-        from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
-
-        self._derived_outbox_storage = InMemoryOutboxStorage()
-        logger.warning(
-            "Broker configured without explicit outbox_storage. "
-            "Using InMemoryOutboxStorage - events will NOT survive restarts. "
-            "For production, set outbox_storage explicitly."
-        )
 
     def _build_listeners(self) -> list[SagaListener]:
         """Build listeners list from configuration."""
@@ -336,8 +263,8 @@ class SagaConfig:
         if load_dotenv:
             env.load()
 
-        storage = cls._storage_from_env(env)
-        broker = cls._broker_from_env(env)
+        storage = StorageConfigManager.from_env(env)
+        broker = BrokerConfigManager.from_env(env)
 
         return cls(
             storage=storage,
@@ -346,64 +273,6 @@ class SagaConfig:
             tracing=env.get_bool("SAGAZ_TRACING", False),
             logging=env.get_bool("SAGAZ_LOGGING", True),
         )
-
-    @classmethod
-    def _storage_from_env(cls, env: Any) -> Any:
-        """Construct a storage backend descriptor from environment variables.
-
-        Checks ``SAGAZ_STORAGE_URL`` first; falls back to
-        ``SAGAZ_STORAGE_TYPE`` + individual host/port/db/user/password vars.
-        Returns ``None`` when no storage is configured.
-        """
-        storage_url = env.get("SAGAZ_STORAGE_URL", "")
-        if storage_url:
-            return cls._parse_storage_url(storage_url)
-
-        storage_type = env.get("SAGAZ_STORAGE_TYPE", "memory")
-        if storage_type == "postgresql":
-            host = env.get("SAGAZ_STORAGE_HOST", "localhost")
-            port = env.get("SAGAZ_STORAGE_PORT", "5432")
-            db = env.get("SAGAZ_STORAGE_DB", "sagaz")
-            user = env.get("SAGAZ_STORAGE_USER", "postgres")
-            password = env.get("SAGAZ_STORAGE_PASSWORD", "postgres")
-            url = f"postgresql://{user}:{password}@{host}:{port}/{db}"
-            return cls._parse_storage_url(url)
-        if storage_type == "redis":
-            redis_url = env.get("SAGAZ_STORAGE_URL")
-            if redis_url is None:
-                redis_url = "redis://localhost:6379/0"
-            return cls._parse_storage_url(redis_url)
-        return None
-
-    @classmethod
-    def _broker_from_env(cls, env: Any) -> Any:
-        """Construct a broker descriptor from environment variables.
-
-        Checks ``SAGAZ_BROKER_URL`` first; falls back to
-        ``SAGAZ_BROKER_TYPE`` + individual connection vars.
-        Returns ``None`` when no broker is configured.
-        """
-        broker_url = env.get("SAGAZ_BROKER_URL", "")
-        if broker_url:
-            return cls._parse_broker_url(broker_url)
-
-        broker_type = env.get("SAGAZ_BROKER_TYPE", "")
-        if broker_type == "kafka":
-            host = env.get("SAGAZ_BROKER_HOST", "localhost")
-            port = env.get("SAGAZ_BROKER_PORT", "9092")
-            return cls._parse_broker_url(f"kafka://{host}:{port}")
-        if broker_type == "rabbitmq":
-            host = env.get("SAGAZ_BROKER_HOST", "localhost")
-            port = env.get("SAGAZ_BROKER_PORT", "5672")
-            user = env.get("SAGAZ_BROKER_USER", "guest")
-            password = env.get("SAGAZ_BROKER_PASSWORD", "guest")
-            return cls._parse_broker_url(f"amqp://{user}:{password}@{host}:{port}/")
-        if broker_type == "redis":
-            redis_url = env.get("SAGAZ_BROKER_URL")
-            if redis_url is None:
-                redis_url = "redis://localhost:6379/1"
-            return cls._parse_broker_url(redis_url)
-        return None
 
     @classmethod
     def from_file(cls, file_path: str | Path, substitute_env: bool = True) -> SagaConfig:
@@ -451,9 +320,9 @@ class SagaConfig:
         broker_data = data.get("broker", {})
         obs_data = data.get("observability", {})
 
-        # Build components using helper methods
-        storage = cls._build_storage_from_config(storage_data)
-        broker = cls._build_broker_from_config(broker_data)
+        # Build components using manager methods
+        storage = StorageConfigManager.from_config_dict(storage_data)
+        broker = BrokerConfigManager.from_config_dict(broker_data)
 
         # Build Config
         return cls(
@@ -463,122 +332,6 @@ class SagaConfig:
             tracing=obs_data.get("tracing", {}).get("enabled", False),
             logging=obs_data.get("logging", {}).get("enabled", True),
         )
-
-    @classmethod
-    def _build_storage_from_config(cls, storage_data: dict) -> SagaStorage | None:
-        """Build storage instance from config dict."""
-        if not storage_data:
-            return None
-
-        s_type = storage_data.get("type", "postgresql").lower()
-        conn = storage_data.get("connection", {})
-
-        if s_type == "postgresql":
-            from sagaz.storage.postgresql import PostgreSQLSagaStorage
-
-            url = conn.get("url") or cls._build_postgres_url(conn)
-            return PostgreSQLSagaStorage(url)
-
-        if s_type == "redis":
-            from sagaz.storage.redis import RedisSagaStorage
-
-            url = conn.get("url", "redis://localhost:6379")
-            return RedisSagaStorage(url)
-
-        return None
-
-    @staticmethod
-    def _build_postgres_url(conn: dict) -> str:
-        """Build PostgreSQL URL from connection components."""
-        user = conn.get("user", "postgres")
-        pwd = conn.get("password", "postgres")
-        host = conn.get("host", "localhost")
-        port = conn.get("port", 5432)
-        db = conn.get("database", "sagaz")
-        return f"postgresql://{user}:{pwd}@{host}:{port}/{db}"
-
-    @classmethod
-    def _build_broker_from_config(cls, broker_data: dict) -> BaseBroker | None:
-        """Build broker instance from config dict."""
-        if not broker_data:
-            return None
-
-        b_type = broker_data.get("type", "").lower()
-        conn = broker_data.get("connection", {})
-
-        if b_type == "kafka":
-            from sagaz.outbox.brokers.kafka import KafkaBroker, KafkaBrokerConfig
-
-            host = conn.get("host", "localhost")
-            port = conn.get("port", 9092)
-            kafka_config = KafkaBrokerConfig(bootstrap_servers=f"{host}:{port}")
-            return KafkaBroker(kafka_config)
-
-        if b_type == "redis":
-            from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
-
-            host = conn.get("host", "localhost")
-            port = conn.get("port", 6379)
-            redis_config = RedisBrokerConfig(url=f"redis://{host}:{port}")
-            return RedisBroker(redis_config)
-
-        if b_type in ("rabbitmq", "amqp"):
-            from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker, RabbitMQBrokerConfig
-
-            user = conn.get("user", "guest")
-            pwd = conn.get("password", "guest")
-            host = conn.get("host", "localhost")
-            port = conn.get("port", 5672)
-            url = f"amqp://{user}:{pwd}@{host}:{port}/"
-            rmq_config = RabbitMQBrokerConfig(url=url)
-            return RabbitMQBroker(rmq_config)
-
-        return None
-
-    @staticmethod
-    def _parse_storage_url(url: str) -> SagaStorage:
-        """Parse storage URL and return appropriate storage instance."""
-        if url.startswith(("postgresql://", "postgres://")):
-            from sagaz.storage.postgresql import PostgreSQLSagaStorage
-
-            return PostgreSQLSagaStorage(url)
-        if url.startswith("redis://"):
-            from sagaz.storage.redis import RedisSagaStorage
-
-            return RedisSagaStorage(url)
-        if url == "memory://" or url == "":
-            from sagaz.storage.memory import InMemorySagaStorage
-
-            return InMemorySagaStorage()
-        msg = f"Unknown storage URL scheme: {url}"
-        raise ValueError(msg)
-
-    @staticmethod
-    def _parse_broker_url(url: str) -> BaseBroker:
-        """Parse broker URL and return appropriate broker instance."""
-        if url.startswith("kafka://"):
-            from sagaz.outbox.brokers.kafka import KafkaBroker, KafkaBrokerConfig
-
-            # Extract bootstrap servers from URL
-            servers = url.replace("kafka://", "")
-            kafka_config = KafkaBrokerConfig(bootstrap_servers=servers)
-            return KafkaBroker(kafka_config)
-        if url.startswith("redis://"):
-            from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
-
-            redis_config = RedisBrokerConfig(url=url)
-            return RedisBroker(redis_config)
-        if url.startswith(("amqp://", "rabbitmq://")):
-            from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker, RabbitMQBrokerConfig
-
-            rmq_config = RabbitMQBrokerConfig(url=url.replace("rabbitmq://", "amqp://"))
-            return RabbitMQBroker(rmq_config)
-        if url == "memory://" or url == "":
-            from sagaz.outbox.brokers.memory import InMemoryBroker
-
-            return InMemoryBroker()
-        msg = f"Unknown broker URL scheme: {url}"
-        raise ValueError(msg)
 
 
 # Global configuration singleton
