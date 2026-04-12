@@ -95,17 +95,15 @@ class StorageConfigManager:
                     "for transactional guarantees."
                 )
                 return derived
-            else:
-                return StorageConfigManager._use_memory_outbox_with_warning()
+            return StorageConfigManager._use_memory_outbox_with_warning()
 
-        elif storage_type == "RedisSagaStorage":
+        if storage_type == "RedisSagaStorage":
             # Redis doesn't support transactions across saga + outbox
             # Use in-memory with warning
             return StorageConfigManager._use_memory_outbox_with_warning()
 
-        else:
-            # InMemory or unknown - use in-memory outbox
-            return StorageConfigManager._use_memory_outbox_with_warning()
+        # InMemory or unknown - use in-memory outbox
+        return StorageConfigManager._use_memory_outbox_with_warning()
 
     @staticmethod
     def _use_memory_outbox_with_warning() -> Any:
