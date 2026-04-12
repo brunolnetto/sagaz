@@ -122,7 +122,7 @@ def create_webhook_router(url_prefix: str = "/webhooks"):
     Create a FastAPI router for webhook event handling.
 
     The router exposes a POST endpoint that accepts JSON payloads
-    and fires events via sagaz.triggers.fire_event().
+    and fires events via sagaz.core.triggers.fire_event().
 
     Events are processed asynchronously (fire-and-forget). The webhook
     returns immediately with "accepted" status.

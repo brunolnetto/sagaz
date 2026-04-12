@@ -52,7 +52,7 @@ def mock_time_travel():
 @pytest.fixture
 def mock_memory_storage():
     """Mock InMemorySnapshotStorage."""
-    with patch("sagaz.storage.backends.memory_snapshot.InMemorySnapshotStorage") as mock:
+    with patch("sagaz.core.storage.backends.memory_snapshot.InMemorySnapshotStorage") as mock:
         yield mock
 
 

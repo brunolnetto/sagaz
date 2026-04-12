@@ -269,7 +269,7 @@ class TestGetStorageFactory:
 
         monkeypatch.setenv("DATABASE_URL", "postgresql://localhost:5432/test")
 
-        with patch("sagaz.storage.backends.postgresql.outbox.ASYNCPG_AVAILABLE", True):
+        with patch("sagaz.core.storage.backends.postgresql.outbox.ASYNCPG_AVAILABLE", True):
             storage = worker.get_storage()
             assert storage is not None
 
@@ -306,8 +306,8 @@ class TestGetBrokerFactory:
         monkeypatch.setenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 
         with (
-            patch("sagaz.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
-            patch("sagaz.outbox.brokers.kafka.AIOKafkaProducer"),
+            patch("sagaz.core.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
+            patch("sagaz.core.outbox.brokers.kafka.AIOKafkaProducer"),
         ):
             broker = worker.get_broker()
             assert broker is not None
@@ -320,8 +320,8 @@ class TestGetBrokerFactory:
         monkeypatch.setenv("RABBITMQ_URL", "amqp://localhost")
 
         with (
-            patch("sagaz.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
-            patch("sagaz.outbox.brokers.rabbitmq.aio_pika"),
+            patch("sagaz.core.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
+            patch("sagaz.core.outbox.brokers.rabbitmq.aio_pika"),
         ):
             broker = worker.get_broker()
             assert broker is not None

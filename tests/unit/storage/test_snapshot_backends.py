@@ -345,7 +345,7 @@ class TestRedisSnapshotStorageMocked:
 
     async def test_missing_dependency_redis(self):
         """Test error when redis not installed."""
-        with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", False):
+        with patch("sagaz.core.storage.backends.redis.snapshot.REDIS_AVAILABLE", False):
             from sagaz.core.exceptions import MissingDependencyError
             from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
@@ -354,8 +354,8 @@ class TestRedisSnapshotStorageMocked:
 
     async def test_missing_dependency_zstd(self):
         """Test error when zstandard not installed for compression."""
-        with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
-            with patch("sagaz.storage.backends.redis.snapshot.ZSTD_AVAILABLE", False):
+        with patch("sagaz.core.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.redis.snapshot.ZSTD_AVAILABLE", False):
                 from sagaz.core.exceptions import MissingDependencyError
                 from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
@@ -374,7 +374,7 @@ class TestPostgreSQLSnapshotStorageMocked:
 
     async def test_missing_dependency(self):
         """Test error when asyncpg not installed."""
-        with patch("sagaz.storage.backends.postgresql.snapshot.ASYNCPG_AVAILABLE", False):
+        with patch("sagaz.core.storage.backends.postgresql.snapshot.ASYNCPG_AVAILABLE", False):
             from sagaz.core.exceptions import MissingDependencyError
             from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
@@ -393,7 +393,7 @@ class TestS3SnapshotStorageMocked:
 
     async def test_missing_dependency_aioboto3(self):
         """Test error when aioboto3 not installed."""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", False):
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", False):
             from sagaz.core.exceptions import MissingDependencyError
             from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
@@ -402,8 +402,8 @@ class TestS3SnapshotStorageMocked:
 
     async def test_missing_dependency_zstd(self):
         """Test error when zstandard not installed for compression."""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.ZSTD_AVAILABLE", False):
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.ZSTD_AVAILABLE", False):
                 from sagaz.core.exceptions import MissingDependencyError
                 from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 

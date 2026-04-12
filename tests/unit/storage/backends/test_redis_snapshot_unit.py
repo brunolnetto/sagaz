@@ -23,7 +23,7 @@ class TestRedisSnapshotStorageImportError:
     def test_redis_not_available_import_error(self):
         """Test that RedisSnapshotStorage raises MissingDependencyError"""
         with patch.dict("sys.modules", {"redis": None, "redis.asyncio": None}):
-            with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", False):
+            with patch("sagaz.core.storage.backends.redis.snapshot.REDIS_AVAILABLE", False):
                 from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
                 with pytest.raises(MissingDependencyError, match="redis"):
@@ -31,8 +31,8 @@ class TestRedisSnapshotStorageImportError:
 
     def test_zstd_not_available_with_compression(self):
         """Test that compression requirement raises MissingDependencyError"""
-        with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
-            with patch("sagaz.storage.backends.redis.snapshot.ZSTD_AVAILABLE", False):
+        with patch("sagaz.core.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.redis.snapshot.ZSTD_AVAILABLE", False):
                 from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
                 with pytest.raises(MissingDependencyError, match="zstandard"):
@@ -45,8 +45,8 @@ class TestRedisSnapshotStorageUnit:
     @pytest.mark.asyncio
     async def test_initialization(self):
         """Test Redis snapshot storage initialization"""
-        with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
-            with patch("sagaz.storage.backends.redis.snapshot.redis"):
+        with patch("sagaz.core.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.redis.snapshot.redis"):
                 from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
                 storage = RedisSnapshotStorage(
@@ -62,8 +62,8 @@ class TestRedisSnapshotStorageUnit:
     @pytest.mark.asyncio
     async def test_connection_error_handling(self):
         """Test Redis connection error handling"""
-        with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
-            with patch("sagaz.storage.backends.redis.snapshot.redis") as mock_redis:
+        with patch("sagaz.core.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.redis.snapshot.redis") as mock_redis:
                 mock_client = AsyncMock()
                 mock_client.ping = AsyncMock(side_effect=Exception("Connection refused"))
                 mock_redis.from_url = MagicMock(return_value=mock_client)
@@ -80,8 +80,8 @@ class TestRedisSnapshotStorageUnit:
     @pytest.mark.asyncio
     async def test_save_snapshot_mocked(self):
         """Test save_snapshot with mocked Redis"""
-        with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
-            with patch("sagaz.storage.backends.redis.snapshot.redis") as mock_redis:
+        with patch("sagaz.core.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.redis.snapshot.redis") as mock_redis:
                 # Mock Redis client
                 mock_client = AsyncMock()
                 mock_client.ping = AsyncMock()
@@ -120,8 +120,8 @@ class TestRedisSnapshotStorageUnit:
     @pytest.mark.asyncio
     async def test_get_snapshot_found(self):
         """Test get_snapshot when snapshot exists"""
-        with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
-            with patch("sagaz.storage.backends.redis.snapshot.redis") as mock_redis:
+        with patch("sagaz.core.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.redis.snapshot.redis") as mock_redis:
                 mock_client = AsyncMock()
                 mock_client.ping = AsyncMock()
 
@@ -160,8 +160,8 @@ class TestRedisSnapshotStorageUnit:
     @pytest.mark.asyncio
     async def test_get_snapshot_not_found(self):
         """Test get_snapshot when snapshot doesn't exist"""
-        with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
-            with patch("sagaz.storage.backends.redis.snapshot.redis") as mock_redis:
+        with patch("sagaz.core.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.redis.snapshot.redis") as mock_redis:
                 mock_client = AsyncMock()
                 mock_client.ping = AsyncMock()
                 mock_client.get = AsyncMock(return_value=None)
@@ -179,8 +179,8 @@ class TestRedisSnapshotStorageUnit:
     @pytest.mark.asyncio
     async def test_list_snapshots(self):
         """Test list_snapshots"""
-        with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
-            with patch("sagaz.storage.backends.redis.snapshot.redis") as mock_redis:
+        with patch("sagaz.core.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.redis.snapshot.redis") as mock_redis:
                 mock_client = AsyncMock()
                 mock_client.ping = AsyncMock()
 
@@ -217,8 +217,8 @@ class TestRedisSnapshotStorageUnit:
     @pytest.mark.asyncio
     async def test_delete_snapshot(self):
         """Test delete_snapshot"""
-        with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
-            with patch("sagaz.storage.backends.redis.snapshot.redis") as mock_redis:
+        with patch("sagaz.core.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.redis.snapshot.redis") as mock_redis:
                 mock_client = AsyncMock()
                 mock_client.ping = AsyncMock()
 
@@ -255,8 +255,8 @@ class TestRedisSnapshotStorageUnit:
     @pytest.mark.asyncio
     async def test_close(self):
         """Test close connection"""
-        with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
-            with patch("sagaz.storage.backends.redis.snapshot.redis") as mock_redis:
+        with patch("sagaz.core.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.redis.snapshot.redis") as mock_redis:
                 mock_client = AsyncMock()
                 mock_client.ping = AsyncMock()
                 mock_client.close = AsyncMock()
@@ -278,8 +278,8 @@ class TestRedisSnapshotStorageUnit:
     @pytest.mark.asyncio
     async def test_context_manager(self):
         """Test async context manager"""
-        with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
-            with patch("sagaz.storage.backends.redis.snapshot.redis") as mock_redis:
+        with patch("sagaz.core.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.redis.snapshot.redis") as mock_redis:
                 mock_client = AsyncMock()
                 mock_client.ping = AsyncMock()
                 mock_client.close = AsyncMock()
@@ -303,10 +303,10 @@ class TestRedisSnapshotStorageCompression:
     @pytest.mark.asyncio
     async def test_compression_enabled(self):
         """Test snapshot storage with compression"""
-        with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
-            with patch("sagaz.storage.backends.redis.snapshot.ZSTD_AVAILABLE", True):
-                with patch("sagaz.storage.backends.redis.snapshot.zstd") as mock_zstd:
-                    with patch("sagaz.storage.backends.redis.snapshot.redis") as mock_redis:
+        with patch("sagaz.core.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.redis.snapshot.ZSTD_AVAILABLE", True):
+                with patch("sagaz.core.storage.backends.redis.snapshot.zstd") as mock_zstd:
+                    with patch("sagaz.core.storage.backends.redis.snapshot.redis") as mock_redis:
                         # Mock compressor
                         mock_compressor = Mock()
                         mock_compressor.compress = Mock(return_value=b"compressed_data")
@@ -337,8 +337,8 @@ class TestRedisSnapshotStorageCompression:
     @pytest.mark.asyncio
     async def test_compression_disabled(self):
         """Test snapshot storage without compression"""
-        with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
-            with patch("sagaz.storage.backends.redis.snapshot.redis"):
+        with patch("sagaz.core.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.redis.snapshot.redis"):
                 from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
                 storage = RedisSnapshotStorage(
@@ -359,8 +359,8 @@ class TestRedisSnapshotStorageAdvanced:
         """Test save_snapshot sets TTL when retention_until is specified."""
         from datetime import UTC, datetime, timedelta
 
-        with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
-            with patch("sagaz.storage.backends.redis.snapshot.redis") as mock_redis:
+        with patch("sagaz.core.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.redis.snapshot.redis") as mock_redis:
                 mock_client = AsyncMock()
                 mock_client.ping = AsyncMock()
                 mock_client.set = AsyncMock()
@@ -398,8 +398,8 @@ class TestRedisSnapshotStorageAdvanced:
         """Test get_latest_snapshot returns None when no matching step found."""
         from datetime import UTC, datetime
 
-        with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
-            with patch("sagaz.storage.backends.redis.snapshot.redis") as mock_redis:
+        with patch("sagaz.core.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.redis.snapshot.redis") as mock_redis:
                 mock_client = AsyncMock()
                 mock_client.ping = AsyncMock()
                 mock_client.zrevrange = AsyncMock(
@@ -435,8 +435,8 @@ class TestRedisSnapshotStorageAdvanced:
     @pytest.mark.asyncio
     async def test_delete_snapshot_not_found(self):
         """Test delete_snapshot returns False when snapshot doesn't exist."""
-        with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
-            with patch("sagaz.storage.backends.redis.snapshot.redis") as mock_redis:
+        with patch("sagaz.core.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.redis.snapshot.redis") as mock_redis:
                 mock_client = AsyncMock()
                 mock_client.ping = AsyncMock()
                 mock_client.get = AsyncMock(return_value=None)
@@ -454,8 +454,8 @@ class TestRedisSnapshotStorageAdvanced:
     @pytest.mark.asyncio
     async def test_delete_expired_snapshots_returns_zero(self):
         """Test delete_expired_snapshots returns 0 (handled by Redis TTL)."""
-        with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
-            with patch("sagaz.storage.backends.redis.snapshot.redis") as mock_redis:
+        with patch("sagaz.core.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.redis.snapshot.redis") as mock_redis:
                 mock_client = AsyncMock()
                 mock_client.ping = AsyncMock()
                 mock_redis.from_url = MagicMock(return_value=mock_client)
@@ -472,8 +472,8 @@ class TestRedisSnapshotStorageAdvanced:
     @pytest.mark.asyncio
     async def test_get_replay_log_not_found(self):
         """Test get_replay_log returns None when replay doesn't exist."""
-        with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
-            with patch("sagaz.storage.backends.redis.snapshot.redis") as mock_redis:
+        with patch("sagaz.core.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.redis.snapshot.redis") as mock_redis:
                 mock_client = AsyncMock()
                 mock_client.ping = AsyncMock()
                 mock_client.get = AsyncMock(return_value=None)
@@ -526,7 +526,7 @@ class TestRedisSnapshotMissingBranches:
     @pytest.mark.asyncio
     async def test_close_when_not_connected(self):
         """Line 320->exit: close() is no-op when _redis is None."""
-        with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
+        with patch("sagaz.core.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
             from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
             storage = RedisSnapshotStorage(redis_url="redis://localhost", enable_compression=False)
@@ -536,7 +536,7 @@ class TestRedisSnapshotMissingBranches:
     @pytest.mark.asyncio
     async def test_list_snapshots_filters_none(self):
         """Line 231->228: list_snapshots skips None from get_snapshot."""
-        with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
+        with patch("sagaz.core.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
             from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
             storage = RedisSnapshotStorage(redis_url="redis://localhost", enable_compression=False)
@@ -554,7 +554,7 @@ class TestRedisSnapshotMissingBranches:
     @pytest.mark.asyncio
     async def test_list_replay_logs_filters_none(self):
         """Lines 313->310: list_replays skips None from get_replay_log."""
-        with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
+        with patch("sagaz.core.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
             from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
             storage = RedisSnapshotStorage(redis_url="redis://localhost", enable_compression=False)

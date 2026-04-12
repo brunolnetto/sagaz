@@ -59,7 +59,7 @@ def __getattr__(name: str):
     """Lazy import of storage backends."""
     if name in _BACKEND_IMPORTS:
         module_name, class_name = _BACKEND_IMPORTS[name]
-        module = __import__(f"sagaz.storage.backends.{module_name}", fromlist=[class_name])
+        module = __import__(f"sagaz.core.storage.backends.{module_name}", fromlist=[class_name])
         return getattr(module, class_name)
 
     msg = f"module {__name__!r} has no attribute {name!r}"

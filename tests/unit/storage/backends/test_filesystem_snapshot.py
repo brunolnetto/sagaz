@@ -677,7 +677,7 @@ class TestFilesystemSnapshotBranches:
 
         # Patch from_dict to raise → 211-212: except Exception → continue
         with patch(
-            "sagaz.storage.backends.filesystem_snapshot.SagaSnapshot.from_dict",
+            "sagaz.core.storage.backends.filesystem_snapshot.SagaSnapshot.from_dict",
             side_effect=ValueError("bad data"),
         ):
             result = await storage.get_snapshot(snap_id)

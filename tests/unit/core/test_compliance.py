@@ -323,3 +323,23 @@ class TestComplianceMissingBranches:
         manager = ComplianceManager(config)
         log_entry = manager.create_audit_log("view", "user1", uuid.uuid4())
         assert log_entry["operation"] == "view"
+
+    def test_encrypt_context_no_key_returns_unchanged(self):
+        """Line 71: encrypt_context returns context unchanged when encryption_key is falsy."""
+        from sagaz.core.compliance import ComplianceConfig, ComplianceManager
+
+        config = ComplianceConfig(enable_encryption=True, encryption_key=None)
+        manager = ComplianceManager(config)
+        context = {"user_id": "u1", "sensitive": "data"}
+        result = manager.encrypt_context(context)
+        assert result == context
+
+    def test_decrypt_context_no_key_returns_unchanged(self):
+        """Line 91: decrypt_context returns context unchanged when encryption_key is falsy."""
+        from sagaz.core.compliance import ComplianceConfig, ComplianceManager
+
+        config = ComplianceConfig(enable_encryption=True, encryption_key=None)
+        manager = ComplianceManager(config)
+        context = {"user_id": "u1", "data": "value"}
+        result = manager.decrypt_context(context)
+        assert result == context

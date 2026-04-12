@@ -22,14 +22,14 @@ from sagaz.observability.monitoring.tracing import (
 class TestSagaTracerWithoutOTel:
     """Tests for SagaTracer when OpenTelemetry is not available"""
 
-    @patch("sagaz.monitoring.tracing.TRACING_AVAILABLE", False)
+    @patch("sagaz.observability.monitoring.tracing.TRACING_AVAILABLE", False)
     def test_tracer_without_otel(self):
         """Test tracer gracefully degrades without OpenTelemetry"""
         tracer = SagaTracer(service_name="test-service")
         assert tracer.service_name == "test-service"
         assert tracer.tracer is None
 
-    @patch("sagaz.monitoring.tracing.TRACING_AVAILABLE", False)
+    @patch("sagaz.observability.monitoring.tracing.TRACING_AVAILABLE", False)
     def test_start_saga_trace_without_otel(self):
         """Test start_saga_trace returns None without OpenTelemetry"""
         tracer = SagaTracer()
@@ -39,7 +39,7 @@ class TestSagaTracerWithoutOTel:
         ) as span:
             assert span is None
 
-    @patch("sagaz.monitoring.tracing.TRACING_AVAILABLE", False)
+    @patch("sagaz.observability.monitoring.tracing.TRACING_AVAILABLE", False)
     def test_start_step_trace_without_otel(self):
         """Test start_step_trace returns None without OpenTelemetry"""
         tracer = SagaTracer()
@@ -49,7 +49,7 @@ class TestSagaTracerWithoutOTel:
         ) as span:
             assert span is None
 
-    @patch("sagaz.monitoring.tracing.TRACING_AVAILABLE", False)
+    @patch("sagaz.observability.monitoring.tracing.TRACING_AVAILABLE", False)
     def test_record_saga_completion_without_otel(self):
         """Test record_saga_completion works without OpenTelemetry"""
         tracer = SagaTracer()
@@ -62,7 +62,7 @@ class TestSagaTracerWithoutOTel:
             duration_ms=100.0,
         )
 
-    @patch("sagaz.monitoring.tracing.TRACING_AVAILABLE", False)
+    @patch("sagaz.observability.monitoring.tracing.TRACING_AVAILABLE", False)
     def test_record_step_completion_without_otel(self):
         """Test record_step_completion works without OpenTelemetry"""
         tracer = SagaTracer()
@@ -71,14 +71,14 @@ class TestSagaTracerWithoutOTel:
             step_name="step1", status=SagaStepStatus.COMPLETED, duration_ms=50.0, retry_count=0
         )
 
-    @patch("sagaz.monitoring.tracing.TRACING_AVAILABLE", False)
+    @patch("sagaz.observability.monitoring.tracing.TRACING_AVAILABLE", False)
     def test_get_trace_context_without_otel(self):
         """Test get_trace_context returns empty dict without OpenTelemetry"""
         tracer = SagaTracer()
         context = tracer.get_trace_context()
         assert context == {}
 
-    @patch("sagaz.monitoring.tracing.TRACING_AVAILABLE", False)
+    @patch("sagaz.observability.monitoring.tracing.TRACING_AVAILABLE", False)
     def test_create_child_span_without_otel(self):
         """Test create_child_span returns None without OpenTelemetry"""
         tracer = SagaTracer()
@@ -291,7 +291,7 @@ class TestTracingDecorators:
     """Tests for tracing decorators"""
 
     @pytest.mark.asyncio
-    @patch("sagaz.monitoring.tracing.TRACING_AVAILABLE", False)
+    @patch("sagaz.observability.monitoring.tracing.TRACING_AVAILABLE", False)
     async def test_trace_saga_action_without_otel(self):
         """Test action decorator works without OpenTelemetry"""
         tracer = SagaTracer()
@@ -304,7 +304,7 @@ class TestTracingDecorators:
         assert result == 10
 
     @pytest.mark.asyncio
-    @patch("sagaz.monitoring.tracing.TRACING_AVAILABLE", False)
+    @patch("sagaz.observability.monitoring.tracing.TRACING_AVAILABLE", False)
     async def test_trace_saga_compensation_without_otel(self):
         """Test compensation decorator works without OpenTelemetry"""
         tracer = SagaTracer()
@@ -423,7 +423,7 @@ class TestTracingDecorators:
 class TestTracingSetup:
     """Tests for tracing setup function"""
 
-    @patch("sagaz.monitoring.tracing.TRACING_AVAILABLE", False)
+    @patch("sagaz.observability.monitoring.tracing.TRACING_AVAILABLE", False)
     def test_setup_tracing_without_otel(self):
         """Test setup_tracing works without OpenTelemetry"""
         result = setup_tracing(service_name="test-service", endpoint="http://localhost:4317")
@@ -485,7 +485,7 @@ class TestMonitoringTracingBranches:
         mock_span.is_recording.return_value = True
         tracer = SagaTracer()
 
-        with patch("sagaz.monitoring.tracing.trace") as mock_trace:
+        with patch("sagaz.observability.monitoring.tracing.trace") as mock_trace:
             mock_trace.get_current_span.return_value = mock_span
             tracer.record_saga_completion(
                 saga_id="test",
@@ -512,7 +512,7 @@ class TestMonitoringTracingBranches:
         tracer = SagaTracer()
         err = Exception("payment failed")
 
-        with patch("sagaz.monitoring.tracing.trace") as mock_trace:
+        with patch("sagaz.observability.monitoring.tracing.trace") as mock_trace:
             mock_trace.get_current_span.return_value = mock_span
             tracer.record_saga_completion(
                 saga_id="test",
@@ -538,7 +538,7 @@ class TestMonitoringTracingBranches:
         mock_span.is_recording.return_value = True
         tracer = SagaTracer()
 
-        with patch("sagaz.monitoring.tracing.trace") as mock_trace:
+        with patch("sagaz.observability.monitoring.tracing.trace") as mock_trace:
             mock_trace.get_current_span.return_value = mock_span
             tracer.record_step_completion(
                 step_name="reserve_inventory",
@@ -562,7 +562,7 @@ class TestMonitoringTracingBranches:
         mock_span.is_recording.return_value = True
         tracer = SagaTracer()
 
-        with patch("sagaz.monitoring.tracing.trace") as mock_trace:
+        with patch("sagaz.observability.monitoring.tracing.trace") as mock_trace:
             mock_trace.get_current_span.return_value = mock_span
             tracer.record_step_completion(
                 step_name="charge_payment",
@@ -600,7 +600,7 @@ class TestMonitoringTracingBranches:
         mock_span.is_recording.return_value = True
         tracer = SagaTracer()
 
-        with patch("sagaz.monitoring.tracing.trace") as mock_trace:
+        with patch("sagaz.observability.monitoring.tracing.trace") as mock_trace:
             mock_trace.get_current_span.return_value = mock_span
             tracer.record_saga_completion(
                 saga_id="test",
@@ -628,7 +628,7 @@ class TestMonitoringTracingBranches:
         tracer = SagaTracer()
         err = Exception("step error")
 
-        with patch("sagaz.monitoring.tracing.trace") as mock_trace:
+        with patch("sagaz.observability.monitoring.tracing.trace") as mock_trace:
             mock_trace.get_current_span.return_value = mock_span
             tracer.record_step_completion(
                 step_name="charge_payment",
@@ -675,7 +675,7 @@ class TestTracingImportError:
         import sys
 
         _CANONICAL = "sagaz.observability.monitoring.tracing"
-        _ALIAS = "sagaz.monitoring.tracing"
+        _ALIAS = "sagaz.observability.monitoring.tracing"
 
         orig_tracing_alias = sys.modules.get(_ALIAS)
         orig_tracing_canonical = sys.modules.get(_CANONICAL)
@@ -706,3 +706,108 @@ class TestTracingImportError:
                 sys.modules[_ALIAS] = orig_tracing_alias
             if orig_tracing_canonical is not None:
                 sys.modules[_CANONICAL] = orig_tracing_canonical
+
+
+class TestTracerStatusNoneBranches:
+    """Cover branches where Status is None despite TRACING_AVAILABLE being True.
+
+    In normal operation Status is always set when TRACING_AVAILABLE=True, so these
+    branches can only be exercised by patching Status to None explicitly.
+    """
+
+    def _make_recording_span(self):
+        from unittest.mock import MagicMock
+
+        span = MagicMock()
+        span.is_recording.return_value = True
+        return span
+
+    @patch("sagaz.observability.monitoring.tracing.TRACING_AVAILABLE", True)
+    @patch("sagaz.observability.monitoring.tracing.Status", None)
+    def test_saga_completion_completed_status_none(self):
+        """218→exit: Status is None → set_status skipped for COMPLETED saga."""
+        from sagaz.core.types import SagaStatus
+        from sagaz.observability.monitoring.tracing import SagaTracer
+
+        mock_span = self._make_recording_span()
+        tracer = SagaTracer()
+
+        with patch("sagaz.observability.monitoring.tracing.trace") as mock_trace:
+            mock_trace.get_current_span.return_value = mock_span
+            tracer.record_saga_completion(
+                saga_id="s1",
+                status=SagaStatus.COMPLETED,
+                completed_steps=1,
+                total_steps=1,
+                duration_ms=10.0,
+            )
+
+        mock_span.set_status.assert_not_called()
+
+    @patch("sagaz.observability.monitoring.tracing.TRACING_AVAILABLE", True)
+    @patch("sagaz.observability.monitoring.tracing.Status", None)
+    def test_saga_completion_failed_status_none(self):
+        """221→226: Status is None → set_status skipped; error still recorded."""
+        from sagaz.core.types import SagaStatus
+        from sagaz.observability.monitoring.tracing import SagaTracer
+
+        mock_span = self._make_recording_span()
+        tracer = SagaTracer()
+        err = RuntimeError("oops")
+
+        with patch("sagaz.observability.monitoring.tracing.trace") as mock_trace:
+            mock_trace.get_current_span.return_value = mock_span
+            tracer.record_saga_completion(
+                saga_id="s1",
+                status=SagaStatus.FAILED,
+                completed_steps=0,
+                total_steps=1,
+                duration_ms=5.0,
+                error=err,
+            )
+
+        mock_span.set_status.assert_not_called()
+        mock_span.record_exception.assert_called_once_with(err)
+
+    @patch("sagaz.observability.monitoring.tracing.TRACING_AVAILABLE", True)
+    @patch("sagaz.observability.monitoring.tracing.Status", None)
+    def test_step_completion_completed_status_none(self):
+        """253→exit: Status is None → set_status skipped for COMPLETED step."""
+        from sagaz.core.types import SagaStepStatus
+        from sagaz.observability.monitoring.tracing import SagaTracer
+
+        mock_span = self._make_recording_span()
+        tracer = SagaTracer()
+
+        with patch("sagaz.observability.monitoring.tracing.trace") as mock_trace:
+            mock_trace.get_current_span.return_value = mock_span
+            tracer.record_step_completion(
+                step_name="reserve",
+                status=SagaStepStatus.COMPLETED,
+                duration_ms=10.0,
+            )
+
+        mock_span.set_status.assert_not_called()
+
+    @patch("sagaz.observability.monitoring.tracing.TRACING_AVAILABLE", True)
+    @patch("sagaz.observability.monitoring.tracing.Status", None)
+    def test_step_completion_failed_status_none(self):
+        """256→259: Status is None → set_status skipped; error still recorded."""
+        from sagaz.core.types import SagaStepStatus
+        from sagaz.observability.monitoring.tracing import SagaTracer
+
+        mock_span = self._make_recording_span()
+        tracer = SagaTracer()
+        err = ValueError("step error")
+
+        with patch("sagaz.observability.monitoring.tracing.trace") as mock_trace:
+            mock_trace.get_current_span.return_value = mock_span
+            tracer.record_step_completion(
+                step_name="charge",
+                status=SagaStepStatus.FAILED,
+                duration_ms=8.0,
+                error=err,
+            )
+
+        mock_span.set_status.assert_not_called()
+        mock_span.record_exception.assert_called_once_with(err)

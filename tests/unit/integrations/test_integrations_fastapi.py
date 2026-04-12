@@ -251,7 +251,7 @@ class TestWebhookStatusTracking:
 
         client = TestClient(app)
 
-        with patch("sagaz.triggers.fire_event", new_callable=AsyncMock) as mock_fire:
+        with patch("sagaz.core.triggers.fire_event", new_callable=AsyncMock) as mock_fire:
             # Mock fire_event to return a saga_id
             mock_fire.return_value = ["saga-123"]
 
@@ -280,7 +280,7 @@ class TestWebhookStatusTracking:
 
         client = TestClient(app)
 
-        with patch("sagaz.triggers.fire_event", new_callable=AsyncMock) as mock_fire:
+        with patch("sagaz.core.triggers.fire_event", new_callable=AsyncMock) as mock_fire:
             # Mock fire_event to raise an error
             mock_fire.side_effect = Exception("Test error")
 

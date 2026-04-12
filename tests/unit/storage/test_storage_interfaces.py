@@ -1,5 +1,5 @@
 """
-Tests for sagaz.storage.interfaces module.
+Tests for sagaz.core.storage.interfaces module.
 """
 
 from collections.abc import AsyncIterator

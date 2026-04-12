@@ -461,7 +461,7 @@ class TestCheckIdempotencyNoStorage:
         engine = TriggerEngine()
         mock_cfg = MagicMock()
         mock_cfg.storage = None
-        with patch("sagaz.triggers.engine.get_config", return_value=mock_cfg):
+        with patch("sagaz.core.triggers.engine.get_config", return_value=mock_cfg):
             result = await engine._check_idempotency("saga-id", "MySaga")
         assert result is False
 
@@ -477,7 +477,7 @@ class TestCheckIdempotencyException:
         mock_storage.load_saga_state = AsyncMock(side_effect=Exception("db error"))
         mock_cfg = MagicMock()
         mock_cfg.storage = mock_storage
-        with patch("sagaz.triggers.engine.get_config", return_value=mock_cfg):
+        with patch("sagaz.core.triggers.engine.get_config", return_value=mock_cfg):
             result = await engine._check_idempotency("saga-id", "MySaga")
         assert result is False
 
@@ -491,7 +491,7 @@ class TestCheckConcurrencyNoStorage:
         engine = TriggerEngine()
         mock_cfg = MagicMock()
         mock_cfg.storage = None
-        with patch("sagaz.triggers.engine.get_config", return_value=mock_cfg):
+        with patch("sagaz.core.triggers.engine.get_config", return_value=mock_cfg):
             result = await engine._check_concurrency("MySaga", 5)
         assert result is True
 
@@ -507,6 +507,6 @@ class TestCheckConcurrencyException:
         mock_storage.list_sagas = AsyncMock(side_effect=Exception("redis error"))
         mock_cfg = MagicMock()
         mock_cfg.storage = mock_storage
-        with patch("sagaz.triggers.engine.get_config", return_value=mock_cfg):
+        with patch("sagaz.core.triggers.engine.get_config", return_value=mock_cfg):
             result = await engine._check_concurrency("MySaga", 5)
         assert result is True

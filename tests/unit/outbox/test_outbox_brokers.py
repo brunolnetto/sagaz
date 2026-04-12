@@ -54,7 +54,7 @@ class TestBrokerFactory:
     def test_create_kafka_raises_when_unavailable(self):
         """Test that kafka broker raises when aiokafka not installed."""
         with patch.dict("sys.modules", {"aiokafka": None}):
-            with patch("sagaz.outbox.brokers.kafka.KAFKA_AVAILABLE", False):
+            with patch("sagaz.core.outbox.brokers.kafka.KAFKA_AVAILABLE", False):
                 with pytest.raises(MissingDependencyError) as exc_info:
                     create_broker("kafka")
 
@@ -63,7 +63,7 @@ class TestBrokerFactory:
     def test_create_rabbitmq_raises_when_unavailable(self):
         """Test that rabbitmq broker raises when aio-pika not installed."""
         with patch.dict("sys.modules", {"aio_pika": None}):
-            with patch("sagaz.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", False):
+            with patch("sagaz.core.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", False):
                 with pytest.raises(MissingDependencyError) as exc_info:
                     create_broker("rabbitmq")
 

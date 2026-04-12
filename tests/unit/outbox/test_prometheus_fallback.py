@@ -13,8 +13,8 @@ from contextlib import contextmanager
 
 # Canonical module paths (post Phase-2 restructuring)
 _ALIAS_TO_CANONICAL = {
-    "sagaz.outbox.optimistic_publisher": "sagaz.core.outbox.optimistic_publisher",
-    "sagaz.outbox.consumer_inbox": "sagaz.core.outbox.consumer_inbox",
+    "sagaz.core.outbox.optimistic_publisher": "sagaz.core.outbox.optimistic_publisher",
+    "sagaz.core.outbox.consumer_inbox": "sagaz.core.outbox.consumer_inbox",
 }
 
 
@@ -65,7 +65,7 @@ class TestOptimisticPublisherPromethusFallback:
 
     def test_noop_metric_class_methods(self):
         """Verify NoOp fallback classes work when prometheus not available."""
-        with _without_prometheus("sagaz.outbox.optimistic_publisher") as mod:
+        with _without_prometheus("sagaz.core.outbox.optimistic_publisher") as mod:
             assert not mod.PROMETHEUS_AVAILABLE
 
             # Counter and Histogram should be noops
@@ -82,7 +82,7 @@ class TestOptimisticPublisherPromethusFallback:
 
     def test_noop_metric_labels_returns_self(self):
         """Verify labels() returns self for chaining."""
-        with _without_prometheus("sagaz.outbox.optimistic_publisher") as mod:
+        with _without_prometheus("sagaz.core.outbox.optimistic_publisher") as mod:
             assert not mod.PROMETHEUS_AVAILABLE
 
             counter = mod.Counter("c", "test")
@@ -95,7 +95,7 @@ class TestOptimisticPublisherPromethusFallback:
         """Verify OptimisticPublisher can be instantiated and used with NoOp metrics."""
         from unittest.mock import AsyncMock
 
-        with _without_prometheus("sagaz.outbox.optimistic_publisher") as mod:
+        with _without_prometheus("sagaz.core.outbox.optimistic_publisher") as mod:
             storage = AsyncMock()
             broker = AsyncMock()
             publisher = mod.OptimisticPublisher(storage=storage, broker=broker, enabled=True)
@@ -108,7 +108,7 @@ class TestConsumerInboxPrometheusFallback:
 
     def test_noop_metric_class_methods(self):
         """Verify NoOp fallback classes work in consumer_inbox."""
-        with _without_prometheus("sagaz.outbox.consumer_inbox") as mod:
+        with _without_prometheus("sagaz.core.outbox.consumer_inbox") as mod:
             assert not mod.PROMETHEUS_AVAILABLE
 
             # Counter noop
@@ -123,7 +123,7 @@ class TestConsumerInboxPrometheusFallback:
 
     def test_consumer_inbox_works_with_noop(self):
         """Verify ConsumerInbox can be instantiated with NoOp metrics."""
-        with _without_prometheus("sagaz.outbox.consumer_inbox") as mod:
+        with _without_prometheus("sagaz.core.outbox.consumer_inbox") as mod:
             from unittest.mock import AsyncMock
 
             storage = AsyncMock()
@@ -133,7 +133,7 @@ class TestConsumerInboxPrometheusFallback:
 
     def test_noop_counter_factory(self):
         """Verify _noop_counter returns a _NoOpMetric instance."""
-        with _without_prometheus("sagaz.outbox.consumer_inbox") as mod:
+        with _without_prometheus("sagaz.core.outbox.consumer_inbox") as mod:
             assert not mod.PROMETHEUS_AVAILABLE
             # Counter is the noop factory
             result = mod.Counter("name", "help")

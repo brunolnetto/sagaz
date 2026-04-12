@@ -15,7 +15,7 @@ class TracingSagaListener(SagaListener):
     """
     Provides distributed tracing using the existing SagaTracer class.
 
-    Integrates with sagaz.monitoring.tracing for OpenTelemetry support.
+    Integrates with sagaz.observability.monitoring.tracing for OpenTelemetry support.
 
     Example:
         >>> from sagaz.observability.monitoring.tracing import setup_tracing

@@ -55,7 +55,7 @@ class TestRedisStorageImportError:
     def test_redis_not_available_import_error(self):
         """Test that RedisSagaStorage raises MissingDependencyError when redis not available"""
         with patch.dict("sys.modules", {"redis": None, "redis.asyncio": None}):
-            with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", False):
+            with patch("sagaz.core.storage.backends.redis.saga.REDIS_AVAILABLE", False):
                 from sagaz.core.storage.redis import RedisSagaStorage
 
                 with pytest.raises(MissingDependencyError):
@@ -68,8 +68,8 @@ class TestRedisSagaStorageUnit:
     @pytest.mark.asyncio
     async def test_redis_initialization(self):
         """Test Redis storage initialization"""
-        with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
-            with patch("sagaz.storage.backends.redis.saga.redis"):
+        with patch("sagaz.core.storage.backends.redis.saga.REDIS_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.redis.saga.redis"):
                 from sagaz.core.storage.redis import RedisSagaStorage
 
                 storage = RedisSagaStorage(
@@ -83,8 +83,8 @@ class TestRedisSagaStorageUnit:
     @pytest.mark.asyncio
     async def test_redis_key_generation(self):
         """Test Redis key generation methods"""
-        with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
-            with patch("sagaz.storage.backends.redis.saga.redis"):
+        with patch("sagaz.core.storage.backends.redis.saga.REDIS_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.redis.saga.redis"):
                 from sagaz.core.storage.redis import RedisSagaStorage
 
                 storage = RedisSagaStorage(key_prefix="saga:")
@@ -96,8 +96,8 @@ class TestRedisSagaStorageUnit:
     @pytest.mark.asyncio
     async def test_redis_connection_error_handling(self):
         """Test Redis connection error handling"""
-        with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
-            with patch("sagaz.storage.backends.redis.saga.redis") as mock_redis:
+        with patch("sagaz.core.storage.backends.redis.saga.REDIS_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.redis.saga.redis") as mock_redis:
                 mock_redis.from_url.side_effect = Exception("Connection refused")
 
                 from sagaz.core.storage.redis import RedisSagaStorage
@@ -115,8 +115,8 @@ class TestRedisStorageEdgeCases:
     async def test_redis_json_decode_error(self):
         """Test that Redis storage handles JSON decode errors"""
         with (
-            patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True),
-            patch("sagaz.storage.backends.redis.saga.redis"),
+            patch("sagaz.core.storage.backends.redis.saga.REDIS_AVAILABLE", True),
+            patch("sagaz.core.storage.backends.redis.saga.redis"),
         ):
             from sagaz.core.storage.redis import RedisSagaStorage
 
@@ -169,7 +169,7 @@ class TestRedisSagaStorageMocked:
     @pytest.mark.asyncio
     async def test_save_saga_state(self, mock_redis):
         """Test saving saga state to Redis."""
-        with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
+        with patch("sagaz.core.storage.backends.redis.saga.REDIS_AVAILABLE", True):
             from sagaz.core.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
@@ -189,7 +189,7 @@ class TestRedisSagaStorageMocked:
     @pytest.mark.asyncio
     async def test_load_saga_state(self, mock_redis):
         """Test loading saga state from Redis."""
-        with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
+        with patch("sagaz.core.storage.backends.redis.saga.REDIS_AVAILABLE", True):
             from sagaz.core.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
@@ -215,7 +215,7 @@ class TestRedisSagaStorageMocked:
     @pytest.mark.asyncio
     async def test_load_saga_state_not_found(self, mock_redis):
         """Test loading non-existent saga state."""
-        with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
+        with patch("sagaz.core.storage.backends.redis.saga.REDIS_AVAILABLE", True):
             from sagaz.core.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
@@ -230,7 +230,7 @@ class TestRedisSagaStorageMocked:
     @pytest.mark.asyncio
     async def test_load_saga_state_invalid_json(self, mock_redis):
         """Test loading saga with invalid JSON raises error."""
-        with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
+        with patch("sagaz.core.storage.backends.redis.saga.REDIS_AVAILABLE", True):
             from sagaz.core.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
@@ -244,7 +244,7 @@ class TestRedisSagaStorageMocked:
     @pytest.mark.asyncio
     async def test_delete_saga_state(self, mock_redis):
         """Test deleting saga state from Redis."""
-        with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
+        with patch("sagaz.core.storage.backends.redis.saga.REDIS_AVAILABLE", True):
             from sagaz.core.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
@@ -274,7 +274,7 @@ class TestRedisSagaStorageMocked:
     @pytest.mark.asyncio
     async def test_delete_saga_state_not_found(self, mock_redis):
         """Test deleting non-existent saga state."""
-        with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
+        with patch("sagaz.core.storage.backends.redis.saga.REDIS_AVAILABLE", True):
             from sagaz.core.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
@@ -289,7 +289,7 @@ class TestRedisSagaStorageMocked:
     @pytest.mark.asyncio
     async def test_list_sagas_by_status(self, mock_redis):
         """Test listing sagas filtered by status."""
-        with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
+        with patch("sagaz.core.storage.backends.redis.saga.REDIS_AVAILABLE", True):
             from sagaz.core.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
@@ -321,7 +321,7 @@ class TestRedisSagaStorageMocked:
     @pytest.mark.asyncio
     async def test_update_step_state(self, mock_redis):
         """Test updating step state."""
-        with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
+        with patch("sagaz.core.storage.backends.redis.saga.REDIS_AVAILABLE", True):
             from sagaz.core.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
@@ -352,7 +352,7 @@ class TestRedisSagaStorageMocked:
     @pytest.mark.asyncio
     async def test_update_step_state_saga_not_found(self, mock_redis):
         """Test updating step when saga not found."""
-        with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
+        with patch("sagaz.core.storage.backends.redis.saga.REDIS_AVAILABLE", True):
             from sagaz.core.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
@@ -368,7 +368,7 @@ class TestRedisSagaStorageMocked:
     @pytest.mark.asyncio
     async def test_update_step_state_step_not_found(self, mock_redis):
         """Test updating non-existent step raises error."""
-        with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
+        with patch("sagaz.core.storage.backends.redis.saga.REDIS_AVAILABLE", True):
             from sagaz.core.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
@@ -399,7 +399,7 @@ class TestRedisSagaStorageMocked:
     @pytest.mark.asyncio
     async def test_get_saga_statistics(self, mock_redis):
         """Test getting saga statistics."""
-        with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
+        with patch("sagaz.core.storage.backends.redis.saga.REDIS_AVAILABLE", True):
             from sagaz.core.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
@@ -417,7 +417,7 @@ class TestRedisSagaStorageMocked:
     @pytest.mark.asyncio
     async def test_cleanup_completed_sagas(self, mock_redis):
         """Test cleaning up old completed sagas."""
-        with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
+        with patch("sagaz.core.storage.backends.redis.saga.REDIS_AVAILABLE", True):
             from sagaz.core.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
@@ -450,7 +450,7 @@ class TestRedisSagaStorageMocked:
     @pytest.mark.asyncio
     async def test_health_check_healthy(self, mock_redis):
         """Test health check when healthy."""
-        with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
+        with patch("sagaz.core.storage.backends.redis.saga.REDIS_AVAILABLE", True):
             from sagaz.core.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
@@ -471,7 +471,7 @@ class TestRedisSagaStorageMocked:
     @pytest.mark.asyncio
     async def test_health_check_unhealthy(self, mock_redis):
         """Test health check when unhealthy."""
-        with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
+        with patch("sagaz.core.storage.backends.redis.saga.REDIS_AVAILABLE", True):
             from sagaz.core.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
@@ -487,8 +487,8 @@ class TestRedisSagaStorageMocked:
     async def test_context_manager(self):
         """Test async context manager."""
         with (
-            patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True),
-            patch("sagaz.storage.backends.redis.saga.redis") as mock_redis_module,
+            patch("sagaz.core.storage.backends.redis.saga.REDIS_AVAILABLE", True),
+            patch("sagaz.core.storage.backends.redis.saga.redis") as mock_redis_module,
         ):
             from sagaz.core.storage.redis import RedisSagaStorage
 
@@ -505,8 +505,8 @@ class TestRedisSagaStorageMocked:
     def test_key_generation(self):
         """Test Redis key generation helpers."""
         with (
-            patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True),
-            patch("sagaz.storage.backends.redis.saga.redis"),
+            patch("sagaz.core.storage.backends.redis.saga.REDIS_AVAILABLE", True),
+            patch("sagaz.core.storage.backends.redis.saga.redis"),
         ):
             from sagaz.core.storage.redis import RedisSagaStorage
 

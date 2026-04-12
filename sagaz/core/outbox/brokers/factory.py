@@ -41,9 +41,9 @@ def get_available_brokers() -> list[str]:
     available = ["memory"]  # Always available
 
     broker_checks = [
-        ("sagaz.outbox.brokers.kafka", "KAFKA_AVAILABLE", "kafka"),
-        ("sagaz.outbox.brokers.rabbitmq", "RABBITMQ_AVAILABLE", "rabbitmq"),
-        ("sagaz.outbox.brokers.redis", "REDIS_AVAILABLE", "redis"),
+        ("sagaz.core.outbox.brokers.kafka", "KAFKA_AVAILABLE", "kafka"),
+        ("sagaz.core.outbox.brokers.rabbitmq", "RABBITMQ_AVAILABLE", "rabbitmq"),
+        ("sagaz.core.outbox.brokers.redis", "REDIS_AVAILABLE", "redis"),
     ]
 
     for module_path, attr, name in broker_checks:
@@ -63,21 +63,21 @@ def print_available_brokers() -> None:
     # Broker definitions: (module_path, available_attr, name, description, install_cmd)
     brokers = [
         (
-            "sagaz.outbox.brokers.kafka",
+            "sagaz.core.outbox.brokers.kafka",
             "KAFKA_AVAILABLE",
             "kafka",
             "Apache Kafka",
             "pip install aiokafka",
         ),
         (
-            "sagaz.outbox.brokers.rabbitmq",
+            "sagaz.core.outbox.brokers.rabbitmq",
             "RABBITMQ_AVAILABLE",
             "rabbitmq",
             "RabbitMQ/AMQP",
             "pip install aio-pika",
         ),
         (
-            "sagaz.outbox.brokers.redis",
+            "sagaz.core.outbox.brokers.redis",
             "REDIS_AVAILABLE",
             "redis",
             "Redis Streams",

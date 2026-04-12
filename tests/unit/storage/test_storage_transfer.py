@@ -1,5 +1,5 @@
 """
-Tests for sagaz.storage.transfer module.
+Tests for sagaz.core.storage.transfer module.
 """
 
 import asyncio
