@@ -26,7 +26,7 @@ class TestConsumerInboxUnit:
         """Test processing message with process_idempotent."""
         from unittest.mock import AsyncMock
 
-        from sagaz.outbox.consumer_inbox import ConsumerInbox
+        from sagaz.core.outbox.consumer_inbox import ConsumerInbox
 
         # Mock storage with required methods
         storage = AsyncMock()
@@ -59,7 +59,7 @@ class TestConsumerInboxUnit:
         """Test that duplicate messages are detected."""
         from unittest.mock import AsyncMock
 
-        from sagaz.outbox.consumer_inbox import ConsumerInbox
+        from sagaz.core.outbox.consumer_inbox import ConsumerInbox
 
         # Mock storage that returns True (duplicate)
         storage = AsyncMock()
@@ -99,8 +99,8 @@ class TestOptimisticPublisherUnit:
         """Test successful publish with optimistic publisher."""
         from unittest.mock import AsyncMock
 
-        from sagaz.outbox.optimistic_publisher import OptimisticPublisher
-        from sagaz.outbox.types import OutboxEvent
+        from sagaz.core.outbox.optimistic_publisher import OptimisticPublisher
+        from sagaz.core.outbox.types import OutboxEvent
 
         storage = AsyncMock()
         storage.mark_sent = AsyncMock()
@@ -128,8 +128,8 @@ class TestOptimisticPublisherUnit:
         """Test that disabled publisher does not publish."""
         from unittest.mock import AsyncMock
 
-        from sagaz.outbox.optimistic_publisher import OptimisticPublisher
-        from sagaz.outbox.types import OutboxEvent
+        from sagaz.core.outbox.optimistic_publisher import OptimisticPublisher
+        from sagaz.core.outbox.types import OutboxEvent
 
         storage = AsyncMock()
         broker = AsyncMock()
@@ -152,8 +152,8 @@ class TestOptimisticPublisherUnit:
         """Test that failed publish returns False."""
         from unittest.mock import AsyncMock
 
-        from sagaz.outbox.optimistic_publisher import OptimisticPublisher
-        from sagaz.outbox.types import OutboxEvent
+        from sagaz.core.outbox.optimistic_publisher import OptimisticPublisher
+        from sagaz.core.outbox.types import OutboxEvent
 
         storage = AsyncMock()
         broker = AsyncMock()
@@ -184,7 +184,7 @@ class TestTracingSpanRecording:
     def test_record_saga_completion_not_recording(self):
         """Test record_saga_completion when span is not recording."""
         from sagaz.core.types import SagaStatus
-        from sagaz.monitoring.tracing import SagaTracer
+        from sagaz.observability.monitoring.tracing import SagaTracer
 
         tracer = SagaTracer("test-service")
 
@@ -211,7 +211,7 @@ class TestTracingSpanRecording:
     def test_record_step_completion_failure_with_error(self):
         """Test record_step_completion for failed step with error."""
         from sagaz.core.types import SagaStepStatus
-        from sagaz.monitoring.tracing import SagaTracer
+        from sagaz.observability.monitoring.tracing import SagaTracer
 
         tracer = SagaTracer("test-service")
 
@@ -246,7 +246,7 @@ class TestCompensationGraphCycleEdgeCases:
 
     def test_find_cycle_with_already_visited_node(self):
         """Test _find_cycle when a node is already in visited set but not in path."""
-        from sagaz.execution.graph import SagaExecutionGraph
+        from sagaz.core.execution.graph import SagaExecutionGraph
 
         graph = SagaExecutionGraph()
 
@@ -269,7 +269,7 @@ class TestCompensationGraphCycleEdgeCases:
 
     def test_circular_dependency_raises_error(self):
         """Test that circular dependencies raise CircularDependencyError."""
-        from sagaz.execution.graph import (
+        from sagaz.core.execution.graph import (
             CircularDependencyError,
             SagaExecutionGraph,
         )
@@ -305,7 +305,7 @@ class TestStatusBranchCoverage:
         """Test Mermaid diagram with 'compensating' status."""
         from sagaz.core.saga import Saga
         from sagaz.core.types import SagaStatus
-        from sagaz.storage.memory import InMemorySagaStorage
+        from sagaz.core.storage.memory import InMemorySagaStorage
 
         storage = InMemorySagaStorage()
 
@@ -355,7 +355,7 @@ class TestDecoratorStatusBranches:
         """Test saga with compensated status."""
         from sagaz.core.saga import Saga
         from sagaz.core.types import SagaStatus
-        from sagaz.storage.memory import InMemorySagaStorage
+        from sagaz.core.storage.memory import InMemorySagaStorage
 
         storage = InMemorySagaStorage()
 
@@ -394,7 +394,7 @@ class TestSetupTracingImportError:
 
     def test_setup_tracing_otlp_import_error(self):
         """Test setup_tracing gracefully handles OTLP import failure."""
-        from sagaz.monitoring.tracing import setup_tracing
+        from sagaz.observability.monitoring.tracing import setup_tracing
 
         # Mock TRACING_AVAILABLE as True but make OTLP import fail
         with patch("sagaz.monitoring.tracing.TRACING_AVAILABLE", True):
@@ -425,7 +425,7 @@ class TestTracingUnavailableFallbacks:
         with patch("sagaz.monitoring.tracing.TRACING_AVAILABLE", False):
             # Re-import to get fresh instance with TRACING_AVAILABLE=False
             from sagaz.core.types import SagaStatus, SagaStepStatus
-            from sagaz.monitoring import tracing
+            from sagaz.observability.monitoring import tracing
 
             # Override the module-level flag
             original = tracing.TRACING_AVAILABLE

@@ -108,7 +108,7 @@ from sagaz.dry_run import (
 # =============================================================================
 # Execution Graph (compensation and dependency management)
 # =============================================================================
-from sagaz.execution.graph import (
+from sagaz.core.execution.graph import (
     CircularDependencyError,
     CompensationFailureStrategy,
     CompensationGraphError,
@@ -122,12 +122,12 @@ from sagaz.execution.graph import (
 # =============================================================================
 # Orchestrator and Types
 # =============================================================================
-from sagaz.execution.orchestrator import SagaOrchestrator
+from sagaz.core.execution.orchestrator import SagaOrchestrator
 
 # =============================================================================
 # Pivot/Irreversible Steps (v1.3.0)
 # =============================================================================
-from sagaz.execution.pivot import (
+from sagaz.core.execution.pivot import (
     PivotInfo,
     RecoveryAction,
     SagaZones,

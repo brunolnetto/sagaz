@@ -14,7 +14,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any, TypeVar
 
-from sagaz.execution.graph import CompensationType
+from sagaz.core.execution.graph import CompensationType
 
 # Type for saga step functions
 F = TypeVar("F", bound=Callable[..., Awaitable[Any]])

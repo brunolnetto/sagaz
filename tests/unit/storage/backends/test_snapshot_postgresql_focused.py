@@ -63,7 +63,7 @@ class TestPostgreSQLSnapshotStorageFocused:
             }
             mock_conn.fetchrow = AsyncMock(return_value=test_data)
 
-            from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+            from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
 
@@ -108,7 +108,7 @@ class TestPostgreSQLSnapshotStorageFocused:
             # Mock fetchrow returns None (not found)
             mock_conn.fetchrow = AsyncMock(return_value=None)
 
-            from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+            from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
             result = await storage.get_snapshot(uuid4())
@@ -148,7 +148,7 @@ class TestPostgreSQLSnapshotStorageFocused:
                 ]
             )
 
-            from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+            from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
             result = await storage.list_snapshots(uuid4())
@@ -184,7 +184,7 @@ class TestPostgreSQLSnapshotStorageFocused:
                 }
             )
 
-            from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+            from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
             result = await storage.get_latest_snapshot(uuid4())
@@ -220,7 +220,7 @@ class TestPostgreSQLSnapshotStorageFocused:
                 }
             )
 
-            from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+            from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
             result = await storage.get_snapshot_at_time(uuid4(), datetime.now(UTC))
@@ -242,7 +242,7 @@ class TestPostgreSQLSnapshotStorageFocused:
 
             mock_conn.execute = AsyncMock(return_value="DELETE 1")
 
-            from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+            from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
             result = await storage.delete_snapshot(uuid4())
@@ -264,7 +264,7 @@ class TestPostgreSQLSnapshotStorageFocused:
 
             mock_conn.execute = AsyncMock(return_value="DELETE 5")
 
-            from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+            from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
             result = await storage.delete_expired_snapshots()
@@ -288,7 +288,7 @@ class TestPostgreSQLSnapshotStorageFocused:
             mock_conn.execute = AsyncMock(return_value=None)
             mock_pool.close = AsyncMock()
 
-            from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+            from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
             # Create pool
@@ -332,7 +332,7 @@ class TestPostgreSQLSnapshotStorageFocused:
                 }
             )
 
-            from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+            from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
 
@@ -379,7 +379,7 @@ class TestPostgreSQLSnapshotStorageFocused:
                 ]
             )
 
-            from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+            from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
 
@@ -410,7 +410,7 @@ class TestPostgreSQLSnapshotStorageFocused:
             # Return None for no snapshot at time
             mock_conn.fetchrow = AsyncMock(return_value=None)
 
-            from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+            from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
             saga_id = uuid4()

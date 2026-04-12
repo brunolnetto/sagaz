@@ -266,7 +266,7 @@ async def _execute_replay(
 
     # Create storage
     if storage_type == "memory":
-        from sagaz.storage.backends.memory_snapshot import InMemorySnapshotStorage
+        from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
 
         storage = InMemorySnapshotStorage()
     else:
@@ -444,7 +444,7 @@ async def _execute_time_travel(
 
     # Create storage
     if storage_type == "memory":
-        from sagaz.storage.backends.memory_snapshot import InMemorySnapshotStorage
+        from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
 
         storage = InMemorySnapshotStorage()
     else:
@@ -568,7 +568,7 @@ async def _execute_list_changes(
 
     # Create storage
     if storage_type == "memory":
-        from sagaz.storage.backends.memory_snapshot import InMemorySnapshotStorage
+        from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
 
         storage = InMemorySnapshotStorage()
     else:

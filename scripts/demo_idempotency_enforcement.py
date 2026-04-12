@@ -7,7 +7,7 @@ import asyncio
 
 from sagaz import Saga, action, compensate
 from sagaz.core.exceptions import IdempotencyKeyRequiredError
-from sagaz.triggers import fire_event, trigger
+from sagaz.core.triggers import fire_event, trigger
 
 
 class PaymentSagaWithoutIdempotency(Saga):

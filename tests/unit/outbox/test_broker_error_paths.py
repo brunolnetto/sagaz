@@ -19,7 +19,7 @@ class TestKafkaBrokerFromEnv:
 
     def test_from_env_with_sasl_settings(self, monkeypatch):
         """Lines 115-116: from_env reads SASL env vars."""
-        from sagaz.outbox.brokers.kafka import KafkaBroker
+        from sagaz.core.outbox.brokers.kafka import KafkaBroker
 
         monkeypatch.setenv("KAFKA_BOOTSTRAP_SERVERS", "kafka.example.com:9092")
         monkeypatch.setenv("KAFKA_CLIENT_ID", "my-service")
@@ -43,7 +43,7 @@ class TestKafkaBrokerConnect:
     @pytest.mark.asyncio
     async def test_connect_with_sasl_mechanism(self):
         """Lines 159-162: SASL settings are included in producer kwargs."""
-        from sagaz.outbox.brokers.kafka import KafkaBroker, KafkaBrokerConfig
+        from sagaz.core.outbox.brokers.kafka import KafkaBroker, KafkaBrokerConfig
 
         config = KafkaBrokerConfig(
             bootstrap_servers="localhost:9092",
@@ -67,7 +67,7 @@ class TestKafkaBrokerConnect:
     @pytest.mark.asyncio
     async def test_connect_with_compression(self):
         """Lines 159-162: compression_type included in producer kwargs."""
-        from sagaz.outbox.brokers.kafka import KafkaBroker, KafkaBrokerConfig
+        from sagaz.core.outbox.brokers.kafka import KafkaBroker, KafkaBrokerConfig
 
         config = KafkaBrokerConfig(
             bootstrap_servers="localhost:9092",
@@ -89,8 +89,8 @@ class TestKafkaBrokerPublishNotConnected:
     @pytest.mark.asyncio
     async def test_publish_not_connected_raises(self):
         """Lines 170-172: Not connected → BrokerConnectionError."""
-        from sagaz.outbox.brokers.base import BrokerConnectionError
-        from sagaz.outbox.brokers.kafka import KafkaBroker
+        from sagaz.core.outbox.brokers.base import BrokerConnectionError
+        from sagaz.core.outbox.brokers.kafka import KafkaBroker
 
         broker = KafkaBroker()
         assert not broker._connected
@@ -105,7 +105,7 @@ class TestKafkaBrokerClose:
     @pytest.mark.asyncio
     async def test_close_when_connected(self):
         """Lines 195-197: close() stops producer and resets state."""
-        from sagaz.outbox.brokers.kafka import KafkaBroker
+        from sagaz.core.outbox.brokers.kafka import KafkaBroker
 
         broker = KafkaBroker()
         mock_producer = AsyncMock()
@@ -125,7 +125,7 @@ class TestKafkaBrokerClose:
     @pytest.mark.asyncio
     async def test_close_when_not_connected_is_no_op(self):
         """close() when not connected doesn't raise."""
-        from sagaz.outbox.brokers.kafka import KafkaBroker
+        from sagaz.core.outbox.brokers.kafka import KafkaBroker
 
         broker = KafkaBroker()
         await broker.close()  # Should not raise
@@ -138,7 +138,7 @@ class TestKafkaBrokerHealthCheck:
     @pytest.mark.asyncio
     async def test_health_check_not_connected(self):
         """Lines 228-229: health_check returns False when not connected."""
-        from sagaz.outbox.brokers.kafka import KafkaBroker
+        from sagaz.core.outbox.brokers.kafka import KafkaBroker
 
         broker = KafkaBroker()
         assert not broker._connected
@@ -149,7 +149,7 @@ class TestKafkaBrokerHealthCheck:
     @pytest.mark.asyncio
     async def test_health_check_connected_but_fails(self):
         """health_check returns False when metadata fetch fails."""
-        from sagaz.outbox.brokers.kafka import KafkaBroker
+        from sagaz.core.outbox.brokers.kafka import KafkaBroker
 
         broker = KafkaBroker()
         broker._connected = True
@@ -174,7 +174,7 @@ class TestRabbitMQBrokerFromEnv:
 
     def test_from_env_reads_env_vars(self, monkeypatch):
         """Lines 110-111: from_env creates broker from environment."""
-        from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
+        from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker
 
         monkeypatch.setenv("RABBITMQ_URL", "amqp://admin:admin@rabbit.example.com/")
         monkeypatch.setenv("RABBITMQ_EXCHANGE", "my.exchange")
@@ -193,8 +193,8 @@ class TestRabbitMQBrokerConnect:
     @pytest.mark.asyncio
     async def test_connect_failure_raises_broker_connection_error(self):
         """Lines 161-163: Connection failure wraps in BrokerConnectionError."""
-        from sagaz.outbox.brokers.base import BrokerConnectionError
-        from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
+        from sagaz.core.outbox.brokers.base import BrokerConnectionError
+        from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker
 
         broker = RabbitMQBroker()
 
@@ -213,8 +213,8 @@ class TestRabbitMQBrokerPublish:
     @pytest.mark.asyncio
     async def test_publish_not_connected_raises(self):
         """Lines 202-204: BrokerConnectionError when not connected."""
-        from sagaz.outbox.brokers.base import BrokerConnectionError
-        from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
+        from sagaz.core.outbox.brokers.base import BrokerConnectionError
+        from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker
 
         broker = RabbitMQBroker()
         assert not broker._connected
@@ -229,7 +229,7 @@ class TestRabbitMQBrokerClose:
     @pytest.mark.asyncio
     async def test_close_resets_state(self):
         """Lines 227-228: close() clears channel, exchange, connection."""
-        from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
+        from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker
 
         broker = RabbitMQBroker()
 
@@ -253,7 +253,7 @@ class TestRabbitMQBrokerClose:
     @pytest.mark.asyncio
     async def test_close_when_not_connected_is_no_op(self):
         """close() with no connection doesn't raise."""
-        from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
+        from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker
 
         broker = RabbitMQBroker()
         await broker.close()  # Should not raise
@@ -266,7 +266,7 @@ class TestRabbitMQBrokerHealthCheck:
     @pytest.mark.asyncio
     async def test_health_check_exception_returns_false(self):
         """Line 252: Exception in is_closed check → returns False."""
-        from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
+        from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker
 
         broker = RabbitMQBroker()
         broker._connected = True
@@ -286,7 +286,7 @@ class TestRabbitMQBrokerHealthCheck:
     @pytest.mark.asyncio
     async def test_health_check_not_connected_returns_false(self):
         """health_check returns False when not connected."""
-        from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
+        from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker
 
         broker = RabbitMQBroker()
         result = await broker.health_check()
@@ -303,7 +303,7 @@ class TestKafkaMissingDependency:
 
     def test_constructor_raises_when_unavailable(self):
         """Lines 115-116: raises MissingDependencyError."""
-        import sagaz.outbox.brokers.kafka as kafka_mod
+        import sagaz.core.outbox.brokers.kafka as kafka_mod
         from sagaz.core.exceptions import MissingDependencyError
 
         original = kafka_mod.KAFKA_AVAILABLE
@@ -321,7 +321,7 @@ class TestKafkaConnectAlreadyConnected:
     @pytest.mark.asyncio
     async def test_connect_when_already_connected_is_no_op(self):
         """Line 141: early return when _connected."""
-        from sagaz.outbox.brokers.kafka import KafkaBroker
+        from sagaz.core.outbox.brokers.kafka import KafkaBroker
 
         broker = KafkaBroker()
         broker._connected = True
@@ -340,8 +340,8 @@ class TestKafkaConnectError:
     @pytest.mark.asyncio
     async def test_connect_kafka_error_raises(self):
         """Lines 170-172: KafkaError → BrokerConnectionError."""
-        import sagaz.outbox.brokers.kafka as kafka_mod
-        from sagaz.outbox.brokers.base import BrokerConnectionError
+        import sagaz.core.outbox.brokers.kafka as kafka_mod
+        from sagaz.core.outbox.brokers.base import BrokerConnectionError
 
         broker = kafka_mod.KafkaBroker()
         mock_producer = AsyncMock()
@@ -358,7 +358,7 @@ class TestKafkaPublishPaths:
     @pytest.mark.asyncio
     async def test_publish_success(self):
         """Lines 186-193: publish succeeds."""
-        from sagaz.outbox.brokers.kafka import KafkaBroker
+        from sagaz.core.outbox.brokers.kafka import KafkaBroker
 
         broker = KafkaBroker()
         broker._connected = True
@@ -372,8 +372,8 @@ class TestKafkaPublishPaths:
     @pytest.mark.asyncio
     async def test_publish_kafka_error(self):
         """Lines 195-197: KafkaError → BrokerPublishError."""
-        import sagaz.outbox.brokers.kafka as kafka_mod
-        from sagaz.outbox.brokers.base import BrokerPublishError
+        import sagaz.core.outbox.brokers.kafka as kafka_mod
+        from sagaz.core.outbox.brokers.base import BrokerPublishError
 
         broker = kafka_mod.KafkaBroker()
         broker._connected = True
@@ -391,7 +391,7 @@ class TestKafkaHealthCheckSuccess:
     @pytest.mark.asyncio
     async def test_health_check_success(self):
         """Line 227: returns True on successful metadata fetch."""
-        from sagaz.outbox.brokers.kafka import KafkaBroker
+        from sagaz.core.outbox.brokers.kafka import KafkaBroker
 
         broker = KafkaBroker()
         broker._connected = True
@@ -415,7 +415,7 @@ class TestRabbitMQMissingDependency:
 
     def test_constructor_raises_when_unavailable(self):
         """Lines 110-111: raises MissingDependencyError."""
-        import sagaz.outbox.brokers.rabbitmq as rabbitmq_mod
+        import sagaz.core.outbox.brokers.rabbitmq as rabbitmq_mod
         from sagaz.core.exceptions import MissingDependencyError
 
         original = rabbitmq_mod.RABBITMQ_AVAILABLE
@@ -433,7 +433,7 @@ class TestRabbitMQConnectAlreadyConnected:
     @pytest.mark.asyncio
     async def test_connect_when_already_connected_is_no_op(self):
         """Line 135: early return when _connected."""
-        from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
+        from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker
 
         broker = RabbitMQBroker()
         broker._connected = True
@@ -452,7 +452,7 @@ class TestRabbitMQConnectSuccess:
     @pytest.mark.asyncio
     async def test_connect_success(self):
         """Lines 145-159: Full connect() success path."""
-        from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
+        from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker
 
         broker = RabbitMQBroker()
 
@@ -484,7 +484,7 @@ class TestRabbitMQPublishPaths:
     @pytest.mark.asyncio
     async def test_publish_success(self):
         """Lines 185-200: publish succeeds."""
-        from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
+        from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker
 
         broker = RabbitMQBroker()
         broker._connected = True
@@ -507,8 +507,8 @@ class TestRabbitMQPublishPaths:
     @pytest.mark.asyncio
     async def test_publish_exception_raises_publish_error(self):
         """Lines 202-204: Exception → BrokerPublishError."""
-        from sagaz.outbox.brokers.base import BrokerPublishError
-        from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
+        from sagaz.core.outbox.brokers.base import BrokerPublishError
+        from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker
 
         broker = RabbitMQBroker()
         broker._connected = True
@@ -534,8 +534,8 @@ class TestRabbitMQDeclareQueue:
     @pytest.mark.asyncio
     async def test_declare_queue_not_connected(self):
         """Lines 247-248: not connected → BrokerConnectionError."""
-        from sagaz.outbox.brokers.base import BrokerConnectionError
-        from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
+        from sagaz.core.outbox.brokers.base import BrokerConnectionError
+        from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker
 
         broker = RabbitMQBroker()
         with pytest.raises(BrokerConnectionError, match="not connected"):
@@ -544,7 +544,7 @@ class TestRabbitMQDeclareQueue:
     @pytest.mark.asyncio
     async def test_declare_queue_success(self):
         """Lines 250-261: declare_queue creates and binds queue."""
-        from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
+        from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker
 
         broker = RabbitMQBroker()
         broker._connected = True
@@ -567,7 +567,7 @@ class TestRabbitMQDeclareQueue:
     @pytest.mark.asyncio
     async def test_declare_queue_with_dead_letter_exchange(self):
         """Lines 251-252: dead_letter_exchange sets arguments."""
-        from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
+        from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker
 
         broker = RabbitMQBroker()
         broker._connected = True

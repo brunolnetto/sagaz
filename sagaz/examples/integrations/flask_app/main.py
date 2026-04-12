@@ -25,10 +25,10 @@ from sagaz import Saga, SagaConfig, action, compensate, configure
 
 # Import Flask integration
 from sagaz.integrations.flask import SagaFlask
-from sagaz.storage import InMemorySagaStorage
+from sagaz.core.storage import InMemorySagaStorage
 
 # Import trigger decorator
-from sagaz.triggers import trigger
+from sagaz.core.triggers import trigger
 
 # =============================================================================
 # Configuration

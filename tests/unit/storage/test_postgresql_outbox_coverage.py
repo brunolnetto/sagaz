@@ -13,9 +13,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sagaz.outbox.types import OutboxEvent, OutboxStatus
-from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
-from sagaz.storage.interfaces.outbox import OutboxStorageError
+from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
+from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
+from sagaz.core.storage.interfaces.outbox import OutboxStorageError
 
 # ==========================================================================
 # Helpers
@@ -109,8 +109,8 @@ class TestAsyncpgImportErrorFallback:
 
     def test_import_without_asyncpg_sets_flag_false(self):
         """Lines 32-33: ASYNCPG_AVAILABLE=False / asyncpg=None path."""
-        import sagaz.storage.backends.postgresql as pg_pkg
-        import sagaz.storage.backends.postgresql.outbox as outbox_mod
+        import sagaz.core.storage.backends.postgresql as pg_pkg
+        import sagaz.core.storage.backends.postgresql.outbox as outbox_mod
 
         original_asyncpg = sys.modules.get("asyncpg")
         try:
@@ -129,7 +129,7 @@ class TestAsyncpgImportErrorFallback:
 
     def test_constructor_raises_when_asyncpg_unavailable(self):
         """Lines 141-142: MissingDependencyError raised when asyncpg not available."""
-        import sagaz.storage.backends.postgresql.outbox as mod
+        import sagaz.core.storage.backends.postgresql.outbox as mod
 
         original_flag = mod.ASYNCPG_AVAILABLE
         try:

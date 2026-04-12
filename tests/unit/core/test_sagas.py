@@ -14,7 +14,7 @@ import pytest
 
 from sagaz import ParallelFailureStrategy, SagaStatus
 from sagaz.core.saga import Saga
-from sagaz.monitoring.metrics import SagaMetrics
+from sagaz.observability.monitoring.metrics import SagaMetrics
 
 
 class TestSagaMetrics:
@@ -395,7 +395,7 @@ class TestCoreSagaResumeBranches:
     async def test_resume_already_executing_raises(self):
         """1123-1124: SagaExecutionError when saga already executing."""
         from sagaz.core.exceptions import SagaExecutionError
-        from sagaz.storage.interfaces.snapshot import SagaSnapshot
+        from sagaz.core.storage.interfaces.snapshot import SagaSnapshot
 
         saga = self._make_simple_saga()
         saga._executing = True  # Simulate already executing
@@ -411,7 +411,7 @@ class TestCoreSagaResumeBranches:
     async def test_resume_with_context_override(self):
         """1136-1137: context_override applied when provided."""
         from sagaz.core.saga import Saga as ImperativeSaga
-        from sagaz.storage.interfaces.snapshot import SagaSnapshot
+        from sagaz.core.storage.interfaces.snapshot import SagaSnapshot
 
         saga = ImperativeSaga("override_test")
         snapshot = MagicMock(spec=SagaSnapshot)
@@ -430,7 +430,7 @@ class TestCoreSagaResumeBranches:
     async def test_resume_execution_exception(self):
         """1188-1189: general exception during resume → handled."""
         from sagaz.core.saga import Saga as ImperativeSaga
-        from sagaz.storage.interfaces.snapshot import SagaSnapshot
+        from sagaz.core.storage.interfaces.snapshot import SagaSnapshot
 
         saga = ImperativeSaga("bad_saga")
 
@@ -453,7 +453,7 @@ class TestCoreSagaResumeBranches:
     async def test_resume_transition_not_allowed(self):
         """1150-1152: TransitionNotAllowed when state machine cannot start from snapshot."""
         from sagaz.core.saga import Saga as ImperativeSaga
-        from sagaz.storage.interfaces.snapshot import SagaSnapshot
+        from sagaz.core.storage.interfaces.snapshot import SagaSnapshot
 
         # Saga with NO steps → has_steps() returns False → start() raises TransitionNotAllowed
         # That SagaExecutionError propagates to outer except → returns failed SagaResult

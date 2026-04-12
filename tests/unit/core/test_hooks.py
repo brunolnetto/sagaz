@@ -131,8 +131,8 @@ class TestStepHooksWithOutbox:
     async def test_publish_event_on_success(self):
         """on_success hook can publish events to outbox."""
         from sagaz.core.decorators import Saga, step
-        from sagaz.outbox import InMemoryOutboxStorage
-        from sagaz.outbox.types import OutboxEvent
+        from sagaz.core.outbox import InMemoryOutboxStorage
+        from sagaz.core.outbox.types import OutboxEvent
 
         storage = InMemoryOutboxStorage()
 
@@ -163,8 +163,8 @@ class TestStepHooksWithOutbox:
     async def test_publish_event_on_failure(self):
         """on_failure hook can publish failure events."""
         from sagaz.core.decorators import Saga, step
-        from sagaz.outbox import InMemoryOutboxStorage
-        from sagaz.outbox.types import OutboxEvent
+        from sagaz.core.outbox import InMemoryOutboxStorage
+        from sagaz.core.outbox.types import OutboxEvent
 
         storage = InMemoryOutboxStorage()
 
@@ -367,7 +367,7 @@ class TestHookHelperDecorators:
         """publish_on_success helper creates a hook that publishes events."""
         from sagaz.core.decorators import Saga, step
         from sagaz.core.hooks import publish_on_success
-        from sagaz.outbox import InMemoryOutboxStorage
+        from sagaz.core.outbox import InMemoryOutboxStorage
 
         storage = InMemoryOutboxStorage()
 

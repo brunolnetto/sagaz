@@ -9,8 +9,8 @@ from typing import Any
 import pytest
 
 from sagaz.core.types import SagaStatus, SagaStepStatus
-from sagaz.outbox.types import OutboxEvent, OutboxStatus
-from sagaz.storage.interfaces import (
+from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
+from sagaz.core.storage.interfaces import (
     OutboxStorage,
     OutboxStorageError,
     SagaStepState,

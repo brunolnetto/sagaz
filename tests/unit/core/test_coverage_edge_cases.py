@@ -25,7 +25,7 @@ class TestSerializationEdgeCases:
 
     def test_storage_decoder_enum_type(self):
         """Test that enum-typed values are decoded correctly."""
-        from sagaz.storage.core.serialization import storage_decoder
+        from sagaz.core.storage.core.serialization import storage_decoder
 
         # Enum values are stored with __type__: enum
         obj = {"__type__": "enum", "value": "completed"}
@@ -36,7 +36,7 @@ class TestSerializationEdgeCases:
 
     def test_storage_decoder_unknown_type(self):
         """Test that unknown types return the original object."""
-        from sagaz.storage.core.serialization import storage_decoder
+        from sagaz.core.storage.core.serialization import storage_decoder
 
         # Unknown type should return the object as-is
         obj = {"__type__": "unknown_type", "value": "data"}
@@ -46,7 +46,7 @@ class TestSerializationEdgeCases:
 
     def test_storage_decoder_no_type_key(self):
         """Test that objects without __type__ are returned as-is."""
-        from sagaz.storage.core.serialization import storage_decoder
+        from sagaz.core.storage.core.serialization import storage_decoder
 
         obj = {"key": "value", "nested": {"data": 123}}
         result = storage_decoder(obj)
@@ -57,7 +57,7 @@ class TestSerializationEdgeCases:
         """Test that objects with __dict__ are serialized."""
         import json
 
-        from sagaz.storage.core.serialization import StorageEncoder
+        from sagaz.core.storage.core.serialization import StorageEncoder
 
         class CustomObject:
             def __init__(self):
@@ -86,7 +86,7 @@ class TestConnectionManagerEdgeCases:
     @pytest.mark.asyncio
     async def test_initialize_already_initialized(self):
         """Test that initialize returns early if already initialized."""
-        from sagaz.storage.core.connection import ConnectionConfig, SingleConnectionManager
+        from sagaz.core.storage.core.connection import ConnectionConfig, SingleConnectionManager
 
         # Create a concrete implementation for testing
         class TestConnectionManager(SingleConnectionManager[MagicMock]):
@@ -114,7 +114,7 @@ class TestConnectionManagerEdgeCases:
     @pytest.mark.asyncio
     async def test_acquire_without_connection(self):
         """Test that _acquire initializes if no connection exists."""
-        from sagaz.storage.core.connection import ConnectionConfig, SingleConnectionManager
+        from sagaz.core.storage.core.connection import ConnectionConfig, SingleConnectionManager
 
         class TestConnectionManager(SingleConnectionManager[MagicMock]):
             def __init__(self, config):
@@ -148,7 +148,7 @@ class TestConnectionManagerEdgeCases:
     @pytest.mark.asyncio
     async def test_acquire_with_invalid_connection(self):
         """Test that _acquire re-initializes if connection is invalid."""
-        from sagaz.storage.core.connection import ConnectionConfig, SingleConnectionManager
+        from sagaz.core.storage.core.connection import ConnectionConfig, SingleConnectionManager
 
         class TestConnectionManager(SingleConnectionManager[MagicMock]):
             def __init__(self, config):
@@ -185,8 +185,8 @@ class TestConnectionManagerEdgeCases:
     @pytest.mark.asyncio
     async def test_health_check_valid_connection(self):
         """Test health check with valid connection."""
-        from sagaz.storage.core.connection import ConnectionConfig, SingleConnectionManager
-        from sagaz.storage.core.health import HealthStatus
+        from sagaz.core.storage.core.connection import ConnectionConfig, SingleConnectionManager
+        from sagaz.core.storage.core.health import HealthStatus
 
         class _FakeConn:
             pass
@@ -223,7 +223,7 @@ class TestTransferServiceEdgeCases:
     @pytest.mark.asyncio
     async def test_transfer_with_skip_on_error(self):
         """Test transfer that skips failed records."""
-        from sagaz.storage.transfer.service import (
+        from sagaz.core.storage.transfer.service import (
             TransferConfig,
             TransferErrorPolicy,
             TransferService,
@@ -267,7 +267,7 @@ class TestTransferServiceEdgeCases:
     @pytest.mark.asyncio
     async def test_transfer_with_retry_success(self):
         """Test transfer that retries and succeeds."""
-        from sagaz.storage.transfer.service import (
+        from sagaz.core.storage.transfer.service import (
             TransferConfig,
             TransferErrorPolicy,
             TransferService,
@@ -322,7 +322,7 @@ class TestStorageManagerEdgeCases:
 
     def test_normalize_health_result_with_to_dict(self):
         """Test normalizing health result with to_dict method."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         class MockResult:
             def to_dict(self):
@@ -334,8 +334,8 @@ class TestStorageManagerEdgeCases:
 
     def test_normalize_health_result_with_status_attr(self):
         """Test normalizing health result with status attribute."""
-        from sagaz.storage.core.health import HealthStatus
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.core.health import HealthStatus
+        from sagaz.core.storage.manager import StorageManager
 
         class MockResult:
             def __init__(self):
@@ -347,7 +347,7 @@ class TestStorageManagerEdgeCases:
 
     def test_normalize_health_result_with_dict(self):
         """Test normalizing health result that is already a dict."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         result = StorageManager._normalize_health_result({"status": "healthy"})
 
@@ -355,7 +355,7 @@ class TestStorageManagerEdgeCases:
 
     def test_normalize_health_result_fallback(self):
         """Test normalizing health result with unknown type."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         # Pass something that's not a dict and has no to_dict or status
         result = StorageManager._normalize_health_result("unknown")

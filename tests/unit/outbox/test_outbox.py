@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from sagaz.outbox import (
+from sagaz.core.outbox import (
     BrokerConnectionError,
     BrokerError,
     InMemoryBroker,
@@ -673,7 +673,7 @@ class TestOutboxConfig:
 class TestOutboxTypesBranch:
     def test_parse_status_already_outbox_status(self):
         """159: return status as-is when already OutboxStatus."""
-        from sagaz.outbox.types import OutboxEvent, OutboxStatus
+        from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
 
         status = OutboxStatus.PENDING
         result = OutboxEvent._parse_status(status)

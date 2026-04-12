@@ -13,7 +13,7 @@ import pytest
 
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.types import SagaStatus, SagaStepStatus
-from sagaz.storage.base import SagaNotFoundError, SagaStorageConnectionError, SagaStorageError
+from sagaz.core.storage.base import SagaNotFoundError, SagaStorageConnectionError, SagaStorageError
 
 # Check availability of dependencies
 try:
@@ -56,7 +56,7 @@ class TestRedisStorageImportError:
         """Test that RedisSagaStorage raises MissingDependencyError when redis not available"""
         with patch.dict("sys.modules", {"redis": None, "redis.asyncio": None}):
             with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", False):
-                from sagaz.storage.redis import RedisSagaStorage
+                from sagaz.core.storage.redis import RedisSagaStorage
 
                 with pytest.raises(MissingDependencyError):
                     RedisSagaStorage(redis_url="redis://localhost:6379")
@@ -70,7 +70,7 @@ class TestRedisSagaStorageUnit:
         """Test Redis storage initialization"""
         with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
             with patch("sagaz.storage.backends.redis.saga.redis"):
-                from sagaz.storage.redis import RedisSagaStorage
+                from sagaz.core.storage.redis import RedisSagaStorage
 
                 storage = RedisSagaStorage(
                     redis_url="redis://localhost:6379", key_prefix="test:", default_ttl=3600
@@ -85,7 +85,7 @@ class TestRedisSagaStorageUnit:
         """Test Redis key generation methods"""
         with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
             with patch("sagaz.storage.backends.redis.saga.redis"):
-                from sagaz.storage.redis import RedisSagaStorage
+                from sagaz.core.storage.redis import RedisSagaStorage
 
                 storage = RedisSagaStorage(key_prefix="saga:")
 
@@ -100,7 +100,7 @@ class TestRedisSagaStorageUnit:
             with patch("sagaz.storage.backends.redis.saga.redis") as mock_redis:
                 mock_redis.from_url.side_effect = Exception("Connection refused")
 
-                from sagaz.storage.redis import RedisSagaStorage
+                from sagaz.core.storage.redis import RedisSagaStorage
 
                 storage = RedisSagaStorage(redis_url="redis://invalid:9999")
 
@@ -118,7 +118,7 @@ class TestRedisStorageEdgeCases:
             patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True),
             patch("sagaz.storage.backends.redis.saga.redis"),
         ):
-            from sagaz.storage.redis import RedisSagaStorage
+            from sagaz.core.storage.redis import RedisSagaStorage
 
             # This test would need a real Redis instance
             # For now, we'll mock to simulate the error condition
@@ -170,7 +170,7 @@ class TestRedisSagaStorageMocked:
     async def test_save_saga_state(self, mock_redis):
         """Test saving saga state to Redis."""
         with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
-            from sagaz.storage.redis import RedisSagaStorage
+            from sagaz.core.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
             storage = RedisSagaStorage("redis://localhost:6379")
@@ -190,7 +190,7 @@ class TestRedisSagaStorageMocked:
     async def test_load_saga_state(self, mock_redis):
         """Test loading saga state from Redis."""
         with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
-            from sagaz.storage.redis import RedisSagaStorage
+            from sagaz.core.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
             storage = RedisSagaStorage("redis://localhost:6379")
@@ -216,7 +216,7 @@ class TestRedisSagaStorageMocked:
     async def test_load_saga_state_not_found(self, mock_redis):
         """Test loading non-existent saga state."""
         with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
-            from sagaz.storage.redis import RedisSagaStorage
+            from sagaz.core.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
             storage = RedisSagaStorage("redis://localhost:6379")
@@ -231,7 +231,7 @@ class TestRedisSagaStorageMocked:
     async def test_load_saga_state_invalid_json(self, mock_redis):
         """Test loading saga with invalid JSON raises error."""
         with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
-            from sagaz.storage.redis import RedisSagaStorage
+            from sagaz.core.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
             storage = RedisSagaStorage("redis://localhost:6379")
@@ -245,7 +245,7 @@ class TestRedisSagaStorageMocked:
     async def test_delete_saga_state(self, mock_redis):
         """Test deleting saga state from Redis."""
         with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
-            from sagaz.storage.redis import RedisSagaStorage
+            from sagaz.core.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
             storage = RedisSagaStorage("redis://localhost:6379")
@@ -275,7 +275,7 @@ class TestRedisSagaStorageMocked:
     async def test_delete_saga_state_not_found(self, mock_redis):
         """Test deleting non-existent saga state."""
         with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
-            from sagaz.storage.redis import RedisSagaStorage
+            from sagaz.core.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
             storage = RedisSagaStorage("redis://localhost:6379")
@@ -290,7 +290,7 @@ class TestRedisSagaStorageMocked:
     async def test_list_sagas_by_status(self, mock_redis):
         """Test listing sagas filtered by status."""
         with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
-            from sagaz.storage.redis import RedisSagaStorage
+            from sagaz.core.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
             storage = RedisSagaStorage("redis://localhost:6379")
@@ -322,7 +322,7 @@ class TestRedisSagaStorageMocked:
     async def test_update_step_state(self, mock_redis):
         """Test updating step state."""
         with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
-            from sagaz.storage.redis import RedisSagaStorage
+            from sagaz.core.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
             storage = RedisSagaStorage("redis://localhost:6379")
@@ -353,7 +353,7 @@ class TestRedisSagaStorageMocked:
     async def test_update_step_state_saga_not_found(self, mock_redis):
         """Test updating step when saga not found."""
         with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
-            from sagaz.storage.redis import RedisSagaStorage
+            from sagaz.core.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
             storage = RedisSagaStorage("redis://localhost:6379")
@@ -369,7 +369,7 @@ class TestRedisSagaStorageMocked:
     async def test_update_step_state_step_not_found(self, mock_redis):
         """Test updating non-existent step raises error."""
         with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
-            from sagaz.storage.redis import RedisSagaStorage
+            from sagaz.core.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
             storage = RedisSagaStorage("redis://localhost:6379")
@@ -400,7 +400,7 @@ class TestRedisSagaStorageMocked:
     async def test_get_saga_statistics(self, mock_redis):
         """Test getting saga statistics."""
         with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
-            from sagaz.storage.redis import RedisSagaStorage
+            from sagaz.core.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
             storage = RedisSagaStorage("redis://localhost:6379")
@@ -418,7 +418,7 @@ class TestRedisSagaStorageMocked:
     async def test_cleanup_completed_sagas(self, mock_redis):
         """Test cleaning up old completed sagas."""
         with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
-            from sagaz.storage.redis import RedisSagaStorage
+            from sagaz.core.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
             storage = RedisSagaStorage("redis://localhost:6379")
@@ -451,7 +451,7 @@ class TestRedisSagaStorageMocked:
     async def test_health_check_healthy(self, mock_redis):
         """Test health check when healthy."""
         with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
-            from sagaz.storage.redis import RedisSagaStorage
+            from sagaz.core.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
             storage = RedisSagaStorage("redis://localhost:6379")
@@ -472,7 +472,7 @@ class TestRedisSagaStorageMocked:
     async def test_health_check_unhealthy(self, mock_redis):
         """Test health check when unhealthy."""
         with patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True):
-            from sagaz.storage.redis import RedisSagaStorage
+            from sagaz.core.storage.redis import RedisSagaStorage
 
             client, pipeline = mock_redis
             storage = RedisSagaStorage("redis://localhost:6379")
@@ -490,7 +490,7 @@ class TestRedisSagaStorageMocked:
             patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True),
             patch("sagaz.storage.backends.redis.saga.redis") as mock_redis_module,
         ):
-            from sagaz.storage.redis import RedisSagaStorage
+            from sagaz.core.storage.redis import RedisSagaStorage
 
             client = AsyncMock()
             client.ping = AsyncMock()
@@ -508,7 +508,7 @@ class TestRedisSagaStorageMocked:
             patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True),
             patch("sagaz.storage.backends.redis.saga.redis"),
         ):
-            from sagaz.storage.redis import RedisSagaStorage
+            from sagaz.core.storage.redis import RedisSagaStorage
 
             storage = RedisSagaStorage("redis://localhost:6379", key_prefix="test:")
 
@@ -529,7 +529,7 @@ class TestRedisStorageIntegration:
     @pytest.mark.asyncio
     async def test_save_and_load_saga_state(self, redis_container):
         """Test saving and loading saga state"""
-        from sagaz.storage.redis import RedisSagaStorage
+        from sagaz.core.storage.redis import RedisSagaStorage
 
         # Build Redis URL from container host and port
         host = redis_container.get_container_host_ip()
@@ -566,7 +566,7 @@ class TestRedisStorageIntegration:
     @pytest.mark.asyncio
     async def test_load_nonexistent_saga(self, redis_container):
         """Test loading a saga that doesn't exist"""
-        from sagaz.storage.redis import RedisSagaStorage
+        from sagaz.core.storage.redis import RedisSagaStorage
 
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)
@@ -579,7 +579,7 @@ class TestRedisStorageIntegration:
     @pytest.mark.asyncio
     async def test_delete_saga_state(self, redis_container):
         """Test deleting saga state"""
-        from sagaz.storage.redis import RedisSagaStorage
+        from sagaz.core.storage.redis import RedisSagaStorage
 
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)
@@ -611,7 +611,7 @@ class TestRedisStorageIntegration:
     @pytest.mark.asyncio
     async def test_list_sagas_by_status(self, redis_container):
         """Test listing sagas filtered by status"""
-        from sagaz.storage.redis import RedisSagaStorage
+        from sagaz.core.storage.redis import RedisSagaStorage
 
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)
@@ -645,7 +645,7 @@ class TestRedisStorageIntegration:
     @pytest.mark.asyncio
     async def test_ttl_applied_to_completed_sagas(self, redis_container):
         """Test that TTL is applied to completed sagas"""
-        from sagaz.storage.redis import RedisSagaStorage
+        from sagaz.core.storage.redis import RedisSagaStorage
 
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)
@@ -677,7 +677,7 @@ class TestRedisStorageIntegration:
     @pytest.mark.asyncio
     async def test_update_existing_saga(self, redis_container):
         """Test updating an existing saga state"""
-        from sagaz.storage.redis import RedisSagaStorage
+        from sagaz.core.storage.redis import RedisSagaStorage
 
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)
@@ -713,7 +713,7 @@ class TestRedisStorageIntegration:
     @pytest.mark.asyncio
     async def test_update_step_state(self, redis_container):
         """Test updating individual step state"""
-        from sagaz.storage.redis import RedisSagaStorage
+        from sagaz.core.storage.redis import RedisSagaStorage
 
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)
@@ -748,7 +748,7 @@ class TestRedisStorageIntegration:
     @pytest.mark.asyncio
     async def test_get_saga_statistics(self, redis_container):
         """Test getting saga statistics"""
-        from sagaz.storage.redis import RedisSagaStorage
+        from sagaz.core.storage.redis import RedisSagaStorage
 
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)
@@ -784,7 +784,7 @@ class TestRedisStorageIntegration:
     @pytest.mark.asyncio
     async def test_cleanup_completed_sagas(self, redis_container):
         """Test cleanup of old completed sagas"""
-        from sagaz.storage.redis import RedisSagaStorage
+        from sagaz.core.storage.redis import RedisSagaStorage
 
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)
@@ -817,7 +817,7 @@ class TestRedisStorageIntegration:
     @pytest.mark.asyncio
     async def test_health_check(self, redis_container):
         """Test health check functionality"""
-        from sagaz.storage.redis import RedisSagaStorage
+        from sagaz.core.storage.redis import RedisSagaStorage
 
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)
@@ -834,7 +834,7 @@ class TestRedisStorageIntegration:
     @pytest.mark.asyncio
     async def test_connection_error_handling(self):
         """Test handling of connection errors"""
-        from sagaz.storage.redis import RedisSagaStorage
+        from sagaz.core.storage.redis import RedisSagaStorage
 
         # Use invalid Redis URL
         redis_url = "redis://invalid-host:9999"
@@ -856,7 +856,7 @@ class TestRedisStorageIntegration:
     @pytest.mark.asyncio
     async def test_list_sagas_with_limit(self, redis_container):
         """Test listing sagas with limit parameter"""
-        from sagaz.storage.redis import RedisSagaStorage
+        from sagaz.core.storage.redis import RedisSagaStorage
 
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)
@@ -883,7 +883,7 @@ class TestRedisStorageIntegration:
     @pytest.mark.asyncio
     async def test_update_step_state_on_nonexistent_saga(self, redis_container):
         """Test updating step state when saga doesn't exist"""
-        from sagaz.storage.redis import RedisSagaStorage
+        from sagaz.core.storage.redis import RedisSagaStorage
 
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)
@@ -902,7 +902,7 @@ class TestRedisStorageIntegration:
     @pytest.mark.asyncio
     async def test_update_step_state_on_nonexistent_step(self, redis_container):
         """Test updating a step that doesn't exist in the saga"""
-        from sagaz.storage.redis import RedisSagaStorage
+        from sagaz.core.storage.redis import RedisSagaStorage
 
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)
@@ -931,7 +931,7 @@ class TestRedisStorageIntegration:
     @pytest.mark.asyncio
     async def test_cleanup_with_invalid_timestamps(self, redis_container):
         """Test cleanup handles sagas with invalid timestamps gracefully"""
-        from sagaz.storage.redis import RedisSagaStorage
+        from sagaz.core.storage.redis import RedisSagaStorage
 
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)
@@ -979,7 +979,7 @@ class TestRedisStorageIntegration:
     @pytest.mark.asyncio
     async def test_list_sagas_with_status_and_name_filter(self, redis_container):
         """Test listing sagas with both status and name filters"""
-        from sagaz.storage.redis import RedisSagaStorage
+        from sagaz.core.storage.redis import RedisSagaStorage
 
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)
@@ -1014,7 +1014,7 @@ class TestRedisStorageIntegration:
     @pytest.mark.asyncio
     async def test_list_sagas_no_filter_pagination(self, redis_container):
         """Test listing all sagas without filters uses pattern matching"""
-        from sagaz.storage.redis import RedisSagaStorage
+        from sagaz.core.storage.redis import RedisSagaStorage
 
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)
@@ -1040,7 +1040,7 @@ class TestRedisStorageIntegration:
     @pytest.mark.asyncio
     async def test_delete_nonexistent_saga(self, redis_container):
         """Test deleting a saga that doesn't exist"""
-        from sagaz.storage.redis import RedisSagaStorage
+        from sagaz.core.storage.redis import RedisSagaStorage
 
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)
@@ -1056,7 +1056,7 @@ class TestRedisSagaStorageUnitMissing:
 
     @pytest.fixture
     def storage(self):
-        from sagaz.storage.backends.redis.saga import RedisSagaStorage
+        from sagaz.core.storage.backends.redis.saga import RedisSagaStorage
 
         return RedisSagaStorage(redis_url="redis://localhost:6379", key_prefix="unit-test:")
 
@@ -1165,7 +1165,7 @@ class TestRedisSagaBranches:
     @pytest.fixture
     async def storage(self, mock_redis):
         with patch("redis.asyncio.from_url", return_value=mock_redis):
-            from sagaz.storage.backends.redis.saga import RedisSagaStorage
+            from sagaz.core.storage.backends.redis.saga import RedisSagaStorage
 
             storage = RedisSagaStorage("redis://localhost:6379")
             storage._redis = mock_redis

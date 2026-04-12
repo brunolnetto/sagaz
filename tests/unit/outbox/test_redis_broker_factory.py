@@ -24,7 +24,7 @@ class TestRedisBrokerConfig:
     def test_default_config(self):
         """Test default configuration values."""
         with patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True):
-            from sagaz.outbox.brokers.redis import RedisBrokerConfig
+            from sagaz.core.outbox.brokers.redis import RedisBrokerConfig
 
             config = RedisBrokerConfig()
 
@@ -43,7 +43,7 @@ class TestRedisBrokerConfig:
         monkeypatch.setenv("REDIS_SSL", "true")
 
         with patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True):
-            from sagaz.outbox.brokers.redis import RedisBrokerConfig
+            from sagaz.core.outbox.brokers.redis import RedisBrokerConfig
 
             config = RedisBrokerConfig.from_env()
 
@@ -78,7 +78,7 @@ class TestRedisBrokerMocked:
             patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True),
             patch("sagaz.outbox.brokers.redis.redis") as mock_redis,
         ):
-            from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+            from sagaz.core.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
 
             mock_redis.from_url.return_value = mock_redis_client
 
@@ -93,13 +93,13 @@ class TestRedisBrokerMocked:
     @pytest.mark.asyncio
     async def test_connect_failure(self, mock_redis_client):
         """Test connection failure handling."""
-        from sagaz.outbox.brokers.base import BrokerConnectionError
+        from sagaz.core.outbox.brokers.base import BrokerConnectionError
 
         with (
             patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True),
             patch("sagaz.outbox.brokers.redis.redis") as mock_redis,
         ):
-            from sagaz.outbox.brokers.redis import RedisBroker
+            from sagaz.core.outbox.brokers.redis import RedisBroker
 
             mock_redis_client.ping.side_effect = Exception("Connection refused")
             mock_redis.from_url.return_value = mock_redis_client
@@ -116,7 +116,7 @@ class TestRedisBrokerMocked:
             patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True),
             patch("sagaz.outbox.brokers.redis.redis") as mock_redis,
         ):
-            from sagaz.outbox.brokers.redis import RedisBroker
+            from sagaz.core.outbox.brokers.redis import RedisBroker
 
             mock_redis.from_url.return_value = mock_redis_client
 
@@ -135,10 +135,10 @@ class TestRedisBrokerMocked:
     @pytest.mark.asyncio
     async def test_publish_not_connected(self):
         """Test publish fails when not connected."""
-        from sagaz.outbox.brokers.base import BrokerError
+        from sagaz.core.outbox.brokers.base import BrokerError
 
         with patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True):
-            from sagaz.outbox.brokers.redis import RedisBroker
+            from sagaz.core.outbox.brokers.redis import RedisBroker
 
             broker = RedisBroker()
 
@@ -148,13 +148,13 @@ class TestRedisBrokerMocked:
     @pytest.mark.asyncio
     async def test_publish_failure(self, mock_redis_client):
         """Test publish error handling."""
-        from sagaz.outbox.brokers.base import BrokerPublishError
+        from sagaz.core.outbox.brokers.base import BrokerPublishError
 
         with (
             patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True),
             patch("sagaz.outbox.brokers.redis.redis") as mock_redis,
         ):
-            from sagaz.outbox.brokers.redis import RedisBroker
+            from sagaz.core.outbox.brokers.redis import RedisBroker
 
             mock_redis_client.xadd.side_effect = Exception("Stream error")
             mock_redis.from_url.return_value = mock_redis_client
@@ -172,7 +172,7 @@ class TestRedisBrokerMocked:
             patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True),
             patch("sagaz.outbox.brokers.redis.redis") as mock_redis,
         ):
-            from sagaz.outbox.brokers.redis import RedisBroker
+            from sagaz.core.outbox.brokers.redis import RedisBroker
 
             mock_redis.from_url.return_value = mock_redis_client
 
@@ -190,7 +190,7 @@ class TestRedisBrokerMocked:
             patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True),
             patch("sagaz.outbox.brokers.redis.redis") as mock_redis,
         ):
-            from sagaz.outbox.brokers.redis import RedisBroker
+            from sagaz.core.outbox.brokers.redis import RedisBroker
 
             mock_redis_client.close.side_effect = Exception("Close error")
             mock_redis.from_url.return_value = mock_redis_client
@@ -210,7 +210,7 @@ class TestRedisBrokerMocked:
             patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True),
             patch("sagaz.outbox.brokers.redis.redis") as mock_redis,
         ):
-            from sagaz.outbox.brokers.redis import RedisBroker
+            from sagaz.core.outbox.brokers.redis import RedisBroker
 
             mock_redis.from_url.return_value = mock_redis_client
 
@@ -225,7 +225,7 @@ class TestRedisBrokerMocked:
     async def test_health_check_not_connected(self):
         """Test health check when not connected."""
         with patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True):
-            from sagaz.outbox.brokers.redis import RedisBroker
+            from sagaz.core.outbox.brokers.redis import RedisBroker
 
             broker = RedisBroker()
 
@@ -240,7 +240,7 @@ class TestRedisBrokerMocked:
             patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True),
             patch("sagaz.outbox.brokers.redis.redis") as mock_redis,
         ):
-            from sagaz.outbox.brokers.redis import RedisBroker
+            from sagaz.core.outbox.brokers.redis import RedisBroker
 
             mock_redis.from_url.return_value = mock_redis_client
 
@@ -260,7 +260,7 @@ class TestRedisBrokerMocked:
             patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True),
             patch("sagaz.outbox.brokers.redis.redis") as mock_redis,
         ):
-            from sagaz.outbox.brokers.redis import RedisBroker
+            from sagaz.core.outbox.brokers.redis import RedisBroker
 
             mock_redis.from_url.return_value = mock_redis_client
 
@@ -277,7 +277,7 @@ class TestRedisBrokerMocked:
             patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True),
             patch("sagaz.outbox.brokers.redis.redis") as mock_redis,
         ):
-            from sagaz.outbox.brokers.redis import RedisBroker
+            from sagaz.core.outbox.brokers.redis import RedisBroker
 
             # Simulate BUSYGROUP error (group already exists)
             mock_redis_client.xgroup_create.side_effect = mock_redis.ResponseError(
@@ -298,10 +298,10 @@ class TestRedisBrokerMocked:
     @pytest.mark.asyncio
     async def test_ensure_consumer_group_not_connected(self):
         """Test ensure_consumer_group fails when not connected."""
-        from sagaz.outbox.brokers.base import BrokerError
+        from sagaz.core.outbox.brokers.base import BrokerError
 
         with patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True):
-            from sagaz.outbox.brokers.redis import RedisBroker
+            from sagaz.core.outbox.brokers.redis import RedisBroker
 
             broker = RedisBroker()
 
@@ -315,7 +315,7 @@ class TestRedisBrokerMocked:
             patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True),
             patch("sagaz.outbox.brokers.redis.redis") as mock_redis,
         ):
-            from sagaz.outbox.brokers.redis import RedisBroker
+            from sagaz.core.outbox.brokers.redis import RedisBroker
 
             mock_redis.from_url.return_value = mock_redis_client
 
@@ -329,10 +329,10 @@ class TestRedisBrokerMocked:
     @pytest.mark.asyncio
     async def test_read_messages_not_connected(self):
         """Test read_messages fails when not connected."""
-        from sagaz.outbox.brokers.base import BrokerError
+        from sagaz.core.outbox.brokers.base import BrokerError
 
         with patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True):
-            from sagaz.outbox.brokers.redis import RedisBroker
+            from sagaz.core.outbox.brokers.redis import RedisBroker
 
             broker = RedisBroker()
 
@@ -346,7 +346,7 @@ class TestRedisBrokerMocked:
             patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True),
             patch("sagaz.outbox.brokers.redis.redis") as mock_redis,
         ):
-            from sagaz.outbox.brokers.redis import RedisBroker
+            from sagaz.core.outbox.brokers.redis import RedisBroker
 
             mock_redis.from_url.return_value = mock_redis_client
 
@@ -360,10 +360,10 @@ class TestRedisBrokerMocked:
     @pytest.mark.asyncio
     async def test_acknowledge_not_connected(self):
         """Test acknowledge fails when not connected."""
-        from sagaz.outbox.brokers.base import BrokerError
+        from sagaz.core.outbox.brokers.base import BrokerError
 
         with patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True):
-            from sagaz.outbox.brokers.redis import RedisBroker
+            from sagaz.core.outbox.brokers.redis import RedisBroker
 
             broker = RedisBroker()
 
@@ -377,7 +377,7 @@ class TestRedisBrokerMocked:
             patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True),
             patch("sagaz.outbox.brokers.redis.redis") as mock_redis,
         ):
-            from sagaz.outbox.brokers.redis import RedisBroker
+            from sagaz.core.outbox.brokers.redis import RedisBroker
 
             mock_redis.from_url.return_value = mock_redis_client
 
@@ -391,10 +391,10 @@ class TestRedisBrokerMocked:
     @pytest.mark.asyncio
     async def test_get_stream_info_not_connected(self):
         """Test get_stream_info fails when not connected."""
-        from sagaz.outbox.brokers.base import BrokerError
+        from sagaz.core.outbox.brokers.base import BrokerError
 
         with patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True):
-            from sagaz.outbox.brokers.redis import RedisBroker
+            from sagaz.core.outbox.brokers.redis import RedisBroker
 
             broker = RedisBroker()
 
@@ -404,7 +404,7 @@ class TestRedisBrokerMocked:
     def test_safe_url_masks_password(self):
         """Test that password is masked in URL for logging."""
         with patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True):
-            from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+            from sagaz.core.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
 
             config = RedisBrokerConfig(url="redis://user:secret123@localhost:6379/0")
             broker = RedisBroker(config)
@@ -417,7 +417,7 @@ class TestRedisBrokerMocked:
     def test_safe_url_no_password(self):
         """Test safe URL with no password."""
         with patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True):
-            from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+            from sagaz.core.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
 
             config = RedisBrokerConfig(url="redis://localhost:6379/0")
             broker = RedisBroker(config)
@@ -431,7 +431,7 @@ class TestRedisBrokerMocked:
         monkeypatch.setenv("REDIS_URL", "redis://myhost:6380")
 
         with patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True):
-            from sagaz.outbox.brokers.redis import RedisBroker
+            from sagaz.core.outbox.brokers.redis import RedisBroker
 
             broker = RedisBroker.from_env()
 
@@ -440,7 +440,7 @@ class TestRedisBrokerMocked:
     def test_is_redis_available(self):
         """Test is_redis_available function."""
         with patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True):
-            from sagaz.outbox.brokers.redis import is_redis_available
+            from sagaz.core.outbox.brokers.redis import is_redis_available
 
             assert is_redis_available() is True
 
@@ -455,7 +455,7 @@ class TestBrokerFactory:
 
     def test_get_available_brokers_includes_memory(self):
         """Test memory broker is always available."""
-        from sagaz.outbox.brokers.factory import get_available_brokers
+        from sagaz.core.outbox.brokers.factory import get_available_brokers
 
         available = get_available_brokers()
 
@@ -468,7 +468,7 @@ class TestBrokerFactory:
             patch("sagaz.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
             patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True),
         ):
-            from sagaz.outbox.brokers.factory import get_available_brokers
+            from sagaz.core.outbox.brokers.factory import get_available_brokers
 
             available = get_available_brokers()
 
@@ -477,8 +477,8 @@ class TestBrokerFactory:
 
     def test_create_broker_memory(self):
         """Test creating memory broker."""
-        from sagaz.outbox.brokers.factory import create_broker
-        from sagaz.outbox.brokers.memory import InMemoryBroker
+        from sagaz.core.outbox.brokers.factory import create_broker
+        from sagaz.core.outbox.brokers.memory import InMemoryBroker
 
         broker = create_broker("memory")
 
@@ -490,7 +490,7 @@ class TestBrokerFactory:
             patch("sagaz.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
             patch("sagaz.outbox.brokers.kafka.AIOKafkaProducer"),
         ):
-            from sagaz.outbox.brokers.factory import create_broker
+            from sagaz.core.outbox.brokers.factory import create_broker
 
             broker = create_broker("kafka", bootstrap_servers="localhost:9092")
 
@@ -502,7 +502,7 @@ class TestBrokerFactory:
             patch("sagaz.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
             patch("sagaz.outbox.brokers.rabbitmq.aio_pika"),
         ):
-            from sagaz.outbox.brokers.factory import create_broker
+            from sagaz.core.outbox.brokers.factory import create_broker
 
             broker = create_broker("rabbitmq", url="amqp://localhost")
 
@@ -511,7 +511,7 @@ class TestBrokerFactory:
     def test_create_broker_redis(self):
         """Test creating Redis broker."""
         with patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True):
-            from sagaz.outbox.brokers.factory import create_broker
+            from sagaz.core.outbox.brokers.factory import create_broker
 
             broker = create_broker("redis", url="redis://localhost")
 
@@ -519,7 +519,7 @@ class TestBrokerFactory:
 
     def test_create_broker_unknown_type(self):
         """Test creating unknown broker type raises ValueError."""
-        from sagaz.outbox.brokers.factory import create_broker
+        from sagaz.core.outbox.brokers.factory import create_broker
 
         with pytest.raises(ValueError, match="Unknown broker type"):
             create_broker("unknown_broker")
@@ -529,15 +529,15 @@ class TestBrokerFactory:
         from sagaz.core.exceptions import MissingDependencyError
 
         with patch("sagaz.outbox.brokers.kafka.KAFKA_AVAILABLE", False):
-            from sagaz.outbox.brokers.factory import create_broker
+            from sagaz.core.outbox.brokers.factory import create_broker
 
             with pytest.raises(MissingDependencyError):
                 create_broker("kafka")
 
     def test_create_broker_case_insensitive(self):
         """Test create_broker is case insensitive."""
-        from sagaz.outbox.brokers.factory import create_broker
-        from sagaz.outbox.brokers.memory import InMemoryBroker
+        from sagaz.core.outbox.brokers.factory import create_broker
+        from sagaz.core.outbox.brokers.memory import InMemoryBroker
 
         broker1 = create_broker("MEMORY")
         broker2 = create_broker("Memory")
@@ -551,8 +551,8 @@ class TestBrokerFactory:
         """Test create_broker_from_env with memory."""
         monkeypatch.setenv("BROKER_TYPE", "memory")
 
-        from sagaz.outbox.brokers.factory import create_broker_from_env
-        from sagaz.outbox.brokers.memory import InMemoryBroker
+        from sagaz.core.outbox.brokers.factory import create_broker_from_env
+        from sagaz.core.outbox.brokers.memory import InMemoryBroker
 
         broker = create_broker_from_env()
 
@@ -567,7 +567,7 @@ class TestBrokerFactory:
             patch("sagaz.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
             patch("sagaz.outbox.brokers.kafka.AIOKafkaProducer"),
         ):
-            from sagaz.outbox.brokers.factory import create_broker_from_env
+            from sagaz.core.outbox.brokers.factory import create_broker_from_env
 
             broker = create_broker_from_env()
 
@@ -582,7 +582,7 @@ class TestBrokerFactory:
             patch("sagaz.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
             patch("sagaz.outbox.brokers.rabbitmq.aio_pika"),
         ):
-            from sagaz.outbox.brokers.factory import create_broker_from_env
+            from sagaz.core.outbox.brokers.factory import create_broker_from_env
 
             broker = create_broker_from_env()
 
@@ -594,7 +594,7 @@ class TestBrokerFactory:
         monkeypatch.setenv("REDIS_URL", "redis://localhost")
 
         with patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True):
-            from sagaz.outbox.brokers.factory import create_broker_from_env
+            from sagaz.core.outbox.brokers.factory import create_broker_from_env
 
             broker = create_broker_from_env()
 
@@ -604,7 +604,7 @@ class TestBrokerFactory:
         """Test create_broker_from_env with unknown type."""
         monkeypatch.setenv("BROKER_TYPE", "unknown")
 
-        from sagaz.outbox.brokers.factory import create_broker_from_env
+        from sagaz.core.outbox.brokers.factory import create_broker_from_env
 
         with pytest.raises(ValueError, match="Unknown BROKER_TYPE"):
             create_broker_from_env()
@@ -613,8 +613,8 @@ class TestBrokerFactory:
         """Test create_broker_from_env defaults to memory."""
         monkeypatch.delenv("BROKER_TYPE", raising=False)
 
-        from sagaz.outbox.brokers.factory import create_broker_from_env
-        from sagaz.outbox.brokers.memory import InMemoryBroker
+        from sagaz.core.outbox.brokers.factory import create_broker_from_env
+        from sagaz.core.outbox.brokers.memory import InMemoryBroker
 
         broker = create_broker_from_env()
 
@@ -622,7 +622,7 @@ class TestBrokerFactory:
 
     def test_print_available_brokers(self, capsys):
         """Test print_available_brokers outputs correctly."""
-        from sagaz.outbox.brokers.factory import print_available_brokers
+        from sagaz.core.outbox.brokers.factory import print_available_brokers
 
         # Should not raise
         print_available_brokers()
@@ -634,7 +634,7 @@ class TestBrokerFactory:
 class TestBrokerFactoryMissingBranches:
     def test_get_available_brokers_with_unavailable(self):
         """50->49: _check_broker_availability returns False → skip append."""
-        from sagaz.outbox.brokers.factory import get_available_brokers
+        from sagaz.core.outbox.brokers.factory import get_available_brokers
 
         with patch(
             "sagaz.outbox.brokers.factory._check_broker_availability",
@@ -646,7 +646,7 @@ class TestBrokerFactoryMissingBranches:
 
     def test_print_broker_status_unavailable(self, capsys):
         """100: unavailable broker prints the ✗ line."""
-        from sagaz.outbox.brokers.factory import _print_broker_status
+        from sagaz.core.outbox.brokers.factory import _print_broker_status
 
         with patch(
             "sagaz.outbox.brokers.factory._check_broker_availability",
@@ -662,7 +662,7 @@ class TestBrokerFactoryMissingBranches:
     def test_create_broker_import_error_no_dependency(self):
         """196: raise ImportError when no dependency (dependency is None)."""
         # memory has no dependency - inject a factory that raises ImportError
-        from sagaz.outbox.brokers.factory import _BROKER_REGISTRY, create_broker
+        from sagaz.core.outbox.brokers.factory import _BROKER_REGISTRY, create_broker
 
         original = _BROKER_REGISTRY.get("memory")
         try:

@@ -15,7 +15,7 @@ from typing import Any
 from uuid import UUID
 
 from sagaz.core.replay import SagaSnapshot
-from sagaz.storage.interfaces.snapshot import SnapshotStorage
+from sagaz.core.storage.interfaces.snapshot import SnapshotStorage
 
 logger = logging.getLogger(__name__)
 

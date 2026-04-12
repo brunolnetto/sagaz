@@ -7,7 +7,7 @@ Extracted from Saga class in decorators.py to reduce module size.
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from sagaz.storage.base import SagaStorage
+    from sagaz.core.storage.base import SagaStorage
 
 
 class _DecoratorVisualizationMixin:
@@ -50,7 +50,7 @@ class _DecoratorVisualizationMixin:
             ...     "compensated_steps": ["charge", "reserve"]
             ... })
         """
-        from sagaz.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+        from sagaz.observability.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
         # Convert steps to StepInfo format
         steps = [
@@ -98,7 +98,7 @@ class _DecoratorVisualizationMixin:
             Mermaid diagram with highlighted execution trail.
 
         Example:
-            >>> from sagaz.storage import PostgreSQLSagaStorage
+            >>> from sagaz.core.storage import PostgreSQLSagaStorage
             >>> storage = PostgreSQLSagaStorage(...)
             >>> diagram = await saga.to_mermaid_with_execution(
             ...     saga_id="abc-123",

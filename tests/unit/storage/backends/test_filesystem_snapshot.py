@@ -14,7 +14,7 @@ import pytest
 
 from sagaz.core.replay import ReplayResult, ReplayStatus, SagaSnapshot
 from sagaz.core.types import SagaStatus
-from sagaz.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
+from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
 
 
 class TestFilesystemSnapshotStorage:
@@ -575,7 +575,7 @@ class TestFilesystemSnapshotMissingBranches:
 class TestFilesystemSnapshotBranches:
     async def test_get_snapshot_skips_non_directory(self, tmp_path):
         """202: continue when iterdir entry is not a directory."""
-        from sagaz.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
+        from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
 
         storage = FilesystemSnapshotStorage(base_path=str(tmp_path))
         # base_path/snapshots/ is created by __init__; put a FILE in it
@@ -589,7 +589,7 @@ class TestFilesystemSnapshotBranches:
         """274->271: snapshot returned None → skip."""
         import json
 
-        from sagaz.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
+        from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
 
         storage = FilesystemSnapshotStorage(base_path=str(tmp_path))
         saga_id = uuid4()
@@ -608,7 +608,7 @@ class TestFilesystemSnapshotBranches:
         """286->282: first extension not found, try next extension."""
         import json
 
-        from sagaz.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
+        from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
 
         storage = FilesystemSnapshotStorage(base_path=str(tmp_path))
         saga_id = uuid4()
@@ -633,7 +633,7 @@ class TestFilesystemSnapshotBranches:
         """345->332: delete_expired_snapshots actually deletes one."""
         import json
 
-        from sagaz.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
+        from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
 
         storage = FilesystemSnapshotStorage(base_path=str(tmp_path))
         saga_id = uuid4()
@@ -659,7 +659,7 @@ class TestFilesystemSnapshotBranches:
         import json
         from unittest.mock import patch
 
-        from sagaz.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
+        from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
 
         storage = FilesystemSnapshotStorage(base_path=str(tmp_path))
         saga_id = uuid4()
@@ -687,7 +687,7 @@ class TestFilesystemSnapshotBranches:
         """235->227: snapshot is None → continue → finds next."""
         import json
 
-        from sagaz.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
+        from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
 
         storage = FilesystemSnapshotStorage(base_path=str(tmp_path))
         saga_id = uuid4()
@@ -727,7 +727,7 @@ class TestFilesystemSnapshotBranches:
         """246: return snapshot when step_name matches before_step."""
         import json
 
-        from sagaz.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
+        from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
 
         storage = FilesystemSnapshotStorage(base_path=str(tmp_path))
         saga_id = uuid4()
@@ -758,7 +758,7 @@ class TestFilesystemSnapshotBranches:
         import json
         from datetime import timezone
 
-        from sagaz.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
+        from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
 
         storage = FilesystemSnapshotStorage(base_path=str(tmp_path))
         saga_id = uuid4()
@@ -796,7 +796,7 @@ class TestFilesystemSnapshotBranches:
         """340->332: no retention_until in snapshot → skip (for loop continues)."""
         import json
 
-        from sagaz.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
+        from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
 
         storage = FilesystemSnapshotStorage(base_path=str(tmp_path))
         saga_id = uuid4()
@@ -821,7 +821,7 @@ class TestFilesystemSnapshotBranches:
         import json
         from unittest.mock import AsyncMock, patch
 
-        from sagaz.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
+        from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
 
         storage = FilesystemSnapshotStorage(base_path=str(tmp_path))
         saga_id = uuid4()
@@ -847,7 +847,7 @@ class TestFilesystemSnapshotBranches:
 
     async def test_list_replays_exception_skips(self, tmp_path):
         """381-382: exception reading replay file → continue."""
-        from sagaz.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
+        from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
 
         storage = FilesystemSnapshotStorage(base_path=str(tmp_path))
         # Write a corrupted (non-JSON) replay file
@@ -861,7 +861,7 @@ class TestFilesystemSnapshotBranches:
         """362: get_replay_log returns data when file exists."""
         import json
 
-        from sagaz.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
+        from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
 
         storage = FilesystemSnapshotStorage(base_path=str(tmp_path))
         replay_id = uuid4()
@@ -876,7 +876,7 @@ class TestFilesystemSnapshotBranches:
         """286->282: inner for-suffix loop exhausted (no match) → outer saga_dir loop continues."""
         import json
 
-        from sagaz.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
+        from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
 
         storage = FilesystemSnapshotStorage(base_path=str(tmp_path))
         snap_id = uuid4()
@@ -895,7 +895,7 @@ class TestFilesystemSnapshotBranches:
         """274->271: list_snapshots has entry but get_snapshot returns None → skip."""
         import json
 
-        from sagaz.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
+        from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
 
         storage = FilesystemSnapshotStorage(base_path=str(tmp_path))
         saga_id = uuid4()

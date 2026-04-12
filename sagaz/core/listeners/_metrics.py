@@ -18,14 +18,14 @@ class MetricsSagaListener(SagaListener):
     Supports both the simple SagaMetrics class and the PrometheusMetrics backend.
 
     For Prometheus dashboards, use PrometheusMetrics:
-        >>> from sagaz.monitoring.prometheus import PrometheusMetrics
+        >>> from sagaz.observability.monitoring.prometheus import PrometheusMetrics
         >>> metrics = PrometheusMetrics()
         >>>
         >>> class OrderSaga(Saga):
         ...     listeners = [MetricsSagaListener(metrics=metrics)]
 
     Example with simple metrics:
-        >>> from sagaz.monitoring.metrics import SagaMetrics
+        >>> from sagaz.observability.monitoring.metrics import SagaMetrics
         >>> metrics = SagaMetrics()
         >>>
         >>> class OrderSaga(Saga):
@@ -34,7 +34,7 @@ class MetricsSagaListener(SagaListener):
 
     def __init__(self, metrics=None):
         if metrics is None:
-            from sagaz.monitoring.metrics import SagaMetrics
+            from sagaz.observability.monitoring.metrics import SagaMetrics
 
             metrics = SagaMetrics()
         self.metrics = metrics

@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sagaz.outbox.types import OutboxEvent, OutboxStatus
+from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
 
 
 class TestRedisOutboxStorageUnit:
@@ -48,7 +48,7 @@ class TestRedisOutboxStorageUnit:
     async def storage(self, mock_redis):
         """Create storage with mocked Redis."""
         with patch("redis.asyncio.from_url", return_value=mock_redis):
-            from sagaz.storage.backends.redis import RedisOutboxStorage
+            from sagaz.core.storage.backends.redis import RedisOutboxStorage
 
             storage = RedisOutboxStorage(
                 redis_url="redis://localhost:6379",
@@ -63,7 +63,7 @@ class TestRedisOutboxStorageUnit:
     async def test_initialization(self, mock_redis):
         """Test storage initialization creates consumer group."""
         with patch("redis.asyncio.from_url", return_value=mock_redis):
-            from sagaz.storage.backends.redis import RedisOutboxStorage
+            from sagaz.core.storage.backends.redis import RedisOutboxStorage
 
             storage = RedisOutboxStorage(prefix="test:outbox")
             await storage.initialize()
@@ -81,7 +81,7 @@ class TestRedisOutboxStorageUnit:
         mock_redis.xgroup_create.side_effect = redis.ResponseError("BUSYGROUP")
 
         with patch("redis.asyncio.from_url", return_value=mock_redis):
-            from sagaz.storage.backends.redis import RedisOutboxStorage
+            from sagaz.core.storage.backends.redis import RedisOutboxStorage
 
             storage = RedisOutboxStorage()
             await storage.initialize()
@@ -311,7 +311,7 @@ class TestRedisOutboxStorageUnit:
     async def test_context_manager(self, mock_redis):
         """Test using storage as context manager."""
         with patch("redis.asyncio.from_url", return_value=mock_redis):
-            from sagaz.storage.backends.redis import RedisOutboxStorage
+            from sagaz.core.storage.backends.redis import RedisOutboxStorage
 
             async with RedisOutboxStorage() as storage:
                 assert storage._initialized is True
@@ -459,7 +459,7 @@ class TestRedisOutboxStorageIntegration:
         await temp_client.flushdb()
         await temp_client.aclose()
 
-        from sagaz.storage.backends.redis import RedisOutboxStorage
+        from sagaz.core.storage.backends.redis import RedisOutboxStorage
 
         storage = RedisOutboxStorage(
             redis_url=redis_url,

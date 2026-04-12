@@ -44,7 +44,7 @@ class TestPostgreSQLSnapshotStorageIntegration:
         """Test full snapshot lifecycle: save, get, list, delete."""
         from sagaz.core.replay import SagaSnapshot
         from sagaz.core.types import SagaStatus
-        from sagaz.storage.backends.postgresql.snapshot import (
+        from sagaz.core.storage.backends.postgresql.snapshot import (
             ASYNCPG_AVAILABLE,
             PostgreSQLSnapshotStorage,
         )
@@ -111,7 +111,7 @@ class TestPostgreSQLSnapshotStorageIntegration:
         """Test handling multiple snapshots for the same saga."""
         from sagaz.core.replay import SagaSnapshot
         from sagaz.core.types import SagaStatus
-        from sagaz.storage.backends.postgresql.snapshot import (
+        from sagaz.core.storage.backends.postgresql.snapshot import (
             ASYNCPG_AVAILABLE,
             PostgreSQLSnapshotStorage,
         )
@@ -165,7 +165,7 @@ class TestPostgreSQLSnapshotStorageIntegration:
         """Test retrieving snapshot at a specific point in time."""
         from sagaz.core.replay import SagaSnapshot
         from sagaz.core.types import SagaStatus
-        from sagaz.storage.backends.postgresql.snapshot import (
+        from sagaz.core.storage.backends.postgresql.snapshot import (
             ASYNCPG_AVAILABLE,
             PostgreSQLSnapshotStorage,
         )
@@ -221,7 +221,7 @@ class TestPostgreSQLSnapshotStorageIntegration:
         """Test automatic deletion of expired snapshots."""
         from sagaz.core.replay import SagaSnapshot
         from sagaz.core.types import SagaStatus
-        from sagaz.storage.backends.postgresql.snapshot import (
+        from sagaz.core.storage.backends.postgresql.snapshot import (
             ASYNCPG_AVAILABLE,
             PostgreSQLSnapshotStorage,
         )
@@ -299,7 +299,7 @@ class TestRedisSnapshotStorageIntegration:
         """Test full snapshot lifecycle: save, get, list, delete."""
         from sagaz.core.replay import SagaSnapshot
         from sagaz.core.types import SagaStatus
-        from sagaz.storage.backends.redis.snapshot import (
+        from sagaz.core.storage.backends.redis.snapshot import (
             REDIS_AVAILABLE,
             RedisSnapshotStorage,
         )
@@ -359,7 +359,7 @@ class TestRedisSnapshotStorageIntegration:
         """Test handling multiple snapshots in Redis."""
         from sagaz.core.replay import SagaSnapshot
         from sagaz.core.types import SagaStatus
-        from sagaz.storage.backends.redis.snapshot import (
+        from sagaz.core.storage.backends.redis.snapshot import (
             REDIS_AVAILABLE,
             RedisSnapshotStorage,
         )
@@ -407,7 +407,7 @@ class TestRedisSnapshotStorageIntegration:
         """Test TTL-based expiration in Redis."""
         from sagaz.core.replay import SagaSnapshot
         from sagaz.core.types import SagaStatus
-        from sagaz.storage.backends.redis.snapshot import (
+        from sagaz.core.storage.backends.redis.snapshot import (
             REDIS_AVAILABLE,
             RedisSnapshotStorage,
         )

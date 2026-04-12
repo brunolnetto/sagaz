@@ -33,10 +33,10 @@ from sagaz.integrations.fastapi import (
     sagaz_shutdown,
     sagaz_startup,
 )
-from sagaz.storage import InMemorySagaStorage
+from sagaz.core.storage import InMemorySagaStorage
 
 # Import trigger decorator
-from sagaz.triggers import trigger
+from sagaz.core.triggers import trigger
 
 # =============================================================================
 # Configuration

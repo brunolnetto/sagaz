@@ -13,7 +13,7 @@ class TestFinalCoverage:
         """Test OutboxEvent.from_dict method"""
         from datetime import datetime
 
-        from sagaz.outbox.types import OutboxEvent, OutboxStatus
+        from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
 
         event_dict = {
             "event_id": "evt-123",
@@ -41,7 +41,7 @@ class TestFinalCoverage:
     async def test_state_machine_callbacks(self):
         """Test state machine optional callbacks"""
         from sagaz.core.saga import Saga as ClassicSaga
-        from sagaz.execution.state_machine import SagaStateMachine
+        from sagaz.core.execution.state_machine import SagaStateMachine
 
         saga = ClassicSaga(name="TestSaga")
         sm = SagaStateMachine(saga)
@@ -54,7 +54,7 @@ class TestFinalCoverage:
     @pytest.mark.asyncio
     async def test_compensation_graph_reset(self):
         """Test compensation graph reset_execution"""
-        from sagaz.execution.graph import SagaExecutionGraph
+        from sagaz.core.execution.graph import SagaExecutionGraph
 
         graph = SagaExecutionGraph()
 
@@ -72,7 +72,7 @@ class TestFinalCoverage:
 
     def test_broker_factory_get_available(self):
         """Test get_available_brokers function"""
-        from sagaz.outbox.brokers.factory import get_available_brokers
+        from sagaz.core.outbox.brokers.factory import get_available_brokers
 
         brokers = get_available_brokers()
 
@@ -82,7 +82,7 @@ class TestFinalCoverage:
 
     def test_storage_factory_get_available(self):
         """Test get_available_backends function"""
-        from sagaz.storage.factory import get_available_backends
+        from sagaz.core.storage.factory import get_available_backends
 
         backends = get_available_backends()
 
@@ -93,7 +93,7 @@ class TestFinalCoverage:
     @pytest.mark.asyncio
     async def test_compensation_graph_unexecuted_steps(self):
         """Test compensation graph with unexecuted steps"""
-        from sagaz.execution.graph import SagaExecutionGraph
+        from sagaz.core.execution.graph import SagaExecutionGraph
 
         graph = SagaExecutionGraph()
 
@@ -111,7 +111,7 @@ class TestFinalCoverage:
     @pytest.mark.asyncio
     async def test_broker_factory_unknown_type(self):
         """Test broker factory with unknown type"""
-        from sagaz.outbox.brokers.factory import create_broker
+        from sagaz.core.outbox.brokers.factory import create_broker
 
         with pytest.raises(ValueError, match="Unknown broker type"):
             create_broker("unknown")
@@ -119,7 +119,7 @@ class TestFinalCoverage:
     @pytest.mark.asyncio
     async def test_state_machine_step_lifecycle(self):
         """Test step state machine lifecycle"""
-        from sagaz.execution.state_machine import SagaStepStateMachine
+        from sagaz.core.execution.state_machine import SagaStepStateMachine
 
         sm = SagaStepStateMachine(step_name="test_step")
 

@@ -12,10 +12,10 @@ import pytest
 
 from sagaz import Saga, SagaConfig, action
 from sagaz.core.config import configure
-from sagaz.triggers import trigger
-from sagaz.triggers.decorators import TriggerMetadata
-from sagaz.triggers.engine import TriggerEngine
-from sagaz.triggers.registry import TriggerRegistry
+from sagaz.core.triggers import trigger
+from sagaz.core.triggers.decorators import TriggerMetadata
+from sagaz.core.triggers.engine import TriggerEngine
+from sagaz.core.triggers.registry import TriggerRegistry
 
 
 @pytest.fixture(autouse=True)
@@ -27,7 +27,7 @@ def reset_registry():
 
 @pytest.fixture
 def memory_storage():
-    from sagaz.storage import InMemorySagaStorage
+    from sagaz.core.storage import InMemorySagaStorage
 
     storage = InMemorySagaStorage()
     config = SagaConfig(storage=storage)

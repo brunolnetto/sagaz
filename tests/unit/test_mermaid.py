@@ -9,7 +9,7 @@ import pytest
 
 from sagaz import Saga, action, compensate
 from sagaz.core.saga import Saga as ImperativeSaga
-from sagaz.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+from sagaz.observability.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
 
 class TestMermaidGeneratorEdgeCases:
@@ -1016,7 +1016,7 @@ class TestConnectedGraphValidation:
 
 class TestMermaidBranches:
     def _make_diagram(self, steps=None, trail=None, show_state_markers=True):
-        from sagaz.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+        from sagaz.observability.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
         if steps is None:
             steps = []
@@ -1030,7 +1030,7 @@ class TestMermaidBranches:
 
     def test_compensation_chain_only_partial_compensated(self):
         """406: continue when trail present but not both steps compensated (sequential)."""
-        from sagaz.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+        from sagaz.observability.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
         # steps with NO depends_on → sequential path → _add_sequential_compensation_chain
         step1 = StepInfo(name="step1", has_compensation=True, depends_on=set())
@@ -1049,7 +1049,7 @@ class TestMermaidBranches:
     def test_get_compensating_deps_missing_step(self):
         """437: dep_name already in seen → continue (diamond pattern).
         Also covers 442: dep not in _step_map → continue."""
-        from sagaz.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+        from sagaz.observability.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
         # Diamond: step4→{dep1,dep2}, dep1→{common}, dep2→{common}, common has compensation
         # BFS in _get_compensable_ancestors visits 'common' twice → second time hits line 437
@@ -1068,7 +1068,7 @@ class TestMermaidBranches:
 
     def test_get_compensating_deps_dep_not_in_step_map(self):
         """442: dep_step is None (unresolved dep) → continue."""
-        from sagaz.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+        from sagaz.observability.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
         # step1 depends on 'missing_dep' which is not in steps list → dep_step=None → line 442
         step1 = StepInfo(name="step1", has_compensation=True, depends_on={"missing_dep"})
@@ -1082,7 +1082,7 @@ class TestMermaidBranches:
 
     def test_get_compensating_deps_no_compensation(self):
         """442: dep_step has no compensation → continue searching upstream."""
-        from sagaz.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+        from sagaz.observability.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
         step0 = StepInfo(name="step0", has_compensation=False, depends_on=set())
         step1 = StepInfo(name="step1", has_compensation=True, depends_on={"step0"})
@@ -1097,7 +1097,7 @@ class TestMermaidBranches:
 
     def test_style_classes_tainted_steps(self):
         """551, 557, 561, 562->564, 564->566, 567: _apply_zone_classes with tainted pivot."""
-        from sagaz.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+        from sagaz.observability.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
         # pivot+tainted step → _has_pivots=True → _apply_zone_classes called
         # In loop: tainted check first → goes to tainted_steps (not pivot_steps)
@@ -1117,7 +1117,7 @@ class TestMermaidBranches:
 
     def test_is_after_any_pivot_with_pivot_ancestor(self):
         """584, 591-595: _is_after_any_pivot with intermediate ancestor between step and pivot."""
-        from sagaz.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+        from sagaz.observability.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
         # step3 → inter1 → pivot1
         # BFS: checks inter1's dep (pivot1) → lines 591-595 hit
@@ -1135,7 +1135,7 @@ class TestMermaidBranches:
 
     def test_is_after_any_pivot_diamond_deps(self):
         """584: BFS dep already visited → continue (diamond dependencies)."""
-        from sagaz.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+        from sagaz.observability.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
         # step3 → {dep1, dep2}, dep1 → inter, dep2 → inter, inter → pivot1
         # BFS: inter queued twice from dep1 and dep2 → second time hits line 584
@@ -1155,7 +1155,7 @@ class TestMermaidBranches:
 
     def test_is_after_any_pivot_no_pivots(self):
         """572: _is_after_any_pivot returns False immediately when _pivot_steps is empty."""
-        from sagaz.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+        from sagaz.observability.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
         step1 = StepInfo(name="step1", has_compensation=False, depends_on=set())
         diagram = MermaidGenerator(
@@ -1169,7 +1169,7 @@ class TestMermaidBranches:
 
     def test_is_after_any_pivot_unknown_dep_not_in_step_map(self):
         """592->581: dep_step is None (dep not in _step_map) → skip extend, loop back."""
-        from sagaz.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+        from sagaz.observability.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
         # step2 depends on 'ghost' (not in steps), which isn't in _step_map
         # pivot exists so _is_after_any_pivot is called
@@ -1187,7 +1187,7 @@ class TestMermaidBranches:
 
     def test_dag_compensation_chain_trail_but_ancestor_not_compensated(self):
         """389: has_trail=True and ancestor dep not in trail.compensated → continue."""
-        from sagaz.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+        from sagaz.observability.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
         # step2 (with comp) depends on step1 (with comp)
         # trail has step2 compensated but NOT step1 → line 389: continue

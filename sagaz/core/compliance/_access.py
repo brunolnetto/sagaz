@@ -5,7 +5,7 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sagaz.storage.interfaces.snapshot import SnapshotStorage
+    from sagaz.core.storage.interfaces.snapshot import SnapshotStorage
 
 logger = logging.getLogger(__name__)
 

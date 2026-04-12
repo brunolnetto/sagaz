@@ -37,7 +37,7 @@ def publish_on_success(
         ... async def create_order(self, ctx):
         ...     return {"order_id": "ORD-123"}
     """
-    from sagaz.outbox.types import OutboxEvent
+    from sagaz.core.outbox.types import OutboxEvent
 
     async def hook(ctx: dict[str, Any], step_name: str, result: Any):
         # Build payload
@@ -82,7 +82,7 @@ def publish_on_failure(
     Returns:
         Hook function suitable for on_failure parameter
     """
-    from sagaz.outbox.types import OutboxEvent
+    from sagaz.core.outbox.types import OutboxEvent
 
     async def hook(ctx: dict[str, Any], step_name: str, error: Exception):
         payload = {
@@ -127,7 +127,7 @@ def publish_on_compensate(
     Returns:
         Hook function suitable for on_compensate parameter
     """
-    from sagaz.outbox.types import OutboxEvent
+    from sagaz.core.outbox.types import OutboxEvent
 
     async def hook(ctx: dict[str, Any], step_name: str):
         payload = {

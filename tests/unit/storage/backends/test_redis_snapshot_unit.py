@@ -24,7 +24,7 @@ class TestRedisSnapshotStorageImportError:
         """Test that RedisSnapshotStorage raises MissingDependencyError"""
         with patch.dict("sys.modules", {"redis": None, "redis.asyncio": None}):
             with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", False):
-                from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+                from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
                 with pytest.raises(MissingDependencyError, match="redis"):
                     RedisSnapshotStorage(redis_url="redis://localhost")
@@ -33,7 +33,7 @@ class TestRedisSnapshotStorageImportError:
         """Test that compression requirement raises MissingDependencyError"""
         with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
             with patch("sagaz.storage.backends.redis.snapshot.ZSTD_AVAILABLE", False):
-                from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+                from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
                 with pytest.raises(MissingDependencyError, match="zstandard"):
                     RedisSnapshotStorage(redis_url="redis://localhost", enable_compression=True)
@@ -47,7 +47,7 @@ class TestRedisSnapshotStorageUnit:
         """Test Redis snapshot storage initialization"""
         with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
             with patch("sagaz.storage.backends.redis.snapshot.redis"):
-                from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+                from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
                 storage = RedisSnapshotStorage(
                     redis_url="redis://localhost:6379",
@@ -68,7 +68,7 @@ class TestRedisSnapshotStorageUnit:
                 mock_client.ping = AsyncMock(side_effect=Exception("Connection refused"))
                 mock_redis.from_url = MagicMock(return_value=mock_client)
 
-                from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+                from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
                 storage = RedisSnapshotStorage(
                     redis_url="redis://invalid:9999", enable_compression=False
@@ -89,7 +89,7 @@ class TestRedisSnapshotStorageUnit:
                 mock_client.zadd = AsyncMock()
                 mock_redis.from_url = MagicMock(return_value=mock_client)
 
-                from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+                from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
                 storage = RedisSnapshotStorage(
                     redis_url="redis://localhost", enable_compression=False
@@ -143,7 +143,7 @@ class TestRedisSnapshotStorageUnit:
                 mock_client.get = AsyncMock(return_value=json.dumps(snapshot_data).encode("utf-8"))
                 mock_redis.from_url = MagicMock(return_value=mock_client)
 
-                from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+                from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
                 storage = RedisSnapshotStorage(
                     redis_url="redis://localhost", enable_compression=False
@@ -167,7 +167,7 @@ class TestRedisSnapshotStorageUnit:
                 mock_client.get = AsyncMock(return_value=None)
                 mock_redis.from_url = MagicMock(return_value=mock_client)
 
-                from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+                from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
                 storage = RedisSnapshotStorage(
                     redis_url="redis://localhost", enable_compression=False
@@ -204,7 +204,7 @@ class TestRedisSnapshotStorageUnit:
                 mock_client.get = AsyncMock(return_value=json.dumps(snapshot_data).encode("utf-8"))
                 mock_redis.from_url = MagicMock(return_value=mock_client)
 
-                from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+                from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
                 storage = RedisSnapshotStorage(
                     redis_url="redis://localhost", enable_compression=False
@@ -243,7 +243,7 @@ class TestRedisSnapshotStorageUnit:
                 mock_client.zrem = AsyncMock()
                 mock_redis.from_url = MagicMock(return_value=mock_client)
 
-                from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+                from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
                 storage = RedisSnapshotStorage(
                     redis_url="redis://localhost", enable_compression=False
@@ -264,7 +264,7 @@ class TestRedisSnapshotStorageUnit:
                 mock_client.connection_pool.disconnect = AsyncMock()
                 mock_redis.from_url = MagicMock(return_value=mock_client)
 
-                from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+                from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
                 storage = RedisSnapshotStorage(
                     redis_url="redis://localhost", enable_compression=False
@@ -287,7 +287,7 @@ class TestRedisSnapshotStorageUnit:
                 mock_client.connection_pool.disconnect = AsyncMock()
                 mock_redis.from_url = MagicMock(return_value=mock_client)
 
-                from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+                from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
                 async with RedisSnapshotStorage(
                     redis_url="redis://localhost", enable_compression=False
@@ -323,7 +323,7 @@ class TestRedisSnapshotStorageCompression:
                         mock_client.zadd = AsyncMock()
                         mock_redis.from_url = MagicMock(return_value=mock_client)
 
-                        from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+                        from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
                         storage = RedisSnapshotStorage(
                             redis_url="redis://localhost",
@@ -339,7 +339,7 @@ class TestRedisSnapshotStorageCompression:
         """Test snapshot storage without compression"""
         with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
             with patch("sagaz.storage.backends.redis.snapshot.redis"):
-                from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+                from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
                 storage = RedisSnapshotStorage(
                     redis_url="redis://localhost",
@@ -370,7 +370,7 @@ class TestRedisSnapshotStorageAdvanced:
 
                 from sagaz.core.replay import SagaSnapshot
                 from sagaz.core.types import SagaStatus
-                from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+                from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
                 storage = RedisSnapshotStorage(
                     redis_url="redis://localhost", enable_compression=False
@@ -423,7 +423,7 @@ class TestRedisSnapshotStorageAdvanced:
                 mock_client.get = AsyncMock(return_value=json.dumps(snapshot_data).encode("utf-8"))
                 mock_redis.from_url = MagicMock(return_value=mock_client)
 
-                from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+                from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
                 storage = RedisSnapshotStorage(
                     redis_url="redis://localhost", enable_compression=False
@@ -442,7 +442,7 @@ class TestRedisSnapshotStorageAdvanced:
                 mock_client.get = AsyncMock(return_value=None)
                 mock_redis.from_url = MagicMock(return_value=mock_client)
 
-                from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+                from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
                 storage = RedisSnapshotStorage(
                     redis_url="redis://localhost", enable_compression=False
@@ -460,7 +460,7 @@ class TestRedisSnapshotStorageAdvanced:
                 mock_client.ping = AsyncMock()
                 mock_redis.from_url = MagicMock(return_value=mock_client)
 
-                from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+                from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
                 storage = RedisSnapshotStorage(
                     redis_url="redis://localhost", enable_compression=False
@@ -479,7 +479,7 @@ class TestRedisSnapshotStorageAdvanced:
                 mock_client.get = AsyncMock(return_value=None)
                 mock_redis.from_url = MagicMock(return_value=mock_client)
 
-                from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+                from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
                 storage = RedisSnapshotStorage(
                     redis_url="redis://localhost", enable_compression=False
@@ -495,7 +495,7 @@ class TestRedisSnapshotMissingBranches:
     @pytest.mark.asyncio
     async def test_serialize_with_compression(self):
         """Line 119: _serialize uses compressor when enabled."""
-        from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+        from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
         try:
             import zstandard as zstd
@@ -510,7 +510,7 @@ class TestRedisSnapshotMissingBranches:
     @pytest.mark.asyncio
     async def test_deserialize_with_compression(self):
         """Line 126: _deserialize uses decompressor when enabled."""
-        from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+        from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
         try:
             import zstandard as zstd
@@ -527,7 +527,7 @@ class TestRedisSnapshotMissingBranches:
     async def test_close_when_not_connected(self):
         """Line 320->exit: close() is no-op when _redis is None."""
         with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
-            from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+            from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
             storage = RedisSnapshotStorage(redis_url="redis://localhost", enable_compression=False)
             storage._redis = None
@@ -537,7 +537,7 @@ class TestRedisSnapshotMissingBranches:
     async def test_list_snapshots_filters_none(self):
         """Line 231->228: list_snapshots skips None from get_snapshot."""
         with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
-            from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+            from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
             storage = RedisSnapshotStorage(redis_url="redis://localhost", enable_compression=False)
 
@@ -555,7 +555,7 @@ class TestRedisSnapshotMissingBranches:
     async def test_list_replay_logs_filters_none(self):
         """Lines 313->310: list_replays skips None from get_replay_log."""
         with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
-            from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+            from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
             storage = RedisSnapshotStorage(redis_url="redis://localhost", enable_compression=False)
 
@@ -586,7 +586,7 @@ class TestRedisSnapshotBranches:
     @pytest.fixture
     async def storage(self, mock_redis):
         with patch("redis.asyncio.from_url", return_value=mock_redis):
-            from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+            from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
             storage = RedisSnapshotStorage("redis://localhost:6379", enable_compression=False)
             storage._redis = mock_redis
@@ -594,7 +594,7 @@ class TestRedisSnapshotBranches:
 
     async def test_save_snapshot_with_default_ttl(self, storage, mock_redis):
         """150: elif self.default_ttl: True when no retention_until."""
-        from sagaz.storage.interfaces.snapshot import SagaSnapshot
+        from sagaz.core.storage.interfaces.snapshot import SagaSnapshot
 
         storage.default_ttl = 3600  # has default_ttl (not _default_ttl!)
 
@@ -615,7 +615,7 @@ class TestRedisSnapshotBranches:
 
     async def test_save_snapshot_negative_ttl_skips_expire(self, storage, mock_redis):
         """147->153: ttl_seconds <= 0 → skip expire call."""
-        from sagaz.storage.interfaces.snapshot import SagaSnapshot
+        from sagaz.core.storage.interfaces.snapshot import SagaSnapshot
 
         storage.default_ttl = None
 
@@ -636,7 +636,7 @@ class TestRedisSnapshotBranches:
 
     async def test_get_snapshot_before_step_returns_matching(self, storage, mock_redis):
         """195: return snapshot when before_step matches."""
-        from sagaz.storage.interfaces.snapshot import SagaSnapshot
+        from sagaz.core.storage.interfaces.snapshot import SagaSnapshot
 
         saga_id = uuid4()
         snap_id = uuid4()
@@ -655,7 +655,7 @@ class TestRedisSnapshotBranches:
 
     async def test_get_snapshot_at_time_with_result(self, storage, mock_redis):
         """215-216: snapshot_ids not empty → decode and fetch."""
-        from sagaz.storage.interfaces.snapshot import SagaSnapshot
+        from sagaz.core.storage.interfaces.snapshot import SagaSnapshot
 
         saga_id = uuid4()
         snap_id = uuid4()

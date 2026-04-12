@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from sagaz.storage.base import SagaStorage
+    from sagaz.core.storage.base import SagaStorage
 
 
 class _SagaVisualizationMixin:
@@ -36,7 +36,7 @@ class _SagaVisualizationMixin:
         Returns:
             Mermaid diagram string that can be rendered in markdown.
         """
-        from sagaz.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+        from sagaz.observability.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
         # Convert steps to StepInfo format
         steps = [

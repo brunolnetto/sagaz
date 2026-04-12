@@ -11,7 +11,7 @@ from uuid import UUID
 
 import pytest
 
-from sagaz.storage.core import (
+from sagaz.core.storage.core import (
     BaseStorage,
     ConnectionConfig,
     ConnectionManager,
@@ -554,7 +554,7 @@ class TestSerializationMissingBranches:
         """Line 57: StorageEncoder.default() calls super().default() for unknown types."""
         import json
 
-        from sagaz.storage.core.serialization import StorageEncoder
+        from sagaz.core.storage.core.serialization import StorageEncoder
 
         encoder = StorageEncoder()
         with pytest.raises((TypeError, ValueError)):
@@ -562,7 +562,7 @@ class TestSerializationMissingBranches:
 
     def test_storage_decoder_missing_value_key(self):
         """Line 72: storage_decoder returns obj when __type__ present but value absent."""
-        from sagaz.storage.core.serialization import storage_decoder
+        from sagaz.core.storage.core.serialization import storage_decoder
 
         obj = {"__type__": "frozenset"}  # no "value" key
         result = storage_decoder(obj)
@@ -570,8 +570,8 @@ class TestSerializationMissingBranches:
 
     def test_serialize_storage_data_raises_on_circular(self):
         """Lines 113-114: serialize() raises SerializationError on failure."""
-        from sagaz.storage.core.errors import SerializationError
-        from sagaz.storage.core.serialization import serialize
+        from sagaz.core.storage.core.errors import SerializationError
+        from sagaz.core.storage.core.serialization import serialize
 
         circular = {}
         circular["self"] = circular  # type: ignore[assignment]

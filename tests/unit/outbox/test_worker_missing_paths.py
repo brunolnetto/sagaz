@@ -17,7 +17,7 @@ class TestSetupSignalHandlersWindows:
     @pytest.mark.asyncio
     async def test_signal_handler_not_implemented_is_ignored(self):
         """Lines 113-115: Windows raises NotImplementedError – should pass silently."""
-        from sagaz.outbox.worker import OutboxWorker
+        from sagaz.core.outbox.worker import OutboxWorker
 
         storage = AsyncMock()
         broker = AsyncMock()
@@ -40,7 +40,7 @@ class TestProcessIterationCancelledError:
     @pytest.mark.asyncio
     async def test_cancelled_error_breaks_loop(self):
         """Lines 210-211: CancelledError caught → returns True to break loop."""
-        from sagaz.outbox.worker import OutboxWorker
+        from sagaz.core.outbox.worker import OutboxWorker
 
         storage = AsyncMock()
         broker = AsyncMock()
@@ -61,7 +61,7 @@ class TestWaitForNextPoll:
     @pytest.mark.asyncio
     async def test_wait_for_next_poll_triggers_on_shutdown(self):
         """Line 218: _wait_for_next_poll returns when shutdown event is set."""
-        from sagaz.outbox.worker import OutboxConfig, OutboxWorker
+        from sagaz.core.outbox.worker import OutboxConfig, OutboxWorker
 
         storage = AsyncMock()
         broker = AsyncMock()
@@ -77,7 +77,7 @@ class TestWaitForNextPoll:
     @pytest.mark.asyncio
     async def test_wait_for_next_poll_times_out(self):
         """Line 218: _wait_for_next_poll times out after poll_interval."""
-        from sagaz.outbox.worker import OutboxConfig, OutboxWorker
+        from sagaz.core.outbox.worker import OutboxConfig, OutboxWorker
 
         storage = AsyncMock()
         broker = AsyncMock()
@@ -95,7 +95,7 @@ class TestStopMethod:
     @pytest.mark.asyncio
     async def test_stop_sets_running_false_and_fires_event(self):
         """Lines 228-229: stop() updates state."""
-        from sagaz.outbox.worker import OutboxWorker
+        from sagaz.core.outbox.worker import OutboxWorker
 
         storage = AsyncMock()
         broker = AsyncMock()
@@ -114,7 +114,7 @@ class TestHandleShutdown:
     @pytest.mark.asyncio
     async def test_handle_shutdown_creates_stop_task(self):
         """Lines 237-243: _handle_shutdown() creates asyncio task."""
-        from sagaz.outbox.worker import OutboxWorker
+        from sagaz.core.outbox.worker import OutboxWorker
 
         storage = AsyncMock()
         broker = AsyncMock()
@@ -138,8 +138,8 @@ class TestProcessBatchPrometheusEnabled:
     @pytest.mark.asyncio
     async def test_process_batch_with_prometheus_records_metrics(self):
         """Line 295: When PROMETHEUS_AVAILABLE=True, metrics recorded."""
-        from sagaz.outbox.types import OutboxConfig, OutboxEvent, OutboxStatus
-        from sagaz.outbox.worker import OutboxWorker
+        from sagaz.core.outbox.types import OutboxConfig, OutboxEvent, OutboxStatus
+        from sagaz.core.outbox.worker import OutboxWorker
 
         storage = AsyncMock()
         broker = AsyncMock()
@@ -165,7 +165,7 @@ class TestProcessBatchPrometheusEnabled:
         worker = OutboxWorker(storage=storage, broker=broker, config=config)
 
         # Ensure PROMETHEUS_AVAILABLE is True (likely already is in test env)
-        import sagaz.outbox.worker as worker_mod
+        import sagaz.core.outbox.worker as worker_mod
 
         with patch.object(worker_mod, "PROMETHEUS_AVAILABLE", True):
             processed = await worker.process_batch()
@@ -179,7 +179,7 @@ class TestRecoverStuckEvents:
     @pytest.mark.asyncio
     async def test_recover_stuck_events_returns_count(self):
         """Line 383: recover_stuck_events calls storage.release_stuck_events."""
-        from sagaz.outbox.worker import OutboxWorker
+        from sagaz.core.outbox.worker import OutboxWorker
 
         storage = AsyncMock()
         broker = AsyncMock()
@@ -194,7 +194,7 @@ class TestRecoverStuckEvents:
     @pytest.mark.asyncio
     async def test_recover_stuck_events_zero_count_no_log(self):
         """Line 383: recover_stuck_events when nothing was stuck."""
-        from sagaz.outbox.worker import OutboxWorker
+        from sagaz.core.outbox.worker import OutboxWorker
 
         storage = AsyncMock()
         broker = AsyncMock()
@@ -213,7 +213,7 @@ class TestWorkerPrometheusBranches:
     @pytest.mark.asyncio
     async def test_run_loop_breaks_on_cancelled_error(self):
         """Line 218: _run_processing_loop breaks when _process_iteration returns True."""
-        from sagaz.outbox.worker import OutboxWorker
+        from sagaz.core.outbox.worker import OutboxWorker
 
         storage = AsyncMock()
         broker = AsyncMock()
@@ -233,7 +233,7 @@ class TestWorkerPrometheusBranches:
         """Lines 228-229: exception ignored when get_pending_count raises."""
         from unittest.mock import patch
 
-        from sagaz.outbox.worker import OutboxWorker
+        from sagaz.core.outbox.worker import OutboxWorker
 
         storage = AsyncMock()
         broker = AsyncMock()
@@ -254,7 +254,7 @@ class TestWorkerPrometheusBranches:
         """Lines 224->231: PROMETHEUS_AVAILABLE=False skips pending count block."""
         from unittest.mock import patch
 
-        from sagaz.outbox.worker import OutboxWorker
+        from sagaz.core.outbox.worker import OutboxWorker
 
         storage = AsyncMock()
         broker = AsyncMock()
@@ -270,7 +270,7 @@ class TestWorkerPrometheusBranches:
         """Lines 240-243: generic exception increments sleep and returns False."""
         from unittest.mock import patch
 
-        from sagaz.outbox.worker import OutboxWorker
+        from sagaz.core.outbox.worker import OutboxWorker
 
         storage = AsyncMock()
         broker = AsyncMock()
@@ -289,8 +289,8 @@ class TestWorkerPrometheusBranches:
         """Line 295: logger.error when gather returns Exception for an event."""
         from unittest.mock import patch
 
-        from sagaz.outbox.types import OutboxEvent, OutboxStatus
-        from sagaz.outbox.worker import OutboxConfig, OutboxWorker
+        from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
+        from sagaz.core.outbox.worker import OutboxConfig, OutboxWorker
 
         storage = AsyncMock()
         broker = AsyncMock()
@@ -314,8 +314,8 @@ class TestWorkerPrometheusBranches:
         """Lines 283->288 and 300->304: PROMETHEUS_AVAILABLE=False in process_batch."""
         from unittest.mock import patch
 
-        from sagaz.outbox.types import OutboxEvent
-        from sagaz.outbox.worker import OutboxWorker
+        from sagaz.core.outbox.types import OutboxEvent
+        from sagaz.core.outbox.worker import OutboxWorker
 
         storage = AsyncMock()
         broker = AsyncMock()
@@ -334,8 +334,8 @@ class TestWorkerPrometheusBranches:
         """Lines 329->338: on_event_published callback called when set."""
         from unittest.mock import patch
 
-        from sagaz.outbox.types import OutboxEvent
-        from sagaz.outbox.worker import OutboxWorker
+        from sagaz.core.outbox.types import OutboxEvent
+        from sagaz.core.outbox.worker import OutboxWorker
 
         published_events = []
 
@@ -358,8 +358,8 @@ class TestWorkerPrometheusBranches:
         """Lines 378->382, 383: on_event_failed callback + no prometheus."""
         from unittest.mock import patch
 
-        from sagaz.outbox.types import OutboxEvent
-        from sagaz.outbox.worker import OutboxConfig, OutboxWorker
+        from sagaz.core.outbox.types import OutboxEvent
+        from sagaz.core.outbox.worker import OutboxConfig, OutboxWorker
 
         failed_events = []
 
@@ -385,8 +385,8 @@ class TestWorkerPrometheusBranches:
         """Lines 410->414: PROMETHEUS_AVAILABLE=False in _move_to_dead_letter."""
         from unittest.mock import patch
 
-        from sagaz.outbox.types import OutboxEvent
-        from sagaz.outbox.worker import OutboxWorker
+        from sagaz.core.outbox.types import OutboxEvent
+        from sagaz.core.outbox.worker import OutboxWorker
 
         storage = AsyncMock()
         broker = AsyncMock()

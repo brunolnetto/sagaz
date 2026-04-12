@@ -4,7 +4,7 @@ Tests for the compensation graph module.
 
 import pytest
 
-from sagaz.execution.graph import (
+from sagaz.core.execution.graph import (
     CircularDependencyError,
     CompensationFailureStrategy,
     CompensationNode,
@@ -785,7 +785,7 @@ class TestGraphMissingBranches:
 
     def test_compensation_context_get_result(self):
         """Line 108: SagaCompensationContext.get_result returns stored result."""
-        from sagaz.execution.graph import SagaCompensationContext
+        from sagaz.core.execution.graph import SagaCompensationContext
 
         ctx = SagaCompensationContext(saga_id="saga-1", step_id="s1", original_context={})
         ctx.set_result("s1", "my_result")
@@ -794,7 +794,7 @@ class TestGraphMissingBranches:
 
     def test_compensation_context_to_dict(self):
         """Line 116: SagaCompensationContext.to_dict converts fields."""
-        from sagaz.execution.graph import SagaCompensationContext
+        from sagaz.core.execution.graph import SagaCompensationContext
 
         ctx = SagaCompensationContext(
             saga_id="saga-1",
@@ -810,7 +810,7 @@ class TestGraphMissingBranches:
         """Lines 128-129: SagaCompensationContext.from_dict restores fields."""
         from datetime import UTC, datetime
 
-        from sagaz.execution.graph import SagaCompensationContext
+        from sagaz.core.execution.graph import SagaCompensationContext
 
         data = {
             "saga_id": "saga-1",
@@ -825,7 +825,7 @@ class TestGraphMissingBranches:
 
     def test_compensation_context_from_dict_no_created_at(self):
         """Line 129: from_dict uses datetime.now when created_at is missing."""
-        from sagaz.execution.graph import SagaCompensationContext
+        from sagaz.core.execution.graph import SagaCompensationContext
 
         data = {"saga_id": "saga-1", "step_id": "s1", "original_context": {}}
         ctx = SagaCompensationContext.from_dict(data)
@@ -833,7 +833,7 @@ class TestGraphMissingBranches:
 
     def test_accepts_compensation_context_with_self_param(self):
         """Line 205: _detect_compensation_signature strips 'self' param."""
-        from sagaz.execution.graph import _detect_compensation_signature
+        from sagaz.core.execution.graph import _detect_compensation_signature
 
         class FakeSaga:
             def my_comp(self, ctx, comp_results=None):
@@ -851,7 +851,7 @@ class TestGraphMissingBranches:
 
     def test_dfs_visited_returns_none(self):
         """Line 432: nested DFS node already visited returns None (diamond graph)."""
-        from sagaz.execution.graph import SagaExecutionGraph
+        from sagaz.core.execution.graph import SagaExecutionGraph
 
         graph = SagaExecutionGraph()
         # Diamond: b->a, c->a (both depend on a, no cycle)
@@ -863,7 +863,7 @@ class TestGraphMissingBranches:
 
     def test_find_cycle_dep_not_in_nodes_skips(self):
         """Line 438->437: _find_cycle skips dep when dep not in nodes."""
-        from sagaz.execution.graph import SagaExecutionGraph
+        from sagaz.core.execution.graph import SagaExecutionGraph
 
         graph = SagaExecutionGraph()
         # "b" depends on "external" which is NOT in nodes
@@ -875,7 +875,7 @@ class TestGraphMissingBranches:
     @pytest.mark.asyncio
     async def test_execute_compensation_node_not_found_returns_none(self):
         """Line 688: _execute_single_compensation returns None for missing node."""
-        from sagaz.execution.graph import (
+        from sagaz.core.execution.graph import (
             CompensationFailureStrategy,
             SagaCompensationContext,
             SagaExecutionGraph,
@@ -891,7 +891,7 @@ class TestGraphMissingBranches:
     @pytest.mark.asyncio
     async def test_execute_compensation_max_retries_reraises(self):
         """Lines 734-736: after max retries, last_error is re-raised."""
-        from sagaz.execution.graph import SagaExecutionGraph
+        from sagaz.core.execution.graph import SagaExecutionGraph
 
         async def failing_comp(ctx):
             msg = "always fails"
@@ -906,7 +906,7 @@ class TestGraphMissingBranches:
 
     def test_should_skip_step_node_not_found(self):
         """Line 760: _should_skip_step returns False when node not found."""
-        from sagaz.execution.graph import CompensationFailureStrategy, SagaExecutionGraph
+        from sagaz.core.execution.graph import CompensationFailureStrategy, SagaExecutionGraph
 
         graph = SagaExecutionGraph()
         result = graph._should_skip_step(
@@ -917,7 +917,7 @@ class TestGraphMissingBranches:
     @pytest.mark.asyncio
     async def test_prepare_context_returns_non_dict_context_unchanged(self):
         """Line 546: _ensure_compensation_context returns context if not dict."""
-        from sagaz.execution.graph import SagaCompensationContext, SagaExecutionGraph
+        from sagaz.core.execution.graph import SagaCompensationContext, SagaExecutionGraph
 
         ctx = SagaCompensationContext(saga_id="s", step_id="x", original_context={})
         graph = SagaExecutionGraph()

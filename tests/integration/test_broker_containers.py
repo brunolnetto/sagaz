@@ -25,7 +25,7 @@ class TestKafkaBrokerIntegration:
     @pytest.mark.asyncio
     async def test_kafka_full_lifecycle(self, kafka_container):
         """Test complete Kafka broker lifecycle: connect, publish, health_check, close."""
-        from sagaz.outbox.brokers.kafka import (
+        from sagaz.core.outbox.brokers.kafka import (
             KAFKA_AVAILABLE,
             KafkaBroker,
             KafkaBrokerConfig,
@@ -83,8 +83,8 @@ class TestKafkaBrokerIntegration:
     @pytest.mark.asyncio
     async def test_kafka_publish_without_connection(self):
         """Test that publish raises error when not connected."""
-        from sagaz.outbox.brokers.base import BrokerConnectionError
-        from sagaz.outbox.brokers.kafka import KAFKA_AVAILABLE, KafkaBroker
+        from sagaz.core.outbox.brokers.base import BrokerConnectionError
+        from sagaz.core.outbox.brokers.kafka import KAFKA_AVAILABLE, KafkaBroker
 
         if not KAFKA_AVAILABLE:
             pytest.skip("aiokafka not installed")
@@ -97,7 +97,7 @@ class TestKafkaBrokerIntegration:
     @pytest.mark.asyncio
     async def test_kafka_health_check_not_connected(self):
         """Test health check returns False when not connected."""
-        from sagaz.outbox.brokers.kafka import KAFKA_AVAILABLE, KafkaBroker
+        from sagaz.core.outbox.brokers.kafka import KAFKA_AVAILABLE, KafkaBroker
 
         if not KAFKA_AVAILABLE:
             pytest.skip("aiokafka not installed")
@@ -123,7 +123,7 @@ class TestRabbitMQBrokerIntegration:
     @pytest.mark.asyncio
     async def test_rabbitmq_full_lifecycle(self, rabbitmq_container):
         """Test complete RabbitMQ broker lifecycle: connect, publish, health_check, close."""
-        from sagaz.outbox.brokers.rabbitmq import (
+        from sagaz.core.outbox.brokers.rabbitmq import (
             RABBITMQ_AVAILABLE,
             RabbitMQBroker,
             RabbitMQBrokerConfig,
@@ -186,8 +186,8 @@ class TestRabbitMQBrokerIntegration:
     @pytest.mark.asyncio
     async def test_rabbitmq_publish_without_connection(self):
         """Test that publish raises error when not connected."""
-        from sagaz.outbox.brokers.base import BrokerConnectionError
-        from sagaz.outbox.brokers.rabbitmq import RABBITMQ_AVAILABLE, RabbitMQBroker
+        from sagaz.core.outbox.brokers.base import BrokerConnectionError
+        from sagaz.core.outbox.brokers.rabbitmq import RABBITMQ_AVAILABLE, RabbitMQBroker
 
         if not RABBITMQ_AVAILABLE:
             pytest.skip("aio-pika not installed")
@@ -200,7 +200,7 @@ class TestRabbitMQBrokerIntegration:
     @pytest.mark.asyncio
     async def test_rabbitmq_health_check_not_connected(self):
         """Test health check returns False when not connected."""
-        from sagaz.outbox.brokers.rabbitmq import RABBITMQ_AVAILABLE, RabbitMQBroker
+        from sagaz.core.outbox.brokers.rabbitmq import RABBITMQ_AVAILABLE, RabbitMQBroker
 
         if not RABBITMQ_AVAILABLE:
             pytest.skip("aio-pika not installed")
@@ -212,7 +212,7 @@ class TestRabbitMQBrokerIntegration:
     @pytest.mark.asyncio
     async def test_rabbitmq_from_env(self, monkeypatch):
         """Test creating RabbitMQ broker from environment variables."""
-        from sagaz.outbox.brokers.rabbitmq import RABBITMQ_AVAILABLE, RabbitMQBroker
+        from sagaz.core.outbox.brokers.rabbitmq import RABBITMQ_AVAILABLE, RabbitMQBroker
 
         if not RABBITMQ_AVAILABLE:
             pytest.skip("aio-pika not installed")

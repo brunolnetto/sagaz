@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sagaz.storage.manager import StorageManager, create_storage_manager
+from sagaz.core.storage.manager import StorageManager, create_storage_manager
 
 # Need to handle potential re-imports or module state if modules already loaded
 # But since we are patching sys.modules, subsequent imports should see the mock

@@ -228,7 +228,7 @@ def sagaz_webhook_view(request, source: str):
     _webhook_tracking[correlation_id] = {"status": "queued", "saga_ids": [], "source": source}
 
     def process_in_thread():
-        from sagaz.triggers import fire_event
+        from sagaz.core.triggers import fire_event
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -273,7 +273,7 @@ def _validate_idempotency_requirements(source: str, payload: dict) -> tuple[bool
     """
     try:
         from sagaz.core.exceptions import IdempotencyKeyMissingInPayloadError
-        from sagaz.triggers.registry import TriggerRegistry
+        from sagaz.core.triggers.registry import TriggerRegistry
 
         triggers = TriggerRegistry.get_triggers(source)
         for trigger in triggers:

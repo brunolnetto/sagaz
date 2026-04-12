@@ -8,7 +8,7 @@ import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sagaz.outbox.brokers.base import BaseBroker
+    from sagaz.core.outbox.brokers.base import BaseBroker
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +71,7 @@ class BrokerConfigManager:
         conn = broker_data.get("connection", {})
 
         if b_type == "kafka":
-            from sagaz.outbox.brokers.kafka import KafkaBroker, KafkaBrokerConfig
+            from sagaz.core.outbox.brokers.kafka import KafkaBroker, KafkaBrokerConfig
 
             host = conn.get("host", "localhost")
             port = conn.get("port", 9092)
@@ -79,7 +79,7 @@ class BrokerConfigManager:
             return KafkaBroker(kafka_config)
 
         if b_type == "redis":
-            from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+            from sagaz.core.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
 
             host = conn.get("host", "localhost")
             port = conn.get("port", 6379)
@@ -87,7 +87,7 @@ class BrokerConfigManager:
             return RedisBroker(redis_config)
 
         if b_type in ("rabbitmq", "amqp"):
-            from sagaz.outbox.brokers.rabbitmq import (
+            from sagaz.core.outbox.brokers.rabbitmq import (
                 RabbitMQBroker,
                 RabbitMQBrokerConfig,
             )
@@ -116,19 +116,19 @@ class BrokerConfigManager:
             ValueError: If URL scheme is unknown
         """
         if url.startswith("kafka://"):
-            from sagaz.outbox.brokers.kafka import KafkaBroker, KafkaBrokerConfig
+            from sagaz.core.outbox.brokers.kafka import KafkaBroker, KafkaBrokerConfig
 
             # Extract bootstrap servers from URL
             servers = url.replace("kafka://", "")
             kafka_config = KafkaBrokerConfig(bootstrap_servers=servers)
             return KafkaBroker(kafka_config)
         if url.startswith("redis://"):
-            from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+            from sagaz.core.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
 
             redis_config = RedisBrokerConfig(url=url)
             return RedisBroker(redis_config)
         if url.startswith(("amqp://", "rabbitmq://")):
-            from sagaz.outbox.brokers.rabbitmq import (
+            from sagaz.core.outbox.brokers.rabbitmq import (
                 RabbitMQBroker,
                 RabbitMQBrokerConfig,
             )
@@ -138,7 +138,7 @@ class BrokerConfigManager:
             )
             return RabbitMQBroker(rmq_config)
         if url == "memory://" or url == "":
-            from sagaz.outbox.brokers.memory import InMemoryBroker
+            from sagaz.core.outbox.brokers.memory import InMemoryBroker
 
             return InMemoryBroker()
         msg = f"Unknown broker URL scheme: {url}"

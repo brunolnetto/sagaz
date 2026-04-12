@@ -23,7 +23,7 @@ from typing import Any
 
 from sagaz import Saga, SagaContext, action, compensate, forward_recovery
 from sagaz.core.exceptions import SagaStepError
-from sagaz.execution.pivot import RecoveryAction
+from sagaz.core.execution.pivot import RecoveryAction
 
 logging.basicConfig(
     level=logging.INFO,

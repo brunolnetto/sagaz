@@ -20,7 +20,7 @@ import pytest
 class TestBrokerFactory:
     def test_get_available_brokers_returns_list(self):
         """Test get_available_brokers returns at least memory"""
-        from sagaz.outbox.brokers.factory import get_available_brokers
+        from sagaz.core.outbox.brokers.factory import get_available_brokers
 
         available = get_available_brokers()
 
@@ -29,7 +29,7 @@ class TestBrokerFactory:
 
     def test_print_available_brokers_output(self, capsys):
         """Test print_available_brokers produces output"""
-        from sagaz.outbox.brokers.factory import print_available_brokers
+        from sagaz.core.outbox.brokers.factory import print_available_brokers
 
         print_available_brokers()
 
@@ -39,8 +39,8 @@ class TestBrokerFactory:
 
     def test_create_broker_memory(self):
         """Test creating memory broker"""
-        from sagaz.outbox.brokers.factory import create_broker
-        from sagaz.outbox.brokers.memory import InMemoryBroker
+        from sagaz.core.outbox.brokers.factory import create_broker
+        from sagaz.core.outbox.brokers.memory import InMemoryBroker
 
         broker = create_broker("memory")
 
@@ -48,8 +48,8 @@ class TestBrokerFactory:
 
     def test_create_broker_memory_uppercase(self):
         """Test creating memory broker with uppercase"""
-        from sagaz.outbox.brokers.factory import create_broker
-        from sagaz.outbox.brokers.memory import InMemoryBroker
+        from sagaz.core.outbox.brokers.factory import create_broker
+        from sagaz.core.outbox.brokers.memory import InMemoryBroker
 
         broker = create_broker("MEMORY")
 
@@ -57,8 +57,8 @@ class TestBrokerFactory:
 
     def test_create_broker_memory_whitespace(self):
         """Test creating memory broker with whitespace"""
-        from sagaz.outbox.brokers.factory import create_broker
-        from sagaz.outbox.brokers.memory import InMemoryBroker
+        from sagaz.core.outbox.brokers.factory import create_broker
+        from sagaz.core.outbox.brokers.memory import InMemoryBroker
 
         broker = create_broker("  memory  ")
 
@@ -66,7 +66,7 @@ class TestBrokerFactory:
 
     def test_create_broker_unknown_type(self):
         """Test creating broker with unknown type raises ValueError"""
-        from sagaz.outbox.brokers.factory import create_broker
+        from sagaz.core.outbox.brokers.factory import create_broker
 
         with pytest.raises(ValueError) as exc_info:
             create_broker("unknown_broker")
@@ -80,7 +80,7 @@ class TestBrokerFactory:
             patch("sagaz.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
             patch("sagaz.outbox.brokers.kafka.AIOKafkaProducer"),
         ):
-            from sagaz.outbox.brokers.factory import create_broker
+            from sagaz.core.outbox.brokers.factory import create_broker
 
             broker = create_broker("kafka")
             assert broker is not None
@@ -91,7 +91,7 @@ class TestBrokerFactory:
             patch("sagaz.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
             patch("sagaz.outbox.brokers.kafka.AIOKafkaProducer"),
         ):
-            from sagaz.outbox.brokers.factory import create_broker
+            from sagaz.core.outbox.brokers.factory import create_broker
 
             broker = create_broker(
                 "kafka", bootstrap_servers="localhost:9092", client_id="test-client"
@@ -104,7 +104,7 @@ class TestBrokerFactory:
             patch("sagaz.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
             patch("sagaz.outbox.brokers.rabbitmq.aio_pika"),
         ):
-            from sagaz.outbox.brokers.factory import create_broker
+            from sagaz.core.outbox.brokers.factory import create_broker
 
             broker = create_broker("rabbitmq")
             assert broker is not None
@@ -115,7 +115,7 @@ class TestBrokerFactory:
             patch("sagaz.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
             patch("sagaz.outbox.brokers.rabbitmq.aio_pika"),
         ):
-            from sagaz.outbox.brokers.factory import create_broker
+            from sagaz.core.outbox.brokers.factory import create_broker
 
             # Test 'rabbit' alias
             broker1 = create_broker("rabbit")
@@ -127,8 +127,8 @@ class TestBrokerFactory:
 
     def test_create_broker_from_env_memory(self, monkeypatch):
         """Test create_broker_from_env with memory"""
-        from sagaz.outbox.brokers.factory import create_broker_from_env
-        from sagaz.outbox.brokers.memory import InMemoryBroker
+        from sagaz.core.outbox.brokers.factory import create_broker_from_env
+        from sagaz.core.outbox.brokers.memory import InMemoryBroker
 
         monkeypatch.setenv("BROKER_TYPE", "memory")
 
@@ -138,8 +138,8 @@ class TestBrokerFactory:
 
     def test_create_broker_from_env_default(self, monkeypatch):
         """Test create_broker_from_env defaults to memory"""
-        from sagaz.outbox.brokers.factory import create_broker_from_env
-        from sagaz.outbox.brokers.memory import InMemoryBroker
+        from sagaz.core.outbox.brokers.factory import create_broker_from_env
+        from sagaz.core.outbox.brokers.memory import InMemoryBroker
 
         # Remove env var if set
         monkeypatch.delenv("BROKER_TYPE", raising=False)
@@ -150,7 +150,7 @@ class TestBrokerFactory:
 
     def test_create_broker_from_env_unknown(self, monkeypatch):
         """Test create_broker_from_env with unknown type raises ValueError"""
-        from sagaz.outbox.brokers.factory import create_broker_from_env
+        from sagaz.core.outbox.brokers.factory import create_broker_from_env
 
         monkeypatch.setenv("BROKER_TYPE", "unknown_type")
 
@@ -169,7 +169,7 @@ class TestSagaStateMachine:
     @pytest.mark.asyncio
     async def test_state_machine_with_saga_with_steps(self):
         """Test state machine has_steps guard with saga that has steps"""
-        from sagaz.execution.state_machine import SagaStateMachine
+        from sagaz.core.execution.state_machine import SagaStateMachine
 
         # Mock saga with steps
         mock_saga = Mock()
@@ -183,7 +183,7 @@ class TestSagaStateMachine:
     @pytest.mark.asyncio
     async def test_state_machine_with_saga_no_steps(self):
         """Test state machine has_steps guard with saga without steps"""
-        from sagaz.execution.state_machine import SagaStateMachine
+        from sagaz.core.execution.state_machine import SagaStateMachine
 
         # Mock saga without steps
         mock_saga = Mock()
@@ -197,7 +197,7 @@ class TestSagaStateMachine:
     @pytest.mark.asyncio
     async def test_state_machine_has_completed_steps_true(self):
         """Test has_completed_steps guard returns True when steps completed"""
-        from sagaz.execution.state_machine import SagaStateMachine
+        from sagaz.core.execution.state_machine import SagaStateMachine
 
         mock_saga = Mock()
         mock_saga.steps = [Mock()]
@@ -210,7 +210,7 @@ class TestSagaStateMachine:
     @pytest.mark.asyncio
     async def test_state_machine_has_completed_steps_false(self):
         """Test has_completed_steps guard returns False when no steps completed"""
-        from sagaz.execution.state_machine import SagaStateMachine
+        from sagaz.core.execution.state_machine import SagaStateMachine
 
         mock_saga = Mock()
         mock_saga.steps = [Mock()]
@@ -223,7 +223,7 @@ class TestSagaStateMachine:
     @pytest.mark.asyncio
     async def test_state_machine_callbacks_with_saga(self):
         """Test state machine callbacks invoke saga methods"""
-        from sagaz.execution.state_machine import SagaStateMachine
+        from sagaz.core.execution.state_machine import SagaStateMachine
 
         # Mock saga with callback methods
         mock_saga = Mock()
@@ -245,7 +245,7 @@ class TestSagaStateMachine:
     @pytest.mark.asyncio
     async def test_state_machine_callback_saga_without_method(self):
         """Test state machine handles saga without callback methods gracefully"""
-        from sagaz.execution.state_machine import SagaStateMachine
+        from sagaz.core.execution.state_machine import SagaStateMachine
 
         # Mock saga without callback methods - use spec to strictly control attributes
         mock_saga = Mock(spec=["steps", "completed_steps"])
@@ -261,7 +261,7 @@ class TestSagaStateMachine:
 
     def test_validate_state_transition_valid(self):
         """Test validate_state_transition with valid transitions"""
-        from sagaz.execution.state_machine import validate_state_transition
+        from sagaz.core.execution.state_machine import validate_state_transition
 
         assert validate_state_transition("Pending", "Executing") is True
         assert validate_state_transition("Executing", "Completed") is True
@@ -272,7 +272,7 @@ class TestSagaStateMachine:
 
     def test_validate_state_transition_invalid(self):
         """Test validate_state_transition with invalid transitions"""
-        from sagaz.execution.state_machine import validate_state_transition
+        from sagaz.core.execution.state_machine import validate_state_transition
 
         assert validate_state_transition("Pending", "Completed") is False
         assert validate_state_transition("Completed", "Executing") is False
@@ -281,7 +281,7 @@ class TestSagaStateMachine:
 
     def test_get_valid_next_states(self):
         """Test get_valid_next_states returns correct states"""
-        from sagaz.execution.state_machine import get_valid_next_states
+        from sagaz.core.execution.state_machine import get_valid_next_states
 
         assert get_valid_next_states("Pending") == ["Executing"]
         assert set(get_valid_next_states("Executing")) == {"Completed", "Compensating", "Failed"}
@@ -292,7 +292,7 @@ class TestSagaStateMachine:
 
     def test_get_valid_next_states_unknown(self):
         """Test get_valid_next_states with unknown state"""
-        from sagaz.execution.state_machine import get_valid_next_states
+        from sagaz.core.execution.state_machine import get_valid_next_states
 
         assert get_valid_next_states("Unknown") == []
 
@@ -301,7 +301,7 @@ class TestSagaStepStateMachine:
     @pytest.mark.asyncio
     async def test_step_state_machine_initialization(self):
         """Test step state machine initializes correctly"""
-        from sagaz.execution.state_machine import SagaStepStateMachine
+        from sagaz.core.execution.state_machine import SagaStepStateMachine
 
         sm = SagaStepStateMachine(step_name="test_step")
         await sm.activate_initial_state()
@@ -312,7 +312,7 @@ class TestSagaStepStateMachine:
     @pytest.mark.asyncio
     async def test_step_state_machine_full_success_path(self):
         """Test step state machine through success path"""
-        from sagaz.execution.state_machine import SagaStepStateMachine
+        from sagaz.core.execution.state_machine import SagaStepStateMachine
 
         sm = SagaStepStateMachine(step_name="payment")
         await sm.activate_initial_state()
@@ -326,7 +326,7 @@ class TestSagaStepStateMachine:
     @pytest.mark.asyncio
     async def test_step_state_machine_failure_path(self):
         """Test step state machine through failure path"""
-        from sagaz.execution.state_machine import SagaStepStateMachine
+        from sagaz.core.execution.state_machine import SagaStepStateMachine
 
         sm = SagaStepStateMachine(step_name="failing_step")
         await sm.activate_initial_state()
@@ -339,7 +339,7 @@ class TestSagaStepStateMachine:
     @pytest.mark.asyncio
     async def test_step_state_machine_compensation_path(self):
         """Test step state machine through compensation path"""
-        from sagaz.execution.state_machine import SagaStepStateMachine
+        from sagaz.core.execution.state_machine import SagaStepStateMachine
 
         sm = SagaStepStateMachine(step_name="compensated_step")
         await sm.activate_initial_state()
@@ -356,7 +356,7 @@ class TestSagaStepStateMachine:
     @pytest.mark.asyncio
     async def test_step_state_machine_compensation_failure(self):
         """Test step compensation failure transitions to failed"""
-        from sagaz.execution.state_machine import SagaStepStateMachine
+        from sagaz.core.execution.state_machine import SagaStepStateMachine
 
         sm = SagaStepStateMachine(step_name="comp_fail_step")
         await sm.activate_initial_state()
@@ -377,7 +377,7 @@ class TestSagaStepStateMachine:
 class TestOutboxTypes:
     def test_outbox_config_defaults(self):
         """Test OutboxConfig has sensible defaults"""
-        from sagaz.outbox.types import OutboxConfig
+        from sagaz.core.outbox.types import OutboxConfig
 
         config = OutboxConfig()
 
@@ -387,7 +387,7 @@ class TestOutboxTypes:
 
     def test_outbox_config_custom_values(self):
         """Test OutboxConfig with custom values"""
-        from sagaz.outbox.types import OutboxConfig
+        from sagaz.core.outbox.types import OutboxConfig
 
         config = OutboxConfig(batch_size=50, poll_interval_seconds=2.5, max_retries=5)
 
@@ -397,7 +397,7 @@ class TestOutboxTypes:
 
     def test_outbox_config_from_env(self, monkeypatch):
         """Test OutboxConfig.from_env reads environment"""
-        from sagaz.outbox.types import OutboxConfig
+        from sagaz.core.outbox.types import OutboxConfig
 
         monkeypatch.setenv("OUTBOX_BATCH_SIZE", "200")
         monkeypatch.setenv("OUTBOX_MAX_RETRIES", "15")
@@ -409,7 +409,7 @@ class TestOutboxTypes:
 
     def test_outbox_event_to_dict(self):
         """Test OutboxEvent to_dict method"""
-        from sagaz.outbox.types import OutboxEvent
+        from sagaz.core.outbox.types import OutboxEvent
 
         event = OutboxEvent(
             saga_id="saga-123",
@@ -427,7 +427,7 @@ class TestOutboxTypes:
     def test_outbox_event_from_dict(self):
         """Test OutboxEvent from_dict method"""
 
-        from sagaz.outbox.types import OutboxEvent, OutboxStatus
+        from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
 
         data = {
             "event_id": "evt-123",
@@ -446,7 +446,7 @@ class TestOutboxTypes:
 
     def test_outbox_event_aggregate_id_defaults_to_saga_id(self):
         """Test aggregate_id defaults to saga_id"""
-        from sagaz.outbox.types import OutboxEvent
+        from sagaz.core.outbox.types import OutboxEvent
 
         event = OutboxEvent(saga_id="saga-789", event_type="test.event", payload={})
 
@@ -462,7 +462,7 @@ class TestOutboxMemoryStorage:
     @pytest.mark.asyncio
     async def test_memory_storage_get_nonexistent_event(self):
         """Test getting nonexistent event returns None"""
-        from sagaz.outbox import InMemoryOutboxStorage
+        from sagaz.core.outbox import InMemoryOutboxStorage
 
         storage = InMemoryOutboxStorage()
 
@@ -473,9 +473,9 @@ class TestOutboxMemoryStorage:
     @pytest.mark.asyncio
     async def test_memory_storage_update_nonexistent_raises(self):
         """Test updating nonexistent event raises error"""
-        from sagaz.outbox import InMemoryOutboxStorage
-        from sagaz.outbox.types import OutboxStatus
-        from sagaz.storage.interfaces.outbox import OutboxStorageError
+        from sagaz.core.outbox import InMemoryOutboxStorage
+        from sagaz.core.outbox.types import OutboxStatus
+        from sagaz.core.storage.interfaces.outbox import OutboxStorageError
 
         storage = InMemoryOutboxStorage()
 
@@ -485,7 +485,7 @@ class TestOutboxMemoryStorage:
     @pytest.mark.asyncio
     async def test_memory_storage_claim_empty(self):
         """Test claiming events when none available"""
-        from sagaz.outbox import InMemoryOutboxStorage
+        from sagaz.core.outbox import InMemoryOutboxStorage
 
         storage = InMemoryOutboxStorage()
 
@@ -496,8 +496,8 @@ class TestOutboxMemoryStorage:
     @pytest.mark.asyncio
     async def test_memory_storage_insert_and_claim(self):
         """Test inserting and claiming events"""
-        from sagaz.outbox import InMemoryOutboxStorage
-        from sagaz.outbox.types import OutboxEvent, OutboxStatus
+        from sagaz.core.outbox import InMemoryOutboxStorage
+        from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
 
         storage = InMemoryOutboxStorage()
 
@@ -516,8 +516,8 @@ class TestOutboxMemoryStorage:
     @pytest.mark.asyncio
     async def test_memory_storage_get_pending_count(self):
         """Test getting pending event count"""
-        from sagaz.outbox import InMemoryOutboxStorage
-        from sagaz.outbox.types import OutboxEvent
+        from sagaz.core.outbox import InMemoryOutboxStorage
+        from sagaz.core.outbox.types import OutboxEvent
 
         storage = InMemoryOutboxStorage()
 
@@ -533,8 +533,8 @@ class TestOutboxMemoryStorage:
     @pytest.mark.asyncio
     async def test_memory_storage_clear(self):
         """Test clearing all events"""
-        from sagaz.outbox import InMemoryOutboxStorage
-        from sagaz.outbox.types import OutboxEvent
+        from sagaz.core.outbox import InMemoryOutboxStorage
+        from sagaz.core.outbox.types import OutboxEvent
 
         storage = InMemoryOutboxStorage()
 
@@ -560,7 +560,7 @@ class TestKafkaBrokerMocked:
             patch("sagaz.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
             patch("sagaz.outbox.brokers.kafka.AIOKafkaProducer"),
         ):
-            from sagaz.outbox.brokers.kafka import KafkaBrokerConfig
+            from sagaz.core.outbox.brokers.kafka import KafkaBrokerConfig
 
             config = KafkaBrokerConfig()
 
@@ -573,7 +573,7 @@ class TestKafkaBrokerMocked:
             patch("sagaz.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
             patch("sagaz.outbox.brokers.kafka.AIOKafkaProducer"),
         ):
-            from sagaz.outbox.brokers.kafka import KafkaBroker
+            from sagaz.core.outbox.brokers.kafka import KafkaBroker
 
             monkeypatch.setenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
             monkeypatch.setenv("KAFKA_CLIENT_ID", "test-client")
@@ -593,7 +593,7 @@ class TestRabbitMQBrokerMocked:
             patch("sagaz.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
             patch("sagaz.outbox.brokers.rabbitmq.aio_pika"),
         ):
-            from sagaz.outbox.brokers.rabbitmq import RabbitMQBrokerConfig
+            from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBrokerConfig
 
             config = RabbitMQBrokerConfig()
 
@@ -606,7 +606,7 @@ class TestRabbitMQBrokerMocked:
             patch("sagaz.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
             patch("sagaz.outbox.brokers.rabbitmq.aio_pika"),
         ):
-            from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
+            from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker
 
             monkeypatch.setenv("RABBITMQ_URL", "amqp://guest:guest@localhost/")
             monkeypatch.setenv("RABBITMQ_EXCHANGE", "test-exchange")
@@ -625,7 +625,7 @@ class TestRabbitMQBrokerMocked:
 class TestCompensationGraph:
     def test_compensation_graph_empty(self):
         """Test compensation graph with no nodes"""
-        from sagaz.execution.graph import SagaExecutionGraph
+        from sagaz.core.execution.graph import SagaExecutionGraph
 
         graph = SagaExecutionGraph()
 
@@ -635,7 +635,7 @@ class TestCompensationGraph:
 
     def test_compensation_graph_single_step(self):
         """Test compensation graph with single registered step"""
-        from sagaz.execution.graph import CompensationType, SagaExecutionGraph
+        from sagaz.core.execution.graph import CompensationType, SagaExecutionGraph
 
         async def compensate(ctx):
             pass
@@ -653,7 +653,7 @@ class TestCompensationGraph:
 
     def test_compensation_graph_multiple_independent(self):
         """Test compensation graph with independent steps"""
-        from sagaz.execution.graph import SagaExecutionGraph
+        from sagaz.core.execution.graph import SagaExecutionGraph
 
         async def compensate(ctx):
             pass
@@ -674,7 +674,7 @@ class TestCompensationGraph:
 
     def test_compensation_graph_repr(self):
         """Test compensation graph string representation"""
-        from sagaz.execution.graph import SagaExecutionGraph
+        from sagaz.core.execution.graph import SagaExecutionGraph
 
         graph = SagaExecutionGraph()
 
@@ -733,7 +733,7 @@ class TestDeclarativeSaga:
 class TestOutboxErrors:
     def test_outbox_publish_error(self):
         """Test OutboxPublishError includes event info"""
-        from sagaz.outbox.types import OutboxEvent, OutboxPublishError
+        from sagaz.core.outbox.types import OutboxEvent, OutboxPublishError
 
         event = OutboxEvent(saga_id="saga-1", event_type="test.event", payload={})
 
@@ -746,7 +746,7 @@ class TestOutboxErrors:
 
     def test_outbox_claim_error(self):
         """Test OutboxClaimError"""
-        from sagaz.outbox.types import OutboxClaimError
+        from sagaz.core.outbox.types import OutboxClaimError
 
         error = OutboxClaimError("Failed to acquire lock")
 

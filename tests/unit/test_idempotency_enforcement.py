@@ -9,8 +9,8 @@ warns users rather than enforcing business rules.
 import pytest
 
 from sagaz import Saga, action, compensate
-from sagaz.triggers import fire_event, trigger
-from sagaz.triggers.registry import TriggerRegistry
+from sagaz.core.triggers import fire_event, trigger
+from sagaz.core.triggers.registry import TriggerRegistry
 
 
 @pytest.fixture(autouse=True)

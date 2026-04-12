@@ -15,15 +15,15 @@ import pytest
 
 from sagaz.core.saga import Saga, SagaContext
 from sagaz.core.types import SagaStatus
-from sagaz.monitoring.logging import (
+from sagaz.observability.monitoring.logging import (
     SagaContextFilter,
     SagaJsonFormatter,
     SagaLogger,
     saga_context,
     setup_saga_logging,
 )
-from sagaz.monitoring.metrics import SagaMetrics
-from sagaz.monitoring.tracing import SagaTracer, trace_saga_action, trace_saga_compensation
+from sagaz.observability.monitoring.metrics import SagaMetrics
+from sagaz.observability.monitoring.tracing import SagaTracer, trace_saga_action, trace_saga_compensation
 
 
 class TestSagaJsonFormatter:
@@ -203,7 +203,7 @@ class TestSagaLogger:
         )
 
         # Context should be set
-        from sagaz.monitoring.logging import saga_context
+        from sagaz.observability.monitoring.logging import saga_context
 
         ctx = saga_context.get()
         assert ctx["saga_id"] == "test-123"
@@ -457,7 +457,7 @@ class TestSagaTracer:
 
     def test_setup_tracing(self):
         """Test setup_tracing utility function"""
-        from sagaz.monitoring.tracing import setup_tracing
+        from sagaz.observability.monitoring.tracing import setup_tracing
 
         tracer = setup_tracing(service_name="test-service")
         assert isinstance(tracer, SagaTracer)
@@ -603,7 +603,7 @@ class TestMonitoringMetricsBranches:
     def test_update_status_counter_unknown_status(self):
         """42->exit: counter is None (status not in map) → no increment."""
         from sagaz.core.types import SagaStatus
-        from sagaz.monitoring.metrics import SagaMetrics
+        from sagaz.observability.monitoring.metrics import SagaMetrics
 
         metrics = SagaMetrics()
 

@@ -23,8 +23,8 @@ class TestOutboxWorkerBasic:
 
     def test_worker_initialization(self):
         """Test worker initializes correctly."""
-        from sagaz.outbox.types import OutboxConfig
-        from sagaz.outbox.worker import OutboxWorker
+        from sagaz.core.outbox.types import OutboxConfig
+        from sagaz.core.outbox.worker import OutboxWorker
 
         mock_storage = AsyncMock()
         mock_broker = AsyncMock()
@@ -41,7 +41,7 @@ class TestOutboxWorkerBasic:
 
     def test_worker_auto_generates_id(self):
         """Test worker auto-generates ID if not provided."""
-        from sagaz.outbox.worker import OutboxWorker
+        from sagaz.core.outbox.worker import OutboxWorker
 
         mock_storage = AsyncMock()
         mock_broker = AsyncMock()
@@ -52,7 +52,7 @@ class TestOutboxWorkerBasic:
 
     def test_get_stats(self):
         """Test worker stats."""
-        from sagaz.outbox.worker import OutboxWorker
+        from sagaz.core.outbox.worker import OutboxWorker
 
         mock_storage = AsyncMock()
         mock_broker = AsyncMock()
@@ -77,8 +77,8 @@ class TestOutboxWorkerProcessBatch:
     @pytest.mark.asyncio
     async def test_process_batch_with_events(self):
         """Test processing a batch of events."""
-        from sagaz.outbox.types import OutboxEvent
-        from sagaz.outbox.worker import OutboxWorker
+        from sagaz.core.outbox.types import OutboxEvent
+        from sagaz.core.outbox.worker import OutboxWorker
 
         mock_storage = AsyncMock()
         mock_broker = AsyncMock()
@@ -100,8 +100,8 @@ class TestOutboxWorkerProcessBatch:
     @pytest.mark.asyncio
     async def test_process_batch_with_callback(self):
         """Test process_batch calls on_event_published callback."""
-        from sagaz.outbox.types import OutboxEvent
-        from sagaz.outbox.worker import OutboxWorker
+        from sagaz.core.outbox.types import OutboxEvent
+        from sagaz.core.outbox.worker import OutboxWorker
 
         mock_storage = AsyncMock()
         mock_broker = AsyncMock()
@@ -125,8 +125,8 @@ class TestOutboxWorkerFailureHandling:
     @pytest.mark.asyncio
     async def test_handle_publish_failure_increments_retry(self):
         """Test that publish failure increments retry count."""
-        from sagaz.outbox.types import OutboxConfig, OutboxEvent, OutboxStatus
-        from sagaz.outbox.worker import OutboxWorker
+        from sagaz.core.outbox.types import OutboxConfig, OutboxEvent, OutboxStatus
+        from sagaz.core.outbox.worker import OutboxWorker
 
         mock_storage = AsyncMock()
         mock_broker = AsyncMock()
@@ -153,8 +153,8 @@ class TestOutboxWorkerFailureHandling:
     @pytest.mark.asyncio
     async def test_handle_publish_failure_moves_to_dead_letter(self):
         """Test that exceeded retries moves to dead letter."""
-        from sagaz.outbox.types import OutboxConfig, OutboxEvent, OutboxStatus
-        from sagaz.outbox.worker import OutboxWorker
+        from sagaz.core.outbox.types import OutboxConfig, OutboxEvent, OutboxStatus
+        from sagaz.core.outbox.worker import OutboxWorker
 
         mock_storage = AsyncMock()
         mock_broker = AsyncMock()
@@ -182,8 +182,8 @@ class TestOutboxWorkerRecovery:
     @pytest.mark.asyncio
     async def test_recover_stuck_events(self):
         """Test recovering stuck events."""
-        from sagaz.outbox.types import OutboxConfig
-        from sagaz.outbox.worker import OutboxWorker
+        from sagaz.core.outbox.types import OutboxConfig
+        from sagaz.core.outbox.worker import OutboxWorker
 
         mock_storage = AsyncMock()
         mock_broker = AsyncMock()
@@ -200,7 +200,7 @@ class TestOutboxWorkerRecovery:
     @pytest.mark.asyncio
     async def test_recover_stuck_events_no_stuck(self):
         """Test recovering when no stuck events."""
-        from sagaz.outbox.worker import OutboxWorker
+        from sagaz.core.outbox.worker import OutboxWorker
 
         mock_storage = AsyncMock()
         mock_broker = AsyncMock()
@@ -219,7 +219,7 @@ class TestOutboxWorkerStop:
     @pytest.mark.asyncio
     async def test_stop_sets_flags(self):
         """Test stop sets running flag to False."""
-        from sagaz.outbox.worker import OutboxWorker
+        from sagaz.core.outbox.worker import OutboxWorker
 
         mock_storage = AsyncMock()
         mock_broker = AsyncMock()
@@ -235,7 +235,7 @@ class TestOutboxWorkerStop:
     @pytest.mark.asyncio
     async def test_handle_shutdown_creates_stop_task(self):
         """Test _handle_shutdown creates stop task."""
-        from sagaz.outbox.worker import OutboxWorker
+        from sagaz.core.outbox.worker import OutboxWorker
 
         mock_storage = AsyncMock()
         mock_broker = AsyncMock()
@@ -256,7 +256,7 @@ class TestGetStorageFactory:
 
     def test_get_storage_without_env_exits(self, monkeypatch):
         """Test get_storage exits if DATABASE_URL not set."""
-        from sagaz.outbox import worker
+        from sagaz.core.outbox import worker
 
         monkeypatch.delenv("DATABASE_URL", raising=False)
 
@@ -265,7 +265,7 @@ class TestGetStorageFactory:
 
     def test_get_storage_with_env(self, monkeypatch):
         """Test get_storage creates PostgreSQL storage."""
-        from sagaz.outbox import worker
+        from sagaz.core.outbox import worker
 
         monkeypatch.setenv("DATABASE_URL", "postgresql://localhost:5432/test")
 
@@ -279,7 +279,7 @@ class TestGetBrokerFactory:
 
     def test_get_broker_kafka_without_url_exits(self, monkeypatch):
         """Test get_broker exits if no broker URL configured."""
-        from sagaz.outbox import worker
+        from sagaz.core.outbox import worker
 
         monkeypatch.setenv("BROKER_TYPE", "kafka")
         monkeypatch.delenv("KAFKA_BOOTSTRAP_SERVERS", raising=False)
@@ -290,7 +290,7 @@ class TestGetBrokerFactory:
 
     def test_get_broker_unknown_type_exits(self, monkeypatch):
         """Test get_broker exits with unknown broker type."""
-        from sagaz.outbox import worker
+        from sagaz.core.outbox import worker
 
         monkeypatch.setenv("BROKER_TYPE", "unknown")
         monkeypatch.setenv("BROKER_URL", "some://url")
@@ -300,7 +300,7 @@ class TestGetBrokerFactory:
 
     def test_get_broker_kafka(self, monkeypatch):
         """Test get_broker creates Kafka broker."""
-        from sagaz.outbox import worker
+        from sagaz.core.outbox import worker
 
         monkeypatch.setenv("BROKER_TYPE", "kafka")
         monkeypatch.setenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
@@ -314,7 +314,7 @@ class TestGetBrokerFactory:
 
     def test_get_broker_rabbitmq(self, monkeypatch):
         """Test get_broker creates RabbitMQ broker."""
-        from sagaz.outbox import worker
+        from sagaz.core.outbox import worker
 
         monkeypatch.setenv("BROKER_TYPE", "rabbitmq")
         monkeypatch.setenv("RABBITMQ_URL", "amqp://localhost")
@@ -333,7 +333,7 @@ class TestOutboxWorkerStart:
     @pytest.mark.asyncio
     async def test_start_and_stop(self):
         """Test starting and stopping the worker."""
-        from sagaz.outbox.worker import OutboxWorker
+        from sagaz.core.outbox.worker import OutboxWorker
 
         mock_storage = AsyncMock()
         mock_broker = AsyncMock()
@@ -356,8 +356,8 @@ class TestOutboxWorkerStart:
     @pytest.mark.asyncio
     async def test_start_processes_events(self):
         """Test start processes batches."""
-        from sagaz.outbox.types import OutboxEvent
-        from sagaz.outbox.worker import OutboxWorker
+        from sagaz.core.outbox.types import OutboxEvent
+        from sagaz.core.outbox.worker import OutboxWorker
 
         mock_storage = AsyncMock()
         mock_broker = AsyncMock()
@@ -389,8 +389,8 @@ class TestOutboxWorkerProcessEvent:
     @pytest.mark.asyncio
     async def test_worker_max_retries_exceeded(self):
         """Test event that exceeds max retries goes to FAILED."""
-        from sagaz.outbox.types import OutboxEvent
-        from sagaz.outbox.worker import OutboxConfig, OutboxWorker
+        from sagaz.core.outbox.types import OutboxEvent
+        from sagaz.core.outbox.worker import OutboxConfig, OutboxWorker
 
         storage = AsyncMock()
         broker = AsyncMock()
@@ -428,8 +428,8 @@ class TestOutboxWorkerProcessEvent:
     @pytest.mark.asyncio
     async def test_worker_successful_publish(self):
         """Test successful event publishing."""
-        from sagaz.outbox.types import OutboxEvent
-        from sagaz.outbox.worker import OutboxConfig, OutboxWorker
+        from sagaz.core.outbox.types import OutboxEvent
+        from sagaz.core.outbox.worker import OutboxConfig, OutboxWorker
 
         storage = AsyncMock()
         broker = AsyncMock()

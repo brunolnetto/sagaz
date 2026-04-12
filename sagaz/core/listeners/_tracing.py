@@ -18,7 +18,7 @@ class TracingSagaListener(SagaListener):
     Integrates with sagaz.monitoring.tracing for OpenTelemetry support.
 
     Example:
-        >>> from sagaz.monitoring.tracing import setup_tracing
+        >>> from sagaz.observability.monitoring.tracing import setup_tracing
         >>> tracer = setup_tracing("order-service")
         >>>
         >>> class OrderSaga(Saga):
@@ -27,7 +27,7 @@ class TracingSagaListener(SagaListener):
 
     def __init__(self, tracer=None):
         if tracer is None:
-            from sagaz.monitoring.tracing import saga_tracer
+            from sagaz.observability.monitoring.tracing import saga_tracer
 
             tracer = saga_tracer
         self.tracer = tracer

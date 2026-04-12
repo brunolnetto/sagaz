@@ -17,7 +17,7 @@ class TestRedisBrokerConfig:
 
     def test_default_values(self):
         """Test default configuration values."""
-        from sagaz.outbox.brokers.redis import RedisBrokerConfig
+        from sagaz.core.outbox.brokers.redis import RedisBrokerConfig
 
         config = RedisBrokerConfig()
 
@@ -29,7 +29,7 @@ class TestRedisBrokerConfig:
 
     def test_custom_values(self):
         """Test custom configuration values."""
-        from sagaz.outbox.brokers.redis import RedisBrokerConfig
+        from sagaz.core.outbox.brokers.redis import RedisBrokerConfig
 
         config = RedisBrokerConfig(
             url="redis://custom:6380/1",
@@ -45,7 +45,7 @@ class TestRedisBrokerConfig:
 
     def test_from_env(self):
         """Test creating config from environment variables."""
-        from sagaz.outbox.brokers.redis import RedisBrokerConfig
+        from sagaz.core.outbox.brokers.redis import RedisBrokerConfig
 
         with patch.dict(
             os.environ,
@@ -68,7 +68,7 @@ class TestRedisBrokerConnection:
     @pytest.mark.asyncio
     async def test_connect_success(self):
         """Test successful connection to Redis."""
-        from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+        from sagaz.core.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
 
         with (
             patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True),
@@ -90,8 +90,8 @@ class TestRedisBrokerConnection:
     @pytest.mark.asyncio
     async def test_connect_failure(self):
         """Test connection failure handling."""
-        from sagaz.outbox.brokers.base import BrokerConnectionError
-        from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+        from sagaz.core.outbox.brokers.base import BrokerConnectionError
+        from sagaz.core.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
 
         with (
             patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True),
@@ -110,7 +110,7 @@ class TestRedisBrokerConnection:
     @pytest.mark.asyncio
     async def test_close(self):
         """Test closing Redis connection."""
-        from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+        from sagaz.core.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
 
         with (
             patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True),
@@ -131,7 +131,7 @@ class TestRedisBrokerConnection:
     @pytest.mark.asyncio
     async def test_health_check_healthy(self):
         """Test health check when Redis is healthy."""
-        from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+        from sagaz.core.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
 
         with (
             patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True),
@@ -152,7 +152,7 @@ class TestRedisBrokerConnection:
     @pytest.mark.asyncio
     async def test_health_check_unhealthy(self):
         """Test health check when Redis is unhealthy."""
-        from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+        from sagaz.core.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
 
         with (
             patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True),
@@ -178,7 +178,7 @@ class TestRedisBrokerPublish:
     @pytest.mark.asyncio
     async def test_publish_to_stream(self):
         """Test publishing message to Redis stream."""
-        from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+        from sagaz.core.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
 
         with (
             patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True),
@@ -209,7 +209,7 @@ class TestRedisBrokerPublish:
     @pytest.mark.asyncio
     async def test_publish_with_max_length(self):
         """Test that XADD respects maxlen for stream trimming."""
-        from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+        from sagaz.core.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
 
         with (
             patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True),
@@ -231,8 +231,8 @@ class TestRedisBrokerPublish:
     @pytest.mark.asyncio
     async def test_publish_not_connected_raises(self):
         """Test that publish raises when not connected."""
-        from sagaz.outbox.brokers.base import BrokerError
-        from sagaz.outbox.brokers.redis import REDIS_AVAILABLE, RedisBroker, RedisBrokerConfig
+        from sagaz.core.outbox.brokers.base import BrokerError
+        from sagaz.core.outbox.brokers.redis import REDIS_AVAILABLE, RedisBroker, RedisBrokerConfig
 
         if not REDIS_AVAILABLE:
             pytest.skip("redis not installed")
@@ -246,8 +246,8 @@ class TestRedisBrokerPublish:
     @pytest.mark.asyncio
     async def test_publish_failure_raises(self):
         """Test that publish failures are properly raised."""
-        from sagaz.outbox.brokers.base import BrokerPublishError
-        from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+        from sagaz.core.outbox.brokers.base import BrokerPublishError
+        from sagaz.core.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
 
         with (
             patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True),
@@ -273,8 +273,8 @@ class TestRedisBrokerEvent:
         """Test publishing an OutboxEvent."""
         from datetime import datetime
 
-        from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
-        from sagaz.outbox.types import OutboxEvent
+        from sagaz.core.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+        from sagaz.core.outbox.types import OutboxEvent
 
         with (
             patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True),
@@ -309,7 +309,7 @@ class TestRedisBrokerFactory:
 
     def test_create_redis_broker(self):
         """Test creating Redis broker via factory."""
-        from sagaz.outbox import create_broker
+        from sagaz.core.outbox import create_broker
 
         with (
             patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True),
@@ -317,13 +317,13 @@ class TestRedisBrokerFactory:
         ):
             broker = create_broker("redis")
 
-            from sagaz.outbox.brokers.redis import RedisBroker
+            from sagaz.core.outbox.brokers.redis import RedisBroker
 
             assert isinstance(broker, RedisBroker)
 
     def test_redis_in_available_brokers(self):
         """Test that Redis appears in available brokers when installed."""
-        from sagaz.outbox import get_available_brokers
+        from sagaz.core.outbox import get_available_brokers
 
         with (
             patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", True),
@@ -335,7 +335,7 @@ class TestRedisBrokerFactory:
     def test_create_redis_raises_when_unavailable(self):
         """Test that Redis broker raises when redis-py not installed."""
         from sagaz.core.exceptions import MissingDependencyError
-        from sagaz.outbox import create_broker
+        from sagaz.core.outbox import create_broker
 
         with patch("sagaz.outbox.brokers.redis.REDIS_AVAILABLE", False):
             with pytest.raises(MissingDependencyError) as exc_info:
@@ -349,7 +349,7 @@ class TestRedisBrokerFromEnv:
 
     def test_from_env(self):
         """Test creating broker from environment variables."""
-        from sagaz.outbox.brokers.redis import RedisBroker
+        from sagaz.core.outbox.brokers.redis import RedisBroker
 
         with (
             patch.dict(
@@ -371,7 +371,7 @@ class TestRedisBrokerFromEnv:
 class TestRedisBrokerBranch:
     def test_safe_url_without_at_sign(self):
         """365->368: url has no '@' → return url unchanged."""
-        from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+        from sagaz.core.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
 
         config = RedisBrokerConfig(url="redis://localhost:6379")
         broker = RedisBroker(config=config)
@@ -380,7 +380,7 @@ class TestRedisBrokerBranch:
 
     def test_safe_url_with_at_but_no_colon_in_userpart(self):
         """365->368: url has '@' but no ':' before '@' → no masking, return url."""
-        from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+        from sagaz.core.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
 
         # URL: user@host:port — parts[0]="user", no ':' in parts[0]
         config = RedisBrokerConfig(url="user@localhost:6379")

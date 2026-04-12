@@ -24,7 +24,7 @@ class TestS3SnapshotStorageImportError:
         """Test that S3SnapshotStorage raises MissingDependencyError"""
         with patch.dict("sys.modules", {"aioboto3": None}):
             with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", False):
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 with pytest.raises(MissingDependencyError, match="aioboto3"):
                     S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
@@ -33,7 +33,7 @@ class TestS3SnapshotStorageImportError:
         """Test that compression requirement raises MissingDependencyError"""
         with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
             with patch("sagaz.storage.backends.s3.snapshot.ZSTD_AVAILABLE", False):
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 with pytest.raises(MissingDependencyError, match="zstandard"):
                     S3SnapshotStorage(bucket_name="test-bucket", enable_compression=True)
@@ -47,7 +47,7 @@ class TestS3SnapshotStorageUnit:
         """Test S3 snapshot storage initialization"""
         with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3"):
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(
                     bucket_name="test-bucket",
@@ -92,7 +92,7 @@ class TestS3SnapshotStorageUnit:
                 # Mock get_object to raise NoSuchKey for index (new saga, no index yet)
                 mock_client.get_object = AsyncMock(side_effect=MockNoSuchKey())
 
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(
                     bucket_name="test-bucket",
@@ -161,7 +161,7 @@ class TestS3SnapshotStorageUnit:
                 mock_body.read = AsyncMock(return_value=json.dumps(snapshot_data).encode("utf-8"))
                 mock_client.get_object = AsyncMock(return_value={"Body": mock_body})
 
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(
                     bucket_name="test-bucket",
@@ -201,7 +201,7 @@ class TestS3SnapshotStorageUnit:
                 mock_client.exceptions = mock_exceptions
                 mock_client.get_object = AsyncMock(side_effect=MockNoSuchKey())
 
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
                 await storage._get_s3_client()
@@ -269,7 +269,7 @@ class TestS3SnapshotStorageUnit:
 
                 mock_client.get_object = mock_get_object
 
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
                 await storage._get_s3_client()
@@ -337,7 +337,7 @@ class TestS3SnapshotStorageUnit:
                 mock_client.delete_object = AsyncMock()
                 mock_client.put_object = AsyncMock()
 
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
                 await storage._get_s3_client()
@@ -363,7 +363,7 @@ class TestS3SnapshotStorageUnit:
 
                 mock_client.close = AsyncMock()
 
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
                 await storage._get_s3_client()
@@ -389,7 +389,7 @@ class TestS3SnapshotStorageUnit:
 
                 mock_client.close = AsyncMock()
 
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 async with S3SnapshotStorage(
                     bucket_name="test-bucket", enable_compression=False
@@ -419,7 +419,7 @@ class TestS3SnapshotStorageCompression:
                         mock_decompressor.decompress = Mock(return_value=b'{"test": "data"}')
                         mock_zstd.ZstdDecompressor = Mock(return_value=mock_decompressor)
 
-                        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                        from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                         storage = S3SnapshotStorage(
                             bucket_name="test-bucket",
@@ -435,7 +435,7 @@ class TestS3SnapshotStorageCompression:
         """Test snapshot storage without compression"""
         with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3"):
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(
                     bucket_name="test-bucket",
@@ -455,7 +455,7 @@ class TestS3SnapshotStorageEncryption:
         """Test with encryption enabled"""
         with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3"):
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(
                     bucket_name="test-bucket", enable_encryption=True, enable_compression=False
@@ -468,7 +468,7 @@ class TestS3SnapshotStorageEncryption:
         """Test with custom S3 storage class"""
         with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3"):
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(
                     bucket_name="test-bucket", storage_class="GLACIER", enable_compression=False
@@ -487,7 +487,7 @@ class TestS3SnapshotStorageKeyGeneration:
             with patch("sagaz.storage.backends.s3.snapshot.ZSTD_AVAILABLE", True):
                 with patch("sagaz.storage.backends.s3.snapshot.zstd"):
                     with patch("sagaz.storage.backends.s3.snapshot.aioboto3"):
-                        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                        from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                         storage = S3SnapshotStorage(
                             bucket_name="test-bucket",
@@ -504,7 +504,7 @@ class TestS3SnapshotStorageKeyGeneration:
         """Test snapshot key generation without compression"""
         with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3"):
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(
                     bucket_name="test-bucket",
@@ -521,7 +521,7 @@ class TestS3SnapshotStorageKeyGeneration:
         """Test saga index key generation"""
         with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3"):
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(
                     bucket_name="test-bucket", prefix="snapshots/", enable_compression=False
@@ -536,7 +536,7 @@ class TestS3SnapshotStorageKeyGeneration:
         """Test replay log key generation"""
         with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3"):
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(
                     bucket_name="test-bucket", prefix="snapshots/", enable_compression=False
@@ -555,7 +555,7 @@ class TestS3SnapshotStorageSerializationIntegration:
         """Test serialize method without compression"""
         with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3"):
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(
                     bucket_name="test-bucket",
@@ -580,7 +580,7 @@ class TestS3SnapshotStorageSerializationIntegration:
                         mock_zstd.ZstdCompressor = Mock(return_value=mock_compressor)
                         mock_zstd.ZstdDecompressor = Mock()
 
-                        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                        from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                         storage = S3SnapshotStorage(
                             bucket_name="test-bucket",
@@ -598,7 +598,7 @@ class TestS3SnapshotStorageSerializationIntegration:
         """Test deserialize method without compression"""
         with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3"):
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(
                     bucket_name="test-bucket",
@@ -626,7 +626,7 @@ class TestS3SnapshotStorageSerializationIntegration:
                         mock_zstd.ZstdDecompressor = Mock(return_value=mock_decompressor)
                         mock_zstd.ZstdCompressor = Mock()
 
-                        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                        from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                         storage = S3SnapshotStorage(
                             bucket_name="test-bucket",
@@ -668,7 +668,7 @@ class TestS3SnapshotStorageAdvancedOperations:
                 mock_client.exceptions = type("obj", (object,), {"NoSuchKey": NoSuchKeyError})
                 mock_client.get_object = AsyncMock(side_effect=NoSuchKeyError())
 
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(
                     bucket_name="test-bucket",
@@ -723,7 +723,7 @@ class TestS3SnapshotStorageAdvancedOperations:
                 mock_client.get_object = AsyncMock(side_effect=NoSuchKeyError())
                 mock_client.put_object = AsyncMock()
 
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
                 await storage._get_s3_client()
@@ -771,7 +771,7 @@ class TestS3SnapshotStorageAdvancedOperations:
                 mock_client.get_object = AsyncMock(return_value={"Body": mock_body})
                 mock_client.put_object = AsyncMock()
 
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
                 await storage._get_s3_client()
@@ -844,7 +844,7 @@ class TestS3SnapshotStorageAdvancedOperations:
 
                 mock_client.get_object = mock_get_object
 
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
                 await storage._get_s3_client()
@@ -875,7 +875,7 @@ class TestS3SnapshotStorageAdvancedOperations:
                 mock_client.exceptions = type("obj", (object,), {"NoSuchKey": NoSuchKeyError})
                 mock_client.get_object = AsyncMock(side_effect=NoSuchKeyError())
 
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
                 await storage._get_s3_client()
@@ -944,7 +944,7 @@ class TestS3SnapshotStorageAdvancedOperations:
 
                 mock_client.get_object = mock_get_object
 
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
                 await storage._get_s3_client()
@@ -1016,7 +1016,7 @@ class TestS3SnapshotStorageAdvancedOperations:
 
                 mock_client.get_object = mock_get_object
 
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
                 await storage._get_s3_client()
@@ -1089,7 +1089,7 @@ class TestS3SnapshotStorageAdvancedOperations:
                 mock_client.delete_object = AsyncMock()
                 mock_client.put_object = AsyncMock()
 
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
                 await storage._get_s3_client()
@@ -1120,7 +1120,7 @@ class TestS3SnapshotStorageAdvancedOperations:
                 mock_client.exceptions = type("obj", (object,), {"NoSuchKey": NoSuchKeyError})
                 mock_client.get_object = AsyncMock(side_effect=NoSuchKeyError())
 
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
                 await storage._get_s3_client()
@@ -1150,7 +1150,7 @@ class TestS3SnapshotStorageReplayOperations:
                 mock_client.put_object = AsyncMock()
 
                 from sagaz.core.replay import ReplayStatus
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(
                     bucket_name="test-bucket", enable_compression=False, enable_encryption=True
@@ -1201,7 +1201,7 @@ class TestS3SnapshotStorageReplayOperations:
                 mock_body.read = AsyncMock(return_value=json.dumps(replay_data).encode("utf-8"))
                 mock_client.get_object = AsyncMock(return_value={"Body": mock_body})
 
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
                 await storage._get_s3_client()
@@ -1232,7 +1232,7 @@ class TestS3SnapshotStorageReplayOperations:
                 mock_client.exceptions = type("obj", (object,), {"NoSuchKey": NoSuchKeyError})
                 mock_client.get_object = AsyncMock(side_effect=NoSuchKeyError())
 
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
                 await storage._get_s3_client()
@@ -1308,7 +1308,7 @@ class TestS3SnapshotStorageReplayOperations:
 
                 mock_client.get_object = mock_get_object
 
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
                 await storage._get_s3_client()
@@ -1376,7 +1376,7 @@ class TestS3SnapshotStorageReplayOperations:
 
                 mock_client.get_object = mock_get_object
 
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
                 await storage._get_s3_client()
@@ -1410,7 +1410,7 @@ class TestS3SnapshotStorageEdgeCases:
                 mock_client.exceptions = type("obj", (object,), {"NoSuchKey": NoSuchKeyError})
                 mock_client.get_object = AsyncMock(side_effect=NoSuchKeyError())
 
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
                 await storage._get_s3_client()
@@ -1439,7 +1439,7 @@ class TestS3SnapshotStorageEdgeCases:
                 mock_client.exceptions = type("obj", (object,), {"NoSuchKey": NoSuchKeyError})
                 mock_client.get_object = AsyncMock(side_effect=NoSuchKeyError())
 
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
                 await storage._get_s3_client()
@@ -1468,7 +1468,7 @@ class TestS3SnapshotStorageEdgeCases:
                 mock_client.exceptions = type("obj", (object,), {"NoSuchKey": NoSuchKeyError})
                 mock_client.get_object = AsyncMock(side_effect=NoSuchKeyError())
 
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
                 await storage._get_s3_client()
@@ -1522,7 +1522,7 @@ class TestS3SnapshotStorageEdgeCases:
 
                 mock_client.get_object = mock_get_object
 
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
                 await storage._get_s3_client()
@@ -1609,7 +1609,7 @@ class TestS3SnapshotStorageDeleteExpired:
                 mock_client.delete_object = AsyncMock()
                 mock_client.put_object = AsyncMock()
 
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
                 await storage._get_s3_client()
@@ -1642,7 +1642,7 @@ class TestS3SnapshotStorageDeleteExpired:
 
                 mock_client.get_paginator = Mock(return_value=MockPaginator())
 
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
                 await storage._get_s3_client()
@@ -1678,7 +1678,7 @@ class TestS3SnapshotMissingBranches:
     @pytest.mark.asyncio
     async def test_get_s3_client_exception(self):
         """Lines 102-104: _get_s3_client raises ConnectionError on exception."""
-        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+        from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
         with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
@@ -1695,7 +1695,7 @@ class TestS3SnapshotMissingBranches:
     @pytest.mark.asyncio
     async def test_save_snapshot_without_encryption(self):
         """Lines 165->169: encryption disabled branch (no ServerSideEncryption)."""
-        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+        from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
         with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
@@ -1728,7 +1728,7 @@ class TestS3SnapshotMissingBranches:
     @pytest.mark.asyncio
     async def test_get_latest_snapshot_before_step_mismatch(self):
         """Lines 251->243: before_step doesn't match any snapshot."""
-        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+        from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
         with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
@@ -1769,7 +1769,7 @@ class TestS3SnapshotMissingBranches:
     @pytest.mark.asyncio
     async def test_get_snapshot_at_time_empty_index(self):
         """Lines 272->279: get_snapshot_at_time returns None when index is empty."""
-        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+        from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
         with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
@@ -1789,7 +1789,7 @@ class TestS3SnapshotMissingBranches:
     @pytest.mark.asyncio
     async def test_get_snapshot_at_time_entry_after_target(self):
         """Lines 274->272: entry_time > timestamp, loop continues without match."""
-        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+        from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
         with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
@@ -1816,7 +1816,7 @@ class TestS3SnapshotMissingBranches:
     @pytest.mark.asyncio
     async def test_list_snapshots_snapshot_is_none(self):
         """Lines 300->297: snapshot is None from get_snapshot, branch not appended."""
-        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+        from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
         with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
@@ -1839,7 +1839,7 @@ class TestS3SnapshotMissingBranches:
     @pytest.mark.asyncio
     async def test_delete_snapshot_exception_returns_false(self):
         """Lines 322-323: exception during delete returns False."""
-        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+        from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
         with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
@@ -1872,7 +1872,7 @@ class TestS3SnapshotMissingBranches:
     @pytest.mark.asyncio
     async def test_delete_expired_skips_not_expired(self):
         """Lines 374->368: object without expiry metadata is skipped."""
-        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+        from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
         with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
@@ -1894,7 +1894,7 @@ class TestS3SnapshotMissingBranches:
     @pytest.mark.asyncio
     async def test_delete_expired_exception_continues(self):
         """Lines 385-386: exception in delete_expired head_object is swallowed."""
-        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+        from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
         with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
@@ -1917,7 +1917,7 @@ class TestS3SnapshotMissingBranches:
     async def test_save_replay_log_without_encryption(self):
         """Lines 410->413: enable_encryption=False in save_replay_log."""
         from sagaz.core.replay import ReplayStatus
-        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+        from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
         with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
@@ -1943,7 +1943,7 @@ class TestS3SnapshotMissingBranches:
     @pytest.mark.asyncio
     async def test_list_replays_skips_non_matching_saga(self):
         """Lines 447->439: replay with different original_saga_id is skipped."""
-        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+        from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
         with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
@@ -1973,7 +1973,7 @@ class TestS3SnapshotMissingBranches:
     @pytest.mark.asyncio
     async def test_list_replays_exception_continues(self):
         """Lines 452-453: exception in list_replays is swallowed."""
-        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+        from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
         with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
@@ -1995,7 +1995,7 @@ class TestS3SnapshotMissingBranches:
     @pytest.mark.asyncio
     async def test_close_when_client_is_none(self):
         """Lines 465->exit: close() is no-op when _s3_client is None."""
-        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+        from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
         with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3"):
@@ -2009,7 +2009,7 @@ class TestS3SnapshotBranch:
         """383->368: delete_expired_snapshots uses paginator to list and delete expired objects."""
         with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(
                     bucket_name="test-bucket",
@@ -2056,7 +2056,7 @@ class TestS3SnapshotBranch:
         """383->368 FALSE: delete_snapshot returns False → deleted_count not incremented."""
         with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
             with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(
                     bucket_name="test-bucket",

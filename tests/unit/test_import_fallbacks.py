@@ -114,7 +114,7 @@ class TestKafkaFallback:
 class TestBrokerFactoryFallback:
     def test_check_broker_availability_returns_false_on_import_error(self):
         """_check_broker_availability returns False when module import fails."""
-        from sagaz.outbox.brokers.factory import _check_broker_availability
+        from sagaz.core.outbox.brokers.factory import _check_broker_availability
 
         # Use a nonexistent module path to trigger ImportError
         result = _check_broker_availability("sagaz.__nonexistent_module__", "AVAILABLE")
@@ -125,7 +125,7 @@ class TestBrokerFactoryFallback:
         import pytest
 
         from sagaz.core.exceptions import MissingDependencyError
-        from sagaz.outbox.brokers.factory import _BROKER_REGISTRY
+        from sagaz.core.outbox.brokers.factory import _BROKER_REGISTRY
 
         # Patch a broker factory to raise ImportError, with a dependency set
         original = _BROKER_REGISTRY.get("kafka")
@@ -138,7 +138,7 @@ class TestBrokerFactoryFallback:
 
         try:
             _BROKER_REGISTRY["kafka"] = (_raise_import, "aiokafka")
-            from sagaz.outbox.brokers.factory import create_broker
+            from sagaz.core.outbox.brokers.factory import create_broker
 
             with pytest.raises(MissingDependencyError):
                 create_broker("kafka")
@@ -152,7 +152,7 @@ class TestStorageManagerRedisFallback:
         import pytest
 
         from sagaz.core.exceptions import MissingDependencyError
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager(
             backend="redis",
