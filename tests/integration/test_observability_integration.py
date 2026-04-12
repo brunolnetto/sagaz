@@ -75,7 +75,7 @@ class TestGrafanaDashboardValidity:
         from pathlib import Path
 
         dashboard_path = Path(
-            "sagaz/resources/local/redis/monitoring/grafana/dashboards/grafana-dashboard-main.json"
+            "sagaz/deployment/resources/local/redis/monitoring/grafana/dashboards/grafana-dashboard-main.json"
         )
         if not dashboard_path.exists():
             pytest.skip("Dashboard file not found")
@@ -94,7 +94,7 @@ class TestGrafanaDashboardValidity:
         from pathlib import Path
 
         dashboard_path = Path(
-            "sagaz/resources/local/redis/monitoring/grafana/dashboards/grafana-dashboard-main.json"
+            "sagaz/deployment/resources/local/redis/monitoring/grafana/dashboards/grafana-dashboard-main.json"
         )
         if not dashboard_path.exists():
             pytest.skip("Dashboard file not found")
@@ -145,7 +145,7 @@ class TestGrafanaDashboardValidity:
         from pathlib import Path
 
         dashboard_path = Path(
-            "sagaz/resources/local/redis/monitoring/grafana/dashboards/grafana-dashboard-outbox.json"
+            "sagaz/deployment/resources/local/redis/monitoring/grafana/dashboards/grafana-dashboard-outbox.json"
         )
         if not dashboard_path.exists():
             pytest.skip("Outbox dashboard file not found")
