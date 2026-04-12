@@ -2488,6 +2488,29 @@ class TestSagaStepHash:
         step_set = {step1, step2}
         assert len(step_set) == 2
 
+    def test_saga_step_equality(self):
+        """Test that SagaStep equality works correctly"""
+        from sagaz.core.saga import SagaStep
+
+        step1 = SagaStep(name="step1", action=lambda ctx: None, idempotency_key="key-123")
+        step2 = SagaStep(name="step2", action=lambda ctx: None, idempotency_key="key-456")
+        step3 = SagaStep(
+            name="step3", action=lambda ctx: None, idempotency_key="key-123"  # Same key as step1
+        )
+
+        # Steps with same idempotency key should be equal
+        assert step1 == step3
+        assert not (step1 != step3)
+
+        # Steps with different idempotency keys should not be equal
+        assert step1 != step2
+        assert not (step1 == step2)
+
+        # Comparing with non-SagaStep object should return NotImplemented (falsy in bool context)
+        assert step1 != "not a step"
+        assert step1 != 123
+        assert step1 != None
+
 
 class TestSagaAlreadyExecuting:
     """Tests for saga already executing check"""
