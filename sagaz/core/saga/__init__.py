@@ -71,9 +71,11 @@ from sagaz.core.exceptions import (
     SagaTimeoutError,
 )
 from sagaz.core.saga._compensation import _SagaCompensationMixin
+from sagaz.core.saga._dag import DAGExecutor
 from sagaz.core.saga._executor import _StepExecutor
 from sagaz.core.saga._snapshot import _SagaSnapshotMixin
 from sagaz.core.saga._step import SagaStep
+from sagaz.core.saga._step_execution import StepExecutor
 from sagaz.core.saga._visualization import _SagaVisualizationMixin
 from sagaz.core.types import ParallelFailureStrategy, SagaResult, SagaStatus, SagaStepStatus
 from sagaz.execution.state_machine import SagaStateMachine
@@ -128,6 +130,10 @@ class Saga(_SagaVisualizationMixin, _SagaCompensationMixin, _SagaSnapshotMixin, 
         # Replay support
         self.replay_config = replay_config
         self.snapshot_storage = snapshot_storage
+
+        # Executor instances
+        self._dag_executor = DAGExecutor(self)
+        self._step_executor = StepExecutor(self)
 
     async def _on_enter_executing(self) -> None:
         """Callback: entering EXECUTING state"""
@@ -264,220 +270,72 @@ class Saga(_SagaVisualizationMixin, _SagaCompensationMixin, _SagaSnapshotMixin, 
         logger.info(f"Saga {self.name} failure strategy set to {strategy.value}")
 
     def _validate_connected_graph(self) -> None:
-        """
-        Validate that all steps form a single connected component.
-
-        For DAG sagas (with dependencies), we require all steps to be reachable
-        from each other via the undirected dependency graph. This prevents
-        confusing scenarios where disconnected step groups run independently.
-
-        Raises:
-            ValueError: If the saga has disconnected step components.
-        """
-        if not self._has_dependencies or len(self.steps) <= 1:
-            return  # Sequential sagas or single-step sagas are always connected
-
-        step_names = {step.name for step in self.steps}
-        adjacency = self._build_adjacency_list(step_names)
-        visited = self._bfs_reachable(adjacency, step_names)
-        self._check_connectivity(step_names, visited, adjacency)
+        """Delegate to DAGExecutor"""
+        self._dag_executor.validate_connected_graph()
 
     def _build_adjacency_list(self, step_names: set[str]) -> dict[str, set[str]]:
-        """Build undirected adjacency list for connectivity check."""
-        adjacency: dict[str, set[str]] = {name: set() for name in step_names}
-        for name, deps in self.step_dependencies.items():
-            for dep in deps:
-                if dep in step_names:
-                    adjacency[name].add(dep)
-                    adjacency[dep].add(name)
-        return adjacency
+        """Delegate to DAGExecutor"""
+        return self._dag_executor._build_adjacency_list(step_names)
 
     def _bfs_reachable(self, adjacency: dict[str, set[str]], step_names: set[str]) -> set[str]:
-        """BFS to find all reachable nodes from first step."""
-        start = next(iter(step_names))
-        visited: set[str] = set()
-        queue = [start]
-        while queue:
-            node = queue.pop(0)
-            if node in visited:
-                continue
-            visited.add(node)
-            queue.extend(adjacency[node] - visited)
-        return visited
+        """Delegate to DAGExecutor"""
+        return self._dag_executor._bfs_reachable(adjacency, step_names)
 
     def _check_connectivity(
         self, step_names: set[str], visited: set[str], adjacency: dict[str, set[str]]
     ) -> None:
-        """Raise error if steps are not all connected."""
-        unreachable = step_names - visited
-        if unreachable:
-            components = self._find_connected_components(adjacency, step_names)
-            msg = (
-                f"Saga '{self.name}' has {len(components)} disconnected step groups: "
-                f"{[sorted(c) for c in components]}. "
-                f"All steps must be connected via dependencies. "
-                "Consider splitting into separate sagas or adding connecting dependencies."
-            )
-            raise ValueError(msg)
+        """Delegate to DAGExecutor"""
+        self._dag_executor._check_connectivity(step_names, visited, adjacency)
 
     def _find_connected_components(
         self, adjacency: dict[str, set[str]], step_names: set[str]
     ) -> list[set[str]]:
-        """Find all connected components in the step graph."""
-        components = []
-        remaining = step_names.copy()
-
-        while remaining:
-            start = next(iter(remaining))
-            component: set[str] = set()
-            queue = [start]
-
-            while queue:
-                node = queue.pop(0)
-                if node in component:
-                    continue
-                component.add(node)
-                queue.extend(adjacency[node] - component)
-
-            components.append(component)
-            remaining -= component
-
-        return components
+        """Delegate to DAGExecutor"""
+        return self._dag_executor._find_connected_components(adjacency, step_names)
 
     def _build_execution_batches(self) -> list[set[str]]:
-        """
-        Build execution batches for DAG parallel execution
-
-        Returns list of sets, where each set contains steps that can run in parallel
-        """
-        if not self._has_dependencies:
-            return [{step.name} for step in self.steps]
-
-        # Validate that all steps form a connected graph
-        self._validate_connected_graph()
-
-        return self._build_dag_batches()
+        """Delegate to DAGExecutor"""
+        return self._dag_executor.build_execution_batches()
 
     def _build_dag_batches(self) -> list[set[str]]:
-        """Build batches using topological sort for DAG execution."""
-        batches = []
-        executed: set[str] = set()
-        remaining = {step.name for step in self.steps}
-
-        while remaining:
-            ready = self._find_ready_steps(remaining, executed)
-            if not ready:
-                raise ValueError(self._format_dependency_error(remaining, executed))
-            batches.append(ready)
-            executed.update(ready)
-            remaining -= ready
-
-        return batches
+        """Delegate to DAGExecutor"""
+        return self._dag_executor._build_dag_batches()
 
     def _find_ready_steps(self, remaining: set[str], executed: set[str]) -> set[str]:
-        """Find steps whose dependencies are satisfied."""
-        return {name for name in remaining if self.step_dependencies[name].issubset(executed)}
+        """Delegate to DAGExecutor"""
+        return self._dag_executor._find_ready_steps(remaining, executed)
 
     def _format_dependency_error(self, remaining: set[str], executed: set[str]) -> str:
-        """Format error message for circular/missing dependencies."""
-        missing_deps = [
-            f"{name} needs {self.step_dependencies[name] - executed}"
-            for name in remaining
-            if self.step_dependencies[name] - executed
-        ]
-        return f"Circular or missing dependencies detected: {missing_deps}"
+        """Delegate to DAGExecutor"""
+        return self._dag_executor._format_dependency_error(remaining, executed)
 
     async def _execute_dag(self) -> SagaResult:
-        """Execute saga using DAG parallel execution"""
-        start_time = datetime.now()
-        step_map = {step.name: step for step in self.steps}
-        strategy = self._get_parallel_strategy()
-
-        try:
-            # Execute each batch in sequence
-            for batch_idx, batch in enumerate(self.execution_batches):
-                batch_error = await self._execute_batch(batch_idx, batch, step_map, strategy)
-
-                if batch_error:
-                    await self._compensate_all()
-                    return self._build_dag_result(
-                        start_time, success=False, status=SagaStatus.ROLLED_BACK, error=batch_error
-                    )
-
-            return self._build_dag_result(start_time, success=True, status=SagaStatus.COMPLETED)
-
-        except Exception as e:
-            logger.error(f"DAG execution failed for saga {self.name}: {e}")
-            return self._build_dag_result(
-                start_time,
-                success=False,
-                status=SagaStatus.FAILED,
-                error=e,
-            )
+        """Delegate to DAGExecutor"""
+        return await self._dag_executor.execute_dag()
 
     def _get_parallel_strategy(self):
-        """Get the parallel execution strategy implementation."""
-        from sagaz.strategies.fail_fast import FailFastStrategy
-        from sagaz.strategies.fail_fast_grace import FailFastWithGraceStrategy
-        from sagaz.strategies.wait_all import WaitAllStrategy
-
-        if self.failure_strategy == ParallelFailureStrategy.FAIL_FAST:
-            return FailFastStrategy()
-        if self.failure_strategy == ParallelFailureStrategy.WAIT_ALL:
-            return WaitAllStrategy()
-        return FailFastWithGraceStrategy()
+        """Delegate to DAGExecutor"""
+        return self._dag_executor._get_parallel_strategy()
 
     async def _execute_batch(
         self, batch_idx: int, batch: set, step_map: dict, strategy
     ) -> Exception | None:
-        """Execute a single batch. Returns exception if failed, None if success."""
-        logger.info(f"Executing batch {batch_idx + 1}/{len(self.execution_batches)}: {batch}")
-
-        batch_executors = [_StepExecutor(step_map[step_name], self.context) for step_name in batch]
-
-        try:
-            await strategy.execute_parallel_steps(batch_executors)
-            self._mark_batch_completed(batch, step_map)
-            return None
-
-        except Exception as batch_error:
-            logger.error(f"Batch {batch_idx + 1} failed: {batch_error}")
-            self._mark_completed_executors(batch_executors)
-            return batch_error
+        """Delegate to DAGExecutor"""
+        return await self._dag_executor._execute_batch(batch_idx, batch, step_map, strategy)
 
     def _mark_batch_completed(self, batch: set, step_map: dict):
-        """Mark all steps in batch as completed."""
-        for step_name in batch:
-            step = step_map[step_name]
-            self.completed_steps.append(step)
-            self._executed_step_keys.add(step.idempotency_key)
-            logger.info(f"Step '{step_name}' completed successfully")
+        """Delegate to DAGExecutor"""
+        self._dag_executor._mark_batch_completed(batch, step_map)
 
     def _mark_completed_executors(self, executors: list):
-        """Mark any executors that completed before failure."""
-        for executor in executors:
-            if executor.completed and executor.step not in self.completed_steps:
-                step = executor.step
-                self.completed_steps.append(step)
-                self._executed_step_keys.add(step.idempotency_key)
-                logger.info(f"Step '{step.name}' completed before batch failure")
+        """Delegate to DAGExecutor"""
+        self._dag_executor._mark_completed_executors(executors)
 
     def _build_dag_result(
         self, start_time, success: bool, status: SagaStatus, error: Exception | None = None
     ) -> SagaResult:
-        """Build a SagaResult for DAG execution."""
-        execution_time = (datetime.now() - start_time).total_seconds()
-        return SagaResult(
-            success=success,
-            saga_name=self.name,
-            status=status,
-            completed_steps=len(self.completed_steps),
-            total_steps=len(self.steps),
-            error=error,
-            execution_time=execution_time,
-            context=self.context,
-            compensation_errors=self.compensation_errors if not success else [],
-        )
+        """Delegate to DAGExecutor"""
+        return self._dag_executor._build_dag_result(start_time, success, status, error)
 
     async def execute(self) -> SagaResult:
         """
@@ -686,68 +544,12 @@ class Saga(_SagaVisualizationMixin, _SagaCompensationMixin, _SagaSnapshotMixin, 
             )
 
     async def _execute_step_with_retry(self, step: "SagaStep") -> None:
-        """Execute a step with retry logic and exponential backoff"""
-        last_error: SagaTimeoutError | SagaStepError | None = None
-        total_attempts = step.max_retries + 1  # Initial attempt + retries
-
-        for attempt in range(total_attempts):
-            try:
-                step.retry_count = attempt
-                await self._execute_step(step)
-                return  # Success!
-
-            except SagaTimeoutError as e:
-                last_error = e
-                logger.warning(
-                    f"Step '{step.name}' timed out (attempt {attempt + 1}/{total_attempts})"
-                )
-
-            except SagaStepError as e:
-                last_error = e
-                logger.warning(
-                    f"Step '{step.name}' failed (attempt {attempt + 1}/{total_attempts}): {e}"
-                )
-
-            # Exponential backoff before retry (configurable base timeout)
-            if attempt < total_attempts - 1:
-                backoff_time = self.retry_backoff_base * (2**attempt)
-                logger.info(f"Retrying step '{step.name}' in {backoff_time}s...")
-                await asyncio.sleep(backoff_time)
-
-        # All retries exhausted
-        step.error = last_error
-        assert last_error is not None, "last_error should be set after exhausting retries"
-        raise last_error
+        """Delegate to StepExecutor"""
+        await self._step_executor.execute_step_with_retry(step)
 
     async def _execute_step(self, step: "SagaStep") -> None:
-        """Execute a single step with timeout"""
-        try:
-            step.status = SagaStepStatus.EXECUTING
-            logger.info(f"Executing step: {step.name}")
-
-            # Execute with timeout
-            step.result = await asyncio.wait_for(
-                self._invoke(step.action, self.context), timeout=step.timeout
-            )
-
-            # Store result in context for next steps
-            self.context.set(step.name, step.result)
-
-            step.status = SagaStepStatus.COMPLETED
-            step.executed_at = datetime.now()
-            logger.info(f"Step '{step.name}' completed successfully")
-
-        except TimeoutError:
-            step.status = SagaStepStatus.FAILED
-            error = SagaTimeoutError(f"Step '{step.name}' timed out after {step.timeout}s")
-            step.error = error
-            raise error
-
-        except Exception as e:
-            step.status = SagaStepStatus.FAILED
-            step.error = e
-            msg = f"Step '{step.name}' failed: {e!s}"
-            raise SagaStepError(msg)
+        """Delegate to StepExecutor"""
+        await self._step_executor.execute_step(step)
 
     # =========================================================================
     # API Protection - Prevent mixing declarative and imperative approaches
