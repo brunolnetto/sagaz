@@ -24,10 +24,10 @@ logger = get_logger(__name__)
 
 
 # Import after SagaListener is defined to avoid circular imports
-from sagaz.core.listeners._logging import LoggingSagaListener
-from sagaz.core.listeners._metrics import MetricsSagaListener
-from sagaz.core.listeners._outbox import OutboxSagaListener
-from sagaz.core.listeners._tracing import TracingSagaListener
+from sagaz.core.listeners._logging import LoggingSagaListener  # noqa: E402
+from sagaz.core.listeners._metrics import MetricsSagaListener  # noqa: E402
+from sagaz.core.listeners._outbox import OutboxSagaListener  # noqa: E402
+from sagaz.core.listeners._tracing import TracingSagaListener  # noqa: E402
 
 
 # Convenience function to create common listener combinations

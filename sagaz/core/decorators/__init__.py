@@ -429,9 +429,9 @@ class Saga(_DecoratorVisualizationMixin):
 # action and step are imported from sagaz.core._step_decorators and re-exported
 # here for backwards compatibility. Do not redefine them.
 __all__ = [
+    "ForwardRecoveryMetadata",
     "Saga",
     "SagaStepDefinition",
-    "ForwardRecoveryMetadata",
     "StepMetadata",
     "action",
     "compensate",
