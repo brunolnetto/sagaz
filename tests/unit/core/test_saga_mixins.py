@@ -17,13 +17,12 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from sagaz.core.exceptions import SagaCompensationError, SagaExecutionError
 from sagaz.core.saga._compensation import _SagaCompensationMixin
 from sagaz.core.saga._snapshot import _SagaSnapshotMixin
 from sagaz.core.saga._step import SagaStep
 from sagaz.core.saga._visualization import _SagaVisualizationMixin
-from sagaz.core.exceptions import SagaCompensationError, SagaExecutionError
 from sagaz.core.types import SagaStepStatus
-
 
 # =============================================================================
 # Helpers / stubs
@@ -198,7 +197,8 @@ class TestSagaCompensationMixin:
     @pytest.mark.asyncio
     async def test_compensate_all_raises_on_failure(self):
         async def failing_comp(result, ctx):
-            raise RuntimeError("comp error")
+            msg = "comp error"
+            raise RuntimeError(msg)
 
         host = _CompensationHost()
         step = SagaStep(name="s", action=_noop, compensation=failing_comp)
@@ -216,7 +216,8 @@ class TestSagaCompensationMixin:
     @pytest.mark.asyncio
     async def test_try_compensate_step_failure_returns_error(self):
         async def bad_comp(result, ctx):
-            raise RuntimeError("fail")
+            msg = "fail"
+            raise RuntimeError(msg)
 
         host = _CompensationHost()
         step = SagaStep(name="s", action=_noop, compensation=bad_comp)
@@ -226,7 +227,8 @@ class TestSagaCompensationMixin:
     @pytest.mark.asyncio
     async def test_try_compensate_appends_to_compensation_errors(self):
         async def bad_comp(result, ctx):
-            raise RuntimeError("fail")
+            msg = "fail"
+            raise RuntimeError(msg)
 
         host = _CompensationHost()
         step = SagaStep(name="s", action=_noop, compensation=bad_comp)
@@ -273,7 +275,8 @@ class TestSagaCompensationMixin:
     @pytest.mark.asyncio
     async def test_compensate_step_exception(self):
         async def exploding_comp(result, ctx):
-            raise ValueError("boom")
+            msg = "boom"
+            raise ValueError(msg)
 
         host = _CompensationHost()
         step = SagaStep(name="s", action=_noop, compensation=exploding_comp)
@@ -294,7 +297,8 @@ class TestSagaCompensationMixin:
         async def always_fails(result, ctx):
             nonlocal call_count
             call_count += 1
-            raise RuntimeError("always fails")
+            msg = "always fails"
+            raise RuntimeError(msg)
 
         host = _CompensationHost(retry_backoff_base=0.0)
         step = SagaStep(name="s", action=_noop, compensation=always_fails)
@@ -535,9 +539,7 @@ class TestSnapshotMixinShouldCapture:
 
         host = _SnapshotHost()
         host.status = SagaStatus.EXECUTING
-        assert (
-            host._should_capture_snapshot(SnapshotStrategy.AFTER_EACH_STEP, before=False) is True
-        )
+        assert host._should_capture_snapshot(SnapshotStrategy.AFTER_EACH_STEP, before=False) is True
 
     def test_after_each_step_before_true(self):
         from sagaz.core.replay import SnapshotStrategy
@@ -545,9 +547,7 @@ class TestSnapshotMixinShouldCapture:
 
         host = _SnapshotHost()
         host.status = SagaStatus.EXECUTING
-        assert (
-            host._should_capture_snapshot(SnapshotStrategy.AFTER_EACH_STEP, before=True) is False
-        )
+        assert host._should_capture_snapshot(SnapshotStrategy.AFTER_EACH_STEP, before=True) is False
 
     def test_on_completion_when_completed(self):
         from sagaz.core.replay import SnapshotStrategy
@@ -555,9 +555,7 @@ class TestSnapshotMixinShouldCapture:
 
         host = _SnapshotHost()
         host.status = SagaStatus.COMPLETED
-        assert (
-            host._should_capture_snapshot(SnapshotStrategy.ON_COMPLETION, before=False) is True
-        )
+        assert host._should_capture_snapshot(SnapshotStrategy.ON_COMPLETION, before=False) is True
 
     def test_on_completion_when_not_completed(self):
         from sagaz.core.replay import SnapshotStrategy
@@ -565,9 +563,7 @@ class TestSnapshotMixinShouldCapture:
 
         host = _SnapshotHost()
         host.status = SagaStatus.EXECUTING
-        assert (
-            host._should_capture_snapshot(SnapshotStrategy.ON_COMPLETION, before=False) is False
-        )
+        assert host._should_capture_snapshot(SnapshotStrategy.ON_COMPLETION, before=False) is False
 
     def test_on_failure_when_failed(self):
         from sagaz.core.replay import SnapshotStrategy
@@ -758,7 +754,8 @@ class TestExecuteFromSnapshot:
         saga = _TestSaga(name="FailSaga", retry_backoff_base=0.01)
 
         async def failing_action(ctx):
-            raise RuntimeError("step exploded")
+            msg = "step exploded"
+            raise RuntimeError(msg)
 
         await saga.add_step("bad_step", failing_action)
 

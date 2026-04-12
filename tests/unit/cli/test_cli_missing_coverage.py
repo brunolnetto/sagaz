@@ -269,7 +269,7 @@ class TestExecuteReplay:
         mock_result.error_message = None
 
         with (
-            patch("sagaz.core.saga_replay.SagaReplay") as mock_replay_cls,
+            patch("sagaz.core.replay.saga_replay.SagaReplay") as mock_replay_cls,
         ):
             mock_replay = AsyncMock()
             mock_replay.from_checkpoint = AsyncMock(return_value=mock_result)
@@ -313,7 +313,7 @@ class TestExecuteTimeTravel:
         from datetime import UTC, datetime
         from uuid import UUID
 
-        with patch("sagaz.core.time_travel.SagaTimeTravel") as mock_tt_cls:
+        with patch("sagaz.core.replay.time_travel.SagaTimeTravel") as mock_tt_cls:
             mock_tt = AsyncMock()
             mock_tt.get_state_at = AsyncMock(return_value=None)
             mock_tt.get_context_at = AsyncMock(return_value=None)
@@ -336,7 +336,7 @@ class TestExecuteTimeTravel:
         from datetime import UTC, datetime
         from uuid import UUID
 
-        with patch("sagaz.core.time_travel.SagaTimeTravel") as mock_tt_cls:
+        with patch("sagaz.core.replay.time_travel.SagaTimeTravel") as mock_tt_cls:
             mock_tt = AsyncMock()
             mock_tt.get_context_at = AsyncMock(return_value=None)
             mock_tt_cls.return_value = mock_tt
@@ -360,7 +360,7 @@ class TestExecuteListChanges:
         """Line 555: _execute_list_changes with no changes."""
         from uuid import UUID
 
-        with patch("sagaz.core.time_travel.SagaTimeTravel") as mock_tt_cls:
+        with patch("sagaz.core.replay.time_travel.SagaTimeTravel") as mock_tt_cls:
             mock_tt = AsyncMock()
             mock_tt.list_state_changes = AsyncMock(return_value=[])
             mock_tt_cls.return_value = mock_tt

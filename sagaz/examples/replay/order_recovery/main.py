@@ -9,8 +9,8 @@ from uuid import UUID
 from sagaz.core.context import SagaContext
 from sagaz.core.exceptions import SagaStepError
 from sagaz.core.replay import ReplayConfig, SnapshotStrategy
+from sagaz.core.replay.saga_replay import SagaReplay
 from sagaz.core.saga import Saga
-from sagaz.core.saga_replay import SagaReplay
 from sagaz.storage.backends.memory_snapshot import InMemorySnapshotStorage
 
 logging.basicConfig(
