@@ -112,7 +112,7 @@ class ContainerManager:
             from testcontainers.rabbitmq import RabbitMqContainer
 
             c = RabbitMqContainer("rabbitmq:3.12-alpine")
-            c.start(timeout=180)
+            c.start()
             return c
 
         self._start("rabbitmq", _factory)
