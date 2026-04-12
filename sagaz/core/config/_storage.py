@@ -5,7 +5,6 @@ from various sources (environment, files, URLs).
 """
 
 import logging
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:

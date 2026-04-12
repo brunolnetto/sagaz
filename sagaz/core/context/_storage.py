@@ -181,7 +181,7 @@ class FileSystemExternalStorage(ExternalStorage):
         file_path = Path(path_str)
         try:
             file_path.unlink()
-        except FileNotFoundError:
+        except FileNotFoundError:  # file already absent — nothing to do
             pass
 
 

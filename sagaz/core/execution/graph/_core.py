@@ -453,8 +453,6 @@ class SagaExecutionGraph:
         }
 
         # Execute in parallel and gather results
-        import asyncio
-
         keys = list(tasks.keys())
         coroutines = list(tasks.values())
 

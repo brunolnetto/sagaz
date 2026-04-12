@@ -23,7 +23,11 @@ from sagaz.observability.monitoring.logging import (
     setup_saga_logging,
 )
 from sagaz.observability.monitoring.metrics import SagaMetrics
-from sagaz.observability.monitoring.tracing import SagaTracer, trace_saga_action, trace_saga_compensation
+from sagaz.observability.monitoring.tracing import (
+    SagaTracer,
+    trace_saga_action,
+    trace_saga_compensation,
+)
 
 
 class TestSagaJsonFormatter:

@@ -12,8 +12,8 @@ from uuid import uuid4
 import pytest
 
 from sagaz.core.exceptions import MissingDependencyError
-from sagaz.core.types import SagaStatus, SagaStepStatus
 from sagaz.core.storage.base import SagaNotFoundError, SagaStorageConnectionError, SagaStorageError
+from sagaz.core.types import SagaStatus, SagaStepStatus
 
 # Check availability of dependencies
 try:

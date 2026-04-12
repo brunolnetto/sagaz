@@ -13,8 +13,8 @@ import pytest
 
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.replay import ReplayResult, SagaSnapshot, SnapshotNotFoundError
-from sagaz.core.types import SagaStatus
 from sagaz.core.storage.base import SagaStorageConnectionError
+from sagaz.core.types import SagaStatus
 
 # Check availability of dependencies
 try:

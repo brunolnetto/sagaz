@@ -17,7 +17,6 @@ from datetime import UTC, datetime
 
 import pytest
 
-from sagaz.core.types import SagaStatus
 from sagaz.core.outbox import InMemoryOutboxStorage
 from sagaz.core.outbox.brokers.base import BrokerConnectionError, BrokerPublishError
 from sagaz.core.outbox.brokers.memory import InMemoryBroker
@@ -25,6 +24,7 @@ from sagaz.core.outbox.types import OutboxConfig, OutboxEvent, OutboxStatus
 from sagaz.core.outbox.worker import OutboxWorker
 from sagaz.core.storage.base import SagaStorageConnectionError
 from sagaz.core.storage.memory import InMemorySagaStorage
+from sagaz.core.types import SagaStatus
 
 pytestmark = pytest.mark.chaos
 

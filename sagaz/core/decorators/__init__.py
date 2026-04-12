@@ -31,9 +31,6 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-if TYPE_CHECKING:
-    from sagaz.core.storage.base import SagaStorage
-
 from sagaz.core.decorators._collection import DecoratorCollectionManager
 from sagaz.core.decorators._execution import ExecutionEngine
 from sagaz.core.decorators._steps import (
@@ -49,8 +46,8 @@ from sagaz.core.decorators._steps import (
     step,
 )
 from sagaz.core.decorators._visualization import _DecoratorVisualizationMixin
-from sagaz.core.logger import get_logger
 from sagaz.core.execution.graph import CompensationType, SagaExecutionGraph
+from sagaz.core.logger import get_logger
 
 logger = get_logger(__name__)
 

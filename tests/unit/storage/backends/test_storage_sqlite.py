@@ -11,8 +11,8 @@ from uuid import uuid4
 
 import pytest
 
-from sagaz.core.types import SagaStatus, SagaStepStatus
 from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
+from sagaz.core.types import SagaStatus, SagaStepStatus
 
 # Skip all tests if aiosqlite is not installed
 try:
@@ -689,8 +689,8 @@ class TestSQLiteOutboxImportError:
 class TestSqliteSagaBranches:
     async def test_update_step_status_step_not_found(self):
         """275->287: for loop exhausted without break (step_name not found)."""
-        from sagaz.core.types import SagaStatus, SagaStepStatus
         from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
+        from sagaz.core.types import SagaStatus, SagaStepStatus
 
         storage = SQLiteSagaStorage(":memory:")
         await storage.initialize()
@@ -711,8 +711,8 @@ class TestSqliteSagaBranches:
 
     async def test_update_step_status_step_name_mismatch(self):
         """276->275: if step.get('name') == step_name: False → continue loop."""
-        from sagaz.core.types import SagaStatus, SagaStepStatus
         from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
+        from sagaz.core.types import SagaStatus, SagaStepStatus
 
         storage = SQLiteSagaStorage(":memory:")
         await storage.initialize()

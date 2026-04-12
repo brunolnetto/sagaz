@@ -9,7 +9,11 @@ from unittest.mock import patch
 import pytest
 
 from sagaz.core.exceptions import MissingDependencyError
-from sagaz.core.storage.factory import create_storage, get_available_backends, print_available_backends
+from sagaz.core.storage.factory import (
+    create_storage,
+    get_available_backends,
+    print_available_backends,
+)
 from sagaz.core.storage.memory import InMemorySagaStorage
 
 

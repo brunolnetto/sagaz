@@ -191,8 +191,8 @@ class TestStorageTo100:
     @pytest.mark.asyncio
     async def test_memory_storage_list_sagas_pagination(self):
         """Test memory storage list with pagination"""
-        from sagaz.core.types import SagaStatus
         from sagaz.core.storage.memory import InMemorySagaStorage
+        from sagaz.core.types import SagaStatus
 
         storage = InMemorySagaStorage()
 
@@ -276,8 +276,8 @@ class TestOrchestratorTo100:
         import logging
 
         from sagaz import SagaContext
-        from sagaz.core.saga import Saga as ClassicSaga
         from sagaz.core.execution.orchestrator import SagaOrchestrator
+        from sagaz.core.saga import Saga as ClassicSaga
 
         # Create orchestrator with verbose mode
         logger = logging.getLogger("test")

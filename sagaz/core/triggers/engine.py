@@ -4,9 +4,9 @@ from typing import Any
 
 from sagaz.core.config import get_config
 from sagaz.core.logger import get_logger
-from sagaz.core.types import SagaStatus
 from sagaz.core.triggers.decorators import TriggerMetadata
 from sagaz.core.triggers.registry import TriggerRegistry
+from sagaz.core.types import SagaStatus
 
 logger = get_logger(__name__)
 

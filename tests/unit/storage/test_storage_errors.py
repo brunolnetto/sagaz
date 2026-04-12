@@ -8,11 +8,11 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 from sagaz.core.exceptions import MissingDependencyError
-from sagaz.core.types import SagaStatus, SagaStepStatus
 from sagaz.core.storage.base import SagaStorageError
 from sagaz.core.storage.memory import InMemorySagaStorage
 from sagaz.core.storage.postgresql import PostgreSQLSagaStorage
 from sagaz.core.storage.redis import RedisSagaStorage
+from sagaz.core.types import SagaStatus, SagaStepStatus
 
 
 class TestPostgreSQLStorageErrors:

@@ -10,8 +10,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from sagaz.core.exceptions import MissingDependencyError
-from sagaz.core.types import SagaStatus, SagaStepStatus
 from sagaz.core.storage.base import SagaStorageConnectionError, SagaStorageError
+from sagaz.core.types import SagaStatus, SagaStepStatus
 
 # Check availability of dependencies
 try:
@@ -861,8 +861,8 @@ class TestPostgresqlSagaBranch:
 
     async def test_cleanup_completed_sagas_explicit_statuses(self):
         """406->409 FALSE branch: statuses provided → skip default setting."""
-        from sagaz.core.types import SagaStatus
         from sagaz.core.storage.backends.postgresql.saga import PostgreSQLSagaStorage
+        from sagaz.core.types import SagaStatus
 
         storage = PostgreSQLSagaStorage.__new__(PostgreSQLSagaStorage)
         storage._pool = None

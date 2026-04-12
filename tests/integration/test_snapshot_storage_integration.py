@@ -43,11 +43,11 @@ class TestPostgreSQLSnapshotStorageIntegration:
     async def test_postgresql_snapshot_lifecycle(self, postgres_container):
         """Test full snapshot lifecycle: save, get, list, delete."""
         from sagaz.core.replay import SagaSnapshot
-        from sagaz.core.types import SagaStatus
         from sagaz.core.storage.backends.postgresql.snapshot import (
             ASYNCPG_AVAILABLE,
             PostgreSQLSnapshotStorage,
         )
+        from sagaz.core.types import SagaStatus
 
         if not ASYNCPG_AVAILABLE:
             pytest.skip("asyncpg not installed")
@@ -110,11 +110,11 @@ class TestPostgreSQLSnapshotStorageIntegration:
     async def test_postgresql_multiple_snapshots(self, postgres_container):
         """Test handling multiple snapshots for the same saga."""
         from sagaz.core.replay import SagaSnapshot
-        from sagaz.core.types import SagaStatus
         from sagaz.core.storage.backends.postgresql.snapshot import (
             ASYNCPG_AVAILABLE,
             PostgreSQLSnapshotStorage,
         )
+        from sagaz.core.types import SagaStatus
 
         if not ASYNCPG_AVAILABLE:
             pytest.skip("asyncpg not installed")
@@ -164,11 +164,11 @@ class TestPostgreSQLSnapshotStorageIntegration:
     async def test_postgresql_get_snapshot_at_time(self, postgres_container):
         """Test retrieving snapshot at a specific point in time."""
         from sagaz.core.replay import SagaSnapshot
-        from sagaz.core.types import SagaStatus
         from sagaz.core.storage.backends.postgresql.snapshot import (
             ASYNCPG_AVAILABLE,
             PostgreSQLSnapshotStorage,
         )
+        from sagaz.core.types import SagaStatus
 
         if not ASYNCPG_AVAILABLE:
             pytest.skip("asyncpg not installed")
@@ -220,11 +220,11 @@ class TestPostgreSQLSnapshotStorageIntegration:
     async def test_postgresql_delete_expired_snapshots(self, postgres_container):
         """Test automatic deletion of expired snapshots."""
         from sagaz.core.replay import SagaSnapshot
-        from sagaz.core.types import SagaStatus
         from sagaz.core.storage.backends.postgresql.snapshot import (
             ASYNCPG_AVAILABLE,
             PostgreSQLSnapshotStorage,
         )
+        from sagaz.core.types import SagaStatus
 
         if not ASYNCPG_AVAILABLE:
             pytest.skip("asyncpg not installed")
@@ -298,11 +298,11 @@ class TestRedisSnapshotStorageIntegration:
     async def test_redis_snapshot_lifecycle(self, redis_container):
         """Test full snapshot lifecycle: save, get, list, delete."""
         from sagaz.core.replay import SagaSnapshot
-        from sagaz.core.types import SagaStatus
         from sagaz.core.storage.backends.redis.snapshot import (
             REDIS_AVAILABLE,
             RedisSnapshotStorage,
         )
+        from sagaz.core.types import SagaStatus
 
         if not REDIS_AVAILABLE:
             pytest.skip("redis not installed")
@@ -358,11 +358,11 @@ class TestRedisSnapshotStorageIntegration:
     async def test_redis_multiple_snapshots(self, redis_container):
         """Test handling multiple snapshots in Redis."""
         from sagaz.core.replay import SagaSnapshot
-        from sagaz.core.types import SagaStatus
         from sagaz.core.storage.backends.redis.snapshot import (
             REDIS_AVAILABLE,
             RedisSnapshotStorage,
         )
+        from sagaz.core.types import SagaStatus
 
         if not REDIS_AVAILABLE:
             pytest.skip("redis not installed")
@@ -406,11 +406,11 @@ class TestRedisSnapshotStorageIntegration:
     async def test_redis_ttl_expiration(self, redis_container):
         """Test TTL-based expiration in Redis."""
         from sagaz.core.replay import SagaSnapshot
-        from sagaz.core.types import SagaStatus
         from sagaz.core.storage.backends.redis.snapshot import (
             REDIS_AVAILABLE,
             RedisSnapshotStorage,
         )
+        from sagaz.core.types import SagaStatus
 
         if not REDIS_AVAILABLE:
             pytest.skip("redis not installed")

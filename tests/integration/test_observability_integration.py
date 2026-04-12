@@ -172,7 +172,10 @@ class TestMetricNameConsistency:
     def test_prometheus_metrics_class_has_expected_attributes(self):
         """Verify PrometheusMetrics class defines expected metrics."""
         try:
-            from sagaz.observability.monitoring.prometheus import PROMETHEUS_AVAILABLE, PrometheusMetrics
+            from sagaz.observability.monitoring.prometheus import (
+                PROMETHEUS_AVAILABLE,
+                PrometheusMetrics,
+            )
         except ImportError:
             pytest.skip("prometheus-client not installed")
 

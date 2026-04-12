@@ -40,8 +40,8 @@ class TestFinalCoverage:
     @pytest.mark.asyncio
     async def test_state_machine_callbacks(self):
         """Test state machine optional callbacks"""
-        from sagaz.core.saga import Saga as ClassicSaga
         from sagaz.core.execution.state_machine import SagaStateMachine
+        from sagaz.core.saga import Saga as ClassicSaga
 
         saga = ClassicSaga(name="TestSaga")
         sm = SagaStateMachine(saga)

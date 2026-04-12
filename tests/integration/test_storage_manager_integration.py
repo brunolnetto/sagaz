@@ -32,8 +32,8 @@ class TestStorageManagerPostgreSQLIntegration:
 
         pytest.importorskip("asyncpg")
 
-        from sagaz.core.types import SagaStatus
         from sagaz.core.storage.manager import StorageManager
+        from sagaz.core.types import SagaStatus
 
         conn_string = postgres_container.get_connection_url().replace(
             "postgresql+psycopg2://", "postgresql://"
@@ -79,8 +79,8 @@ class TestStorageManagerPostgreSQLIntegration:
 
         pytest.importorskip("asyncpg")
 
-        from sagaz.core.types import SagaStatus
         from sagaz.core.storage.manager import StorageManager
+        from sagaz.core.types import SagaStatus
 
         conn_string = postgres_container.get_connection_url().replace(
             "postgresql+psycopg2://", "postgresql://"
@@ -112,8 +112,8 @@ class TestStorageManagerRedisIntegration:
 
         pytest.importorskip("redis")
 
-        from sagaz.core.types import SagaStatus
         from sagaz.core.storage.manager import StorageManager
+        from sagaz.core.types import SagaStatus
 
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)
@@ -159,8 +159,8 @@ class TestStorageManagerRedisIntegration:
 
         pytest.importorskip("redis")
 
-        from sagaz.core.types import SagaStatus
         from sagaz.core.storage.manager import StorageManager
+        from sagaz.core.types import SagaStatus
 
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)
@@ -196,9 +196,9 @@ class TestStorageManagerHybridIntegration:
         pytest.importorskip("asyncpg")
         pytest.importorskip("redis")
 
-        from sagaz.core.types import SagaStatus
         from sagaz.core.outbox.types import OutboxEvent
         from sagaz.core.storage.manager import StorageManager
+        from sagaz.core.types import SagaStatus
 
         pg_conn = postgres_container.get_connection_url().replace(
             "postgresql+psycopg2://", "postgresql://"
@@ -258,8 +258,8 @@ class TestStorageManagerSQLiteIntegration:
         """Test StorageManager with SQLite for both saga and outbox."""
         pytest.importorskip("aiosqlite")
 
-        from sagaz.core.types import SagaStatus
         from sagaz.core.storage.manager import StorageManager
+        from sagaz.core.types import SagaStatus
 
         async with StorageManager(url="sqlite://:memory:") as manager:
             # Verify storages are initialized
@@ -297,8 +297,8 @@ class TestCreateStorageManagerFactoryIntegration:
 
         pytest.importorskip("asyncpg")
 
-        from sagaz.core.types import SagaStatus
         from sagaz.core.storage.manager import create_storage_manager
+        from sagaz.core.types import SagaStatus
 
         conn_string = postgres_container.get_connection_url().replace(
             "postgresql+psycopg2://", "postgresql://"
@@ -329,8 +329,8 @@ class TestCreateStorageManagerFactoryIntegration:
 
         pytest.importorskip("redis")
 
-        from sagaz.core.types import SagaStatus
         from sagaz.core.storage.manager import create_storage_manager
+        from sagaz.core.types import SagaStatus
 
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)
@@ -362,8 +362,8 @@ class TestCreateStorageManagerFactoryIntegration:
 
         pytest.importorskip("redis")
 
-        from sagaz.core.types import SagaStatus
         from sagaz.core.storage.manager import create_storage_manager
+        from sagaz.core.types import SagaStatus
 
         host = redis_container.get_container_host_ip()
         port = redis_container.get_exposed_port(6379)

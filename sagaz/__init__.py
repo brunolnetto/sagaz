@@ -77,35 +77,6 @@ from sagaz.core.exceptions import (
 )
 
 # =============================================================================
-# Listeners (observability and side effects)
-# =============================================================================
-from sagaz.core.listeners import (
-    LoggingSagaListener,
-    MetricsSagaListener,
-    OutboxSagaListener,
-    SagaListener,
-    TracingSagaListener,
-    default_listeners,
-)
-
-# =============================================================================
-# Core Saga Classes
-# =============================================================================
-from sagaz.core.saga import SagaContext, SagaStep
-from sagaz.core.types import ParallelFailureStrategy, SagaResult, SagaStatus, SagaStepStatus
-
-# =============================================================================
-# Dry-Run Mode (ADR-019, v1.3.0)
-# =============================================================================
-from sagaz.dry_run import (
-    DryRunEngine,
-    DryRunMode,
-    DryRunResult,
-    SimulationResult,
-    ValidationResult,
-)
-
-# =============================================================================
 # Execution Graph (compensation and dependency management)
 # =============================================================================
 from sagaz.core.execution.graph import (
@@ -133,6 +104,35 @@ from sagaz.core.execution.pivot import (
     SagaZones,
     StepZone,
     TaintPropagator,
+)
+
+# =============================================================================
+# Listeners (observability and side effects)
+# =============================================================================
+from sagaz.core.listeners import (
+    LoggingSagaListener,
+    MetricsSagaListener,
+    OutboxSagaListener,
+    SagaListener,
+    TracingSagaListener,
+    default_listeners,
+)
+
+# =============================================================================
+# Core Saga Classes
+# =============================================================================
+from sagaz.core.saga import SagaContext, SagaStep
+from sagaz.core.types import ParallelFailureStrategy, SagaResult, SagaStatus, SagaStepStatus
+
+# =============================================================================
+# Dry-Run Mode (ADR-019, v1.3.0)
+# =============================================================================
+from sagaz.dry_run import (
+    DryRunEngine,
+    DryRunMode,
+    DryRunResult,
+    SimulationResult,
+    ValidationResult,
 )
 
 __all__ = [
