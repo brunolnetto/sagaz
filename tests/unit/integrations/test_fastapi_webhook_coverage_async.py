@@ -185,7 +185,7 @@ class TestWebhookHandlerAccepted:
     async def test_webhook_returns_202_and_sets_queued(self):
         """Line 190: accepted path and status 202."""
         app = _make_app()
-        with patch("sagaz.triggers.fire_event", new_callable=AsyncMock) as mock_fire:
+        with patch("sagaz.core.triggers.fire_event", new_callable=AsyncMock) as mock_fire:
             mock_fire.return_value = []
             response = await _post(app, "/webhooks/test-event", json={"key": "value"})
 
@@ -200,7 +200,7 @@ class TestWebhookHandlerAccepted:
         app = _make_app()
         saga_id = "saga-abc-123"
 
-        with patch("sagaz.triggers.fire_event", new_callable=AsyncMock) as mock_fire:
+        with patch("sagaz.core.triggers.fire_event", new_callable=AsyncMock) as mock_fire:
             mock_fire.return_value = [saga_id]
             response = await _post(app, "/webhooks/payments", json={"amount": 100})
 
@@ -215,7 +215,7 @@ class TestWebhookHandlerAccepted:
         app = _make_app()
         custom_corr_id = "my-custom-correlation-id"
 
-        with patch("sagaz.triggers.fire_event", new_callable=AsyncMock) as mock_fire:
+        with patch("sagaz.core.triggers.fire_event", new_callable=AsyncMock) as mock_fire:
             mock_fire.return_value = []
             response = await _post(
                 app,
@@ -231,7 +231,7 @@ class TestWebhookHandlerAccepted:
         """Lines 259-262: When fire_event raises, status becomes failed."""
         app = _make_app()
 
-        with patch("sagaz.triggers.fire_event", new_callable=AsyncMock) as mock_fire:
+        with patch("sagaz.core.triggers.fire_event", new_callable=AsyncMock) as mock_fire:
             mock_fire.side_effect = RuntimeError("broker down")
             response = await _post(app, "/webhooks/events", json={"key": "value"})
 
@@ -245,7 +245,7 @@ class TestWebhookHandlerAccepted:
     async def test_webhook_empty_body_defaults_to_empty_dict(self):
         """Lines 165-168: Invalid JSON body defaults to empty dict."""
         app = _make_app()
-        with patch("sagaz.triggers.fire_event", new_callable=AsyncMock) as mock_fire:
+        with patch("sagaz.core.triggers.fire_event", new_callable=AsyncMock) as mock_fire:
             mock_fire.return_value = []
             async with httpx.AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
@@ -322,7 +322,7 @@ class TestWebhookHandlerIdempotencyMissing:
 
         app = _make_app()
         try:
-            with patch("sagaz.triggers.fire_event", new_callable=AsyncMock) as mock_fire:
+            with patch("sagaz.core.triggers.fire_event", new_callable=AsyncMock) as mock_fire:
                 mock_fire.return_value = []
                 response = await _post(
                     app,
@@ -354,7 +354,7 @@ class TestWebhookHandlerIdempotencyMissing:
 
         app = _make_app()
         try:
-            with patch("sagaz.triggers.fire_event", new_callable=AsyncMock) as mock_fire:
+            with patch("sagaz.core.triggers.fire_event", new_callable=AsyncMock) as mock_fire:
                 mock_fire.return_value = []
                 response = await _post(
                     app,
@@ -606,7 +606,7 @@ class TestWebhookBackgroundStorageLookup:
         mock_config.storage = mock_storage
 
         with (
-            patch("sagaz.triggers.fire_event", new_callable=AsyncMock) as mock_fire,
+            patch("sagaz.core.triggers.fire_event", new_callable=AsyncMock) as mock_fire,
             patch("sagaz.core.config.get_config", return_value=mock_config),
         ):
             mock_fire.return_value = [saga_id]
@@ -631,7 +631,7 @@ class TestWebhookBackgroundStorageLookup:
         mock_config.storage = mock_storage
 
         with (
-            patch("sagaz.triggers.fire_event", new_callable=AsyncMock) as mock_fire,
+            patch("sagaz.core.triggers.fire_event", new_callable=AsyncMock) as mock_fire,
             patch("sagaz.core.config.get_config", return_value=mock_config),
         ):
             mock_fire.return_value = [saga_id]
@@ -648,7 +648,7 @@ class TestWebhookBackgroundStorageLookup:
         mock_config.storage = mock_storage
 
         with (
-            patch("sagaz.triggers.fire_event", new_callable=AsyncMock) as mock_fire,
+            patch("sagaz.core.triggers.fire_event", new_callable=AsyncMock) as mock_fire,
             patch("sagaz.core.config.get_config", return_value=mock_config),
         ):
             mock_fire.return_value = ["saga-xyz"]
@@ -670,7 +670,7 @@ class TestWebhookBackgroundStorageLookup:
         mock_config.storage = mock_storage
 
         with (
-            patch("sagaz.triggers.fire_event", new_callable=AsyncMock) as mock_fire,
+            patch("sagaz.core.triggers.fire_event", new_callable=AsyncMock) as mock_fire,
             patch("sagaz.core.config.get_config", return_value=mock_config),
         ):
             mock_fire.return_value = [saga_id]
@@ -692,7 +692,7 @@ class TestWebhookBackgroundStorageLookup:
         mock_config.storage = mock_storage
 
         with (
-            patch("sagaz.triggers.fire_event", new_callable=AsyncMock) as mock_fire,
+            patch("sagaz.core.triggers.fire_event", new_callable=AsyncMock) as mock_fire,
             patch("sagaz.core.config.get_config", return_value=mock_config),
         ):
             mock_fire.return_value = [saga_id]
@@ -710,7 +710,7 @@ class TestWebhookBackgroundStorageLookup:
         mock_config.storage = mock_storage
 
         with (
-            patch("sagaz.triggers.fire_event", new_callable=AsyncMock) as mock_fire,
+            patch("sagaz.core.triggers.fire_event", new_callable=AsyncMock) as mock_fire,
             patch("sagaz.core.config.get_config", return_value=mock_config),
         ):
             mock_fire.return_value = [saga_id]
@@ -732,7 +732,7 @@ class TestWebhookBackgroundStorageLookup:
         mock_config.storage = mock_storage
 
         with (
-            patch("sagaz.triggers.fire_event", new_callable=AsyncMock) as mock_fire,
+            patch("sagaz.core.triggers.fire_event", new_callable=AsyncMock) as mock_fire,
             patch("sagaz.core.config.get_config", return_value=mock_config),
         ):
             mock_fire.return_value = [saga_id]
@@ -757,7 +757,7 @@ class TestWebhookBackgroundStorageLookup:
         mock_config.storage = mock_storage
 
         with (
-            patch("sagaz.triggers.fire_event", new_callable=AsyncMock) as mock_fire,
+            patch("sagaz.core.triggers.fire_event", new_callable=AsyncMock) as mock_fire,
             patch("sagaz.core.config.get_config", return_value=mock_config),
         ):
             mock_fire.return_value = [saga_id_1, saga_id_2]
@@ -782,7 +782,7 @@ class TestWebhookBackgroundStorageLookup:
         mock_config.storage = mock_storage
 
         with (
-            patch("sagaz.triggers.fire_event", new_callable=AsyncMock) as mock_fire,
+            patch("sagaz.core.triggers.fire_event", new_callable=AsyncMock) as mock_fire,
             patch("sagaz.core.config.get_config", return_value=mock_config),
         ):
             mock_fire.return_value = [saga_id_1, saga_id_2]

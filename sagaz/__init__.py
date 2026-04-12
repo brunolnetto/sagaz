@@ -209,21 +209,5 @@ __all__ = [
 ]
 
 
-# =============================================================================
-# Backward Compatibility Aliases
-# =============================================================================
-# These imports allow existing code using the old module paths to continue working.
-# For example: `from sagaz.core.config import SagaConfig` will still work.
-
 # Re-export cli_examples for backward compatibility
 from sagaz.cli import examples as cli_examples
-
-# Install the import hook that transparently redirects the pre-Phase-2 module
-# paths to their new canonical locations:
-#   sagaz.monitoring.*  →  sagaz.observability.monitoring.*
-#   sagaz.storage.*     →  sagaz.core.storage.*
-#   sagaz.outbox.*      →  sagaz.core.outbox.*
-#   sagaz.triggers.*    →  sagaz.core.triggers.*
-from sagaz._compat_imports import install_compat_imports
-
-install_compat_imports()

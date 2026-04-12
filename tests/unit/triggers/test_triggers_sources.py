@@ -343,3 +343,323 @@ class TestMultipleSources:
 
         assert "a" in results
         assert "b" in results
+
+
+# =============================================================================
+# Cron Scheduler – Additional Coverage Tests
+# =============================================================================
+
+
+class TestCronSchedulerCoverage:
+    """Targeted tests to cover remaining branches in cron.py."""
+
+    def test_parse_cron_invalid_expression_raises(self):
+        """Lines 42-43: _parse_cron raises ValueError for wrong number of fields."""
+        from sagaz.core.triggers.sources.cron import _parse_cron
+
+        with pytest.raises(ValueError, match="Invalid cron expression"):
+            _parse_cron("* * * *")  # only 4 fields
+
+    def test_matches_field_step(self):
+        """Lines 60-61: */n step syntax matches when value is divisible."""
+        from sagaz.core.triggers.sources.cron import _matches_field
+
+        assert _matches_field("*/5", 0) is True
+        assert _matches_field("*/5", 5) is True
+        assert _matches_field("*/5", 3) is False
+
+    def test_matches_field_comma_list(self):
+        """Line 64: comma-separated values."""
+        from sagaz.core.triggers.sources.cron import _matches_field
+
+        assert _matches_field("1,2,3", 2) is True
+        assert _matches_field("1,2,3", 4) is False
+
+    def test_matches_field_range(self):
+        """Lines 67-68: range syntax (start-end)."""
+        from sagaz.core.triggers.sources.cron import _matches_field
+
+        assert _matches_field("1-5", 3) is True
+        assert _matches_field("1-5", 6) is False
+
+    def test_matches_cron_exception_returns_false(self):
+        """Lines 84-86: _matches_cron returns False when parsing fails."""
+        from sagaz.core.triggers.sources.cron import _matches_cron
+
+        # Expression that passes split but causes downstream error
+        result = _matches_cron("abc def ghi jkl mno", datetime.now())
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_cron_scheduler_start_when_already_running(self, memory_storage):
+        """Line 124: start() returns early when already running."""
+        from sagaz.core.triggers.sources.cron import CronScheduler
+
+        scheduler = CronScheduler()
+        await scheduler.start()
+        assert scheduler.is_running
+
+        # Starting again should be a no-op
+        await scheduler.start()
+        assert scheduler.is_running
+
+        await scheduler.stop()
+
+    @pytest.mark.asyncio
+    async def test_cron_scheduler_stop_cancels_task(self, memory_storage):
+        """Lines 133-140: stop() cancels the running task when _task is not None."""
+        from sagaz.core.triggers.sources.cron import CronScheduler
+
+        scheduler = CronScheduler(tick_interval=60)
+        await scheduler.start()
+
+        assert scheduler._task is not None
+        assert scheduler.is_running
+
+        await scheduler.stop()
+
+        assert scheduler._task is None
+        assert not scheduler.is_running
+
+    @pytest.mark.asyncio
+    async def test_run_loop_executes_tick(self, memory_storage):
+        """Lines 144-150: _run_loop executes _tick and then sleeps."""
+        from sagaz.core.triggers.sources.cron import CronScheduler
+
+        scheduler = CronScheduler(tick_interval=0)
+        tick_count = 0
+
+        async def mock_tick():
+            nonlocal tick_count
+            tick_count += 1
+            scheduler._running = False  # stop after first tick
+            return []
+
+        scheduler._running = True
+        with patch.object(scheduler, "_tick", mock_tick):
+            await scheduler._run_loop()
+
+        assert tick_count == 1
+
+    @pytest.mark.asyncio
+    async def test_run_loop_exception_in_tick_logged(self, memory_storage):
+        """Lines 147-148: _run_loop catches and logs exceptions from _tick."""
+        from sagaz.core.triggers.sources.cron import CronScheduler
+
+        scheduler = CronScheduler(tick_interval=0)
+        call_count = 0
+
+        async def failing_tick():
+            nonlocal call_count
+            call_count += 1
+            scheduler._running = False  # stop after this tick
+            raise RuntimeError("tick error")
+
+        scheduler._running = True
+        with patch.object(scheduler, "_tick", failing_tick):
+            await scheduler._run_loop()  # should not raise
+
+        assert call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_cron_scheduler_stop_no_task(self, memory_storage):
+        """133→140: stop() skips cancel block when _task is None."""
+        from sagaz.core.triggers.sources.cron import CronScheduler
+
+        scheduler = CronScheduler()
+        scheduler._running = True
+        scheduler._task = None
+
+        await scheduler.stop()
+
+        assert not scheduler.is_running
+        assert scheduler._task is None
+
+    @pytest.mark.asyncio
+    async def test_tick_skips_trigger_without_schedule(self, memory_storage):
+        """Line 168: _tick skips triggers that have no schedule config."""
+        from sagaz.core.triggers.sources.cron import CronScheduler
+
+        class NoScheduleSaga(Saga):
+            saga_name = "no_schedule"
+
+            @trigger(source="cron")  # no schedule kwarg
+            def on_tick(self, event):
+                return {}
+
+            @action("step")
+            async def step(self, ctx):
+                return {}
+
+        scheduler = CronScheduler()
+        result = await scheduler._tick()
+        # No schedule → skipped, nothing triggered
+        assert result == []
+
+
+# =============================================================================
+# Broker Consumer – Additional Coverage Tests
+# =============================================================================
+
+
+class TestBrokerConsumerCoverage:
+    """Targeted tests to cover remaining branches in broker.py."""
+
+    @pytest.mark.asyncio
+    async def test_is_running_property(self, memory_storage):
+        """Line 65: is_running property reflects internal state."""
+        from sagaz.core.triggers.sources.broker import BrokerTriggerConsumer
+
+        consumer = BrokerTriggerConsumer(broker=MagicMock())
+        assert consumer.is_running is False
+
+    @pytest.mark.asyncio
+    async def test_start_when_already_running(self, memory_storage):
+        """Lines 74-75: start() returns immediately if already running."""
+        from sagaz.core.triggers.sources.broker import BrokerTriggerConsumer
+
+        consumer = BrokerTriggerConsumer(broker=MagicMock())
+        consumer._running = True
+
+        # Should return without side-effects
+        await consumer.start()
+        assert consumer.is_running
+
+    @pytest.mark.asyncio
+    async def test_start_with_no_registered_topics(self, memory_storage):
+        """Lines 81-83: start() logs warning and returns when no topics discovered."""
+        from sagaz.core.triggers.sources.broker import BrokerTriggerConsumer
+
+        # No triggers registered → no topics
+        consumer = BrokerTriggerConsumer(broker=MagicMock())
+        await consumer.start()
+        # Still not running because no topics
+        assert not consumer.is_running
+
+    @pytest.mark.asyncio
+    async def test_start_with_explicit_topics(self, memory_storage):
+        """Lines 85-86: start() sets _running when topics are provided."""
+        from sagaz.core.triggers.sources.broker import BrokerTriggerConsumer
+
+        consumer = BrokerTriggerConsumer(broker=MagicMock())
+        await consumer.start(topics=["orders"])
+        assert consumer.is_running
+
+    @pytest.mark.asyncio
+    async def test_stop_cancels_task(self, memory_storage):
+        """Lines 93-101: stop() cancels and clears a running task."""
+        from sagaz.core.triggers.sources.broker import BrokerTriggerConsumer
+
+        consumer = BrokerTriggerConsumer(broker=MagicMock())
+        consumer._running = True
+
+        # Plant a real task that blocks until cancelled
+        async def _blocking():
+            await asyncio.sleep(60)
+
+        consumer._task = asyncio.create_task(_blocking())
+
+        await consumer.stop()
+
+        assert not consumer.is_running
+        assert consumer._task is None
+
+    @pytest.mark.asyncio
+    async def test_stop_no_task(self, memory_storage):
+        """94→101: stop() skips cancel block when _task is None."""
+        from sagaz.core.triggers.sources.broker import BrokerTriggerConsumer
+
+        consumer = BrokerTriggerConsumer(broker=MagicMock())
+        consumer._running = True
+        consumer._task = None
+
+        await consumer.stop()
+
+        assert not consumer.is_running
+
+    def test_discover_topics_skips_trigger_without_topic(self, memory_storage):
+        """109→107: _discover_topics skips broker triggers with no topic metadata."""
+        from sagaz.core.triggers.sources.broker import BrokerTriggerConsumer
+
+        class NoTopicSaga(Saga):
+            @trigger(source="broker")  # no topic kwarg
+            def on_event(self, event):
+                return {}
+
+            @action("step")
+            async def step(self, ctx):
+                return {}
+
+        consumer = BrokerTriggerConsumer(broker=MagicMock())
+        topics = consumer._discover_topics()
+        assert topics == []
+
+    def test_discover_topics_returns_registered_topics(self, memory_storage):
+        """Lines 105-112: _discover_topics returns topics from registered broker triggers."""
+        from sagaz.core.triggers.sources.broker import BrokerTriggerConsumer
+
+        class OrderSaga(Saga):
+            @trigger(source="broker", topic="orders")
+            def on_order(self, event):
+                return {}
+
+            @action("step")
+            async def step(self, ctx):
+                return {}
+
+        consumer = BrokerTriggerConsumer(broker=MagicMock())
+        topics = consumer._discover_topics()
+        assert "orders" in topics
+
+    @pytest.mark.asyncio
+    async def test_handle_message_async_transformer(self, memory_storage):
+        """Line 150: handle_message awaits async transformer methods."""
+        from sagaz.core.triggers.sources.broker import BrokerTriggerConsumer
+
+        results = []
+
+        class AsyncSaga(Saga):
+            saga_name = "async_saga"
+
+            @trigger(source="broker", topic="async-topic")
+            async def on_event(self, event):
+                results.append(event)
+                return {"processed": True}
+
+            @action("step")
+            async def step(self, ctx):
+                return {}
+
+        consumer = BrokerTriggerConsumer(broker=MagicMock())
+        await consumer.handle_message("async-topic", {"id": "1"})
+
+        assert len(results) == 1
+
+    @pytest.mark.asyncio
+    async def test_handle_message_transformer_returns_none(self, memory_storage):
+        """Line 154-155: handle_message skips saga creation when transformer returns None."""
+        from sagaz.core.triggers.sources.broker import BrokerTriggerConsumer
+
+        class NoneTransformerSaga(Saga):
+            saga_name = "none_transformer"
+
+            @trigger(source="broker", topic="null-topic")
+            def on_event(self, event):
+                return None  # returning None should skip saga creation
+
+            @action("step")
+            async def step(self, ctx):
+                return {}
+
+        consumer = BrokerTriggerConsumer(broker=MagicMock())
+        ids = await consumer.handle_message("null-topic", {"id": "1"})
+
+        assert ids == []
+
+    @pytest.mark.asyncio
+    async def test_create_broker_consumer_factory(self, memory_storage):
+        """Lines 189-194: create_broker_consumer factory creates and connects a consumer."""
+        from sagaz.core.triggers.sources.broker import create_broker_consumer
+
+        consumer = await create_broker_consumer("memory")
+        assert consumer is not None

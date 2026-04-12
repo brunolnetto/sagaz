@@ -77,8 +77,8 @@ class TestBrokerFactory:
     def test_create_broker_kafka_available(self):
         """Test creating Kafka broker when available"""
         with (
-            patch("sagaz.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
-            patch("sagaz.outbox.brokers.kafka.AIOKafkaProducer"),
+            patch("sagaz.core.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
+            patch("sagaz.core.outbox.brokers.kafka.AIOKafkaProducer"),
         ):
             from sagaz.core.outbox.brokers.factory import create_broker
 
@@ -88,8 +88,8 @@ class TestBrokerFactory:
     def test_create_broker_kafka_with_config(self):
         """Test creating Kafka broker with configuration"""
         with (
-            patch("sagaz.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
-            patch("sagaz.outbox.brokers.kafka.AIOKafkaProducer"),
+            patch("sagaz.core.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
+            patch("sagaz.core.outbox.brokers.kafka.AIOKafkaProducer"),
         ):
             from sagaz.core.outbox.brokers.factory import create_broker
 
@@ -101,8 +101,8 @@ class TestBrokerFactory:
     def test_create_broker_rabbitmq_available(self):
         """Test creating RabbitMQ broker when available"""
         with (
-            patch("sagaz.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
-            patch("sagaz.outbox.brokers.rabbitmq.aio_pika"),
+            patch("sagaz.core.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
+            patch("sagaz.core.outbox.brokers.rabbitmq.aio_pika"),
         ):
             from sagaz.core.outbox.brokers.factory import create_broker
 
@@ -112,8 +112,8 @@ class TestBrokerFactory:
     def test_create_broker_rabbitmq_aliases(self):
         """Test creating RabbitMQ broker with aliases"""
         with (
-            patch("sagaz.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
-            patch("sagaz.outbox.brokers.rabbitmq.aio_pika"),
+            patch("sagaz.core.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
+            patch("sagaz.core.outbox.brokers.rabbitmq.aio_pika"),
         ):
             from sagaz.core.outbox.brokers.factory import create_broker
 
@@ -557,8 +557,8 @@ class TestKafkaBrokerMocked:
     def test_kafka_broker_config_defaults(self):
         """Test KafkaBrokerConfig has sensible defaults"""
         with (
-            patch("sagaz.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
-            patch("sagaz.outbox.brokers.kafka.AIOKafkaProducer"),
+            patch("sagaz.core.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
+            patch("sagaz.core.outbox.brokers.kafka.AIOKafkaProducer"),
         ):
             from sagaz.core.outbox.brokers.kafka import KafkaBrokerConfig
 
@@ -570,8 +570,8 @@ class TestKafkaBrokerMocked:
     def test_kafka_broker_from_env(self, monkeypatch):
         """Test KafkaBroker.from_env creates broker from environment"""
         with (
-            patch("sagaz.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
-            patch("sagaz.outbox.brokers.kafka.AIOKafkaProducer"),
+            patch("sagaz.core.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
+            patch("sagaz.core.outbox.brokers.kafka.AIOKafkaProducer"),
         ):
             from sagaz.core.outbox.brokers.kafka import KafkaBroker
 
@@ -590,8 +590,8 @@ class TestRabbitMQBrokerMocked:
     def test_rabbitmq_broker_config_defaults(self):
         """Test RabbitMQBrokerConfig has sensible defaults"""
         with (
-            patch("sagaz.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
-            patch("sagaz.outbox.brokers.rabbitmq.aio_pika"),
+            patch("sagaz.core.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
+            patch("sagaz.core.outbox.brokers.rabbitmq.aio_pika"),
         ):
             from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBrokerConfig
 
@@ -603,8 +603,8 @@ class TestRabbitMQBrokerMocked:
     def test_rabbitmq_broker_from_env(self, monkeypatch):
         """Test RabbitMQBroker.from_env creates broker from environment"""
         with (
-            patch("sagaz.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
-            patch("sagaz.outbox.brokers.rabbitmq.aio_pika"),
+            patch("sagaz.core.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
+            patch("sagaz.core.outbox.brokers.rabbitmq.aio_pika"),
         ):
             from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker
 

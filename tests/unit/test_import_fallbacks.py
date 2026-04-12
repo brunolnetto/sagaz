@@ -14,13 +14,13 @@ from unittest.mock import patch
 # _reload_module must pop both so the module is genuinely re-executed without
 # falling through to the cached canonical entry.
 _ALIAS_TO_CANONICAL: dict[str, str] = {
-    "sagaz.storage.backends.redis.snapshot": "sagaz.core.storage.backends.redis.snapshot",
-    "sagaz.storage.backends.redis.saga": "sagaz.core.storage.backends.redis.saga",
-    "sagaz.storage.backends.postgresql.saga": "sagaz.core.storage.backends.postgresql.saga",
-    "sagaz.storage.backends.postgresql.snapshot": "sagaz.core.storage.backends.postgresql.snapshot",
-    "sagaz.storage.backends.postgresql.outbox": "sagaz.core.storage.backends.postgresql.outbox",
-    "sagaz.storage.backends.s3.snapshot": "sagaz.core.storage.backends.s3.snapshot",
-    "sagaz.outbox.brokers.kafka": "sagaz.core.outbox.brokers.kafka",
+    "sagaz.core.storage.backends.redis.snapshot": "sagaz.core.storage.backends.redis.snapshot",
+    "sagaz.core.storage.backends.redis.saga": "sagaz.core.storage.backends.redis.saga",
+    "sagaz.core.storage.backends.postgresql.saga": "sagaz.core.storage.backends.postgresql.saga",
+    "sagaz.core.storage.backends.postgresql.snapshot": "sagaz.core.storage.backends.postgresql.snapshot",
+    "sagaz.core.storage.backends.postgresql.outbox": "sagaz.core.storage.backends.postgresql.outbox",
+    "sagaz.core.storage.backends.s3.snapshot": "sagaz.core.storage.backends.s3.snapshot",
+    "sagaz.core.outbox.brokers.kafka": "sagaz.core.outbox.brokers.kafka",
 }
 
 
@@ -48,7 +48,7 @@ def _reload_module(mod_key: str, blocked_imports: dict) -> object:
 class TestRedisSnapshotFallback:
     def test_redis_unavailable_sets_flag(self):
         mod = _reload_module(
-            "sagaz.storage.backends.redis.snapshot",
+            "sagaz.core.storage.backends.redis.snapshot",
             {"redis": None, "redis.asyncio": None},
         )
         assert mod.REDIS_AVAILABLE is False
@@ -56,7 +56,7 @@ class TestRedisSnapshotFallback:
 
     def test_zstd_unavailable_sets_flag(self):
         mod = _reload_module(
-            "sagaz.storage.backends.redis.snapshot",
+            "sagaz.core.storage.backends.redis.snapshot",
             {"zstandard": None},
         )
         assert mod.ZSTD_AVAILABLE is False
@@ -66,7 +66,7 @@ class TestRedisSnapshotFallback:
 class TestRedisSagaFallback:
     def test_redis_unavailable_sets_flag(self):
         mod = _reload_module(
-            "sagaz.storage.backends.redis.saga",
+            "sagaz.core.storage.backends.redis.saga",
             {"redis": None, "redis.asyncio": None},
         )
         assert mod.REDIS_AVAILABLE is False
@@ -76,7 +76,7 @@ class TestRedisSagaFallback:
 class TestPostgreSQLSagaFallback:
     def test_asyncpg_unavailable_sets_flag(self):
         mod = _reload_module(
-            "sagaz.storage.backends.postgresql.saga",
+            "sagaz.core.storage.backends.postgresql.saga",
             {"asyncpg": None},
         )
         assert mod.ASYNCPG_AVAILABLE is False
@@ -86,7 +86,7 @@ class TestPostgreSQLSagaFallback:
 class TestPostgreSQLSnapshotFallback:
     def test_asyncpg_unavailable_sets_flag(self):
         mod = _reload_module(
-            "sagaz.storage.backends.postgresql.snapshot",
+            "sagaz.core.storage.backends.postgresql.snapshot",
             {"asyncpg": None},
         )
         assert mod.ASYNCPG_AVAILABLE is False
@@ -96,7 +96,7 @@ class TestPostgreSQLSnapshotFallback:
 class TestPostgreSQLOutboxFallback:
     def test_asyncpg_unavailable_sets_none(self):
         mod = _reload_module(
-            "sagaz.storage.backends.postgresql.outbox",
+            "sagaz.core.storage.backends.postgresql.outbox",
             {"asyncpg": None},
         )
         assert mod.asyncpg is None
@@ -105,7 +105,7 @@ class TestPostgreSQLOutboxFallback:
 class TestS3SnapshotFallback:
     def test_aioboto3_unavailable_sets_flag(self):
         mod = _reload_module(
-            "sagaz.storage.backends.s3.snapshot",
+            "sagaz.core.storage.backends.s3.snapshot",
             {"aioboto3": None},
         )
         assert mod.AIOBOTO3_AVAILABLE is False
@@ -113,7 +113,7 @@ class TestS3SnapshotFallback:
 
     def test_zstd_unavailable_sets_flag(self):
         mod = _reload_module(
-            "sagaz.storage.backends.s3.snapshot",
+            "sagaz.core.storage.backends.s3.snapshot",
             {"zstandard": None},
         )
         assert mod.ZSTD_AVAILABLE is False
@@ -123,7 +123,7 @@ class TestS3SnapshotFallback:
 class TestKafkaFallback:
     def test_kafka_unavailable_sets_flag(self):
         mod = _reload_module(
-            "sagaz.outbox.brokers.kafka",
+            "sagaz.core.outbox.brokers.kafka",
             {"aiokafka": None},
         )
         assert mod.KAFKA_AVAILABLE is False

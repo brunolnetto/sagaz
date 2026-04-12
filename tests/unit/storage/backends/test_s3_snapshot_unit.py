@@ -23,7 +23,7 @@ class TestS3SnapshotStorageImportError:
     def test_aioboto3_not_available_import_error(self):
         """Test that S3SnapshotStorage raises MissingDependencyError"""
         with patch.dict("sys.modules", {"aioboto3": None}):
-            with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", False):
+            with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", False):
                 from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 with pytest.raises(MissingDependencyError, match="aioboto3"):
@@ -31,8 +31,8 @@ class TestS3SnapshotStorageImportError:
 
     def test_zstd_not_available_with_compression(self):
         """Test that compression requirement raises MissingDependencyError"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.ZSTD_AVAILABLE", False):
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.ZSTD_AVAILABLE", False):
                 from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 with pytest.raises(MissingDependencyError, match="zstandard"):
@@ -45,8 +45,8 @@ class TestS3SnapshotStorageUnit:
     @pytest.mark.asyncio
     async def test_initialization(self):
         """Test S3 snapshot storage initialization"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3"):
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3"):
                 from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(
@@ -64,8 +64,8 @@ class TestS3SnapshotStorageUnit:
     @pytest.mark.asyncio
     async def test_save_snapshot_mocked(self):
         """Test save_snapshot with mocked S3"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 # Mock S3 client
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
@@ -128,8 +128,8 @@ class TestS3SnapshotStorageUnit:
     @pytest.mark.asyncio
     async def test_get_snapshot_found(self):
         """Test get_snapshot when snapshot exists"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
 
@@ -180,8 +180,8 @@ class TestS3SnapshotStorageUnit:
     @pytest.mark.asyncio
     async def test_get_snapshot_not_found(self):
         """Test get_snapshot when snapshot doesn't exist"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
 
@@ -212,8 +212,8 @@ class TestS3SnapshotStorageUnit:
     @pytest.mark.asyncio
     async def test_list_snapshots(self):
         """Test list_snapshots"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
 
@@ -281,8 +281,8 @@ class TestS3SnapshotStorageUnit:
     @pytest.mark.asyncio
     async def test_delete_snapshot(self):
         """Test delete_snapshot"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
 
@@ -349,8 +349,8 @@ class TestS3SnapshotStorageUnit:
     @pytest.mark.asyncio
     async def test_close(self):
         """Test close connection"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
 
@@ -375,8 +375,8 @@ class TestS3SnapshotStorageUnit:
     @pytest.mark.asyncio
     async def test_context_manager(self):
         """Test async context manager"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
 
@@ -405,10 +405,10 @@ class TestS3SnapshotStorageCompression:
     @pytest.mark.asyncio
     async def test_compression_enabled(self):
         """Test snapshot storage with compression"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.ZSTD_AVAILABLE", True):
-                with patch("sagaz.storage.backends.s3.snapshot.zstd") as mock_zstd:
-                    with patch("sagaz.storage.backends.s3.snapshot.aioboto3"):
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.ZSTD_AVAILABLE", True):
+                with patch("sagaz.core.storage.backends.s3.snapshot.zstd") as mock_zstd:
+                    with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3"):
                         # Mock compressor
                         mock_compressor = Mock()
                         mock_compressor.compress = Mock(return_value=b"compressed_data")
@@ -433,8 +433,8 @@ class TestS3SnapshotStorageCompression:
     @pytest.mark.asyncio
     async def test_compression_disabled(self):
         """Test snapshot storage without compression"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3"):
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3"):
                 from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(
@@ -453,8 +453,8 @@ class TestS3SnapshotStorageEncryption:
     @pytest.mark.asyncio
     async def test_encryption_enabled(self):
         """Test with encryption enabled"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3"):
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3"):
                 from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(
@@ -466,8 +466,8 @@ class TestS3SnapshotStorageEncryption:
     @pytest.mark.asyncio
     async def test_custom_storage_class(self):
         """Test with custom S3 storage class"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3"):
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3"):
                 from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(
@@ -483,10 +483,10 @@ class TestS3SnapshotStorageKeyGeneration:
     @pytest.mark.asyncio
     async def test_snapshot_key_with_compression(self):
         """Test snapshot key generation with compression"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.ZSTD_AVAILABLE", True):
-                with patch("sagaz.storage.backends.s3.snapshot.zstd"):
-                    with patch("sagaz.storage.backends.s3.snapshot.aioboto3"):
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.ZSTD_AVAILABLE", True):
+                with patch("sagaz.core.storage.backends.s3.snapshot.zstd"):
+                    with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3"):
                         from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                         storage = S3SnapshotStorage(
@@ -502,8 +502,8 @@ class TestS3SnapshotStorageKeyGeneration:
     @pytest.mark.asyncio
     async def test_snapshot_key_without_compression(self):
         """Test snapshot key generation without compression"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3"):
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3"):
                 from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(
@@ -519,8 +519,8 @@ class TestS3SnapshotStorageKeyGeneration:
     @pytest.mark.asyncio
     async def test_saga_index_key(self):
         """Test saga index key generation"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3"):
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3"):
                 from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(
@@ -534,8 +534,8 @@ class TestS3SnapshotStorageKeyGeneration:
     @pytest.mark.asyncio
     async def test_replay_log_key(self):
         """Test replay log key generation"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3"):
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3"):
                 from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(
@@ -553,8 +553,8 @@ class TestS3SnapshotStorageSerializationIntegration:
     @pytest.mark.asyncio
     async def test_serialize_without_compression(self):
         """Test serialize method without compression"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3"):
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3"):
                 from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(
@@ -571,10 +571,10 @@ class TestS3SnapshotStorageSerializationIntegration:
     @pytest.mark.asyncio
     async def test_serialize_with_compression(self):
         """Test serialize method with compression"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.ZSTD_AVAILABLE", True):
-                with patch("sagaz.storage.backends.s3.snapshot.zstd") as mock_zstd:
-                    with patch("sagaz.storage.backends.s3.snapshot.aioboto3"):
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.ZSTD_AVAILABLE", True):
+                with patch("sagaz.core.storage.backends.s3.snapshot.zstd") as mock_zstd:
+                    with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3"):
                         mock_compressor = Mock()
                         mock_compressor.compress = Mock(return_value=b"compressed")
                         mock_zstd.ZstdCompressor = Mock(return_value=mock_compressor)
@@ -596,8 +596,8 @@ class TestS3SnapshotStorageSerializationIntegration:
     @pytest.mark.asyncio
     async def test_deserialize_without_compression(self):
         """Test deserialize method without compression"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3"):
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3"):
                 from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(
@@ -614,10 +614,10 @@ class TestS3SnapshotStorageSerializationIntegration:
     @pytest.mark.asyncio
     async def test_deserialize_with_compression(self):
         """Test deserialize method with compression"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.ZSTD_AVAILABLE", True):
-                with patch("sagaz.storage.backends.s3.snapshot.zstd") as mock_zstd:
-                    with patch("sagaz.storage.backends.s3.snapshot.aioboto3"):
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.ZSTD_AVAILABLE", True):
+                with patch("sagaz.core.storage.backends.s3.snapshot.zstd") as mock_zstd:
+                    with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3"):
                         data_dict = {"test": "value"}
                         json_bytes = json.dumps(data_dict).encode("utf-8")
 
@@ -646,8 +646,8 @@ class TestS3SnapshotStorageAdvancedOperations:
     @pytest.mark.asyncio
     async def test_save_snapshot_full(self):
         """Test save_snapshot with all features"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
 
@@ -703,8 +703,8 @@ class TestS3SnapshotStorageAdvancedOperations:
     @pytest.mark.asyncio
     async def test_update_saga_index_new(self):
         """Test _update_saga_index when index doesn't exist"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
 
@@ -740,8 +740,8 @@ class TestS3SnapshotStorageAdvancedOperations:
     @pytest.mark.asyncio
     async def test_update_saga_index_existing(self):
         """Test _update_saga_index when index exists"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
 
@@ -785,8 +785,8 @@ class TestS3SnapshotStorageAdvancedOperations:
     @pytest.mark.asyncio
     async def test_get_latest_snapshot_with_filter(self):
         """Test get_latest_snapshot with before_step filter"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
 
@@ -857,8 +857,8 @@ class TestS3SnapshotStorageAdvancedOperations:
     @pytest.mark.asyncio
     async def test_get_latest_snapshot_not_found(self):
         """Test get_latest_snapshot when index not found"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
 
@@ -886,8 +886,8 @@ class TestS3SnapshotStorageAdvancedOperations:
     @pytest.mark.asyncio
     async def test_get_snapshot_at_time(self):
         """Test get_snapshot_at_time"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
 
@@ -957,8 +957,8 @@ class TestS3SnapshotStorageAdvancedOperations:
     @pytest.mark.asyncio
     async def test_list_snapshots_with_limit(self):
         """Test list_snapshots with limit"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
 
@@ -1028,8 +1028,8 @@ class TestS3SnapshotStorageAdvancedOperations:
     @pytest.mark.asyncio
     async def test_delete_snapshot_success(self):
         """Test delete_snapshot successful deletion"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
 
@@ -1102,8 +1102,8 @@ class TestS3SnapshotStorageAdvancedOperations:
     @pytest.mark.asyncio
     async def test_delete_snapshot_not_found(self):
         """Test delete_snapshot when snapshot doesn't exist"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
 
@@ -1135,8 +1135,8 @@ class TestS3SnapshotStorageReplayOperations:
     @pytest.mark.asyncio
     async def test_save_replay_log(self):
         """Test save_replay_log"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
 
@@ -1174,8 +1174,8 @@ class TestS3SnapshotStorageReplayOperations:
     @pytest.mark.asyncio
     async def test_get_replay_log_found(self):
         """Test get_replay_log when replay exists"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
 
@@ -1214,8 +1214,8 @@ class TestS3SnapshotStorageReplayOperations:
     @pytest.mark.asyncio
     async def test_get_replay_log_not_found(self):
         """Test get_replay_log when replay doesn't exist"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
 
@@ -1243,8 +1243,8 @@ class TestS3SnapshotStorageReplayOperations:
     @pytest.mark.asyncio
     async def test_list_replays(self):
         """Test list_replays"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
 
@@ -1322,8 +1322,8 @@ class TestS3SnapshotStorageReplayOperations:
     @pytest.mark.asyncio
     async def test_list_replays_with_limit(self):
         """Test list_replays respects limit"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
 
@@ -1392,8 +1392,8 @@ class TestS3SnapshotStorageEdgeCases:
     @pytest.mark.asyncio
     async def test_get_snapshot_at_time_not_found(self):
         """Test get_snapshot_at_time when no index exists"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
 
@@ -1421,8 +1421,8 @@ class TestS3SnapshotStorageEdgeCases:
     @pytest.mark.asyncio
     async def test_list_snapshots_empty(self):
         """Test list_snapshots when no snapshots exist"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
 
@@ -1450,8 +1450,8 @@ class TestS3SnapshotStorageEdgeCases:
     @pytest.mark.asyncio
     async def test_remove_from_saga_index_not_found(self):
         """Test _remove_from_saga_index when index doesn't exist"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
 
@@ -1479,8 +1479,8 @@ class TestS3SnapshotStorageEdgeCases:
     @pytest.mark.asyncio
     async def test_get_latest_snapshot_with_none_snapshot(self):
         """Test get_latest_snapshot when snapshot fetch returns None"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
 
@@ -1537,8 +1537,8 @@ class TestS3SnapshotStorageDeleteExpired:
     @pytest.mark.asyncio
     async def test_delete_expired_snapshots(self):
         """Test delete_expired_snapshots"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
 
@@ -1623,8 +1623,8 @@ class TestS3SnapshotStorageDeleteExpired:
     @pytest.mark.asyncio
     async def test_delete_expired_snapshots_no_expired(self):
         """Test delete_expired_snapshots when no snapshots are expired"""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client = AsyncMock()
 
@@ -1680,8 +1680,8 @@ class TestS3SnapshotMissingBranches:
         """Lines 102-104: _get_s3_client raises ConnectionError on exception."""
         from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_session = MagicMock()
                 mock_client_cm = AsyncMock()
                 mock_client_cm.__aenter__ = AsyncMock(side_effect=RuntimeError("S3 error"))
@@ -1697,8 +1697,8 @@ class TestS3SnapshotMissingBranches:
         """Lines 165->169: encryption disabled branch (no ServerSideEncryption)."""
         from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_client, _, MockNoSuchKey = _make_mock_s3_setup(mock_aioboto3)
                 mock_client.put_object = AsyncMock()
                 mock_client.get_object = AsyncMock(side_effect=MockNoSuchKey())
@@ -1730,8 +1730,8 @@ class TestS3SnapshotMissingBranches:
         """Lines 251->243: before_step doesn't match any snapshot."""
         from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_client, _, MockNoSuchKey = _make_mock_s3_setup(mock_aioboto3)
                 saga_id = uuid4()
                 snap_id = uuid4()
@@ -1771,8 +1771,8 @@ class TestS3SnapshotMissingBranches:
         """Lines 272->279: get_snapshot_at_time returns None when index is empty."""
         from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_client, _, _ = _make_mock_s3_setup(mock_aioboto3)
                 index_data = {"snapshots": []}
                 index_resp = {
@@ -1791,8 +1791,8 @@ class TestS3SnapshotMissingBranches:
         """Lines 274->272: entry_time > timestamp, loop continues without match."""
         from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_client, _, _ = _make_mock_s3_setup(mock_aioboto3)
                 future_time = datetime.now(UTC) + timedelta(days=1)
                 index_data = {
@@ -1818,8 +1818,8 @@ class TestS3SnapshotMissingBranches:
         """Lines 300->297: snapshot is None from get_snapshot, branch not appended."""
         from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_client, _, MockNoSuchKey = _make_mock_s3_setup(mock_aioboto3)
                 saga_id = uuid4()
                 snap_id = uuid4()
@@ -1841,8 +1841,8 @@ class TestS3SnapshotMissingBranches:
         """Lines 322-323: exception during delete returns False."""
         from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_client, _, _ = _make_mock_s3_setup(mock_aioboto3)
                 snap_id = uuid4()
                 saga_id = uuid4()
@@ -1874,8 +1874,8 @@ class TestS3SnapshotMissingBranches:
         """Lines 374->368: object without expiry metadata is skipped."""
         from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_client, _, _ = _make_mock_s3_setup(mock_aioboto3)
                 mock_client.head_object = AsyncMock(return_value={"Expires": None})
 
@@ -1896,8 +1896,8 @@ class TestS3SnapshotMissingBranches:
         """Lines 385-386: exception in delete_expired head_object is swallowed."""
         from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_client, _, _ = _make_mock_s3_setup(mock_aioboto3)
                 mock_client.head_object = AsyncMock(side_effect=RuntimeError("error"))
 
@@ -1919,8 +1919,8 @@ class TestS3SnapshotMissingBranches:
         from sagaz.core.replay import ReplayStatus
         from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_client, _, _ = _make_mock_s3_setup(mock_aioboto3)
                 mock_client.put_object = AsyncMock()
 
@@ -1945,8 +1945,8 @@ class TestS3SnapshotMissingBranches:
         """Lines 447->439: replay with different original_saga_id is skipped."""
         from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_client, _, _ = _make_mock_s3_setup(mock_aioboto3)
                 other_saga_id = uuid4()
                 replay_data = {
@@ -1975,8 +1975,8 @@ class TestS3SnapshotMissingBranches:
         """Lines 452-453: exception in list_replays is swallowed."""
         from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 mock_client, _, _ = _make_mock_s3_setup(mock_aioboto3)
                 mock_client.get_object = AsyncMock(side_effect=RuntimeError("error"))
 
@@ -1997,8 +1997,8 @@ class TestS3SnapshotMissingBranches:
         """Lines 465->exit: close() is no-op when _s3_client is None."""
         from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3"):
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3"):
                 storage = S3SnapshotStorage(bucket_name="test-bucket", enable_compression=False)
                 assert storage._s3_client is None
                 await storage.close()  # Should not raise
@@ -2007,8 +2007,8 @@ class TestS3SnapshotMissingBranches:
 class TestS3SnapshotBranch:
     async def test_delete_expired_snapshots_deletes_expired(self):
         """383->368: delete_expired_snapshots uses paginator to list and delete expired objects."""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(
@@ -2054,8 +2054,8 @@ class TestS3SnapshotBranch:
 
     async def test_delete_expired_snapshots_delete_returns_false(self):
         """383->368 FALSE: delete_snapshot returns False → deleted_count not incremented."""
-        with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
-            with patch("sagaz.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
+        with patch("sagaz.core.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.s3.snapshot.aioboto3") as mock_aioboto3:
                 from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 storage = S3SnapshotStorage(

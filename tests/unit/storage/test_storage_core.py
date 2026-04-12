@@ -1,5 +1,5 @@
 """
-Tests for sagaz.storage.core module.
+Tests for sagaz.core.storage.core module.
 """
 
 import json

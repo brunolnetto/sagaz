@@ -43,7 +43,7 @@ class TestPostgreSQLSnapshotStorageImportError:
     def test_asyncpg_not_available_import_error(self):
         """Test that PostgreSQLSnapshotStorage raises MissingDependencyError"""
         with patch.dict("sys.modules", {"asyncpg": None}):
-            with patch("sagaz.storage.backends.postgresql.snapshot.ASYNCPG_AVAILABLE", False):
+            with patch("sagaz.core.storage.backends.postgresql.snapshot.ASYNCPG_AVAILABLE", False):
                 from sagaz.core.storage.backends.postgresql.snapshot import (
                     PostgreSQLSnapshotStorage,
                 )
@@ -58,8 +58,8 @@ class TestPostgreSQLSnapshotStorageUnit:
     @pytest.mark.asyncio
     async def test_initialization(self):
         """Test PostgreSQL snapshot storage initialization"""
-        with patch("sagaz.storage.backends.postgresql.snapshot.ASYNCPG_AVAILABLE", True):
-            with patch("sagaz.storage.backends.postgresql.snapshot.asyncpg"):
+        with patch("sagaz.core.storage.backends.postgresql.snapshot.ASYNCPG_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.postgresql.snapshot.asyncpg"):
                 from sagaz.core.storage.backends.postgresql.snapshot import (
                     PostgreSQLSnapshotStorage,
                 )
@@ -70,8 +70,8 @@ class TestPostgreSQLSnapshotStorageUnit:
     @pytest.mark.asyncio
     async def test_connection_error_handling(self):
         """Test PostgreSQL connection error handling"""
-        with patch("sagaz.storage.backends.postgresql.snapshot.ASYNCPG_AVAILABLE", True):
-            with patch("sagaz.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
+        with patch("sagaz.core.storage.backends.postgresql.snapshot.ASYNCPG_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
                 mock_asyncpg.create_pool = AsyncMock(side_effect=Exception("Connection refused"))
 
                 from sagaz.core.storage.backends.postgresql.snapshot import (
@@ -88,8 +88,8 @@ class TestPostgreSQLSnapshotStorageUnit:
     @pytest.mark.asyncio
     async def test_save_snapshot_mocked(self):
         """Test save_snapshot with mocked database"""
-        with patch("sagaz.storage.backends.postgresql.snapshot.ASYNCPG_AVAILABLE", True):
-            with patch("sagaz.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
+        with patch("sagaz.core.storage.backends.postgresql.snapshot.ASYNCPG_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
                 # Mock pool and connection
                 mock_pool = AsyncMock()
                 mock_conn = AsyncMock()
@@ -131,8 +131,8 @@ class TestPostgreSQLSnapshotStorageUnit:
     @pytest.mark.asyncio
     async def test_get_snapshot_not_found(self):
         """Test get_snapshot when snapshot doesn't exist"""
-        with patch("sagaz.storage.backends.postgresql.snapshot.ASYNCPG_AVAILABLE", True):
-            with patch("sagaz.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
+        with patch("sagaz.core.storage.backends.postgresql.snapshot.ASYNCPG_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
                 mock_pool = AsyncMock()
                 mock_conn = AsyncMock()
                 mock_asyncpg.create_pool = AsyncMock(return_value=mock_pool)
@@ -161,8 +161,8 @@ class TestPostgreSQLSnapshotStorageUnit:
     @pytest.mark.asyncio
     async def test_list_snapshots_empty(self):
         """Test list_snapshots when no snapshots exist"""
-        with patch("sagaz.storage.backends.postgresql.snapshot.ASYNCPG_AVAILABLE", True):
-            with patch("sagaz.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
+        with patch("sagaz.core.storage.backends.postgresql.snapshot.ASYNCPG_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
                 mock_pool = AsyncMock()
                 mock_conn = AsyncMock()
                 mock_asyncpg.create_pool = AsyncMock(return_value=mock_pool)
@@ -188,8 +188,8 @@ class TestPostgreSQLSnapshotStorageUnit:
     @pytest.mark.asyncio
     async def test_delete_snapshot_mocked(self):
         """Test delete_snapshot with mocked database"""
-        with patch("sagaz.storage.backends.postgresql.snapshot.ASYNCPG_AVAILABLE", True):
-            with patch("sagaz.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
+        with patch("sagaz.core.storage.backends.postgresql.snapshot.ASYNCPG_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
                 mock_pool = AsyncMock()
                 mock_conn = AsyncMock()
                 mock_asyncpg.create_pool = AsyncMock(return_value=mock_pool)
@@ -214,8 +214,8 @@ class TestPostgreSQLSnapshotStorageUnit:
     @pytest.mark.asyncio
     async def test_cleanup(self):
         """Test cleanup closes the connection pool"""
-        with patch("sagaz.storage.backends.postgresql.snapshot.ASYNCPG_AVAILABLE", True):
-            with patch("sagaz.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
+        with patch("sagaz.core.storage.backends.postgresql.snapshot.ASYNCPG_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
                 mock_pool = AsyncMock()
                 mock_conn = AsyncMock()
                 mock_asyncpg.create_pool = AsyncMock(return_value=mock_pool)

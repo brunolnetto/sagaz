@@ -434,7 +434,7 @@ class TestRedisOutboxImportError:
         with patch.dict(sys.modules, {"redis": None, "redis.asyncio": None}):
             # Patch from_url to simulate import failure path
             with patch(
-                "sagaz.storage.backends.redis.outbox.redis",
+                "sagaz.core.storage.backends.redis.outbox.redis",
                 new=None,  # redis is None → attribute access fails
                 create=True,
             ):

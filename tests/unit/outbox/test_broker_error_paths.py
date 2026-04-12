@@ -63,7 +63,7 @@ class TestKafkaBrokerConnect:
         mock_producer = AsyncMock()
         mock_producer.start = AsyncMock()
 
-        with patch("sagaz.outbox.brokers.kafka.AIOKafkaProducer", return_value=mock_producer):
+        with patch("sagaz.core.outbox.brokers.kafka.AIOKafkaProducer", return_value=mock_producer):
             await broker.connect()
 
             assert broker._connected is True
@@ -83,7 +83,7 @@ class TestKafkaBrokerConnect:
         mock_producer = AsyncMock()
         mock_producer.start = AsyncMock()
 
-        with patch("sagaz.outbox.brokers.kafka.AIOKafkaProducer", return_value=mock_producer):
+        with patch("sagaz.core.outbox.brokers.kafka.AIOKafkaProducer", return_value=mock_producer):
             await broker.connect()
             assert broker._connected is True
 
@@ -119,7 +119,7 @@ class TestKafkaBrokerClose:
         mock_producer.start = AsyncMock()
         mock_producer.stop = AsyncMock()
 
-        with patch("sagaz.outbox.brokers.kafka.AIOKafkaProducer", return_value=mock_producer):
+        with patch("sagaz.core.outbox.brokers.kafka.AIOKafkaProducer", return_value=mock_producer):
             await broker.connect()
             assert broker._connected
 
@@ -209,7 +209,7 @@ class TestRabbitMQBrokerConnect:
         broker = RabbitMQBroker()
 
         with patch(
-            "sagaz.outbox.brokers.rabbitmq.aio_pika.connect_robust",
+            "sagaz.core.outbox.brokers.rabbitmq.aio_pika.connect_robust",
             new_callable=AsyncMock,
             side_effect=Exception("connection refused"),
         ):
@@ -343,7 +343,7 @@ class TestKafkaConnectAlreadyConnected:
         broker._producer = mock_producer
 
         # Should not call AIOKafkaProducer at all
-        with patch("sagaz.outbox.brokers.kafka.AIOKafkaProducer") as MockProducer:
+        with patch("sagaz.core.outbox.brokers.kafka.AIOKafkaProducer") as MockProducer:
             await broker.connect()
             MockProducer.assert_not_called()
 
@@ -362,7 +362,7 @@ class TestKafkaConnectError:
         mock_producer = AsyncMock()
         mock_producer.start = AsyncMock(side_effect=kafka_mod.KafkaError("refused"))
 
-        with patch("sagaz.outbox.brokers.kafka.AIOKafkaProducer", return_value=mock_producer):
+        with patch("sagaz.core.outbox.brokers.kafka.AIOKafkaProducer", return_value=mock_producer):
             with pytest.raises(BrokerConnectionError, match="Failed to connect to Kafka"):
                 await broker.connect()
 
@@ -457,7 +457,7 @@ class TestRabbitMQConnectAlreadyConnected:
         broker._connected = True
 
         with patch(
-            "sagaz.outbox.brokers.rabbitmq.aio_pika.connect_robust",
+            "sagaz.core.outbox.brokers.rabbitmq.aio_pika.connect_robust",
             new_callable=AsyncMock,
         ) as mock_conn:
             await broker.connect()
@@ -484,11 +484,11 @@ class TestRabbitMQConnectSuccess:
         mock_connection.channel = AsyncMock(return_value=mock_channel)
 
         with patch(
-            "sagaz.outbox.brokers.rabbitmq.aio_pika.connect_robust",
+            "sagaz.core.outbox.brokers.rabbitmq.aio_pika.connect_robust",
             new_callable=AsyncMock,
             return_value=mock_connection,
         ):
-            with patch("sagaz.outbox.brokers.rabbitmq.ExchangeType") as mock_exchange_type:
+            with patch("sagaz.core.outbox.brokers.rabbitmq.ExchangeType") as mock_exchange_type:
                 mock_exchange_type.DIRECT = "direct"
                 await broker.connect()
 
@@ -514,8 +514,8 @@ class TestRabbitMQPublishPaths:
         broker._exchange = mock_exchange
 
         with (
-            patch("sagaz.outbox.brokers.rabbitmq.Message") as MockMessage,
-            patch("sagaz.outbox.brokers.rabbitmq.DeliveryMode") as MockDeliveryMode,
+            patch("sagaz.core.outbox.brokers.rabbitmq.Message") as MockMessage,
+            patch("sagaz.core.outbox.brokers.rabbitmq.DeliveryMode") as MockDeliveryMode,
         ):
             MockMessage.return_value = MagicMock()
             MockDeliveryMode.PERSISTENT = "persistent"
@@ -538,8 +538,8 @@ class TestRabbitMQPublishPaths:
         broker._exchange = mock_exchange
 
         with (
-            patch("sagaz.outbox.brokers.rabbitmq.Message") as MockMessage,
-            patch("sagaz.outbox.brokers.rabbitmq.DeliveryMode") as MockDeliveryMode,
+            patch("sagaz.core.outbox.brokers.rabbitmq.Message") as MockMessage,
+            patch("sagaz.core.outbox.brokers.rabbitmq.DeliveryMode") as MockDeliveryMode,
         ):
             MockMessage.return_value = MagicMock()
             MockDeliveryMode.PERSISTENT = "persistent"

@@ -19,8 +19,8 @@ class TestRedisSnapshotReplay:
 
     @pytest.fixture
     def mock_redis(self):
-        with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
-            with patch("sagaz.storage.backends.redis.snapshot.redis") as mock_redis:
+        with patch("sagaz.core.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
+            with patch("sagaz.core.storage.backends.redis.snapshot.redis") as mock_redis:
                 mock_client = AsyncMock()
                 mock_client.ping = AsyncMock()
                 mock_redis.from_url = MagicMock(return_value=mock_client)

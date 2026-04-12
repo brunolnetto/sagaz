@@ -192,8 +192,8 @@ class TestTracingSpanRecording:
         mock_span = MagicMock()
         mock_span.is_recording.return_value = False
 
-        with patch("sagaz.monitoring.tracing.TRACING_AVAILABLE", True):
-            with patch("sagaz.monitoring.tracing.trace") as mock_trace:
+        with patch("sagaz.observability.monitoring.tracing.TRACING_AVAILABLE", True):
+            with patch("sagaz.observability.monitoring.tracing.trace") as mock_trace:
                 mock_trace.get_current_span.return_value = mock_span
 
                 # Should not set attributes since not recording
@@ -218,8 +218,8 @@ class TestTracingSpanRecording:
         mock_span = MagicMock()
         mock_span.is_recording.return_value = True
 
-        with patch("sagaz.monitoring.tracing.TRACING_AVAILABLE", True):
-            with patch("sagaz.monitoring.tracing.trace") as mock_trace:
+        with patch("sagaz.observability.monitoring.tracing.TRACING_AVAILABLE", True):
+            with patch("sagaz.observability.monitoring.tracing.trace") as mock_trace:
                 mock_trace.get_current_span.return_value = mock_span
 
                 test_error = ValueError("Step failed")
@@ -397,7 +397,7 @@ class TestSetupTracingImportError:
         from sagaz.observability.monitoring.tracing import setup_tracing
 
         # Mock TRACING_AVAILABLE as True but make OTLP import fail
-        with patch("sagaz.monitoring.tracing.TRACING_AVAILABLE", True):
+        with patch("sagaz.observability.monitoring.tracing.TRACING_AVAILABLE", True):
             with patch.dict(
                 sys.modules,
                 {"opentelemetry.exporter.otlp.proto.grpc.trace_exporter": None},
@@ -422,7 +422,7 @@ class TestTracingUnavailableFallbacks:
 
     def test_saga_tracer_no_tracing(self):
         """Test SagaTracer methods when tracing is unavailable."""
-        with patch("sagaz.monitoring.tracing.TRACING_AVAILABLE", False):
+        with patch("sagaz.observability.monitoring.tracing.TRACING_AVAILABLE", False):
             # Re-import to get fresh instance with TRACING_AVAILABLE=False
             from sagaz.core.types import SagaStatus, SagaStepStatus
             from sagaz.observability.monitoring import tracing

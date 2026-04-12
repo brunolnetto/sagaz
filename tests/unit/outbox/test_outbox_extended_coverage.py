@@ -133,8 +133,8 @@ class TestKafkaBrokerCoverage:
     async def test_kafka_from_env_with_defaults(self):
         """Test creating Kafka broker from env with minimal config"""
         with (
-            patch("sagaz.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
-            patch("sagaz.outbox.brokers.kafka.AIOKafkaProducer"),
+            patch("sagaz.core.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
+            patch("sagaz.core.outbox.brokers.kafka.AIOKafkaProducer"),
         ):
             from sagaz.core.outbox.brokers.kafka import KafkaBroker
 
@@ -149,8 +149,8 @@ class TestKafkaBrokerCoverage:
     async def test_kafka_health_check_not_connected(self):
         """Test health check when not connected"""
         with (
-            patch("sagaz.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
-            patch("sagaz.outbox.brokers.kafka.AIOKafkaProducer"),
+            patch("sagaz.core.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
+            patch("sagaz.core.outbox.brokers.kafka.AIOKafkaProducer"),
         ):
             from sagaz.core.outbox.brokers.kafka import KafkaBroker, KafkaBrokerConfig
 
@@ -165,8 +165,8 @@ class TestKafkaBrokerCoverage:
     async def test_kafka_close_when_not_connected(self):
         """Test closing broker that was never connected"""
         with (
-            patch("sagaz.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
-            patch("sagaz.outbox.brokers.kafka.AIOKafkaProducer"),
+            patch("sagaz.core.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
+            patch("sagaz.core.outbox.brokers.kafka.AIOKafkaProducer"),
         ):
             from sagaz.core.outbox.brokers.kafka import KafkaBroker, KafkaBrokerConfig
 
@@ -183,8 +183,8 @@ class TestKafkaBrokerCoverage:
         from sagaz.core.outbox.brokers.base import BrokerConnectionError
 
         with (
-            patch("sagaz.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
-            patch("sagaz.outbox.brokers.kafka.AIOKafkaProducer"),
+            patch("sagaz.core.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
+            patch("sagaz.core.outbox.brokers.kafka.AIOKafkaProducer"),
         ):
             from sagaz.core.outbox.brokers.kafka import KafkaBroker, KafkaBrokerConfig
 
@@ -205,8 +205,8 @@ class TestRabbitMQBrokerCoverage:
     async def test_rabbitmq_from_env(self):
         """Test creating RabbitMQ broker from environment"""
         with (
-            patch("sagaz.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
-            patch("sagaz.outbox.brokers.rabbitmq.aio_pika"),
+            patch("sagaz.core.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
+            patch("sagaz.core.outbox.brokers.rabbitmq.aio_pika"),
         ):
             from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker
 
@@ -220,8 +220,8 @@ class TestRabbitMQBrokerCoverage:
     async def test_rabbitmq_health_check_not_connected(self):
         """Test health check when not connected"""
         with (
-            patch("sagaz.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
-            patch("sagaz.outbox.brokers.rabbitmq.aio_pika"),
+            patch("sagaz.core.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
+            patch("sagaz.core.outbox.brokers.rabbitmq.aio_pika"),
         ):
             from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker
 
@@ -235,8 +235,8 @@ class TestRabbitMQBrokerCoverage:
     async def test_rabbitmq_close_when_not_connected(self):
         """Test closing broker that was never connected"""
         with (
-            patch("sagaz.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
-            patch("sagaz.outbox.brokers.rabbitmq.aio_pika"),
+            patch("sagaz.core.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
+            patch("sagaz.core.outbox.brokers.rabbitmq.aio_pika"),
         ):
             from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker
 
@@ -252,8 +252,8 @@ class TestRabbitMQBrokerCoverage:
         from sagaz.core.outbox.brokers.base import BrokerConnectionError
 
         with (
-            patch("sagaz.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
-            patch("sagaz.outbox.brokers.rabbitmq.aio_pika"),
+            patch("sagaz.core.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
+            patch("sagaz.core.outbox.brokers.rabbitmq.aio_pika"),
         ):
             from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker
 
@@ -271,8 +271,8 @@ class TestRabbitMQBrokerCoverage:
         from sagaz.core.outbox.brokers.base import BrokerConnectionError
 
         with (
-            patch("sagaz.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
-            patch("sagaz.outbox.brokers.rabbitmq.aio_pika"),
+            patch("sagaz.core.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
+            patch("sagaz.core.outbox.brokers.rabbitmq.aio_pika"),
         ):
             from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker
 
@@ -288,7 +288,7 @@ class TestPostgreSQLStorageCoverage:
     @pytest.mark.asyncio
     async def test_postgresql_get_events_by_saga(self):
         """Test getting events by saga ID"""
-        with patch("sagaz.storage.backends.postgresql.outbox.ASYNCPG_AVAILABLE", True):
+        with patch("sagaz.core.storage.backends.postgresql.outbox.ASYNCPG_AVAILABLE", True):
             from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
             storage = PostgreSQLOutboxStorage("postgresql://localhost:5432/test")
@@ -312,7 +312,7 @@ class TestPostgreSQLStorageCoverage:
     @pytest.mark.asyncio
     async def test_postgresql_get_pending_count(self):
         """Test getting count of pending events"""
-        with patch("sagaz.storage.backends.postgresql.outbox.ASYNCPG_AVAILABLE", True):
+        with patch("sagaz.core.storage.backends.postgresql.outbox.ASYNCPG_AVAILABLE", True):
             from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
             storage = PostgreSQLOutboxStorage("postgresql://localhost:5432/test")
@@ -336,7 +336,7 @@ class TestPostgreSQLStorageCoverage:
     @pytest.mark.asyncio
     async def test_postgresql_claim_and_lock(self):
         """Test claim batch mechanism"""
-        with patch("sagaz.storage.backends.postgresql.outbox.ASYNCPG_AVAILABLE", True):
+        with patch("sagaz.core.storage.backends.postgresql.outbox.ASYNCPG_AVAILABLE", True):
             from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
             storage = PostgreSQLOutboxStorage("postgresql://localhost:5432/test")
@@ -361,7 +361,7 @@ class TestPostgreSQLStorageCoverage:
     @pytest.mark.asyncio
     async def test_postgresql_get_stuck_events(self):
         """Test getting stuck events"""
-        with patch("sagaz.storage.backends.postgresql.outbox.ASYNCPG_AVAILABLE", True):
+        with patch("sagaz.core.storage.backends.postgresql.outbox.ASYNCPG_AVAILABLE", True):
             from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
             storage = PostgreSQLOutboxStorage("postgresql://localhost:5432/test")
@@ -385,7 +385,7 @@ class TestPostgreSQLStorageCoverage:
     @pytest.mark.asyncio
     async def test_postgresql_release_stuck_events(self):
         """Test releasing stuck events"""
-        with patch("sagaz.storage.backends.postgresql.outbox.ASYNCPG_AVAILABLE", True):
+        with patch("sagaz.core.storage.backends.postgresql.outbox.ASYNCPG_AVAILABLE", True):
             from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
             storage = PostgreSQLOutboxStorage("postgresql://localhost:5432/test")
@@ -409,7 +409,7 @@ class TestPostgreSQLStorageCoverage:
     @pytest.mark.asyncio
     async def test_postgresql_get_by_id_not_found(self):
         """Test getting event by ID when not found"""
-        with patch("sagaz.storage.backends.postgresql.outbox.ASYNCPG_AVAILABLE", True):
+        with patch("sagaz.core.storage.backends.postgresql.outbox.ASYNCPG_AVAILABLE", True):
             from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
             storage = PostgreSQLOutboxStorage("postgresql://localhost:5432/test")
@@ -522,8 +522,8 @@ class TestStorageFactoryEdgeCases:
     def test_storage_factory_redis_defaults(self):
         """Test Redis creation with default URL"""
         with (
-            patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True),
-            patch("sagaz.storage.backends.redis.saga.redis"),
+            patch("sagaz.core.storage.backends.redis.saga.REDIS_AVAILABLE", True),
+            patch("sagaz.core.storage.backends.redis.saga.redis"),
         ):
             from sagaz.core.storage.factory import create_storage
 

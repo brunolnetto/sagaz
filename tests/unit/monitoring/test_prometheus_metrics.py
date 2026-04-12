@@ -126,7 +126,7 @@ class TestStartMetricsServer:
         """Test that start_metrics_server calls prometheus start_http_server."""
         from unittest.mock import patch
 
-        with patch("sagaz.monitoring.prometheus.start_http_server") as mock_start:
+        with patch("sagaz.observability.monitoring.prometheus.start_http_server") as mock_start:
             start_metrics_server(port=9999, addr="127.0.0.1")
             mock_start.assert_called_once_with(9999, "127.0.0.1")
 
@@ -134,7 +134,7 @@ class TestStartMetricsServer:
         """Test start_metrics_server with default arguments."""
         from unittest.mock import patch
 
-        with patch("sagaz.monitoring.prometheus.start_http_server") as mock_start:
+        with patch("sagaz.observability.monitoring.prometheus.start_http_server") as mock_start:
             start_metrics_server()
             mock_start.assert_called_once_with(8000, "0.0.0.0")
 
@@ -147,7 +147,7 @@ class TestMetricsDisabled:
         from unittest.mock import patch
 
         # Temporarily make prometheus unavailable
-        with patch("sagaz.monitoring.prometheus.PROMETHEUS_AVAILABLE", False):
+        with patch("sagaz.observability.monitoring.prometheus.PROMETHEUS_AVAILABLE", False):
             # Import and recreate metrics
             from sagaz.observability.monitoring.prometheus import PrometheusMetrics
 
@@ -164,7 +164,7 @@ class TestMetricsDisabled:
         import logging
         from unittest.mock import patch
 
-        with patch("sagaz.monitoring.prometheus.PROMETHEUS_AVAILABLE", False):
+        with patch("sagaz.observability.monitoring.prometheus.PROMETHEUS_AVAILABLE", False):
             from sagaz.observability.monitoring.prometheus import start_metrics_server
 
             with caplog.at_level(logging.ERROR):

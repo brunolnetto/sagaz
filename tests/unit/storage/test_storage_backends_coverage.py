@@ -1227,8 +1227,8 @@ class TestLazyGetAttrCompatModules:
     """Tests for lazy __getattr__ in backward compatibility modules."""
 
     def test_outbox_init_lazy_getattr(self):
-        """Test lazy imports in sagaz.outbox.__init__."""
-        from sagaz import outbox
+        """Test lazy imports in sagaz.core.outbox.__init__."""
+        from sagaz.core import outbox
 
         # Access InMemoryOutboxStorage
         cls = outbox.InMemoryOutboxStorage

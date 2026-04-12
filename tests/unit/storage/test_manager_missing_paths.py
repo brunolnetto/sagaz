@@ -107,7 +107,7 @@ class TestCreateOutboxStoragePaths:
 
         manager = StorageManager()
         with patch(
-            "sagaz.storage.backends.postgresql.outbox.PostgreSQLOutboxStorage.initialize",
+            "sagaz.core.storage.backends.postgresql.outbox.PostgreSQLOutboxStorage.initialize",
             new_callable=AsyncMock,
         ):
             result = await manager._create_postgresql_outbox("postgresql://localhost/db")
@@ -120,7 +120,7 @@ class TestCreateOutboxStoragePaths:
 
         manager = StorageManager()
         with patch(
-            "sagaz.storage.backends.redis.outbox.RedisOutboxStorage.initialize",
+            "sagaz.core.storage.backends.redis.outbox.RedisOutboxStorage.initialize",
             new_callable=AsyncMock,
         ):
             result = await manager._create_redis_outbox("redis://localhost:6379")
@@ -292,7 +292,7 @@ class TestManagerAdditionalMissingPaths:
 
         manager = StorageManager()
         with patch(
-            "sagaz.storage.backends.postgresql.outbox.PostgreSQLOutboxStorage.initialize",
+            "sagaz.core.storage.backends.postgresql.outbox.PostgreSQLOutboxStorage.initialize",
             new_callable=lambda: lambda self: AsyncMock()(),
         ) as _:
             result = await manager._create_outbox_storage("postgresql", "postgresql://localhost/db")

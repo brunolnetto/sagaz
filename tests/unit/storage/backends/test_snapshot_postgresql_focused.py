@@ -30,7 +30,7 @@ class TestPostgreSQLSnapshotStorageFocused:
     @pytest.mark.asyncio
     async def test_save_and_get_snapshot_methods(self):
         """Test save_snapshot and get_snapshot core logic"""
-        with patch("sagaz.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
+        with patch("sagaz.core.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
             # Setup mocks
             mock_pool = AsyncMock()
             mock_conn = AsyncMock()
@@ -92,7 +92,7 @@ class TestPostgreSQLSnapshotStorageFocused:
     @pytest.mark.asyncio
     async def test_get_snapshot_returns_none(self):
         """Test get_snapshot returns None when not found"""
-        with patch("sagaz.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
+        with patch("sagaz.core.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
             mock_pool = AsyncMock()
             mock_conn = AsyncMock()
             mock_asyncpg.create_pool = AsyncMock(return_value=mock_pool)
@@ -117,7 +117,7 @@ class TestPostgreSQLSnapshotStorageFocused:
     @pytest.mark.asyncio
     async def test_list_snapshots(self):
         """Test list_snapshots method"""
-        with patch("sagaz.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
+        with patch("sagaz.core.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
             mock_pool = AsyncMock()
             mock_conn = AsyncMock()
             mock_asyncpg.create_pool = AsyncMock(return_value=mock_pool)
@@ -157,7 +157,7 @@ class TestPostgreSQLSnapshotStorageFocused:
     @pytest.mark.asyncio
     async def test_get_latest_snapshot(self):
         """Test get_latest_snapshot method"""
-        with patch("sagaz.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
+        with patch("sagaz.core.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
             mock_pool = AsyncMock()
             mock_conn = AsyncMock()
             mock_asyncpg.create_pool = AsyncMock(return_value=mock_pool)
@@ -193,7 +193,7 @@ class TestPostgreSQLSnapshotStorageFocused:
     @pytest.mark.asyncio
     async def test_get_snapshot_at_time(self):
         """Test get_snapshot_at_time method"""
-        with patch("sagaz.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
+        with patch("sagaz.core.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
             mock_pool = AsyncMock()
             mock_conn = AsyncMock()
             mock_asyncpg.create_pool = AsyncMock(return_value=mock_pool)
@@ -229,7 +229,7 @@ class TestPostgreSQLSnapshotStorageFocused:
     @pytest.mark.asyncio
     async def test_delete_snapshot(self):
         """Test delete_snapshot method"""
-        with patch("sagaz.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
+        with patch("sagaz.core.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
             mock_pool = AsyncMock()
             mock_conn = AsyncMock()
             mock_asyncpg.create_pool = AsyncMock(return_value=mock_pool)
@@ -251,7 +251,7 @@ class TestPostgreSQLSnapshotStorageFocused:
     @pytest.mark.asyncio
     async def test_delete_expired_snapshots(self):
         """Test delete_expired_snapshots method"""
-        with patch("sagaz.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
+        with patch("sagaz.core.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
             mock_pool = AsyncMock()
             mock_conn = AsyncMock()
             mock_asyncpg.create_pool = AsyncMock(return_value=mock_pool)
@@ -273,7 +273,7 @@ class TestPostgreSQLSnapshotStorageFocused:
     @pytest.mark.asyncio
     async def test_close_method(self):
         """Test close method"""
-        with patch("sagaz.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
+        with patch("sagaz.core.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
             mock_pool = AsyncMock()
             mock_conn = AsyncMock()
             mock_asyncpg.create_pool = AsyncMock(return_value=mock_pool)
@@ -300,7 +300,7 @@ class TestPostgreSQLSnapshotStorageFocused:
     @pytest.mark.asyncio
     async def test_get_latest_snapshot_with_before_step(self):
         """Test get_latest_snapshot with before_step parameter"""
-        with patch("sagaz.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
+        with patch("sagaz.core.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
             mock_pool = AsyncMock()
             mock_conn = AsyncMock()
             mock_asyncpg.create_pool = AsyncMock(return_value=mock_pool)
@@ -347,7 +347,7 @@ class TestPostgreSQLSnapshotStorageFocused:
     @pytest.mark.asyncio
     async def test_list_snapshots_with_filters(self):
         """Test list_snapshots with saga_name filter"""
-        with patch("sagaz.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
+        with patch("sagaz.core.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
             mock_pool = AsyncMock()
             mock_conn = AsyncMock()
             mock_asyncpg.create_pool = AsyncMock(return_value=mock_pool)
@@ -393,7 +393,7 @@ class TestPostgreSQLSnapshotStorageFocused:
     @pytest.mark.asyncio
     async def test_get_snapshot_at_time_boundary(self):
         """Test get_snapshot_at_time with edge cases"""
-        with patch("sagaz.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
+        with patch("sagaz.core.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
             mock_pool = AsyncMock()
             mock_conn = AsyncMock()
             mock_asyncpg.create_pool = AsyncMock(return_value=mock_pool)

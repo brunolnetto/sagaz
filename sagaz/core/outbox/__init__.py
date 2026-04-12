@@ -36,12 +36,12 @@ Components:
     - OutboxStatus: Event lifecycle states
     - OutboxConfig: Worker configuration
 
-Storage (sagaz.storage.backends):
-    - OutboxStorage: Storage interface (sagaz.storage.interfaces)
+Storage (sagaz.core.storage.backends):
+    - OutboxStorage: Storage interface (sagaz.core.storage.interfaces)
     - InMemoryOutboxStorage: For testing
     - PostgreSQLOutboxStorage: Production (requires asyncpg)
 
-Brokers (sagaz.outbox.brokers):
+Brokers (sagaz.core.outbox.brokers):
     - MessageBroker: Broker interface
     - InMemoryBroker: For testing
     - KafkaBroker: Apache Kafka (requires aiokafka)

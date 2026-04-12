@@ -1,5 +1,5 @@
 """
-Additional tests for sagaz.storage.core modules to improve coverage.
+Additional tests for sagaz.core.storage.core modules to improve coverage.
 """
 
 import asyncio

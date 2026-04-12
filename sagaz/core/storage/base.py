@@ -4,7 +4,7 @@ Base storage interface for saga persistence.
 Defines the abstract interface for saga state persistence, enabling
 pluggable storage backends (memory, Redis, PostgreSQL, etc.).
 
-Note: The canonical interface is in sagaz.storage.interfaces.
+Note: The canonical interface is in sagaz.core.storage.interfaces.
 This module provides a base implementation.
 """
 
