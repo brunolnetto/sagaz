@@ -255,9 +255,9 @@ class TestSagaMissingBranches:
         await saga.add_step("s1", act, dependencies=set())
         await saga.add_step("s2", act, dependencies={"s1"})
 
-        # Patch _execute_batch to raise unexpectedly
+        # Patch _dag_executor._execute_batch to raise unexpectedly
         saga._build_plan()  # Populate execution_batches first
-        with patch.object(saga, "_execute_batch", new=AsyncMock(side_effect=RuntimeError("boom"))):
+        with patch.object(saga._dag_executor, "_execute_batch", new=AsyncMock(side_effect=RuntimeError("boom"))):
             result = await saga._execute_dag()
 
         assert result.success is False
