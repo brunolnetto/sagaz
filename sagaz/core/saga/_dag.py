@@ -199,9 +199,7 @@ class DAGExecutor:
         """Execute a single batch. Returns exception if failed, None if success."""
         from sagaz.core.saga._executor import _StepExecutor
 
-        logger.info(
-            f"Executing batch {batch_idx + 1}/{len(self.saga.execution_batches)}: {batch}"
-        )
+        logger.info(f"Executing batch {batch_idx + 1}/{len(self.saga.execution_batches)}: {batch}")
 
         batch_executors = [
             _StepExecutor(step_map[step_name], self.saga.context) for step_name in batch

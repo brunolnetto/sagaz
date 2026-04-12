@@ -138,10 +138,8 @@ class SagaConfig:
                     "storage/outbox_storage separately."
                 )
                 raise ValueError(msg)
-            self.storage, self._storage_manager = (
-                StorageConfigManager.setup_from_manager(
-                    self.storage, self.storage_manager
-                )
+            self.storage, self._storage_manager = StorageConfigManager.setup_from_manager(
+                self.storage, self.storage_manager
             )
             # Extract outbox storage from the manager if available
             try:

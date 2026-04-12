@@ -2495,7 +2495,9 @@ class TestSagaStepHash:
         step1 = SagaStep(name="step1", action=lambda ctx: None, idempotency_key="key-123")
         step2 = SagaStep(name="step2", action=lambda ctx: None, idempotency_key="key-456")
         step3 = SagaStep(
-            name="step3", action=lambda ctx: None, idempotency_key="key-123"  # Same key as step1
+            name="step3",
+            action=lambda ctx: None,
+            idempotency_key="key-123",  # Same key as step1
         )
 
         # Steps with same idempotency key should be equal

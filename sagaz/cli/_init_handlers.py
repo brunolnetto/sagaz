@@ -202,7 +202,9 @@ def _init_selfhost(
     Path("selfhost").mkdir(exist_ok=True)
 
     # Create systemd service files
-    _create_systemd_service("sagaz-worker", "Sagaz Outbox Worker", "python -m sagaz.core.outbox.worker")
+    _create_systemd_service(
+        "sagaz-worker", "Sagaz Outbox Worker", "python -m sagaz.core.outbox.worker"
+    )
 
     # Create environment file
     env_content = f"""# Sagaz Environment Configuration

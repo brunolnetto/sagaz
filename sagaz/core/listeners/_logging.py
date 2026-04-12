@@ -70,4 +70,3 @@ class LoggingSagaListener(SagaListener):
         self, saga_name: str, saga_id: str, ctx: dict[str, Any], error: Exception
     ) -> None:
         self.log.error(f"[SAGA] Failed: {saga_name} (id={saga_id}) - {error}")
-
