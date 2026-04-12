@@ -40,6 +40,7 @@ except ImportError:
     TRACING_AVAILABLE = False
     trace = None  # type: ignore[assignment]
     Span = None  # type: ignore[assignment, misc]
+    Status = None  # type: ignore[assignment, misc]
     StatusCode = None  # type: ignore[assignment, misc]
 
 
@@ -86,7 +87,7 @@ class SagaTracer:
     def __init__(self, service_name: str = "saga-service"):
         self.service_name = service_name
 
-        if TRACING_AVAILABLE:
+        if TRACING_AVAILABLE and trace is not None:
             self.tracer = trace.get_tracer(__name__)
         else:
             self.tracer = None  # type: ignore[assignment]
@@ -214,11 +215,13 @@ class SagaTracer:
             )
 
             if status == SagaStatus.COMPLETED:
-                current_span.set_status(Status(StatusCode.OK))
+                if Status is not None:
+                    current_span.set_status(Status(StatusCode.OK))
             else:
-                current_span.set_status(
-                    Status(StatusCode.ERROR, f"Saga failed with status: {status.value}")
-                )
+                if Status is not None:
+                    current_span.set_status(
+                        Status(StatusCode.ERROR, f"Saga failed with status: {status.value}")
+                    )
 
                 if error:
                     current_span.record_exception(error)
@@ -247,9 +250,11 @@ class SagaTracer:
             )
 
             if status == SagaStepStatus.COMPLETED:
-                current_span.set_status(Status(StatusCode.OK))
+                if Status is not None:
+                    current_span.set_status(Status(StatusCode.OK))
             else:
-                current_span.set_status(Status(StatusCode.ERROR, f"Step failed: {step_name}"))
+                if Status is not None:
+                    current_span.set_status(Status(StatusCode.ERROR, f"Step failed: {step_name}"))
 
                 if error:
                     current_span.record_exception(error)

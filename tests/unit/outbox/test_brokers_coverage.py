@@ -25,6 +25,7 @@ from sagaz.core.outbox.brokers.rabbitmq import (
 class TestKafkaBrokerConfig:
     """Tests for KafkaBroker configuration."""
 
+    @pytest.mark.skipif(not KAFKA_AVAILABLE, reason="aiokafka not installed")
     def test_kafka_is_available(self):
         """Verify aiokafka is installed in test environment."""
         assert KAFKA_AVAILABLE is True
@@ -71,6 +72,7 @@ class TestKafkaBrokerConfig:
         assert config.security_protocol == "SASL_SSL"
 
 
+@pytest.mark.skipif(not KAFKA_AVAILABLE, reason="aiokafka not installed")
 class TestKafkaBrokerInitialization:
     """Tests for KafkaBroker initialization."""
 
@@ -133,6 +135,7 @@ class TestKafkaBrokerHelpers:
 class TestRabbitMQBrokerConfig:
     """Tests for RabbitMQBroker configuration."""
 
+    @pytest.mark.skipif(not RABBITMQ_AVAILABLE, reason="aio-pika not installed")
     def test_rabbitmq_is_available(self):
         """Verify aio-pika is installed in test environment."""
         assert RABBITMQ_AVAILABLE is True
@@ -161,6 +164,7 @@ class TestRabbitMQBrokerConfig:
         assert config.connection_timeout == 60.0
 
 
+@pytest.mark.skipif(not RABBITMQ_AVAILABLE, reason="aio-pika not installed")
 class TestRabbitMQBrokerInitialization:
     """Tests for RabbitMQBroker initialization."""
 
@@ -190,6 +194,7 @@ class TestRabbitMQBrokerInitialization:
         assert broker.config.exchange_type == "direct"
 
 
+@pytest.mark.skipif(not KAFKA_AVAILABLE, reason="aiokafka not installed")
 class TestKafkaBrokerNotConnected:
     """Tests for Kafka broker when not connected."""
 
@@ -210,6 +215,7 @@ class TestKafkaBrokerNotConnected:
         assert healthy is False
 
 
+@pytest.mark.skipif(not RABBITMQ_AVAILABLE, reason="aio-pika not installed")
 class TestRabbitMQBrokerNotConnected:
     """Tests for RabbitMQ broker when not connected."""
 
@@ -306,6 +312,7 @@ class TestRabbitMQImportErrorFallback:
             importlib.reload(rmq_mod)
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(not RABBITMQ_AVAILABLE, reason="aio-pika not installed")
     async def test_connect_skips_confirm_delivery_when_false(self):
         """Line 147->151: confirm_delivery=False skips set_qos call."""
         from unittest.mock import AsyncMock, MagicMock, patch

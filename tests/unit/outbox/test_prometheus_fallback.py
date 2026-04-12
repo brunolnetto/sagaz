@@ -1,7 +1,7 @@
 """
 Tests to cover prometheus ImportError fallback code in:
-- sagaz/outbox/optimistic_publisher.py (lines 16-43)
-- sagaz/outbox/consumer_inbox.py (lines 17-38)
+- sagaz/core/outbox/optimistic_publisher.py (lines 16-43)
+- sagaz/core/outbox/consumer_inbox.py (lines 17-38)
 
 Strategy: temporarily remove prometheus_client from sys.modules,
 reload the target module, verify NoOp fallback behavior, then restore.
@@ -11,12 +11,20 @@ import importlib
 import sys
 from contextlib import contextmanager
 
+# Canonical module paths (post Phase-2 restructuring)
+_ALIAS_TO_CANONICAL = {
+    "sagaz.outbox.optimistic_publisher": "sagaz.core.outbox.optimistic_publisher",
+    "sagaz.outbox.consumer_inbox": "sagaz.core.outbox.consumer_inbox",
+}
+
 
 @contextmanager
 def _without_prometheus(module_name: str):
     """Context manager that reloads a module without prometheus_client available."""
-    # Save original modules
+    canonical = _ALIAS_TO_CANONICAL.get(module_name, module_name)
+    # Save original modules (alias + canonical)
     orig_module = sys.modules.get(module_name)
+    orig_canonical = sys.modules.get(canonical)
     orig_prometheus_modules = {k: v for k, v in sys.modules.items() if "prometheus_client" in k}
 
     # Remove prometheus from sys.modules
@@ -26,11 +34,13 @@ def _without_prometheus(module_name: str):
     # Block import
     sys.modules["prometheus_client"] = None  # type: ignore[assignment]
 
-    # Force reload of target module
+    # Force reload of both alias and canonical so the module re-evaluates the
+    # try/except ImportError block at module level.
     sys.modules.pop(module_name, None)
+    sys.modules.pop(canonical, None)
 
     try:
-        mod = importlib.import_module(module_name)
+        mod = importlib.import_module(canonical)
         yield mod
     finally:
         # Remove the None sentinel
@@ -41,12 +51,13 @@ def _without_prometheus(module_name: str):
         for key, val in orig_prometheus_modules.items():
             sys.modules[key] = val
 
-        # Remove reloaded target and restore original
+        # Remove reloaded modules and restore originals
         sys.modules.pop(module_name, None)
+        sys.modules.pop(canonical, None)
         if orig_module is not None:
             sys.modules[module_name] = orig_module
-        elif module_name in sys.modules:
-            del sys.modules[module_name]
+        if orig_canonical is not None:
+            sys.modules[canonical] = orig_canonical
 
 
 class TestOptimisticPublisherPromethusFallback:

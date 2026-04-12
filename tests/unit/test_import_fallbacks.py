@@ -10,19 +10,39 @@ import importlib
 import sys
 from unittest.mock import patch
 
+# Mapping from backward-compat alias paths to canonical paths (post Phase-2).
+# _reload_module must pop both so the module is genuinely re-executed without
+# falling through to the cached canonical entry.
+_ALIAS_TO_CANONICAL: dict[str, str] = {
+    "sagaz.storage.backends.redis.snapshot": "sagaz.core.storage.backends.redis.snapshot",
+    "sagaz.storage.backends.redis.saga": "sagaz.core.storage.backends.redis.saga",
+    "sagaz.storage.backends.postgresql.saga": "sagaz.core.storage.backends.postgresql.saga",
+    "sagaz.storage.backends.postgresql.snapshot": "sagaz.core.storage.backends.postgresql.snapshot",
+    "sagaz.storage.backends.postgresql.outbox": "sagaz.core.storage.backends.postgresql.outbox",
+    "sagaz.storage.backends.s3.snapshot": "sagaz.core.storage.backends.s3.snapshot",
+    "sagaz.outbox.brokers.kafka": "sagaz.core.outbox.brokers.kafka",
+}
+
 
 def _reload_module(mod_key: str, blocked_imports: dict) -> object:
     """Remove module from cache, block given imports, reimport and return fresh module."""
+    canonical = _ALIAS_TO_CANONICAL.get(mod_key, mod_key)
     saved_mod = sys.modules.pop(mod_key, None)
+    saved_canonical = sys.modules.pop(canonical, None) if canonical != mod_key else None
     try:
         with patch.dict(sys.modules, blocked_imports):
-            return importlib.import_module(mod_key)
+            return importlib.import_module(canonical)
     finally:
-        # Always restore the *original* (working) module so other tests continue to work
+        # Always restore the *original* (working) modules so other tests continue to work
         if saved_mod is not None:
             sys.modules[mod_key] = saved_mod
         elif mod_key in sys.modules:
             del sys.modules[mod_key]
+        if canonical != mod_key:
+            if saved_canonical is not None:
+                sys.modules[canonical] = saved_canonical
+            elif canonical in sys.modules:
+                del sys.modules[canonical]
 
 
 class TestRedisSnapshotFallback:

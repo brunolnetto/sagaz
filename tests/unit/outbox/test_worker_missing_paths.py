@@ -167,7 +167,20 @@ class TestProcessBatchPrometheusEnabled:
         # Ensure PROMETHEUS_AVAILABLE is True (likely already is in test env)
         import sagaz.core.outbox.worker as worker_mod
 
-        with patch.object(worker_mod, "PROMETHEUS_AVAILABLE", True):
+        mock_metric = MagicMock()
+        mock_metric.labels.return_value = MagicMock()
+
+        with (
+            patch.object(worker_mod, "PROMETHEUS_AVAILABLE", True),
+            patch.object(worker_mod, "OUTBOX_BATCH_SIZE", mock_metric),
+            patch.object(worker_mod, "OUTBOX_BATCH_PROCESSED", mock_metric),
+            patch.object(worker_mod, "OUTBOX_PUBLISHED_EVENTS", mock_metric),
+            patch.object(worker_mod, "OUTBOX_FAILED_EVENTS", mock_metric),
+            patch.object(worker_mod, "OUTBOX_RETRY_ATTEMPTS", mock_metric),
+            patch.object(worker_mod, "OUTBOX_PROCESSING_EVENTS", mock_metric),
+            patch.object(worker_mod, "OUTBOX_PUBLISH_DURATION", mock_metric),
+            patch.object(worker_mod, "OUTBOX_DEAD_LETTER_EVENTS", mock_metric),
+        ):
             processed = await worker.process_batch()
 
         assert processed == 1
@@ -408,26 +421,37 @@ class TestOutboxWorkerPromethusFallback:
         import sys
         from contextlib import contextmanager
 
+        _CANONICAL = "sagaz.core.outbox.worker"
+        _ALIAS = "sagaz.outbox.worker"
+
         @contextmanager
         def _without_prometheus_for_worker():
-            orig_worker = sys.modules.get("sagaz.outbox.worker")
+            orig_worker = sys.modules.get(_ALIAS)
+            orig_canonical = sys.modules.get(_CANONICAL)
             orig_prometheus = {k: v for k, v in sys.modules.items() if "prometheus_client" in k}
             for key in list(sys.modules.keys()):
                 if "prometheus_client" in key:
                     sys.modules.pop(key)
             sys.modules["prometheus_client"] = None  # type: ignore[assignment]
-            sys.modules.pop("sagaz.outbox.worker", None)
+            # Pop both alias and canonical so the module re-evaluates its
+            # try/except ImportError block.
+            sys.modules.pop(_ALIAS, None)
+            sys.modules.pop(_CANONICAL, None)
             try:
-                mod = importlib.import_module("sagaz.outbox.worker")
+                mod = importlib.import_module(_CANONICAL)
                 yield mod
             finally:
                 if sys.modules.get("prometheus_client") is None:
                     del sys.modules["prometheus_client"]
                 for key, val in orig_prometheus.items():
                     sys.modules[key] = val
-                sys.modules.pop("sagaz.outbox.worker", None)
+                sys.modules.pop(_ALIAS, None)
+                sys.modules.pop(_CANONICAL, None)
                 if orig_worker is not None:
-                    sys.modules["sagaz.outbox.worker"] = orig_worker
+                    sys.modules[_ALIAS] = orig_worker
+                if orig_canonical is not None:
+                    sys.modules[_CANONICAL] = orig_canonical
 
         with _without_prometheus_for_worker() as worker_mod:
             assert worker_mod.PROMETHEUS_AVAILABLE is False
+

@@ -30,7 +30,7 @@ class TestRedisOutboxStorageUnit:
         mock.hdel = AsyncMock()
         mock.expire = AsyncMock()
         mock.scan = AsyncMock(return_value=(0, []))
-        mock.aclose = AsyncMock()
+        mock.close = AsyncMock()
 
         # Pipeline mock
         pipeline_mock = AsyncMock()
@@ -316,7 +316,7 @@ class TestRedisOutboxStorageUnit:
             async with RedisOutboxStorage() as storage:
                 assert storage._initialized is True
 
-            mock_redis.aclose.assert_called()
+            mock_redis.close.assert_called()
 
     @pytest.mark.asyncio
     async def test_count(self, storage, mock_redis):
@@ -457,7 +457,7 @@ class TestRedisOutboxStorageIntegration:
 
         temp_client = redis.from_url(redis_url)
         await temp_client.flushdb()
-        await temp_client.aclose()
+        await temp_client.aclose() if hasattr(temp_client, "aclose") else await temp_client.close()
 
         from sagaz.core.storage.backends.redis import RedisOutboxStorage
 

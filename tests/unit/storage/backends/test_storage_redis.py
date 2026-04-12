@@ -494,13 +494,13 @@ class TestRedisSagaStorageMocked:
 
             client = AsyncMock()
             client.ping = AsyncMock()
-            client.aclose = AsyncMock()
+            client.close = AsyncMock()
             mock_redis_module.from_url.return_value = client
 
             async with RedisSagaStorage("redis://localhost:6379") as storage:
                 assert storage._redis is not None
 
-            client.aclose.assert_called_once()
+            client.close.assert_called_once()
 
     def test_key_generation(self):
         """Test Redis key generation helpers."""

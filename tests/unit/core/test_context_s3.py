@@ -102,7 +102,10 @@ class TestContextAioboto3ImportError:
 
         sys.modules.pop("aioboto3", None)
         sys.modules["aioboto3"] = None  # type: ignore[assignment]
+        # Pop both the package and the submodule where HAS_AIOBOTO3 is defined
+        # so the flag is re-evaluated during re-import.
         sys.modules.pop("sagaz.core.context", None)
+        sys.modules.pop("sagaz.core.context._storage", None)
 
         try:
             mod = importlib.import_module("sagaz.core.context")
@@ -113,5 +116,6 @@ class TestContextAioboto3ImportError:
             if orig_aioboto3 is not None:
                 sys.modules["aioboto3"] = orig_aioboto3
             sys.modules.pop("sagaz.core.context", None)
+            sys.modules.pop("sagaz.core.context._storage", None)
             if orig_context is not None:
                 sys.modules["sagaz.core.context"] = orig_context

@@ -439,7 +439,7 @@ class TestRedisOutboxStorageCoverage:
             async with RedisOutboxStorage() as storage:
                 assert storage._initialized is True
 
-            mock_redis.aclose.assert_called_once()
+            mock_redis.close.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_redis_outbox_get_stuck_events(self, mock_redis):

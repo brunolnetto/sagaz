@@ -450,7 +450,7 @@ class RedisSagaStorage(SagaStorage):
     async def close(self):
         """Close connection explicitly."""
         if self._redis:
-            await self._redis.aclose()
+            await self._redis.close()
 
     async def __aenter__(self):
         """Async context manager entry"""
