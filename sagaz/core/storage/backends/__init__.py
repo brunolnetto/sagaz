@@ -36,6 +36,28 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
     from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
+    from sagaz.core.storage.backends.memory import (
+        InMemoryOutboxStorage,
+        InMemorySagaStorage,
+    )
+    from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
+    from sagaz.core.storage.backends.postgresql import (
+        PostgreSQLOutboxStorage,
+        PostgreSQLSagaStorage,
+    )
+    from sagaz.core.storage.backends.postgresql.snapshot import (
+        PostgreSQLSnapshotStorage,
+    )
+    from sagaz.core.storage.backends.redis import (
+        RedisOutboxStorage,
+        RedisSagaStorage,
+    )
+    from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
+    from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
+    from sagaz.core.storage.backends.sqlite import (
+        SQLiteOutboxStorage,
+        SQLiteSagaStorage,
+    )
 
 
 _BACKEND_IMPORTS = {
