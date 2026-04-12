@@ -11,10 +11,10 @@ import asyncio
 import pytest
 
 from sagaz.core.exceptions import SagaStepError
-from sagaz.strategies.base import ParallelExecutionStrategy
-from sagaz.strategies.fail_fast import FailFastStrategy
-from sagaz.strategies.fail_fast_grace import FailFastWithGraceStrategy
-from sagaz.strategies.wait_all import WaitAllStrategy
+from sagaz.core.strategies.base import ParallelExecutionStrategy
+from sagaz.core.strategies.fail_fast import FailFastStrategy
+from sagaz.core.strategies.fail_fast_grace import FailFastWithGraceStrategy
+from sagaz.core.strategies.wait_all import WaitAllStrategy
 
 
 class MockDAGStep:
@@ -484,7 +484,7 @@ class TestWaitAllEmptySteps:
 
     @pytest.mark.asyncio
     async def test_execute_empty_steps_returns_empty_list(self):
-        from sagaz.strategies.wait_all import WaitAllStrategy
+        from sagaz.core.strategies.wait_all import WaitAllStrategy
 
         strategy = WaitAllStrategy()
         result = await strategy.execute_parallel_steps([])
@@ -494,7 +494,7 @@ class TestWaitAllEmptySteps:
 class TestFailFastBranch:
     async def test_cancel_already_done_tasks(self):
         """78->77: task.done() is True → do not cancel."""
-        from sagaz.strategies.fail_fast import FailFastStrategy
+        from sagaz.core.strategies.fail_fast import FailFastStrategy
 
         strategy = FailFastStrategy()
         done_task = asyncio.create_task(asyncio.sleep(0))
@@ -512,7 +512,7 @@ class TestFailFastBranch:
 class TestFailFastGraceBranch:
     async def test_cancel_pending_after_timeout(self):
         """88: task.cancel() in TimeoutError handler."""
-        from sagaz.strategies.fail_fast_grace import FailFastWithGraceStrategy
+        from sagaz.core.strategies.fail_fast_grace import FailFastWithGraceStrategy
 
         strategy = FailFastWithGraceStrategy(grace_period=0.001)
 
@@ -525,7 +525,7 @@ class TestFailFastGraceBranch:
 
     async def test_cancel_all_done_task_skipped(self):
         """93->92: task.done() is True → skip cancel in _cancel_all_tasks."""
-        from sagaz.strategies.fail_fast_grace import FailFastWithGraceStrategy
+        from sagaz.core.strategies.fail_fast_grace import FailFastWithGraceStrategy
 
         strategy = FailFastWithGraceStrategy()
         done_task = asyncio.create_task(asyncio.sleep(0))

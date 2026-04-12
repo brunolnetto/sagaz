@@ -2198,7 +2198,7 @@ class TestSagaHelperMethods:
     @pytest.mark.asyncio
     async def test_set_failure_strategy(self):
         """Test set_failure_strategy method with logging"""
-        from sagaz.strategies.base import ParallelFailureStrategy
+        from sagaz.core.strategies.base import ParallelFailureStrategy
 
         saga = Saga("TestSaga")
 

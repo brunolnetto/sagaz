@@ -14,7 +14,7 @@ import pytest
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.replay import ReplayResult, SagaSnapshot, SnapshotNotFoundError
 from sagaz.core.types import SagaStatus
-from sagaz.storage.base import SagaStorageConnectionError
+from sagaz.core.storage.base import SagaStorageConnectionError
 
 # Check availability of dependencies
 try:
@@ -44,7 +44,7 @@ class TestPostgreSQLSnapshotStorageImportError:
         """Test that PostgreSQLSnapshotStorage raises MissingDependencyError"""
         with patch.dict("sys.modules", {"asyncpg": None}):
             with patch("sagaz.storage.backends.postgresql.snapshot.ASYNCPG_AVAILABLE", False):
-                from sagaz.storage.backends.postgresql.snapshot import (
+                from sagaz.core.storage.backends.postgresql.snapshot import (
                     PostgreSQLSnapshotStorage,
                 )
 
@@ -60,7 +60,7 @@ class TestPostgreSQLSnapshotStorageUnit:
         """Test PostgreSQL snapshot storage initialization"""
         with patch("sagaz.storage.backends.postgresql.snapshot.ASYNCPG_AVAILABLE", True):
             with patch("sagaz.storage.backends.postgresql.snapshot.asyncpg"):
-                from sagaz.storage.backends.postgresql.snapshot import (
+                from sagaz.core.storage.backends.postgresql.snapshot import (
                     PostgreSQLSnapshotStorage,
                 )
 
@@ -74,7 +74,7 @@ class TestPostgreSQLSnapshotStorageUnit:
             with patch("sagaz.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
                 mock_asyncpg.create_pool = AsyncMock(side_effect=Exception("Connection refused"))
 
-                from sagaz.storage.backends.postgresql.snapshot import (
+                from sagaz.core.storage.backends.postgresql.snapshot import (
                     PostgreSQLSnapshotStorage,
                 )
 
@@ -105,7 +105,7 @@ class TestPostgreSQLSnapshotStorageUnit:
                 # Mock execute for table creation and insert
                 mock_conn.execute = AsyncMock(return_value="INSERT 1")
 
-                from sagaz.storage.backends.postgresql.snapshot import (
+                from sagaz.core.storage.backends.postgresql.snapshot import (
                     PostgreSQLSnapshotStorage,
                 )
 
@@ -148,7 +148,7 @@ class TestPostgreSQLSnapshotStorageUnit:
                 # Mock fetchrow to return None (not found)
                 mock_conn.fetchrow = AsyncMock(return_value=None)
 
-                from sagaz.storage.backends.postgresql.snapshot import (
+                from sagaz.core.storage.backends.postgresql.snapshot import (
                     PostgreSQLSnapshotStorage,
                 )
 
@@ -176,7 +176,7 @@ class TestPostgreSQLSnapshotStorageUnit:
                 # Mock fetch to return empty list
                 mock_conn.fetch = AsyncMock(return_value=[])
 
-                from sagaz.storage.backends.postgresql.snapshot import (
+                from sagaz.core.storage.backends.postgresql.snapshot import (
                     PostgreSQLSnapshotStorage,
                 )
 
@@ -202,7 +202,7 @@ class TestPostgreSQLSnapshotStorageUnit:
                 )
                 mock_conn.execute = AsyncMock(return_value="DELETE 1")
 
-                from sagaz.storage.backends.postgresql.snapshot import (
+                from sagaz.core.storage.backends.postgresql.snapshot import (
                     PostgreSQLSnapshotStorage,
                 )
 
@@ -230,7 +230,7 @@ class TestPostgreSQLSnapshotStorageUnit:
                 mock_conn.execute = AsyncMock(return_value=None)
                 mock_pool.close = AsyncMock()
 
-                from sagaz.storage.backends.postgresql.snapshot import (
+                from sagaz.core.storage.backends.postgresql.snapshot import (
                     PostgreSQLSnapshotStorage,
                 )
 
@@ -259,7 +259,7 @@ class TestPostgreSQLSnapshotStorageIntegration:
     @pytest.fixture
     async def storage(self, postgres_container):
         """Create PostgreSQL snapshot storage instance"""
-        from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+        from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
         connection_string = postgres_container.get_connection_url()
         # Fix DSN format: asyncpg only understands postgresql:// or postgres://

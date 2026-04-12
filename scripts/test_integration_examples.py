@@ -9,8 +9,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sagaz import Saga, SagaConfig, action, compensate, configure
-from sagaz.storage import InMemorySagaStorage
-from sagaz.triggers import trigger
+from sagaz.core.storage import InMemorySagaStorage
+from sagaz.core.triggers import trigger
 
 
 def test_flask_saga():

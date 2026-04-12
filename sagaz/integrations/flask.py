@@ -151,7 +151,7 @@ class SagaFlask:
             Returns immediately with 202 Accepted.
             """
             from sagaz.core.exceptions import IdempotencyKeyMissingInPayloadError
-            from sagaz.triggers import fire_event
+            from sagaz.core.triggers import fire_event
 
             payload = request.get_json(silent=True) or {}
 
@@ -160,7 +160,7 @@ class SagaFlask:
 
             # Validate idempotency requirements BEFORE accepting the request
             try:
-                from sagaz.triggers.registry import TriggerRegistry
+                from sagaz.core.triggers.registry import TriggerRegistry
 
                 triggers = TriggerRegistry.get_triggers(source)
                 for trigger in triggers:

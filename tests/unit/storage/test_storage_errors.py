@@ -9,10 +9,10 @@ import pytest
 
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.types import SagaStatus, SagaStepStatus
-from sagaz.storage.base import SagaStorageError
-from sagaz.storage.memory import InMemorySagaStorage
-from sagaz.storage.postgresql import PostgreSQLSagaStorage
-from sagaz.storage.redis import RedisSagaStorage
+from sagaz.core.storage.base import SagaStorageError
+from sagaz.core.storage.memory import InMemorySagaStorage
+from sagaz.core.storage.postgresql import PostgreSQLSagaStorage
+from sagaz.core.storage.redis import RedisSagaStorage
 
 
 class TestPostgreSQLStorageErrors:
@@ -74,7 +74,7 @@ class TestStorageBaseClassEdgeCases:
     @pytest.mark.asyncio
     async def test_context_manager_without_implementation(self):
         """Test that base storage can be used as context manager."""
-        from sagaz.storage.base import SagaStorage
+        from sagaz.core.storage.base import SagaStorage
 
         # Mock concrete implementation
         storage = Mock(spec=SagaStorage)

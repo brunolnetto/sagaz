@@ -20,7 +20,7 @@ from sagaz.core.replay import (
     SnapshotStrategy,
 )
 from sagaz.core.replay.saga_replay import SagaReplay
-from sagaz.storage.backends.memory_snapshot import InMemorySnapshotStorage
+from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
 
 
 class TestReplayConfig:

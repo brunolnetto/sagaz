@@ -35,7 +35,7 @@ def make_snapshot(
 
 @pytest.fixture
 def storage(tmp_path):
-    from sagaz.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
+    from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
 
     return FilesystemSnapshotStorage(
         base_path=str(tmp_path / "snapshots"),
@@ -45,7 +45,7 @@ def storage(tmp_path):
 
 @pytest.fixture
 def compressed_storage(tmp_path):
-    from sagaz.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
+    from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
 
     return FilesystemSnapshotStorage(
         base_path=str(tmp_path / "snapshots_gz"),

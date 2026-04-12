@@ -71,8 +71,8 @@ class TestSagaConfigCoverage:
         """Test config falls back to memory when PostgreSQL storage lacks conn string (line 144)."""
         from unittest.mock import MagicMock
 
-        from sagaz.outbox import InMemoryOutboxStorage
-        from sagaz.outbox.brokers.memory import InMemoryBroker
+        from sagaz.core.outbox import InMemoryOutboxStorage
+        from sagaz.core.outbox.brokers.memory import InMemoryBroker
 
         # Mock PostgreSQLSagaStorage without connection_string attribute
         mock_storage = MagicMock()
@@ -91,7 +91,7 @@ class TestSagaConfigCoverage:
     @pytest.mark.skipif(not ASYNCPG_AVAILABLE, reason="Requires optional dependency: asyncpg")
     def test_parse_storage_url_postgresql(self):
         """Test _parse_storage_url with postgresql:// (lines 293-295)."""
-        from sagaz.storage.postgresql import PostgreSQLSagaStorage
+        from sagaz.core.storage.postgresql import PostgreSQLSagaStorage
 
         storage = SagaConfig._parse_storage_url("postgresql://localhost/testdb")
         assert isinstance(storage, PostgreSQLSagaStorage)
@@ -99,7 +99,7 @@ class TestSagaConfigCoverage:
     @pytest.mark.skipif(not ASYNCPG_AVAILABLE, reason="Requires optional dependency: asyncpg")
     def test_parse_storage_url_postgres(self):
         """Test _parse_storage_url with postgres:// (lines 293-295)."""
-        from sagaz.storage.postgresql import PostgreSQLSagaStorage
+        from sagaz.core.storage.postgresql import PostgreSQLSagaStorage
 
         storage = SagaConfig._parse_storage_url("postgres://localhost/testdb")
         assert isinstance(storage, PostgreSQLSagaStorage)
@@ -107,7 +107,7 @@ class TestSagaConfigCoverage:
     @pytest.mark.skipif(not REDIS_AVAILABLE, reason="Requires optional dependency: redis")
     def test_parse_storage_url_redis(self):
         """Test _parse_storage_url with redis:// (lines 297-299)."""
-        from sagaz.storage.redis import RedisSagaStorage
+        from sagaz.core.storage.redis import RedisSagaStorage
 
         storage = SagaConfig._parse_storage_url("redis://localhost:6379/0")
         assert isinstance(storage, RedisSagaStorage)
@@ -120,7 +120,7 @@ class TestSagaConfigCoverage:
     @pytest.mark.skipif(not AIOKAFKA_AVAILABLE, reason="Requires optional dependency: aiokafka")
     def test_parse_broker_url_kafka(self):
         """Test _parse_broker_url with kafka:// (lines 311-315)."""
-        from sagaz.outbox.brokers.kafka import KafkaBroker
+        from sagaz.core.outbox.brokers.kafka import KafkaBroker
 
         broker = SagaConfig._parse_broker_url("kafka://localhost:9092")
         assert isinstance(broker, KafkaBroker)
@@ -128,7 +128,7 @@ class TestSagaConfigCoverage:
     @pytest.mark.skipif(not REDIS_AVAILABLE, reason="Requires optional dependency: redis")
     def test_parse_broker_url_redis(self):
         """Test _parse_broker_url with redis:// (lines 317-319)."""
-        from sagaz.outbox.brokers.redis import RedisBroker
+        from sagaz.core.outbox.brokers.redis import RedisBroker
 
         broker = SagaConfig._parse_broker_url("redis://localhost:6379/0")
         assert isinstance(broker, RedisBroker)
@@ -136,7 +136,7 @@ class TestSagaConfigCoverage:
     @pytest.mark.skipif(not AIOPIKA_AVAILABLE, reason="Requires optional dependency: aio-pika")
     def test_parse_broker_url_rabbitmq(self):
         """Test _parse_broker_url with rabbitmq:// (lines 321-323)."""
-        from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
+        from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker
 
         broker = SagaConfig._parse_broker_url("rabbitmq://localhost:5672")
         assert isinstance(broker, RabbitMQBroker)
@@ -144,14 +144,14 @@ class TestSagaConfigCoverage:
     @pytest.mark.skipif(not AIOPIKA_AVAILABLE, reason="Requires optional dependency: aio-pika")
     def test_parse_broker_url_amqp(self):
         """Test _parse_broker_url with amqp:// (lines 321-323)."""
-        from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
+        from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker
 
         broker = SagaConfig._parse_broker_url("amqp://localhost:5672")
         assert isinstance(broker, RabbitMQBroker)
 
     def test_parse_broker_url_memory(self):
         """Test _parse_broker_url with memory:// (lines 325-327)."""
-        from sagaz.outbox.brokers.memory import InMemoryBroker
+        from sagaz.core.outbox.brokers.memory import InMemoryBroker
 
         broker = SagaConfig._parse_broker_url("memory://")
         assert isinstance(broker, InMemoryBroker)
@@ -178,7 +178,7 @@ class TestSagaConfigFromEnv:
         with mock.patch.dict(os.environ, env_vars, clear=False):
             config = SagaConfig.from_env()
 
-            from sagaz.storage.memory import InMemorySagaStorage
+            from sagaz.core.storage.memory import InMemorySagaStorage
 
             assert isinstance(config.storage, InMemorySagaStorage)
             assert config.broker is not None
@@ -197,7 +197,7 @@ class TestSagaConfigFromEnv:
             config = SagaConfig.from_env(load_dotenv=False)
 
             # Default storage is InMemory
-            from sagaz.storage.memory import InMemorySagaStorage
+            from sagaz.core.storage.memory import InMemorySagaStorage
 
             assert isinstance(config.storage, InMemorySagaStorage)
             assert config.broker is None
@@ -237,7 +237,7 @@ class TestSagaStateMachineCoverage:
     @pytest.mark.asyncio
     async def test_state_machine_without_saga(self):
         """Test SagaStateMachine without saga instance (line 36)."""
-        from sagaz.execution.state_machine import SagaStateMachine
+        from sagaz.core.execution.state_machine import SagaStateMachine
 
         sm = SagaStateMachine(saga=None)
 
@@ -248,7 +248,7 @@ class TestSagaStateMachineCoverage:
     @pytest.mark.asyncio
     async def test_state_machine_callbacks_without_saga_methods(self):
         """Test callbacks when saga doesn't have the callback methods (lines 128, 133, 138, 143)."""
-        from sagaz.execution.state_machine import SagaStateMachine
+        from sagaz.core.execution.state_machine import SagaStateMachine
 
         # Create a minimal saga-like object without callback methods
         class MinimalSaga:
@@ -268,7 +268,7 @@ class TestSagaStateMachineCoverage:
     @pytest.mark.asyncio
     async def test_state_machine_on_exit_executing(self):
         """Test on_exit_executing callback (line 155)."""
-        from sagaz.execution.state_machine import SagaStateMachine
+        from sagaz.core.execution.state_machine import SagaStateMachine
 
         class SagaWithExit:
             steps = ["step1"]
@@ -348,7 +348,7 @@ class TestCompensationGraphCoverage:
 
     def test_compensation_graph_edge_cases(self):
         """Test compensation graph edge cases (lines 285, 296-297, 304)."""
-        from sagaz.execution.graph import SagaExecutionGraph
+        from sagaz.core.execution.graph import SagaExecutionGraph
 
         graph = SagaExecutionGraph()
 
@@ -372,7 +372,7 @@ class TestMermaidAdditionalCoverage:
 
     def test_mermaid_add_start_to_roots_skips_unexecuted(self):
         """Test _add_start_to_roots skips unexecuted steps (line 249)."""
-        from sagaz.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+        from sagaz.observability.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
         steps = [
             StepInfo(name="root_a", has_compensation=True),
@@ -391,7 +391,7 @@ class TestMermaidAdditionalCoverage:
 
     def test_mermaid_add_leaves_to_success_skips_unexecuted(self):
         """Test _add_leaves_to_success skips unexecuted steps (line 280)."""
-        from sagaz.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+        from sagaz.observability.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
         steps = [
             StepInfo(name="leaf_a", has_compensation=True),
@@ -410,7 +410,7 @@ class TestMermaidAdditionalCoverage:
 
     def test_mermaid_failure_edges_no_compensable_steps(self):
         """Test _add_failure_edges with no compensable steps (line 293)."""
-        from sagaz.visualization.mermaid import MermaidGenerator, StepInfo
+        from sagaz.observability.visualization.mermaid import MermaidGenerator, StepInfo
 
         steps = [
             StepInfo(name="step_a", has_compensation=False),
@@ -424,7 +424,7 @@ class TestMermaidAdditionalCoverage:
 
     def test_mermaid_dag_compensation_chain_skip_non_compensated(self):
         """Test _add_dag_compensation_chain skips non-compensated steps (lines 368, 385)."""
-        from sagaz.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
+        from sagaz.observability.visualization.mermaid import HighlightTrail, MermaidGenerator, StepInfo
 
         steps = [
             StepInfo(name="root", has_compensation=True),
@@ -458,7 +458,7 @@ class TestGlobalConfigFunctions:
         config = get_config()
         assert config is not None
 
-        from sagaz.storage.memory import InMemorySagaStorage
+        from sagaz.core.storage.memory import InMemorySagaStorage
 
         assert isinstance(config.storage, InMemorySagaStorage)
 

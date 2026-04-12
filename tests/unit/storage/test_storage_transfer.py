@@ -11,8 +11,8 @@ from uuid import uuid4
 
 import pytest
 
-from sagaz.storage.core import TransferError
-from sagaz.storage.transfer import (
+from sagaz.core.storage.core import TransferError
+from sagaz.core.storage.transfer import (
     TransferConfig,
     TransferErrorPolicy,
     TransferProgress,
@@ -799,7 +799,7 @@ class TestTransferValidationEdgeCases:
 class TestTransferServiceBranches:
     def test_records_per_second_zero_when_elapsed_zero(self):
         """115: return 0.0 when elapsed_seconds == 0."""
-        from sagaz.storage.transfer.service import TransferProgress
+        from sagaz.core.storage.transfer.service import TransferProgress
 
         prog = TransferProgress(total=100)
         prog._start_time = datetime.now(UTC)  # Make start_time = now → elapsed ≈ 0
@@ -809,7 +809,7 @@ class TestTransferServiceBranches:
 
     def test_estimated_remaining_zero_when_rate_zero(self):
         """123: return 0.0 when rate == 0."""
-        from sagaz.storage.transfer.service import TransferProgress
+        from sagaz.core.storage.transfer.service import TransferProgress
 
         prog = TransferProgress(total=100)
         with patch.object(type(prog), "records_per_second", property(lambda self: 0)):
@@ -817,7 +817,7 @@ class TestTransferServiceBranches:
 
     async def test_transfer_result_errors_appended(self):
         """308: result.errors.append(str(e)) when outer exception with on_error != ABORT."""
-        from sagaz.storage.transfer.service import (
+        from sagaz.core.storage.transfer.service import (
             TransferConfig,
             TransferErrorPolicy,
             TransferService,
@@ -845,7 +845,7 @@ class TestTransferServiceBranches:
         """396->exit FALSE: target has neither load_saga_state nor get_by_id → no validate."""
         from unittest.mock import MagicMock
 
-        from sagaz.storage.transfer.service import TransferConfig, TransferService
+        from sagaz.core.storage.transfer.service import TransferConfig, TransferService
 
         mock_target = MagicMock()
         # Remove both attributes manually
@@ -863,7 +863,7 @@ class TestTransferServiceBranches:
 
     async def test_transfer_retry_succeeds_covers_line_358_410(self):
         """358-359, 410: on_error=RETRY, retry succeeds → result.transferred += 1."""
-        from sagaz.storage.transfer.service import (
+        from sagaz.core.storage.transfer.service import (
             TransferConfig,
             TransferErrorPolicy,
             TransferService,

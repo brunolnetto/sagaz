@@ -36,7 +36,7 @@ class TestPostgreSQLSnapshotComplete:
             test_data = self._create_test_snapshot_data()
             mock_conn.fetchrow = AsyncMock(return_value=test_data)
 
-            from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+            from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
             result = await storage.get_latest_snapshot(test_data["saga_id"], before_step="step1")
@@ -54,7 +54,7 @@ class TestPostgreSQLSnapshotComplete:
             test_data = self._create_test_snapshot_data()
             mock_conn.fetchrow = AsyncMock(return_value=test_data)
 
-            from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+            from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
             result = await storage.get_latest_snapshot(test_data["saga_id"])
@@ -71,7 +71,7 @@ class TestPostgreSQLSnapshotComplete:
             test_data = self._create_test_snapshot_data()
             mock_conn.fetchrow = AsyncMock(return_value=test_data)
 
-            from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+            from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
             timestamp = datetime.now(UTC)
@@ -90,7 +90,7 @@ class TestPostgreSQLSnapshotComplete:
             test_data2 = self._create_test_snapshot_data()
             mock_conn.fetch = AsyncMock(return_value=[test_data1, test_data2])
 
-            from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+            from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
             results = await storage.list_snapshots(test_data1["saga_id"], limit=10)
@@ -106,7 +106,7 @@ class TestPostgreSQLSnapshotComplete:
 
             mock_conn.execute = AsyncMock(return_value="DELETE 1")
 
-            from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+            from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
             result = await storage.delete_snapshot(uuid4())
@@ -122,7 +122,7 @@ class TestPostgreSQLSnapshotComplete:
 
             mock_conn.execute = AsyncMock(return_value="DELETE 0")
 
-            from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+            from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
             result = await storage.delete_snapshot(uuid4())
@@ -137,7 +137,7 @@ class TestPostgreSQLSnapshotComplete:
 
             mock_conn.execute = AsyncMock(return_value="DELETE 5")
 
-            from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+            from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
             count = await storage.delete_expired_snapshots()
@@ -153,7 +153,7 @@ class TestPostgreSQLSnapshotComplete:
 
             mock_conn.execute = AsyncMock(return_value="DELETE 0")
 
-            from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+            from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
             count = await storage.delete_expired_snapshots()
@@ -168,7 +168,7 @@ class TestPostgreSQLSnapshotComplete:
 
             mock_conn.execute = AsyncMock(return_value=None)
 
-            from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+            from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
 
@@ -195,7 +195,7 @@ class TestPostgreSQLSnapshotComplete:
 
             mock_conn.execute = AsyncMock(return_value=None)
 
-            from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+            from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
 
@@ -235,7 +235,7 @@ class TestPostgreSQLSnapshotComplete:
             }
             mock_conn.fetchrow = AsyncMock(return_value=test_data)
 
-            from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+            from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
             result = await storage.get_replay_log(replay_id)
@@ -265,7 +265,7 @@ class TestPostgreSQLSnapshotComplete:
             }
             mock_conn.fetchrow = AsyncMock(return_value=test_data)
 
-            from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+            from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
             result = await storage.get_replay_log(replay_id)
@@ -308,7 +308,7 @@ class TestPostgreSQLSnapshotComplete:
             }
             mock_conn.fetch = AsyncMock(return_value=[test_data1, test_data2])
 
-            from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+            from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
             results = await storage.list_replays(original_saga_id, limit=10)
@@ -330,7 +330,7 @@ class TestPostgreSQLSnapshotComplete:
             test_data["completed_steps"] = '["step1"]'
             mock_conn.fetchrow = AsyncMock(return_value=test_data)
 
-            from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+            from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
             result = await storage.get_snapshot(test_data["snapshot_id"])
@@ -351,7 +351,7 @@ class TestPostgreSQLSnapshotComplete:
             test_data["completed_steps"] = ["step1"]
             mock_conn.fetchrow = AsyncMock(return_value=test_data)
 
-            from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+            from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             storage = PostgreSQLSnapshotStorage("postgresql://localhost/test")
             result = await storage.get_snapshot(test_data["snapshot_id"])
@@ -376,7 +376,7 @@ class TestPostgreSQLSnapshotComplete:
             mock_conn.execute = AsyncMock()
             mock_pool.close = AsyncMock()
 
-            from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+            from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             async with PostgreSQLSnapshotStorage("postgresql://localhost/test") as storage:
                 assert storage is not None
@@ -415,7 +415,7 @@ class TestPostgreSQLSnapshotComplete:
 
 class TestPostgresqlSnapshotBranches:
     def _make_storage_with_pool(self):
-        from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+        from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
         storage = PostgreSQLSnapshotStorage.__new__(PostgreSQLSnapshotStorage)
         storage._pool = None
@@ -423,7 +423,7 @@ class TestPostgresqlSnapshotBranches:
 
     async def test_get_snapshot_returns_none_when_no_row(self):
         """218: return None when row is None in get_latest_snapshot."""
-        from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+        from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
         storage = self._make_storage_with_pool()
 
@@ -446,7 +446,7 @@ class TestPostgresqlSnapshotBranches:
 
     async def test_get_replay_log_returns_none_when_no_row(self):
         """343: return None when row is None in get_replay_log."""
-        from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+        from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
         storage = self._make_storage_with_pool()
 
@@ -466,7 +466,7 @@ class TestPostgresqlSnapshotBranches:
 
     async def test_close_pool_is_none(self):
         """422->exit: close() when _pool is None."""
-        from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+        from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
         storage = self._make_storage_with_pool()
         storage._pool = None

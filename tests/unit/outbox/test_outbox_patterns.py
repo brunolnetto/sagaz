@@ -10,9 +10,9 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from sagaz.outbox.consumer_inbox import ConsumerInbox
-from sagaz.outbox.optimistic_publisher import OptimisticPublisher
-from sagaz.outbox.types import OutboxEvent
+from sagaz.core.outbox.consumer_inbox import ConsumerInbox
+from sagaz.core.outbox.optimistic_publisher import OptimisticPublisher
+from sagaz.core.outbox.types import OutboxEvent
 
 
 class TestOptimisticPublisher:

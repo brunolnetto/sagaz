@@ -14,8 +14,8 @@ import pytest
 
 from sagaz import Saga, SagaConfig, action
 from sagaz.core.config import configure, get_config
-from sagaz.triggers import fire_event, trigger
-from sagaz.triggers.registry import TriggerRegistry
+from sagaz.core.triggers import fire_event, trigger
+from sagaz.core.triggers.registry import TriggerRegistry
 
 # =============================================================================
 # Fixtures
@@ -33,7 +33,7 @@ def reset_registry():
 @pytest.fixture
 def memory_storage():
     """Provide fresh memory storage for each test."""
-    from sagaz.storage import InMemorySagaStorage
+    from sagaz.core.storage import InMemorySagaStorage
 
     storage = InMemorySagaStorage()
     config = SagaConfig(storage=storage)
@@ -83,7 +83,7 @@ class TestCronScheduler:
     @pytest.mark.asyncio
     async def test_cron_scheduler_start_stop(self, memory_storage):
         """Cron scheduler can be started and stopped."""
-        from sagaz.triggers.sources.cron import CronScheduler
+        from sagaz.core.triggers.sources.cron import CronScheduler
 
         scheduler = CronScheduler()
         assert not scheduler.is_running
@@ -97,7 +97,7 @@ class TestCronScheduler:
     @pytest.mark.asyncio
     async def test_cron_scheduler_fires_events(self, memory_storage):
         """Cron scheduler fires events on schedule."""
-        from sagaz.triggers.sources.cron import CronScheduler
+        from sagaz.core.triggers.sources.cron import CronScheduler
 
         fired_events = []
 
@@ -124,7 +124,7 @@ class TestCronScheduler:
     @pytest.mark.asyncio
     async def test_cron_scheduler_respects_schedule(self, memory_storage):
         """Cron scheduler only fires when schedule matches."""
-        from sagaz.triggers.sources.cron import CronScheduler
+        from sagaz.core.triggers.sources.cron import CronScheduler
 
         class FutureSaga(Saga):
             saga_name = "future"
@@ -174,7 +174,7 @@ class TestBrokerIntegration:
     @pytest.mark.asyncio
     async def test_broker_consumer_processes_messages(self, memory_storage):
         """Broker consumer processes messages and triggers sagas."""
-        from sagaz.triggers.sources.broker import BrokerTriggerConsumer
+        from sagaz.core.triggers.sources.broker import BrokerTriggerConsumer
 
         processed = []
 
@@ -205,7 +205,7 @@ class TestBrokerIntegration:
     @pytest.mark.asyncio
     async def test_broker_consumer_filters_by_topic(self, memory_storage):
         """Broker consumer only triggers sagas for matching topics."""
-        from sagaz.triggers.sources.broker import BrokerTriggerConsumer
+        from sagaz.core.triggers.sources.broker import BrokerTriggerConsumer
 
         orders_processed = []
         payments_processed = []
@@ -246,8 +246,8 @@ class TestBrokerIntegration:
     @pytest.mark.asyncio
     async def test_broker_consumer_with_existing_outbox_broker(self, memory_storage):
         """Broker consumer integrates with existing outbox brokers."""
-        from sagaz.outbox.brokers.memory import InMemoryBroker
-        from sagaz.triggers.sources.broker import BrokerTriggerConsumer
+        from sagaz.core.outbox.brokers.memory import InMemoryBroker
+        from sagaz.core.triggers.sources.broker import BrokerTriggerConsumer
 
         # Use actual in-memory broker
         broker = InMemoryBroker()

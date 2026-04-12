@@ -19,7 +19,7 @@ class TestUnifiedPostgreSQLMissingDependency:
     async def test_postgresql_without_asyncpg_raises(self):
         """Lines 241-242: MissingDependencyError when asyncpg not available."""
         from sagaz.core.exceptions import MissingDependencyError
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         with patch.dict(sys.modules, {"asyncpg": None}):
             manager = StorageManager(url="postgresql://user:pass@localhost/db")
@@ -34,7 +34,7 @@ class TestUnifiedRedisMissingDependency:
     async def test_redis_without_redis_package_raises(self):
         """Lines 290-291: MissingDependencyError when redis not available."""
         from sagaz.core.exceptions import MissingDependencyError
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         with patch.dict(sys.modules, {"redis": None, "redis.asyncio": None}):
             manager = StorageManager(url="redis://localhost:6379")
@@ -47,7 +47,7 @@ class TestCreateSagaStoragePaths:
 
     def test_create_postgresql_saga_storage(self):
         """Lines 349-350: _create_postgresql_saga returns PostgreSQLSagaStorage object."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager()
         result = manager._create_postgresql_saga("postgresql://localhost/db")
@@ -56,7 +56,7 @@ class TestCreateSagaStoragePaths:
 
     def test_create_redis_saga_storage(self):
         """Lines 352-353: _create_redis_saga returns RedisSagaStorage object."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager()
         result = manager._create_redis_saga("redis://localhost:6379")
@@ -66,7 +66,7 @@ class TestCreateSagaStoragePaths:
     @pytest.mark.asyncio
     async def test_create_saga_storage_unknown_raises(self):
         """Lines 355-356: Unknown saga backend raises ValueError."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager()
         with pytest.raises(ValueError, match="Unknown saga backend"):
@@ -75,7 +75,7 @@ class TestCreateSagaStoragePaths:
     @pytest.mark.asyncio
     async def test_create_outbox_storage_unknown_raises(self):
         """Lines 380-383: Unknown outbox backend raises ValueError."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager()
         with pytest.raises(ValueError, match="Unknown outbox backend"):
@@ -84,7 +84,7 @@ class TestCreateSagaStoragePaths:
     @pytest.mark.asyncio
     async def test_hybrid_memory_sqlite(self):
         """Lines 349, 369: hybrid mode uses _create_saga_storage for memory path."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager(
             saga_url="memory://",
@@ -103,7 +103,7 @@ class TestCreateOutboxStoragePaths:
     @pytest.mark.asyncio
     async def test_create_postgresql_outbox(self):
         """Lines 388, 392: _create_postgresql_outbox with mocked initialize."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager()
         with patch(
@@ -116,7 +116,7 @@ class TestCreateOutboxStoragePaths:
     @pytest.mark.asyncio
     async def test_create_redis_outbox(self):
         """Lines 403-404: _create_redis_outbox with mocked initialize."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager()
         with patch(
@@ -129,7 +129,7 @@ class TestCreateOutboxStoragePaths:
     @pytest.mark.asyncio
     async def test_create_memory_outbox(self):
         """Line 388: memory outbox created."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager()
         outbox = await manager._create_outbox_storage("memory", None)
@@ -138,7 +138,7 @@ class TestCreateOutboxStoragePaths:
     @pytest.mark.asyncio
     async def test_create_sqlite_outbox(self):
         """Lines 408-413: SQLite outbox created."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager()
         outbox = await manager._create_outbox_storage("sqlite", "sqlite://:memory:")
@@ -151,7 +151,7 @@ class TestStorageManagerClose:
     @pytest.mark.asyncio
     async def test_close_with_asyncpg_shared_pool(self):
         """Line 467: close() calls pool.close() + wait_closed() for asyncpg pool."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager()
 
@@ -172,7 +172,7 @@ class TestStorageManagerClose:
     @pytest.mark.asyncio
     async def test_close_with_redis_shared_pool(self):
         """Line 467: close() calls await pool.close() for Redis connection."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager()
 
@@ -196,7 +196,7 @@ class TestStorageManagerHealthCheck:
     @pytest.mark.asyncio
     async def test_health_check_saga_raises_exception(self):
         """Line 477: Exception in saga health check captured in result."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager()
         await manager.initialize()  # memory backend
@@ -215,7 +215,7 @@ class TestStorageManagerHealthCheck:
     @pytest.mark.asyncio
     async def test_health_check_outbox_raises_exception(self):
         """Line 477: Exception in outbox health check captured."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager()
         await manager.initialize()  # memory backend
@@ -236,7 +236,7 @@ class TestManagerAdditionalMissingPaths:
     @pytest.mark.asyncio
     async def test_initialize_unified_unknown_backend_raises(self):
         """Lines 241-242: ValueError for unknown backend type in _initialize_unified."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager()
         with pytest.raises(ValueError, match="Unknown backend type"):
@@ -245,7 +245,7 @@ class TestManagerAdditionalMissingPaths:
     @pytest.mark.asyncio
     async def test_initialize_sqlite_unified_without_scheme(self):
         """Lines 317->321: db_path without sqlite:// scheme passes as-is."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager(
             saga_url=":memory:",
@@ -259,7 +259,7 @@ class TestManagerAdditionalMissingPaths:
     @pytest.mark.asyncio
     async def test_create_saga_storage_postgresql(self):
         """Line 347: _create_saga_storage dispatches to postgresql."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager()
         result = await manager._create_saga_storage("postgresql", "postgresql://localhost/db")
@@ -268,7 +268,7 @@ class TestManagerAdditionalMissingPaths:
     @pytest.mark.asyncio
     async def test_create_saga_storage_redis(self):
         """Line 350: _create_saga_storage dispatches to redis."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager()
         result = await manager._create_saga_storage("redis", "redis://localhost:6379")
@@ -277,7 +277,7 @@ class TestManagerAdditionalMissingPaths:
     @pytest.mark.asyncio
     async def test_create_saga_storage_sqlite(self):
         """Lines 353, 378-383: _create_saga_storage dispatches to sqlite."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager()
         result = await manager._create_saga_storage("sqlite", "sqlite://:memory:")
@@ -288,7 +288,7 @@ class TestManagerAdditionalMissingPaths:
         """Line 395: _create_outbox_storage dispatches to postgresql."""
         from unittest.mock import AsyncMock, patch
 
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager()
         with patch(
@@ -301,7 +301,7 @@ class TestManagerAdditionalMissingPaths:
     @pytest.mark.asyncio
     async def test_create_outbox_storage_redis(self):
         """Line 398: _create_outbox_storage dispatches to redis."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager()
 
@@ -317,7 +317,7 @@ class TestManagerAdditionalMissingPaths:
     @pytest.mark.asyncio
     async def test_close_pool_without_close_method(self):
         """Lines 437->445: close() skips close() call when pool has no close attr."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager()
 
@@ -334,7 +334,7 @@ class TestManagerAdditionalMissingPaths:
     @pytest.mark.asyncio
     async def test_health_check_saga_without_health_check_method(self):
         """Line 467: saga storage without health_check method returns healthy."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager()
         mock_saga = MagicMock()  # No health_check attribute
@@ -348,7 +348,7 @@ class TestManagerAdditionalMissingPaths:
     @pytest.mark.asyncio
     async def test_health_check_outbox_without_health_check_method(self):
         """Line 477: outbox storage without health_check method returns healthy."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager()
         manager._saga_storage = None

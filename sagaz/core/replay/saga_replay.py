@@ -23,7 +23,7 @@ from sagaz.core.replay import (
     ReplayStatus,
     SnapshotNotFoundError,
 )
-from sagaz.storage.interfaces.snapshot import SnapshotStorage
+from sagaz.core.storage.interfaces.snapshot import SnapshotStorage
 
 logger = logging.getLogger(__name__)
 

@@ -13,7 +13,7 @@ from uuid import uuid4
 
 from sagaz import Saga, action, compensate
 from sagaz.core.types import SagaStatus, SagaStepStatus
-from sagaz.storage.memory import InMemorySagaStorage
+from sagaz.core.storage.memory import InMemorySagaStorage
 
 # -----------------------------------------------------------------------------
 # 1. Define a Complex Saga (E-commerce Order)

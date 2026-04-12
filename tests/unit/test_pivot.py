@@ -551,7 +551,7 @@ class TestPivotSagaIntegration:
     async def test_forward_recovery_handler_collection(self):
         """Test that forward recovery handlers are collected."""
         from sagaz import Saga, action, forward_recovery
-        from sagaz.execution.pivot import RecoveryAction
+        from sagaz.core.execution.pivot import RecoveryAction
 
         class PaymentSaga(Saga):
             saga_name = "payment"
@@ -696,7 +696,7 @@ class TestMermaidPivotVisualization:
 
     def test_step_info_pivot_fields(self):
         """Test that StepInfo has pivot and tainted fields."""
-        from sagaz.visualization.mermaid import StepInfo
+        from sagaz.observability.visualization.mermaid import StepInfo
 
         # Default values
         step = StepInfo(name="test", has_compensation=True)
@@ -712,7 +712,7 @@ class TestMermaidPivotVisualization:
 
     def test_mermaid_generator_with_pivot_zones(self):
         """Test that MermaidGenerator applies zone styles when pivots exist."""
-        from sagaz.visualization.mermaid import MermaidGenerator, StepInfo
+        from sagaz.observability.visualization.mermaid import MermaidGenerator, StepInfo
 
         steps = [
             StepInfo(name="reserve", has_compensation=True),
@@ -738,7 +738,7 @@ class TestMermaidPivotVisualization:
 
     def test_mermaid_generator_with_tainted_steps(self):
         """Test that tainted steps get the tainted style."""
-        from sagaz.visualization.mermaid import MermaidGenerator, StepInfo
+        from sagaz.observability.visualization.mermaid import MermaidGenerator, StepInfo
 
         steps = [
             StepInfo(name="reserve", has_compensation=True, tainted=True),
@@ -754,7 +754,7 @@ class TestMermaidPivotVisualization:
 
     def test_mermaid_generator_without_pivot_zones(self):
         """Test that zone styles are not applied when show_pivot_zones=False."""
-        from sagaz.visualization.mermaid import MermaidGenerator, StepInfo
+        from sagaz.observability.visualization.mermaid import MermaidGenerator, StepInfo
 
         steps = [
             StepInfo(name="reserve", has_compensation=True),
@@ -773,7 +773,7 @@ class TestMermaidPivotVisualization:
 
     def test_mermaid_generator_no_pivots(self):
         """Test that zone styles are not applied when no pivots exist."""
-        from sagaz.visualization.mermaid import MermaidGenerator, StepInfo
+        from sagaz.observability.visualization.mermaid import MermaidGenerator, StepInfo
 
         steps = [
             StepInfo(name="step1", has_compensation=True),
@@ -793,7 +793,7 @@ class TestMermaidPivotVisualization:
 class TestPivotBranches:
     def test_mark_completed_pivot_not_in_pivots(self):
         """361: return set() when completed_pivot not in self.pivots."""
-        from sagaz.execution.pivot import TaintPropagator
+        from sagaz.core.execution.pivot import TaintPropagator
 
         tracker = TaintPropagator(
             step_names={"step_a", "step_b"},
@@ -805,7 +805,7 @@ class TestPivotBranches:
 
     def test_find_blocking_pivot_no_match(self):
         """425->422: for loop over completed_pivots with no match → return None."""
-        from sagaz.execution.pivot import TaintPropagator
+        from sagaz.core.execution.pivot import TaintPropagator
 
         tracker = TaintPropagator(
             step_names={"step2", "pivot1"},
@@ -819,7 +819,7 @@ class TestPivotBranches:
 
     def test_can_compensate_incomplete_pivot(self):
         """457: return True for step in pivots but not completed."""
-        from sagaz.execution.pivot import TaintPropagator
+        from sagaz.core.execution.pivot import TaintPropagator
 
         tracker = TaintPropagator(
             step_names={"pivot1"},

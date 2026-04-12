@@ -9,8 +9,8 @@ from unittest.mock import patch
 import pytest
 
 from sagaz.core.exceptions import MissingDependencyError
-from sagaz.storage.factory import create_storage, get_available_backends, print_available_backends
-from sagaz.storage.memory import InMemorySagaStorage
+from sagaz.core.storage.factory import create_storage, get_available_backends, print_available_backends
+from sagaz.core.storage.memory import InMemorySagaStorage
 
 
 class TestCreateStorage:
@@ -33,7 +33,7 @@ class TestCreateStorage:
 
     def test_create_redis_storage(self):
         """Test creating Redis storage"""
-        from sagaz.storage.backends.redis.saga import REDIS_AVAILABLE
+        from sagaz.core.storage.backends.redis.saga import REDIS_AVAILABLE
 
         if not REDIS_AVAILABLE:
             with pytest.raises(MissingDependencyError) as exc_info:
@@ -45,7 +45,7 @@ class TestCreateStorage:
 
     def test_create_postgresql_storage(self):
         """Test creating PostgreSQL storage"""
-        from sagaz.storage.backends.postgresql.saga import ASYNCPG_AVAILABLE
+        from sagaz.core.storage.backends.postgresql.saga import ASYNCPG_AVAILABLE
 
         if not ASYNCPG_AVAILABLE:
             with pytest.raises(MissingDependencyError) as exc_info:
@@ -65,7 +65,7 @@ class TestCreateStorage:
 
     def test_create_postgres_alias(self):
         """Test 'postgres' alias for postgresql"""
-        from sagaz.storage.backends.postgresql.saga import ASYNCPG_AVAILABLE
+        from sagaz.core.storage.backends.postgresql.saga import ASYNCPG_AVAILABLE
 
         if not ASYNCPG_AVAILABLE:
             with pytest.raises(MissingDependencyError):
@@ -78,7 +78,7 @@ class TestCreateStorage:
 
     def test_create_pg_alias(self):
         """Test 'pg' alias for postgresql"""
-        from sagaz.storage.backends.postgresql.saga import ASYNCPG_AVAILABLE
+        from sagaz.core.storage.backends.postgresql.saga import ASYNCPG_AVAILABLE
 
         if not ASYNCPG_AVAILABLE:
             with pytest.raises(MissingDependencyError):
@@ -119,14 +119,14 @@ class TestCreateStorageTypes:
 
     def test_create_memory_outbox_storage(self):
         """Test creating outbox storage."""
-        from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
+        from sagaz.core.storage.backends.memory.outbox import InMemoryOutboxStorage
 
         storage = create_storage("memory", storage_type="outbox")
         assert isinstance(storage, InMemoryOutboxStorage)
 
     def test_create_memory_both_storages(self):
         """Test creating both storages at once."""
-        from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
+        from sagaz.core.storage.backends.memory.outbox import InMemoryOutboxStorage
 
         saga, outbox = create_storage("memory", storage_type="both")
 
@@ -135,12 +135,12 @@ class TestCreateStorageTypes:
 
     def test_create_redis_outbox_storage(self):
         """Test creating Redis outbox storage."""
-        from sagaz.storage.backends.redis.saga import REDIS_AVAILABLE
+        from sagaz.core.storage.backends.redis.saga import REDIS_AVAILABLE
 
         if not REDIS_AVAILABLE:
             pytest.skip("Redis not available")
 
-        from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
+        from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
 
         storage = create_storage(
             "redis",
@@ -151,13 +151,13 @@ class TestCreateStorageTypes:
 
     def test_create_redis_both_storages(self):
         """Test creating both Redis storages."""
-        from sagaz.storage.backends.redis.saga import REDIS_AVAILABLE
+        from sagaz.core.storage.backends.redis.saga import REDIS_AVAILABLE
 
         if not REDIS_AVAILABLE:
             pytest.skip("Redis not available")
 
-        from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
-        from sagaz.storage.redis import RedisSagaStorage
+        from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
+        from sagaz.core.storage.redis import RedisSagaStorage
 
         saga, outbox = create_storage(
             "redis",
@@ -176,12 +176,12 @@ class TestCreateStorageTypes:
 
     def test_create_postgresql_outbox_storage(self):
         """Test creating PostgreSQL outbox storage."""
-        from sagaz.storage.backends.postgresql.saga import ASYNCPG_AVAILABLE
+        from sagaz.core.storage.backends.postgresql.saga import ASYNCPG_AVAILABLE
 
         if not ASYNCPG_AVAILABLE:
             pytest.skip("asyncpg not available")
 
-        from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
+        from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
         storage = create_storage(
             "postgresql",
@@ -286,7 +286,7 @@ class TestFactoryMissingDependencyRaise:
 
     def test_missing_dep_reraises_on_both(self):
         """Trigger MissingDependencyError inside create_storage("both")."""
-        import sagaz.storage.backends.postgresql.saga as pg_mod
+        import sagaz.core.storage.backends.postgresql.saga as pg_mod
 
         original = pg_mod.ASYNCPG_AVAILABLE
         try:
@@ -306,7 +306,7 @@ class TestGetAvailableBackendsImportErrors:
 
     def test_redis_unavailable_branch(self, capsys):
         """Lines 286-287: redis.asyncio import error path."""
-        import sagaz.storage.factory as factory_mod
+        import sagaz.core.storage.factory as factory_mod
 
         original = sys.modules.get("redis.asyncio")
         try:
@@ -323,7 +323,7 @@ class TestGetAvailableBackendsImportErrors:
 
     def test_asyncpg_unavailable_branch(self, capsys):
         """Lines 306-307: asyncpg import error path."""
-        import sagaz.storage.factory as factory_mod
+        import sagaz.core.storage.factory as factory_mod
 
         original = sys.modules.get("asyncpg")
         try:
@@ -340,7 +340,7 @@ class TestGetAvailableBackendsImportErrors:
 
     def test_aiosqlite_unavailable_branch(self, capsys):
         """Lines 326-327: aiosqlite import error path."""
-        import sagaz.storage.factory as factory_mod
+        import sagaz.core.storage.factory as factory_mod
 
         original = sys.modules.get("aiosqlite")
         try:
@@ -357,7 +357,7 @@ class TestGetAvailableBackendsImportErrors:
 
     def test_print_with_unavailable_backend_shows_install(self, capsys):
         """Line 355: print_available_backends shows install line for unavailable backend."""
-        import sagaz.storage.factory as factory_mod
+        import sagaz.core.storage.factory as factory_mod
 
         original_asyncpg = sys.modules.get("asyncpg")
         try:

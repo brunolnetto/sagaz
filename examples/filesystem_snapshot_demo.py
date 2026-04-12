@@ -11,7 +11,7 @@ from uuid import uuid4
 
 from sagaz.core.replay import SagaSnapshot
 from sagaz.core.types import SagaStatus
-from sagaz.storage.backends import FilesystemSnapshotStorage
+from sagaz.core.storage.backends import FilesystemSnapshotStorage
 
 
 async def main():

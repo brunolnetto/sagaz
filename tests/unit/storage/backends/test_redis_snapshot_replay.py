@@ -11,7 +11,7 @@ import pytest
 
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.replay import ReplayResult, ReplayStatus
-from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
 
 class TestRedisSnapshotReplay:

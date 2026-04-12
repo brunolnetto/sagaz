@@ -12,7 +12,7 @@ class TestBaseStorageManager:
 
     def test_base_storage_manager_is_abstract(self):
         """Test that BaseStorageManager cannot be instantiated directly."""
-        from sagaz.storage.manager import BaseStorageManager
+        from sagaz.core.storage.manager import BaseStorageManager
 
         with pytest.raises(TypeError):
             BaseStorageManager()
@@ -24,7 +24,7 @@ class TestInMemoryStorageManager:
     @pytest.mark.asyncio
     async def test_initialize_creates_storages(self):
         """Test that initialize creates both saga and outbox storage."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager(url="memory://")
         await manager.initialize()
@@ -38,7 +38,7 @@ class TestInMemoryStorageManager:
     @pytest.mark.asyncio
     async def test_saga_property_before_init_raises(self):
         """Test accessing saga before init raises RuntimeError."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager(url="memory://")
 
@@ -48,7 +48,7 @@ class TestInMemoryStorageManager:
     @pytest.mark.asyncio
     async def test_outbox_property_before_init_raises(self):
         """Test accessing outbox before init raises RuntimeError."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager(url="memory://")
 
@@ -58,7 +58,7 @@ class TestInMemoryStorageManager:
     @pytest.mark.asyncio
     async def test_context_manager(self):
         """Test async context manager support."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         async with StorageManager(url="memory://") as manager:
             assert manager.saga is not None
@@ -67,7 +67,7 @@ class TestInMemoryStorageManager:
     @pytest.mark.asyncio
     async def test_health_check(self):
         """Test health check returns healthy status."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         async with StorageManager(url="memory://") as manager:
             health = await manager.health_check()
@@ -81,7 +81,7 @@ class TestInMemoryStorageManager:
     async def test_saga_operations(self):
         """Test saga storage operations through manager."""
         from sagaz.core.types import SagaStatus
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         async with StorageManager(url="memory://") as manager:
             await manager.saga.save_saga_state(
@@ -100,8 +100,8 @@ class TestInMemoryStorageManager:
     @pytest.mark.asyncio
     async def test_outbox_operations(self):
         """Test outbox storage operations through manager."""
-        from sagaz.outbox.types import OutboxEvent
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.outbox.types import OutboxEvent
+        from sagaz.core.storage.manager import StorageManager
 
         async with StorageManager(url="memory://") as manager:
             event = OutboxEvent(
@@ -123,70 +123,70 @@ class TestCreateStorageManager:
 
     def test_create_memory_from_url(self):
         """Test creating memory manager from URL."""
-        from sagaz.storage.manager import StorageManager, create_storage_manager
+        from sagaz.core.storage.manager import StorageManager, create_storage_manager
 
         manager = create_storage_manager("memory://")
         assert isinstance(manager, StorageManager)
 
     def test_create_memory_from_none(self):
         """Test creating memory manager from None URL."""
-        from sagaz.storage.manager import StorageManager, create_storage_manager
+        from sagaz.core.storage.manager import StorageManager, create_storage_manager
 
         manager = create_storage_manager(None)
         assert isinstance(manager, StorageManager)
 
     def test_create_memory_from_backend(self):
         """Test creating memory manager from explicit backend."""
-        from sagaz.storage.manager import StorageManager, create_storage_manager
+        from sagaz.core.storage.manager import StorageManager, create_storage_manager
 
         manager = create_storage_manager(backend="memory")
         assert isinstance(manager, StorageManager)
 
     def test_create_postgresql_from_url(self):
         """Test creating PostgreSQL manager from URL."""
-        from sagaz.storage.manager import StorageManager, create_storage_manager
+        from sagaz.core.storage.manager import StorageManager, create_storage_manager
 
         manager = create_storage_manager("postgresql://localhost/db")
         assert isinstance(manager, StorageManager)
 
     def test_create_postgresql_from_postgres_url(self):
         """Test creating PostgreSQL manager from postgres:// URL."""
-        from sagaz.storage.manager import StorageManager, create_storage_manager
+        from sagaz.core.storage.manager import StorageManager, create_storage_manager
 
         manager = create_storage_manager("postgres://localhost/db")
         assert isinstance(manager, StorageManager)
 
     def test_create_redis_from_url(self):
         """Test creating Redis manager from URL."""
-        from sagaz.storage.manager import StorageManager, create_storage_manager
+        from sagaz.core.storage.manager import StorageManager, create_storage_manager
 
         manager = create_storage_manager("redis://localhost:6379")
         assert isinstance(manager, StorageManager)
 
     def test_create_sqlite_from_url(self):
         """Test creating SQLite manager from URL."""
-        from sagaz.storage.manager import StorageManager, create_storage_manager
+        from sagaz.core.storage.manager import StorageManager, create_storage_manager
 
         manager = create_storage_manager("sqlite:///tmp/test.db")
         assert isinstance(manager, StorageManager)
 
     def test_create_sqlite_from_file_path(self):
         """Test creating SQLite manager from file path."""
-        from sagaz.storage.manager import StorageManager, create_storage_manager
+        from sagaz.core.storage.manager import StorageManager, create_storage_manager
 
         manager = create_storage_manager("/tmp/test.db")
         assert isinstance(manager, StorageManager)
 
     def test_create_sqlite_memory(self):
         """Test creating SQLite :memory: manager."""
-        from sagaz.storage.manager import StorageManager, create_storage_manager
+        from sagaz.core.storage.manager import StorageManager, create_storage_manager
 
         manager = create_storage_manager(":memory:")
         assert isinstance(manager, StorageManager)
 
     def test_create_from_explicit_backend(self):
         """Test creating manager from explicit backend."""
-        from sagaz.storage.manager import StorageManager, create_storage_manager
+        from sagaz.core.storage.manager import StorageManager, create_storage_manager
 
         manager = create_storage_manager(
             url="postgresql://localhost/db",
@@ -197,21 +197,21 @@ class TestCreateStorageManager:
 
     def test_create_unknown_backend_raises(self):
         """Test creating manager with unknown backend raises ValueError."""
-        from sagaz.storage.manager import create_storage_manager
+        from sagaz.core.storage.manager import create_storage_manager
 
         with pytest.raises(ValueError, match="Unknown backend"):
             create_storage_manager(backend="unknown")
 
     def test_create_postgresql_without_url_raises(self):
         """Test creating PostgreSQL without URL raises ValueError."""
-        from sagaz.storage.manager import create_storage_manager
+        from sagaz.core.storage.manager import create_storage_manager
 
         with pytest.raises(ValueError, match="url is required"):
             create_storage_manager(backend="postgresql")
 
     def test_create_unknown_url_raises(self):
         """Test creating manager with unknown URL scheme raises ValueError."""
-        from sagaz.storage.manager import create_storage_manager
+        from sagaz.core.storage.manager import create_storage_manager
 
         with pytest.raises(ValueError, match="Cannot determine backend"):
             create_storage_manager("unknown://localhost")
@@ -222,7 +222,7 @@ class TestPostgreSQLStorageManager:
 
     def test_saga_property_before_init_raises(self):
         """Test accessing saga before init raises RuntimeError."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager(url="postgresql://localhost/db")
 
@@ -232,7 +232,7 @@ class TestPostgreSQLStorageManager:
     @pytest.mark.asyncio
     async def test_health_check_not_initialized(self):
         """Test health check when not initialized."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager(url="postgresql://localhost/db")
         health = await manager.health_check()
@@ -245,7 +245,7 @@ class TestRedisStorageManager:
 
     def test_saga_property_before_init_raises(self):
         """Test accessing saga before init raises RuntimeError."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager(url="redis://localhost:6379")
 
@@ -255,7 +255,7 @@ class TestRedisStorageManager:
     @pytest.mark.asyncio
     async def test_health_check_not_initialized(self):
         """Test health check when not initialized."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager(url="redis://localhost:6379")
         health = await manager.health_check()
@@ -272,8 +272,8 @@ class TestSQLiteStorageManager:
         pytest.importorskip("aiosqlite")
 
         from sagaz.core.types import SagaStatus
-        from sagaz.outbox.types import OutboxEvent
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.outbox.types import OutboxEvent
+        from sagaz.core.storage.manager import StorageManager
 
         async with StorageManager(url="sqlite://:memory:") as manager:
             # Test saga operations
@@ -304,7 +304,7 @@ class TestSQLiteStorageManager:
         """Test health check returns healthy when initialized."""
         pytest.importorskip("aiosqlite")
 
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         async with StorageManager(url="sqlite://:memory:") as manager:
             health = await manager.health_check()
@@ -318,8 +318,8 @@ class TestStorageManagerExports:
     """Tests for module exports."""
 
     def test_exports_from_storage_module(self):
-        """Test that StorageManager is exported from sagaz.storage."""
-        from sagaz.storage import (
+        """Test that StorageManager is exported from sagaz.core.storage."""
+        from sagaz.core.storage import (
             BaseStorageManager,
             StorageManager,
             create_storage_manager,
@@ -335,7 +335,7 @@ class TestHybridMode:
 
     def test_create_hybrid_manager(self):
         """Test creating hybrid manager with different URLs."""
-        from sagaz.storage.manager import create_storage_manager
+        from sagaz.core.storage.manager import create_storage_manager
 
         manager = create_storage_manager(
             saga_url="memory://",
@@ -347,14 +347,14 @@ class TestHybridMode:
 
     def test_is_hybrid_same_backend(self):
         """Test is_hybrid returns False for same backend."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager(url="memory://")
         assert manager.is_hybrid is False
 
     def test_is_hybrid_different_backend(self):
         """Test is_hybrid returns True for different backends."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager(
             saga_url="postgresql://localhost/db",
@@ -365,7 +365,7 @@ class TestHybridMode:
     @pytest.mark.asyncio
     async def test_hybrid_health_check_shows_different_backends(self):
         """Test health check shows different backends in hybrid mode."""
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         # Both memory, but using saga_url and outbox_url
         manager = StorageManager(
@@ -388,8 +388,8 @@ class TestHybridMode:
         pytest.importorskip("aiosqlite")
 
         from sagaz.core.types import SagaStatus
-        from sagaz.outbox.types import OutboxEvent
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.outbox.types import OutboxEvent
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager(
             saga_url="sqlite://:memory:",
@@ -431,7 +431,7 @@ class TestSagaConfigIntegration:
     async def test_saga_config_with_storage_manager(self):
         """Test SagaConfig accepts storage_manager parameter."""
         from sagaz.core.config import SagaConfig
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager(url="memory://")
         await manager.initialize()
@@ -449,8 +449,8 @@ class TestSagaConfigIntegration:
     async def test_saga_config_cannot_mix_manager_with_storage(self):
         """Test SagaConfig raises error if both storage_manager and storage provided."""
         from sagaz.core.config import SagaConfig
-        from sagaz.storage.manager import StorageManager
-        from sagaz.storage.memory import InMemorySagaStorage
+        from sagaz.core.storage.manager import StorageManager
+        from sagaz.core.storage.memory import InMemorySagaStorage
 
         manager = StorageManager(url="memory://")
         await manager.initialize()
@@ -468,8 +468,8 @@ class TestSagaConfigIntegration:
     async def test_saga_config_cannot_mix_manager_with_outbox_storage(self):
         """Test SagaConfig raises error if both storage_manager and outbox_storage provided."""
         from sagaz.core.config import SagaConfig
-        from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.backends.memory.outbox import InMemoryOutboxStorage
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager(url="memory://")
         await manager.initialize()
@@ -487,7 +487,7 @@ class TestSagaConfigIntegration:
     async def test_saga_config_manager_not_initialized_warning(self):
         """Test SagaConfig warns if manager not initialized."""
         from sagaz.core.config import SagaConfig
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager(url="memory://")
         # Don't initialize
@@ -503,8 +503,8 @@ class TestSagaConfigIntegration:
     async def test_saga_config_manager_with_broker(self):
         """Test SagaConfig with storage_manager and broker."""
         from sagaz.core.config import SagaConfig
-        from sagaz.outbox.brokers.memory import InMemoryBroker
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.outbox.brokers.memory import InMemoryBroker
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager(url="memory://")
         await manager.initialize()
@@ -524,7 +524,7 @@ class TestSagaConfigIntegration:
         from sagaz import Saga, action, configure
         from sagaz.core.config import SagaConfig
         from sagaz.core.types import SagaStatus
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         manager = StorageManager(url="memory://")
         await manager.initialize()

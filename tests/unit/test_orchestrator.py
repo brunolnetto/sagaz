@@ -12,7 +12,7 @@ import pytest
 
 from sagaz.core.saga import Saga, SagaContext
 from sagaz.core.types import SagaStatus
-from sagaz.execution.orchestrator import SagaOrchestrator
+from sagaz.core.execution.orchestrator import SagaOrchestrator
 
 
 class SimpleSaga(Saga):
@@ -274,7 +274,7 @@ class TestSagaOrchestrator:
 class TestOrchestratorBranches:
     async def test_count_failed(self):
         """65: count_failed() calls count_by_status(FAILED)."""
-        from sagaz.execution.orchestrator import SagaOrchestrator
+        from sagaz.core.execution.orchestrator import SagaOrchestrator
 
         orch = SagaOrchestrator()
         count = await orch.count_failed()

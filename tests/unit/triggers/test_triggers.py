@@ -16,10 +16,10 @@ import pytest
 from sagaz import Saga, SagaConfig, action
 from sagaz.core.config import configure, get_config
 from sagaz.core.types import SagaStatus
-from sagaz.triggers import fire_event, trigger
-from sagaz.triggers.decorators import TriggerMetadata
-from sagaz.triggers.engine import TriggerEngine
-from sagaz.triggers.registry import RegisteredTrigger, TriggerRegistry
+from sagaz.core.triggers import fire_event, trigger
+from sagaz.core.triggers.decorators import TriggerMetadata
+from sagaz.core.triggers.engine import TriggerEngine
+from sagaz.core.triggers.registry import RegisteredTrigger, TriggerRegistry
 
 # =============================================================================
 # Fixtures
@@ -37,7 +37,7 @@ def reset_registry():
 @pytest.fixture
 def memory_storage():
     """Provide fresh memory storage for each test."""
-    from sagaz.storage import InMemorySagaStorage
+    from sagaz.core.storage import InMemorySagaStorage
 
     storage = InMemorySagaStorage()
     config = SagaConfig(storage=storage)

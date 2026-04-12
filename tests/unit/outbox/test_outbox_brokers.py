@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pytest
 
 from sagaz.core.exceptions import MissingDependencyError
-from sagaz.outbox import (
+from sagaz.core.outbox import (
     InMemoryBroker,
     create_broker,
     get_available_brokers,
@@ -71,7 +71,7 @@ class TestBrokerFactory:
 
     def test_create_broker_from_env_memory(self):
         """Test creating broker from environment variables."""
-        from sagaz.outbox.brokers.factory import create_broker_from_env
+        from sagaz.core.outbox.brokers.factory import create_broker_from_env
 
         with patch.dict(os.environ, {"BROKER_TYPE": "memory"}):
             broker = create_broker_from_env()
@@ -79,7 +79,7 @@ class TestBrokerFactory:
 
     def test_create_broker_from_env_default(self):
         """Test default broker type when not set."""
-        from sagaz.outbox.brokers.factory import create_broker_from_env
+        from sagaz.core.outbox.brokers.factory import create_broker_from_env
 
         # Remove BROKER_TYPE if set
         env = os.environ.copy()
@@ -137,7 +137,7 @@ class TestKafkaBrokerConfig:
         """Test default configuration."""
         # Note: Only test if available to prevent import errors
         try:
-            from sagaz.outbox.brokers.kafka import KafkaBrokerConfig
+            from sagaz.core.outbox.brokers.kafka import KafkaBrokerConfig
 
             config = KafkaBrokerConfig()
 
@@ -155,7 +155,7 @@ class TestRabbitMQBrokerConfig:
     def test_default_values(self):
         """Test default configuration."""
         try:
-            from sagaz.outbox.brokers.rabbitmq import RabbitMQBrokerConfig
+            from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBrokerConfig
 
             config = RabbitMQBrokerConfig()
 

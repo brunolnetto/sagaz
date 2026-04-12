@@ -140,8 +140,8 @@ async def example_3_programmatic():
     Full control over configuration.
     """
 
-    from sagaz.outbox.brokers.memory import InMemoryBroker
-    from sagaz.storage.memory import InMemorySagaStorage
+    from sagaz.core.outbox.brokers.memory import InMemoryBroker
+    from sagaz.core.storage.memory import InMemorySagaStorage
 
     # Create configuration programmatically
     config = SagaConfig(

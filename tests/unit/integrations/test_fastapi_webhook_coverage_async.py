@@ -270,8 +270,8 @@ class TestWebhookHandlerIdempotencyMissing:
     async def test_missing_idempotency_key_returns_400(self):
         """Lines 178-185: When required idempotency key missing, return 400."""
         from sagaz import Saga, action
-        from sagaz.triggers import trigger
-        from sagaz.triggers.registry import TriggerRegistry
+        from sagaz.core.triggers import trigger
+        from sagaz.core.triggers.registry import TriggerRegistry
 
         TriggerRegistry.clear()
 
@@ -304,8 +304,8 @@ class TestWebhookHandlerIdempotencyMissing:
     async def test_idempotency_key_present_returns_202(self):
         """Lines 162+: When idempotency key is present, proceed normally."""
         from sagaz import Saga, action
-        from sagaz.triggers import trigger
-        from sagaz.triggers.registry import TriggerRegistry
+        from sagaz.core.triggers import trigger
+        from sagaz.core.triggers.registry import TriggerRegistry
 
         TriggerRegistry.clear()
 
@@ -336,8 +336,8 @@ class TestWebhookHandlerIdempotencyMissing:
     async def test_trigger_without_idempotency_key_proceeds(self):
         """Line 183->181: trigger has no idempotency_key → skip idempotency check."""
         from sagaz import Saga, action
-        from sagaz.triggers import trigger
-        from sagaz.triggers.registry import TriggerRegistry
+        from sagaz.core.triggers import trigger
+        from sagaz.core.triggers.registry import TriggerRegistry
 
         TriggerRegistry.clear()
 

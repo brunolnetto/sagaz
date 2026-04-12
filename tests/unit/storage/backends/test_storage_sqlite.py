@@ -12,7 +12,7 @@ from uuid import uuid4
 import pytest
 
 from sagaz.core.types import SagaStatus, SagaStepStatus
-from sagaz.outbox.types import OutboxEvent, OutboxStatus
+from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
 
 # Skip all tests if aiosqlite is not installed
 try:
@@ -31,7 +31,7 @@ class TestSQLiteSagaStorage:
     @pytest.fixture
     async def storage(self):
         """Create an in-memory SQLite saga storage."""
-        from sagaz.storage.backends.sqlite import SQLiteSagaStorage
+        from sagaz.core.storage.backends.sqlite import SQLiteSagaStorage
 
         storage = SQLiteSagaStorage(":memory:")
         async with storage:
@@ -282,7 +282,7 @@ class TestSQLiteOutboxStorage:
     @pytest.fixture
     async def storage(self):
         """Create an in-memory SQLite outbox storage."""
-        from sagaz.storage.backends.sqlite import SQLiteOutboxStorage
+        from sagaz.core.storage.backends.sqlite import SQLiteOutboxStorage
 
         storage = SQLiteOutboxStorage(":memory:")
         async with storage:
@@ -463,8 +463,8 @@ class TestSQLiteStorageFactory:
     @pytest.mark.asyncio
     async def test_create_sqlite_saga_storage(self):
         """Test creating SQLite saga storage via factory."""
-        from sagaz.storage import create_storage
-        from sagaz.storage.backends.sqlite import SQLiteSagaStorage
+        from sagaz.core.storage import create_storage
+        from sagaz.core.storage.backends.sqlite import SQLiteSagaStorage
 
         storage = create_storage("sqlite", storage_type="saga")
         assert isinstance(storage, SQLiteSagaStorage)
@@ -472,8 +472,8 @@ class TestSQLiteStorageFactory:
     @pytest.mark.asyncio
     async def test_create_sqlite_outbox_storage(self):
         """Test creating SQLite outbox storage via factory."""
-        from sagaz.storage import create_storage
-        from sagaz.storage.backends.sqlite import SQLiteOutboxStorage
+        from sagaz.core.storage import create_storage
+        from sagaz.core.storage.backends.sqlite import SQLiteOutboxStorage
 
         storage = create_storage("sqlite", storage_type="outbox")
         assert isinstance(storage, SQLiteOutboxStorage)
@@ -481,8 +481,8 @@ class TestSQLiteStorageFactory:
     @pytest.mark.asyncio
     async def test_create_sqlite_both_storages(self):
         """Test creating both SQLite storages via factory."""
-        from sagaz.storage import create_storage
-        from sagaz.storage.backends.sqlite import SQLiteOutboxStorage, SQLiteSagaStorage
+        from sagaz.core.storage import create_storage
+        from sagaz.core.storage.backends.sqlite import SQLiteOutboxStorage, SQLiteSagaStorage
 
         saga, outbox = create_storage("sqlite", storage_type="both")
 
@@ -492,7 +492,7 @@ class TestSQLiteStorageFactory:
     @pytest.mark.asyncio
     async def test_create_sqlite_with_db_path(self, tmp_path):
         """Test creating SQLite storage with custom db_path."""
-        from sagaz.storage import create_storage
+        from sagaz.core.storage import create_storage
 
         db_file = tmp_path / "test.db"
 
@@ -512,7 +512,7 @@ class TestSQLiteStorageFactory:
 
     def test_sqlite_in_available_backends(self):
         """Test SQLite appears in available backends."""
-        from sagaz.storage import get_available_backends
+        from sagaz.core.storage import get_available_backends
 
         backends = get_available_backends()
 
@@ -526,8 +526,8 @@ class TestSQLiteTransfer:
     @pytest.mark.asyncio
     async def test_transfer_from_memory_to_sqlite(self):
         """Test transferring data from memory to SQLite."""
-        from sagaz.storage import create_storage
-        from sagaz.storage.transfer import transfer_data
+        from sagaz.core.storage import create_storage
+        from sagaz.core.storage.transfer import transfer_data
 
         # Create source with data
         source = create_storage("memory")
@@ -559,7 +559,7 @@ class TestSQLiteSagaImportError:
 
     def test_aiosqlite_unavailable_flag_saga(self):
         """Lines 38-40: AIOSQLITE_AVAILABLE=False when aiosqlite absent."""
-        import sagaz.storage.backends.sqlite.saga as saga_mod
+        import sagaz.core.storage.backends.sqlite.saga as saga_mod
 
         original = sys.modules.get("aiosqlite")
         try:
@@ -575,7 +575,7 @@ class TestSQLiteSagaImportError:
 
     def test_init_raises_when_aiosqlite_unavailable(self):
         """Lines 85-86: MissingDependencyError when AIOSQLITE_AVAILABLE=False."""
-        import sagaz.storage.backends.sqlite.saga as saga_mod
+        import sagaz.core.storage.backends.sqlite.saga as saga_mod
         from sagaz.core.exceptions import MissingDependencyError
 
         with patch.object(saga_mod, "AIOSQLITE_AVAILABLE", False):
@@ -585,7 +585,7 @@ class TestSQLiteSagaImportError:
     @pytest.mark.asyncio
     async def test_init_schema_raises_when_conn_none(self):
         """Lines 112-113: RuntimeError in _init_schema when _conn is None."""
-        from sagaz.storage.backends.sqlite.saga import SQLiteSagaStorage
+        from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
 
         storage = SQLiteSagaStorage(":memory:")
         with pytest.raises(RuntimeError, match="Connection not initialized"):
@@ -594,7 +594,7 @@ class TestSQLiteSagaImportError:
     @pytest.mark.asyncio
     async def test_close_when_conn_already_none(self):
         """Line 143->exit: close() does nothing when _conn is already None."""
-        from sagaz.storage.backends.sqlite.saga import SQLiteSagaStorage
+        from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
 
         storage = SQLiteSagaStorage(":memory:")
         storage._conn = None
@@ -605,7 +605,7 @@ class TestSQLiteSagaImportError:
         """Line 311: if not row path in get_saga_statistics."""
         from unittest.mock import AsyncMock, MagicMock
 
-        from sagaz.storage.backends.sqlite.saga import SQLiteSagaStorage
+        from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
 
         storage = SQLiteSagaStorage(":memory:")
         mock_conn = AsyncMock()
@@ -624,7 +624,7 @@ class TestSQLiteOutboxImportError:
 
     def test_aiosqlite_unavailable_flag_outbox(self):
         """Lines 31-33: AIOSQLITE_AVAILABLE=False in outbox module."""
-        import sagaz.storage.backends.sqlite.outbox as outbox_mod
+        import sagaz.core.storage.backends.sqlite.outbox as outbox_mod
 
         original = sys.modules.get("aiosqlite")
         try:
@@ -640,7 +640,7 @@ class TestSQLiteOutboxImportError:
 
     def test_outbox_init_raises_when_aiosqlite_unavailable(self):
         """Lines 76-77: MissingDependencyError."""
-        import sagaz.storage.backends.sqlite.outbox as outbox_mod
+        import sagaz.core.storage.backends.sqlite.outbox as outbox_mod
         from sagaz.core.exceptions import MissingDependencyError
 
         with patch.object(outbox_mod, "AIOSQLITE_AVAILABLE", False):
@@ -650,7 +650,7 @@ class TestSQLiteOutboxImportError:
     @pytest.mark.asyncio
     async def test_outbox_init_schema_raises_when_conn_none(self):
         """Lines 103-104: RuntimeError when no connection."""
-        from sagaz.storage.backends.sqlite.outbox import SQLiteOutboxStorage
+        from sagaz.core.storage.backends.sqlite.outbox import SQLiteOutboxStorage
 
         storage = SQLiteOutboxStorage(":memory:")
         with pytest.raises(RuntimeError, match="Connection not initialized"):
@@ -659,7 +659,7 @@ class TestSQLiteOutboxImportError:
     @pytest.mark.asyncio
     async def test_outbox_close_when_conn_already_none(self):
         """Line 143->exit: close is no-op when _conn is None."""
-        from sagaz.storage.backends.sqlite.outbox import SQLiteOutboxStorage
+        from sagaz.core.storage.backends.sqlite.outbox import SQLiteOutboxStorage
 
         storage = SQLiteOutboxStorage(":memory:")
         storage._conn = None
@@ -670,8 +670,8 @@ class TestSQLiteOutboxImportError:
         """Line 414: if not row path returns StorageStatistics(0, 0)."""
         from unittest.mock import AsyncMock
 
-        from sagaz.storage.backends.sqlite.outbox import SQLiteOutboxStorage
-        from sagaz.storage.core import StorageStatistics
+        from sagaz.core.storage.backends.sqlite.outbox import SQLiteOutboxStorage
+        from sagaz.core.storage.core import StorageStatistics
 
         storage = SQLiteOutboxStorage(":memory:")
         mock_conn = AsyncMock()
@@ -690,7 +690,7 @@ class TestSqliteSagaBranches:
     async def test_update_step_status_step_not_found(self):
         """275->287: for loop exhausted without break (step_name not found)."""
         from sagaz.core.types import SagaStatus, SagaStepStatus
-        from sagaz.storage.backends.sqlite.saga import SQLiteSagaStorage
+        from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
 
         storage = SQLiteSagaStorage(":memory:")
         await storage.initialize()
@@ -712,7 +712,7 @@ class TestSqliteSagaBranches:
     async def test_update_step_status_step_name_mismatch(self):
         """276->275: if step.get('name') == step_name: False → continue loop."""
         from sagaz.core.types import SagaStatus, SagaStepStatus
-        from sagaz.storage.backends.sqlite.saga import SQLiteSagaStorage
+        from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
 
         storage = SQLiteSagaStorage(":memory:")
         await storage.initialize()

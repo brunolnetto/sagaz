@@ -58,8 +58,8 @@ from uuid import UUID, uuid4
 
 if TYPE_CHECKING:
     from sagaz.core.replay import ReplayConfig, SagaSnapshot, SnapshotStrategy
-    from sagaz.storage.base import SagaStorage
-    from sagaz.storage.interfaces.snapshot import SnapshotStorage
+    from sagaz.core.storage.base import SagaStorage
+    from sagaz.core.storage.interfaces.snapshot import SnapshotStorage
 
 from statemachine.exceptions import TransitionNotAllowed
 
@@ -78,7 +78,7 @@ from sagaz.core.saga._step import SagaStep
 from sagaz.core.saga._step_execution import StepExecutor
 from sagaz.core.saga._visualization import _SagaVisualizationMixin
 from sagaz.core.types import ParallelFailureStrategy, SagaResult, SagaStatus, SagaStepStatus
-from sagaz.execution.state_machine import SagaStateMachine
+from sagaz.core.execution.state_machine import SagaStateMachine
 
 # Configure logging
 logger = logging.getLogger(__name__)

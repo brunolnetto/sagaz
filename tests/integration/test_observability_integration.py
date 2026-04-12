@@ -172,7 +172,7 @@ class TestMetricNameConsistency:
     def test_prometheus_metrics_class_has_expected_attributes(self):
         """Verify PrometheusMetrics class defines expected metrics."""
         try:
-            from sagaz.monitoring.prometheus import PROMETHEUS_AVAILABLE, PrometheusMetrics
+            from sagaz.observability.monitoring.prometheus import PROMETHEUS_AVAILABLE, PrometheusMetrics
         except ImportError:
             pytest.skip("prometheus-client not installed")
 
@@ -189,7 +189,7 @@ class TestMetricNameConsistency:
         """Verify OutboxWorker defines expected metrics."""
         # Import the module to check metric definitions
         try:
-            from sagaz.outbox import worker
+            from sagaz.core.outbox import worker
 
             # Check for PROMETHEUS_AVAILABLE flag
             assert hasattr(worker, "PROMETHEUS_AVAILABLE")
@@ -212,7 +212,7 @@ class TestPrometheusMetricsConfiguration:
 
     def test_prometheus_metrics_can_be_disabled(self):
         """Test that metrics gracefully handle missing prometheus-client."""
-        from sagaz.monitoring.prometheus import is_prometheus_available
+        from sagaz.observability.monitoring.prometheus import is_prometheus_available
 
         # Should return True or False without error
         result = is_prometheus_available()

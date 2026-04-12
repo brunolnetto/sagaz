@@ -45,7 +45,7 @@ class TestRedisOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_redis_outbox_initialization(self, mock_redis):
         """Test RedisOutboxStorage initialization and consumer group creation."""
-        from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
+        from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
 
         with patch("redis.asyncio.from_url", return_value=mock_redis):
             storage = RedisOutboxStorage(
@@ -62,7 +62,7 @@ class TestRedisOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_redis_outbox_already_initialized(self, mock_redis):
         """Test that initialize() is idempotent."""
-        from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
+        from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
 
         with patch("redis.asyncio.from_url", return_value=mock_redis):
             storage = RedisOutboxStorage()
@@ -79,7 +79,7 @@ class TestRedisOutboxStorageCoverage:
         """Test handling of BUSYGROUP error (group already exists)."""
         from redis.exceptions import ResponseError
 
-        from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
+        from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
 
         mock_redis.xgroup_create = AsyncMock(
             side_effect=ResponseError("BUSYGROUP Consumer Group name already exists")
@@ -96,7 +96,7 @@ class TestRedisOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_redis_outbox_close(self, mock_redis):
         """Test close() method."""
-        from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
+        from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
 
         with patch("redis.asyncio.from_url", return_value=mock_redis):
             storage = RedisOutboxStorage()
@@ -109,8 +109,8 @@ class TestRedisOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_redis_outbox_insert(self, mock_redis):
         """Test insert() method."""
-        from sagaz.outbox.types import OutboxEvent
-        from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
+        from sagaz.core.outbox.types import OutboxEvent
+        from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
 
         # Mock pipeline
         mock_pipe = AsyncMock()
@@ -141,7 +141,7 @@ class TestRedisOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_redis_outbox_get_by_id(self, mock_redis):
         """Test get_by_id() method."""
-        from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
+        from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
 
         mock_redis.hgetall = AsyncMock(
             return_value={
@@ -177,7 +177,7 @@ class TestRedisOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_redis_outbox_get_by_id_not_found(self, mock_redis):
         """Test get_by_id() when event not found."""
-        from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
+        from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
 
         mock_redis.hgetall = AsyncMock(return_value={})
 
@@ -192,8 +192,8 @@ class TestRedisOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_redis_outbox_update_status_sent(self, mock_redis):
         """Test update_status() for SENT status."""
-        from sagaz.outbox.types import OutboxStatus
-        from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
+        from sagaz.core.outbox.types import OutboxStatus
+        from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
 
         mock_redis.hset = AsyncMock()
         mock_redis.hdel = AsyncMock()
@@ -230,8 +230,8 @@ class TestRedisOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_redis_outbox_update_status_failed_with_error(self, mock_redis):
         """Test update_status() for FAILED status with error message."""
-        from sagaz.outbox.types import OutboxStatus
-        from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
+        from sagaz.core.outbox.types import OutboxStatus
+        from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
 
         mock_redis.hset = AsyncMock()
         mock_redis.hdel = AsyncMock()
@@ -269,7 +269,7 @@ class TestRedisOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_redis_outbox_claim_batch_no_messages(self, mock_redis):
         """Test claim_batch() when no messages available."""
-        from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
+        from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
 
         mock_redis.xreadgroup = AsyncMock(return_value=None)
 
@@ -284,7 +284,7 @@ class TestRedisOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_redis_outbox_claim_batch_error(self, mock_redis):
         """Test claim_batch() handles errors gracefully."""
-        from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
+        from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
 
         mock_redis.xreadgroup = AsyncMock(side_effect=Exception("Connection error"))
 
@@ -299,7 +299,7 @@ class TestRedisOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_redis_outbox_get_events_by_saga(self, mock_redis):
         """Test get_events_by_saga() method."""
-        from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
+        from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
 
         # Mock scan to return keys
         mock_redis.scan = AsyncMock(
@@ -342,7 +342,7 @@ class TestRedisOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_redis_outbox_get_pending_count(self, mock_redis):
         """Test get_pending_count() method."""
-        from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
+        from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
 
         mock_redis.xlen = AsyncMock(return_value=42)
 
@@ -357,7 +357,7 @@ class TestRedisOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_redis_outbox_get_pending_count_error(self, mock_redis):
         """Test get_pending_count() handles errors."""
-        from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
+        from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
 
         mock_redis.xlen = AsyncMock(side_effect=Exception("Error"))
 
@@ -372,8 +372,8 @@ class TestRedisOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_redis_outbox_health_check_healthy(self, mock_redis):
         """Test health_check() when healthy."""
-        from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
-        from sagaz.storage.core import HealthStatus
+        from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
+        from sagaz.core.storage.core import HealthStatus
 
         mock_redis.ping = AsyncMock()
         mock_redis.xlen = AsyncMock(return_value=10)
@@ -389,8 +389,8 @@ class TestRedisOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_redis_outbox_health_check_unhealthy(self, mock_redis):
         """Test health_check() when unhealthy."""
-        from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
-        from sagaz.storage.core import HealthStatus
+        from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
+        from sagaz.core.storage.core import HealthStatus
 
         mock_redis.ping = AsyncMock(side_effect=Exception("Connection failed"))
 
@@ -405,8 +405,8 @@ class TestRedisOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_redis_outbox_health_check_not_initialized(self):
         """Test health_check() when not initialized fails to connect."""
-        from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
-        from sagaz.storage.core import HealthStatus
+        from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
+        from sagaz.core.storage.core import HealthStatus
 
         with patch("redis.asyncio.from_url", side_effect=Exception("Cannot connect")):
             storage = RedisOutboxStorage()
@@ -418,7 +418,7 @@ class TestRedisOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_redis_outbox_get_statistics(self, mock_redis):
         """Test get_statistics() method."""
-        from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
+        from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
 
         mock_redis.xlen = AsyncMock(return_value=5)
 
@@ -433,7 +433,7 @@ class TestRedisOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_redis_outbox_context_manager(self, mock_redis):
         """Test async context manager."""
-        from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
+        from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
 
         with patch("redis.asyncio.from_url", return_value=mock_redis):
             async with RedisOutboxStorage() as storage:
@@ -444,7 +444,7 @@ class TestRedisOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_redis_outbox_get_stuck_events(self, mock_redis):
         """Test get_stuck_events() method."""
-        from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
+        from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
 
         mock_redis.xpending_range = AsyncMock(
             return_value=[
@@ -483,7 +483,7 @@ class TestRedisOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_redis_outbox_get_stuck_events_error(self, mock_redis):
         """Test get_stuck_events() handles errors."""
-        from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
+        from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
 
         mock_redis.xpending_range = AsyncMock(side_effect=Exception("Error"))
 
@@ -498,7 +498,7 @@ class TestRedisOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_redis_outbox_release_stuck_events(self, mock_redis):
         """Test release_stuck_events() method."""
-        from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
+        from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
 
         mock_redis.xpending_range = AsyncMock(
             return_value=[
@@ -518,7 +518,7 @@ class TestRedisOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_redis_outbox_release_stuck_events_error(self, mock_redis):
         """Test release_stuck_events() handles errors."""
-        from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
+        from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
 
         mock_redis.xpending_range = AsyncMock(side_effect=Exception("Error"))
 
@@ -533,7 +533,7 @@ class TestRedisOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_redis_outbox_get_dead_letter_events(self, mock_redis):
         """Test get_dead_letter_events() method."""
-        from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
+        from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
 
         mock_redis.xrange = AsyncMock(
             return_value=[
@@ -572,7 +572,7 @@ class TestRedisOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_redis_outbox_get_dead_letter_events_error(self, mock_redis):
         """Test get_dead_letter_events() handles errors."""
-        from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
+        from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
 
         mock_redis.xrange = AsyncMock(side_effect=Exception("Error"))
 
@@ -606,7 +606,7 @@ class TestSQLiteSagaStorageCoverage:
     async def test_sqlite_saga_update_step_not_found(self):
         """Test update_step_state when saga not found."""
         from sagaz.core.types import SagaStepStatus
-        from sagaz.storage.backends.sqlite.saga import SQLiteSagaStorage
+        from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
 
         async with SQLiteSagaStorage(":memory:") as storage:
             # Try to update step for non-existent saga
@@ -621,7 +621,7 @@ class TestSQLiteSagaStorageCoverage:
     async def test_sqlite_saga_update_step_success(self):
         """Test update_step_state success path."""
         from sagaz.core.types import SagaStatus, SagaStepStatus
-        from sagaz.storage.backends.sqlite.saga import SQLiteSagaStorage
+        from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
 
         async with SQLiteSagaStorage(":memory:") as storage:
             # Create saga with step
@@ -650,7 +650,7 @@ class TestSQLiteSagaStorageCoverage:
     async def test_sqlite_saga_update_step_with_error(self):
         """Test update_step_state with error."""
         from sagaz.core.types import SagaStatus, SagaStepStatus
-        from sagaz.storage.backends.sqlite.saga import SQLiteSagaStorage
+        from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
 
         async with SQLiteSagaStorage(":memory:") as storage:
             await storage.save_saga_state(
@@ -676,7 +676,7 @@ class TestSQLiteSagaStorageCoverage:
     async def test_sqlite_saga_update_step_with_executed_at(self):
         """Test update_step_state with executed_at timestamp."""
         from sagaz.core.types import SagaStatus, SagaStepStatus
-        from sagaz.storage.backends.sqlite.saga import SQLiteSagaStorage
+        from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
 
         async with SQLiteSagaStorage(":memory:") as storage:
             await storage.save_saga_state(
@@ -702,7 +702,7 @@ class TestSQLiteSagaStorageCoverage:
     async def test_sqlite_saga_cleanup_completed(self):
         """Test cleanup_completed_sagas method."""
         from sagaz.core.types import SagaStatus
-        from sagaz.storage.backends.sqlite.saga import SQLiteSagaStorage
+        from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
 
         async with SQLiteSagaStorage(":memory:") as storage:
             # Create old completed saga
@@ -724,7 +724,7 @@ class TestSQLiteSagaStorageCoverage:
     @pytest.mark.asyncio
     async def test_sqlite_saga_health_check_unhealthy(self):
         """Test health_check when database has issues."""
-        from sagaz.storage.backends.sqlite.saga import SQLiteSagaStorage
+        from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
 
         storage = SQLiteSagaStorage(":memory:")
         # Don't initialize - force error
@@ -740,7 +740,7 @@ class TestSQLiteSagaStorageCoverage:
     async def test_sqlite_saga_export_all(self):
         """Test export_all generator."""
         from sagaz.core.types import SagaStatus
-        from sagaz.storage.backends.sqlite.saga import SQLiteSagaStorage
+        from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
 
         async with SQLiteSagaStorage(":memory:") as storage:
             # Create some sagas
@@ -763,7 +763,7 @@ class TestSQLiteSagaStorageCoverage:
     @pytest.mark.asyncio
     async def test_sqlite_saga_import_record(self):
         """Test import_record method."""
-        from sagaz.storage.backends.sqlite.saga import SQLiteSagaStorage
+        from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
 
         async with SQLiteSagaStorage(":memory:") as storage:
             await storage.import_record(
@@ -785,7 +785,7 @@ class TestSQLiteSagaStorageCoverage:
     async def test_sqlite_saga_list_with_filters(self):
         """Test list_sagas with status and name filters."""
         from sagaz.core.types import SagaStatus
-        from sagaz.storage.backends.sqlite.saga import SQLiteSagaStorage
+        from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
 
         async with SQLiteSagaStorage(":memory:") as storage:
             # Create sagas with different statuses
@@ -827,8 +827,8 @@ class TestSQLiteOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_sqlite_outbox_get_events_by_saga(self):
         """Test get_events_by_saga method."""
-        from sagaz.outbox.types import OutboxEvent
-        from sagaz.storage.backends.sqlite.outbox import SQLiteOutboxStorage
+        from sagaz.core.outbox.types import OutboxEvent
+        from sagaz.core.storage.backends.sqlite.outbox import SQLiteOutboxStorage
 
         async with SQLiteOutboxStorage(":memory:") as storage:
             # Create events for different sagas
@@ -855,8 +855,8 @@ class TestSQLiteOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_sqlite_outbox_health_check_healthy(self):
         """Test health_check when healthy."""
-        from sagaz.storage.backends.sqlite.outbox import SQLiteOutboxStorage
-        from sagaz.storage.core import HealthStatus
+        from sagaz.core.storage.backends.sqlite.outbox import SQLiteOutboxStorage
+        from sagaz.core.storage.core import HealthStatus
 
         async with SQLiteOutboxStorage(":memory:") as storage:
             result = await storage.health_check()
@@ -867,8 +867,8 @@ class TestSQLiteOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_sqlite_outbox_health_check_unhealthy(self):
         """Test health_check when database has issues."""
-        from sagaz.storage.backends.sqlite.outbox import SQLiteOutboxStorage
-        from sagaz.storage.core import HealthStatus
+        from sagaz.core.storage.backends.sqlite.outbox import SQLiteOutboxStorage
+        from sagaz.core.storage.core import HealthStatus
 
         storage = SQLiteOutboxStorage(":memory:")
         # Don't initialize properly - force error
@@ -883,8 +883,8 @@ class TestSQLiteOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_sqlite_outbox_export_all(self):
         """Test export_all generator."""
-        from sagaz.outbox.types import OutboxEvent
-        from sagaz.storage.backends.sqlite.outbox import SQLiteOutboxStorage
+        from sagaz.core.outbox.types import OutboxEvent
+        from sagaz.core.storage.backends.sqlite.outbox import SQLiteOutboxStorage
 
         async with SQLiteOutboxStorage(":memory:") as storage:
             # Create some events
@@ -906,7 +906,7 @@ class TestSQLiteOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_sqlite_outbox_import_record(self):
         """Test import_record method."""
-        from sagaz.storage.backends.sqlite.outbox import SQLiteOutboxStorage
+        from sagaz.core.storage.backends.sqlite.outbox import SQLiteOutboxStorage
 
         async with SQLiteOutboxStorage(":memory:") as storage:
             await storage.import_record(
@@ -927,8 +927,8 @@ class TestSQLiteOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_sqlite_outbox_get_dead_letter_events(self):
         """Test get_dead_letter_events method."""
-        from sagaz.outbox.types import OutboxEvent, OutboxStatus
-        from sagaz.storage.backends.sqlite.outbox import SQLiteOutboxStorage
+        from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
+        from sagaz.core.storage.backends.sqlite.outbox import SQLiteOutboxStorage
 
         async with SQLiteOutboxStorage(":memory:") as storage:
             # Create an event and mark as dead letter
@@ -949,8 +949,8 @@ class TestSQLiteOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_sqlite_outbox_get_statistics(self):
         """Test get_statistics method."""
-        from sagaz.outbox.types import OutboxEvent
-        from sagaz.storage.backends.sqlite.outbox import SQLiteOutboxStorage
+        from sagaz.core.outbox.types import OutboxEvent
+        from sagaz.core.storage.backends.sqlite.outbox import SQLiteOutboxStorage
 
         async with SQLiteOutboxStorage(":memory:") as storage:
             # Create some events
@@ -970,8 +970,8 @@ class TestSQLiteOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_sqlite_outbox_count(self):
         """Test count() method."""
-        from sagaz.outbox.types import OutboxEvent
-        from sagaz.storage.backends.sqlite.outbox import SQLiteOutboxStorage
+        from sagaz.core.outbox.types import OutboxEvent
+        from sagaz.core.storage.backends.sqlite.outbox import SQLiteOutboxStorage
 
         async with SQLiteOutboxStorage(":memory:") as storage:
             for i in range(3):
@@ -1007,8 +1007,8 @@ class TestPostgreSQLOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_postgresql_outbox_count_not_initialized(self):
         """Test count() raises error when not initialized."""
-        from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
-        from sagaz.storage.interfaces.outbox import OutboxStorageError
+        from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
+        from sagaz.core.storage.interfaces.outbox import OutboxStorageError
 
         storage = PostgreSQLOutboxStorage("postgresql://localhost/test")
 
@@ -1018,8 +1018,8 @@ class TestPostgreSQLOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_postgresql_outbox_export_all_not_initialized(self):
         """Test export_all() raises error when not initialized."""
-        from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
-        from sagaz.storage.interfaces.outbox import OutboxStorageError
+        from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
+        from sagaz.core.storage.interfaces.outbox import OutboxStorageError
 
         storage = PostgreSQLOutboxStorage("postgresql://localhost/test")
 
@@ -1030,7 +1030,7 @@ class TestPostgreSQLOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_postgresql_outbox_count_success(self):
         """Test count() method with mocked pool."""
-        from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
+        from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
         storage = PostgreSQLOutboxStorage("postgresql://localhost/test")
 
@@ -1053,7 +1053,7 @@ class TestPostgreSQLOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_postgresql_outbox_import_record(self):
         """Test import_record() method."""
-        from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
+        from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
         storage = PostgreSQLOutboxStorage("postgresql://localhost/test")
 
@@ -1087,8 +1087,8 @@ class TestInMemoryOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_inmemory_outbox_export_all(self):
         """Test export_all() method."""
-        from sagaz.outbox.types import OutboxEvent
-        from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
+        from sagaz.core.outbox.types import OutboxEvent
+        from sagaz.core.storage.backends.memory.outbox import InMemoryOutboxStorage
 
         storage = InMemoryOutboxStorage()
 
@@ -1113,7 +1113,7 @@ class TestInMemoryOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_inmemory_outbox_import_record(self):
         """Test import_record() method."""
-        from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
+        from sagaz.core.storage.backends.memory.outbox import InMemoryOutboxStorage
 
         storage = InMemoryOutboxStorage()
 
@@ -1136,8 +1136,8 @@ class TestInMemoryOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_inmemory_outbox_count(self):
         """Test count() method."""
-        from sagaz.outbox.types import OutboxEvent
-        from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
+        from sagaz.core.outbox.types import OutboxEvent
+        from sagaz.core.storage.backends.memory.outbox import InMemoryOutboxStorage
 
         storage = InMemoryOutboxStorage()
 
@@ -1157,8 +1157,8 @@ class TestInMemoryOutboxStorageCoverage:
     @pytest.mark.asyncio
     async def test_inmemory_outbox_get_dead_letter_events(self):
         """Test get_dead_letter_events() method."""
-        from sagaz.outbox.types import OutboxEvent, OutboxStatus
-        from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
+        from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
+        from sagaz.core.storage.backends.memory.outbox import InMemoryOutboxStorage
 
         storage = InMemoryOutboxStorage()
 
@@ -1190,7 +1190,7 @@ class TestSQLiteOutboxStuckEvents:
     @pytest.mark.asyncio
     async def test_sqlite_outbox_claim_batch_empty(self):
         """Test claim_batch when no events available."""
-        from sagaz.storage.backends.sqlite.outbox import SQLiteOutboxStorage
+        from sagaz.core.storage.backends.sqlite.outbox import SQLiteOutboxStorage
 
         async with SQLiteOutboxStorage(":memory:") as storage:
             events = await storage.claim_batch("worker-1", batch_size=10)
@@ -1200,7 +1200,7 @@ class TestSQLiteOutboxStuckEvents:
     @pytest.mark.asyncio
     async def test_sqlite_outbox_get_stuck_events_none(self):
         """Test get_stuck_events when no stuck events."""
-        from sagaz.storage.backends.sqlite.outbox import SQLiteOutboxStorage
+        from sagaz.core.storage.backends.sqlite.outbox import SQLiteOutboxStorage
 
         async with SQLiteOutboxStorage(":memory:") as storage:
             stuck = await storage.get_stuck_events(claimed_older_than_seconds=300)
@@ -1210,7 +1210,7 @@ class TestSQLiteOutboxStuckEvents:
     @pytest.mark.asyncio
     async def test_sqlite_outbox_release_stuck_events_none(self):
         """Test release_stuck_events when no stuck events."""
-        from sagaz.storage.backends.sqlite.outbox import SQLiteOutboxStorage
+        from sagaz.core.storage.backends.sqlite.outbox import SQLiteOutboxStorage
 
         async with SQLiteOutboxStorage(":memory:") as storage:
             released = await storage.release_stuck_events(claimed_older_than_seconds=300)
@@ -1248,9 +1248,9 @@ class TestLazyGetAttrCompatModules:
 
     def test_outbox_storage_canonical_imports(self):
         """Test canonical imports from sagaz.storage work correctly."""
-        from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
-        from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
-        from sagaz.storage.interfaces.outbox import OutboxStorage, OutboxStorageError
+        from sagaz.core.storage.backends.memory.outbox import InMemoryOutboxStorage
+        from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
+        from sagaz.core.storage.interfaces.outbox import OutboxStorage, OutboxStorageError
 
         assert InMemoryOutboxStorage is not None
         assert PostgreSQLOutboxStorage is not None

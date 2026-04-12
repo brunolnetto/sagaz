@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from sagaz.core.types import ParallelFailureStrategy, SagaResult, SagaStatus
-from sagaz.execution.graph._types import CompensationFailureStrategy
+from sagaz.core.execution.graph._types import CompensationFailureStrategy
 
 if TYPE_CHECKING:
     from sagaz.core.saga import Saga
@@ -184,9 +184,9 @@ class DAGExecutor:
 
     def _get_parallel_strategy(self) -> Any:
         """Get the parallel execution strategy implementation."""
-        from sagaz.strategies.fail_fast import FailFastStrategy
-        from sagaz.strategies.fail_fast_grace import FailFastWithGraceStrategy
-        from sagaz.strategies.wait_all import WaitAllStrategy
+        from sagaz.core.strategies.fail_fast import FailFastStrategy
+        from sagaz.core.strategies.fail_fast_grace import FailFastWithGraceStrategy
+        from sagaz.core.strategies.wait_all import WaitAllStrategy
 
         if self.saga.failure_strategy == ParallelFailureStrategy.FAIL_FAST:
             return FailFastStrategy()

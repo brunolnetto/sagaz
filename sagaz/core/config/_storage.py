@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from sagaz.storage.base import SagaStorage
+    from sagaz.core.storage.base import SagaStorage
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ class StorageConfigManager:
             manager_ref = manager
             # Fall back to defaults for now
             if storage is None:
-                from sagaz.storage.memory import InMemorySagaStorage
+                from sagaz.core.storage.memory import InMemorySagaStorage
 
                 storage = InMemorySagaStorage()
 
@@ -84,7 +84,7 @@ class StorageConfigManager:
 
         if storage_type == "PostgreSQLSagaStorage":
             # Derive PostgreSQL outbox storage from same connection
-            from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
+            from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
             conn_string = getattr(storage, "connection_string", None)
             if conn_string:
@@ -108,7 +108,7 @@ class StorageConfigManager:
     @staticmethod
     def _use_memory_outbox_with_warning() -> Any:
         """Use in-memory outbox storage with a warning."""
-        from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
+        from sagaz.core.storage.backends.memory.outbox import InMemoryOutboxStorage
 
         logger.warning(
             "Broker configured without explicit outbox_storage. "
@@ -168,13 +168,13 @@ class StorageConfigManager:
         conn = storage_data.get("connection", {})
 
         if s_type == "postgresql":
-            from sagaz.storage.postgresql import PostgreSQLSagaStorage
+            from sagaz.core.storage.postgresql import PostgreSQLSagaStorage
 
             url = conn.get("url") or cls._build_postgres_url(conn)
             return PostgreSQLSagaStorage(url)
 
         if s_type == "redis":
-            from sagaz.storage.redis import RedisSagaStorage
+            from sagaz.core.storage.redis import RedisSagaStorage
 
             url = conn.get("url", "redis://localhost:6379")
             return RedisSagaStorage(url)
@@ -212,15 +212,15 @@ class StorageConfigManager:
             ValueError: If URL scheme is unknown
         """
         if url.startswith(("postgresql://", "postgres://")):
-            from sagaz.storage.postgresql import PostgreSQLSagaStorage
+            from sagaz.core.storage.postgresql import PostgreSQLSagaStorage
 
             return PostgreSQLSagaStorage(url)
         if url.startswith("redis://"):
-            from sagaz.storage.redis import RedisSagaStorage
+            from sagaz.core.storage.redis import RedisSagaStorage
 
             return RedisSagaStorage(url)
         if url == "memory://" or url == "":
-            from sagaz.storage.memory import InMemorySagaStorage
+            from sagaz.core.storage.memory import InMemorySagaStorage
 
             return InMemorySagaStorage()
         msg = f"Unknown storage URL scheme: {url}"

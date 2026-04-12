@@ -27,7 +27,7 @@ from sagaz.core.compliance import (
 from sagaz.core.context import SagaContext
 from sagaz.core.replay import ReplayConfig, SnapshotStrategy
 from sagaz.core.saga import Saga
-from sagaz.storage.backends.memory_snapshot import InMemorySnapshotStorage
+from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"

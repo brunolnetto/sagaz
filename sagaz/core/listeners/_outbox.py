@@ -18,7 +18,7 @@ class OutboxSagaListener(SagaListener):
     Events are published with topic format: {saga_name}.{event_type}
 
     Example:
-        >>> from sagaz.outbox import PostgreSQLOutboxStorage
+        >>> from sagaz.core.outbox import PostgreSQLOutboxStorage
         >>> storage = PostgreSQLOutboxStorage(conn_string)
         >>>
         >>> class OrderSaga(Saga):
@@ -99,7 +99,7 @@ class OutboxSagaListener(SagaListener):
 
     async def _publish_event(self, saga_id: str, event_type: str, payload: dict) -> None:
         """Publish event to outbox storage."""
-        from sagaz.outbox.types import OutboxEvent
+        from sagaz.core.outbox.types import OutboxEvent
 
         try:
             event = OutboxEvent(

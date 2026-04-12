@@ -16,7 +16,7 @@ from uuid import uuid4
 import pytest
 
 from sagaz.core.replay import SagaSnapshot
-from sagaz.storage.backends.memory_snapshot import InMemorySnapshotStorage
+from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
 
 
 def create_test_snapshot(
@@ -347,7 +347,7 @@ class TestRedisSnapshotStorageMocked:
         """Test error when redis not installed."""
         with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", False):
             from sagaz.core.exceptions import MissingDependencyError
-            from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+            from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
             with pytest.raises(MissingDependencyError):
                 RedisSnapshotStorage()
@@ -357,7 +357,7 @@ class TestRedisSnapshotStorageMocked:
         with patch("sagaz.storage.backends.redis.snapshot.REDIS_AVAILABLE", True):
             with patch("sagaz.storage.backends.redis.snapshot.ZSTD_AVAILABLE", False):
                 from sagaz.core.exceptions import MissingDependencyError
-                from sagaz.storage.backends.redis.snapshot import RedisSnapshotStorage
+                from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
 
                 with pytest.raises(MissingDependencyError):
                     RedisSnapshotStorage(enable_compression=True)
@@ -376,7 +376,7 @@ class TestPostgreSQLSnapshotStorageMocked:
         """Test error when asyncpg not installed."""
         with patch("sagaz.storage.backends.postgresql.snapshot.ASYNCPG_AVAILABLE", False):
             from sagaz.core.exceptions import MissingDependencyError
-            from sagaz.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+            from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
 
             with pytest.raises(MissingDependencyError):
                 PostgreSQLSnapshotStorage(connection_string="postgresql://localhost/test")
@@ -395,7 +395,7 @@ class TestS3SnapshotStorageMocked:
         """Test error when aioboto3 not installed."""
         with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", False):
             from sagaz.core.exceptions import MissingDependencyError
-            from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+            from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
             with pytest.raises(MissingDependencyError):
                 S3SnapshotStorage(bucket_name="test-bucket")
@@ -405,7 +405,7 @@ class TestS3SnapshotStorageMocked:
         with patch("sagaz.storage.backends.s3.snapshot.AIOBOTO3_AVAILABLE", True):
             with patch("sagaz.storage.backends.s3.snapshot.ZSTD_AVAILABLE", False):
                 from sagaz.core.exceptions import MissingDependencyError
-                from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+                from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
                 with pytest.raises(MissingDependencyError):
                     S3SnapshotStorage(bucket_name="test-bucket", enable_compression=True)
@@ -414,8 +414,8 @@ class TestS3SnapshotStorageMocked:
 class TestMemorySnapshotBranch:
     async def test_delete_snapshot_saga_id_not_in_index(self):
         """112->115: saga_id not in _saga_snapshots → no removal from index."""
-        from sagaz.storage.backends.memory_snapshot import InMemorySnapshotStorage
-        from sagaz.storage.interfaces.snapshot import SagaSnapshot
+        from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
+        from sagaz.core.storage.interfaces.snapshot import SagaSnapshot
 
         storage = InMemorySnapshotStorage()
         snapshot_id = uuid4()

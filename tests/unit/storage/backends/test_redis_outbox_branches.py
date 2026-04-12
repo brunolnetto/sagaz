@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from sagaz.storage.backends.redis.outbox import OutboxEvent, OutboxStatus, RedisOutboxStorage
+from sagaz.core.storage.backends.redis.outbox import OutboxEvent, OutboxStatus, RedisOutboxStorage
 
 
 @pytest.mark.asyncio
@@ -194,7 +194,7 @@ async def test_update_status_lazy_initialize():
 @pytest.mark.asyncio
 async def test_update_status_event_not_found():
     """Lines 271-272: update_status raises OutboxStorageError when event missing."""
-    from sagaz.storage.backends.redis.outbox import OutboxStorageError
+    from sagaz.core.storage.backends.redis.outbox import OutboxStorageError
 
     storage = RedisOutboxStorage("redis://localhost")
     storage._initialized = True
@@ -428,7 +428,7 @@ async def test_export_all_lazy_initialize():
 class TestRedisOutboxImportError:
     async def test_initialize_raises_when_redis_unavailable(self):
         """97-99: ImportError during initialize when redis blocked."""
-        from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
+        from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
 
         storage = RedisOutboxStorage(redis_url="redis://localhost:6379")
         with patch.dict(sys.modules, {"redis": None, "redis.asyncio": None}):
@@ -480,7 +480,7 @@ class TestRedisOutboxMissingBranches:
     @pytest.fixture
     async def storage(self, mock_redis):
         with patch("redis.asyncio.from_url", return_value=mock_redis):
-            from sagaz.storage.backends.redis.outbox import RedisOutboxStorage
+            from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
 
             storage = RedisOutboxStorage(
                 redis_url="redis://localhost:6379",

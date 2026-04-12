@@ -8,7 +8,7 @@ from sagaz.core.exceptions import SagaStepError
 from sagaz.core.replay import ReplayConfig, SnapshotStrategy
 from sagaz.core.replay.saga_replay import SagaReplay
 from sagaz.core.saga import Saga
-from sagaz.storage.backends.memory_snapshot import InMemorySnapshotStorage
+from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
 
 
 class ThreeStepSaga(Saga):

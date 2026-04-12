@@ -32,7 +32,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from sagaz.storage.base import SagaStorage
+    from sagaz.core.storage.base import SagaStorage
 
 from sagaz.core.decorators._collection import DecoratorCollectionManager
 from sagaz.core.decorators._execution import ExecutionEngine
@@ -50,7 +50,7 @@ from sagaz.core.decorators._steps import (
 )
 from sagaz.core.decorators._visualization import _DecoratorVisualizationMixin
 from sagaz.core.logger import get_logger
-from sagaz.execution.graph import CompensationType, SagaExecutionGraph
+from sagaz.core.execution.graph import CompensationType, SagaExecutionGraph
 
 logger = get_logger(__name__)
 
@@ -126,7 +126,7 @@ class Saga(_DecoratorVisualizationMixin):
 
         # Auto-register triggers
         # Import inside method to avoid circular imports
-        from sagaz.triggers.registry import TriggerRegistry
+        from sagaz.core.triggers.registry import TriggerRegistry
 
         for name, method in inspect.getmembers(cls, predicate=inspect.isfunction):
             if hasattr(method, "_trigger_metadata"):
@@ -211,7 +211,7 @@ class Saga(_DecoratorVisualizationMixin):
 
     def _get_taint_propagator(self):
         """Create a TaintPropagator for this saga."""
-        from sagaz.execution.pivot import TaintPropagator
+        from sagaz.core.execution.pivot import TaintPropagator
 
         step_names = {step.step_id for step in self._steps}
         dependencies = {step.step_id: set(step.depends_on) for step in self._steps}

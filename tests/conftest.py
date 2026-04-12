@@ -203,7 +203,7 @@ def postgres_storage_factory(postgres_connection_string):
     if not ASYNCPG_AVAILABLE or postgres_connection_string is None:
         return None
 
-    from sagaz.storage.backends.postgresql.saga import PostgreSQLSagaStorage
+    from sagaz.core.storage.backends.postgresql.saga import PostgreSQLSagaStorage
 
     def factory():
         return PostgreSQLSagaStorage(postgres_connection_string)
@@ -224,7 +224,7 @@ def redis_storage_factory(redis_url):
     if not REDIS_AVAILABLE or redis_url is None:
         return None
 
-    from sagaz.storage.backends.redis.saga import RedisSagaStorage
+    from sagaz.core.storage.backends.redis.saga import RedisSagaStorage
 
     def factory(**kwargs):
         return RedisSagaStorage(redis_url=redis_url, **kwargs)

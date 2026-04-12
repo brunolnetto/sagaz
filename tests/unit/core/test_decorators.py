@@ -13,7 +13,7 @@ from sagaz.core.decorators import (
     compensate,
     step,
 )
-from sagaz.execution.graph import CompensationType
+from sagaz.core.execution.graph import CompensationType
 
 
 class TestStepDecorator:

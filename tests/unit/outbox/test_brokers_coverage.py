@@ -7,14 +7,14 @@ without requiring actual connections to external services.
 
 import pytest
 
-from sagaz.outbox.brokers.kafka import (
+from sagaz.core.outbox.brokers.kafka import (
     KAFKA_AVAILABLE,
     KafkaBroker,
     KafkaBrokerConfig,
     is_kafka_available,
 )
-from sagaz.outbox.brokers.memory import InMemoryBroker
-from sagaz.outbox.brokers.rabbitmq import (
+from sagaz.core.outbox.brokers.memory import InMemoryBroker
+from sagaz.core.outbox.brokers.rabbitmq import (
     RABBITMQ_AVAILABLE,
     RabbitMQBroker,
     RabbitMQBrokerConfig,
@@ -196,7 +196,7 @@ class TestKafkaBrokerNotConnected:
     @pytest.mark.asyncio
     async def test_publish_without_connection(self):
         """Test that publish raises error when not connected."""
-        from sagaz.outbox.brokers.base import BrokerConnectionError
+        from sagaz.core.outbox.brokers.base import BrokerConnectionError
 
         broker = KafkaBroker()
         with pytest.raises(BrokerConnectionError, match="not connected"):
@@ -216,7 +216,7 @@ class TestRabbitMQBrokerNotConnected:
     @pytest.mark.asyncio
     async def test_publish_without_connection(self):
         """Test that publish raises error when not connected."""
-        from sagaz.outbox.brokers.base import BrokerConnectionError
+        from sagaz.core.outbox.brokers.base import BrokerConnectionError
 
         broker = RabbitMQBroker()
         with pytest.raises(BrokerConnectionError, match="not connected"):
@@ -290,7 +290,7 @@ class TestRabbitMQImportErrorFallback:
         import importlib
         import sys
 
-        import sagaz.outbox.brokers.rabbitmq as rmq_mod
+        import sagaz.core.outbox.brokers.rabbitmq as rmq_mod
 
         original = sys.modules.get("aio_pika")
         try:
@@ -310,7 +310,7 @@ class TestRabbitMQImportErrorFallback:
         """Line 147->151: confirm_delivery=False skips set_qos call."""
         from unittest.mock import AsyncMock, MagicMock, patch
 
-        from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker, RabbitMQBrokerConfig
+        from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker, RabbitMQBrokerConfig
 
         config = RabbitMQBrokerConfig(
             url="amqp://guest:guest@localhost/",
@@ -339,7 +339,7 @@ class TestRedisBrokerMissingBranches:
         import importlib
         import sys
 
-        import sagaz.outbox.brokers.redis as redis_broker_mod
+        import sagaz.core.outbox.brokers.redis as redis_broker_mod
 
         original = sys.modules.get("redis.asyncio")
         try:
@@ -358,9 +358,9 @@ class TestRedisBrokerMissingBranches:
         """Lines 125-126: MissingDependencyError when REDIS_AVAILABLE=False."""
         from unittest.mock import patch
 
-        import sagaz.outbox.brokers.redis as redis_broker_mod
+        import sagaz.core.outbox.brokers.redis as redis_broker_mod
         from sagaz.core.exceptions import MissingDependencyError
-        from sagaz.outbox.brokers.redis import RedisBrokerConfig
+        from sagaz.core.outbox.brokers.redis import RedisBrokerConfig
 
         with patch.object(redis_broker_mod, "REDIS_AVAILABLE", False):
             with pytest.raises(MissingDependencyError):
@@ -369,7 +369,7 @@ class TestRedisBrokerMissingBranches:
     @pytest.mark.asyncio
     async def test_close_when_client_is_none(self):
         """Line 240->exit: close() does nothing when _client is None."""
-        from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+        from sagaz.core.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
 
         broker = RedisBroker(RedisBrokerConfig(url="redis://localhost"))
         # _client is None by default; close() should be a no-op
@@ -380,7 +380,7 @@ class TestRedisBrokerMissingBranches:
         """Line 290: re-raise ResponseError when not BUSYGROUP."""
         from unittest.mock import AsyncMock, MagicMock, patch
 
-        from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+        from sagaz.core.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
 
         broker = RedisBroker(RedisBrokerConfig(url="redis://localhost"))
         mock_client = AsyncMock()
@@ -396,7 +396,7 @@ class TestRedisBrokerMissingBranches:
 
     def test_mask_url_no_colon_in_auth(self):
         """Lines 365->368: return url unchanged when no colon in auth part."""
-        from sagaz.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+        from sagaz.core.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
 
         config = RedisBrokerConfig(url="redis://user@host:6379/0")
         broker = RedisBroker(config)

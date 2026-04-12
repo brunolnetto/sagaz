@@ -10,7 +10,7 @@ from unittest.mock import patch
 import pytest
 
 from sagaz.core.types import SagaStatus, SagaStepStatus
-from sagaz.monitoring.tracing import (
+from sagaz.observability.monitoring.tracing import (
     TRACING_AVAILABLE,
     SagaTracer,
     setup_tracing,
@@ -466,7 +466,7 @@ class TestTracingSetup:
 class TestMonitoringTracingBranches:
     def test_is_tracing_available_called(self):
         """69: return TRACING_AVAILABLE - just needs to be called."""
-        from sagaz.monitoring.tracing import is_tracing_available
+        from sagaz.observability.monitoring.tracing import is_tracing_available
 
         result = is_tracing_available()
         assert isinstance(result, bool)
@@ -476,7 +476,7 @@ class TestMonitoringTracingBranches:
         from unittest.mock import MagicMock, patch
 
         from sagaz.core.types import SagaStatus
-        from sagaz.monitoring.tracing import TRACING_AVAILABLE, SagaTracer
+        from sagaz.observability.monitoring.tracing import TRACING_AVAILABLE, SagaTracer
 
         if not TRACING_AVAILABLE:
             pytest.skip("OpenTelemetry not available")
@@ -502,7 +502,7 @@ class TestMonitoringTracingBranches:
         from unittest.mock import MagicMock, patch
 
         from sagaz.core.types import SagaStatus
-        from sagaz.monitoring.tracing import TRACING_AVAILABLE, SagaTracer
+        from sagaz.observability.monitoring.tracing import TRACING_AVAILABLE, SagaTracer
 
         if not TRACING_AVAILABLE:
             pytest.skip("OpenTelemetry not available")
@@ -529,7 +529,7 @@ class TestMonitoringTracingBranches:
         from unittest.mock import MagicMock, patch
 
         from sagaz.core.types import SagaStepStatus
-        from sagaz.monitoring.tracing import TRACING_AVAILABLE, SagaTracer
+        from sagaz.observability.monitoring.tracing import TRACING_AVAILABLE, SagaTracer
 
         if not TRACING_AVAILABLE:
             pytest.skip("OpenTelemetry not available")
@@ -553,7 +553,7 @@ class TestMonitoringTracingBranches:
         from unittest.mock import MagicMock, patch
 
         from sagaz.core.types import SagaStepStatus
-        from sagaz.monitoring.tracing import TRACING_AVAILABLE, SagaTracer
+        from sagaz.observability.monitoring.tracing import TRACING_AVAILABLE, SagaTracer
 
         if not TRACING_AVAILABLE:
             pytest.skip("OpenTelemetry not available")
@@ -575,7 +575,7 @@ class TestMonitoringTracingBranches:
 
     def test_create_child_span_without_attributes(self):
         """281->284: create_child_span called without attributes → if attributes: False."""
-        from sagaz.monitoring.tracing import TRACING_AVAILABLE, SagaTracer
+        from sagaz.observability.monitoring.tracing import TRACING_AVAILABLE, SagaTracer
 
         if not TRACING_AVAILABLE:
             pytest.skip("OpenTelemetry not available")
@@ -591,7 +591,7 @@ class TestMonitoringTracingBranches:
         from unittest.mock import MagicMock, patch
 
         from sagaz.core.types import SagaStatus
-        from sagaz.monitoring.tracing import TRACING_AVAILABLE, SagaTracer
+        from sagaz.observability.monitoring.tracing import TRACING_AVAILABLE, SagaTracer
 
         if not TRACING_AVAILABLE:
             pytest.skip("OpenTelemetry not available")
@@ -618,7 +618,7 @@ class TestMonitoringTracingBranches:
         from unittest.mock import MagicMock, patch
 
         from sagaz.core.types import SagaStepStatus
-        from sagaz.monitoring.tracing import TRACING_AVAILABLE, SagaTracer
+        from sagaz.observability.monitoring.tracing import TRACING_AVAILABLE, SagaTracer
 
         if not TRACING_AVAILABLE:
             pytest.skip("OpenTelemetry not available")
@@ -643,7 +643,7 @@ class TestMonitoringTracingBranches:
         import sys
         from unittest.mock import patch
 
-        from sagaz.monitoring.tracing import TRACING_AVAILABLE, SagaTracer, setup_tracing
+        from sagaz.observability.monitoring.tracing import TRACING_AVAILABLE, SagaTracer, setup_tracing
 
         if not TRACING_AVAILABLE:
             pytest.skip("OpenTelemetry not available")

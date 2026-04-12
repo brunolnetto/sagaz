@@ -66,7 +66,7 @@ class TestS3SnapshotStorageIntegration:
         """Test full snapshot lifecycle: save, get, list, delete."""
         from sagaz.core.replay import SagaSnapshot
         from sagaz.core.types import SagaStatus
-        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
+        from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
 
         # Create storage with LocalStack config
         storage = S3SnapshotStorage(
@@ -125,7 +125,7 @@ class TestS3SnapshotStorageIntegration:
         """Test handling multiple snapshots for the same saga."""
         from sagaz.core.replay import SagaSnapshot
         from sagaz.core.types import SagaStatus
-        from sagaz.storage.backends.s3.snapshot import (
+        from sagaz.core.storage.backends.s3.snapshot import (
             AIOBOTO3_AVAILABLE,
             S3SnapshotStorage,
         )
@@ -184,7 +184,7 @@ class TestS3SnapshotStorageIntegration:
         """Test retrieving snapshot at a specific point in time."""
         from sagaz.core.replay import SagaSnapshot
         from sagaz.core.types import SagaStatus
-        from sagaz.storage.backends.s3.snapshot import (
+        from sagaz.core.storage.backends.s3.snapshot import (
             AIOBOTO3_AVAILABLE,
             S3SnapshotStorage,
         )
@@ -245,7 +245,7 @@ class TestS3SnapshotStorageIntegration:
         """Test snapshot compression functionality."""
         from sagaz.core.replay import SagaSnapshot
         from sagaz.core.types import SagaStatus
-        from sagaz.storage.backends.s3.snapshot import (
+        from sagaz.core.storage.backends.s3.snapshot import (
             AIOBOTO3_AVAILABLE,
             ZSTD_AVAILABLE,
             S3SnapshotStorage,
@@ -300,7 +300,7 @@ class TestS3SnapshotStorageIntegration:
         """Test S3 snapshot storage with context manager."""
         from sagaz.core.replay import SagaSnapshot
         from sagaz.core.types import SagaStatus
-        from sagaz.storage.backends.s3.snapshot import (
+        from sagaz.core.storage.backends.s3.snapshot import (
             AIOBOTO3_AVAILABLE,
             S3SnapshotStorage,
         )
@@ -338,7 +338,7 @@ class TestS3SnapshotStorageIntegration:
         """Test S3 server-side encryption."""
         from sagaz.core.replay import SagaSnapshot
         from sagaz.core.types import SagaStatus
-        from sagaz.storage.backends.s3.snapshot import (
+        from sagaz.core.storage.backends.s3.snapshot import (
             AIOBOTO3_AVAILABLE,
             S3SnapshotStorage,
         )

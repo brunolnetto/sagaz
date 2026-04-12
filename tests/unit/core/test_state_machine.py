@@ -8,7 +8,7 @@ import pytest
 from statemachine.exceptions import TransitionNotAllowed
 
 from sagaz.core.saga import Saga
-from sagaz.execution.state_machine import (
+from sagaz.core.execution.state_machine import (
     SagaStepStateMachine,
     get_valid_next_states,
     validate_state_transition,

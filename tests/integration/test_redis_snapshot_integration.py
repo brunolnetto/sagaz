@@ -39,7 +39,7 @@ class TestRedisSnapshotStorageIntegration:
     async def test_redis_snapshot_lifecycle(self, redis_container):
         """Test full snapshot lifecycle: save, get, list, delete."""
         try:
-            from sagaz.storage.backends.redis.snapshot import (
+            from sagaz.core.storage.backends.redis.snapshot import (
                 REDIS_AVAILABLE,
                 RedisSnapshotStorage,
             )
@@ -108,7 +108,7 @@ class TestRedisSnapshotStorageIntegration:
     async def test_redis_multiple_snapshots(self, redis_container):
         """Test handling multiple snapshots for the same saga."""
         try:
-            from sagaz.storage.backends.redis.snapshot import (
+            from sagaz.core.storage.backends.redis.snapshot import (
                 REDIS_AVAILABLE,
                 RedisSnapshotStorage,
             )
@@ -164,7 +164,7 @@ class TestRedisSnapshotStorageIntegration:
     async def test_redis_get_snapshot_at_time(self, redis_container):
         """Test retrieving snapshot at a specific point in time."""
         try:
-            from sagaz.storage.backends.redis.snapshot import (
+            from sagaz.core.storage.backends.redis.snapshot import (
                 REDIS_AVAILABLE,
                 RedisSnapshotStorage,
             )
@@ -222,7 +222,7 @@ class TestRedisSnapshotStorageIntegration:
     async def test_redis_snapshot_with_ttl(self, redis_container):
         """Test snapshot TTL functionality."""
         try:
-            from sagaz.storage.backends.redis.snapshot import (
+            from sagaz.core.storage.backends.redis.snapshot import (
                 REDIS_AVAILABLE,
                 RedisSnapshotStorage,
             )
@@ -280,7 +280,7 @@ class TestRedisSnapshotStorageIntegration:
         """Test snapshot compression functionality."""
         from sagaz.core.replay import SagaSnapshot
         from sagaz.core.types import SagaStatus
-        from sagaz.storage.backends.redis.snapshot import (
+        from sagaz.core.storage.backends.redis.snapshot import (
             REDIS_AVAILABLE,
             ZSTD_AVAILABLE,
             RedisSnapshotStorage,
@@ -331,7 +331,7 @@ class TestRedisSnapshotStorageIntegration:
     async def test_redis_context_manager(self, redis_container):
         """Test Redis snapshot storage with context manager."""
         try:
-            from sagaz.storage.backends.redis.snapshot import (
+            from sagaz.core.storage.backends.redis.snapshot import (
                 REDIS_AVAILABLE,
                 RedisSnapshotStorage,
             )

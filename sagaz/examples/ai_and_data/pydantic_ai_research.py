@@ -28,8 +28,8 @@ from pydantic import BaseModel, Field
 
 from sagaz import Saga, action, compensate
 from sagaz.core.config import SagaConfig, configure
-from sagaz.storage import InMemorySagaStorage
-from sagaz.triggers import fire_event, trigger
+from sagaz.core.storage import InMemorySagaStorage
+from sagaz.core.triggers import fire_event, trigger
 
 # =============================================================================
 # Pydantic Models for Structured AI Outputs

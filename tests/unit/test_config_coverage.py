@@ -376,8 +376,8 @@ class TestCoreConfigBranches:
     def test_setup_from_manager_outbox_already_set(self):
         """158->160: outbox_storage already set → skip outbox override."""
         from sagaz.core.config import SagaConfig
-        from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
-        from sagaz.storage.memory import InMemorySagaStorage
+        from sagaz.core.storage.backends.memory.outbox import InMemoryOutboxStorage
+        from sagaz.core.storage.memory import InMemorySagaStorage
 
         mock_manager = MagicMock()
         mock_saga_storage = InMemorySagaStorage()
@@ -398,7 +398,7 @@ class TestCoreConfigBranches:
         from unittest.mock import PropertyMock
 
         from sagaz.core.config import SagaConfig
-        from sagaz.storage.memory import InMemorySagaStorage
+        from sagaz.core.storage.memory import InMemorySagaStorage
 
         existing_storage = InMemorySagaStorage()
         mock_manager = MagicMock()
@@ -439,7 +439,7 @@ class TestStorageFromEnvRedisFallback:
     def test_redis_storage_empty_url_skips_default(self):
         """367->369 (False branch): SAGAZ_STORAGE_URL='' skips default URL, uses in-memory storage."""
         from sagaz.core.config import SagaConfig
-        from sagaz.storage.memory import InMemorySagaStorage
+        from sagaz.core.storage.memory import InMemorySagaStorage
 
         # SAGAZ_STORAGE_URL="" is falsy → the early-exit at line 353 is skipped,
         # but env.get("SAGAZ_STORAGE_URL") at line 365 returns "" (not None),
@@ -474,7 +474,7 @@ class TestBrokerFromEnvRedisFallback:
     def test_redis_broker_empty_url_skips_default(self):
         """391->393 (False branch): SAGAZ_BROKER_URL='' → not None, skips default line 392."""
         from sagaz.core.config import SagaConfig
-        from sagaz.outbox.brokers.memory import InMemoryBroker
+        from sagaz.core.outbox.brokers.memory import InMemoryBroker
 
         # SAGAZ_BROKER_URL="" is falsy → early-exit at line 375 is skipped,
         # but env.get("SAGAZ_BROKER_URL") at line 390 returns "" (not None),

@@ -13,7 +13,7 @@ IMPORTANT: You must choose ONE storage approach:
 
 Example (Option 1 - unified StorageManager, RECOMMENDED):
     >>> from sagaz import SagaConfig, configure
-    >>> from sagaz.storage import create_storage_manager
+    >>> from sagaz.core.storage import create_storage_manager
     >>>
     >>> # StorageManager provides unified access to saga + outbox storage
     >>> # with shared connection pooling
@@ -30,8 +30,8 @@ Example (Option 1 - unified StorageManager, RECOMMENDED):
 
 Example (Option 2 - separate storage instances):
     >>> from sagaz import SagaConfig, configure
-    >>> from sagaz.storage import PostgreSQLSagaStorage
-    >>> from sagaz.outbox.brokers import KafkaBroker
+    >>> from sagaz.core.storage import PostgreSQLSagaStorage
+    >>> from sagaz.core.outbox.brokers import KafkaBroker
     >>>
     >>> config = SagaConfig(
     ...     storage=PostgreSQLSagaStorage("postgresql://localhost/db"),
@@ -51,8 +51,8 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from sagaz.core.listeners import SagaListener
-    from sagaz.outbox.brokers.base import BaseBroker
-    from sagaz.storage.base import SagaStorage
+    from sagaz.core.outbox.brokers.base import BaseBroker
+    from sagaz.core.storage.base import SagaStorage
 
 from sagaz.core.config._broker import BrokerConfigManager
 from sagaz.core.config._storage import StorageConfigManager
@@ -152,7 +152,7 @@ class SagaConfig:
         else:
             # Default to in-memory storage if not specified
             if self.storage is None:
-                from sagaz.storage.memory import InMemorySagaStorage
+                from sagaz.core.storage.memory import InMemorySagaStorage
 
                 self.storage = InMemorySagaStorage()
                 logger.debug("Using default InMemorySagaStorage")

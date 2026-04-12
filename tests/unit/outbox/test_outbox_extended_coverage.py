@@ -20,7 +20,7 @@ class TestOutboxWorkerCoverage:
     @pytest.mark.asyncio
     async def test_worker_start_stop_lifecycle(self):
         """Test worker complete start/stop lifecycle"""
-        from sagaz.outbox.worker import OutboxConfig, OutboxWorker
+        from sagaz.core.outbox.worker import OutboxConfig, OutboxWorker
 
         storage = AsyncMock()
         broker = AsyncMock()
@@ -52,8 +52,8 @@ class TestOutboxWorkerCoverage:
     @pytest.mark.asyncio
     async def test_worker_max_retries_exceeded(self):
         """Test event that exceeds max retries goes to dead letter"""
-        from sagaz.outbox.types import OutboxEvent
-        from sagaz.outbox.worker import OutboxConfig, OutboxWorker
+        from sagaz.core.outbox.types import OutboxEvent
+        from sagaz.core.outbox.worker import OutboxConfig, OutboxWorker
 
         storage = AsyncMock()
         broker = AsyncMock()
@@ -91,8 +91,8 @@ class TestOutboxWorkerCoverage:
     @pytest.mark.asyncio
     async def test_worker_successful_publish(self):
         """Test successful event publishing"""
-        from sagaz.outbox.types import OutboxEvent
-        from sagaz.outbox.worker import OutboxConfig, OutboxWorker
+        from sagaz.core.outbox.types import OutboxEvent
+        from sagaz.core.outbox.worker import OutboxConfig, OutboxWorker
 
         storage = AsyncMock()
         broker = AsyncMock()
@@ -117,7 +117,7 @@ class TestOutboxWorkerCoverage:
     @pytest.mark.asyncio
     async def test_worker_config_defaults(self):
         """Test OutboxConfig default values"""
-        from sagaz.outbox.worker import OutboxConfig
+        from sagaz.core.outbox.worker import OutboxConfig
 
         config = OutboxConfig()
         assert config.batch_size == 100
@@ -136,7 +136,7 @@ class TestKafkaBrokerCoverage:
             patch("sagaz.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
             patch("sagaz.outbox.brokers.kafka.AIOKafkaProducer"),
         ):
-            from sagaz.outbox.brokers.kafka import KafkaBroker
+            from sagaz.core.outbox.brokers.kafka import KafkaBroker
 
             with patch.dict(
                 "os.environ", {"KAFKA_BOOTSTRAP_SERVERS": "localhost:9092"}, clear=False
@@ -152,7 +152,7 @@ class TestKafkaBrokerCoverage:
             patch("sagaz.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
             patch("sagaz.outbox.brokers.kafka.AIOKafkaProducer"),
         ):
-            from sagaz.outbox.brokers.kafka import KafkaBroker, KafkaBrokerConfig
+            from sagaz.core.outbox.brokers.kafka import KafkaBroker, KafkaBrokerConfig
 
             config = KafkaBrokerConfig(bootstrap_servers="localhost:9092")
             broker = KafkaBroker(config)
@@ -168,7 +168,7 @@ class TestKafkaBrokerCoverage:
             patch("sagaz.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
             patch("sagaz.outbox.brokers.kafka.AIOKafkaProducer"),
         ):
-            from sagaz.outbox.brokers.kafka import KafkaBroker, KafkaBrokerConfig
+            from sagaz.core.outbox.brokers.kafka import KafkaBroker, KafkaBrokerConfig
 
             config = KafkaBrokerConfig(bootstrap_servers="localhost:9092")
             broker = KafkaBroker(config)
@@ -180,13 +180,13 @@ class TestKafkaBrokerCoverage:
     @pytest.mark.asyncio
     async def test_kafka_publish_not_connected(self):
         """Test publishing when broker not connected raises error"""
-        from sagaz.outbox.brokers.base import BrokerConnectionError
+        from sagaz.core.outbox.brokers.base import BrokerConnectionError
 
         with (
             patch("sagaz.outbox.brokers.kafka.KAFKA_AVAILABLE", True),
             patch("sagaz.outbox.brokers.kafka.AIOKafkaProducer"),
         ):
-            from sagaz.outbox.brokers.kafka import KafkaBroker, KafkaBrokerConfig
+            from sagaz.core.outbox.brokers.kafka import KafkaBroker, KafkaBrokerConfig
 
             config = KafkaBrokerConfig(bootstrap_servers="localhost:9092")
             broker = KafkaBroker(config)
@@ -208,7 +208,7 @@ class TestRabbitMQBrokerCoverage:
             patch("sagaz.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
             patch("sagaz.outbox.brokers.rabbitmq.aio_pika"),
         ):
-            from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
+            from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker
 
             with patch.dict(
                 "os.environ", {"RABBITMQ_URL": "amqp://guest:guest@localhost/"}, clear=False
@@ -223,7 +223,7 @@ class TestRabbitMQBrokerCoverage:
             patch("sagaz.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
             patch("sagaz.outbox.brokers.rabbitmq.aio_pika"),
         ):
-            from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
+            from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker
 
             broker = RabbitMQBroker()
 
@@ -238,7 +238,7 @@ class TestRabbitMQBrokerCoverage:
             patch("sagaz.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
             patch("sagaz.outbox.brokers.rabbitmq.aio_pika"),
         ):
-            from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
+            from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker
 
             broker = RabbitMQBroker()
 
@@ -249,13 +249,13 @@ class TestRabbitMQBrokerCoverage:
     @pytest.mark.asyncio
     async def test_rabbitmq_publish_not_connected(self):
         """Test publishing when not connected raises error"""
-        from sagaz.outbox.brokers.base import BrokerConnectionError
+        from sagaz.core.outbox.brokers.base import BrokerConnectionError
 
         with (
             patch("sagaz.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
             patch("sagaz.outbox.brokers.rabbitmq.aio_pika"),
         ):
-            from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
+            from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker
 
             broker = RabbitMQBroker()
 
@@ -268,13 +268,13 @@ class TestRabbitMQBrokerCoverage:
     @pytest.mark.asyncio
     async def test_rabbitmq_declare_queue_not_connected(self):
         """Test declaring queue when not connected raises error"""
-        from sagaz.outbox.brokers.base import BrokerConnectionError
+        from sagaz.core.outbox.brokers.base import BrokerConnectionError
 
         with (
             patch("sagaz.outbox.brokers.rabbitmq.RABBITMQ_AVAILABLE", True),
             patch("sagaz.outbox.brokers.rabbitmq.aio_pika"),
         ):
-            from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
+            from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker
 
             broker = RabbitMQBroker()
 
@@ -289,7 +289,7 @@ class TestPostgreSQLStorageCoverage:
     async def test_postgresql_get_events_by_saga(self):
         """Test getting events by saga ID"""
         with patch("sagaz.storage.backends.postgresql.outbox.ASYNCPG_AVAILABLE", True):
-            from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
+            from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
             storage = PostgreSQLOutboxStorage("postgresql://localhost:5432/test")
 
@@ -313,7 +313,7 @@ class TestPostgreSQLStorageCoverage:
     async def test_postgresql_get_pending_count(self):
         """Test getting count of pending events"""
         with patch("sagaz.storage.backends.postgresql.outbox.ASYNCPG_AVAILABLE", True):
-            from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
+            from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
             storage = PostgreSQLOutboxStorage("postgresql://localhost:5432/test")
 
@@ -337,7 +337,7 @@ class TestPostgreSQLStorageCoverage:
     async def test_postgresql_claim_and_lock(self):
         """Test claim batch mechanism"""
         with patch("sagaz.storage.backends.postgresql.outbox.ASYNCPG_AVAILABLE", True):
-            from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
+            from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
             storage = PostgreSQLOutboxStorage("postgresql://localhost:5432/test")
 
@@ -362,7 +362,7 @@ class TestPostgreSQLStorageCoverage:
     async def test_postgresql_get_stuck_events(self):
         """Test getting stuck events"""
         with patch("sagaz.storage.backends.postgresql.outbox.ASYNCPG_AVAILABLE", True):
-            from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
+            from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
             storage = PostgreSQLOutboxStorage("postgresql://localhost:5432/test")
 
@@ -386,7 +386,7 @@ class TestPostgreSQLStorageCoverage:
     async def test_postgresql_release_stuck_events(self):
         """Test releasing stuck events"""
         with patch("sagaz.storage.backends.postgresql.outbox.ASYNCPG_AVAILABLE", True):
-            from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
+            from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
             storage = PostgreSQLOutboxStorage("postgresql://localhost:5432/test")
 
@@ -410,7 +410,7 @@ class TestPostgreSQLStorageCoverage:
     async def test_postgresql_get_by_id_not_found(self):
         """Test getting event by ID when not found"""
         with patch("sagaz.storage.backends.postgresql.outbox.ASYNCPG_AVAILABLE", True):
-            from sagaz.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
+            from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
             storage = PostgreSQLOutboxStorage("postgresql://localhost:5432/test")
 
@@ -437,7 +437,7 @@ class TestCompensationGraphEdgeCases:
     @pytest.mark.asyncio
     async def test_compensation_graph_multiple_dependencies(self):
         """Test compensation with multiple dependencies"""
-        from sagaz.execution.graph import SagaExecutionGraph
+        from sagaz.core.execution.graph import SagaExecutionGraph
 
         graph = SagaExecutionGraph()
 
@@ -475,7 +475,7 @@ class TestStateElMachineEdgeCases:
     @pytest.mark.asyncio
     async def test_step_state_machine_failure_path(self):
         """Test step state machine failure path"""
-        from sagaz.execution.state_machine import SagaStepStateMachine
+        from sagaz.core.execution.state_machine import SagaStepStateMachine
 
         sm = SagaStepStateMachine(step_name="test_step")
         await sm.activate_initial_state()
@@ -491,7 +491,7 @@ class TestStateElMachineEdgeCases:
     @pytest.mark.asyncio
     async def test_step_state_machine_compensation_failure(self):
         """Test step state machine compensation failure"""
-        from sagaz.execution.state_machine import SagaStepStateMachine
+        from sagaz.core.execution.state_machine import SagaStepStateMachine
 
         sm = SagaStepStateMachine(step_name="test_step")
         await sm.activate_initial_state()
@@ -514,7 +514,7 @@ class TestStorageFactoryEdgeCases:
 
     def test_storage_factory_postgresql_no_connection_string(self):
         """Test PostgreSQL creation without connection string"""
-        from sagaz.storage.factory import create_storage
+        from sagaz.core.storage.factory import create_storage
 
         with pytest.raises(ValueError, match="connection_string"):
             create_storage("postgresql")
@@ -525,7 +525,7 @@ class TestStorageFactoryEdgeCases:
             patch("sagaz.storage.backends.redis.saga.REDIS_AVAILABLE", True),
             patch("sagaz.storage.backends.redis.saga.redis"),
         ):
-            from sagaz.storage.factory import create_storage
+            from sagaz.core.storage.factory import create_storage
 
             storage = create_storage("redis")
             assert storage.__class__.__name__ == "RedisSagaStorage"
@@ -539,7 +539,7 @@ class TestBrokerFactoryEdgeCases:
         import io
         import sys
 
-        from sagaz.outbox.brokers.factory import print_available_brokers
+        from sagaz.core.outbox.brokers.factory import print_available_brokers
 
         # Capture stdout
         captured = io.StringIO()

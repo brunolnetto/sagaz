@@ -12,7 +12,7 @@ from sagaz.core.context import SagaContext
 from sagaz.core.replay import ReplayConfig, SnapshotStrategy
 from sagaz.core.replay.saga_replay import SagaReplay
 from sagaz.core.saga import Saga
-from sagaz.storage.backends.memory_snapshot import InMemorySnapshotStorage
+from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
 
 
 # Sample saga for integration tests

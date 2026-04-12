@@ -7,7 +7,7 @@ These tests cover the PrometheusMetrics class and related functionality.
 import pytest
 
 from sagaz.core.types import SagaStatus
-from sagaz.monitoring.prometheus import (
+from sagaz.observability.monitoring.prometheus import (
     PROMETHEUS_AVAILABLE,
     PrometheusMetrics,
     is_prometheus_available,
@@ -146,7 +146,7 @@ class TestMetricsDisabled:
         # Temporarily make prometheus unavailable
         with patch("sagaz.monitoring.prometheus.PROMETHEUS_AVAILABLE", False):
             # Import and recreate metrics
-            from sagaz.monitoring.prometheus import PrometheusMetrics
+            from sagaz.observability.monitoring.prometheus import PrometheusMetrics
 
             metrics = PrometheusMetrics()
 
@@ -162,7 +162,7 @@ class TestMetricsDisabled:
         from unittest.mock import patch
 
         with patch("sagaz.monitoring.prometheus.PROMETHEUS_AVAILABLE", False):
-            from sagaz.monitoring.prometheus import start_metrics_server
+            from sagaz.observability.monitoring.prometheus import start_metrics_server
 
             with caplog.at_level(logging.ERROR):
                 start_metrics_server()
@@ -178,7 +178,7 @@ class TestPrometheusImportErrorFallback:
         import importlib
         import sys
 
-        import sagaz.monitoring.prometheus as prom_mod
+        import sagaz.observability.monitoring.prometheus as prom_mod
 
         original = sys.modules.get("prometheus_client")
         try:

@@ -7,7 +7,7 @@ from uuid import UUID
 
 if TYPE_CHECKING:
     from sagaz.core.replay import ReplayConfig, SagaSnapshot, SnapshotStrategy
-    from sagaz.storage.interfaces.snapshot import SnapshotStorage
+    from sagaz.core.storage.interfaces.snapshot import SnapshotStorage
 
 from statemachine.exceptions import TransitionNotAllowed
 
