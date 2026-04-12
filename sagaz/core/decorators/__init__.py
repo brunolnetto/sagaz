@@ -37,6 +37,7 @@ if TYPE_CHECKING:
 from sagaz.core.decorators._collection import DecoratorCollectionManager
 from sagaz.core.decorators._execution import ExecutionEngine
 from sagaz.core.decorators._steps import (
+    ForwardRecoveryMetadata,
     OnCompensateHook,
     OnEnterHook,
     OnFailureHook,
@@ -406,4 +407,13 @@ class Saga(_DecoratorVisualizationMixin):
 
 # action and step are imported from sagaz.core._step_decorators and re-exported
 # here for backwards compatibility. Do not redefine them.
-__all__ = ["Saga", "SagaStepDefinition", "action", "compensate", "forward_recovery", "step"]
+__all__ = [
+    "Saga",
+    "SagaStepDefinition",
+    "ForwardRecoveryMetadata",
+    "StepMetadata",
+    "action",
+    "compensate",
+    "forward_recovery",
+    "step",
+]
