@@ -674,18 +674,24 @@ class TestTracingImportError:
         import importlib
         import sys
 
-        orig_tracing = sys.modules.get("sagaz.monitoring.tracing")
+        _CANONICAL = "sagaz.observability.monitoring.tracing"
+        _ALIAS = "sagaz.monitoring.tracing"
+
+        orig_tracing_alias = sys.modules.get(_ALIAS)
+        orig_tracing_canonical = sys.modules.get(_CANONICAL)
         otel_keys = [k for k in sys.modules if "opentelemetry" in k]
         orig_otel = {k: sys.modules[k] for k in otel_keys}
 
-        # Remove opentelemetry and the module
+        # Remove opentelemetry and both alias + canonical so the module
+        # re-evaluates its try/except ImportError block.
         for key in otel_keys:
             sys.modules.pop(key)
         sys.modules["opentelemetry"] = None  # type: ignore[assignment]
-        sys.modules.pop("sagaz.monitoring.tracing", None)
+        sys.modules.pop(_ALIAS, None)
+        sys.modules.pop(_CANONICAL, None)
 
         try:
-            mod = importlib.import_module("sagaz.monitoring.tracing")
+            mod = importlib.import_module(_CANONICAL)
             assert mod.TRACING_AVAILABLE is False
         finally:
             if sys.modules.get("opentelemetry") is None:
@@ -693,7 +699,10 @@ class TestTracingImportError:
             # Restore opentelemetry
             for key, val in orig_otel.items():
                 sys.modules[key] = val
-            # Restore original module
-            sys.modules.pop("sagaz.monitoring.tracing", None)
-            if orig_tracing is not None:
-                sys.modules["sagaz.monitoring.tracing"] = orig_tracing
+            # Restore original modules
+            sys.modules.pop(_ALIAS, None)
+            sys.modules.pop(_CANONICAL, None)
+            if orig_tracing_alias is not None:
+                sys.modules[_ALIAS] = orig_tracing_alias
+            if orig_tracing_canonical is not None:
+                sys.modules[_CANONICAL] = orig_tracing_canonical

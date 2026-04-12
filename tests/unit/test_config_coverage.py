@@ -21,6 +21,20 @@ UTC = UTC
 
 from sagaz.core.config import SagaConfig, configure, get_config
 
+try:
+    import aiokafka as _aiokafka  # noqa: F401
+
+    _KAFKA_AVAILABLE = True
+except ModuleNotFoundError:
+    _KAFKA_AVAILABLE = False
+
+try:
+    import aio_pika as _aio_pika  # noqa: F401
+
+    _AIO_PIKA_AVAILABLE = True
+except ModuleNotFoundError:
+    _AIO_PIKA_AVAILABLE = False
+
 
 class TestSagaConfigFromFile:
     """Tests for SagaConfig.from_file() method."""
@@ -91,6 +105,7 @@ class TestSagaConfigFromFile:
         config = SagaConfig.from_file(str(config_file))
         assert config.storage is not None
 
+    @pytest.mark.skipif(not _KAFKA_AVAILABLE, reason="aiokafka not installed")
     def test_from_file_kafka_broker(self, tmp_path):
         """Test loading Kafka broker config."""
         config_data = {
@@ -113,6 +128,7 @@ class TestSagaConfigFromFile:
         config = SagaConfig.from_file(str(config_file))
         assert config.broker is not None
 
+    @pytest.mark.skipif(not _AIO_PIKA_AVAILABLE, reason="aio-pika not installed")
     def test_from_file_rabbitmq_broker(self, tmp_path):
         """Test loading RabbitMQ broker config."""
         config_data = {
@@ -132,6 +148,7 @@ class TestSagaConfigFromFile:
         config = SagaConfig.from_file(str(config_file))
         assert config.broker is not None
 
+    @pytest.mark.skipif(not _AIO_PIKA_AVAILABLE, reason="aio-pika not installed")
     def test_from_file_amqp_broker(self, tmp_path):
         """Test loading AMQP (RabbitMQ) broker config."""
         config_data = {"broker": {"type": "amqp", "connection": {"host": "rmq.example.com"}}}
@@ -224,6 +241,7 @@ class TestParseStorageUrl:
 class TestParseBrokerUrl:
     """Tests for SagaConfig._parse_broker_url()."""
 
+    @pytest.mark.skipif(not _KAFKA_AVAILABLE, reason="aiokafka not installed")
     def test_parse_kafka_url(self):
         """Test parsing kafka:// URL."""
         broker = SagaConfig._parse_broker_url("kafka://localhost:9092")
@@ -234,11 +252,13 @@ class TestParseBrokerUrl:
         broker = SagaConfig._parse_broker_url("redis://localhost:6379")
         assert broker is not None
 
+    @pytest.mark.skipif(not _AIO_PIKA_AVAILABLE, reason="aio-pika not installed")
     def test_parse_amqp_url(self):
         """Test parsing amqp:// URL."""
         broker = SagaConfig._parse_broker_url("amqp://guest:guest@localhost:5672/")
         assert broker is not None
 
+    @pytest.mark.skipif(not _AIO_PIKA_AVAILABLE, reason="aio-pika not installed")
     def test_parse_rabbitmq_url(self):
         """Test parsing rabbitmq:// URL (converted to amqp://)."""
         broker = SagaConfig._parse_broker_url("rabbitmq://guest:guest@localhost:5672/")
@@ -310,6 +330,7 @@ class TestFromEnvComponentBuilding:
             config = SagaConfig.from_env(load_dotenv=False)
         assert config.storage is not None
 
+    @pytest.mark.skipif(not _KAFKA_AVAILABLE, reason="aiokafka not installed")
     def test_from_env_kafka_broker_components(self):
         """Lines 367-370: build kafka broker from SAGAZ_BROKER_TYPE=kafka."""
         env_vars = {
@@ -321,6 +342,7 @@ class TestFromEnvComponentBuilding:
             config = SagaConfig.from_env(load_dotenv=False)
         assert config.broker is not None
 
+    @pytest.mark.skipif(not _AIO_PIKA_AVAILABLE, reason="aio-pika not installed")
     def test_from_env_rabbitmq_broker_components(self):
         """Lines 372-377: build rabbitmq broker from SAGAZ_BROKER_TYPE=rabbitmq."""
         env_vars = {

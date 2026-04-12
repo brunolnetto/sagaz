@@ -8,7 +8,9 @@ from sagaz.core.context import HAS_AIOBOTO3, S3ExternalStorage
 
 # 1. Test missing aioboto3
 def test_init_raises_if_missing_aioboto3():
-    with patch("sagaz.core.context.HAS_AIOBOTO3", False):
+    # HAS_AIOBOTO3 is defined in _storage.py, so patch it there where
+    # S3ExternalStorage.__init__ reads it.
+    with patch("sagaz.core.context._storage.HAS_AIOBOTO3", False):
         with pytest.raises(ImportError, match="aioboto3 is required"):
             S3ExternalStorage("bucket")
 

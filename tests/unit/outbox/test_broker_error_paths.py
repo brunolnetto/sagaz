@@ -9,11 +9,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from sagaz.core.outbox.brokers.kafka import KAFKA_AVAILABLE
+from sagaz.core.outbox.brokers.rabbitmq import RABBITMQ_AVAILABLE
+
 # =============================================================================
 # KafkaBroker missing paths
 # =============================================================================
 
 
+@pytest.mark.skipif(not KAFKA_AVAILABLE, reason="aiokafka not installed")
 class TestKafkaBrokerFromEnv:
     """Lines 115-116: from_env with SASL settings from environment."""
 
@@ -37,6 +41,7 @@ class TestKafkaBrokerFromEnv:
         assert broker.config.security_protocol == "SASL_SSL"
 
 
+@pytest.mark.skipif(not KAFKA_AVAILABLE, reason="aiokafka not installed")
 class TestKafkaBrokerConnect:
     """Lines 159-162: connect() with SASL mechanism configured."""
 
@@ -83,6 +88,7 @@ class TestKafkaBrokerConnect:
             assert broker._connected is True
 
 
+@pytest.mark.skipif(not KAFKA_AVAILABLE, reason="aiokafka not installed")
 class TestKafkaBrokerPublishNotConnected:
     """Lines 170-172: publish() when not connected raises BrokerConnectionError."""
 
@@ -99,6 +105,7 @@ class TestKafkaBrokerPublishNotConnected:
             await broker.publish(topic="test", message=b"data")
 
 
+@pytest.mark.skipif(not KAFKA_AVAILABLE, reason="aiokafka not installed")
 class TestKafkaBrokerClose:
     """Lines 195-197: close() method."""
 
@@ -132,6 +139,7 @@ class TestKafkaBrokerClose:
         assert not broker._connected
 
 
+@pytest.mark.skipif(not KAFKA_AVAILABLE, reason="aiokafka not installed")
 class TestKafkaBrokerHealthCheck:
     """Lines 228-229: health_check() when not connected."""
 
@@ -169,6 +177,7 @@ class TestKafkaBrokerHealthCheck:
 # =============================================================================
 
 
+@pytest.mark.skipif(not RABBITMQ_AVAILABLE, reason="aio-pika not installed")
 class TestRabbitMQBrokerFromEnv:
     """Lines 110-111: from_env with env vars."""
 
@@ -187,6 +196,7 @@ class TestRabbitMQBrokerFromEnv:
         assert broker.config.exchange_type == "fanout"
 
 
+@pytest.mark.skipif(not RABBITMQ_AVAILABLE, reason="aio-pika not installed")
 class TestRabbitMQBrokerConnect:
     """Lines 161-163: connect() error path → BrokerConnectionError."""
 
@@ -207,6 +217,7 @@ class TestRabbitMQBrokerConnect:
                 await broker.connect()
 
 
+@pytest.mark.skipif(not RABBITMQ_AVAILABLE, reason="aio-pika not installed")
 class TestRabbitMQBrokerPublish:
     """Lines 202-204: publish() when not connected → BrokerConnectionError."""
 
@@ -223,6 +234,7 @@ class TestRabbitMQBrokerPublish:
             await broker.publish(topic="orders.created", message=b'{"key": "value"}')
 
 
+@pytest.mark.skipif(not RABBITMQ_AVAILABLE, reason="aio-pika not installed")
 class TestRabbitMQBrokerClose:
     """Lines 227-228: close() closes connection and channel."""
 
@@ -260,6 +272,7 @@ class TestRabbitMQBrokerClose:
         assert not broker._connected
 
 
+@pytest.mark.skipif(not RABBITMQ_AVAILABLE, reason="aio-pika not installed")
 class TestRabbitMQBrokerHealthCheck:
     """Line 252: health_check() when connection.is_closed raises."""
 
@@ -315,6 +328,7 @@ class TestKafkaMissingDependency:
             kafka_mod.KAFKA_AVAILABLE = original
 
 
+@pytest.mark.skipif(not KAFKA_AVAILABLE, reason="aiokafka not installed")
 class TestKafkaConnectAlreadyConnected:
     """Line 141: connect() returns early if already connected."""
 
@@ -334,6 +348,7 @@ class TestKafkaConnectAlreadyConnected:
             MockProducer.assert_not_called()
 
 
+@pytest.mark.skipif(not KAFKA_AVAILABLE, reason="aiokafka not installed")
 class TestKafkaConnectError:
     """Lines 170-172: connect() raises BrokerConnectionError on KafkaError."""
 
@@ -352,6 +367,7 @@ class TestKafkaConnectError:
                 await broker.connect()
 
 
+@pytest.mark.skipif(not KAFKA_AVAILABLE, reason="aiokafka not installed")
 class TestKafkaPublishPaths:
     """Lines 186-197: publish() success + KafkaError paths."""
 
@@ -385,6 +401,7 @@ class TestKafkaPublishPaths:
             await broker.publish(topic="test-topic", message=b"data")
 
 
+@pytest.mark.skipif(not KAFKA_AVAILABLE, reason="aiokafka not installed")
 class TestKafkaHealthCheckSuccess:
     """Line 227: health_check() returns True when metadata fetch succeeds."""
 
@@ -427,6 +444,7 @@ class TestRabbitMQMissingDependency:
             rabbitmq_mod.RABBITMQ_AVAILABLE = original
 
 
+@pytest.mark.skipif(not RABBITMQ_AVAILABLE, reason="aio-pika not installed")
 class TestRabbitMQConnectAlreadyConnected:
     """Line 135: connect() returns early if already connected."""
 
@@ -446,6 +464,7 @@ class TestRabbitMQConnectAlreadyConnected:
             mock_conn.assert_not_called()
 
 
+@pytest.mark.skipif(not RABBITMQ_AVAILABLE, reason="aio-pika not installed")
 class TestRabbitMQConnectSuccess:
     """Lines 145-159: connect() success path - channel + exchange setup."""
 
@@ -478,6 +497,7 @@ class TestRabbitMQConnectSuccess:
         assert broker._exchange is mock_exchange
 
 
+@pytest.mark.skipif(not RABBITMQ_AVAILABLE, reason="aio-pika not installed")
 class TestRabbitMQPublishPaths:
     """Lines 185-204: publish() success + exception paths."""
 
@@ -528,6 +548,7 @@ class TestRabbitMQPublishPaths:
                 await broker.publish("orders.created", b"data")
 
 
+@pytest.mark.skipif(not RABBITMQ_AVAILABLE, reason="aio-pika not installed")
 class TestRabbitMQDeclareQueue:
     """Lines 250-261: declare_queue() body."""
 

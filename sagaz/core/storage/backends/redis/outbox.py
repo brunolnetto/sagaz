@@ -121,7 +121,7 @@ class RedisOutboxStorage(OutboxStorage):
     async def close(self) -> None:
         """Close Redis connection."""
         if self._redis:
-            await self._redis.aclose()
+            await self._redis.close()
             self._redis = None
         self._initialized = False
 

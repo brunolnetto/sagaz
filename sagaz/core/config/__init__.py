@@ -238,6 +238,16 @@ class SagaConfig:
         )
 
     @classmethod
+    def _storage_from_env(cls, env: object) -> object:
+        """Construct a storage backend from an env-dict (backward compat helper)."""
+        return StorageConfigManager.from_env(env)
+
+    @classmethod
+    def _broker_from_env(cls, env: object) -> object:
+        """Construct a broker backend from an env-dict (backward compat helper)."""
+        return BrokerConfigManager.from_env(env)
+
+    @classmethod
     def from_env(cls, load_dotenv: bool = True) -> SagaConfig:
         """
         Create configuration from environment variables.

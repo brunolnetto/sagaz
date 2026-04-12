@@ -112,6 +112,16 @@ try:
 
 except ImportError:
     PROMETHEUS_AVAILABLE = False
+    OUTBOX_BATCH_PROCESSED = None
+    OUTBOX_PUBLISHED_EVENTS = None
+    OUTBOX_FAILED_EVENTS = None
+    OUTBOX_DEAD_LETTER_EVENTS = None
+    OUTBOX_RETRY_ATTEMPTS = None
+    OUTBOX_PENDING_EVENTS = None
+    OUTBOX_PROCESSING_EVENTS = None
+    OUTBOX_BATCH_SIZE = None
+    OUTBOX_EVENTS_BY_STATE = None
+    OUTBOX_PUBLISH_DURATION = None
     logger.debug("prometheus-client not installed, metrics disabled")
 
 

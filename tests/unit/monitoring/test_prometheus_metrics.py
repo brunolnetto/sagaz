@@ -26,9 +26,11 @@ def fresh_metrics():
     return PrometheusMetrics(prefix=prefix)
 
 
+@pytest.mark.skipif(not PROMETHEUS_AVAILABLE, reason="prometheus_client not installed")
 class TestPrometheusMetrics:
     """Tests for PrometheusMetrics class."""
 
+    @pytest.mark.skipif(not PROMETHEUS_AVAILABLE, reason="prometheus_client not installed")
     def test_prometheus_is_available(self):
         """Verify prometheus_client is installed in test environment."""
         assert PROMETHEUS_AVAILABLE is True
@@ -116,6 +118,7 @@ class TestPrometheusMetrics:
         )
 
 
+@pytest.mark.skipif(not PROMETHEUS_AVAILABLE, reason="prometheus_client not installed")
 class TestStartMetricsServer:
     """Tests for start_metrics_server function."""
 
