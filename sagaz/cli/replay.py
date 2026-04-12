@@ -26,8 +26,8 @@ except ImportError:
     HAS_RICH = False
 
 if TYPE_CHECKING:
-    from sagaz.core.saga_replay import ReplayResult, SagaReplay
-    from sagaz.core.time_travel import HistoricalState
+    from sagaz.core.replay.saga_replay import ReplayResult, SagaReplay
+    from sagaz.core.replay.time_travel import HistoricalState
 
 
 # ============================================================================
@@ -262,7 +262,7 @@ async def _execute_replay(
     verbose: bool,
 ) -> bool:
     """Execute the replay operation"""
-    from sagaz.core.saga_replay import SagaReplay
+    from sagaz.core.replay.saga_replay import SagaReplay
 
     # Create storage
     if storage_type == "memory":
@@ -440,7 +440,7 @@ async def _execute_time_travel(
     output_format: str,
 ) -> bool:
     """Execute time-travel query"""
-    from sagaz.core.time_travel import SagaTimeTravel
+    from sagaz.core.replay.time_travel import SagaTimeTravel
 
     # Create storage
     if storage_type == "memory":
@@ -564,7 +564,7 @@ async def _execute_list_changes(
     storage_type: str,
 ):
     """Execute list changes query"""
-    from sagaz.core.time_travel import SagaTimeTravel
+    from sagaz.core.replay.time_travel import SagaTimeTravel
 
     # Create storage
     if storage_type == "memory":

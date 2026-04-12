@@ -36,7 +36,6 @@ if TYPE_CHECKING:
     from sagaz.storage.base import SagaStorage
 
 
-from sagaz.core.decorators._visualization import _DecoratorVisualizationMixin
 from sagaz.core.decorators._steps import (
     CompensationMetadata,
     ForwardRecoveryMetadata,
@@ -50,6 +49,7 @@ from sagaz.core.decorators._steps import (
     forward_recovery,
     step,
 )
+from sagaz.core.decorators._visualization import _DecoratorVisualizationMixin
 from sagaz.core.logger import get_logger
 from sagaz.core.types import SagaStatus
 from sagaz.execution.graph import CompensationType, SagaExecutionGraph

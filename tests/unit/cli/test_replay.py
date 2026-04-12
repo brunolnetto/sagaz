@@ -29,7 +29,7 @@ def runner():
 @pytest.fixture
 def mock_saga_replay():
     """Mock SagaReplay class."""
-    with patch("sagaz.core.saga_replay.SagaReplay") as mock:
+    with patch("sagaz.core.replay.saga_replay.SagaReplay") as mock:
         instance = MagicMock()
         instance.list_available_checkpoints = AsyncMock(return_value=[])
         instance.from_checkpoint = AsyncMock()
@@ -40,7 +40,7 @@ def mock_saga_replay():
 @pytest.fixture
 def mock_time_travel():
     """Mock SagaTimeTravel class."""
-    with patch("sagaz.core.time_travel.SagaTimeTravel") as mock:
+    with patch("sagaz.core.replay.time_travel.SagaTimeTravel") as mock:
         instance = MagicMock()
         instance.get_context_at = AsyncMock(return_value=None)
         instance.get_state_at = AsyncMock(return_value=None)

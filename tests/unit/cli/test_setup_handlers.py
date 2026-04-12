@@ -10,7 +10,6 @@ from unittest.mock import MagicMock, call, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # _check_project_exists
 # ---------------------------------------------------------------------------
@@ -70,7 +69,7 @@ class TestDisplaySetupHeader:
 
 class TestPromptDeploymentMode:
     @pytest.mark.parametrize(
-        "choice,expected",
+        ("choice", "expected"),
         [
             (1, "local"),
             (2, "k8s"),
@@ -95,7 +94,7 @@ class TestPromptDeploymentMode:
 
 class TestPromptOltpStorage:
     @pytest.mark.parametrize(
-        "choice,expected",
+        ("choice", "expected"),
         [
             (1, "postgresql"),
             (2, "in-memory"),
@@ -157,7 +156,7 @@ class TestPromptOltpStorage:
 
 class TestPromptMessageBroker:
     @pytest.mark.parametrize(
-        "choice,expected",
+        ("choice", "expected"),
         [(1, "redis"), (2, "rabbitmq"), (3, "kafka")],
     )
     def test_broker_choices(self, choice, expected):
@@ -177,7 +176,7 @@ class TestPromptMessageBroker:
 
 class TestPromptOutboxStorage:
     @pytest.mark.parametrize(
-        "choice,expected_storage,expected_separate",
+        ("choice", "expected_storage", "expected_separate"),
         [
             (1, "same", False),
             (2, "postgresql", True),
@@ -203,7 +202,7 @@ class TestPromptOutboxStorage:
 
 class TestBooleanPrompts:
     @pytest.mark.parametrize(
-        "fn_name,confirm_value",
+        ("fn_name", "confirm_value"),
         [
             ("_prompt_metrics", True),
             ("_prompt_metrics", False),
@@ -370,9 +369,7 @@ class TestExecuteSetup:
             patch("sagaz.cli._setup_handlers._init_benchmarks"),
         ):
             _execute_setup(config)
-        mock_local.assert_called_once_with(
-            "redis", True, False, False, "postgresql", "same", False
-        )
+        mock_local.assert_called_once_with("redis", True, False, False, "postgresql", "same", False)
 
     def test_selfhost_mode(self):
         from sagaz.cli._setup_handlers import _execute_setup
@@ -451,16 +448,12 @@ class TestGatherSetupConfiguration:
         from sagaz.cli._setup_handlers import _gather_setup_configuration
 
         with (
-            patch(
-                "sagaz.cli._setup_handlers._prompt_deployment_mode", return_value="local"
-            ),
+            patch("sagaz.cli._setup_handlers._prompt_deployment_mode", return_value="local"),
             patch(
                 "sagaz.cli._setup_handlers._prompt_oltp_storage",
                 return_value=("postgresql", False),
             ),
-            patch(
-                "sagaz.cli._setup_handlers._prompt_message_broker", return_value="redis"
-            ),
+            patch("sagaz.cli._setup_handlers._prompt_message_broker", return_value="redis"),
             patch(
                 "sagaz.cli._setup_handlers._prompt_outbox_storage",
                 return_value=("same", False),
@@ -469,9 +462,7 @@ class TestGatherSetupConfiguration:
             patch("sagaz.cli._setup_handlers._prompt_tracing", return_value=True),
             patch("sagaz.cli._setup_handlers._prompt_logging", return_value=True),
             patch("sagaz.cli._setup_handlers._prompt_benchmarks", return_value=False),
-            patch(
-                "sagaz.cli._setup_handlers._determine_dev_mode", return_value=False
-            ),
+            patch("sagaz.cli._setup_handlers._determine_dev_mode", return_value=False),
         ):
             config = _gather_setup_configuration()
 
@@ -495,16 +486,12 @@ class TestGatherSetupConfiguration:
         from sagaz.cli._setup_handlers import _gather_setup_configuration
 
         with (
-            patch(
-                "sagaz.cli._setup_handlers._prompt_deployment_mode", return_value="local"
-            ),
+            patch("sagaz.cli._setup_handlers._prompt_deployment_mode", return_value="local"),
             patch(
                 "sagaz.cli._setup_handlers._prompt_oltp_storage",
                 return_value=("postgresql", False),
             ),
-            patch(
-                "sagaz.cli._setup_handlers._prompt_message_broker", return_value="redis"
-            ),
+            patch("sagaz.cli._setup_handlers._prompt_message_broker", return_value="redis"),
             patch(
                 "sagaz.cli._setup_handlers._prompt_outbox_storage",
                 return_value=("same", False),
@@ -513,9 +500,7 @@ class TestGatherSetupConfiguration:
             patch("sagaz.cli._setup_handlers._prompt_tracing", return_value=False),
             patch("sagaz.cli._setup_handlers._prompt_logging", return_value=False),
             patch("sagaz.cli._setup_handlers._prompt_benchmarks", return_value=False),
-            patch(
-                "sagaz.cli._setup_handlers._determine_dev_mode", return_value=False
-            ),
+            patch("sagaz.cli._setup_handlers._determine_dev_mode", return_value=False),
         ):
             config = _gather_setup_configuration()
 
@@ -525,16 +510,12 @@ class TestGatherSetupConfiguration:
         from sagaz.cli._setup_handlers import _gather_setup_configuration
 
         with (
-            patch(
-                "sagaz.cli._setup_handlers._prompt_deployment_mode", return_value="k8s"
-            ),
+            patch("sagaz.cli._setup_handlers._prompt_deployment_mode", return_value="k8s"),
             patch(
                 "sagaz.cli._setup_handlers._prompt_oltp_storage",
                 return_value=("postgresql", False),
             ),
-            patch(
-                "sagaz.cli._setup_handlers._prompt_message_broker", return_value="kafka"
-            ),
+            patch("sagaz.cli._setup_handlers._prompt_message_broker", return_value="kafka"),
             patch(
                 "sagaz.cli._setup_handlers._prompt_outbox_storage",
                 return_value=("postgresql", True),
@@ -543,9 +524,7 @@ class TestGatherSetupConfiguration:
             patch("sagaz.cli._setup_handlers._prompt_tracing", return_value=False),
             patch("sagaz.cli._setup_handlers._prompt_logging", return_value=False),
             patch("sagaz.cli._setup_handlers._prompt_benchmarks", return_value=False),
-            patch(
-                "sagaz.cli._setup_handlers._determine_dev_mode", return_value=False
-            ),
+            patch("sagaz.cli._setup_handlers._determine_dev_mode", return_value=False),
         ):
             config = _gather_setup_configuration()
 
