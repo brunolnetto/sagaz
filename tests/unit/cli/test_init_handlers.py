@@ -1139,8 +1139,6 @@ class TestCopyResource:
 class TestConsoleImportError:
     def test_console_none_when_rich_unavailable(self):
         """Lines 23-24: ImportError → console = None."""
-        import importlib
-
         import sagaz.cli._init_handlers as m
 
         # Simulate the ImportError branch by setting console to None
@@ -1153,3 +1151,67 @@ class TestConsoleImportError:
             _log_local_init_start("redis", False, "postgresql", dev_mode=False)
         finally:
             m.console = original_console
+
+    def test_importerror_branch_executed_on_reimport(self):
+        """Actually execute the except ImportError lines 23-24 via module re-import."""
+        import sys
+        from unittest.mock import patch
+
+        mods_to_remove = [k for k in sys.modules if "_init_handlers" in k]
+        for mod in mods_to_remove:
+            del sys.modules[mod]
+
+        with patch.dict(sys.modules, {"rich": None, "rich.console": None}):
+            import sagaz.cli._init_handlers as reloaded
+
+            assert reloaded.console is None
+
+        # Restore original module
+        for mod in mods_to_remove:
+            if mod in sys.modules:
+                del sys.modules[mod]
+
+
+# ---------------------------------------------------------------------------
+# Remaining branch coverage
+# ---------------------------------------------------------------------------
+
+
+class TestRemainingBranches:
+    def test_selfhost_unknown_broker_skips_broker_env(self, tmp_path, monkeypatch):
+        """Branch 224->227: unknown broker in _init_selfhost env generation."""
+        import os
+
+        old_cwd = Path.cwd()
+        os.chdir(tmp_path)
+        try:
+            from sagaz.cli._init_handlers import _init_selfhost
+
+            with (
+                patch("sagaz.cli._init_handlers.console", None),
+                patch("sagaz.cli._init_handlers.click.echo"),
+            ):
+                _init_selfhost("grpc", with_observability=False)
+            env_file = tmp_path / "selfhost" / "sagaz.env"
+            assert env_file.exists()
+            content = env_file.read_text()
+            assert "REDIS_URL" not in content
+            assert "KAFKA_BOOTSTRAP_SERVERS" not in content
+            assert "RABBITMQ_URL" not in content
+        finally:
+            os.chdir(old_cwd)
+
+    def test_copy_k8s_manifests_sqlite_storage(self, tmp_path, monkeypatch):
+        """Branch 378->382: oltp_storage='sqlite' falls past in-memory elif."""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "k8s").mkdir()
+        from sagaz.cli._init_handlers import _copy_k8s_manifests
+
+        with (
+            patch("sagaz.cli._init_handlers._copy_resource") as mock_res,
+            patch("sagaz.cli._init_handlers.click.echo"),
+        ):
+            _copy_k8s_manifests(False, False, "sqlite")
+        # Neither postgresql.yaml nor any "skip" message - just falls through
+        postgresql_calls = [c for c in mock_res.call_args_list if "postgresql" in str(c)]
+        assert postgresql_calls == []

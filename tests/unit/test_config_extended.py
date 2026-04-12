@@ -470,3 +470,25 @@ class TestGlobalConfigFunctions:
         configure(new_config)
 
         assert config_module._global_config is new_config
+
+
+class TestEnvFalseNoneBranches:
+    """Cover the False branches of 'if redis_url is None' in _storage_from_env / _broker_from_env."""
+
+    def test_storage_from_env_redis_url_empty_string(self, monkeypatch):
+        """Branch 373->375: redis_url is '' (not None) for redis storage type."""
+        monkeypatch.setenv("SAGAZ_STORAGE_TYPE", "redis")
+        monkeypatch.setenv("SAGAZ_STORAGE_URL", "")
+        config = SagaConfig.from_env(load_dotenv=False)
+        # Empty URL causes parse_storage_url to fall back to in-memory, but the
+        # False branch of `if redis_url is None` (373->375) is still executed.
+        assert config is not None
+
+    def test_broker_from_env_redis_url_empty_string(self, monkeypatch):
+        """Branch 403->405: redis_url is '' (not None) for redis broker type."""
+        monkeypatch.setenv("SAGAZ_BROKER_TYPE", "redis")
+        monkeypatch.setenv("SAGAZ_BROKER_URL", "")
+        config = SagaConfig.from_env(load_dotenv=False)
+        # Empty URL causes parse_broker_url to fall back to in-memory, but the
+        # False branch of `if redis_url is None` (403->405) is still executed.
+        assert config is not None

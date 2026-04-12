@@ -17,10 +17,10 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from sagaz.core._saga_compensation import _SagaCompensationMixin
-from sagaz.core._saga_snapshot import _SagaSnapshotMixin
-from sagaz.core._saga_step import SagaStep
-from sagaz.core._saga_visualization import _SagaVisualizationMixin
+from sagaz.core.saga._compensation import _SagaCompensationMixin
+from sagaz.core.saga._snapshot import _SagaSnapshotMixin
+from sagaz.core.saga._step import SagaStep
+from sagaz.core.saga._visualization import _SagaVisualizationMixin
 from sagaz.core.exceptions import SagaCompensationError, SagaExecutionError
 from sagaz.core.types import SagaStepStatus
 
