@@ -143,6 +143,12 @@ class SagaConfig:
                     self.storage, self.storage_manager
                 )
             )
+            # Extract outbox storage from the manager if available
+            try:
+                self.outbox_storage = self.storage_manager.outbox
+            except RuntimeError:
+                # Manager not initialized - outbox_storage will be derived later
+                self.outbox_storage = None
         else:
             # Default to in-memory storage if not specified
             if self.storage is None:
