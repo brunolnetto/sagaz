@@ -2500,16 +2500,16 @@ class TestSagaStepHash:
 
         # Steps with same idempotency key should be equal
         assert step1 == step3
-        assert not (step1 != step3)
+        assert step1 == step3
 
         # Steps with different idempotency keys should not be equal
         assert step1 != step2
-        assert not (step1 == step2)
+        assert step1 != step2
 
         # Comparing with non-SagaStep object should return NotImplemented (falsy in bool context)
         assert step1 != "not a step"
         assert step1 != 123
-        assert step1 != None
+        assert step1 is not None
 
 
 class TestSagaAlreadyExecuting:
