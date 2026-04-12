@@ -36,8 +36,8 @@ if TYPE_CHECKING:
     from sagaz.storage.base import SagaStorage
 
 
-from sagaz.core._decorator_visualization import _DecoratorVisualizationMixin
-from sagaz.core._step_decorators import (
+from sagaz.core.decorators._visualization import _DecoratorVisualizationMixin
+from sagaz.core.decorators._steps import (
     CompensationMetadata,
     ForwardRecoveryMetadata,
     OnCompensateHook,
