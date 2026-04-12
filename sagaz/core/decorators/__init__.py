@@ -26,7 +26,6 @@ Quick Start:
     ...         await PaymentService.refund(ctx["charge_id"])
 """
 
-import asyncio
 import inspect
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -35,10 +34,9 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from sagaz.storage.base import SagaStorage
 
-
+from sagaz.core.decorators._collection import DecoratorCollectionManager
+from sagaz.core.decorators._execution import ExecutionEngine
 from sagaz.core.decorators._steps import (
-    CompensationMetadata,
-    ForwardRecoveryMetadata,
     OnCompensateHook,
     OnEnterHook,
     OnFailureHook,
@@ -51,7 +49,6 @@ from sagaz.core.decorators._steps import (
 )
 from sagaz.core.decorators._visualization import _DecoratorVisualizationMixin
 from sagaz.core.logger import get_logger
-from sagaz.core.types import SagaStatus
 from sagaz.execution.graph import CompensationType, SagaExecutionGraph
 
 logger = get_logger(__name__)
@@ -192,7 +189,8 @@ class Saga(_DecoratorVisualizationMixin):
             self._instance_listeners = self.listeners or []
 
         # Collect decorated methods (if any)
-        self._collect_steps()
+        collection_manager = DecoratorCollectionManager(self)
+        collection_manager.collect_all()
 
         # If decorated methods were found, we're in declarative mode
         if self._steps:
@@ -205,75 +203,6 @@ class Saga(_DecoratorVisualizationMixin):
             # Name is required for imperative usage
             if name is not None:
                 self.saga_name = name
-
-    def _collect_steps(self) -> None:
-        """Collect decorated methods into step definitions."""
-        self._collect_step_methods()
-        self._attach_compensations()
-        self._collect_forward_recovery_handlers()
-
-    def _collect_step_methods(self) -> None:
-        """First pass: collect all step methods."""
-        for attr_name in dir(self):
-            if attr_name.startswith("_"):
-                continue
-            attr = getattr(self, attr_name)
-            if hasattr(attr, "_saga_step_meta"):
-                self._register_step_from_decorator(attr)
-
-    def _register_step_from_decorator(self, method) -> None:
-        """Register a step from a decorated method."""
-        meta: StepMetadata = method._saga_step_meta
-        step_def = SagaStepDefinition(
-            step_id=meta.name,
-            forward_fn=method,
-            depends_on=meta.depends_on.copy(),
-            aggregate_type=meta.aggregate_type,
-            event_type=meta.event_type,
-            timeout_seconds=meta.timeout_seconds,
-            max_retries=meta.max_retries,
-            description=meta.description,
-            on_enter=meta.on_enter,
-            on_success=meta.on_success,
-            on_failure=meta.on_failure,
-            pivot=meta.pivot,
-        )
-        self._steps.append(step_def)
-        self._step_registry[meta.name] = step_def
-
-    def _attach_compensations(self) -> None:
-        """Second pass: attach compensations to steps."""
-        for attr_name in dir(self):
-            if attr_name.startswith("_"):
-                continue
-            attr = getattr(self, attr_name)
-            if hasattr(attr, "_saga_compensation_meta"):
-                self._attach_compensation_to_step(attr)
-
-    def _attach_compensation_to_step(self, method) -> None:
-        """Attach a compensation method to its corresponding step."""
-        meta: CompensationMetadata = method._saga_compensation_meta
-        step_name = meta.for_step
-        if step_name not in self._step_registry:
-            return  # compensate for unknown step
-        step = self._step_registry[step_name]
-        step.compensation_fn = method
-        # Compensation dependencies are derived from forward dependencies (step.depends_on)
-        # No need to set step.compensation_depends_on - it's ignored
-        step.compensation_type = meta.compensation_type
-        step.compensation_timeout_seconds = meta.timeout_seconds
-        step.on_compensate = meta.on_compensate
-
-    def _collect_forward_recovery_handlers(self) -> None:
-        """Third pass: collect forward recovery handlers."""
-        for attr_name in dir(self):
-            if attr_name.startswith("_"):
-                continue
-            attr = getattr(self, attr_name)
-            if hasattr(attr, "_saga_forward_recovery_meta"):
-                meta: ForwardRecoveryMetadata = attr._saga_forward_recovery_meta
-                self._forward_recovery_handlers[meta.for_step] = attr
-                logger.debug(f"Registered forward recovery handler for step: {meta.for_step}")
 
     def get_pivot_steps(self) -> list[str]:
         """Get names of all pivot steps in this saga."""
@@ -365,8 +294,8 @@ class Saga(_DecoratorVisualizationMixin):
         if self._mode == "declarative":
             msg = (
                 "Cannot use add_step() on a saga with @action/@compensate decorators. "
-                "Choose one approach: either use decorators (declarative) or add_step() (imperative), "
-                "but not both. See Saga class docstring for examples."
+                "Choose one approach: either use decorators (declarative) or "
+                "add_step() (imperative), but not both. See Saga class docstring."
             )
             raise TypeError(msg)
 
@@ -468,258 +397,8 @@ class Saga(_DecoratorVisualizationMixin):
         Raises:
             Exception: If saga fails (compensations will be attempted first)
         """
-        self._initialize_run(initial_context, saga_id)
-        name = self._get_saga_name()
-        self._register_compensations()
-
-        # Persist start
-        storage = self._config.storage if self._config else None
-        if storage:
-            try:
-                await storage.save_saga_state(
-                    self._saga_id,
-                    name,
-                    SagaStatus.EXECUTING,
-                    [],  # TODO: Track steps
-                    self._context,
-                )
-            except Exception as e:
-                logger.warning(f"Failed to persist saga start: {e}")
-
-        try:
-            await self._notify_listeners("on_saga_start", name, self._saga_id, self._context)
-            await self._execute_all_levels()
-            await self._notify_listeners("on_saga_complete", name, self._saga_id, self._context)
-
-            # Persist completion
-            if storage:
-                try:
-                    await storage.save_saga_state(
-                        self._saga_id, name, SagaStatus.COMPLETED, [], self._context
-                    )
-                except Exception as e:
-                    logger.warning(f"Failed to persist saga completion: {e}")
-
-            return self._context
-        except Exception as e:
-            await self._compensate()
-            await self._notify_listeners("on_saga_failed", name, self._saga_id, self._context, e)
-
-            # Persist failure
-            if storage:
-                try:
-                    await storage.save_saga_state(
-                        self._saga_id, name, SagaStatus.ROLLED_BACK, [], self._context
-                    )
-                except Exception as e_storage:
-                    logger.warning(f"Failed to persist saga failure: {e_storage}")
-
-            raise
-
-    def _initialize_run(self, initial_context: dict[str, Any], saga_id: str | None) -> None:
-        """Initialize saga run state."""
-        import uuid
-
-        self._saga_id = saga_id or initial_context.get("saga_id") or str(uuid.uuid4())
-        self._context = initial_context.copy()
-        self._context["saga_id"] = self._saga_id
-        self._compensation_graph.reset_execution()
-
-    def _register_compensations(self) -> None:
-        """Register all compensations in the graph.
-
-        Compensation dependencies are automatically derived from forward
-        action dependencies. The compensation graph will auto-reverse them.
-        """
-        for step_def in self._steps:
-            if step_def.compensation_fn:
-                self._compensation_graph.register_compensation(
-                    step_def.step_id,
-                    step_def.compensation_fn,
-                    depends_on=step_def.depends_on,  # Use forward dependencies (will be auto-reversed)
-                    compensation_type=step_def.compensation_type,
-                    max_retries=step_def.max_retries,
-                    timeout_seconds=step_def.compensation_timeout_seconds,
-                )
-
-    async def _execute_all_levels(self) -> None:
-        """Execute steps level by level."""
-        for level in self.get_execution_order():
-            await self._execute_level(level)
-
-    def _get_saga_name(self) -> str:
-        """Get the saga name from class attribute or class name."""
-        return self.saga_name or self.__class__.__name__
-
-    async def _notify_listeners(self, event_name: str, *args) -> None:
-        """Notify all listeners of an event."""
-        for listener in self._instance_listeners:
-            try:
-                handler = getattr(listener, event_name, None)
-                if handler:
-                    result = handler(*args)
-                    if inspect.iscoroutine(result):
-                        await result
-            except Exception as e:
-                logger.warning(f"Listener {type(listener).__name__}.{event_name} error: {e}")
-
-    async def _execute_level(self, level: list[SagaStepDefinition]) -> None:
-        """Execute all steps in a level concurrently."""
-        if not level:
-            return
-
-        tasks = [self._execute_step(step) for step in level]
-
-        # Execute in parallel
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        # Check for exceptions
-        for result in results:
-            if isinstance(result, Exception):
-                raise result
-
-    async def _execute_step(self, step: SagaStepDefinition) -> None:
-        """Execute a single step with lifecycle hooks and listeners."""
-        saga_name = self._get_saga_name()
-
-        # Notify listeners: step entering
-        await self._notify_listeners("on_step_enter", saga_name, step.step_id, self._context)
-
-        # Call on_enter hook
-        await self._call_hook(step.on_enter, self._context, step.step_id)
-
-        try:
-            # Apply timeout
-            result = await asyncio.wait_for(
-                step.forward_fn(self._context), timeout=step.timeout_seconds
-            )
-
-            # Merge result into context
-            if result and isinstance(result, dict):
-                self._context.update(result)
-
-            # Mark step as executed for compensation tracking
-            self._context[f"__{step.step_id}_completed"] = True
-            self._compensation_graph.mark_step_executed(step.step_id)
-
-            # Handle pivot step completion - propagate taint to ancestors
-            if step.pivot:
-                self._propagate_taint_from_pivot(step.step_id)
-                logger.info(f"Pivot step '{step.step_id}' completed - ancestors are now tainted")
-
-            # Call on_success hook
-            await self._call_hook(step.on_success, self._context, step.step_id, result)
-
-            # Notify listeners: step success
-            await self._notify_listeners(
-                "on_step_success", saga_name, step.step_id, self._context, result
-            )
-
-        except TimeoutError as e:
-            # Call on_failure hook
-            await self._call_hook(step.on_failure, self._context, step.step_id, e)
-            # Notify listeners: step failure
-            await self._notify_listeners(
-                "on_step_failure", saga_name, step.step_id, self._context, e
-            )
-            msg = f"Step '{step.step_id}' timed out after {step.timeout_seconds}s"
-            raise TimeoutError(msg)
-        except Exception as e:
-            # Call on_failure hook
-            await self._call_hook(step.on_failure, self._context, step.step_id, e)
-            # Notify listeners: step failure
-            await self._notify_listeners(
-                "on_step_failure", saga_name, step.step_id, self._context, e
-            )
-            raise
-
-    async def _call_hook(self, hook: Callable | None, *args) -> None:
-        """Call a hook function, handling both sync and async hooks."""
-        if hook is None:
-            return
-
-        try:
-            result = hook(*args)
-            # If it's a coroutine, await it
-            if inspect.iscoroutine(result):
-                await result
-        except Exception as e:
-            # Log but don't fail - hooks should not break saga execution
-            logger.warning(f"Hook error (non-fatal): {e}")
-
-    async def _compensate(self) -> None:
-        """
-        Execute compensations in dependency order, respecting pivot boundaries.
-
-        v1.3.0: Compensation stops at pivot boundaries. Tainted steps (ancestors
-        of completed pivots) are skipped, as are pivot steps themselves.
-        """
-        comp_levels = self._compensation_graph.get_compensation_order()
-
-        # Track how many steps we skip due to taint
-        skipped_count = 0
-
-        for level in comp_levels:
-            # v1.3.0: Filter out tainted steps and pivot steps
-            compensable_steps = []
-            for step_id in level:
-                if self._is_step_tainted(step_id):
-                    logger.info(f"Skipping compensation for tainted step: {step_id}")
-                    skipped_count += 1
-                    continue
-
-                step = self._step_registry.get(step_id)
-                if step and step.pivot and step_id in self._completed_pivots:
-                    logger.info(f"Reached pivot boundary, stopping compensation: {step_id}")
-                    skipped_count += 1
-                    continue
-
-                compensable_steps.append(step_id)
-
-            if compensable_steps:
-                tasks = [self._execute_compensation(step_id) for step_id in compensable_steps]
-                # Execute compensations in parallel, don't fail on individual errors
-                await asyncio.gather(*tasks, return_exceptions=True)
-
-        if skipped_count > 0:
-            logger.info(f"Pivot-aware compensation: skipped {skipped_count} tainted/pivot steps")
-
-    async def _execute_compensation(self, step_id: str) -> None:
-        """Execute a single compensation with lifecycle hook and listeners."""
-        node = self._compensation_graph.get_compensation_info(step_id)
-        if not node:
-            return
-
-        # v1.3.0: Double-check taint status (in case it changed)
-        if self._is_step_tainted(step_id):
-            logger.debug(f"Skipping compensation for tainted step: {step_id}")
-            return
-
-        saga_name = self._get_saga_name()
-
-        # Get the on_compensate hook from the step definition
-        step = self._step_registry.get(step_id)
-        on_compensate = step.on_compensate if step else None
-
-        try:
-            # Notify listeners: compensation starting
-            await self._notify_listeners("on_compensation_start", saga_name, step_id, self._context)
-
-            # Call on_compensate hook before compensation
-            await self._call_hook(on_compensate, self._context, step_id)
-
-            await asyncio.wait_for(
-                node.compensation_fn(self._context), timeout=node.timeout_seconds
-            )
-            self._context[f"__{step_id}_compensated"] = True
-
-            # Notify listeners: compensation complete
-            await self._notify_listeners(
-                "on_compensation_complete", saga_name, step_id, self._context
-            )
-        except Exception as e:
-            # Log but don't fail - we want all compensations to attempt
-            self._context[f"__{step_id}_compensation_error"] = str(e)
+        engine = ExecutionEngine(self)
+        return await engine.run(initial_context, saga_id)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(steps={len(self._steps)})"
