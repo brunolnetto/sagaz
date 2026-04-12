@@ -401,6 +401,27 @@ class Saga(_DecoratorVisualizationMixin):
         engine = ExecutionEngine(self)
         return await engine.run(initial_context, saga_id)
 
+    # Backward compatibility methods (private methods moved to ExecutionEngine)
+    def _initialize_run(self, initial_context: dict[str, Any], saga_id: str | None) -> None:
+        """Backward compatible: Initialize saga run state."""
+        engine = ExecutionEngine(self)
+        engine._initialize_run(initial_context, saga_id)
+
+    def _register_compensations(self) -> None:
+        """Backward compatible: Register all compensations in the graph."""
+        engine = ExecutionEngine(self)
+        engine._register_compensations()
+
+    async def _execute_level(self, level_steps: list) -> None:
+        """Backward compatible: Execute all steps in a level."""
+        engine = ExecutionEngine(self)
+        await engine._execute_level(level_steps)
+
+    async def _execute_compensation(self, step_id: str) -> None:
+        """Backward compatible: Execute compensation for a specific step."""
+        engine = ExecutionEngine(self)
+        await engine._execute_compensation(step_id)
+
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(steps={len(self._steps)})"
 
