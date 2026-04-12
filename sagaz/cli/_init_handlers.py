@@ -573,8 +573,8 @@ services:
 volumes:
   postgres_data:
 """
-    Path("hybrid/docker-compose.yaml").write_text(compose)
-    click.echo("  CREATE hybrid/docker-compose.yaml")
+        Path("hybrid/docker-compose.yaml").write_text(compose)
+        click.echo("  CREATE hybrid/docker-compose.yaml")
 
     # Create environment template
     env = f"""# Hybrid Deployment Environment
