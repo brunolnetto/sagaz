@@ -135,7 +135,6 @@ from sagaz.dry_run import (
     ValidationResult,
 )
 
-
 # =============================================================================
 # Testing Utilities - Chaos Engineering (ADR-017)
 # =============================================================================
@@ -145,7 +144,6 @@ from sagaz.testing import (
     ChaosReport,
     FaultType,
 )
-
 
 __all__ = [
     "ChaosDisabled",
