@@ -65,8 +65,7 @@ def visualize_cmd(class_path: str, fmt: str, output: str | None, direction: str)
 
     if not hasattr(cls, "to_mermaid"):
         click.echo(
-            f"Error: {class_name} does not have a to_mermaid() method. "
-            "Is it a Saga subclass?",
+            f"Error: {class_name} does not have a to_mermaid() method. Is it a Saga subclass?",
             err=True,
         )
         sys.exit(1)
