@@ -62,7 +62,8 @@ class TestExceptionConstructors:
         error = MissingDependencyError("redis")
         assert hasattr(error, "package")
         assert error.package == "redis"
-        assert "redis" in MissingDependencyError.INSTALL_COMMANDS
+        install_commands = error._get_install_commands()
+        assert "redis" in install_commands
 
     def test_idempotency_key_required_error(self):
         """Test IdempotencyKeyRequiredError formats nicely"""
