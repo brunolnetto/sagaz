@@ -220,11 +220,13 @@ def _init_selfhost(
 POSTGRES_URL=postgresql://sagaz:sagaz@localhost:5432/sagaz
 
 # Outbox Database {"(separate)" if separate_outbox else "(same as OLTP)"}
-{(
-    "OUTBOX_URL=postgresql://sagaz:sagaz@localhost:5432/sagaz_outbox"
-    if separate_outbox
-    else "# OUTBOX_URL=$POSTGRES_URL"
-)}
+{
+        (
+            "OUTBOX_URL=postgresql://sagaz:sagaz@localhost:5432/sagaz_outbox"
+            if separate_outbox
+            else "# OUTBOX_URL=$POSTGRES_URL"
+        )
+    }
 
 # Broker ({broker})
 BROKER_TYPE={broker}
