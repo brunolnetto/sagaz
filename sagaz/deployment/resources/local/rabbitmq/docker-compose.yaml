@@ -35,7 +35,7 @@ services:
 
   # Prometheus: Monitoring
   prometheus:
-    image: prom/prometheus:v3.11.1
+    image: prom/prometheus:v3.11.2
     container_name: sagaz-prometheus
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
