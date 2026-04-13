@@ -17,7 +17,9 @@ def deploy_cmd() -> None:
 
 @deploy_cmd.command("docker")
 @click.option("--tag", default="latest", show_default=True, help="Image tag to deploy.")
-@click.option("--env", type=click.Choice(["dev", "staging", "prod"]), default="dev", show_default=True)
+@click.option(
+    "--env", type=click.Choice(["dev", "staging", "prod"]), default="dev", show_default=True
+)
 @click.option("--dry-run", is_flag=True, default=False, help="Preview actions without executing.")
 def deploy_docker(tag: str, env: str, dry_run: bool) -> None:
     """Deploy sagaz using Docker Compose."""
@@ -45,7 +47,9 @@ def destroy_cmd() -> None:
 
 
 @destroy_cmd.command("docker")
-@click.option("--env", type=click.Choice(["dev", "staging", "prod"]), default="dev", show_default=True)
+@click.option(
+    "--env", type=click.Choice(["dev", "staging", "prod"]), default="dev", show_default=True
+)
 @click.option("--yes", is_flag=True, default=False, help="Skip confirmation prompt.")
 def destroy_docker(env: str, yes: bool) -> None:
     """Tear down the Docker Compose deployment."""
