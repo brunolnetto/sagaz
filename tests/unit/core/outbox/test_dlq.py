@@ -1,25 +1,26 @@
 """
-Unit tests for Dead Letter Queue (DLQ) feature — issue #44.
+Unit tests for Dead Letter Queue (DLQ) feature — ADR-038 / issue #44.
 
-TDD red phase: these tests define the acceptance criteria and must
-run before the implementation is added.
-
-Acceptance Criteria (from issue #44):
-- OutboxEvent gains dead_letter_at and dead_letter_reason fields
-- After max_retries is exceeded, event moves to DLQ with those fields set
-- InMemoryOutboxStorage supports requeue_dead_letter_event and purge_dead_letter_events
-- sagaz_dlq_depth Prometheus gauge exists on the OutboxWorkerMetrics class
-- CLI module sagaz.cli.dlq exports dlq_cli group with list/replay/purge commands
+Covers:
+  Phase 0 (existing) — dead_letter_at / dead_letter_reason fields, basic
+    requeue/purge on InMemoryOutboxStorage, worker transition, Prometheus gauge,
+    CLI commands.
+  Phase 1 (ADR-038 §Phase-1) — error_type, error_classification,
+    error_fingerprint on OutboxEvent; classify_error() and
+    create_error_fingerprint() helpers; enhanced Prometheus labels.
+  Phase 2 (ADR-038 §Phase-2) — replay_count, ReplayLoopError guard,
+    DLQReplayValidator.
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock
 
 import pytest
 
-from sagaz.outbox.types import OutboxEvent, OutboxStatus
-from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
+from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
+from sagaz.core.storage.backends.memory.outbox import InMemoryOutboxStorage
 
 # ---------------------------------------------------------------------------
 # OutboxEvent field tests
@@ -188,14 +189,11 @@ class TestWorkerDLQFieldsOnMove:
 
     @pytest.mark.asyncio
     async def test_move_to_dead_letter_sets_dead_letter_at(self):
-        from unittest.mock import AsyncMock, MagicMock, patch
-
-        from sagaz.outbox.worker import OutboxWorker
+        from sagaz.core.outbox.worker import OutboxWorker
 
         storage = InMemoryOutboxStorage()
         broker = AsyncMock()
         broker.is_connected = True
-
         worker = OutboxWorker(storage=storage, broker=broker)
 
         event = OutboxEvent(
@@ -206,9 +204,7 @@ class TestWorkerDLQFieldsOnMove:
             last_error="connection refused",
         )
         await storage.insert(event)
-
-        with patch.object(worker, "_events_dead_lettered", 0):
-            await worker._move_to_dead_letter(event)
+        await worker._move_to_dead_letter(event)
 
         stored = await storage.get_by_id(event.event_id)
         assert stored is not None
@@ -218,14 +214,11 @@ class TestWorkerDLQFieldsOnMove:
 
     @pytest.mark.asyncio
     async def test_move_to_dead_letter_reason_from_last_error(self):
-        from unittest.mock import AsyncMock
-
-        from sagaz.outbox.worker import OutboxWorker
+        from sagaz.core.outbox.worker import OutboxWorker
 
         storage = InMemoryOutboxStorage()
         broker = AsyncMock()
         broker.is_connected = True
-
         worker = OutboxWorker(storage=storage, broker=broker)
 
         event = OutboxEvent(
@@ -253,11 +246,10 @@ class TestDLQDepthGauge:
 
     def test_dlq_depth_gauge_exists_when_prometheus_available(self):
         pytest.importorskip("prometheus_client")
-        import sagaz.outbox.worker as worker_mod
+        import sagaz.core.outbox.worker as worker_mod
 
-        # The attribute can live on the module-level class or as a module-level name
-        assert hasattr(worker_mod, "OUTBOX_DLQ_DEPTH") or hasattr(worker_mod, "outbox_dlq_depth"), (
-            "sagaz_dlq_depth gauge must be defined in sagaz.outbox.worker"
+        assert hasattr(worker_mod, "OUTBOX_DLQ_DEPTH"), (
+            "sagaz_dlq_depth gauge must be defined in sagaz.core.outbox.worker"
         )
 
 
@@ -304,8 +296,8 @@ class TestCLIDLQCommandInvocations:
     @pytest.fixture(autouse=True)
     def _patch_storage(self, monkeypatch):
         """Inject a pre-populated InMemoryOutboxStorage into all CLI commands."""
-        from sagaz.outbox.types import OutboxEvent, OutboxStatus
-        from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
+        from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
+        from sagaz.core.storage.backends.memory.outbox import InMemoryOutboxStorage
 
         self.storage = InMemoryOutboxStorage()
 
@@ -353,7 +345,7 @@ class TestCLIDLQCommandInvocations:
         assert data[0]["dead_letter_reason"] == "max_retries_exceeded"
 
     def test_dlq_list_empty_queue(self, monkeypatch):
-        from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
+        from sagaz.core.storage.backends.memory.outbox import InMemoryOutboxStorage
 
         empty = InMemoryOutboxStorage()
         import sagaz.cli.dlq as dlq_mod
@@ -448,3 +440,471 @@ class TestCLIDLQCommandInvocations:
         result = runner.invoke(dlq_cli, ["list"])
         assert result.exit_code == 0, result.output
         assert "BrokenEvent" in result.output
+
+
+# ===========================================================================
+# Phase 1 — Error classification fields on OutboxEvent
+# ===========================================================================
+
+
+class TestOutboxEventErrorClassificationFields:
+    """OutboxEvent must carry error_type, error_classification, error_fingerprint."""
+
+    def test_error_type_defaults_to_none(self):
+        event = OutboxEvent(saga_id="s1", event_type="Foo", payload={})
+        assert event.error_type is None
+
+    def test_error_classification_defaults_to_none(self):
+        event = OutboxEvent(saga_id="s1", event_type="Foo", payload={})
+        assert event.error_classification is None
+
+    def test_error_fingerprint_defaults_to_none(self):
+        event = OutboxEvent(saga_id="s1", event_type="Foo", payload={})
+        assert event.error_fingerprint is None
+
+    def test_error_fields_settable(self):
+        event = OutboxEvent(
+            saga_id="s1",
+            event_type="Foo",
+            payload={},
+            error_type="ConnectionError",
+            error_classification="TRANSIENT",
+            error_fingerprint="abc123ab12345678",
+        )
+        assert event.error_type == "ConnectionError"
+        assert event.error_classification == "TRANSIENT"
+        assert event.error_fingerprint == "abc123ab12345678"
+
+    def test_to_dict_includes_error_classification_fields(self):
+        event = OutboxEvent(
+            saga_id="s1",
+            event_type="Foo",
+            payload={},
+            error_type="ValueError",
+            error_classification="PERMANENT",
+            error_fingerprint="deadbeef12345678",
+        )
+        d = event.to_dict()
+        assert d["error_type"] == "ValueError"
+        assert d["error_classification"] == "PERMANENT"
+        assert d["error_fingerprint"] == "deadbeef12345678"
+
+    def test_from_dict_roundtrip_preserves_error_fields(self):
+        event = OutboxEvent(
+            saga_id="s1",
+            event_type="Foo",
+            payload={},
+            error_type="TimeoutError",
+            error_classification="TRANSIENT",
+            error_fingerprint="cafebabe12345678",
+        )
+        restored = OutboxEvent.from_dict(event.to_dict())
+        assert restored.error_type == "TimeoutError"
+        assert restored.error_classification == "TRANSIENT"
+        assert restored.error_fingerprint == "cafebabe12345678"
+
+    def test_from_dict_missing_error_fields_defaults_to_none(self):
+        raw = {"saga_id": "s1", "event_type": "Foo", "payload": {}}
+        event = OutboxEvent.from_dict(raw)
+        assert event.error_type is None
+        assert event.error_classification is None
+        assert event.error_fingerprint is None
+
+
+# ===========================================================================
+# Phase 1 — classify_error() helper
+# ===========================================================================
+
+
+class TestClassifyError:
+    @pytest.fixture(autouse=True)
+    def _import(self):
+        from sagaz.core.outbox.error_classifier import classify_error
+
+        self.classify_error = classify_error
+
+    def test_connection_error_is_transient(self):
+        assert self.classify_error(ConnectionError("refused")) == "TRANSIENT"
+
+    def test_timeout_error_is_transient(self):
+        assert self.classify_error(TimeoutError("timed out")) == "TRANSIENT"
+
+    def test_os_error_is_transient(self):
+        assert self.classify_error(OSError("gone")) == "TRANSIENT"
+
+    def test_value_error_is_permanent(self):
+        assert self.classify_error(ValueError("bad")) == "PERMANENT"
+
+    def test_type_error_is_permanent(self):
+        assert self.classify_error(TypeError("wrong type")) == "PERMANENT"
+
+    def test_key_error_is_permanent(self):
+        assert self.classify_error(KeyError("missing")) == "PERMANENT"
+
+    def test_assertion_error_is_permanent(self):
+        assert self.classify_error(AssertionError("nope")) == "PERMANENT"
+
+    def test_unknown_exception_is_unknown(self):
+        class WeirdError(Exception):
+            pass
+
+        assert self.classify_error(WeirdError("mystery")) == "UNKNOWN"
+
+    def test_returns_string(self):
+        result = self.classify_error(RuntimeError("boom"))
+        assert isinstance(result, str)
+
+
+# ===========================================================================
+# Phase 1 — create_error_fingerprint() helper
+# ===========================================================================
+
+
+class TestCreateErrorFingerprint:
+    @pytest.fixture(autouse=True)
+    def _import(self):
+        from sagaz.core.outbox.error_classifier import create_error_fingerprint
+
+        self.fingerprint = create_error_fingerprint
+
+    def test_returns_non_empty_string(self):
+        fp = self.fingerprint("Connection refused")
+        assert isinstance(fp, str)
+        assert len(fp) > 0
+
+    def test_same_message_same_fingerprint(self):
+        fp1 = self.fingerprint("Connection refused to db:5432")
+        fp2 = self.fingerprint("Connection refused to db:5432")
+        assert fp1 == fp2
+
+    def test_different_numbers_same_fingerprint(self):
+        fp1 = self.fingerprint("Failed after 3 retries")
+        fp2 = self.fingerprint("Failed after 10 retries")
+        assert fp1 == fp2
+
+    def test_different_hosts_same_fingerprint(self):
+        fp1 = self.fingerprint("Connect db1.example.com:5432 refused")
+        fp2 = self.fingerprint("Connect db2.example.com:9999 refused")
+        assert fp1 == fp2
+
+    def test_structurally_different_messages_differ(self):
+        fp1 = self.fingerprint("Connection refused")
+        fp2 = self.fingerprint("Validation failed: missing field")
+        assert fp1 != fp2
+
+    def test_fingerprint_length_is_16(self):
+        fp = self.fingerprint("any message here")
+        assert len(fp) == 16
+
+
+# ===========================================================================
+# Phase 1 — Worker populates error classification on failure
+# ===========================================================================
+
+
+class TestWorkerPopulatesErrorClassification:
+    @pytest.mark.asyncio
+    async def test_handle_failure_sets_error_type(self):
+        from sagaz.core.outbox.worker import OutboxWorker
+
+        storage = InMemoryOutboxStorage()
+        broker = AsyncMock()
+        worker = OutboxWorker(storage=storage, broker=broker)
+
+        event = OutboxEvent(saga_id="s1", event_type="E", payload={}, retry_count=0)
+        await storage.insert(event)
+        await worker._handle_publish_failure(event, ConnectionError("refused"))
+
+        stored = await storage.get_by_id(event.event_id)
+        assert stored is not None
+        assert stored.error_type == "ConnectionError"
+
+    @pytest.mark.asyncio
+    async def test_handle_failure_sets_error_classification(self):
+        from sagaz.core.outbox.worker import OutboxWorker
+
+        storage = InMemoryOutboxStorage()
+        broker = AsyncMock()
+        worker = OutboxWorker(storage=storage, broker=broker)
+
+        event = OutboxEvent(saga_id="s1", event_type="E", payload={}, retry_count=0)
+        await storage.insert(event)
+        await worker._handle_publish_failure(event, ConnectionError("refused"))
+
+        stored = await storage.get_by_id(event.event_id)
+        assert stored is not None
+        assert stored.error_classification == "TRANSIENT"
+
+    @pytest.mark.asyncio
+    async def test_handle_failure_sets_error_fingerprint(self):
+        from sagaz.core.outbox.worker import OutboxWorker
+
+        storage = InMemoryOutboxStorage()
+        broker = AsyncMock()
+        worker = OutboxWorker(storage=storage, broker=broker)
+
+        event = OutboxEvent(saga_id="s1", event_type="E", payload={}, retry_count=0)
+        await storage.insert(event)
+        await worker._handle_publish_failure(event, ValueError("schema mismatch"))
+
+        stored = await storage.get_by_id(event.event_id)
+        assert stored is not None
+        assert stored.error_fingerprint is not None
+        assert len(stored.error_fingerprint) == 16
+
+    @pytest.mark.asyncio
+    async def test_move_to_dead_letter_preserves_error_classification(self):
+        from sagaz.core.outbox.worker import OutboxWorker
+
+        storage = InMemoryOutboxStorage()
+        broker = AsyncMock()
+        worker = OutboxWorker(storage=storage, broker=broker)
+
+        event = OutboxEvent(
+            saga_id="s1",
+            event_type="E",
+            payload={},
+            retry_count=10,
+            last_error="schema invalid",
+            error_type="ValueError",
+            error_classification="PERMANENT",
+            error_fingerprint="aabbccdd11223344",
+        )
+        await storage.insert(event)
+        await worker._move_to_dead_letter(event)
+
+        stored = await storage.get_by_id(event.event_id)
+        assert stored is not None
+        assert stored.error_classification == "PERMANENT"
+        assert stored.error_fingerprint == "aabbccdd11223344"
+
+
+# ===========================================================================
+# Phase 2 — replay_count field on OutboxEvent
+# ===========================================================================
+
+
+class TestOutboxEventReplayCountField:
+    def test_replay_count_defaults_to_zero(self):
+        event = OutboxEvent(saga_id="s1", event_type="Foo", payload={})
+        assert event.replay_count == 0
+
+    def test_replay_count_settable(self):
+        event = OutboxEvent(saga_id="s1", event_type="Foo", payload={}, replay_count=2)
+        assert event.replay_count == 2
+
+    def test_to_dict_includes_replay_count(self):
+        event = OutboxEvent(saga_id="s1", event_type="Foo", payload={}, replay_count=3)
+        assert event.to_dict()["replay_count"] == 3
+
+    def test_from_dict_roundtrip_preserves_replay_count(self):
+        event = OutboxEvent(saga_id="s1", event_type="Foo", payload={}, replay_count=2)
+        restored = OutboxEvent.from_dict(event.to_dict())
+        assert restored.replay_count == 2
+
+    def test_from_dict_missing_replay_count_defaults_to_zero(self):
+        raw = {"saga_id": "s1", "event_type": "Foo", "payload": {}}
+        event = OutboxEvent.from_dict(raw)
+        assert event.replay_count == 0
+
+
+# ===========================================================================
+# Phase 2 — ReplayLoopError
+# ===========================================================================
+
+
+class TestReplayLoopError:
+    def test_replay_loop_error_importable(self):
+        from sagaz.core.outbox.types import ReplayLoopError  # noqa: F401
+
+    def test_replay_loop_error_is_outbox_error(self):
+        from sagaz.core.outbox.types import OutboxError, ReplayLoopError
+
+        assert issubclass(ReplayLoopError, OutboxError)
+
+    def test_replay_loop_error_carries_event_id(self):
+        from sagaz.core.outbox.types import ReplayLoopError
+
+        err = ReplayLoopError(event_id="abc-123", replay_count=4, max_replays=3)
+        assert err.event_id == "abc-123"
+        assert err.replay_count == 4
+        assert err.max_replays == 3
+
+
+# ===========================================================================
+# Phase 2 — requeue_dead_letter_event increments replay_count and guards loop
+# ===========================================================================
+
+
+class TestRequeueReplayGuard:
+    @pytest.fixture
+    def storage(self):
+        return InMemoryOutboxStorage()
+
+    @pytest.fixture
+    def dead_event(self):
+        return OutboxEvent(
+            saga_id="s1",
+            event_type="Foo",
+            payload={},
+            status=OutboxStatus.DEAD_LETTER,
+            dead_letter_at=datetime.now(UTC),
+            dead_letter_reason="max_retries_exceeded",
+        )
+
+    @pytest.mark.asyncio
+    async def test_requeue_increments_replay_count(self, storage, dead_event):
+        await storage.insert(dead_event)
+        requeued = await storage.requeue_dead_letter_event(dead_event.event_id)
+        assert requeued.replay_count == 1
+
+    @pytest.mark.asyncio
+    async def test_requeue_second_time_increments_again(self, storage, dead_event):
+        await storage.insert(dead_event)
+        ev = await storage.requeue_dead_letter_event(dead_event.event_id)
+        # Move back to DLQ manually
+        ev.status = OutboxStatus.DEAD_LETTER
+        ev.dead_letter_at = datetime.now(UTC)
+        ev.dead_letter_reason = "failed again"
+        requeued = await storage.requeue_dead_letter_event(dead_event.event_id)
+        assert requeued.replay_count == 2
+
+    @pytest.mark.asyncio
+    async def test_requeue_raises_replay_loop_error_after_max_replays(self, storage):
+        from sagaz.core.outbox.types import ReplayLoopError
+
+        event = OutboxEvent(
+            saga_id="s1",
+            event_type="Foo",
+            payload={},
+            status=OutboxStatus.DEAD_LETTER,
+            dead_letter_at=datetime.now(UTC),
+            dead_letter_reason="max_retries_exceeded",
+            replay_count=3,
+        )
+        await storage.insert(event)
+        with pytest.raises(ReplayLoopError):
+            await storage.requeue_dead_letter_event(event.event_id)
+
+    @pytest.mark.asyncio
+    async def test_requeue_force_bypasses_replay_loop_guard(self, storage):
+        event = OutboxEvent(
+            saga_id="s1",
+            event_type="Foo",
+            payload={},
+            status=OutboxStatus.DEAD_LETTER,
+            dead_letter_at=datetime.now(UTC),
+            dead_letter_reason="max_retries_exceeded",
+            replay_count=3,
+        )
+        await storage.insert(event)
+        requeued = await storage.requeue_dead_letter_event(event.event_id, force=True)
+        assert requeued.status == OutboxStatus.PENDING
+        assert requeued.replay_count == 4
+
+    @pytest.mark.asyncio
+    async def test_default_max_replays_is_three(self, storage):
+        from sagaz.core.outbox.types import ReplayLoopError
+
+        event = OutboxEvent(
+            saga_id="s1",
+            event_type="Foo",
+            payload={},
+            status=OutboxStatus.DEAD_LETTER,
+            dead_letter_at=datetime.now(UTC),
+            dead_letter_reason="x",
+            replay_count=2,
+        )
+        await storage.insert(event)
+        # replay_count 2 → requeue → becomes 3 (not yet at limit)
+        requeued = await storage.requeue_dead_letter_event(event.event_id)
+        assert requeued.replay_count == 3
+
+        requeued.status = OutboxStatus.DEAD_LETTER
+        requeued.dead_letter_at = datetime.now(UTC)
+
+        # replay_count 3 → next call should raise
+        with pytest.raises(ReplayLoopError):
+            await storage.requeue_dead_letter_event(event.event_id)
+
+
+# ===========================================================================
+# Phase 2 — DLQReplayValidator
+# ===========================================================================
+
+
+class TestDLQReplayValidator:
+    @pytest.fixture(autouse=True)
+    def _import(self):
+        from sagaz.core.outbox.dlq_validator import DLQReplayValidator
+
+        self.Validator = DLQReplayValidator
+
+    def _make_dlq_event(self, **kwargs) -> OutboxEvent:
+        defaults = dict(
+            saga_id="s1",
+            event_type="Foo",
+            payload={},
+            status=OutboxStatus.DEAD_LETTER,
+            dead_letter_at=datetime.now(UTC),
+            dead_letter_reason="max_retries_exceeded",
+            replay_count=0,
+        )
+        defaults.update(kwargs)
+        return OutboxEvent(**defaults)
+
+    def test_can_replay_returns_true_for_fresh_event(self):
+        validator = self.Validator()
+        event = self._make_dlq_event()
+        ok, reason = validator.can_replay(event)
+        assert ok is True
+
+    def test_can_replay_returns_false_for_permanent_error(self):
+        validator = self.Validator()
+        event = self._make_dlq_event(error_classification="PERMANENT")
+        ok, reason = validator.can_replay(event)
+        assert ok is False
+        assert reason
+
+    def test_can_replay_returns_false_when_replay_count_at_limit(self):
+        validator = self.Validator(max_replays=3)
+        event = self._make_dlq_event(replay_count=3)
+        ok, reason = validator.can_replay(event)
+        assert ok is False
+        assert "replay" in reason.lower()
+
+    def test_can_replay_returns_true_for_transient_under_limit(self):
+        validator = self.Validator(max_replays=3)
+        event = self._make_dlq_event(error_classification="TRANSIENT", replay_count=1)
+        ok, reason = validator.can_replay(event)
+        assert ok is True
+
+    def test_can_replay_unknown_classification_is_allowed(self):
+        validator = self.Validator()
+        event = self._make_dlq_event(error_classification="UNKNOWN")
+        ok, _ = validator.can_replay(event)
+        assert ok is True
+
+    def test_can_replay_result_is_tuple_of_bool_and_str(self):
+        validator = self.Validator()
+        event = self._make_dlq_event()
+        result = validator.can_replay(event)
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[0], bool)
+        assert isinstance(result[1], str)
+
+
+# ===========================================================================
+# Phase 2 — OUTBOX_REPLAY_LOOP_DETECTED Prometheus counter
+# ===========================================================================
+
+
+class TestReplayLoopPrometheusCounter:
+    def test_replay_loop_counter_exists_when_prometheus_available(self):
+        pytest.importorskip("prometheus_client")
+        import sagaz.core.outbox.worker as worker_mod
+
+        assert hasattr(worker_mod, "OUTBOX_REPLAY_LOOP_DETECTED"), (
+            "OUTBOX_REPLAY_LOOP_DETECTED counter must be defined in sagaz.core.outbox.worker"
+        )
