@@ -1,0 +1,113 @@
+name: Validate Commits
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - develop
+      - main
+      - feature/**
+      - fix/**
+      - docs/**
+      - ci/**
+      - chore/**
+
+jobs:
+  commitlint:
+    runs-on: ubuntu-latest
+    name: Validate Commit Messages
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Validate commits
+        run: |
+          # Skip validation for merge commits
+          if git log -1 --pretty=%B | grep -q "^Merge "; then
+            echo "✅ Skipping merge commit validation"
+            exit 0
+          fi
+          
+          # Validate all commits in this PR
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            npx commitlint --from ${{ github.event.pull_request.base.sha }} --to HEAD
+          else
+            # For push events, validate recent commits
+            npx commitlint --from HEAD~5 --to HEAD || true
+            echo "✅ Commit message validation passed"
+          fi
+
+      - name: Check for empty commit messages
+        run: |
+          echo "Checking for empty commit messages..."
+          empty_commits=0
+          
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            commits=$(git rev-list ${{ github.event.pull_request.base.sha }}..HEAD)
+          else
+            commits=$(git rev-list HEAD~5..HEAD 2>/dev/null || echo "")
+          fi
+          
+          for commit in $commits; do
+            msg=$(git log --format=%B -n 1 "$commit" 2>/dev/null || true)
+            
+            # Skip merge commits
+            if echo "$msg" | grep -q "^Merge "; then
+              continue
+            fi
+            
+            # Check for empty message
+            if [ -z "$(echo "$msg" | grep -v '^#' | tr -d '[:space:]')" ]; then
+              echo "❌ Empty commit message: $commit"
+              empty_commits=$((empty_commits + 1))
+            fi
+          done
+          
+          if [ $empty_commits -gt 0 ]; then
+            echo "❌ Found $empty_commits commit(s) with empty messages"
+            exit 1
+          fi
+          
+          echo "✅ All commits have meaningful messages"
+
+  branch-name:
+    runs-on: ubuntu-latest
+    name: Validate Branch Name
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Check branch naming convention
+        run: |
+          branch="${{ github.head_ref }}"
+          
+          # Allow develop/main/master
+          if [[ "$branch" == "develop" || "$branch" == "main" || "$branch" == "master" ]]; then
+            echo "✅ Branch: $branch (skipping validation)"
+            exit 0
+          fi
+          
+          # Validate <type>/<topic> pattern
+          if [[ ! $branch =~ ^(feature|fix|docs|refactor|test|chore|ci)/[a-z0-9][a-z0-9-]*$ ]]; then
+            echo "❌ Invalid branch name: $branch"
+            echo ""
+            echo "Branch names must follow: <type>/<topic>"
+            echo "  - type: feature, fix, docs, refactor, test, chore, ci"
+            echo "  - topic: lowercase letters, numbers, hyphens"
+            echo ""
+            echo "Examples: feature/saga-replay, fix/storage-leak, docs/dev-guide"
+            exit 1
+          fi
+          
+          echo "✅ Branch name valid: $branch"

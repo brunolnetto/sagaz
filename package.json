@@ -3,8 +3,15 @@
   "version": "1.1.2",
   "private": true,
   "description": "Commitlint tooling for sagaz",
+  "scripts": {
+    "prepare": "husky install",
+    "hooks:install": "husky install",
+    "hooks:uninstall": "husky uninstall",
+    "validate:commits": "commitlint --from HEAD~10 --to HEAD"
+  },
   "devDependencies": {
     "@commitlint/cli": "^20.0.0",
-    "@commitlint/config-conventional": "^20.0.0"
+    "@commitlint/config-conventional": "^20.0.0",
+    "husky": "^9.1.7"
   }
 }
