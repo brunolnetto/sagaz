@@ -135,7 +135,6 @@ from sagaz.dry_run import (
     ValidationResult,
 )
 
-
 # =============================================================================
 # Versioning & Schema Evolution (ADR-018)
 # =============================================================================
@@ -150,7 +149,6 @@ from sagaz.versioning import (
     VersionAlreadyRegisteredError,
 )
 from sagaz.versioning.version import Version
-
 
 __all__ = [
     "CircularDependencyError",
