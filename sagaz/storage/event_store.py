@@ -111,8 +111,7 @@ class SQLiteEventStore:
     async def load_stream_after(self, saga_id: str, *, after_sequence: int) -> list[SagaEvent]:
         """Return events for *saga_id* whose sequence number exceeds *after_sequence*."""
         rows = self._conn.execute(
-            "SELECT event_type, payload FROM saga_events"
-            " WHERE saga_id = ? AND id > ? ORDER BY id",
+            "SELECT event_type, payload FROM saga_events WHERE saga_id = ? AND id > ? ORDER BY id",
             (saga_id, after_sequence),
         ).fetchall()
         return [self._deserialise(event_type, payload) for event_type, payload in rows]
