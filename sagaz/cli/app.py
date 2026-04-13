@@ -24,15 +24,12 @@ from sagaz.cli._setup_handlers import (
     _execute_setup,
     _gather_setup_configuration,
 )
-from sagaz.cli.dlq import dlq_cli
+from sagaz.cli.deploy import deploy_cmd, destroy_cmd
 from sagaz.cli.dry_run import simulate_cmd, validate_cmd
-from sagaz.cli.migrate import migrate_cmd
 from sagaz.cli.project import check as check_cmd
 from sagaz.cli.project import list_sagas
 from sagaz.cli.replay import replay
-from sagaz.cli.visualize import visualize_cmd
 
-from sagaz.cli.deploy import deploy_cmd, destroy_cmd
 try:
     from rich.console import Console
     from rich.panel import Panel
@@ -404,7 +401,7 @@ def dev_cmd(detach: bool):
         cmd.append("-d")
 
     click.echo("Starting development environment...")
-    subprocess.run(cmd, check=False)
+    subprocess.run(cmd)
 
 
 # ============================================================================
@@ -420,7 +417,7 @@ def stop_cmd():
         sys.exit(1)
 
     click.echo("Stopping development environment...")
-    subprocess.run(["docker", "compose", "down"], check=False)
+    subprocess.run(["docker", "compose", "down"])
 
 
 # ============================================================================
@@ -442,10 +439,7 @@ def status_cmd():
 
         # Check Docker Compose services
         result = subprocess.run(
-            ["docker", "compose", "ps", "--format", "json"],
-            capture_output=True,
-            text=True,
-            check=False,
+            ["docker", "compose", "ps", "--format", "json"], capture_output=True, text=True
         )
 
         if result.returncode == 0 and result.stdout.strip():
@@ -465,7 +459,7 @@ def status_cmd():
 
         console.print(table)
     else:
-        subprocess.run(["docker", "compose", "ps"], check=False)
+        subprocess.run(["docker", "compose", "ps"])
 
 
 # ============================================================================
@@ -550,10 +544,10 @@ asyncio.run(main())
         ]
 
     # Run benchmark
-    result = subprocess.run(cmd, capture_output=output is not None, check=False)
+    result = subprocess.run(cmd, capture_output=output is not None)
 
     if output and result.returncode == 0:
-        Path(output).write_text(result.stdout.decode() if result.stdout else "", encoding="utf-8")
+        Path(output).write_text(result.stdout.decode() if result.stdout else "")
         click.echo(f"Results saved to {output}")
 
     return result.returncode
@@ -590,11 +584,11 @@ def logs_cmd(saga_id: str, follow: bool, service: str):
     if saga_id:
         # Filter logs by saga ID using grep
         click.echo(f"Searching for saga: {saga_id}")
-        with subprocess.Popen(cmd, stdout=subprocess.PIPE) as p1:
-            with subprocess.Popen(["grep", saga_id], stdin=p1.stdout) as p2:
-                p2.wait()
+        p1 = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+        p2 = subprocess.Popen(["grep", saga_id], stdin=p1.stdout)
+        p2.wait()
     else:
-        subprocess.run(cmd, check=False)
+        subprocess.run(cmd)
 
 
 # ============================================================================
@@ -711,14 +705,9 @@ cli.add_command(stop_cmd, name="stop")
 cli.add_command(benchmark_cmd, name="benchmark")
 
 # Utilities
-cli.add_command(visualize_cmd, name="visualize")
 cli.add_command(version_cmd, name="version")
 
-# DLQ Management
-cli.add_command(dlq_cli, name="dlq")
-
 # State Modification (Highest Risk)
-cli.add_command(migrate_cmd, name="migrate")
 cli.add_command(replay, name="replay")
 
 if __name__ == "__main__":
