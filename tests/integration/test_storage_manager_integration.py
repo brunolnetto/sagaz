@@ -289,8 +289,8 @@ class TestStorageManagerSQLiteIntegration:
         """File-based SQLite DB survives close+reopen (durability check)."""
         pytest.importorskip("aiosqlite")
 
-        from sagaz.core.types import SagaStatus
         from sagaz.core.storage.manager import StorageManager
+        from sagaz.core.types import SagaStatus
 
         db_path = tmp_path / "sagas_test.db"
         url = f"sqlite:///{db_path}"
