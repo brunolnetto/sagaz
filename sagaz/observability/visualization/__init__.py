@@ -42,4 +42,3 @@ def publish_event(event) -> None:
     from sagaz.observability.visualization.server import publish_event as _publish_event
 
     _publish_event(event)
-
