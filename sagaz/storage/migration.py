@@ -151,5 +151,10 @@ class SagaStorageMigrator:
         return vr
 
 
-__all__ = ["MigrationResult", "SagaStorageMigrator", "TransferResult", "VerificationResult", "transfer_data"]
-
+__all__ = [
+    "MigrationResult",
+    "SagaStorageMigrator",
+    "TransferResult",
+    "VerificationResult",
+    "transfer_data",
+]
