@@ -908,3 +908,208 @@ class TestReplayLoopPrometheusCounter:
         assert hasattr(worker_mod, "OUTBOX_REPLAY_LOOP_DETECTED"), (
             "OUTBOX_REPLAY_LOOP_DETECTED counter must be defined in sagaz.core.outbox.worker"
         )
+
+
+# ===========================================================================
+# Coverage — CLI duration parsing & rich fallback
+# ===========================================================================
+
+
+class TestCLIDurationParsing:
+    """Test _parse_duration helper in sagaz.cli.dlq."""
+
+    def test_parse_duration_days(self):
+        from sagaz.cli.dlq import _parse_duration
+
+        dur = _parse_duration("7d")
+        assert dur.days == 7
+
+    def test_parse_duration_hours(self):
+        from sagaz.cli.dlq import _parse_duration
+
+        dur = _parse_duration("24h")
+        assert dur.total_seconds() == 86400
+
+    def test_parse_duration_minutes(self):
+        from sagaz.cli.dlq import _parse_duration
+
+        dur = _parse_duration("30m")
+        assert dur.total_seconds() == 1800
+
+    def test_parse_duration_invalid_unit(self):
+        """Coverage: lines 51-53 in dlq.py (invalid duration unit error)."""
+        from click.exceptions import BadParameter
+
+        from sagaz.cli.dlq import _parse_duration
+
+        with pytest.raises(BadParameter):
+            _parse_duration("7x")
+
+    def test_parse_duration_malformed(self):
+        from click.exceptions import BadParameter
+
+        from sagaz.cli.dlq import _parse_duration
+
+        with pytest.raises((BadParameter, ValueError)):
+            _parse_duration("xyz")
+
+
+class TestCLIRichFallback:
+    """Coverage: basic CLI module structure (fallback is implicit in importability)."""
+
+    def test_cli_module_importable(self):
+        """Verify CLI dlq module has rich fallback with proper attributes."""
+        from sagaz.cli import dlq as dlq_mod
+
+        # Verify module has expected attributes
+        assert hasattr(dlq_mod, "console"), "dlq module should have console attribute"
+        assert hasattr(dlq_mod, "Table"), "dlq module should have Table attribute"
+        assert hasattr(dlq_mod, "_parse_duration"), "dlq module should have _parse_duration"
+        assert hasattr(dlq_mod, "_get_storage"), "dlq module should have _get_storage"
+
+        # Verify console is Console instance or None (depends on rich availability)
+        # Either rich is imported and console is a Console object, OR it failed and is None
+        from rich.console import Console
+        assert isinstance(dlq_mod.console, (Console, type(None))), \
+            "console should be either a Console instance or None"
+        assert dlq_mod.Table is None or hasattr(dlq_mod.Table, "__mro__"), \
+            "Table should be None or a class"
+
+    def test_get_storage_returns_in_memory_storage(self):
+        """Test: _get_storage() returns InMemoryOutboxStorage instance."""
+        from sagaz.cli.dlq import _get_storage
+        from sagaz.core.storage.backends.memory.outbox import InMemoryOutboxStorage
+
+        storage = _get_storage()
+        assert isinstance(storage, InMemoryOutboxStorage)
+
+
+# ===========================================================================
+# Coverage — OutboxStorage base class NotImplementedError
+# ===========================================================================
+
+
+class TestOutboxStorageBaseClassNotImplemented:
+    """Coverage: lines 370, 388 in storage/interfaces/outbox.py."""
+
+    @pytest.mark.asyncio
+    async def test_base_requeue_raises_not_implemented(self):
+        """Create a concrete subclass that doesn't override the DLQ methods."""
+        from sagaz.core.storage.interfaces.outbox import OutboxStorage
+
+        class MinimalStorage(OutboxStorage):
+            """Implements all abstract methods except DLQ ones."""
+
+            async def insert(self, event: OutboxEvent) -> OutboxEvent:
+                return event
+
+            async def get_by_id(self, event_id: str) -> OutboxEvent | None:
+                return None
+
+            async def get_events_by_saga(self, saga_id: str):
+                return []
+
+            async def claim_batch(self, worker_id: str, batch_size: int):
+                return []
+
+            async def update_status(self, event_id: str, status, error_message: str | None = None):
+                return None
+
+            async def get_pending_count(self) -> int:
+                return 0
+
+            async def release_stuck_events(self, claimed_older_than_seconds: float) -> int:
+                return 0
+
+            async def get_stuck_events(self, older_than_seconds: float):
+                return []
+
+            async def get_dead_letter_events(self):
+                return []
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                pass
+
+        storage = MinimalStorage()
+        with pytest.raises(NotImplementedError):
+            await storage.requeue_dead_letter_event("event-id")
+
+    @pytest.mark.asyncio
+    async def test_base_purge_raises_not_implemented(self):
+        """Test that base purge_dead_letter_events raises NotImplementedError."""
+        from sagaz.core.storage.interfaces.outbox import OutboxStorage
+
+        class MinimalStorage(OutboxStorage):
+            async def insert(self, event: OutboxEvent) -> OutboxEvent:
+                return event
+
+            async def get_by_id(self, event_id: str) -> OutboxEvent | None:
+                return None
+
+            async def get_events_by_saga(self, saga_id: str):
+                return []
+
+            async def claim_batch(self, worker_id: str, batch_size: int):
+                return []
+
+            async def update_status(self, event_id: str, status, error_message: str | None = None):
+                return None
+
+            async def get_pending_count(self) -> int:
+                return 0
+
+            async def release_stuck_events(self, claimed_older_than_seconds: float) -> int:
+                return 0
+
+            async def get_stuck_events(self, older_than_seconds: float):
+                return []
+
+            async def get_dead_letter_events(self):
+                return []
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                pass
+
+        storage = MinimalStorage()
+        with pytest.raises(NotImplementedError):
+            await storage.purge_dead_letter_events()
+
+
+# ===========================================================================
+# Coverage — InMemoryOutboxStorage edge cases
+# ===========================================================================
+
+
+class TestInMemoryOutboxStoragePurgeEdgeCases:
+    """Coverage: line 245 in backends/memory/outbox.py (skip non-DEAD_LETTER events)."""
+
+    @pytest.mark.asyncio
+    async def test_purge_skips_non_dead_letter_events(self):
+        """Purge should skip events that are not in DEAD_LETTER status."""
+        from sagaz.core.outbox.types import OutboxStatus
+
+        storage = InMemoryOutboxStorage()
+
+        # Create an event in PENDING status (not DEAD_LETTER)
+        event = OutboxEvent(
+            saga_id="s1",
+            event_type="Regular",
+            payload={},
+            status=OutboxStatus.PENDING,
+        )
+        await storage.insert(event)
+
+        # Purge without time cutoff
+        count = await storage.purge_dead_letter_events()  # No older_than filter
+        assert count == 0  # Event not purged (not in DEAD_LETTER status)
+
+        # Verify it's still there
+        result = await storage.get_by_id(event.event_id)
+        assert result is not None
+        assert result.event_id == event.event_id
