@@ -290,7 +290,7 @@ class TestStorageManagerSQLiteIntegration:
         pytest.importorskip("aiosqlite")
 
         from sagaz.core.types import SagaStatus
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.storage.manager import StorageManager
 
         db_path = tmp_path / "sagas_test.db"
         url = f"sqlite:///{db_path}"
@@ -319,8 +319,8 @@ class TestStorageManagerSQLiteIntegration:
         """File-based SQLite outbox events survive close+reopen."""
         pytest.importorskip("aiosqlite")
 
-        from sagaz.outbox.types import OutboxEvent
-        from sagaz.storage.manager import StorageManager
+        from sagaz.core.outbox.types import OutboxEvent
+        from sagaz.core.storage.manager import StorageManager
 
         db_path = tmp_path / "outbox_test.db"
         url = f"sqlite:///{db_path}"
