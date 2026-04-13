@@ -709,7 +709,9 @@ _COST_ESTIMATES = {
     help="Cloud provider to deploy to (aws, gcp, k8s).",
 )
 @click.option("--namespace", default="sagaz", show_default=True, help="Kubernetes namespace.")
-@click.option("--dry-run", is_flag=True, default=False, help="Preview commands without running them.")
+@click.option(
+    "--dry-run", is_flag=True, default=False, help="Preview commands without running them."
+)
 @click.option("--cost-estimate", is_flag=True, default=False, help="Show cost estimate and exit.")
 def deploy_cmd(provider: str, namespace: str, dry_run: bool, cost_estimate: bool) -> None:
     """Deploy Sagaz to a cloud provider.
