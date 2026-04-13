@@ -970,10 +970,13 @@ class TestCLIRichFallback:
         # Verify console is Console instance or None (depends on rich availability)
         # Either rich is imported and console is a Console object, OR it failed and is None
         from rich.console import Console
-        assert isinstance(dlq_mod.console, (Console, type(None))), \
+
+        assert isinstance(dlq_mod.console, (Console, type(None))), (
             "console should be either a Console instance or None"
-        assert dlq_mod.Table is None or hasattr(dlq_mod.Table, "__mro__"), \
+        )
+        assert dlq_mod.Table is None or hasattr(dlq_mod.Table, "__mro__"), (
             "Table should be None or a class"
+        )
 
     def test_get_storage_returns_in_memory_storage(self):
         """Test: _get_storage() returns InMemoryOutboxStorage instance."""

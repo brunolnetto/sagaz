@@ -22,9 +22,7 @@ class MissingDependencyError(Exception):
         self.package = package
         self.feature = feature
 
-        install_cmd = self._get_install_commands().get(
-            package, f"pip install {package}"
-        )
+        install_cmd = self._get_install_commands().get(package, f"pip install {package}")
 
         if feature:
             message = (
