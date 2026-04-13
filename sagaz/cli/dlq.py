@@ -48,7 +48,7 @@ def _get_storage():
     environment variables.  For CLI use we fall back to an ephemeral
     in-memory store so the commands are always importable.
     """
-    from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
+    from sagaz.core.storage.backends.memory.outbox import InMemoryOutboxStorage
 
     return InMemoryOutboxStorage()
 
