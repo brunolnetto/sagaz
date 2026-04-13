@@ -69,5 +69,5 @@ def create_error_fingerprint(message: str) -> str:
     normalised = message.strip().lower()
     for pattern, replacement in _NORMALISATION_PATTERNS:
         normalised = pattern.sub(replacement, normalised)
-    digest = hashlib.md5(normalised.encode(), usedforsecurity=False).hexdigest()  # noqa: S324
+    digest = hashlib.md5(normalised.encode(), usedforsecurity=False).hexdigest()
     return digest[:16]
