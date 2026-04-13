@@ -180,7 +180,7 @@ def _display_configuration_summary(config: dict):
             f"  Metrics: {'[green]Yes[/green]' if config['with_metrics'] else '[dim]No[/dim]'}\n"
             f"  Tracing: {'[green]Yes[/green]' if config['with_tracing'] else '[dim]No[/dim]'}\n"
             f"  Logging: {'[green]Yes[/green]' if config['with_logging'] else '[dim]No[/dim]'}\n"
-            f"  Benchmarks: {'[green]Yes[/green]' if config['with_benchmarks'] else '[dim]No[/dim]'}\n"
+            f"  Benchmarks: {'[green]Yes[/green]' if config['with_benchmarks'] else '[dim]No[/dim]'}\n"  # noqa: E501
             f"  Dev Mode: {'[yellow]Yes[/yellow]' if config['dev_mode'] else '[dim]No[/dim]'}"
         )
     else:
