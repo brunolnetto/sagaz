@@ -24,10 +24,10 @@ from sagaz.cli._setup_handlers import (
     _execute_setup,
     _gather_setup_configuration,
 )
+from sagaz.cli.dlq import dlq_cli
 from sagaz.cli.dry_run import simulate_cmd, validate_cmd
 from sagaz.cli.project import check as check_cmd
 from sagaz.cli.project import list_sagas
-from sagaz.cli.dlq import dlq_cli
 from sagaz.cli.replay import replay
 
 try:
