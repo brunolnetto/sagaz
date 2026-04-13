@@ -195,7 +195,7 @@ class InMemoryOutboxStorage(OutboxStorage):
         )
         await self.insert(event)
 
-    async def requeue_dead_letter_event(self, event_id: str, force: bool = False) -> "OutboxEvent":
+    async def requeue_dead_letter_event(self, event_id: str, force: bool = False) -> OutboxEvent:
         """Move a DLQ event back to PENDING for reprocessing.
 
         Args:
@@ -210,17 +210,17 @@ class InMemoryOutboxStorage(OutboxStorage):
         """
         from sagaz.core.outbox.types import ReplayLoopError
 
-        _MAX_REPLAYS = 3
+        max_replays = 3
         outbox_status_cls = _get_outbox_status()
         event = self._events.get(event_id)
         if event is None:
             msg = f"Event {event_id} not found"
             raise KeyError(msg)
-        if not force and event.replay_count >= _MAX_REPLAYS:
+        if not force and event.replay_count >= max_replays:
             raise ReplayLoopError(
                 event_id=event_id,
                 replay_count=event.replay_count,
-                max_replays=_MAX_REPLAYS,
+                max_replays=max_replays,
             )
         event.replay_count += 1
         event.status = outbox_status_cls.PENDING
