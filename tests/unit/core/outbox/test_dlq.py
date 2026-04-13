@@ -841,15 +841,15 @@ class TestDLQReplayValidator:
         self.Validator = DLQReplayValidator
 
     def _make_dlq_event(self, **kwargs) -> OutboxEvent:
-        defaults = dict(
-            saga_id="s1",
-            event_type="Foo",
-            payload={},
-            status=OutboxStatus.DEAD_LETTER,
-            dead_letter_at=datetime.now(UTC),
-            dead_letter_reason="max_retries_exceeded",
-            replay_count=0,
-        )
+        defaults = {
+            "saga_id": "s1",
+            "event_type": "Foo",
+            "payload": {},
+            "status": OutboxStatus.DEAD_LETTER,
+            "dead_letter_at": datetime.now(UTC),
+            "dead_letter_reason": "max_retries_exceeded",
+            "replay_count": 0,
+        }
         defaults.update(kwargs)
         return OutboxEvent(**defaults)
 
