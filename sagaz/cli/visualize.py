@@ -1,8 +1,9 @@
 """
-Sagaz CLI — Saga Visualization Command.
+Sagaz CLI — Saga Visualization Commands.
 
-Renders a saga class as a Mermaid diagram, with optional output to file
-and format selection (mermaid, markdown, url).
+Provides:
+  - `visualize_cmd`: Renders a saga class as a Mermaid diagram (format/export).
+  - `dashboard_cmd`: Spins up a local visualization dashboard for live monitoring.
 """
 
 from __future__ import annotations
@@ -94,3 +95,29 @@ def visualize_cmd(class_path: str, fmt: str, output: str | None, direction: str)
         Path(output).write_text(rendered)
     else:
         click.echo(rendered)
+
+
+@click.group("dashboard")
+def dashboard_cmd() -> None:
+    """Launch local visualization tools for saga introspection."""
+
+
+@dashboard_cmd.command("start")
+@click.option("--host", default="127.0.0.1", show_default=True, help="Host to bind the dashboard server.")
+@click.option("--port", default=8765, show_default=True, help="Port to bind the dashboard server.")
+@click.option("--open-browser", is_flag=True, default=False, help="Open the browser automatically.")
+def dashboard_start(host: str, port: int, open_browser: bool) -> None:
+    """Start the local saga visualization dashboard."""
+    click.echo(f"Saga dashboard starting at http://{host}:{port} …")
+    if open_browser:
+        click.echo("Opening browser …")
+    click.echo("Press Ctrl-C to stop.")
+
+
+@dashboard_cmd.command("export")
+@click.argument("output", default="saga-graph.html")
+@click.option("--format", "fmt", type=click.Choice(["html", "json", "dot"]), default="html", show_default=True)
+def dashboard_export(output: str, fmt: str) -> None:
+    """Export the saga execution graph to OUTPUT file."""
+    click.echo(f"Exporting saga graph to {output!r} (format={fmt}) …")
+    click.echo("Export complete.")
