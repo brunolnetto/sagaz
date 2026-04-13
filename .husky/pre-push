@@ -1,8 +1,6 @@
 #!/bin/bash
 # Pre-push hook: validate branch naming and commit messages before push
 
-set -e  # Exit on any error
-
 remote="$1"
 url="$2"
 
@@ -10,12 +8,15 @@ url="$2"
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 
 # Allow pushing to develop and main without validation (CI handles it)
-if [[ "$current_branch" == "develop" || "$current_branch" == "main" || "$current_branch" == "master" ]]; then
-  exit 0
-fi
+case "$current_branch" in
+  develop|main|master)
+    exit 0
+    ;;
+esac
 
 # Validate branch naming convention: <type>/<topic>
-if ! [[ $current_branch =~ ^(feature|fix|docs|refactor|test|chore|ci)/[a-z0-9][a-z0-9-]*$ ]]; then
+# Check if branch matches pattern: type/topic (where type is feature, fix, docs, refactor, test, chore, or ci)
+if ! echo "$current_branch" | grep -E '^(feature|fix|docs|refactor|test|chore|ci)/[a-z0-9][a-z0-9-]*$' > /dev/null; then
   echo "❌ INVALID BRANCH NAME: $current_branch"
   echo ""
   echo "Branch names must follow: <type>/<topic>"
@@ -38,7 +39,7 @@ if [ -z "$commits" ]; then
 fi
 
 # Validate each commit message (skip merge commits)
-while IFS= read -r commit; do
+echo "$commits" | while read -r commit; do
   if [ -z "$commit" ]; then
     continue
   fi
@@ -51,12 +52,13 @@ while IFS= read -r commit; do
   fi
   
   # Check for empty message
-  if [ -z "$(echo "$msg" | grep -v '^#' | tr -d '[:space:]')" ]; then
+  empty_check=$(echo "$msg" | grep -v '^#' | tr -d '[:space:]' 2>/dev/null)
+  if [ -z "$empty_check" ]; then
     echo "❌ EMPTY COMMIT MESSAGE: $commit"
     echo "   All commits must have meaningful messages."
     exit 1
   fi
-done <<< "$commits"
+done
 
 echo "✅ Branch naming and commit validation passed"
 exit 0
