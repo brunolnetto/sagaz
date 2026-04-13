@@ -38,7 +38,10 @@ _NORMALISATION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     # Pure numbers (standalone integers)
     (re.compile(r"\b\d+\b"), "<N>"),
     # UUIDs
-    (re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.I), "<UUID>"),
+    (
+        re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.I),
+        "<UUID>",
+    ),
 ]
 
 
