@@ -201,7 +201,7 @@ class SQLiteSagaStorage(SagaStorage):
 
     def _row_to_dict(self, row: aiosqlite.Row) -> dict[str, Any]:
         """Convert database row to dictionary."""
-        config_raw = row["configuration"] if "configuration" in row.keys() else None
+        config_raw = row["configuration"] if "configuration" in row else None
         return {
             "saga_id": row["saga_id"],
             "saga_name": row["saga_name"],
