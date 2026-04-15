@@ -112,6 +112,7 @@ class ContainerManager:
             from testcontainers.rabbitmq import RabbitMqContainer
 
             c = RabbitMqContainer("rabbitmq:3.12-alpine")
+            # Note: RabbitMqContainer does not accept timeout parameter (unlike KafkaContainer)
             c.start()
             return c
 
