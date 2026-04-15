@@ -1,0 +1,101 @@
+# Sagaz AlertManager Rules
+#
+# Load this file into your AlertManager / Prometheus configuration:
+#
+#   rule_files:
+#     - "alertmanager-rules.yml"
+#
+# Each group covers a different operational concern.
+# Thresholds are conservative starting points — tune them to your SLOs.
+
+groups:
+  # ---------------------------------------------------------------------------
+  # Saga Execution
+  # ---------------------------------------------------------------------------
+  - name: sagaz.execution
+    interval: 1m
+    rules:
+      - alert: SagazCompensationRateHigh
+        expr: |
+          (
+            rate(saga_compensations_total[5m])
+            /
+            rate(saga_execution_total[5m])
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Saga compensation rate is above 5 %"
+          description: >
+            The ratio of compensations to total executions has exceeded 5 % over
+            the last 5 minutes, which may indicate a systemic failure in downstream
+            services or a recent deployment regression.
+          runbook_url: "https://brunolnetto.github.io/sagaz/monitoring/alerting/#SagazCompensationRateHigh"
+
+      - alert: SagazSagaFailureRateHigh
+        expr: |
+          (
+            rate(saga_execution_total{status="failed"}[15m])
+            /
+            rate(saga_execution_total[15m])
+          ) > 0.01
+        for: 15m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Saga failure rate is above 1 %"
+          description: >
+            More than 1 % of saga executions have failed over the last 15 minutes.
+            Investigate recent deployments, third-party service health, and saga logs.
+          runbook_url: "https://brunolnetto.github.io/sagaz/monitoring/alerting/#SagazSagaFailureRateHigh"
+
+      - alert: SagazExecutionLatencyHigh
+        expr: |
+          histogram_quantile(0.99, rate(saga_execution_duration_seconds_bucket[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Saga p99 execution latency exceeds 5 s"
+          description: >
+            The 99th-percentile saga execution duration has exceeded 5 seconds for
+            the last 5 minutes.  Check for slow compensations, network latency spikes,
+            or resource contention.
+          runbook_url: "https://brunolnetto.github.io/sagaz/monitoring/alerting/#SagazExecutionLatencyHigh"
+
+  # ---------------------------------------------------------------------------
+  # Outbox / Dead Letter Queue
+  # ---------------------------------------------------------------------------
+  - name: sagaz.outbox
+    interval: 1m
+    rules:
+      - alert: SagazDLQDepthHigh
+        expr: sagaz_dlq_depth > 100
+        for: 2m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Dead Letter Queue depth exceeds 100 events"
+          description: >
+            The DLQ currently contains more than 100 events.  Use
+            `sagaz dlq list` to inspect them and `sagaz dlq replay --all`
+            to re-queue after the root cause has been resolved.
+          runbook_url: "https://brunolnetto.github.io/sagaz/monitoring/alerting/#SagazDLQDepthHigh"
+
+      - alert: SagazOutboxLagHigh
+        expr: outbox_pending_events_total > 500
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Outbox has more than 500 unprocessed events"
+          description: >
+            The outbox pending-events gauge has been above 500 for 10 minutes.
+            Check outbox worker health (`sagaz status`) and broker connectivity.
+          runbook_url: "https://brunolnetto.github.io/sagaz/monitoring/alerting/#SagazOutboxLagHigh"
