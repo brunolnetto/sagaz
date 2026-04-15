@@ -86,10 +86,13 @@ jobs:
           cache-dependency-glob: "uv.lock"
 
       - name: Install dependencies
-        run: uv sync  # Only install main + test dependencies (skip dev)
+        run: |
+          # Install only production and test dependencies (exclude dev)
+          uv pip install -e .[storage,integration-tests]
+          uv pip install pytest pytest-asyncio
 
       - name: Run tests
-        run: uv run pytest tests/ -x -q --tb=short
+        run: pytest tests/ -x -q --tb=short
 
   # Build and publish to PyPI
   publish:
