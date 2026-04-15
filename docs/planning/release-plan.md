@@ -56,17 +56,19 @@ Wave 5  ─── v2.0.0 ──────── Core extensions               
 
 **Target**: May 2026  
 **Risk**: Low — extends `sagaz/storage/` and `sagaz/outbox/` only  
-**Merge order**: #62 → #63 → #60
+**Merge order**: #62 → #63 → #60 → feature/statechart-saga-state-management
 
 | PR | Branch | Feature | Issue | Merge pre-req |
 |----|--------|---------|-------|--------------|
 | #62 | feature/sqlite-backend | SQLite storage + outbox backend | #46 | none |
 | #63 | feature/storage-data-transfer | Storage migration/transfer layer | #47 | #62 (SQLite src/dst) |
 | #60 | feature/dead-letter-queue | Dead Letter Queue (DLQ) pattern | #44 | none |
+| *(new)* | feature/statechart-saga-state-management | StateChart migration + `configuration` storage field (ADR-038 Phase 1) | #188 | #62 (SQLite schema) |
 
 **Gap watch** (from review report):
 - #62: no unit tests — add before merge (see issue #105)
 - #60: no fill-and-replay integration test — add before merge (see issue #106)
+- ADR-038 Phase 1: verify `SagaSnapshot.create` accepts `configuration` kwarg; add round-trip tests for all 4 storage backends
 
 ---
 

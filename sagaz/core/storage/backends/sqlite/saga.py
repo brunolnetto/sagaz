@@ -148,20 +148,23 @@ class SQLiteSagaStorage(SagaStorage):
         steps: list[dict[str, Any]],
         context: dict[str, Any],
         metadata: dict[str, Any] | None = None,
+        configuration: list[str] | None = None,
     ) -> None:
         """Save or update saga state."""
         conn = await self._get_connection()
         now = datetime.now(UTC).isoformat()
 
         status_str = status.value if isinstance(status, SagaStatus) else status
+        effective_config = configuration if configuration is not None else [status_str]
 
         await conn.execute(
             """
-            INSERT INTO sagas (saga_id, saga_name, status, steps, context, metadata, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO sagas (saga_id, saga_name, status, configuration, steps, context, metadata, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(saga_id) DO UPDATE SET
                 saga_name = excluded.saga_name,
                 status = excluded.status,
+                configuration = excluded.configuration,
                 steps = excluded.steps,
                 context = excluded.context,
                 metadata = excluded.metadata,
@@ -171,6 +174,7 @@ class SQLiteSagaStorage(SagaStorage):
                 saga_id,
                 saga_name,
                 status_str,
+                serialize(effective_config),
                 serialize(steps),
                 serialize(context),
                 serialize(metadata) if metadata else None,
@@ -197,10 +201,12 @@ class SQLiteSagaStorage(SagaStorage):
 
     def _row_to_dict(self, row: aiosqlite.Row) -> dict[str, Any]:
         """Convert database row to dictionary."""
+        config_raw = row["configuration"] if "configuration" in row.keys() else None
         return {
             "saga_id": row["saga_id"],
             "saga_name": row["saga_name"],
             "status": row["status"],
+            "configuration": deserialize(config_raw) if config_raw else [row["status"]],
             "steps": deserialize(row["steps"]),
             "context": deserialize(row["context"]),
             "metadata": deserialize(row["metadata"]) if row["metadata"] else None,

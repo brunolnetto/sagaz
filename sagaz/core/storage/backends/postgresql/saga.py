@@ -134,22 +134,25 @@ class PostgreSQLSagaStorage(SagaStorage):
         steps: list[dict[str, Any]],
         context: dict[str, Any],
         metadata: dict[str, Any] | None = None,
+        configuration: list[str] | None = None,
     ) -> None:
         """Save saga state to PostgreSQL"""
 
         pool = await self._get_pool()
+        effective_config = configuration if configuration is not None else [status.value]
 
         async with pool.acquire() as conn:
             async with conn.transaction():
                 # Upsert saga record
                 await conn.execute(
                     """
-                    INSERT INTO sagas (saga_id, saga_name, status, context, metadata, updated_at)
-                    VALUES ($1, $2, $3, $4, $5, NOW())
+                    INSERT INTO sagas (saga_id, saga_name, status, configuration, context, metadata, updated_at)
+                    VALUES ($1, $2, $3, $4, $5, $6, NOW())
                     ON CONFLICT (saga_id)
                     DO UPDATE SET
                         saga_name = EXCLUDED.saga_name,
                         status = EXCLUDED.status,
+                        configuration = EXCLUDED.configuration,
                         context = EXCLUDED.context,
                         metadata = EXCLUDED.metadata,
                         updated_at = NOW()
@@ -157,6 +160,7 @@ class PostgreSQLSagaStorage(SagaStorage):
                     saga_id,
                     saga_name,
                     status.value,
+                    json.dumps(effective_config),
                     json.dumps(context),
                     json.dumps(metadata or {}),
                 )

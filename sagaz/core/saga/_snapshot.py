@@ -25,9 +25,26 @@ class _SagaSnapshotMixin:
     # =========================================================================
 
     @property
+    def configuration(self) -> list[str]:
+        """Get active state configuration as a list of state IDs.
+
+        Uses StateChart.configuration_values (python-statemachine 3.0+).
+        Returns a single-element list in Phase 1; may contain multiple IDs
+        when compound/parallel step regions are active in Phase 2.
+        """
+        return list(self._state_machine.configuration_values)  # type: ignore[union-attr]
+
+    @property
     def current_state(self) -> str:
-        """Get current state name"""
-        return self._state_machine.current_state.name  # type: ignore[union-attr, no-any-return]
+        """Backward-compatible single-state accessor.
+
+        .. deprecated::
+            Use ``configuration`` instead.  This property returns the first
+            active state ID only and will not represent compound/parallel
+            configurations correctly in Phase 2.
+        """
+        values = self.configuration
+        return values[0] if values else ""
 
     def get_status(self) -> dict[str, Any]:
         """Get detailed saga status"""
@@ -36,7 +53,8 @@ class _SagaSnapshotMixin:
             "name": self.name,
             "version": self.version,
             "status": self.status.value,
-            "current_state": self.current_state,
+            "configuration": self.configuration,
+            "current_state": self.current_state,  # backward-compat alias
             "total_steps": len(self.steps),
             "completed_steps": len(self.completed_steps),
             "steps": [self._get_step_status(step) for step in self.steps],
@@ -106,6 +124,7 @@ class _SagaSnapshotMixin:
                 step_name=step_name,
                 step_index=step_index,
                 status=self.status.value,
+                configuration=self.configuration,
                 context=self.context.data.copy(),
                 completed_steps=[s.name for s in self.completed_steps],
                 retention_until=self.replay_config.get_retention_until(),
