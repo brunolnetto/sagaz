@@ -75,6 +75,7 @@ class DecoratorCollectionManager:
             on_enter=meta.on_enter,
             on_success=meta.on_success,
             on_failure=meta.on_failure,
+            on_exit=meta.on_exit,
             pivot=meta.pivot,
         )
         self.saga._steps.append(step_def)

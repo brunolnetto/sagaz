@@ -23,6 +23,7 @@ Example:
 from sagaz.core.hooks._decorators import (
     on_step_compensate,
     on_step_enter,
+    on_step_exit,
     on_step_failure,
     on_step_success,
 )
@@ -37,6 +38,7 @@ __all__ = [
     "log_step_lifecycle",
     "on_step_compensate",
     "on_step_enter",
+    "on_step_exit",
     "on_step_failure",
     "on_step_success",
     "publish_on_compensate",

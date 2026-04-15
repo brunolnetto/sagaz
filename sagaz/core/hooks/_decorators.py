@@ -31,3 +31,19 @@ def on_step_failure(func: Callable) -> Callable:
 def on_step_compensate(func: Callable) -> Callable:
     """Decorator to mark a function as an on_compensate hook."""
     return func
+
+
+def on_step_exit(func: Callable) -> Callable:
+    """
+    Decorator to mark a function as an on_exit hook.
+
+    Called after every step finishes, regardless of success or failure.
+    This is mainly for documentation purposes — any async/sync function
+    can be used as a hook.
+
+    Example:
+        >>> @on_step_exit
+        ... async def log_step_done(ctx, step_name):
+        ...     logger.info(f"Step finished: {step_name}")
+    """
+    return func
