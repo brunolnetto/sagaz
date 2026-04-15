@@ -115,6 +115,9 @@ class SagaConfig:
     default_max_retries: int = 3
     failure_strategy: str = "FAIL_FAST_WITH_GRACE"
 
+    # ADR-038 Phase 2: opt-in compound/parallel step statechart (default: False = Phase 1 behaviour)
+    use_step_statechart: bool = False
+
     # Internal: cached listeners list
     _listeners: list[SagaListener] = field(default_factory=list, repr=False)
     _derived_outbox_storage: Any = field(default=None, repr=False)
