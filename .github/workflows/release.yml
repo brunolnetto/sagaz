@@ -87,16 +87,12 @@ jobs:
 
       - name: Install dependencies
         run: |
-          # Create venv and install dependencies
-          uv venv
-          source .venv/bin/activate
-          uv pip install -e .[storage,integration-tests]
-          uv pip install pytest pytest-asyncio
+          # Install to system Python (no venv needed for CI)
+          uv pip install --system -e .[storage,integration-tests]
+          uv pip install --system pytest pytest-asyncio
 
       - name: Run tests
-        run: |
-          source .venv/bin/activate
-          pytest tests/ -x -q --tb=short
+        run: pytest tests/ -x -q --tb=short
 
   # Build and publish to PyPI
   publish:
