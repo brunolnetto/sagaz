@@ -92,7 +92,7 @@ class SagaStateMachine(StateChart):
     # Note: cond is a string method name that returns bool
     start = pending.to(executing, cond="has_steps")
     succeed = executing.to(completed)
-    fail = executing.to(compensating, cond="has_completed_steps")
+    fail = executing.to(compensating)
     fail_unrecoverable = executing.to(failed)
     finish_compensation = compensating.to(rolled_back)
     compensation_failed = compensating.to(failed)
@@ -319,6 +319,7 @@ __all__ = [
     "get_valid_next_states",
     "validate_state_transition",
 ]
+
 
 # Backward-compatible alias for code that polls sm.current_state.name
 # Deprecated: use sm.configuration_values or sm.active_configuration instead.

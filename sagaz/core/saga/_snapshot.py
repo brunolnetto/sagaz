@@ -188,6 +188,11 @@ class _SagaSnapshotMixin:
                     msg = f"Cannot start saga from snapshot: {e}"
                     raise SagaExecutionError(msg) from e
 
+                # StateChart silently ignores guard failures; verify transition happened
+                if "executing" not in self._state_machine.configuration_values:
+                    msg = "Cannot start saga from snapshot: start transition was blocked"
+                    raise SagaExecutionError(msg)
+
                 logger.info(
                     f"Resuming saga {self.name} from step '{snapshot.step_name}' "
                     f"({len(completed_step_names)} steps already completed)"
