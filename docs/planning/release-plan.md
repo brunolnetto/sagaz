@@ -24,10 +24,11 @@
 ```
 Wave 0  ─── v1.5.0 ──────── Governance & lightweight ops  (no core changes)
 Wave 1  ─── v1.6.0 ──────── Storage extensions             (storage/ layer only)
-Wave 2  ─── v2.0.0 ──────── Analytics & chaos              (new sagaz[analytics] extra)
-Wave 3  ─── v2.1.0 ──────── CLI v2 + CDC + tenancy         (service/infra expansion)
-Wave 4  ─── v2.2.0 ──────── Event-driven choreography      (new execution model)
-Wave 5  ─── v2.3.0 ──────── Core extensions                (saga.add_step wired — blocked)
+Wave 1b ─── v1.7.0 ──────── SCXML state machine migration  (core/execution only — ADR-038)
+Wave 2  ─── v1.8.0 ──────── Analytics & chaos              (new sagaz[analytics] extra)
+Wave 3  ─── v1.9.0 ──────── CLI v2 + CDC + tenancy         (service/infra expansion)
+Wave 4  ─── v1.10.0 ─────── Event-driven choreography      (new execution model)
+Wave 5  ─── v2.0.0 ──────── Core extensions                (saga.add_step wired — blocked)
 ```
 
 ---
@@ -69,7 +70,7 @@ Wave 5  ─── v2.3.0 ──────── Core extensions               
 
 ---
 
-## Wave 2 — v2.0.0 "Analytics & Chaos"
+## Wave 2 — v1.8.0 "Analytics & Chaos"
 
 **Target**: May / June 2026  
 **Risk**: Low — new `sagaz[analytics]` optional extra, chaos is opt-in  
@@ -89,7 +90,7 @@ Wave 5  ─── v2.3.0 ──────── Core extensions               
 
 ---
 
-## Wave 3 — v2.1.0 "CLI v2 + CDC + Tenancy + Versioning"
+## Wave 3 — v1.9.0 "CLI v2 + CDC + Tenancy + Versioning"
 
 **Target**: June / July 2026  
 **Risk**: Medium — CDC requires Docker/Kafka in integration tests; tenancy extends executor layer  
@@ -110,7 +111,7 @@ Wave 5  ─── v2.3.0 ──────── Core extensions               
 
 ---
 
-## Wave 4 — v2.2.0 "Event-Driven Choreography"
+## Wave 4 — v1.10.0 "Event-Driven Choreography"
 
 **Target**: August / September 2026  
 **Risk**: Medium — new execution model but fully isolated from `Saga` class  
@@ -128,7 +129,7 @@ Wave 5  ─── v2.3.0 ──────── Core extensions               
 
 ---
 
-## Wave 5 — v2.3.0 "Core Extensions" *(blocked)*
+## Wave 5 — v2.0.0 "Core Extensions" *(blocked)*
 
 **Target**: October - December 2026  
 **Risk**: High — wires new behaviour into `Saga.__init__` and `Saga.add_step()`  

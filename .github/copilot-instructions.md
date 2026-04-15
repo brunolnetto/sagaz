@@ -154,6 +154,91 @@ Look at `sagas/order_processing.py`, `sagas/trade_execution.py` for patterns:
   `saga`, `dag`, `outbox`, `storage`, `strategies`, `monitoring`, `cli`, `execution`,
   `triggers`, `visualization`, `integrations`, `sagaz`, `docs`, `ci`, `deps`, `tests`
 
+## Commit Validation & Gitflow Enforcement
+
+The repository uses **Husky** hooks and **GitHub Actions** to enforce gitflow compliance automatically:
+
+### Local Validation (Pre-Commit Hooks)
+
+When you run `git commit` or `git push`, these hooks validate automatically:
+
+1. **commit-msg hook** — Validates commit message format
+   - Rejects empty messages
+   - Enforces conventional commit format: `<type>(<scope>): <subject>`
+   - Runs commitlint validation
+   - Provides helpful error messages with examples
+
+2. **pre-push hook** — Validates branch names and prevents bad commits
+   - Enforces branch naming: `<type>/<topic>` (e.g., `feature/saga-replay`, `fix/storage-leak`)
+   - Checks for empty commit messages before push
+   - Skips validation for develop/main (CI handles enforcement)
+   - Allows merge commits without validation
+
+3. **prepare-commit-msg hook** — Helps users write good commits
+   - Injects helpful template comment when message is empty
+   - Shows type/scope/subject format and examples
+   - Non-intrusive (just a commented guide)
+
+### CI Validation (GitHub Actions)
+
+The `.github/workflows/validate-commits.yml` workflow validates:
+
+- **On every PR** against develop: All commits must be valid conventional commits
+- **On push to feature branches**: Validates branch naming and commit messages
+- **On push to develop**: Double-checks no bad commits slipped through
+
+**Checks enforce:**
+- ✅ Proper `<type>(<scope>): <subject>` format
+- ✅ No empty commit messages
+- ✅ Branch names match `<type>/<topic>` pattern
+- ✅ Scope values from approved list
+
+### Bot Commit Configuration
+
+**Renovate** (dependency updates) is configured to generate properly-formatted commits:
+
+```
+chore(deps): update <package-name> to <version>
+```
+
+This is enforced in `renovate.json` via:
+- `commitMessagePrefix`, `commitMessageAction`, `commitMessageTopic`, `commitMessageExtra`
+
+### Branch Protection Rules
+
+GitHub enforces these rules on the `develop` branch:
+
+- ✅ Require status checks to pass (including commit validation)
+- ✅ Require review before merge
+- ✅ Dismiss stale reviews on new commits
+- ✅ Require conversation resolution before merge
+- ✅ Prevent force pushes and deletions
+- ✅ Enforce rules for administrators
+
+See `docs/development/github-branch-protection.md` for setup instructions.
+
+### Installation & Troubleshooting
+
+Hooks are installed automatically when you run `npm install` (via the `prepare` script).
+
+To manually install:
+```bash
+npm run hooks:install
+```
+
+To uninstall temporarily:
+```bash
+npm run hooks:uninstall
+```
+
+If hooks aren't working, reinstall them:
+```bash
+npx husky install
+ls -la .husky/  # Verify hooks are present
+```
+
+See `docs/development/commit-validation.md` for detailed troubleshooting.
+
 ## Branch Naming
 
 Branches must follow `<type>/<topic>` — see `docs/development/branch-naming.md`.

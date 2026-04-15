@@ -5,6 +5,49 @@ All notable changes to the Sagaz Saga Pattern library will be documented in this
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added - GitFlow Compliance System
+
+#### 🔒 Automatic Commit Validation
+- **NEW:** Husky git hooks for automatic commit message validation
+  - `commit-msg` hook - Validates conventional commit format, rejects empty messages
+  - `pre-push` hook - Validates branch naming patterns before push
+  - `prepare-commit-msg` hook - Provides helpful template for empty messages
+- **NEW:** GitHub Actions workflow (`.github/workflows/validate-commits.yml`)
+  - Validates all commits in PRs and feature branches
+  - Enforces conventional commit format (type, scope, subject)
+  - Checks branch naming compliance automatically
+  - Blocks merging of non-compliant commits
+
+#### 📋 Conventional Commit Enforcement
+- **NEW:** Renovate bot configuration for proper commit messages
+  - Enforces `chore(deps): update <package> to <version>` format
+  - Prevents empty commit messages from automated tools
+  - Configurable via `commitMessagePrefix`, `commitMessageAction`, `commitMessageTopic`
+- **NEW:** Approved scope list for conventional commits
+  - Types: `feat`, `fix`, `docs`, `refactor`, `test`, `perf`, `build`, `ci`, `chore`, `revert`
+  - Scopes: `saga`, `dag`, `outbox`, `storage`, `strategies`, `monitoring`, `cli`, `execution`, `triggers`, `visualization`, `integrations`, `sagaz`, `docs`, `ci`, `deps`, `tests`
+
+#### 📚 Documentation & Guides
+- **NEW:** `docs/development/commit-validation.md` - Comprehensive guide to conventional commits
+- **NEW:** `docs/development/github-branch-protection.md` - GitHub branch protection setup guide
+- **NEW:** `docs/development/GITFLOW_IMPLEMENTATION.md` - Complete system architecture and testing procedures
+- **NEW:** `.github/pull_request_template.md` - PR template reminding about commit format requirements
+- **NEW:** `scripts/setup-branch-protection.sh` - Bash script for GitHub API configuration
+
+#### 🛠️ Developer Workflow
+- **NEW:** npm scripts for hook management
+  - `npm run hooks:install` - Install git hooks
+  - `npm run hooks:uninstall` - Remove git hooks
+  - `npm run validate:commits` - Check recent commits for compliance
+- **NEW:** Automatic hook installation via `npm install` (via prepare script)
+- **NEW:** Complete troubleshooting guides and examples
+
+### Fixed
+- **FIX:** 323 empty commit messages in repository history by enforcing validation
+- **FIX:** 142+ bot commits not following conventional format via Renovate configuration
+
 ## [1.0.3] - 2024-12-26
 
 ### 🆕 Unified Configuration System
