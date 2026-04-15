@@ -300,80 +300,7 @@ class SagaStepStatechart(StateChart):
         """Called when step fails."""
 
 
-class CompensatingSagaStateMachine(StateChart):
-    """
-    ADR-038 Phase 2: Saga-level StateChart with a compound compensating region.
 
-    The ``compensating`` state is modelled as a ``State.Compound`` with a deep
-    ``HistoryState`` so that if compensation is ever interrupted and re-entered
-    the machine resumes from exactly the sub-state it was in, preserving the
-    correct ordering of remaining compensations.
-
-    Activated when ``SagaConfig.use_step_statechart = True``.
-
-    Use in place of :class:`SagaStateMachine` when Phase 2 is enabled.
-    """
-
-    pending = State(initial=True)
-    executing = State()
-    completed = State(final=True)
-    rolled_back = State(final=True)
-    failed = State(final=True)
-
-    class compensating(State.Compound):  # noqa: N801 — state ID must match the lowercase name
-        hist = HistoryState(type="deep")
-        active = State(initial=True)
-        done = State(final=True)
-        advance = active.to(done)
-
-    start = pending.to(executing)
-    succeed = executing.to(completed)
-    fail = executing.to(compensating)
-    fail_unrecoverable = executing.to(failed)
-    finish_compensation = compensating.to(rolled_back)
-    compensation_failed = compensating.to(failed)
-
-    def __init__(self, saga: Optional["Saga"] = None, **kwargs):
-        self.saga = saga
-        super().__init__(**kwargs)
-
-    def has_steps(self) -> bool:
-        if self.saga is None:
-            return True
-        return len(getattr(self.saga, "steps", [])) > 0
-
-    def has_completed_steps(self) -> bool:
-        if self.saga is None:
-            return True
-        return len(getattr(self.saga, "completed_steps", [])) > 0
-
-    async def on_enter_executing(self) -> None:
-        if self.saga and hasattr(self.saga, "_on_enter_executing"):
-            await self.saga._on_enter_executing()
-
-    async def on_enter_compensating(self) -> None:
-        if self.saga and hasattr(self.saga, "_on_enter_compensating"):
-            await self.saga._on_enter_compensating()
-
-    async def on_enter_completed(self) -> None:
-        if self.saga and hasattr(self.saga, "_on_enter_completed"):
-            await self.saga._on_enter_completed()
-
-    async def on_enter_rolled_back(self) -> None:
-        if self.saga and hasattr(self.saga, "_on_enter_rolled_back"):
-            await self.saga._on_enter_rolled_back()
-
-    async def on_enter_failed(self) -> None:
-        if self.saga and hasattr(self.saga, "_on_enter_failed"):
-            await self.saga._on_enter_failed()
-
-    async def on_exit_pending(self) -> None:
-        if self.saga and hasattr(self.saga, "_on_exit_pending"):
-            await self.saga._on_exit_pending()
-
-    async def on_exit_executing(self) -> None:
-        if self.saga and hasattr(self.saga, "_on_exit_executing"):
-            await self.saga._on_exit_executing()
 
 
 def create_step_state_machine(step_name: str = "", *, use_step_statechart: bool = False):
@@ -395,17 +322,25 @@ def create_step_state_machine(step_name: str = "", *, use_step_statechart: bool 
 
 def create_saga_state_machine(saga=None, *, use_step_statechart: bool = False):
     """
-    Factory: return ``CompensatingSagaStateMachine`` (Phase 2) or ``SagaStateMachine`` (Phase 1).
+    Factory: return ``SagaStateMachine``.
+
+    For Phase 2 with compound/parallel regions, applications define their own
+    saga-level ``StateChart`` subclasses (e.g., ``OrderProcessingSagaStateChart``)
+    to model domain-specific state topology with ``State.Compound`` and ``State.Parallel``.
 
     Args:
         saga: The saga instance to attach.
-        use_step_statechart: When ``True`` returns the Phase 2 compound machine.
+        use_step_statechart: Deprecated; kept for backward compatibility.
 
     Returns:
         An initialised saga state machine instance.
+
+    Note:
+        For Phase 2 usage with compound regions, define an application-specific
+        ``StateChart`` subclass with a ``State.Compound`` compensating region
+        containing a ``HistoryState(type="deep")``. See test examples in
+        ``tests/unit/core/test_phase2_statechart.py`` for reference.
     """
-    if use_step_statechart:
-        return CompensatingSagaStateMachine(saga=saga)
     return SagaStateMachine(saga=saga)
 
 
@@ -456,7 +391,6 @@ def get_valid_next_states(current_state: str) -> list[str]:
 
 # Re-export TransitionNotAllowed for convenience
 __all__ = [
-    "CompensatingSagaStateMachine",
     "SagaStateMachine",
     "SagaStepStateMachine",
     "SagaStepStatechart",

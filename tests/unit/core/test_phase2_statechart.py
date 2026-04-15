@@ -3,7 +3,6 @@ Unit tests for ADR-038 Phase 2: compound/parallel step statechart.
 
 Covers:
 - SagaStepStatechart — StateChart-based per-step machine (opt-in Phase 2)
-- CompensatingSagaStateMachine — saga-level machine with HistoryState in compensating
 - create_step_state_machine / create_saga_state_machine factories
 - SagaConfig.use_step_statechart flag
 """
@@ -13,7 +12,6 @@ from statemachine.exceptions import TransitionNotAllowed
 
 from sagaz.core.config import SagaConfig
 from sagaz.core.execution.state_machine import (
-    CompensatingSagaStateMachine,
     SagaStateMachine,
     SagaStepStatechart,
     SagaStepStateMachine,
@@ -98,86 +96,6 @@ class TestSagaStepStatechart:
 
 
 # ---------------------------------------------------------------------------
-# CompensatingSagaStateMachine
-# ---------------------------------------------------------------------------
-
-
-class TestCompensatingSagaStateMachine:
-    """Phase 2 saga-level machine with HistoryState in compensating region."""
-
-    @pytest.mark.asyncio
-    async def test_initial_configuration(self):
-        sm = CompensatingSagaStateMachine()
-        await sm.activate_initial_state()
-        assert list(sm.configuration_values) == ["pending"]
-
-    @pytest.mark.asyncio
-    async def test_happy_path(self):
-        sm = CompensatingSagaStateMachine()
-        await sm.activate_initial_state()
-        await sm.start()
-        assert "executing" in sm.configuration_values
-        await sm.succeed()
-        assert list(sm.configuration_values) == ["completed"]
-        assert sm.is_terminated
-
-    @pytest.mark.asyncio
-    async def test_compensation_path(self):
-        sm = CompensatingSagaStateMachine()
-        await sm.activate_initial_state()
-        await sm.start()
-        await sm.fail()
-        config = list(sm.configuration_values)
-        assert "compensating" in config
-        assert "active" in config   # HistoryState starts in initial substate
-        await sm.advance()
-        assert "done" in sm.configuration_values
-        await sm.finish_compensation()
-        assert list(sm.configuration_values) == ["rolled_back"]
-        assert sm.is_terminated
-
-    @pytest.mark.asyncio
-    async def test_unrecoverable_failure(self):
-        sm = CompensatingSagaStateMachine()
-        await sm.activate_initial_state()
-        await sm.start()
-        await sm.fail_unrecoverable()
-        assert list(sm.configuration_values) == ["failed"]
-        assert sm.is_terminated
-
-    @pytest.mark.asyncio
-    async def test_compensation_failure(self):
-        sm = CompensatingSagaStateMachine()
-        await sm.activate_initial_state()
-        await sm.start()
-        await sm.fail()
-        await sm.compensation_failed()
-        assert list(sm.configuration_values) == ["failed"]
-        assert sm.is_terminated
-
-    @pytest.mark.asyncio
-    async def test_history_state_restores_substate(self):
-        """Entering compensating advances through active → done substates."""
-        sm = CompensatingSagaStateMachine()
-        await sm.activate_initial_state()
-        await sm.start()
-        await sm.fail()
-        assert "active" in sm.configuration_values
-        await sm.advance()
-        assert "done" in sm.configuration_values
-        await sm.finish_compensation()
-        assert sm.is_terminated
-
-    @pytest.mark.asyncio
-    async def test_invalid_transition_ignored_by_statechart(self):
-        """StateChart silently ignores invalid transitions."""
-        sm = CompensatingSagaStateMachine()
-        await sm.activate_initial_state()
-        await sm.succeed()  # invalid from pending
-        assert list(sm.configuration_values) == ["pending"]
-
-
-# ---------------------------------------------------------------------------
 # Factory functions
 # ---------------------------------------------------------------------------
 
@@ -199,13 +117,14 @@ class TestCreateStepStateMachineFactory:
 
 
 class TestCreateSagaStateMachineFactory:
-    def test_phase1_by_default(self):
+    def test_always_returns_saga_state_machine_phase1(self):
+        """Factory always returns SagaStateMachine (Phase 1).
+
+        For Phase 2 with compound/parallel regions, applications define their
+        own StateChart subclasses like OrderProcessingSagaStateChart.
+        """
         sm = create_saga_state_machine()
         assert isinstance(sm, SagaStateMachine)
-
-    def test_phase2_when_flag_true(self):
-        sm = create_saga_state_machine(use_step_statechart=True)
-        assert isinstance(sm, CompensatingSagaStateMachine)
 
     def test_saga_attached(self):
         class FakeSaga:
@@ -213,7 +132,7 @@ class TestCreateSagaStateMachineFactory:
             completed_steps = []
 
         saga = FakeSaga()
-        sm = create_saga_state_machine(saga=saga, use_step_statechart=True)
+        sm = create_saga_state_machine(saga=saga)
         assert sm.saga is saga
 
 
