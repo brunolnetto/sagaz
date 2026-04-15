@@ -245,102 +245,149 @@ class SagaStepStateMachine(StateMachine):
         # Override in saga implementation if needed
 
 
-class SagaStepStatechart(StateChart):
+class SagaStateChart(StateChart):
     """
-    ADR-038 Phase 2: Per-step StateChart.
+    ADR-038 Phase 2: SCXML-compliant saga-level StateChart.
 
-    Uses ``StateChart`` (SCXML-compliant) as the base class so that
-    ``configuration_values`` is always available, enabling Phase 2 tooling to
-    read the full active configuration of a step.  The topology stays flat
-    (same states as :class:`SagaStepStateMachine`) because compound substates
-    require all states to form a connected graph, which cannot be satisfied for
-    per-step machines in isolation.
+    Drop-in ``StateChart``-based replacement for :class:`SagaStateMachine` when
+    Phase 2 is enabled via ``SagaConfig.use_step_statechart = True``.
 
-    Activated when ``SagaConfig.use_step_statechart = True``.
+    Provides everything ``SagaStateMachine`` does, plus:
+
+    * ``configuration_values`` — SCXML-compliant set of currently active states
+    * Compound ``compensating`` region with a deep :class:`HistoryState`
+      (``hist``) so that an interrupted compensation sequence resumes from
+      exactly the sub-state it was in when the process crashed or was paused.
+
+    The topology mirrors the smcheck ``OrderProcessing`` pattern: the top-level
+    lifecycle states are flat, but the ``compensating`` state is a
+    ``State.Compound`` with two substates (``active`` → ``done``) and a deep
+    ``HistoryState``.  Subclasses can replace ``executing`` with a
+    ``State.Parallel`` to model concurrent workflow tracks (inventory, payment,
+    shipping…) as shown in the reference architecture.
 
     States::
 
-        pending → running → completed → compensating → compensated (final)
-                         ↘           ↘
-                         failed (final)  failed (final)
+        pending → executing → completed (final)
+                           ↘ compensating.active → compensating.done
+                                compensating →→ rolled_back (final)
+                           ↘ failed (final)
+
+    Usage::
+
+        # Option A — use the framework base directly:
+        sm = SagaStateChart(saga=my_saga)
+        await sm.activate_initial_state()
+        await sm.start()          # pending → executing
+        await sm.succeed()        # executing → completed
+
+        # Option B — subclass for domain-specific parallel tracks:
+        class OrderProcessingSagaStateChart(SagaStateChart):
+            class executing(State.Parallel):
+                class inventory(State.Compound): ...
+                class payment(State.Compound):   ...
+                class shipping(State.Compound):  ...
     """
 
     pending = State(initial=True)
-    running = State()
-    completed = State()       # not final — can still be compensated
-    compensating = State()
-    compensated = State(final=True)
+    executing = State()
+    completed = State(final=True)
+    rolled_back = State(final=True)
     failed = State(final=True)
 
-    # Transitions mirror SagaStepStateMachine
-    start = pending.to(running)
-    succeed = running.to(completed)
-    fail = running.to(failed)
-    compensate = completed.to(compensating)
-    compensation_success = compensating.to(compensated)
-    compensation_failure = compensating.to(failed)
+    class compensating(State.Compound):  # noqa: N801 — state ID must be lowercase
+        hist = HistoryState(type="deep")
+        active = State(initial=True)
+        done = State(final=True)
+        advance = active.to(done)
 
-    def __init__(self, step_name: str = "", **kwargs):
-        self.step_name = step_name
+    start = pending.to(executing)
+    succeed = executing.to(completed)
+    fail = executing.to(compensating)
+    fail_unrecoverable = executing.to(failed)
+    finish_compensation = compensating.to(rolled_back)
+    compensation_failed = compensating.to(failed)
+
+    def __init__(self, saga: Optional["Saga"] = None, **kwargs):
+        self.saga = saga
         super().__init__(**kwargs)
 
-    async def on_enter_running(self) -> None:
-        """Called when step starts executing."""
+    def has_steps(self) -> bool:
+        """Guard: can only start if we have steps defined."""
+        if self.saga is None:
+            return True
+        return len(getattr(self.saga, "steps", [])) > 0
 
-    async def on_enter_completed(self) -> None:
-        """Called when step completes successfully."""
+    def has_completed_steps(self) -> bool:
+        """Guard: can only compensate if we have completed steps to undo."""
+        if self.saga is None:
+            return True
+        return len(getattr(self.saga, "completed_steps", [])) > 0
+
+    async def on_enter_executing(self) -> None:
+        if self.saga and hasattr(self.saga, "_on_enter_executing"):
+            await self.saga._on_enter_executing()
 
     async def on_enter_compensating(self) -> None:
-        """Called when step starts compensation."""
+        if self.saga and hasattr(self.saga, "_on_enter_compensating"):
+            await self.saga._on_enter_compensating()
 
-    async def on_enter_compensated(self) -> None:
-        """Called when step compensation completes."""
+    async def on_enter_completed(self) -> None:
+        if self.saga and hasattr(self.saga, "_on_enter_completed"):
+            await self.saga._on_enter_completed()
+
+    async def on_enter_rolled_back(self) -> None:
+        if self.saga and hasattr(self.saga, "_on_enter_rolled_back"):
+            await self.saga._on_enter_rolled_back()
 
     async def on_enter_failed(self) -> None:
-        """Called when step fails."""
+        if self.saga and hasattr(self.saga, "_on_enter_failed"):
+            await self.saga._on_enter_failed()
+
+    async def on_exit_pending(self) -> None:
+        if self.saga and hasattr(self.saga, "_on_exit_pending"):
+            await self.saga._on_exit_pending()
+
+    async def on_exit_executing(self) -> None:
+        if self.saga and hasattr(self.saga, "_on_exit_executing"):
+            await self.saga._on_exit_executing()
 
 
-
-
-
-def create_step_state_machine(step_name: str = "", *, use_step_statechart: bool = False):
+def create_step_state_machine(step_name: str = "", **_kwargs) -> SagaStepStateMachine:
     """
-    Factory: return ``SagaStepStatechart`` (Phase 2) or ``SagaStepStateMachine`` (Phase 1).
+    Factory: return a :class:`SagaStepStateMachine` for the given step.
+
+    Per-step state tracking always uses :class:`SagaStepStateMachine` (Phase 1).
+    Phase 2 compound/parallel topology is modelled at the **saga level** via
+    :class:`SagaStateChart` — individual steps do not need a StateChart base.
 
     Args:
         step_name: Name of the saga step for observability.
-        use_step_statechart: When ``True`` returns the Phase 2 compound machine.
-            Reads from ``SagaConfig.use_step_statechart`` when not given explicitly.
+        **_kwargs: Ignored; kept for backward compatibility.
 
     Returns:
-        An initialised step state machine instance.
+        An initialised :class:`SagaStepStateMachine` instance.
     """
-    if use_step_statechart:
-        return SagaStepStatechart(step_name=step_name)
     return SagaStepStateMachine(step_name=step_name)
 
 
-def create_saga_state_machine(saga=None, *, use_step_statechart: bool = False):
+def create_saga_state_machine(
+    saga=None, *, use_step_statechart: bool = False
+) -> "SagaStateMachine | SagaStateChart":
     """
-    Factory: return ``SagaStateMachine``.
-
-    For Phase 2 with compound/parallel regions, applications define their own
-    saga-level ``StateChart`` subclasses (e.g., ``OrderProcessingSagaStateChart``)
-    to model domain-specific state topology with ``State.Compound`` and ``State.Parallel``.
+    Factory: return :class:`SagaStateChart` (Phase 2) or :class:`SagaStateMachine` (Phase 1).
 
     Args:
         saga: The saga instance to attach.
-        use_step_statechart: Deprecated; kept for backward compatibility.
+        use_step_statechart: When ``True`` returns the Phase 2 :class:`SagaStateChart`
+            with the compound compensating region and SCXML ``configuration_values``.
+            Reads from ``SagaConfig.use_step_statechart``.
 
     Returns:
         An initialised saga state machine instance.
-
-    Note:
-        For Phase 2 usage with compound regions, define an application-specific
-        ``StateChart`` subclass with a ``State.Compound`` compensating region
-        containing a ``HistoryState(type="deep")``. See test examples in
-        ``tests/unit/core/test_phase2_statechart.py`` for reference.
     """
+    if use_step_statechart:
+        return SagaStateChart(saga=saga)
     return SagaStateMachine(saga=saga)
 
 
@@ -391,9 +438,9 @@ def get_valid_next_states(current_state: str) -> list[str]:
 
 # Re-export TransitionNotAllowed for convenience
 __all__ = [
+    "SagaStateChart",
     "SagaStateMachine",
     "SagaStepStateMachine",
-    "SagaStepStatechart",
     "TransitionNotAllowed",
     "create_saga_state_machine",
     "create_step_state_machine",
