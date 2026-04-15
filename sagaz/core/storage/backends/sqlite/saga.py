@@ -111,6 +111,7 @@ class SQLiteSagaStorage(SagaStorage):
                 saga_id TEXT PRIMARY KEY,
                 saga_name TEXT NOT NULL,
                 status TEXT NOT NULL,
+                configuration TEXT,
                 steps TEXT NOT NULL,
                 context TEXT NOT NULL,
                 metadata TEXT,
@@ -201,7 +202,7 @@ class SQLiteSagaStorage(SagaStorage):
 
     def _row_to_dict(self, row: aiosqlite.Row) -> dict[str, Any]:
         """Convert database row to dictionary."""
-        config_raw = row["configuration"] if "configuration" in row else None
+        config_raw = dict(row).get("configuration")
         return {
             "saga_id": row["saga_id"],
             "saga_name": row["saga_name"],

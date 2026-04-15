@@ -53,6 +53,7 @@ class PostgreSQLSagaStorage(SagaStorage):
         saga_id VARCHAR(255) PRIMARY KEY,
         saga_name VARCHAR(255) NOT NULL,
         status VARCHAR(50) NOT NULL,
+        configuration JSONB,
         context JSONB,
         metadata JSONB,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
