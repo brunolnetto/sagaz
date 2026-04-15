@@ -86,7 +86,7 @@ jobs:
           cache-dependency-glob: "uv.lock"
 
       - name: Install dependencies
-        run: uv sync --group dev
+        run: uv sync  # Only install main + test dependencies (skip dev)
 
       - name: Run tests
         run: uv run pytest tests/ -x -q --tb=short
