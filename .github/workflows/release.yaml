@@ -36,7 +36,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv pip install --system -e .[storage,integration-tests]
+          uv pip install --system -e .[storage,integration-tests,prometheus]
           uv pip install --system pytest pytest-asyncio aiokafka aiosqlite
 
       - name: Run tests
