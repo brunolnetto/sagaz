@@ -35,12 +35,10 @@ jobs:
           cache-dependency-glob: "uv.lock"
 
       - name: Install dependencies
-        run: |
-          uv pip install --system -e .[storage,integration-tests,prometheus]
-          uv pip install --system pytest pytest-asyncio aiokafka aiosqlite
+        run: uv sync --all-extras --no-group dev
 
       - name: Run tests
-        run: pytest tests/ -x -q --tb=short
+        run: uv run pytest tests/ -x -q --tb=short
 
   # Build and publish to PyPI
   publish:
