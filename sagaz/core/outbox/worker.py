@@ -184,6 +184,7 @@ class OutboxWorker:
         self._state_machine = OutboxStateMachine(max_retries=self.config.max_retries)
         self._running = False
         self._shutdown_event = asyncio.Event()
+        self._shutdown_task: asyncio.Task | None = None
 
         self._on_event_published = on_event_published
         self._on_event_failed = on_event_failed
@@ -532,9 +533,6 @@ async def main():
     storage = get_storage()
     broker = get_broker()
 
-    # Create worker config
-    from sagaz.core.outbox.types import OutboxConfig
-
     config = OutboxConfig(
         batch_size=int(os.getenv("BATCH_SIZE", "100")),
         poll_interval_seconds=float(os.getenv("POLL_INTERVAL", "1.0")),
@@ -542,7 +540,7 @@ async def main():
     )
 
     # Create worker
-    from sagaz.core.outbox.worker import OutboxWorker
+    from sagaz.core.outbox.worker import OutboxWorker  # pylint: disable=import-self
 
     worker = OutboxWorker(
         storage=storage,

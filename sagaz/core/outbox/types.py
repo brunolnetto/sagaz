@@ -195,13 +195,13 @@ class OutboxConfig:
         import os
 
         return cls(
-            batch_size=int(os.getenv("OUTBOX_BATCH_SIZE", 100)),
-            poll_interval_seconds=float(os.getenv("OUTBOX_POLL_INTERVAL", 1.0)),
-            claim_timeout_seconds=float(os.getenv("OUTBOX_CLAIM_TIMEOUT", 300.0)),
-            max_retries=int(os.getenv("OUTBOX_MAX_RETRIES", 10)),
+            batch_size=int(os.getenv("OUTBOX_BATCH_SIZE", "100")),
+            poll_interval_seconds=float(os.getenv("OUTBOX_POLL_INTERVAL", "1.0")),
+            claim_timeout_seconds=float(os.getenv("OUTBOX_CLAIM_TIMEOUT", "300.0")),
+            max_retries=int(os.getenv("OUTBOX_MAX_RETRIES", "10")),
             optimistic_publish=os.getenv("OUTBOX_OPTIMISTIC", "true").lower() == "true",
-            optimistic_timeout_ms=int(os.getenv("OUTBOX_OPTIMISTIC_TIMEOUT_MS", 500)),
-            archive_after_days=int(os.getenv("OUTBOX_ARCHIVE_DAYS", 7)),
+            optimistic_timeout_ms=int(os.getenv("OUTBOX_OPTIMISTIC_TIMEOUT_MS", "500")),
+            archive_after_days=int(os.getenv("OUTBOX_ARCHIVE_DAYS", "7")),
         )
 
 

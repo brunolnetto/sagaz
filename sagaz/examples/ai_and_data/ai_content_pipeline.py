@@ -20,8 +20,6 @@ import asyncio
 import os
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
-
 from pydantic import BaseModel, Field
 
 from sagaz import Saga, action, compensate
@@ -102,7 +100,7 @@ quality_agent = None
 seo_agent = None
 
 try:
-    from pydantic_ai import Agent, RunContext
+    from pydantic_ai import Agent
 
     PYDANTIC_AI_AVAILABLE = True
 except ImportError:

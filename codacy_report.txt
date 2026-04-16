@@ -1,0 +1,6 @@
+{
+  "coverage_percentage": 99.9812734082397,
+  "files_with_coverage": 75,
+  "total_lines": 8480,
+  "covered_lines": 8478
+}

@@ -203,7 +203,7 @@ class ExecutionEngine:
                 "on_step_failure", saga_name, step.step_id, self.saga._context, e
             )
             msg = f"Step '{step.step_id}' timed out after {step.timeout_seconds}s"
-            raise TimeoutError(msg)
+            raise TimeoutError(msg) from e
         except Exception as e:
             # Call on_failure hook
             await self._call_hook(step.on_failure, self.saga._context, step.step_id, e)

@@ -242,7 +242,7 @@ def create_storage(
         saga_storage = _SAGA_STORAGE_REGISTRY[backend](factory_kwargs)
         outbox_storage = _OUTBOX_STORAGE_REGISTRY[backend](factory_kwargs)
         return saga_storage, outbox_storage
-    except MissingDependencyError:
+    except MissingDependencyError:  # pylint: disable=try-except-raise
         raise
 
 
@@ -274,7 +274,7 @@ def get_available_backends() -> dict[str, dict[str, Any]]:
 
     # Check Redis availability
     try:
-        import redis.asyncio
+        import redis.asyncio  # noqa: F401  # pylint: disable=unused-import  # availability check
 
         backends["redis"] = {
             "available": True,
@@ -294,7 +294,7 @@ def get_available_backends() -> dict[str, dict[str, Any]]:
 
     # Check PostgreSQL availability
     try:
-        import asyncpg
+        import asyncpg  # noqa: F401  # pylint: disable=unused-import  # availability check
 
         backends["postgresql"] = {
             "available": True,
@@ -314,7 +314,7 @@ def get_available_backends() -> dict[str, dict[str, Any]]:
 
     # Check SQLite availability
     try:
-        import aiosqlite
+        import aiosqlite  # noqa: F401  # pylint: disable=unused-import  # availability check
 
         backends["sqlite"] = {
             "available": True,

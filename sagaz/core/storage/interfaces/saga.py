@@ -10,10 +10,6 @@ from collections.abc import AsyncIterator
 from datetime import datetime
 from typing import Any, Protocol, runtime_checkable
 
-from sagaz.core.storage.core import (
-    HealthCheckResult,
-    StorageStatistics,
-)
 from sagaz.core.types import SagaStatus, SagaStepStatus
 
 

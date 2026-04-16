@@ -577,7 +577,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
                             if event.created_at
                             else None,
                         }
-                except Exception:
+                except Exception:  # pylint: disable=try-except-raise
                     # Transaction rollback is automatic with context manager
                     raise
 

@@ -270,8 +270,6 @@ class SagaConfig:
             >>> os.environ["SAGAZ_BROKER_URL"] = "kafka://localhost:9092"
             >>> config = SagaConfig.from_env()
         """
-        import os
-
         from sagaz.core.env import get_env
 
         env = get_env()
@@ -318,7 +316,7 @@ class SagaConfig:
             msg = f"Configuration file not found: {file_path}"
             raise FileNotFoundError(msg)
 
-        with path.open() as f:
+        with path.open(encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
         if not data:

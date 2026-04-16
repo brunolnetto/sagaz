@@ -1,4 +1,3 @@
-import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -113,7 +112,7 @@ def _inspect_module(module_name: str, file_path: Path) -> list[dict[str, Any]]:
                 if doc == inspect.getdoc(Saga):
                     doc = "No description"
 
-                first_line = doc.split("\n")[0] if doc else "No description"
+                first_line = doc.split("\n", maxsplit=1)[0] if doc else "No description"
 
                 discovered.append(
                     {
@@ -163,7 +162,7 @@ def check():
         sys.exit(1)
 
     try:
-        config = yaml.safe_load(Path("sagaz.yaml").read_text())
+        config = yaml.safe_load(Path("sagaz.yaml").read_text(encoding="utf-8"))
     except Exception as e:
         click.echo(f"Error parsing sagaz.yaml: {e}")
         sys.exit(1)
@@ -197,7 +196,7 @@ def list_sagas():
         click.echo("Error: sagaz.yaml not found.")
         sys.exit(1)
 
-    config = yaml.safe_load(Path("sagaz.yaml").read_text())
+    config = yaml.safe_load(Path("sagaz.yaml").read_text(encoding="utf-8"))
     paths = config.get("paths", ["sagas/"])
 
     sagas = _discover_sagas(paths)

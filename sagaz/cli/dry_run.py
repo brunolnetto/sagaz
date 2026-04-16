@@ -32,8 +32,6 @@ except ImportError:
 @click.option("--interactive", "-i", is_flag=True, help="Interactive saga selection")
 def validate_cmd(saga: str | None, context: str, interactive: bool):
     """Validate saga configuration for project."""
-    import asyncio
-
     ctx = json.loads(context)
     sagas = _discover_and_select_sagas(saga, "validate", interactive)
     results = _run_validation_for_sagas(sagas, ctx)
@@ -106,8 +104,6 @@ def _display_validation_results(results: list):
 @click.option("--interactive", "-i", is_flag=True, help="Interactive saga selection")
 def simulate_cmd(saga: str | None, context: str, show_parallel: bool, interactive: bool):
     """Simulate saga execution and show step order."""
-    import asyncio
-
     ctx = json.loads(context)
     sagas = _discover_and_select_sagas(saga, "simulate", interactive)
     results = _run_simulation_for_sagas(sagas, ctx)
@@ -175,15 +171,13 @@ def _interactive_saga_selection(sagas: list[dict], operation: str) -> str | None
 
 def _discover_project_sagas():
     """Discover sagas from project sagaz.yaml configuration."""
-    from pathlib import Path
-
     import yaml
 
     if not Path("sagaz.yaml").exists():
         return []
 
     try:
-        config = yaml.safe_load(Path("sagaz.yaml").read_text())
+        config = yaml.safe_load(Path("sagaz.yaml").read_text(encoding="utf-8"))
         paths = config.get("paths", ["sagas/"])
     except Exception:
         return []
@@ -195,8 +189,6 @@ def _discover_sagas_in_paths(paths: list[str]):
     """Discover Saga classes in given paths."""
     import importlib.util
     import inspect
-    import sys
-    from pathlib import Path
 
     from sagaz import Saga
 

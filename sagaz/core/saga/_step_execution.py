@@ -105,14 +105,14 @@ class StepExecutor:
             step.executed_at = datetime.now()
             logger.info(f"Step '{step.name}' completed successfully")
 
-        except TimeoutError:
+        except TimeoutError as exc:
             step.status = SagaStepStatus.FAILED
             error = SagaTimeoutError(f"Step '{step.name}' timed out after {step.timeout}s")
             step.error = error
-            raise error
+            raise error from exc
 
         except Exception as e:
             step.status = SagaStepStatus.FAILED
             step.error = e
             msg = f"Step '{step.name}' failed: {e!s}"
-            raise SagaStepError(msg)
+            raise SagaStepError(msg) from e

@@ -47,7 +47,7 @@ from .connection import (
 from .errors import (
     CapacityError,
     ConcurrencyError,
-    ConnectionError,
+    ConnectionError,  # pylint: disable=redefined-builtin
     NotFoundError,
     SerializationError,
     StorageError,

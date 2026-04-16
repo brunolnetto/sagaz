@@ -25,7 +25,6 @@ import asyncio
 from typing import Any
 
 from sagaz.core.logger import get_logger
-from sagaz.core.triggers import fire_event
 from sagaz.core.triggers.registry import TriggerRegistry
 
 logger = get_logger(__name__)
@@ -125,7 +124,6 @@ class BrokerTriggerConsumer:
         Returns:
             List of triggered saga IDs
         """
-        import asyncio
         import uuid
 
         triggered_ids = []

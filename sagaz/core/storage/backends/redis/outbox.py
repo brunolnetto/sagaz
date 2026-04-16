@@ -7,7 +7,7 @@ for reliable event delivery with consumer groups.
 
 import logging
 import time
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
@@ -96,7 +96,7 @@ class RedisOutboxStorage(OutboxStorage):
             import redis.asyncio as redis
         except ImportError:
             msg = "redis package required. Install with: pip install redis"
-            raise ImportError(msg)
+            raise ImportError(msg) from None
 
         self._redis = redis.from_url(self._redis_url, **self._redis_kwargs)
         assert self._redis is not None

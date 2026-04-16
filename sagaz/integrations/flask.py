@@ -16,7 +16,6 @@ from sagaz.core.logger import get_logger
 from sagaz.integrations._base import (
     SagaContextManager,
     generate_correlation_id,
-    get_correlation_id,
 )
 
 logger = get_logger(__name__)
@@ -135,9 +134,9 @@ class SagaFlask:
         """
         try:
             from flask import Blueprint, jsonify, request
-        except ImportError:
+        except ImportError as exc:
             msg = "Flask is required. Install with: pip install flask"
-            raise ImportError(msg)
+            raise ImportError(msg) from exc
 
         import asyncio
 

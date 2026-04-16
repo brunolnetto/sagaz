@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
-from sagaz.core.replay import ReplayResult, SagaSnapshot, SnapshotNotFoundError
+from sagaz.core.replay import ReplayResult, SagaSnapshot
 from sagaz.core.storage.interfaces.snapshot import SnapshotStorage
 
 

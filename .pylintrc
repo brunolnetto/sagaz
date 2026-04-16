@@ -1,0 +1,100 @@
+[MAIN]
+# Python version
+py-version = 3.11
+
+# Jobs (parallelism)
+jobs = 0
+
+[MESSAGES CONTROL]
+# Disable rules that are:
+# - Deliberately ignored in ruff config (duplicate enforcement)
+# - Project conventions
+# - Covered better by other tools (ruff, mypy)
+disable =
+    # Style rules handled by ruff/formatter
+    logging-fstring-interpolation,
+    import-outside-toplevel,
+    wrong-import-position,
+    line-too-long,
+    # Docstring rules (project uses lean docstrings)
+    missing-function-docstring,
+    missing-module-docstring,
+    missing-class-docstring,
+    # Complexity rules handled at design level
+    too-many-arguments,
+    too-many-positional-arguments,
+    too-many-instance-attributes,
+    too-few-public-methods,
+    too-many-locals,
+    too-many-branches,
+    too-many-statements,
+    too-many-public-methods,
+    too-many-return-statements,
+    # Protected access is intentional in tests/internal code
+    protected-access,
+    # Duplicate code detection is noisy with intentional patterns
+    duplicate-code,
+    # Cyclic imports managed deliberately to prevent circular deps
+    cyclic-import,
+    # Broad exception catch is intentional in saga error handling
+    broad-exception-caught,
+    # Invalid names: single-letter vars are common in async/math
+    invalid-name,
+    # Unnecessary ellipsis in abstract/stub methods is intentional
+    unnecessary-ellipsis,
+    # Global statement used deliberately in some places
+    global-statement,
+    # Redefined outer name acceptable in test fixtures
+    redefined-outer-name,
+    # Unused arguments: callbacks/interfaces often have unused params
+    unused-argument,
+    # Redefining built-in: ConnectionError is deliberately subclassed in storage layer
+    redefined-builtin,
+    # Nested blocks: deep nesting in complex storage/integration code
+    too-many-nested-blocks,
+    # TODO/FIXME comments are tracked in issue tracker, not code noise
+    fixme,
+    # Constant test / unreachable: intentional generator stub pattern (if False: yield)
+    using-constant-test,
+    unreachable,
+    # Ungrouped imports: caused by TYPE_CHECKING blocks and lazy imports
+    ungrouped-imports,
+    # Undefined __all__ variables: conditional re-exports are valid
+    undefined-all-variable,
+    # Import error: optional dependencies (fastapi, django, flask, etc.)
+    import-error
+
+[FORMAT]
+max-line-length = 100
+indent-string = '    '
+
+[DESIGN]
+max-args = 10
+max-positional-arguments = 10
+max-attributes = 15
+max-bool-expr = 5
+max-branches = 15
+max-locals = 20
+max-public-methods = 25
+max-returns = 8
+max-statements = 60
+min-public-methods = 1
+
+[SIMILARITIES]
+# Minimum lines required to consider code as duplicated
+min-similarity-lines = 10
+ignore-comments = yes
+ignore-docstrings = yes
+ignore-imports = yes
+
+[VARIABLES]
+# List of additional names to consider as builtins
+additional-builtins =
+
+[TYPECHECK]
+# Ignore missing imports for third-party stubs not yet installed
+ignored-modules = yaml,aiofiles,redis,psycopg2,asyncpg,aio_pika,confluent_kafka
+
+[EXCEPTIONS]
+# Allow catching broad exceptions in these specific cases
+overgeneral-exceptions = builtins.Exception

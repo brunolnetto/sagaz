@@ -400,7 +400,7 @@ def dev_cmd(detach: bool):
         cmd.append("-d")
 
     click.echo("Starting development environment...")
-    subprocess.run(cmd)
+    subprocess.run(cmd, check=False)
 
 
 # ============================================================================
@@ -416,7 +416,7 @@ def stop_cmd():
         sys.exit(1)
 
     click.echo("Stopping development environment...")
-    subprocess.run(["docker", "compose", "down"])
+    subprocess.run(["docker", "compose", "down"], check=False)
 
 
 # ============================================================================
@@ -438,7 +438,7 @@ def status_cmd():
 
         # Check Docker Compose services
         result = subprocess.run(
-            ["docker", "compose", "ps", "--format", "json"], capture_output=True, text=True
+            ["docker", "compose", "ps", "--format", "json"], capture_output=True, text=True, check=False
         )
 
         if result.returncode == 0 and result.stdout.strip():
@@ -458,7 +458,7 @@ def status_cmd():
 
         console.print(table)
     else:
-        subprocess.run(["docker", "compose", "ps"])
+        subprocess.run(["docker", "compose", "ps"], check=False)
 
 
 # ============================================================================
@@ -543,10 +543,10 @@ asyncio.run(main())
         ]
 
     # Run benchmark
-    result = subprocess.run(cmd, capture_output=output is not None)
+    result = subprocess.run(cmd, capture_output=output is not None, check=False)
 
     if output and result.returncode == 0:
-        Path(output).write_text(result.stdout.decode() if result.stdout else "")
+        Path(output).write_text(result.stdout.decode() if result.stdout else "", encoding="utf-8")
         click.echo(f"Results saved to {output}")
 
     return result.returncode
@@ -583,11 +583,11 @@ def logs_cmd(saga_id: str, follow: bool, service: str):
     if saga_id:
         # Filter logs by saga ID using grep
         click.echo(f"Searching for saga: {saga_id}")
-        p1 = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-        p2 = subprocess.Popen(["grep", saga_id], stdin=p1.stdout)
-        p2.wait()
+        with subprocess.Popen(cmd, stdout=subprocess.PIPE) as p1:
+            with subprocess.Popen(["grep", saga_id], stdin=p1.stdout) as p2:
+                p2.wait()
     else:
-        subprocess.run(cmd)
+        subprocess.run(cmd, check=False)
 
 
 # ============================================================================

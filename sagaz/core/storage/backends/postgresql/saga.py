@@ -122,7 +122,7 @@ class PostgreSQLSagaStorage(SagaStorage):
 
             except Exception as e:
                 msg = f"Failed to connect to PostgreSQL: {e}"
-                raise SagaStorageConnectionError(msg)
+                raise SagaStorageConnectionError(msg) from e
 
         return self._pool
 
@@ -444,7 +444,7 @@ class PostgreSQLSagaStorage(SagaStorage):
                 result = await conn.fetchval("SELECT 1")
                 if result != 1:
                     msg = "Basic query failed"
-                    raise Exception(msg)
+                    raise RuntimeError(msg)
 
                 # Get PostgreSQL version
                 version = await conn.fetchval("SELECT version()")

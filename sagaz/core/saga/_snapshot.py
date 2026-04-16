@@ -167,7 +167,7 @@ class _SagaSnapshotMixin:
                     await self._state_machine.start()
                 except TransitionNotAllowed as e:
                     msg = f"Cannot start saga from snapshot: {e}"
-                    raise SagaExecutionError(msg)
+                    raise SagaExecutionError(msg) from e
 
                 logger.info(
                     f"Resuming saga {self.name} from step '{snapshot.step_name}' "
