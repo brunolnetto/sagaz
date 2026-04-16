@@ -1,0 +1,217 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+env:
+  CI: true
+  PYTHONDONTWRITEBYTECODE: 1
+
+jobs:
+# ─── Unit and Integration Tests ────────────────────────────────────────────────
+
+  unit-tests:
+    name: Unit Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 4
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.11.7"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Run unit tests with coverage
+        run: |
+          uv run pytest tests/ \
+            --cov=sagaz \
+            --cov-report=xml:coverage.xml \
+            --cov-report=term-missing \
+            --cov-fail-under=95 \
+            --junitxml=junit.xml \
+            -o junit_family=legacy \
+            -m "not integration" \
+            -n auto \
+            --tb=short \
+            -q
+
+      - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.13' && !cancelled()
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.xml
+          flags: unittests
+          name: py${{ matrix.python-version }}
+          fail_ci_if_error: false
+          verbose: true
+
+      - name: Upload test results to Codecov
+        if: matrix.python-version == '3.13' && !cancelled()
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./junit.xml
+          report_type: test_results
+          fail_ci_if_error: false
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: unit-tests
+
+    services:
+      docker:
+        image: docker:dind
+        options: --privileged
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.11.7"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install dependencies (with integration test deps)
+        run: uv sync --group dev --extra integration-tests
+
+      - name: Run integration tests
+        run: |
+          uv run pytest tests/ \
+            --cov=sagaz \
+            --cov-report=xml:coverage-integration.xml \
+            --junitxml=junit-integration.xml \
+            -o junit_family=legacy \
+            -m "integration" \
+            --tb=short \
+            -v
+
+      - name: Upload integration coverage to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage-integration.xml
+          flags: integration
+          name: integration-tests
+
+# ─── Performance Benchmarks ───────────────────────────────────────────────────
+
+  benchmark:
+    name: "Run Benchmarks"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Create virtual environment
+        run: uv venv
+
+      - name: Install dependencies
+        run: |
+          source .venv/bin/activate
+          uv pip install -e ".[prometheus]"
+          uv sync --group dev
+
+      - name: Run performance tests (local config)
+        id: perf_local
+        run: |
+          source .venv/bin/activate
+          echo "## Performance Test Results (Local Config)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          pytest tests/test_performance.py -v -s -m "performance and not slow" --tb=short 2>&1 | tee perf_output.txt
+          cat perf_output.txt >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        continue-on-error: true
+
+      - name: Extract metrics
+        id: metrics
+        run: |
+          THROUGHPUT=$(grep -oP 'Throughput: \K[\d.]+' perf_output.txt | head -1 || echo "N/A")
+          P95=$(grep -oP 'P95.*: \K[\d.]+' perf_output.txt | head -1 || echo "N/A")
+          P99=$(grep -oP 'P99.*: \K[\d.]+' perf_output.txt | head -1 || echo "N/A")
+
+          echo "throughput=$THROUGHPUT" >> $GITHUB_OUTPUT
+          echo "p95=$P95" >> $GITHUB_OUTPUT
+          echo "p99=$P99" >> $GITHUB_OUTPUT
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Key Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Throughput | ${THROUGHPUT} sagas/sec |" >> $GITHUB_STEP_SUMMARY
+          echo "| P95 Latency | ${P95} ms |" >> $GITHUB_STEP_SUMMARY
+          echo "| P99 Latency | ${P99} ms |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Run stress tests
+        if: github.event_name == 'schedule' || github.event.inputs.config == 'production'
+        run: |
+          source .venv/bin/activate
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Stress Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          pytest tests/test_performance.py -v -s -m stress --tb=short 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        continue-on-error: true
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v7
+        with:
+          name: benchmark-results
+          path: perf_output.txt
+          retention-days: 30
+
+      - name: Check for regressions
+        run: |
+          THROUGHPUT=$(grep -oP 'Throughput: \K[\d.]+' perf_output.txt | head -1)
+          if [ ! -z "$THROUGHPUT" ]; then
+            if (( $(echo "$THROUGHPUT < 30" | bc -l) )); then
+              echo "::error::Performance regression detected! Throughput: $THROUGHPUT sagas/sec (min: 30)"
+              exit 1
+            fi
+          fi
+          echo "Performance check passed"
+
+  benchmark-comparison:
