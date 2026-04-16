@@ -87,9 +87,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          # Install to system Python (no venv needed for CI)
+          # Install to system Python with all optional dependencies for testing
           uv pip install --system -e .[storage,integration-tests]
-          uv pip install --system pytest pytest-asyncio
+          uv pip install --system pytest pytest-asyncio aiokafka
 
       - name: Run tests
         run: pytest tests/ -x -q --tb=short
