@@ -112,7 +112,8 @@ class ContainerManager:
             from testcontainers.rabbitmq import RabbitMqContainer
 
             c = RabbitMqContainer("rabbitmq:3.12-alpine")
-            c.start(timeout=180)
+            # Note: RabbitMqContainer does not accept timeout parameter (unlike KafkaContainer)
+            c.start()
             return c
 
         self._start("rabbitmq", _factory)
@@ -197,6 +198,19 @@ def pytest_addoption(parser):
     )
 
 
+def _is_docker_available() -> bool:
+    """Return True if Docker daemon is reachable within 3 seconds."""
+    try:
+        result = subprocess.run(
+            ["docker", "info"],
+            capture_output=True,
+            timeout=3,
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
 def pytest_configure(config):
     """Set up the container manager (no containers started yet)."""
     global _manager, _no_containers
@@ -208,6 +222,11 @@ def pytest_configure(config):
 
     if _no_containers:
         print("\n⏭️  --no-containers: all container-dependent tests will be skipped\n")
+        return
+
+    if not _is_docker_available():
+        print("\n⏭️  Docker not available — container-dependent tests will skip\n")
+        _no_containers = True
         return
 
     _cleanup_stale_containers()

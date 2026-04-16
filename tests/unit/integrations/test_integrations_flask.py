@@ -223,7 +223,7 @@ class TestWebhookStatusTracking:
         saga_ext.register_webhook_blueprint("/webhooks")
 
         with app.test_client() as client:
-            with patch("sagaz.triggers.fire_event", new_callable=AsyncMock) as mock_fire:
+            with patch("sagaz.core.triggers.fire_event", new_callable=AsyncMock) as mock_fire:
                 # Mock fire_event to return a saga_id
                 mock_fire.return_value = ["saga-123"]
 

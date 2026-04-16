@@ -21,7 +21,7 @@ import random
 
 from sagaz import Saga, SagaStepError, action, compensate
 from sagaz.listeners import LoggingSagaListener, MetricsSagaListener
-from sagaz.monitoring.prometheus import PrometheusMetrics, start_metrics_server
+from sagaz.observability.monitoring.prometheus import PrometheusMetrics, start_metrics_server
 
 # Configure logging
 logging.basicConfig(

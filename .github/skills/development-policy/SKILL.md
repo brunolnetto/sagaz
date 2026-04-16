@@ -110,17 +110,31 @@ GitFlow-compliance workflow validates:
 
 - ✅ **PR Title Format**: Must follow conventional commit format
 - ✅ **PR Description**: Must include motivation, impact, and changes sections
-- ✅ **Issue Reference**: PR body must contain `Closes #<n>` to close related issues
+- ✅ **Issue Reference**: PR body must contain issue reference (conditional by PR type)
+  - **Required for**: `feature/*`, `fix/*`, `refactor/*` (major), `perf/*`, `revert/*`
+  - **Optional for**: Other types (via `Relates to #<n>` or `Ref #<n>`)
+  - **Exempt**: `test/*`, `ci/*`, `build/*`, `chore/*`, `docs/*`
+  - Patterns accepted: `Closes #<n>`, `Fixes #<n>`, `Resolves #<n>`, `Relates to #<n>`, `Ref #<n>`
 - ✅ **Branch Flow**: Ensures correct source/target branches per GitFlow rules
 - ✅ **Commit Lint**: All commits must follow conventional format
 - ✅ **CI/CD Checks**: All tests and linters must pass
 
-## Closing Issues
+## Issue References in PRs
 
-When a PR fully addresses an issue:
+### When to Create an Issue
+✅ **Create for**: Bug reports, feature requests, technical debt, ADRs, design discussions
+❌ **Don't create for**: Dependency updates, CI changes, chore work, trivial fixes
 
-- Include `Closes #<n>` in PR body (GitHub will auto-close on merge)
-- Or manually: `gh issue close <n>` immediately after PR merge
+### How to Reference Issues
+- **`Closes #<n>` / `Fixes #<n>` / `Resolves #<n>`**: Use when PR **fully resolves** the issue
+  - GitHub automatically closes the issue on merge
+  - Guarantees issue is complete (no follow-up work)
+- **`Relates to #<n>` / `Ref #<n>`**: Use when PR is **related to but doesn't fully resolve** the issue
+  - GitHub does NOT auto-close
+  - Use for: partial work, follow-up phases, refactoring related to feature
+- **No reference**: Allowed for explicitly exempt PR types (chore, ci, build, test, docs)
+
+See [Issue-PR Policy](../../docs/development/ISSUE-PR-POLICY.md) for complete guidelines and examples.
 
 ## Branch Naming
 
@@ -133,9 +147,9 @@ Examples: `feature/saga-replay`, `docs/refactor-dev-guides`, `fix/storage-pool-l
 
 - [Conventional Commits](https://www.conventionalcommits.org/) - Message format specification
 - [GitFlow Workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow) - Branching model
-- Workflow config: `.github/workflows/gitflow-compliance.yml` - Direct push protection (with PR-based validation)
+- [Issue-PR Policy](../../docs/development/ISSUE-PR-POLICY.md) - When to create issues and how to reference them
+- Workflow config: `.github/workflows/gitflow-compliance.yml` - Direct push protection and PR validation
 - Commit config: `commitlint.config.cjs` - Commit message validation
-- Improvements: `docs/development/WORKFLOW_IMPROVEMENTS.md` - Potential enhancements to GitFlow enforcement
 
 ## Workflow Enforcement Checklist
 
@@ -146,7 +160,7 @@ When creating a PR, the automated workflow verifies:
 - ✅ **Protected branch detection**: main/develop require PR workflow  
 - ✅ **Merge commit allowance**: Auto-merges bypass direct-push protection
 - ✅ **Conventional commit validation**: All commits must follow format rules
-- ✅ **Issue tracking**: All PRs must reference related issues
+- ✅ **Issue tracking**: Feature/fix PRs must reference related issues; exempt types can be issue-free
 
 ## Troubleshooting
 

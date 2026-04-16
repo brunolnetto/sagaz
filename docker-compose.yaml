@@ -19,7 +19,7 @@ services:
 
   # Redis: Used as both Broker and Cache in this simple preset
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     container_name: sagaz-redis
     ports:
       - "6379:6379"
@@ -32,7 +32,7 @@ services:
 
   # Prometheus: Monitoring
   prometheus:
-    image: prom/prometheus:v3.11.1
+    image: prom/prometheus:v3.11.2
     container_name: sagaz-prometheus
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
@@ -41,7 +41,7 @@ services:
 
   # Grafana: Dashboards
   grafana:
-    image: grafana/grafana:12.4.2
+    image: grafana/grafana:13.0.0
     container_name: sagaz-grafana
     environment:
       - GF_AUTH_ANONYMOUS_ENABLED=true

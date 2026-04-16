@@ -26,6 +26,10 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from sagaz import Saga, SagaConfig, action, compensate, configure
+from sagaz.core.storage import InMemorySagaStorage
+
+# Import trigger decorator
+from sagaz.core.triggers import trigger
 
 # Import integration helpers
 from sagaz.integrations.fastapi import (
@@ -33,10 +37,6 @@ from sagaz.integrations.fastapi import (
     sagaz_shutdown,
     sagaz_startup,
 )
-from sagaz.storage import InMemorySagaStorage
-
-# Import trigger decorator
-from sagaz.triggers import trigger
 
 # =============================================================================
 # Configuration

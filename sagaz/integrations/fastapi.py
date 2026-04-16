@@ -122,7 +122,7 @@ def create_webhook_router(url_prefix: str = "/webhooks"):
     Create a FastAPI router for webhook event handling.
 
     The router exposes a POST endpoint that accepts JSON payloads
-    and fires events via sagaz.triggers.fire_event().
+    and fires events via sagaz.core.triggers.fire_event().
 
     Events are processed asynchronously (fire-and-forget). The webhook
     returns immediately with "accepted" status.
@@ -160,7 +160,7 @@ def create_webhook_router(url_prefix: str = "/webhooks"):
         Returns immediately with 202 Accepted.
         """
         from sagaz.core.exceptions import IdempotencyKeyMissingInPayloadError
-        from sagaz.triggers import fire_event
+        from sagaz.core.triggers import fire_event
 
         try:
             payload = await request.json()
@@ -175,7 +175,7 @@ def create_webhook_router(url_prefix: str = "/webhooks"):
         try:
             # Do a synchronous check by attempting to fire the event
             # If idempotency key is missing, this will raise immediately
-            from sagaz.triggers.registry import TriggerRegistry
+            from sagaz.core.triggers.registry import TriggerRegistry
 
             triggers = TriggerRegistry.get_triggers(source)
             for trigger in triggers:

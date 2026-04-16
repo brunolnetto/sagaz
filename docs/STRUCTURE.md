@@ -63,6 +63,18 @@ docs/
 └── archive/                   # Historical documentation (excluded from site)
     ├── README.md              # Archive index
     └── *.md                   # Superseded docs
+
+---
+
+## Examples Directory (Root Level)
+
+```
+examples/                                    # Runnable code examples
+└── monitoring_and_observability/           # Observability & storage examples
+    └── filesystem_snapshot_demo.py         # Filesystem snapshot storage demo
+```
+
+Referenced in: `docs/guides/filesystem-snapshot-storage.md`
 ```
 
 ---
@@ -76,6 +88,7 @@ docs/
 | How-to guides | `guides/` | Kubernetes Guide |
 | API reference | `reference/` | SagaConfig API |
 | Development process | `development/` | Contributing Guide |
+| Runnable examples | `../examples/{domain}/` | filesystem_snapshot_demo.py |
 | Outdated / superseded content | `archive/` | Old strategy docs |
 
 ---

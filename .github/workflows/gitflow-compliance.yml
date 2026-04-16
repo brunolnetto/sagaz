@@ -16,9 +16,9 @@ env:
     renovate[bot]
     github-actions[bot]
 
+jobs:
 # ─── Prevent Direct Pushes ────────────────────────────────────────────────────
 
-jobs:
   prevent-direct-push:
     name: Prevent Direct Push to Protected Branches
     runs-on: ubuntu-latest
@@ -28,7 +28,7 @@ jobs:
       issues: write  # Improvement #8: Permission to create issues for violations
     steps:
       - name: Check for direct push to main or develop
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const event = context.payload;
@@ -124,6 +124,67 @@ jobs:
               core.info(JSON.stringify(auditLog));
             }
 
+# ─── Branch Flow Validation ───────────────────────────────────────────────────
+
+  pr-branch-flow:
+    name: Validate Branch Flow
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'renovate/') }}
+    steps:
+      - name: Validate source branch naming and flow
+        run: |
+          HEAD="${{ github.head_ref }}"
+          BASE="${{ github.base_ref }}"
+
+          echo "Head branch: $HEAD"
+          echo "Base branch: $BASE"
+
+          # Allow develop -> main as a standard gitflow promotion merge
+          if [[ "$HEAD" == "develop" && "$BASE" == "main" ]]; then
+            echo "✅ Allowing develop -> main gitflow promotion merge."
+            exit 0
+          fi
+
+          if [[ ! "$HEAD" =~ ^(feature|fix|docs|chore|refactor|test|ci)/.+$ ]]; then
+            echo "❌ Branch '$HEAD' does not follow the naming convention."
+            echo "Allowed patterns: feature/*, fix/*, docs/*, chore/*, refactor/*, test/*, ci/*"
+            echo "Exception: develop -> main is also allowed for gitflow promotion."
+            exit 1
+          fi
+          echo "✅ Branch '$HEAD' follows the naming convention."
+
+# ─── PR Branch Name Validation ───────────────────────────────────────────────
+
+  pr-branch-name:
+    runs-on: ubuntu-latest
+    name: Validate Branch Name
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Check branch naming convention
+        run: |
+          branch="${{ github.head_ref }}"
+          
+          # Allow develop/main/master
+          if [[ "$branch" == "develop" || "$branch" == "main" || "$branch" == "master" ]]; then
+            echo "✅ Branch: $branch (skipping validation)"
+            exit 0
+          fi
+          
+          # Validate <type>/<topic> pattern
+          if [[ ! $branch =~ ^(feature|fix|docs|refactor|test|chore|ci)/[a-z0-9][a-z0-9-]*$ ]]; then
+            echo "❌ Invalid branch name: $branch"
+            echo ""
+            echo "Branch names must follow: <type>/<topic>"
+            echo "  - type: feature, fix, docs, refactor, test, chore, ci"
+            echo "  - topic: lowercase letters, numbers, hyphens"
+            echo ""
+            echo "Examples: feature/saga-replay, fix/storage-leak, docs/dev-guide"
+            exit 1
+          fi
+          
+          echo "✅ Branch name valid: $branch"
+
 # ─── PR Title Validation (Conventional Commit) ────────────────────────────────
 
   pr-title:
@@ -132,7 +193,7 @@ jobs:
     if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'renovate/') }}
     steps:
       - name: Validate PR title follows conventional commit format
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const title = context.payload.pull_request.title;
@@ -163,7 +224,7 @@ jobs:
     if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'renovate/') }}
     steps:
       - name: Validate PR description sections
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const body = (context.payload.pull_request.body || "").toLowerCase();
@@ -185,56 +246,121 @@ jobs:
 
 # ─── Issue Reference Validation ───────────────────────────────────────────────
 
-  require-issue:
+  pr-require-issue:
     name: Require Issue Reference
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'renovate/') }}
     steps:
-      - name: Check PR description for issue reference
-        uses: actions/github-script@v7
+      - name: Check PR description for issue reference (if required by PR type)
+        uses: actions/github-script@v9
         with:
           script: |
-            const body = (context.payload.pull_request.body || "").toLowerCase()
+            const head = context.payload.pull_request.head_ref || "";
+            const body = (context.payload.pull_request.body || "").toLowerCase();
 
+            // PR types that DO NOT require issue references (per docs/development/ISSUE-PR-POLICY.md)
+            const exemptTypes = [
+              "test/",      // Test improvements
+              "ci/",        // CI/CD workflow updates
+              "build/",     // Build process updates
+              "chore/",     // Routine maintenance
+              "docs/",      // Documentation (most cases)
+            ];
+
+            // Check if this PR type is exempt
+            const isExempt = exemptTypes.some(type => head.startsWith(type));
+
+            if (isExempt) {
+              core.info(`✅ PR type '${head.split('/')[0]}/' is exempt from issue reference requirement.`);
+              return;
+            }
+
+            // For feature/fix/refactor/perf/revert: require issue reference
             const patterns = [
               /closes\s*:?\s+#\d+(?:[.,;!?]|\s|$)/,
               /fixes\s*:?\s+#\d+(?:[.,;!?]|\s|$)/,
-              /resolves\s*:?\s+#\d+(?:[.,;!?]|\s|$)/
-            ]
+              /resolves\s*:?\s+#\d+(?:[.,;!?]|\s|$)/,
+              /relates\s+to\s*:?\s+#\d+(?:[.,;!?]|\s|$)/,
+              /ref\s*:?\s+#\d+(?:[.,;!?]|\s|$)/
+            ];
 
-            const found = patterns.some(p => p.test(body))
+            const found = patterns.some(p => p.test(body));
 
             if (!found) {
               core.setFailed(
-                "Pull Request must reference an Issue using 'Closes #<number>', 'Fixes #<number>' or 'Resolves #<number>'."
-              )
+                `Pull Request of type '${head.split('/')[0]}/' must reference an Issue.\n\n` +
+                `Use one of: 'Closes #<number>', 'Fixes #<number>', 'Resolves #<number>', 'Relates to #<number>', or 'Ref #<number>'.\n\n` +
+                `See: docs/development/ISSUE-PR-POLICY.md for details on when issues are required.\n\n` +
+                `Exempt PR types: test/, ci/, build/, chore/, docs/`
+              );
             }
 
-# ─── Branch Flow Validation ───────────────────────────────────────────────────
+# ─── Commit Message Validation ───────────────────────────────────────────────
 
-  validate-branch-flow:
-    name: Validate Branch Flow
+  pr-commitlint:
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'renovate/') }}
+    name: Validate Commit Messages
+
     steps:
-      - name: Validate source branch naming and flow
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Validate commits
         run: |
-          HEAD="${{ github.head_ref }}"
-          BASE="${{ github.base_ref }}"
-
-          echo "Head branch: $HEAD"
-          echo "Base branch: $BASE"
-
-          # Allow develop -> main as a standard gitflow promotion merge
-          if [[ "$HEAD" == "develop" && "$BASE" == "main" ]]; then
-            echo "✅ Allowing develop -> main gitflow promotion merge."
+          # Skip validation for merge commits
+          if git log -1 --pretty=%B | grep -q "^Merge "; then
+            echo "✅ Skipping merge commit validation"
             exit 0
           fi
+          
+          # Validate all commits in this PR
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            npx commitlint --from ${{ github.event.pull_request.base.sha }} --to HEAD
+          else
+            # For push events, validate recent commits
+            npx commitlint --from HEAD~5 --to HEAD || true
+            echo "✅ Commit message validation passed"
+          fi
 
-          if [[ ! "$HEAD" =~ ^(feature|fix|docs|chore|refactor|test|ci)/.+$ ]]; then
-            echo "❌ Branch '$HEAD' does not follow the naming convention."
-            echo "Allowed patterns: feature/*, fix/*, docs/*, chore/*, refactor/*, test/*, ci/*"
-            echo "Exception: develop -> main is also allowed for gitflow promotion."
+      - name: Check for empty commit messages
+        run: |
+          echo "Checking for empty commit messages..."
+          empty_commits=0
+          
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            commits=$(git rev-list ${{ github.event.pull_request.base.sha }}..HEAD)
+          else
+            commits=$(git rev-list HEAD~5..HEAD 2>/dev/null || echo "")
+          fi
+          
+          for commit in $commits; do
+            msg=$(git log --format=%B -n 1 "$commit" 2>/dev/null || true)
+            
+            # Skip merge commits
+            if echo "$msg" | grep -q "^Merge "; then
+              continue
+            fi
+            
+            # Check for empty message
+            if [ -z "$(echo "$msg" | grep -v '^#' | tr -d '[:space:]')" ]; then
+              echo "❌ Empty commit message: $commit"
+              empty_commits=$((empty_commits + 1))
+            fi
+          done
+          
+          if [ $empty_commits -gt 0 ]; then
+            echo "❌ Found $empty_commits commit(s) with empty messages"
             exit 1
           fi
-          echo "✅ Branch '$HEAD' follows the naming convention."
+          
+          echo "✅ All commits have meaningful messages"

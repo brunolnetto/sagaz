@@ -65,8 +65,8 @@ class TestS3SnapshotStorageIntegration:
     async def test_s3_snapshot_lifecycle(self, s3_storage_setup):
         """Test full snapshot lifecycle: save, get, list, delete."""
         from sagaz.core.replay import SagaSnapshot
+        from sagaz.core.storage.backends.s3.snapshot import S3SnapshotStorage
         from sagaz.core.types import SagaStatus
-        from sagaz.storage.backends.s3.snapshot import S3SnapshotStorage
 
         # Create storage with LocalStack config
         storage = S3SnapshotStorage(
@@ -124,11 +124,11 @@ class TestS3SnapshotStorageIntegration:
     async def test_s3_multiple_snapshots(self, s3_storage_setup):
         """Test handling multiple snapshots for the same saga."""
         from sagaz.core.replay import SagaSnapshot
-        from sagaz.core.types import SagaStatus
-        from sagaz.storage.backends.s3.snapshot import (
+        from sagaz.core.storage.backends.s3.snapshot import (
             AIOBOTO3_AVAILABLE,
             S3SnapshotStorage,
         )
+        from sagaz.core.types import SagaStatus
 
         if not AIOBOTO3_AVAILABLE:
             pytest.skip("aioboto3 not installed")
@@ -183,11 +183,11 @@ class TestS3SnapshotStorageIntegration:
     async def test_s3_get_snapshot_at_time(self, s3_storage_setup):
         """Test retrieving snapshot at a specific point in time."""
         from sagaz.core.replay import SagaSnapshot
-        from sagaz.core.types import SagaStatus
-        from sagaz.storage.backends.s3.snapshot import (
+        from sagaz.core.storage.backends.s3.snapshot import (
             AIOBOTO3_AVAILABLE,
             S3SnapshotStorage,
         )
+        from sagaz.core.types import SagaStatus
 
         if not AIOBOTO3_AVAILABLE:
             pytest.skip("aioboto3 not installed")
@@ -244,12 +244,12 @@ class TestS3SnapshotStorageIntegration:
     async def test_s3_compression(self, s3_storage_setup):
         """Test snapshot compression functionality."""
         from sagaz.core.replay import SagaSnapshot
-        from sagaz.core.types import SagaStatus
-        from sagaz.storage.backends.s3.snapshot import (
+        from sagaz.core.storage.backends.s3.snapshot import (
             AIOBOTO3_AVAILABLE,
             ZSTD_AVAILABLE,
             S3SnapshotStorage,
         )
+        from sagaz.core.types import SagaStatus
 
         if not AIOBOTO3_AVAILABLE:
             pytest.skip("aioboto3 not installed")
@@ -299,11 +299,11 @@ class TestS3SnapshotStorageIntegration:
     async def test_s3_context_manager(self, s3_storage_setup):
         """Test S3 snapshot storage with context manager."""
         from sagaz.core.replay import SagaSnapshot
-        from sagaz.core.types import SagaStatus
-        from sagaz.storage.backends.s3.snapshot import (
+        from sagaz.core.storage.backends.s3.snapshot import (
             AIOBOTO3_AVAILABLE,
             S3SnapshotStorage,
         )
+        from sagaz.core.types import SagaStatus
 
         if not AIOBOTO3_AVAILABLE:
             pytest.skip("aioboto3 not installed")
@@ -337,11 +337,11 @@ class TestS3SnapshotStorageIntegration:
     async def test_s3_encryption(self, s3_storage_setup):
         """Test S3 server-side encryption."""
         from sagaz.core.replay import SagaSnapshot
-        from sagaz.core.types import SagaStatus
-        from sagaz.storage.backends.s3.snapshot import (
+        from sagaz.core.storage.backends.s3.snapshot import (
             AIOBOTO3_AVAILABLE,
             S3SnapshotStorage,
         )
+        from sagaz.core.types import SagaStatus
 
         if not AIOBOTO3_AVAILABLE:
             pytest.skip("aioboto3 not installed")

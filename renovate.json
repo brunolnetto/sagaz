@@ -4,6 +4,10 @@
   "baseBranches": ["develop"],
   "prCreation": "immediate",
   "labels": ["dependencies"],
+  "commitMessagePrefix": "chore(deps): ",
+  "commitMessageAction": "update",
+  "commitMessageTopic": "{{depName}}",
+  "commitMessageExtra": "to {{newVersion}}",
   "packageRules": [
     {
       "matchPackageNames": ["ipython"],

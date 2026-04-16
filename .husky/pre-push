@@ -1,0 +1,64 @@
+#!/bin/bash
+# Pre-push hook: validate branch naming and commit messages before push
+
+remote="$1"
+url="$2"
+
+# Get the current branch name
+current_branch=$(git rev-parse --abbrev-ref HEAD)
+
+# Allow pushing to develop and main without validation (CI handles it)
+case "$current_branch" in
+  develop|main|master)
+    exit 0
+    ;;
+esac
+
+# Validate branch naming convention: <type>/<topic>
+# Check if branch matches pattern: type/topic (where type is feature, fix, docs, refactor, test, chore, or ci)
+if ! echo "$current_branch" | grep -E '^(feature|fix|docs|refactor|test|chore|ci)/[a-z0-9][a-z0-9-]*$' > /dev/null; then
+  echo "❌ INVALID BRANCH NAME: $current_branch"
+  echo ""
+  echo "Branch names must follow: <type>/<topic>"
+  echo "  - type: feature, fix, docs, refactor, test, chore, ci"
+  echo "  - topic: lowercase letters, numbers, and hyphens only"
+  echo ""
+  echo "Examples:"
+  echo "  feature/saga-replay"
+  echo "  fix/storage-pool-leak"
+  echo "  docs/update-dev-guides"
+  echo ""
+  exit 1
+fi
+
+# Get commits to be pushed
+commits=$(git rev-list origin/$current_branch..$current_branch 2>/dev/null || git rev-list HEAD 2>/dev/null | head -1)
+
+if [ -z "$commits" ]; then
+  exit 0
+fi
+
+# Validate each commit message (skip merge commits)
+echo "$commits" | while read -r commit; do
+  if [ -z "$commit" ]; then
+    continue
+  fi
+  
+  msg=$(git log --format=%B -n 1 "$commit" 2>/dev/null)
+  
+  # Skip merge commits
+  if echo "$msg" | grep -q "^Merge "; then
+    continue
+  fi
+  
+  # Check for empty message
+  empty_check=$(echo "$msg" | grep -v '^#' | tr -d '[:space:]' 2>/dev/null)
+  if [ -z "$empty_check" ]; then
+    echo "❌ EMPTY COMMIT MESSAGE: $commit"
+    echo "   All commits must have meaningful messages."
+    exit 1
+  fi
+done
+
+echo "✅ Branch naming and commit validation passed"
+exit 0

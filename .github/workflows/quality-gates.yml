@@ -44,7 +44,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.11.5"
+          version: "0.11.7"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
@@ -107,7 +107,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.11.5"
+          version: "0.11.7"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
@@ -181,7 +181,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.11.5"
+          version: "0.11.7"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
@@ -387,7 +387,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.11.5"
+          version: "0.11.7"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
@@ -450,7 +450,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.11.5"
+          version: "0.11.7"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
@@ -476,3 +476,4 @@ jobs:
           files: ./coverage-integration.xml
           flags: integration
           name: integration-tests
+

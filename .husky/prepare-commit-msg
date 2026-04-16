@@ -1,0 +1,37 @@
+#!/bin/bash
+# Prepare commit message hook: Add a helpful template comment if the message is empty
+
+commit_msg_file="$1"
+commit_source="$2"
+
+# Skip template injection for merge commits, squashes, and amendments
+if [ "$commit_source" != "" ]; then
+  exit 0
+fi
+
+# Check if message is empty or only has comments
+msg_content=$(grep -v '^#' "$commit_msg_file" | tr -d '[:space:]')
+
+if [ -z "$msg_content" ]; then
+  # Add helpful template comment
+  cat >> "$commit_msg_file" << 'EOF'
+
+# ============================================================================
+# Commit Message Template
+# ============================================================================
+# <type>(<scope>): <subject>
+#
+# Allowed types: feat, fix, docs, refactor, test, perf, build, ci, chore, revert
+# Scope examples: saga, dag, outbox, storage, cli, monitoring, etc.
+#
+# Examples:
+#   feat(storage): add sqlite backend
+#   fix(saga): handle concurrent execution
+#   docs(cli): update installation guide
+#
+# Note: Remove these comment lines before committing
+# ============================================================================
+EOF
+fi
+
+exit 0

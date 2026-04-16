@@ -1,3 +1,5 @@
+node_modules/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -209,3 +211,4 @@ marimo/_lsp/
 __marimo__/
 # MkDocs build output
 site/
+node_modules/

@@ -37,7 +37,15 @@ The repository enforces GitFlow discipline via automated workflow checks:
    - Target: `develop` (for features) or `main` (for develop→main release PR)
    - Title must follow conventional commit format
    - Description must include motivation, impact, and changes
+<<<<<<< HEAD
    - Link related issues using `Closes #<n>` or `Relates to #<n>`
+=======
+   - **Link related issues** (see [Issue-PR Policy](./ISSUE-PR-POLICY.md)):
+     - **Required for**: feature/*, fix/*, refactor/* (major), perf/*, revert/* PRs
+     - **Use**: `Closes #<n>`, `Fixes #<n>`, `Resolves #<n>` to auto-close on merge
+     - **Optional refs**: `Relates to #<n>` for partial/related work (doesn't auto-close)
+     - **Exempt types**: chore/*, ci/*, build/*, test/*, docs/* (no issue reference needed)
+>>>>>>> develop
 
 5. **Address PR feedback** and ensure all checks pass:
    - Commitlint validation

@@ -77,6 +77,36 @@ from sagaz.core.exceptions import (
 )
 
 # =============================================================================
+# Execution Graph (compensation and dependency management)
+# =============================================================================
+from sagaz.core.execution.graph import (
+    CircularDependencyError,
+    CompensationFailureStrategy,
+    CompensationGraphError,
+    CompensationNode,
+    CompensationResult,
+    CompensationType,
+    SagaCompensationContext,
+    SagaExecutionGraph,
+)
+
+# =============================================================================
+# Orchestrator and Types
+# =============================================================================
+from sagaz.core.execution.orchestrator import SagaOrchestrator
+
+# =============================================================================
+# Pivot/Irreversible Steps (v1.3.0)
+# =============================================================================
+from sagaz.core.execution.pivot import (
+    PivotInfo,
+    RecoveryAction,
+    SagaZones,
+    StepZone,
+    TaintPropagator,
+)
+
+# =============================================================================
 # Listeners (observability and side effects)
 # =============================================================================
 from sagaz.core.listeners import (
@@ -103,36 +133,6 @@ from sagaz.dry_run import (
     DryRunResult,
     SimulationResult,
     ValidationResult,
-)
-
-# =============================================================================
-# Execution Graph (compensation and dependency management)
-# =============================================================================
-from sagaz.execution.graph import (
-    CircularDependencyError,
-    CompensationFailureStrategy,
-    CompensationGraphError,
-    CompensationNode,
-    CompensationResult,
-    CompensationType,
-    SagaCompensationContext,
-    SagaExecutionGraph,
-)
-
-# =============================================================================
-# Orchestrator and Types
-# =============================================================================
-from sagaz.execution.orchestrator import SagaOrchestrator
-
-# =============================================================================
-# Pivot/Irreversible Steps (v1.3.0)
-# =============================================================================
-from sagaz.execution.pivot import (
-    PivotInfo,
-    RecoveryAction,
-    SagaZones,
-    StepZone,
-    TaintPropagator,
 )
 
 __all__ = [
@@ -208,12 +208,6 @@ __all__ = [
     "get_config",
 ]
 
-
-# =============================================================================
-# Backward Compatibility Aliases
-# =============================================================================
-# These imports allow existing code using the old module paths to continue working.
-# For example: `from sagaz.core.config import SagaConfig` will still work.
 
 # Re-export cli_examples for backward compatibility
 from sagaz.cli import examples as cli_examples

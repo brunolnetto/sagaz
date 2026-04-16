@@ -16,7 +16,7 @@ class TestCompensationGraphTo100:
     @pytest.mark.asyncio
     async def test_compensation_graph_validation_circular(self):
         """Test validate() method detecting circular dependencies"""
-        from sagaz.execution.graph import CircularDependencyError, SagaExecutionGraph
+        from sagaz.core.execution.graph import CircularDependencyError, SagaExecutionGraph
 
         graph = SagaExecutionGraph()
 
@@ -34,7 +34,7 @@ class TestCompensationGraphTo100:
     @pytest.mark.asyncio
     async def test_compensation_graph_find_cycle_deep(self):
         """Test _find_cycle method with deeper cycle"""
-        from sagaz.execution.graph import CircularDependencyError, SagaExecutionGraph
+        from sagaz.core.execution.graph import CircularDependencyError, SagaExecutionGraph
 
         graph = SagaExecutionGraph()
 
@@ -191,8 +191,8 @@ class TestStorageTo100:
     @pytest.mark.asyncio
     async def test_memory_storage_list_sagas_pagination(self):
         """Test memory storage list with pagination"""
+        from sagaz.core.storage.memory import InMemorySagaStorage
         from sagaz.core.types import SagaStatus
-        from sagaz.storage.memory import InMemorySagaStorage
 
         storage = InMemorySagaStorage()
 
@@ -213,7 +213,7 @@ class TestStorageTo100:
     @pytest.mark.asyncio
     async def test_postgresql_storage_import_error(self):
         """Test PostgreSQL storage when asyncpg not available"""
-        from sagaz.storage.backends.postgresql.saga import ASYNCPG_AVAILABLE
+        from sagaz.core.storage.backends.postgresql.saga import ASYNCPG_AVAILABLE
 
         # Just verify the import check works
         assert isinstance(ASYNCPG_AVAILABLE, bool)
@@ -221,7 +221,7 @@ class TestStorageTo100:
     @pytest.mark.asyncio
     async def test_redis_storage_import_error(self):
         """Test Redis storage when redis not available"""
-        from sagaz.storage.backends.redis.saga import REDIS_AVAILABLE
+        from sagaz.core.storage.backends.redis.saga import REDIS_AVAILABLE
 
         # Just verify the import check works
         assert isinstance(REDIS_AVAILABLE, bool)
@@ -233,7 +233,7 @@ class TestBrokerTo100:
     @pytest.mark.asyncio
     async def test_kafka_broker_import_check(self):
         """Test Kafka broker import availability check"""
-        from sagaz.outbox.brokers.kafka import KAFKA_AVAILABLE
+        from sagaz.core.outbox.brokers.kafka import KAFKA_AVAILABLE
 
         # Verify import check works
         assert isinstance(KAFKA_AVAILABLE, bool)
@@ -241,7 +241,7 @@ class TestBrokerTo100:
     @pytest.mark.asyncio
     async def test_rabbitmq_broker_import_check(self):
         """Test RabbitMQ broker import availability check"""
-        from sagaz.outbox.brokers.rabbitmq import RABBITMQ_AVAILABLE
+        from sagaz.core.outbox.brokers.rabbitmq import RABBITMQ_AVAILABLE
 
         # Verify import check works
         assert isinstance(RABBITMQ_AVAILABLE, bool)
@@ -252,7 +252,7 @@ class TestBrokerTo100:
         import io
         import sys
 
-        from sagaz.outbox.brokers.factory import print_available_brokers
+        from sagaz.core.outbox.brokers.factory import print_available_brokers
 
         captured = io.StringIO()
         old_stdout = sys.stdout
@@ -276,8 +276,8 @@ class TestOrchestratorTo100:
         import logging
 
         from sagaz import SagaContext
+        from sagaz.core.execution.orchestrator import SagaOrchestrator
         from sagaz.core.saga import Saga as ClassicSaga
-        from sagaz.execution.orchestrator import SagaOrchestrator
 
         # Create orchestrator with verbose mode
         logger = logging.getLogger("test")
@@ -304,7 +304,7 @@ class TestMonitoringTo100:
         """Test tracing module when OpenTelemetry not available"""
         # The import error handling is in the module-level code
         # Just importing tests the path
-        from sagaz.monitoring import tracing
+        from sagaz.observability.monitoring import tracing
 
         # Verify module loaded
         assert hasattr(tracing, "SagaTracer")
@@ -312,7 +312,7 @@ class TestMonitoringTo100:
     def test_metrics_record_execution(self):
         """Test metrics record_execution method"""
         from sagaz.core.types import SagaStatus
-        from sagaz.monitoring.metrics import SagaMetrics
+        from sagaz.observability.monitoring.metrics import SagaMetrics
 
         metrics = SagaMetrics()
 
@@ -337,7 +337,7 @@ class TestWorkerTo100:
     async def test_worker_signal_handlers(self):
         """Test worker signal handler registration"""
 
-        from sagaz.outbox.worker import OutboxConfig, OutboxWorker
+        from sagaz.core.outbox.worker import OutboxConfig, OutboxWorker
 
         storage = AsyncMock()
         broker = AsyncMock()
@@ -363,7 +363,7 @@ class TestOutboxTypesTo100:
     @pytest.mark.asyncio
     async def test_outbox_event_str_payload(self):
         """Test OutboxEvent with string payload that needs parsing"""
-        from sagaz.outbox.types import OutboxEvent
+        from sagaz.core.outbox.types import OutboxEvent
 
         event = OutboxEvent(
             saga_id="saga-1",
@@ -380,7 +380,7 @@ class TestOutboxTypesTo100:
     @pytest.mark.asyncio
     async def test_outbox_config_from_env(self):
         """Test OutboxConfig.from_env()"""
-        from sagaz.outbox.types import OutboxConfig
+        from sagaz.core.outbox.types import OutboxConfig
 
         with patch.dict(
             "os.environ",
@@ -398,7 +398,7 @@ class TestStrategiesTo100:
     @pytest.mark.asyncio
     async def test_fail_fast_cancellation(self):
         """Test FailFast strategy handles cancellation"""
-        from sagaz.strategies.fail_fast import FailFastStrategy
+        from sagaz.core.strategies.fail_fast import FailFastStrategy
 
         strategy = FailFastStrategy()
 
@@ -422,7 +422,7 @@ class TestStrategiesTo100:
     @pytest.mark.asyncio
     async def test_fail_fast_grace_timeout_path(self):
         """Test FailFastWithGrace strategy timeout handling"""
-        from sagaz.strategies.fail_fast_grace import FailFastWithGraceStrategy
+        from sagaz.core.strategies.fail_fast_grace import FailFastWithGraceStrategy
 
         strategy = FailFastWithGraceStrategy()
 
@@ -450,8 +450,8 @@ class TestOutboxMemoryTo100:
     @pytest.mark.asyncio
     async def test_memory_outbox_insert_and_claim(self):
         """Test inserting events and claiming them"""
-        from sagaz.outbox.types import OutboxEvent, OutboxStatus
-        from sagaz.storage.backends.memory.outbox import InMemoryOutboxStorage
+        from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
+        from sagaz.core.storage.backends.memory.outbox import InMemoryOutboxStorage
 
         storage = InMemoryOutboxStorage()
 

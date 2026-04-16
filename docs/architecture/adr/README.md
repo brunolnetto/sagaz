@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-**Last Updated**: 2026-04-08
+**Last Updated**: 2026-04-11
 
 This directory contains Architecture Decision Records (ADRs) documenting significant technical decisions for Sagaz.
 
@@ -25,10 +25,11 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-026](adr-026-industry-examples-expansion.md) | Industry Examples Expansion | v1.4-1.6 | 2026-01 |
 | [ADR-027](adr-027-project-cli.md) | Project CLI | v1.3.0 | 2026-01 |
 | [ADR-028](adr-028-framework-integration.md) | Framework Integration (FastAPI/Django/Flask) | v1.3.0 | 2026-01 |
-| [ADR-019](adr-019-dry-run-mode.md) | Dry-Run Mode | v1.3.0 | 2026-01 |
 | [ADR-030](adr-030-dry-run-parallel-analysis.md) | Dry-Run Parallel Analysis | v1.3.0 | 2026-01 |
 | [ADR-031](adr-031-dry-run-simplification.md) | Dry-Run Simplification | v1.3.0 | 2026-01 |
 | [ADR-032](adr-032-cli-command-organization.md) | CLI Command Organization | v1.3.0 | 2026-01 |
+| [ADR-036](adr-036-lifecycle-hooks-observers.md) | Lifecycle Hooks & Observers | v1.3.0 | 2026-04 |
+| [ADR-037](adr-037-compliance-data-governance.md) | Compliance & Data Governance | v2.1.0 | 2026-04 |
 
 ---
 
@@ -39,14 +40,11 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | ADR | Title | Target | Description |
 |-----|-------|--------|-------------|
 | [ADR-029](adr-029-saga-choreography.md) | Saga Choreography Pattern | v2.2.0 | Event-driven distributed coordination |
-| [ADR-020](adr-020-multi-tenancy.md) | Multi-Tenancy | v2.1.0 | Tenant isolation, quotas, and compliance |
 
-### Medium Priority
+### Medium / Low Priority
 
 | ADR | Title | Target | Description |
 |-----|-------|--------|-------------|
-| [ADR-018](adr-018-saga-versioning.md) | Saga Versioning | v2.1.0 | Version management for saga definitions |
-| [ADR-017](adr-017-chaos-engineering.md) | Chaos Engineering | v2.0.0 | Fault injection and resilience testing |
 
 ### Low Priority / Future
 
