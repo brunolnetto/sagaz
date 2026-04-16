@@ -260,7 +260,7 @@ jobs:
           wait-for-processing: true
         continue-on-error: true
 
-
+  benchmark-comparison:
     name: "Compare with baseline"
     runs-on: ubuntu-latest
     needs: benchmark
