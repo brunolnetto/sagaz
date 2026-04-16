@@ -1,7 +1,7 @@
 # Sagaz - Production-Ready Saga Pattern for Python
 
-[![codecov](https://codecov.io/gh/brunolnetto/sagaz/graph/badge.svg?token=29PU5W65KL)](https://codecov.io/gh/brunolnetto/sagaz)
-[![Tests](https://github.com/brunolnetto/sagaz/actions/workflows/tests.yml/badge.svg)](https://github.com/brunolnetto/sagaz/actions/workflows/tests.yml)
+[![codecov](https://codecov.io/gh/brunolnetto/sagaz/branch/main/graph/badge.svg)](https://codecov.io/gh/brunolnetto/sagaz)
+[![Tests](https://github.com/brunolnetto/sagaz/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/brunolnetto/sagaz/actions/workflows/tests.yml)
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/sagaz.svg)](https://pypi.org/project/sagaz/)

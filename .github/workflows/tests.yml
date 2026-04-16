@@ -76,7 +76,6 @@ jobs:
           files: ./coverage.xml
           flags: unittests
           name: coverage-py${{ matrix.python-version }}
-          token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
         if: matrix.python-version == '3.11'
 
