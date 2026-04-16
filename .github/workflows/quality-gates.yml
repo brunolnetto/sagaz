@@ -176,7 +176,7 @@ jobs:
       - name: Set up Python 3.13
         uses: actions/setup-python@v6
         with:
-          python-version: '3.14'
+          python-version: '3.13'
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -233,6 +233,32 @@ jobs:
             echo "::warning::Some files have low maintainability index"
             echo "$result"
           fi
+
+# ─── Code Quality Analysis via Codacy ─────────────────────────────────────────
+
+  codacy:
+    name: Codacy Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Run Codacy Analysis Client
+        uses: codacy/codacy-analysis-cli-action@master
+        with:
+          project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
+          upload: true
+          max-allowed-issues: 2147483647
+          format: sarif
+          output: codacy-results.sarif
+
+      - name: Upload SARIF results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: codacy-results.sarif
+          wait-for-processing: true
+        continue-on-error: true
 
 
     name: "Compare with baseline"

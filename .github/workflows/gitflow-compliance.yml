@@ -158,7 +158,8 @@ jobs:
   pr-branch-name:
     runs-on: ubuntu-latest
     name: Validate Branch Name
-    if: github.event_name == 'pull_request'
+    # Skip branch name validation for bot PRs since they may have auto-generated branch names
+    if: ${{ github.event_name == 'pull_request' && !startsWith(github.actor, 'dependabot') && github.actor != 'renovate[bot]' && github.actor != 'github-actions[bot]' }}
 
     steps:
       - name: Check branch naming convention
@@ -300,6 +301,8 @@ jobs:
   pr-commitlint:
     runs-on: ubuntu-latest
     name: Validate Commit Messages
+    # Skip commitlint validation for bot PRs since they don't follow conventional format
+    if: ${{ github.event_name == 'pull_request' && !startsWith(github.actor, 'dependabot') && github.actor != 'renovate[bot]' && github.actor != 'github-actions[bot]' }}
 
     steps:
       - uses: actions/checkout@v6
