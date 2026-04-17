@@ -28,6 +28,7 @@ from sagaz.cli.dry_run import simulate_cmd, validate_cmd
 from sagaz.cli.project import check as check_cmd
 from sagaz.cli.project import list_sagas
 from sagaz.cli.replay import replay
+from sagaz.storage.event_store import SQLiteEventStore
 
 try:
     from rich.console import Console
@@ -680,6 +681,46 @@ def run_example(name: str):
 
 
 # ============================================================================
+# Event Log Command (Event Sourcing)
+# ============================================================================
+
+
+@click.command("event-log")
+@click.argument("saga_id")
+@click.option("--db", default=":memory:", help="Path to SQLite events DB (default: in-memory).")
+@click.option("--json", "as_json", is_flag=True, default=False, help="Output as JSON array.")
+def event_log_cmd(saga_id: str, db: str, as_json: bool) -> None:
+    """Show the event log for a specific saga.
+
+    \b
+    Examples:
+        sagaz event-log my-saga-id
+        sagaz event-log my-saga-id --db events.db
+        sagaz event-log my-saga-id --db events.db --json
+    """
+    import asyncio
+    import json as _json
+
+    store = SQLiteEventStore(db_path=db)
+    try:
+        events = asyncio.run(store.load_stream(saga_id))
+    finally:
+        store.close()
+
+    if not events:
+        click.echo(f"No events found for saga '{saga_id}'.")
+        return
+
+    if as_json:
+        click.echo(_json.dumps([e.to_dict() for e in events], indent=2))
+    else:
+        click.echo(f"Event log for saga '{saga_id}' ({len(events)} event(s)):")
+        for i, event in enumerate(events, 1):
+            d = event.to_dict()
+            click.echo(f"  {i:3d}. [{d['event_type']}] saga_id={d['saga_id']}")
+
+
+# ============================================================================
 # Command Registration (Progressive Risk Order)
 # ============================================================================
 # Commands appear in help in the order they're added to the group.
@@ -708,6 +749,9 @@ cli.add_command(benchmark_cmd, name="benchmark")
 
 # Utilities
 cli.add_command(version_cmd, name="version")
+
+# Event sourcing
+cli.add_command(event_log_cmd, name="event-log")
 
 # State Modification (Highest Risk)
 cli.add_command(replay, name="replay")
