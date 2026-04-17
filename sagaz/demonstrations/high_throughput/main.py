@@ -258,6 +258,7 @@ class HighThroughputBenchmark:
             try:
                 await w
             except asyncio.CancelledError:
+                # Task was cancelled as intended; no error handling needed
                 pass
 
     async def run_processing_workers(self, total_events: int):

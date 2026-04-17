@@ -58,5 +58,6 @@ def get_demo_description(path: Path) -> str:
                     return desc if desc else "No description"
                 break
     except Exception:
+        # If docstring parsing fails for any reason, return default description
         pass
     return "No description"
