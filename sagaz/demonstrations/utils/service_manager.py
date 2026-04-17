@@ -79,6 +79,4 @@ def ServiceManager(*, postgres: bool = False, redis: bool = False):
                 container.stop()
                 logger.info("Container stopped: %s", type(container).__name__)
             except Exception:
-                logger.exception(
-                    "Error stopping container %s", type(container).__name__
-                )
+                logger.exception("Error stopping container %s", type(container).__name__)

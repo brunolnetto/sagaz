@@ -90,6 +90,7 @@ class OrderProcessingSaga(Saga):
     async def validate_order(self, ctx):
         """Validate the order data."""
         import random
+
         await asyncio.sleep(random.uniform(0.01, 0.05))
         order_id = f"ORD-{random.randint(1000, 9999)}"
         return {"order_id": order_id, "validated": True}
@@ -98,6 +99,7 @@ class OrderProcessingSaga(Saga):
     async def reserve_inventory(self, ctx):
         """Reserve items in inventory."""
         import random
+
         await asyncio.sleep(random.uniform(0.02, 0.08))
         return {"inventory_reserved": True, "items": ctx.get("item_count", 3)}
 
@@ -105,6 +107,7 @@ class OrderProcessingSaga(Saga):
     async def release_inventory(self, ctx):
         """Release reserved inventory on failure."""
         import random
+
         await asyncio.sleep(random.uniform(0.01, 0.03))
         logger.info(f"  🔄 COMPENSATION: Released inventory for {ctx.get('order_id')}")
 
@@ -112,6 +115,7 @@ class OrderProcessingSaga(Saga):
     async def charge_payment(self, ctx):
         """Charge customer payment."""
         import random
+
         await asyncio.sleep(random.uniform(0.05, 0.15))
         if random.random() < 0.2:
             msg = "Payment declined by processor"
@@ -122,6 +126,7 @@ class OrderProcessingSaga(Saga):
     async def refund_payment(self, ctx):
         """Refund the payment on failure."""
         import random
+
         await asyncio.sleep(random.uniform(0.02, 0.05))
         logger.info(f"  🔄 COMPENSATION: Refunded payment {ctx.get('payment_id')}")
 
@@ -129,6 +134,7 @@ class OrderProcessingSaga(Saga):
     async def ship_order(self, ctx):
         """Initiate order shipment."""
         import random
+
         await asyncio.sleep(random.uniform(0.03, 0.1))
         return {"tracking_id": f"TRACK-{random.randint(10000, 99999)}"}
 
