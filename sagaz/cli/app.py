@@ -680,6 +680,110 @@ def run_example(name: str):
 
 
 # ============================================================================
+# Cloud Deployment Commands (High Risk)
+# ============================================================================
+
+_PROVIDER_CHOICES = click.Choice(["aws", "gcp", "k8s"])
+
+_DEPLOY_CMDS: dict[str, list[str]] = {
+    "aws": ["aws", "ecs", "deploy"],
+    "gcp": ["gcloud", "run", "deploy"],
+    "k8s": ["kubectl", "apply", "-f", "k8s/"],
+}
+
+_TEARDOWN_CMDS: dict[str, list[str]] = {
+    "aws": ["aws", "ecs", "delete-service"],
+    "gcp": ["gcloud", "run", "services", "delete"],
+    "k8s": ["kubectl", "delete", "-f", "k8s/"],
+}
+
+_COST_ESTIMATES = {
+    "aws": "AWS ECS estimated cost: ~$15/month (t3.small instance)",
+    "gcp": "GCP Cloud Run estimated cost: ~$10/month (pay-per-request)",
+    "k8s": "Kubernetes cluster cost depends on node size; ~$30/month for a 2-node cluster",
+}
+
+
+@click.command("deploy")
+@click.option(
+    "--provider",
+    required=True,
+    type=_PROVIDER_CHOICES,
+    help="Cloud provider to deploy to (aws, gcp, k8s).",
+)
+@click.option("--namespace", default="sagaz", show_default=True, help="Kubernetes namespace.")
+@click.option(
+    "--dry-run", is_flag=True, default=False, help="Preview commands without running them."
+)
+@click.option("--cost-estimate", is_flag=True, default=False, help="Show cost estimate and exit.")
+def deploy_cmd(provider: str, namespace: str, dry_run: bool, cost_estimate: bool) -> None:
+    """Deploy Sagaz to a cloud provider.
+
+    \b
+    Examples:
+        sagaz deploy --provider aws
+        sagaz deploy --provider k8s --namespace production --dry-run
+    """
+    if cost_estimate:
+        click.echo(_COST_ESTIMATES[provider])
+        return
+
+    base_cmd = list(_DEPLOY_CMDS[provider])
+    if provider == "k8s" and namespace != "sagaz":
+        base_cmd += ["--namespace", namespace]
+
+    if dry_run:
+        click.echo(f"[dry-run] Would run: {' '.join(base_cmd)}")
+        return
+
+    click.echo(f"Deploying to {provider}...")
+    result = subprocess.run(base_cmd)
+    if result.returncode != 0:
+        click.echo(f"Deployment to {provider} failed (exit code {result.returncode}).")
+    else:
+        click.echo(f"Deployment to {provider} complete.")
+        if provider == "k8s" and namespace != "sagaz":
+            click.echo(f"Namespace: {namespace}")
+
+
+@click.command("teardown")
+@click.option(
+    "--provider",
+    required=True,
+    type=_PROVIDER_CHOICES,
+    help="Cloud provider to tear down (aws, gcp, k8s).",
+)
+@click.option("--namespace", default="sagaz", show_default=True, help="Kubernetes namespace.")
+@click.option("--yes", is_flag=True, default=False, help="Skip confirmation prompt.")
+def teardown_cmd(provider: str, namespace: str, yes: bool) -> None:
+    """Tear down Sagaz resources from a cloud provider.
+
+    \b
+    Examples:
+        sagaz teardown --provider aws
+        sagaz teardown --provider k8s --namespace staging --yes
+    """
+    if not yes:
+        confirmed = click.confirm(f"Destroy all {provider} resources? This cannot be undone.")
+        if not confirmed:
+            click.echo("Aborted.")
+            return
+
+    base_cmd = list(_TEARDOWN_CMDS[provider])
+    if provider == "k8s" and namespace != "sagaz":
+        base_cmd += ["--namespace", namespace]
+
+    click.echo(f"Tearing down {provider} resources...")
+    result = subprocess.run(base_cmd)
+    if result.returncode != 0:
+        click.echo(f"Teardown of {provider} failed (exit code {result.returncode}).")
+    else:
+        click.echo(f"Teardown of {provider} complete.")
+        if provider == "k8s" and namespace != "sagaz":
+            click.echo(f"Namespace: {namespace}")
+
+
+# ============================================================================
 # Command Registration (Progressive Risk Order)
 # ============================================================================
 # Commands appear in help in the order they're added to the group.
@@ -710,6 +814,8 @@ cli.add_command(benchmark_cmd, name="benchmark")
 cli.add_command(version_cmd, name="version")
 
 # State Modification (Highest Risk)
+cli.add_command(deploy_cmd, name="deploy")
+cli.add_command(teardown_cmd, name="teardown")
 cli.add_command(replay, name="replay")
 
 if __name__ == "__main__":
