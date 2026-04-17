@@ -21,8 +21,6 @@ Example:
 
 import asyncio
 from datetime import datetime
-from typing import Any
-
 from sagaz.core.logger import get_logger
 from sagaz.core.triggers import fire_event
 from sagaz.core.triggers.registry import TriggerRegistry

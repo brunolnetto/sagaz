@@ -22,8 +22,6 @@ import asyncio
 import os
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
-
 from pydantic import BaseModel, Field
 
 from sagaz import Saga, action, compensate

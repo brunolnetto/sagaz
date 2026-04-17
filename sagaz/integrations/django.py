@@ -17,7 +17,6 @@ from sagaz.core.logger import get_logger
 from sagaz.integrations._base import (
     SagaContextManager,
     generate_correlation_id,
-    get_correlation_id,
 )
 
 logger = get_logger(__name__)
@@ -205,9 +204,9 @@ def sagaz_webhook_view(request, source: str):
     """
     try:
         from django.http import JsonResponse
-    except ImportError:
+    except ImportError as exc:
         msg = "Django is required. Install with: pip install django"
-        raise ImportError(msg)
+        raise ImportError(msg) from exc
 
     _ensure_listener_registered()
 
@@ -351,9 +350,9 @@ def sagaz_webhook_status_view(request, source: str, correlation_id: str):
     """Django view for checking webhook event status."""
     try:
         from django.http import JsonResponse
-    except ImportError:
+    except ImportError as exc:
         msg = "Django is required. Install with: pip install django"
-        raise ImportError(msg)
+        raise ImportError(msg) from exc
 
     if request.method != "GET":
         return JsonResponse({"error": "Method not allowed"}, status=405)

@@ -188,9 +188,9 @@ def create_broker(
 
     try:
         return factory(kwargs)  # type: ignore[no-any-return]
-    except ImportError:
+    except ImportError as exc:
         if dependency:
-            raise MissingDependencyError(dependency, f"{broker_type} message broker")
+            raise MissingDependencyError(dependency, f"{broker_type} message broker") from exc
         raise
 
 

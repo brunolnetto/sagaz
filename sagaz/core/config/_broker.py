@@ -133,7 +133,7 @@ class BrokerConfigManager:
 
             rmq_config = RabbitMQBrokerConfig(url=url.replace("rabbitmq://", "amqp://"))
             return RabbitMQBroker(rmq_config)
-        if url == "memory://" or url == "":
+        if url in ("memory://", ""):
             from sagaz.core.outbox.brokers.memory import InMemoryBroker
 
             return InMemoryBroker()

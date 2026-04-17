@@ -236,7 +236,7 @@ SAGAZ_LOG_JSON=true
     if with_observability:
         env_content += "SAGAZ_TRACING_ENDPOINT=http://localhost:14268/api/traces\n"
 
-    Path("selfhost/sagaz.env").write_text(env_content)
+    Path("selfhost/sagaz.env").write_text(env_content, encoding="utf-8")
     click.echo("  CREATE selfhost/sagaz.env")
 
     # Create installation script
@@ -538,7 +538,7 @@ This directory contains configuration for a hybrid Sagaz deployment where:
 
 Edit `hybrid.env` with your cloud broker credentials.
 """
-    Path("hybrid/README.md").write_text(readme)
+    Path("hybrid/README.md").write_text(readme, encoding="utf-8")
     click.echo("  CREATE hybrid/README.md")
 
     # Create hybrid docker-compose based on storage type
@@ -726,8 +726,8 @@ def _copy_dir_resource(resource_dir: str, target_dir: str) -> None:
                 _copy_dir_resource(f"{resource_dir}/{item.name}", f"{target_dir}/{item.name}")
             else:
                 try:
-                    text_content = item.read_text()
-                    Path(target_dir, item.name).write_text(text_content)
+                    text_content = item.read_text(encoding="utf-8")
+                    Path(target_dir, item.name).write_text(text_content, encoding="utf-8")
                 except UnicodeDecodeError:
                     binary_content = item.read_bytes()
                     Path(target_dir, item.name).write_bytes(binary_content)
@@ -740,8 +740,8 @@ def _copy_dir_resource(resource_dir: str, target_dir: str) -> None:
 def _copy_resource(resource_path: str, target_path: str):
     """Copy a resource file from the package to the target path."""
     try:
-        content = pkg_resources.files("sagaz.resources").joinpath(resource_path).read_text()
-        Path(target_path).write_text(content)
+        content = pkg_resources.files("sagaz.resources").joinpath(resource_path).read_text(encoding="utf-8")
+        Path(target_path).write_text(content, encoding="utf-8")
         click.echo(f"  CREATE {target_path}")
     except Exception as e:
         click.echo(f"  ERROR copying {resource_path}: {e}")

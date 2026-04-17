@@ -18,7 +18,7 @@ from typing import Any
 from uuid import UUID
 
 from sagaz.core.exceptions import MissingDependencyError
-from sagaz.core.replay import ReplayResult, SagaSnapshot, SnapshotNotFoundError
+from sagaz.core.replay import ReplayResult, SagaSnapshot
 from sagaz.core.storage.interfaces.snapshot import SnapshotStorage
 
 try:
@@ -138,7 +138,7 @@ class PostgreSQLSnapshotStorage(SnapshotStorage):
                     await conn.execute(self.CREATE_TABLES_SQL)
             except Exception as e:
                 msg = f"Failed to connect to PostgreSQL: {e}"
-                raise ConnectionError(msg)
+                raise ConnectionError(msg) from e
 
         return self._pool
 

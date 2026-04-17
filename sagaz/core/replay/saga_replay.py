@@ -9,7 +9,7 @@ Implements replay-from-checkpoint functionality with context override.
 """
 
 import logging
-from collections.abc import Callable
+from collections.abc import Callable  # noqa: F401  # pylint: disable=unused-import  # used in string annotation
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 

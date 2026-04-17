@@ -116,7 +116,7 @@ def __getattr__(name: str):
     raise AttributeError(msg)
 
 
-__all__ = [
+__all__ = [  # pylint: disable=undefined-all-variable
     "BaseBroker",
     "BrokerConfig",
     "BrokerConnectionError",
