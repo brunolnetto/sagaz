@@ -2,23 +2,25 @@
 """
 Local Integration Test Script for Sagaz
 
-This script performs a comprehensive local integration test covering:
-1. Saga execution with state persistence
-2. PostgreSQL storage backend
+This script performs a comprehensive self-contained integration test covering:
+1. Saga execution with in-memory state
+2. PostgreSQL outbox storage backend
 3. Redis broker for outbox events
-4. Outbox worker processing
-5. Prometheus metrics exposure
+4. Full outbox pattern end-to-end
+5. Saga listeners and observability
+
+RESOURCE LIFECYCLE:
+===================
+This script owns its full lifecycle:
+  SETUP:    spins up PostgreSQL and Redis via testcontainers
+  RUN:      executes the test suite against those containers
+  TEARDOWN: stops and removes all containers in a finally block
 
 Prerequisites:
-    - Docker running
-    - Run `sagaz init --local` first, then `sagaz dev` to start services
-    - OR run from /tmp/sagaz-test after init
+  - Docker daemon running (containers are managed automatically)
+  - testcontainers installed: pip install testcontainers[postgres,redis]
 
 Usage:
-    cd /tmp/sagaz-test  # or wherever you ran sagaz init
-    python /path/to/local_integration_test.py
-
-    # Or with the sagaz venv activated:
     python scripts/local_integration_test.py
 """
 
@@ -30,6 +32,8 @@ import time
 from datetime import datetime
 from typing import Any
 
+from _service_manager import ServiceManager
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
@@ -38,6 +42,9 @@ logger = logging.getLogger("sagaz.integration_test")
 
 # Test results tracking
 test_results: dict[str, dict[str, Any]] = {}
+# Injected at runtime by main() after containers start
+_pg_url: str = ""
+_redis_url: str = ""
 
 
 def record_result(test_name: str, success: bool, message: str = "", details: Any = None):
@@ -192,10 +199,8 @@ async def test_postgresql_outbox_storage():
         from sagaz.core.outbox.types import OutboxEvent
         from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
-        # Connect to local PostgreSQL (from docker-compose)
-        storage = PostgreSQLOutboxStorage(
-            connection_string="postgresql://postgres:postgres@localhost:5433/sagaz"
-        )
+        # Connect to PostgreSQL container provisioned by ServiceManager
+        storage = PostgreSQLOutboxStorage(connection_string=_pg_url)
 
         try:
             await storage.initialize()
@@ -251,8 +256,8 @@ async def test_redis_broker():
         from sagaz.core.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
 
         config = RedisBrokerConfig(
-            url="redis://localhost:6379/0",
-            stream_name="sagaz_integration_test",  # NOT stream_prefix
+            url=_redis_url,
+            stream_name="sagaz_integration_test",
         )
 
         broker = RedisBroker(config)
@@ -315,14 +320,10 @@ async def test_outbox_pattern():
         from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
         # Setup storage
-        storage = PostgreSQLOutboxStorage(
-            connection_string="postgresql://postgres:postgres@localhost:5433/sagaz"
-        )
+        storage = PostgreSQLOutboxStorage(connection_string=_pg_url)
 
         # Setup broker
-        broker_config = RedisBrokerConfig(
-            url="redis://localhost:6379/0", stream_name="sagaz_outbox_e2e"
-        )
+        broker_config = RedisBrokerConfig(url=_redis_url, stream_name="sagaz_outbox_e2e")
         broker = RedisBroker(broker_config)
 
         try:
@@ -378,68 +379,7 @@ async def test_outbox_pattern():
 
 
 # ============================================================================
-# TEST 6: Prometheus Metrics
-# ============================================================================
-
-
-async def test_prometheus_metrics():
-    """Test Prometheus metrics endpoint."""
-    test_name = "Prometheus Metrics"
-
-    try:
-        import urllib.request
-
-        with urllib.request.urlopen(
-            "http://localhost:9090/api/v1/status/runtimeinfo", timeout=5
-        ) as response:
-            if response.status == 200:
-                data = json.loads(response.read().decode())
-                record_result(
-                    test_name,
-                    True,
-                    "Prometheus is running and accessible",
-                    {"status": data.get("status")},
-                )
-            else:
-                record_result(test_name, False, f"Prometheus returned status {response.status}")
-    except Exception as e:
-        record_result(test_name, False, f"Cannot reach Prometheus: {e}")
-
-
-# ============================================================================
-# TEST 7: Grafana Dashboard
-# ============================================================================
-
-
-async def test_grafana_dashboard():
-    """Test Grafana dashboard is accessible."""
-    test_name = "Grafana Dashboard"
-
-    try:
-        import urllib.request
-
-        # Give Grafana more time to start up
-        await asyncio.sleep(2)
-
-        # Grafana health endpoint
-        with urllib.request.urlopen("http://localhost:3000/api/health", timeout=10) as response:
-            if response.status == 200:
-                data = json.loads(response.read().decode())
-                record_result(
-                    test_name,
-                    True,
-                    "Grafana is running and accessible",
-                    {"database": data.get("database")},
-                )
-            else:
-                record_result(test_name, False, f"Grafana returned status {response.status}")
-
-    except Exception as e:
-        record_result(test_name, False, f"Cannot reach Grafana: {e}")
-
-
-# ============================================================================
-# TEST 8: Saga Listeners
+# TEST 6: Saga Listeners
 # ============================================================================
 
 
@@ -513,16 +453,16 @@ async def run_all_tests():
     print("🧪 SAGAZ LOCAL INTEGRATION TEST SUITE")
     print("=" * 70)
     print(f"Started at: {datetime.now().isoformat()}")
+    print(f"PostgreSQL: {_pg_url}")
+    print(f"Redis:      {_redis_url}")
     print("-" * 70 + "\n")
 
-    # Run tests in sequence
+    # Run tests in sequence (Prometheus/Grafana excluded - no container available)
     await test_basic_saga_execution()
     await test_declarative_saga_compensation()
     await test_postgresql_outbox_storage()
     await test_redis_broker()
     await test_outbox_pattern()
-    await test_prometheus_metrics()
-    await test_grafana_dashboard()
     await test_saga_listeners()
 
     # Print summary
@@ -543,22 +483,30 @@ async def run_all_tests():
     print(f"Success Rate: {(passed / total) * 100:.1f}%" if total > 0 else "N/A")
     print("=" * 70 + "\n")
 
-    # Exit with error code if any tests failed
     if failed > 0:
-        print("⚠️  Some tests failed. Make sure Docker services are running:")
-        print("   1. cd /tmp/sagaz-test  # or wherever you ran sagaz init")
-        print("   2. sagaz dev           # starts docker-compose")
-        print("   3. Wait for services to be healthy")
-        print("   4. Re-run this script")
+        print("⚠️  Some tests failed. See output above for details.")
         sys.exit(1)
     else:
         print("🎉 All tests passed! Sagaz is working correctly.")
-        sys.exit(0)
 
 
 def main():
-    """Entry point."""
-    asyncio.run(run_all_tests())
+    """Entry point — provisions containers, runs tests, tears down."""
+    global _pg_url, _redis_url
+
+    print("🚀 Starting containers...")
+    with ServiceManager(postgres=True, redis=True) as svc:
+        _pg_url = svc.postgres_url
+        _redis_url = svc.redis_url
+        try:
+            asyncio.run(run_all_tests())
+        except SystemExit:
+            raise
+        except Exception as e:
+            logger.error("Test run failed: %s", e, exc_info=True)
+            sys.exit(1)
+    # Containers are stopped automatically when the `with` block exits
+    print("\n🛑 Containers stopped.")
 
 
 if __name__ == "__main__":

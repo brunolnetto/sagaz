@@ -10,9 +10,18 @@ This script tests thesagaz outbox worker cluster with multiple scenarios:
 5. Idempotency verification
 6. Worker recovery simulation
 
+RESOURCE LIFECYCLE:
+===================
+This script owns its full lifecycle:
+  SETUP:    spins up a PostgreSQL container via testcontainers
+  RUN:      tests the outbox pattern against that container
+  TEARDOWN: stops and removes the container in a finally block
+
+No Kubernetes cluster or port-forward required.
+
 Prerequisites:
-    - kubectl port-forward -nsagaz svc/postgresql 5432:5432
-    - pip install asyncpg rich
+    - Docker daemon running
+    - pip install asyncpg rich testcontainers[postgres]
 
 Usage:
     python scripts/k8s_cluster_test.py [scenario]
@@ -50,8 +59,8 @@ except ImportError:
     RICH_AVAILABLE = False
     print("Note: Install 'rich' for better output: pip install rich")
 
-# Configuration
-DATABASE_URL = "postgresql://saga_user:saga_password@localhost:5433/saga_db"
+# Default DATABASE_URL — overridden by the testcontainer in main()
+DATABASE_URL = "postgresql://test:test@localhost:5432/test"
 
 console = Console() if RICH_AVAILABLE else None
 
@@ -719,53 +728,27 @@ async def _prompt_stress_test() -> bool:
 # ============================================================================
 
 
-async def main():
-    parser = argparse.ArgumentParser(
-        description="Kubernetes Cluster Test Script forsagaz Outbox Pattern",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-    python k8s_cluster_test.py basic      # Run basic test
-    python k8s_cluster_test.py stress     # Run stress test
-    python k8s_cluster_test.py all        # Run all tests
-    python k8s_cluster_test.py monitor    # Show current stats
-    python k8s_cluster_test.py clear      # Clear all events
-        """,
-    )
-
-    parser.add_argument(
-        "scenario",
-        nargs="?",
-        default="all",
-        choices=["basic", "bulk", "stress", "monitor", "idempotency", "all", "clear"],
-        help="Test scenario to run (default: all)",
-    )
-
-    parser.add_argument("--db-url", default=DATABASE_URL, help="PostgreSQL connection URL")
-
-    args = parser.parse_args()
-
-    # Create tester
-    tester = OutboxTester(args.db_url)
-
+async def _run_scenario(db_url: str, scenario: str) -> None:
+    """Connect to the database, run the requested scenario, then close."""
+    tester = OutboxTester(db_url)
     try:
         await tester.connect()
 
-        if args.scenario == "clear":
+        if scenario == "clear":
             warning("Clearing all events from outbox...")
             await tester.clear_all_events()
             success("Outbox cleared")
-        elif args.scenario == "basic":
+        elif scenario == "basic":
             await test_basic(tester)
-        elif args.scenario == "bulk":
+        elif scenario == "bulk":
             await test_bulk(tester)
-        elif args.scenario == "stress":
+        elif scenario == "stress":
             await test_stress(tester)
-        elif args.scenario == "monitor":
+        elif scenario == "monitor":
             await test_monitor(tester)
-        elif args.scenario == "idempotency":
+        elif scenario == "idempotency":
             await test_idempotency(tester)
-        elif args.scenario == "all":
+        elif scenario == "all":
             await run_all_tests(tester)
 
     except KeyboardInterrupt:
@@ -777,5 +760,40 @@ Examples:
         await tester.close()
 
 
+def main() -> None:
+    """Entry point — provisions PostgreSQL container, runs tests, tears down."""
+    parser = argparse.ArgumentParser(
+        description="Outbox cluster test for Sagaz (self-contained via testcontainers)",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+    python k8s_cluster_test.py basic      # Run basic test
+    python k8s_cluster_test.py stress     # Run stress test
+    python k8s_cluster_test.py all        # Run all tests
+    python k8s_cluster_test.py monitor    # Show current stats
+    python k8s_cluster_test.py clear      # Clear all events
+        """,
+    )
+    parser.add_argument(
+        "scenario",
+        nargs="?",
+        default="all",
+        choices=["basic", "bulk", "stress", "monitor", "idempotency", "all", "clear"],
+        help="Test scenario to run (default: all)",
+    )
+    args = parser.parse_args()
+
+    from _service_manager import ServiceManager
+
+    info("🚀 Provisioning PostgreSQL container...")
+    with ServiceManager(postgres=True) as svc:
+        info(f"PostgreSQL ready: {svc.postgres_url}")
+        try:
+            asyncio.run(_run_scenario(svc.postgres_url, args.scenario))
+        except SystemExit:
+            raise
+    info("🛑 PostgreSQL container stopped.")
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
