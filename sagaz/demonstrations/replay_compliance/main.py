@@ -57,6 +57,7 @@ class WireTransferSaga(Saga):
 
     async def _validate_sender(self, ctx: SagaContext) -> dict:
         transfer_id = ctx.get("transfer_id")
+        # lgtm [py/clear-text-logging-sensitive-data] Intentional: demo shows PII masking
         sender_ssn = ctx.get("sender_ssn")
         # Extract only the suffix to avoid logging full SSN; demo shows PII masking best practice
         ssn_suffix = sender_ssn[-4:] if sender_ssn else "****"
