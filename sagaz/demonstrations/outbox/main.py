@@ -24,11 +24,11 @@ import logging
 import os
 
 from sagaz import Saga, action, compensate
-from sagaz.listeners import OutboxSagaListener
 from sagaz.core.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
 from sagaz.core.outbox.types import OutboxConfig
 from sagaz.core.outbox.worker import OutboxWorker
 from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
+from sagaz.listeners import OutboxSagaListener
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
@@ -161,7 +161,7 @@ async def _run():
     print("\n" + "=" * 70)
     print("DEMO COMPLETE")
     print("=" * 70)
-    print(f"  Sagas executed:    1")
+    print("  Sagas executed:    1")
     print(f"  Events published:  {published}")
     print(f"  Events consumed:   {consumed}")
     print("=" * 70 + "\n")

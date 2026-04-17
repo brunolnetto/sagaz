@@ -27,16 +27,16 @@ import os
 import signal
 
 from sagaz import Saga, SagaStepError, action, compensate
+from sagaz.core.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+from sagaz.core.outbox.types import OutboxConfig
+from sagaz.core.outbox.worker import OutboxWorker
+from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 from sagaz.listeners import (
     LoggingSagaListener,
     MetricsSagaListener,
     OutboxSagaListener,
 )
 from sagaz.observability.monitoring.prometheus import PrometheusMetrics, start_metrics_server
-from sagaz.core.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
-from sagaz.core.outbox.types import OutboxConfig
-from sagaz.core.outbox.worker import OutboxWorker
-from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"

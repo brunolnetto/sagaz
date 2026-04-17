@@ -30,7 +30,6 @@ except ImportError:
 
 from sagaz.demonstrations import discover_demos, get_demo_description
 
-
 # ============================================================================
 # CLI Group
 # ============================================================================

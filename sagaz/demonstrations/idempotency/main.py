@@ -20,7 +20,6 @@ from sagaz import Saga, action, compensate
 from sagaz.core.exceptions import IdempotencyKeyRequiredError
 from sagaz.core.triggers import fire_event, trigger
 
-
 # ============================================================================
 # Saga definitions
 # ============================================================================
