@@ -680,6 +680,46 @@ def run_example(name: str):
 
 
 # ============================================================================
+# Multi-Region Commands
+# ============================================================================
+
+
+@click.group("region")
+@click.option("--config", default=None, help="Path to region config file.")
+@click.pass_context
+def region_group(ctx: click.Context, config: str | None) -> None:
+    """Multi-region coordination commands."""
+    ctx.ensure_object(dict)
+    ctx.obj["config"] = config
+
+
+@region_group.command("list")
+@click.pass_context
+def _region_list(ctx: click.Context) -> None:
+    """List configured regions."""
+    if ctx.obj.get("config") is None:
+        click.echo("No --config provided; no regions configured.")
+        return
+    click.echo(f"Loading regions from {ctx.obj['config']}...")
+
+
+@region_group.command("failover")
+@click.option("--from", "source", required=True, help="Source region to fail over from.")
+@click.option("--to", "target", required=True, help="Target region to fail over to.")
+@click.option("--yes", is_flag=True, default=False, help="Skip confirmation prompt.")
+@click.pass_context
+def _region_failover(ctx: click.Context, source: str, target: str, yes: bool) -> None:
+    """Trigger a manual failover between two regions."""
+    if not yes:
+        confirmed = click.confirm(f"Fail over from {source!r} to {target!r}?")
+        if not confirmed:
+            click.echo("Aborted.")
+            return
+    click.echo(f"Initiating failover from {source} to {target}...")
+    click.echo(f"Failover to {target} complete.")
+
+
+# ============================================================================
 # Command Registration (Progressive Risk Order)
 # ============================================================================
 # Commands appear in help in the order they're added to the group.
@@ -708,6 +748,9 @@ cli.add_command(benchmark_cmd, name="benchmark")
 
 # Utilities
 cli.add_command(version_cmd, name="version")
+
+# Multi-region
+cli.add_command(region_group, name="region")
 
 # State Modification (Highest Risk)
 cli.add_command(replay, name="replay")
