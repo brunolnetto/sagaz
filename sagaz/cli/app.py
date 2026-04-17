@@ -16,7 +16,6 @@ from pathlib import Path
 import click
 
 from sagaz.cli import examples as cli_examples
-from sagaz.cli.demonstrations import demo_cli
 from sagaz.cli._init_handlers import _copy_example_saga
 from sagaz.cli._setup_handlers import (
     _check_project_exists,
@@ -25,6 +24,7 @@ from sagaz.cli._setup_handlers import (
     _execute_setup,
     _gather_setup_configuration,
 )
+from sagaz.cli.demonstrations import demo_cli
 from sagaz.cli.dry_run import simulate_cmd, validate_cmd
 from sagaz.cli.project import check as check_cmd
 from sagaz.cli.project import list_sagas
