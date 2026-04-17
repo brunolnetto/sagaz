@@ -194,3 +194,59 @@ class InMemoryOutboxStorage(OutboxStorage):
             status=outbox_status_cls(record.get("status", "pending")),
         )
         await self.insert(event)
+
+    async def requeue_dead_letter_event(self, event_id: str, force: bool = False) -> OutboxEvent:
+        """Move a DLQ event back to PENDING for reprocessing.
+
+        Args:
+            event_id: ID of the dead-lettered event to requeue.
+            force: When ``True``, bypass the replay-loop guard and allow
+                requeueing even if ``replay_count >= max_replays``.
+
+        Raises:
+            KeyError: If *event_id* is not found.
+            ReplayLoopError: If ``replay_count >= max_replays`` and
+                *force* is ``False``.
+        """
+        from sagaz.core.outbox.types import ReplayLoopError
+
+        max_replays = 3
+        outbox_status_cls = _get_outbox_status()
+        event = self._events.get(event_id)
+        if event is None:
+            msg = f"Event {event_id} not found"
+            raise KeyError(msg)
+        if not force and event.replay_count >= max_replays:
+            raise ReplayLoopError(
+                event_id=event_id,
+                replay_count=event.replay_count,
+                max_replays=max_replays,
+            )
+        event.replay_count += 1
+        event.status = outbox_status_cls.PENDING
+        event.retry_count = 0
+        event.dead_letter_at = None
+        event.dead_letter_reason = None
+        event.worker_id = None
+        event.claimed_at = None
+        return event
+
+    async def purge_dead_letter_events(
+        self,
+        older_than: timedelta | None = None,
+    ) -> int:
+        """Permanently remove DLQ events."""
+        outbox_status_cls = _get_outbox_status()
+        now = datetime.now(UTC)
+        to_delete: list[str] = []
+        for event in list(self._events.values()):
+            if event.status != outbox_status_cls.DEAD_LETTER:
+                continue
+            if older_than is not None:
+                dl_at = event.dead_letter_at
+                if dl_at is None or (now - dl_at) < older_than:
+                    continue
+            to_delete.append(event.event_id)
+        for eid in to_delete:
+            del self._events[eid]
+        return len(to_delete)

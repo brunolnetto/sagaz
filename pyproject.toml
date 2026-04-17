@@ -48,6 +48,16 @@ tracing = [
 prometheus = [
     "prometheus-client>=0.23.1",
 ]
+analytics = [
+    "duckdb>=1.0.0",
+    "sqldim>=0.1.1,<0.2",
+    "narwhals>=1.0.0",
+]
+visualization = [
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.23.0",
+    "sse-starlette>=1.0.0",
+]
 aws = [
     "aioboto3>=12.0.0",
     "zstandard>=0.22.0",  # For S3 snapshot compression
@@ -227,6 +237,9 @@ section-order = ["future", "standard-library", "third-party", "first-party", "lo
 # Allow print statements in CLI scripts
 "scripts/*" = ["T20"]
 # Allow print statements in example demo scripts
+"examples/*.py" = ["T20", "I001", "F541"]
+"examples/*/*.py" = ["T20", "I001", "F541"]
+"examples/*/*/*.py" = ["T20", "I001", "F541"]
 "sagaz/examples/*/demo.py" = ["T20"]
 "sagaz/examples/*/*/demo.py" = ["T20"]
 # Allow unused imports in __init__.py (re-exports)
