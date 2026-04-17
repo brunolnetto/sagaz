@@ -16,6 +16,7 @@ from pathlib import Path
 import click
 
 from sagaz.cli import examples as cli_examples
+from sagaz.cli.demonstrations import demo_cli
 from sagaz.cli._init_handlers import _copy_example_saga
 from sagaz.cli._setup_handlers import (
     _check_project_exists,
@@ -68,6 +69,7 @@ def cli():
     \b
     Library demo:
       examples         Explore examples
+      demo             Run built-in demonstrations
 
 
     \b
@@ -695,6 +697,7 @@ cli.add_command(setup_cmd, name="setup")
 cli.add_command(check_cmd, name="check")
 cli.add_command(list_sagas, name="list")
 cli.add_command(examples_cmd, name="examples")
+cli.add_command(demo_cli, name="demo")
 
 # Development (Runtime Operations)
 cli.add_command(dev_cmd, name="dev")
