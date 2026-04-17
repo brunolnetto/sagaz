@@ -10,6 +10,25 @@ This script tests thesagaz outbox worker cluster with multiple scenarios:
 5. Idempotency verification
 6. Worker recovery simulation
 
+RESOURCE LIFECYCLE - IMPORTANT:
+==============================
+⚠️  This script ASSUMES a pre-existing Kubernetes cluster is running.
+    It does NOT provision or deprovision K8s resources.
+
+PROVISIONING (External - Not Done By This Script):
+  - Kubernetes cluster must be running and accessible
+  - PostgreSQL must be deployed in 'sagaz' namespace
+  - Outbox worker pods must be running
+  - Port-forward must be active: kubectl port-forward -nsagaz svc/postgresql 5432:5432
+
+CLEANUP (Internal - Handled By This Script):
+  - Database connections are properly closed in finally block
+  - All pending saga state is preserved in database for recovery testing
+  - NO K8s resources are deleted (by design)
+
+NOTE: If K8s cluster stops, this script will fail with connection errors.
+      Restart K8s and port-forward, then re-run.
+
 Prerequisites:
     - kubectl port-forward -nsagaz svc/postgresql 5432:5432
     - pip install asyncpg rich

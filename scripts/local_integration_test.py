@@ -9,6 +9,29 @@ This script performs a comprehensive local integration test covering:
 4. Outbox worker processing
 5. Prometheus metrics exposure
 
+RESOURCE LIFECYCLE - IMPORTANT:
+==============================
+⚠️  This script REQUIRES Docker services to be running.
+    It does NOT provision or deprovision Docker containers.
+
+PROVISIONING (External - Not Done By This Script):
+  - Docker containers must be started before running this script
+  - Start with: sagaz init --local && sagaz dev
+  - OR run from /tmp/sagaz-test after init
+  
+CLEANUP (External - User/Parent Process Responsibility):
+  - This script does NOT stop Docker containers
+  - Cleanup is delegated to parent process (sagaz dev or docker-compose)
+  - To stop services after testing:
+    - Press Ctrl+C in the sagaz dev terminal, OR
+    - Run: docker-compose -f /path/to/docker-compose.yml down
+  - This ensures services stay available for multiple test runs
+
+FAILURE HANDLING:
+  - If test fails while services are running, services continue running
+  - This allows debugging and re-running tests without restart
+  - Remember to cleanup manually when done
+
 Prerequisites:
     - Docker running
     - Run `sagaz init --local` first, then `sagaz dev` to start services

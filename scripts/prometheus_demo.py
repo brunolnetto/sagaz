@@ -13,11 +13,16 @@ Usage:
 Then check:
     - http://localhost:8000/metrics - Raw Prometheus metrics
     - http://localhost:3000 - Grafana dashboards
+
+Press Ctrl+C to gracefully shutdown the metrics server.
 """
 
 import asyncio
 import logging
+import signal
 import random
+import atexit
+import threading
 
 from sagaz import Saga, SagaStepError, action, compensate
 from sagaz.listeners import LoggingSagaListener, MetricsSagaListener
@@ -28,6 +33,9 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
 )
 logger = logging.getLogger("sagaz.demo")
+
+# Shutdown flag for graceful termination (thread-safe boolean)
+_shutdown_requested = False
 
 # Create a global Prometheus metrics instance
 prometheus_metrics = PrometheusMetrics()
@@ -150,6 +158,7 @@ class UserOnboardingSaga(Saga):
 
 async def run_demo_loop():
     """Continuously run saga demos to generate metrics."""
+    global _shutdown_requested
 
     sagas = [
         (OrderProcessingSaga, {"customer_id": "CUST-001", "items": ["item1", "item2"]}),
@@ -169,7 +178,7 @@ async def run_demo_loop():
     print("=" * 70 + "\n")
 
     iteration = 0
-    while True:
+    while not _shutdown_requested:
         iteration += 1
         saga_class, initial_context = random.choice(sagas)
 
@@ -182,21 +191,48 @@ async def run_demo_loop():
         except Exception as e:
             logger.warning(f"[{iteration}] ❌ {saga.saga_name} failed: {e}")
 
-        # Wait between sagas
-        await asyncio.sleep(random.uniform(1.5, 4.0))
+        # Wait between sagas, checking shutdown flag periodically
+        wait_time = random.uniform(1.5, 4.0)
+        elapsed = 0.0
+        while elapsed < wait_time and not _shutdown_requested:
+            await asyncio.sleep(0.1)
+            elapsed += 0.1
+
+
+def _signal_handler(signum, frame):
+    """Signal handler for SIGINT/SIGTERM - triggers graceful shutdown."""
+    global _shutdown_requested
+    logger.info(f"Received signal {signum}, initiating graceful shutdown...")
+    _shutdown_requested = True
+
+
+def _cleanup():
+    """Cleanup function called at exit."""
+    logger.info("Prometheus metrics server and demo stopped")
 
 
 def main():
     """Main entry point."""
+    # Register signal handlers for graceful shutdown
+    signal.signal(signal.SIGINT, _signal_handler)
+    signal.signal(signal.SIGTERM, _signal_handler)
+
+    # Register cleanup at exit
+    atexit.register(_cleanup)
+
     # Start Prometheus HTTP server on port 8000
     logger.info("Starting Prometheus metrics server on port 8000...")
     start_metrics_server(8000)
+    logger.info("Prometheus metrics server started successfully")
 
     # Run the demo loop
     try:
         asyncio.run(run_demo_loop())
     except KeyboardInterrupt:
-        print("\n👋 Demo stopped")
+        print("\n👋 Demo stopped by user")
+    except Exception as e:
+        logger.error(f"Demo failed: {e}", exc_info=True)
+        raise
 
 
 if __name__ == "__main__":
