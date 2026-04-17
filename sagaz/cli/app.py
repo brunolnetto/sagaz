@@ -438,7 +438,10 @@ def status_cmd():
 
         # Check Docker Compose services
         result = subprocess.run(
-            ["docker", "compose", "ps", "--format", "json"], capture_output=True, text=True, check=False
+            ["docker", "compose", "ps", "--format", "json"],
+            capture_output=True,
+            text=True,
+            check=False,
         )
 
         if result.returncode == 0 and result.stdout.strip():

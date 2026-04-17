@@ -274,7 +274,7 @@ def get_available_backends() -> dict[str, dict[str, Any]]:
 
     # Check Redis availability
     try:
-        import redis.asyncio  # noqa: F401  # pylint: disable=unused-import  # availability check
+        import redis.asyncio  # pylint: disable=unused-import  # availability check
 
         backends["redis"] = {
             "available": True,
@@ -294,7 +294,7 @@ def get_available_backends() -> dict[str, dict[str, Any]]:
 
     # Check PostgreSQL availability
     try:
-        import asyncpg  # noqa: F401  # pylint: disable=unused-import  # availability check
+        import asyncpg  # pylint: disable=unused-import  # availability check
 
         backends["postgresql"] = {
             "available": True,
@@ -314,7 +314,7 @@ def get_available_backends() -> dict[str, dict[str, Any]]:
 
     # Check SQLite availability
     try:
-        import aiosqlite  # noqa: F401  # pylint: disable=unused-import  # availability check
+        import aiosqlite  # pylint: disable=unused-import  # availability check
 
         backends["sqlite"] = {
             "available": True,

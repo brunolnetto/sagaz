@@ -740,7 +740,11 @@ def _copy_dir_resource(resource_dir: str, target_dir: str) -> None:
 def _copy_resource(resource_path: str, target_path: str):
     """Copy a resource file from the package to the target path."""
     try:
-        content = pkg_resources.files("sagaz.resources").joinpath(resource_path).read_text(encoding="utf-8")
+        content = (
+            pkg_resources.files("sagaz.resources")
+            .joinpath(resource_path)
+            .read_text(encoding="utf-8")
+        )
         Path(target_path).write_text(content, encoding="utf-8")
         click.echo(f"  CREATE {target_path}")
     except Exception as e:
