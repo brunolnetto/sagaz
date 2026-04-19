@@ -33,56 +33,61 @@ def get_examples_dir() -> Path:
     Get the directory containing examples.
 
     Priority:
-    1. Current working directory (for development)
-    2. Packaged examples inside sagaz.examples
+    1. Installed package (sagaz.examples) — works in both editable and
+       regular installs.
+    2. ``sagaz/examples/`` relative to the repository root detected from
+       the current working directory — fallback for unusual setups.
     """
     import importlib.resources as pkg_resources
 
-    # First check CWD for development
-    cwd_examples = Path.cwd() / "examples"
-    if cwd_examples.exists() and cwd_examples.is_dir():
-        return cwd_examples
-
-    # Fall back to packaged examples
+    # Prefer the installed package so discovery always finds all examples
+    # regardless of where the user invokes the CLI from.
     try:
-        return Path(str(pkg_resources.files("sagaz.examples")))
+        pkg_path = Path(str(pkg_resources.files("sagaz.examples")))
+        if pkg_path.exists() and any(
+            p.is_dir() and not p.name.startswith("_") for p in pkg_path.iterdir()
+        ):
+            return pkg_path
     except (ModuleNotFoundError, TypeError):
-        return cwd_examples  # Fallback if package not found
+        pass
+
+    # Last resort: sagaz/examples/ relative to CWD (covers editable installs
+    # where importlib.resources may resolve to a namespace package path).
+    for candidate in (
+        Path.cwd() / "sagaz" / "examples",
+        Path.cwd() / "examples",
+    ):
+        if candidate.exists() and candidate.is_dir():
+            return candidate
+
+    return Path.cwd() / "sagaz" / "examples"  # non-existent; caller handles it
 
 
-# Domain-to-category mapping for consolidated navigation
+# Domain-to-category mapping — keys are the folder names under sagaz/examples/.
 DOMAIN_MAPPING = {
     "Business": [
-        "ecommerce",
-        "fintech",
-        "travel",
-        "logistics",
-        "real_estate",
+        "commerce",
+        "finance",
     ],
     "Technology": [
-        "ai_agents",
-        "data_engineering",
-        "ml",
-        "iot",
+        "ai_and_data",
+        "telecom_and_iot",
     ],
-    "Healthcare": ["healthcare"],
+    "Healthcare": [
+        "healthcare",
+    ],
     "Infrastructure": [
-        "energy",
-        "manufacturing",
-        "telecom",
+        "operations",
     ],
     "Public Services": [
-        "government",
-        "education",
+        "government_and_education",
     ],
     "Digital Media": [
-        "media",
-        "gaming",
+        "media_and_gaming",
     ],
     "Platform": [
-        "replay",
-        "monitoring",
         "integrations",
+        "monitoring_and_observability",
     ],
 }
 
