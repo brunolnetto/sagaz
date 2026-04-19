@@ -215,8 +215,8 @@ class TestListExamplesCmd:
     @patch("sagaz.cli.examples.console")
     @patch("sagaz.cli.examples.TableClass")
     def test_examples_listed(self, mock_table_class, mock_console, mock_discover, mock_desc):
-        """Test examples are listed in table."""
-        mock_discover.return_value = {"Business": {"test/example": Path("/tmp/test/example/main.py")}}
+        """Test examples are listed in table with subdomain column."""
+        mock_discover.return_value = {"Business": {"commerce/order_processing": Path("/tmp/test/example/main.py")}}
         mock_desc.return_value = "Test example description"
         mock_table = MagicMock()
         mock_table_class.return_value = mock_table
@@ -224,6 +224,9 @@ class TestListExamplesCmd:
 
         list_examples_cmd()
 
+        # Should have 4 columns: Domain, Subdomain, Name, Description
+        mock_table.add_column.assert_called()
+        assert mock_table.add_column.call_count >= 4
         mock_table.add_row.assert_called()
 
     @patch("sagaz.cli.examples.discover_examples_by_domain")

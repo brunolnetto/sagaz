@@ -315,33 +315,41 @@ def _display_examples_table(by_domain: dict[str, dict[str, Path]]) -> None:
         expand=False,
     )
     table.add_column("Domain", style="bold", no_wrap=True, min_width=16)
-    table.add_column("Name", style="cyan", no_wrap=True, min_width=24)
+    table.add_column("Subdomain", style="yellow", no_wrap=True, min_width=14)
+    table.add_column("Name", style="cyan", no_wrap=True, min_width=20)
     table.add_column("Description", no_wrap=True, overflow="ellipsis")
 
     for domain_name, examples in by_domain.items():
         first = True
         for name, path in sorted(examples.items()):
             desc = get_example_description(path)
-            table.add_row(domain_name if first else "", name, desc)
+            # Extract subdomain from name (part before the /)
+            subdomain = name.split("/")[0] if "/" in name else ""
+            # Extract example name (part after the /)
+            example_name = name.split("/")[1] if "/" in name else name
+            table.add_row(domain_name if first else "", subdomain, example_name, desc)
             first = False
 
     if console:
         console.print(table)
         domains = discover_examples_by_domain()
         if domains:
-            console.print("[dim]Run an example: sagaz examples run <name>[/dim]")
+            console.print("[dim]Run an example: sagaz examples run <domain>/<category>/<name>[/dim]")
 
 
 def _display_examples_plain(by_domain: dict[str, dict[str, Path]]) -> None:
     """Display examples grouped by domain as plain text."""
-    click.echo("  Domain                Name                      Description")
-    click.echo("  " + "─" * 70)
+    click.echo("  Domain              Subdomain         Name                  Description")
+    click.echo("  " + "─" * 85)
     for domain_name, examples in by_domain.items():
         first = True
         for name, path in sorted(examples.items()):
             desc = get_example_description(path)
             domain_col = domain_name if first else ""
-            click.echo(f"  {domain_col:<18}  {name:<25}  {desc}")
+            # Extract subdomain and name from full path
+            subdomain = name.split("/")[0] if "/" in name else ""
+            example_name = name.split("/")[1] if "/" in name else name
+            click.echo(f"  {domain_col:<18}  {subdomain:<17}  {example_name:<20}  {desc}")
             first = False
 
 
