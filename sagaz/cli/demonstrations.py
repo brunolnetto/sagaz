@@ -12,13 +12,17 @@ import click
 
 try:
     from rich.console import Console
+    from rich.panel import Panel
     from rich.table import Table
+    from rich.text import Text
 
     console: Console | None = Console()
     TableClass: type[Table] | None = Table
 except ImportError:
     console = None
     TableClass = None
+    Panel = None  # type: ignore[assignment, misc]
+    Text = None  # type: ignore[assignment]
 
 try:
     from simple_term_menu import TerminalMenu
@@ -28,7 +32,14 @@ except ImportError:
     TERM_MENU_AVAILABLE = False
     TerminalMenu = None
 
-from sagaz.demonstrations import discover_demos, get_demo_description
+from sagaz.demonstrations import (
+    DOMAIN_LABELS,
+    DOMAIN_ORDER,
+    discover_demos,
+    discover_demos_by_domain,
+    get_demo_description,
+    get_domain_for_demo,
+)
 
 # ============================================================================
 # CLI Group
@@ -42,16 +53,27 @@ def demo_cli(ctx):
     Explore and run built-in Sagaz demonstrations.
 
     \b
+    Demonstrations are organised into six domains:
+        1  Core Patterns            — saga basics, parallelism, compensation
+        2  Developer Experience     — dry-run, visualisation, lifecycle hooks
+        3  Reliability & Recovery   — idempotency, snapshots, replay
+        4  Orchestration & Config   — orchestrator, storage, event triggers
+        5  Schema Evolution         — context migration, step versioning
+        6  Framework Integrations   — FastAPI, outbox, metrics, Kubernetes
+
+    \b
     Commands:
-        list      List all available demonstrations
-        run       Run a specific demonstration by name
+        list              List all demonstrations grouped by domain
+        list --domain N   List only demonstrations in domain N (1–6)
+        run <name>        Run a specific demonstration by name
 
     \b
     Examples:
-        sagaz demo                    # Opens interactive menu
+        sagaz demo
         sagaz demo list
-        sagaz demo run prometheus
-        sagaz demo run idempotency
+        sagaz demo list --domain core_patterns
+        sagaz demo run basic_saga
+        sagaz demo run context_migration
     """
     if ctx.invoked_subcommand is None:
         interactive_cmd()
@@ -63,9 +85,14 @@ def demo_cli(ctx):
 
 
 @demo_cli.command(name="list")
-def list_demos_cmd():
+@click.option(
+    "--domain",
+    default=None,
+    help="Filter to a specific domain folder name (e.g. core_patterns).",
+)
+def list_demos_cmd(domain: str | None):
     """List all available built-in demonstrations."""
-    list_demos()
+    list_demos(filter_domain=domain)
 
 
 @demo_cli.command(name="run")
@@ -80,34 +107,51 @@ def run_demo_cmd(name: str):
 # ============================================================================
 
 
-def list_demos():
-    """Display available demonstrations."""
-    demos = discover_demos()
+def list_demos(filter_domain: str | None = None) -> None:
+    """Display demonstrations grouped by domain."""
+    by_domain = discover_demos_by_domain()
 
-    if not demos:
+    if filter_domain:
+        if filter_domain not in by_domain:
+            click.echo(f"Error: domain '{filter_domain}' not found.")
+            available = ", ".join(by_domain)
+            click.echo(f"Available domains: {available}")
+            return
+        by_domain = {filter_domain: by_domain[filter_domain]}
+
+    if not by_domain:
         click.echo("No demonstrations found.")
         return
 
     if console and TableClass:
-        table = TableClass(title="Sagaz Built-in Demonstrations")
-        table.add_column("Name", style="cyan")
-        table.add_column("Description")
+        for domain in DOMAIN_ORDER:
+            if domain not in by_domain:
+                continue
+            label = DOMAIN_LABELS.get(domain, domain)
+            table = TableClass(title=label, show_header=True, header_style="bold magenta")
+            table.add_column("Name", style="cyan", no_wrap=True)
+            table.add_column("Description")
+            for name, path in by_domain[domain].items():
+                desc = get_demo_description(path)
+                table.add_row(name, desc)
+            console.print(table)
+            console.print()
 
-        for name, path in demos.items():
-            desc = get_demo_description(path)
-            table.add_row(name, desc)
-
-        console.print(table)
-        console.print("\n[dim]Run a demonstration: sagaz demo run <name>[/dim]")
+        console.print("[dim]Run a demonstration: sagaz demo run <name>[/dim]")
     else:
-        click.echo("Available Demonstrations:")
-        for name, path in demos.items():
-            desc = get_demo_description(path)
-            click.echo(f"  {name:<25} {desc}")
+        for domain in DOMAIN_ORDER:
+            if domain not in by_domain:
+                continue
+            label = DOMAIN_LABELS.get(domain, domain)
+            click.echo(f"\n{label}")
+            click.echo("─" * len(label))
+            for name, path in by_domain[domain].items():
+                desc = get_demo_description(path)
+                click.echo(f"  {name:<30} {desc}")
         click.echo("\nRun: sagaz demo run <name>")
 
 
-def run_demo(name: str):
+def run_demo(name: str) -> None:
     """Run a named demonstration."""
     demos = discover_demos()
 
@@ -117,51 +161,57 @@ def run_demo(name: str):
         return
 
     script_path = demos[name]
+    domain = get_domain_for_demo(name)
+    domain_label = DOMAIN_LABELS.get(domain, domain) if domain else "unknown"
+
     if console:
         console.print(f"\n[bold blue]Running demonstration:[/bold blue] [cyan]{name}[/cyan]")
+        console.print(f"[dim]Domain: {domain_label}[/dim]")
         console.print(f"[dim]Script: {script_path}[/dim]")
         console.print("-" * 60)
     else:
         click.echo(f"Running demonstration: {name}")
+        click.echo(f"Domain: {domain_label}")
         click.echo(f"Script: {script_path}")
         click.echo("-" * 60)
 
     _execute_demo(script_path)
 
 
-def interactive_cmd():
-    """Interactive demonstration selection and execution."""
+def interactive_cmd() -> None:
+    """Interactive domain → demonstration selection."""
     if not TERM_MENU_AVAILABLE:
-        _fallback_interactive(None)
+        _fallback_interactive()
         return
+    _domain_menu_loop()
 
-    _demos_menu_loop()
 
-
-def _demos_menu_loop():
-    """Interactive menu loop for selecting and running a demonstration."""
-    demos = discover_demos()
-
-    if not demos:
+def _domain_menu_loop() -> None:
+    """Two-level interactive menu: pick a domain then a demo."""
+    by_domain = discover_demos_by_domain()
+    if not by_domain:
         click.echo("No demonstrations found.")
         return
 
-    demo_names = list(demos.keys())
+    ordered_domains = [d for d in DOMAIN_ORDER if d in by_domain] + [
+        d for d in by_domain if d not in DOMAIN_ORDER
+    ]
 
     while True:
         if console:
             console.print("\n[bold blue]  🎬 Sagaz Demonstrations  [/bold blue]")
-            console.print("[dim]Use ↑/↓ to navigate, Enter to select, q to quit[/dim]\n")
+            console.print("[dim]Select a domain to explore[/dim]\n")
 
-        menu_entries = []
-        for name in demo_names:
-            desc = get_demo_description(demos[name])
-            menu_entries.append(f"▶  {name:<25} {desc}")
-        menu_entries.append("")
-        menu_entries.append("❌ Exit")
+        domain_entries = []
+        for domain in ordered_domains:
+            label = DOMAIN_LABELS.get(domain, domain)
+            count = len(by_domain[domain])
+            domain_entries.append(f"  {label}  ({count} demos)")
+        domain_entries.append("")
+        domain_entries.append("❌ Exit")
 
-        menu = TerminalMenu(
-            menu_entries,
+        domain_menu = TerminalMenu(
+            domain_entries,
             menu_cursor="▸ ",
             menu_cursor_style=("fg_cyan", "bold"),
             menu_highlight_style=("bg_gray", "fg_cyan", "bold"),
@@ -169,16 +219,45 @@ def _demos_menu_loop():
             clear_screen=False,
             skip_empty_entries=True,
         )
+        selected_domain_idx = domain_menu.show()
 
-        selected_index = menu.show()
-
-        if selected_index is None or selected_index == len(menu_entries) - 1:
+        if selected_domain_idx is None or selected_domain_idx >= len(ordered_domains):
             if console:
                 console.print("\n[dim]Goodbye! 👋[/dim]\n")
             return
 
-        selected_name = demo_names[selected_index]
-        run_demo(selected_name)
+        domain = ordered_domains[selected_domain_idx]
+        demos_in_domain = by_domain[domain]
+
+        # Second level: pick a demo within the domain
+        demo_names = list(demos_in_domain.keys())
+
+        if console:
+            label = DOMAIN_LABELS.get(domain, domain)
+            console.print(f"\n[bold]{label}[/bold]")
+
+        demo_entries = []
+        for name in demo_names:
+            desc = get_demo_description(demos_in_domain[name])
+            demo_entries.append(f"  ▶  {name:<30} {desc}")
+        demo_entries.append("")
+        demo_entries.append("← Back to domains")
+
+        demo_menu = TerminalMenu(
+            demo_entries,
+            menu_cursor="▸ ",
+            menu_cursor_style=("fg_cyan", "bold"),
+            menu_highlight_style=("bg_gray", "fg_cyan", "bold"),
+            cycle_cursor=True,
+            clear_screen=False,
+            skip_empty_entries=True,
+        )
+        selected_demo_idx = demo_menu.show()
+
+        if selected_demo_idx is None or selected_demo_idx >= len(demo_names):
+            continue  # back to domain selection
+
+        run_demo(demo_names[selected_demo_idx])
 
         if not click.confirm("\nRun another demonstration?", default=True):
             if console:
@@ -186,22 +265,17 @@ def _demos_menu_loop():
             return
 
 
-def _fallback_interactive(category):
-    """Plain-text fallback when simple_term_menu is not available."""
-    demos = discover_demos()
-    if not demos:
-        click.echo("No demonstrations found.")
-        return
-
+def _fallback_interactive() -> None:
+    """Plain-text fallback when simple_term_menu is unavailable."""
     list_demos()
     name = click.prompt("\nEnter demonstration name to run (or press Enter to cancel)", default="")
-    if name and name in demos:
+    if name and name in discover_demos():
         run_demo(name)
     elif name:
         click.echo(f"Unknown demonstration: '{name}'")
 
 
-def _execute_demo(script_path: Path):
+def _execute_demo(script_path: Path) -> None:
     """Execute a demonstration script as a subprocess."""
     cmd = [sys.executable, str(script_path)]
     try:

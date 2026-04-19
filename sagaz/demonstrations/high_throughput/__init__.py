@@ -1,1 +1,0 @@
-"""High-throughput benchmark demonstration."""
