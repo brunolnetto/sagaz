@@ -107,6 +107,16 @@ def run_demo_cmd(name: str):
 # ============================================================================
 
 
+_SHORT_DOMAIN_LABELS: dict[str, str] = {
+    "core_patterns": "Core Patterns",
+    "developer_experience": "Dev Experience",
+    "reliability_recovery": "Reliability",
+    "orchestration_config": "Orchestration",
+    "schema_evolution": "Schema Evolution",
+    "framework_integrations": "Integrations",
+}
+
+
 def list_demos(filter_domain: str | None = None) -> None:
     """Display demonstrations grouped by domain."""
     by_domain = discover_demos_by_domain()
@@ -124,30 +134,41 @@ def list_demos(filter_domain: str | None = None) -> None:
         return
 
     if console and TableClass:
+        table = TableClass(
+            title="Sagaz Demonstrations",
+            show_header=True,
+            header_style="bold magenta",
+            expand=False,
+        )
+        table.add_column("Domain", style="bold", no_wrap=True, min_width=16)
+        table.add_column("Name", style="cyan", no_wrap=True, min_width=24)
+        table.add_column("Description", no_wrap=True, overflow="ellipsis")
+
         for domain in DOMAIN_ORDER:
             if domain not in by_domain:
                 continue
-            label = DOMAIN_LABELS.get(domain, domain)
-            table = TableClass(title=label, show_header=True, header_style="bold magenta")
-            table.add_column("Name", style="cyan", no_wrap=True)
-            table.add_column("Description")
+            label = _SHORT_DOMAIN_LABELS.get(domain, domain)
+            first = True
             for name, path in by_domain[domain].items():
                 desc = get_demo_description(path)
-                table.add_row(name, desc)
-            console.print(table)
-            console.print()
+                table.add_row(label if first else "", name, desc)
+                first = False
 
+        console.print(table)
         console.print("[dim]Run a demonstration: sagaz demo run <name>[/dim]")
     else:
+        click.echo(f"  {'Domain':<18}  {'Name':<25}  Description")
+        click.echo("  " + "─" * 70)
         for domain in DOMAIN_ORDER:
             if domain not in by_domain:
                 continue
-            label = DOMAIN_LABELS.get(domain, domain)
-            click.echo(f"\n{label}")
-            click.echo("─" * len(label))
+            label = _SHORT_DOMAIN_LABELS.get(domain, domain)
+            first = True
             for name, path in by_domain[domain].items():
                 desc = get_demo_description(path)
-                click.echo(f"  {name:<30} {desc}")
+                domain_col = label if first else ""
+                click.echo(f"  {domain_col:<18}  {name:<25}  {desc}")
+                first = False
         click.echo("\nRun: sagaz demo run <name>")
 
 
