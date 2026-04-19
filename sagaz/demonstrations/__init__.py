@@ -5,13 +5,18 @@ Demonstrations are nested two levels deep:
 
     sagaz/demonstrations/<domain>/<name>/main.py
 
-Domains:
-    core_patterns          — fundamental saga building blocks
-    developer_experience   — dry-run, visualisation, hooks
-    reliability_recovery   — idempotency, snapshots, replay, compliance
-    orchestration_config   — multi-saga co-ordination and storage
-    schema_evolution       — context migration and step versioning
-    framework_integrations — FastAPI, outbox, metrics, Kubernetes
+Each domain folder carries a ``DOMAIN`` dict in its ``__init__.py``::
+
+    DOMAIN = {
+        "order":       1,
+        "name":        "core_patterns",
+        "label":       "Domain 1 — Core Patterns",
+        "short_label": "Core Patterns",
+        "description": "...",
+    }
+
+Adding a new domain requires only creating the folder — no changes to this
+module are needed.
 
 Run with:
 
@@ -22,27 +27,9 @@ Run with:
 
 from __future__ import annotations
 
+import importlib
 import importlib.resources as pkg_resources
 from pathlib import Path
-
-# Ordered list that defines the canonical display order for domains.
-DOMAIN_ORDER: list[str] = [
-    "core_patterns",
-    "developer_experience",
-    "reliability_recovery",
-    "orchestration_config",
-    "schema_evolution",
-    "framework_integrations",
-]
-
-DOMAIN_LABELS: dict[str, str] = {
-    "core_patterns": "Domain 1 — Core Patterns",
-    "developer_experience": "Domain 2 — Developer Experience",
-    "reliability_recovery": "Domain 3 — Reliability & Recovery",
-    "orchestration_config": "Domain 4 — Orchestration & Configuration",
-    "schema_evolution": "Domain 5 — Schema Evolution",
-    "framework_integrations": "Domain 6 — Framework Integrations",
-}
 
 
 def get_demonstrations_dir() -> Path:
@@ -68,16 +55,54 @@ def _is_demo_dir(path: Path) -> bool:
     return path.is_dir() and not path.name.startswith("_") and (path / "main.py").exists()
 
 
+def _domain_metadata(domain_name: str) -> dict:
+    """
+    Import the domain package and return its ``DOMAIN`` dict.
+
+    Falls back to a generated dict when the package does not define ``DOMAIN``
+    (e.g. during development before the dict is added).
+    """
+    try:
+        mod = importlib.import_module(f"sagaz.demonstrations.{domain_name}")
+        meta = getattr(mod, "DOMAIN", None)
+        if isinstance(meta, dict):
+            return meta
+    except ImportError:
+        pass
+    # Minimal fallback — no hardcoded knowledge needed here.
+    return {
+        "order": 999,
+        "name": domain_name,
+        "label": domain_name.replace("_", " ").title(),
+        "short_label": domain_name.replace("_", " ").title(),
+        "description": "",
+    }
+
+
+def discover_domains() -> list[dict]:
+    """
+    Return domain metadata dicts sorted by ``DOMAIN["order"]``.
+
+    Each dict contains at minimum: order, name, label, short_label, description.
+    """
+    demos_dir = get_demonstrations_dir()
+    domains: list[dict] = []
+    for item in demos_dir.iterdir():
+        if _is_domain_dir(item):
+            domains.append(_domain_metadata(item.name))
+    return sorted(domains, key=lambda d: (d.get("order", 999), d.get("name", "")))
+
+
 def discover_demos_by_domain() -> dict[str, dict[str, Path]]:
     """
     Scan for domains and the demos within each domain.
 
     Returns:
-        Ordered dict: {domain_name: {demo_name: path_to_main_py}}
-        Domains appear in DOMAIN_ORDER; demos within each domain are sorted.
+        Ordered dict keyed by domain name, values are ``{demo_name: path_to_main_py}``.
+        Domains are ordered by their ``DOMAIN["order"]`` value.
     """
     demos_dir = get_demonstrations_dir()
-    by_domain: dict[str, dict[str, Path]] = {}
+    raw: dict[str, dict[str, Path]] = {}
 
     for item in demos_dir.iterdir():
         if not _is_domain_dir(item):
@@ -87,16 +112,17 @@ def discover_demos_by_domain() -> dict[str, dict[str, Path]]:
             if _is_demo_dir(sub):
                 domain_demos[sub.name] = sub / "main.py"
         if domain_demos:
-            by_domain[item.name] = domain_demos
+            raw[item.name] = domain_demos
 
-    # Return in canonical domain order; unknown domains go last (sorted).
     ordered: dict[str, dict[str, Path]] = {}
-    for domain in DOMAIN_ORDER:
-        if domain in by_domain:
-            ordered[domain] = by_domain[domain]
-    for domain in sorted(by_domain):
-        if domain not in ordered:
-            ordered[domain] = by_domain[domain]
+    for meta in discover_domains():
+        name = meta["name"]
+        if name in raw:
+            ordered[name] = raw[name]
+    # Any domain without a registered order goes last, alphabetically.
+    for name in sorted(raw):
+        if name not in ordered:
+            ordered[name] = raw[name]
 
     return ordered
 
@@ -149,3 +175,4 @@ def get_domain_for_demo(name: str) -> str | None:
         if name in demos:
             return domain
     return None
+

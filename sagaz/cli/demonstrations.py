@@ -33,10 +33,9 @@ except ImportError:
     TerminalMenu = None
 
 from sagaz.demonstrations import (
-    DOMAIN_LABELS,
-    DOMAIN_ORDER,
     discover_demos,
     discover_demos_by_domain,
+    discover_domains,
     get_demo_description,
     get_domain_for_demo,
 )
@@ -64,7 +63,7 @@ def demo_cli(ctx):
     \b
     Commands:
         list              List all demonstrations grouped by domain
-        list --domain N   List only demonstrations in domain N (1–6)
+        list --domain N   List only demonstrations in domain N (1-6)
         run <name>        Run a specific demonstration by name
 
     \b
@@ -107,19 +106,15 @@ def run_demo_cmd(name: str):
 # ============================================================================
 
 
-_SHORT_DOMAIN_LABELS: dict[str, str] = {
-    "core_patterns": "Core Patterns",
-    "developer_experience": "Dev Experience",
-    "reliability_recovery": "Reliability",
-    "orchestration_config": "Orchestration",
-    "schema_evolution": "Schema Evolution",
-    "framework_integrations": "Integrations",
-}
+def _domain_meta_index() -> dict[str, dict]:
+    """Return {domain_name: metadata_dict} for fast look-ups."""
+    return {m["name"]: m for m in discover_domains()}
 
 
 def list_demos(filter_domain: str | None = None) -> None:
     """Display demonstrations grouped by domain."""
     by_domain = discover_demos_by_domain()
+    meta_index = _domain_meta_index()
 
     if filter_domain:
         if filter_domain not in by_domain:
@@ -144,12 +139,10 @@ def list_demos(filter_domain: str | None = None) -> None:
         table.add_column("Name", style="cyan", no_wrap=True, min_width=24)
         table.add_column("Description", no_wrap=True, overflow="ellipsis")
 
-        for domain in DOMAIN_ORDER:
-            if domain not in by_domain:
-                continue
-            label = _SHORT_DOMAIN_LABELS.get(domain, domain)
+        for domain_name, demos in by_domain.items():
+            label = meta_index.get(domain_name, {}).get("short_label", domain_name)
             first = True
-            for name, path in by_domain[domain].items():
+            for name, path in demos.items():
                 desc = get_demo_description(path)
                 table.add_row(label if first else "", name, desc)
                 first = False
@@ -159,12 +152,10 @@ def list_demos(filter_domain: str | None = None) -> None:
     else:
         click.echo(f"  {'Domain':<18}  {'Name':<25}  Description")
         click.echo("  " + "─" * 70)
-        for domain in DOMAIN_ORDER:
-            if domain not in by_domain:
-                continue
-            label = _SHORT_DOMAIN_LABELS.get(domain, domain)
+        for domain_name, demos in by_domain.items():
+            label = meta_index.get(domain_name, {}).get("short_label", domain_name)
             first = True
-            for name, path in by_domain[domain].items():
+            for name, path in demos.items():
                 desc = get_demo_description(path)
                 domain_col = label if first else ""
                 click.echo(f"  {domain_col:<18}  {name:<25}  {desc}")
@@ -183,7 +174,7 @@ def run_demo(name: str) -> None:
 
     script_path = demos[name]
     domain = get_domain_for_demo(name)
-    domain_label = DOMAIN_LABELS.get(domain, domain) if domain else "unknown"
+    domain_label = _domain_meta_index().get(domain, {}).get("label", domain) if domain else "unknown"
 
     if console:
         console.print(f"\n[bold blue]Running demonstration:[/bold blue] [cyan]{name}[/cyan]")
@@ -214,9 +205,8 @@ def _domain_menu_loop() -> None:
         click.echo("No demonstrations found.")
         return
 
-    ordered_domains = [d for d in DOMAIN_ORDER if d in by_domain] + [
-        d for d in by_domain if d not in DOMAIN_ORDER
-    ]
+    meta_index = _domain_meta_index()
+    ordered_domains = list(by_domain.keys())  # already ordered by discover_demos_by_domain
 
     while True:
         if console:
@@ -225,7 +215,7 @@ def _domain_menu_loop() -> None:
 
         domain_entries = []
         for domain in ordered_domains:
-            label = DOMAIN_LABELS.get(domain, domain)
+            label = meta_index.get(domain, {}).get("label", domain)
             count = len(by_domain[domain])
             domain_entries.append(f"  {label}  ({count} demos)")
         domain_entries.append("")
@@ -254,7 +244,7 @@ def _domain_menu_loop() -> None:
         demo_names = list(demos_in_domain.keys())
 
         if console:
-            label = DOMAIN_LABELS.get(domain, domain)
+            label = meta_index.get(domain, {}).get("label", domain)
             console.print(f"\n[bold]{label}[/bold]")
 
         demo_entries = []

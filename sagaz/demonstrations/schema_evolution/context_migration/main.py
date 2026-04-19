@@ -214,7 +214,7 @@ async def _run() -> None:
     print(f"  Email sent:            {result_v2.get('__send_confirmation_completed', False)}")
 
     customer_v2 = migrated_ctx["customer"]
-    print(f"\n  Migration summary:")
+    print("\n  Migration summary:")
     print(f"    V1 customer:  {raw_ctx.get('customer')!r}")
     print(f"    V2 customer:  name={customer_v2['name']!r}, email={customer_v2['email']!r}")
 
