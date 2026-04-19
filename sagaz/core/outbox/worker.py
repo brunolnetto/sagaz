@@ -25,8 +25,10 @@ import sys
 import time
 import uuid
 from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime
 
 from sagaz.core.outbox.brokers.base import BrokerError, MessageBroker
+from sagaz.core.outbox.error_classifier import classify_error, create_error_fingerprint
 from sagaz.core.outbox.state_machine import OutboxStateMachine
 from sagaz.core.outbox.types import OutboxConfig, OutboxEvent, OutboxStatus
 from sagaz.core.storage.interfaces.outbox import OutboxStorage
@@ -69,7 +71,13 @@ try:
     OUTBOX_DEAD_LETTER_EVENTS = Counter(
         "outbox_dead_letter_events_total",
         "Total events moved to dead letter queue",
-        ["worker_id", "event_type"],
+        ["worker_id", "event_type", "error_type"],
+    )
+
+    OUTBOX_REPLAY_LOOP_DETECTED = Counter(
+        "outbox_replay_loop_detected_total",
+        "Total replay loop guard activations (event blocked from further replay)",
+        ["worker_id"],
     )
 
     OUTBOX_RETRY_ATTEMPTS = Counter(
@@ -102,6 +110,11 @@ try:
         ["state"],
     )
 
+    OUTBOX_DLQ_DEPTH = Gauge(
+        "sagaz_dlq_depth",
+        "Current number of events in the dead letter queue",
+    )
+
     # Histograms
     OUTBOX_PUBLISH_DURATION = Histogram(
         "outbox_publish_duration_seconds",
@@ -117,10 +130,12 @@ except ImportError:
     OUTBOX_FAILED_EVENTS = None
     OUTBOX_DEAD_LETTER_EVENTS = None
     OUTBOX_RETRY_ATTEMPTS = None
+    OUTBOX_REPLAY_LOOP_DETECTED = None
     OUTBOX_PENDING_EVENTS = None
     OUTBOX_PROCESSING_EVENTS = None
     OUTBOX_BATCH_SIZE = None
     OUTBOX_EVENTS_BY_STATE = None
+    OUTBOX_DLQ_DEPTH = None
     OUTBOX_PUBLISH_DURATION = None
     logger.debug("prometheus-client not installed, metrics disabled")
 
@@ -371,6 +386,11 @@ class OutboxWorker:
         error_message = str(error)
         event_type = event.event_type or "unknown"
 
+        # Phase 1: classify and fingerprint the error before any storage update
+        event.error_type = type(error).__name__
+        event.error_classification = classify_error(error)
+        event.error_fingerprint = create_error_fingerprint(error_message)
+
         logger.warning(
             f"Event {event.event_id} failed to publish: {error_message} "
             f"(attempt {event.retry_count + 1}/{self.config.max_retries})"
@@ -410,6 +430,9 @@ class OutboxWorker:
         Args:
             event: The event to move
         """
+        event.dead_letter_at = datetime.now(UTC)
+        event.dead_letter_reason = event.last_error or "max_retries_exceeded"
+
         await self.storage.update_status(
             event.event_id,
             OutboxStatus.DEAD_LETTER,
@@ -420,7 +443,13 @@ class OutboxWorker:
         # Record Prometheus metrics
         if PROMETHEUS_AVAILABLE:
             event_type = event.event_type or "unknown"
-            OUTBOX_DEAD_LETTER_EVENTS.labels(worker_id=self.worker_id, event_type=event_type).inc()
+            error_type_label = event.error_type or "unknown"
+            OUTBOX_DEAD_LETTER_EVENTS.labels(
+                worker_id=self.worker_id,
+                event_type=event_type,
+                error_type=error_type_label,
+            ).inc()
+            OUTBOX_DLQ_DEPTH.inc()
 
         logger.error(
             f"Event {event.event_id} moved to dead letter queue "

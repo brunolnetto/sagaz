@@ -9,18 +9,20 @@ class MissingDependencyError(Exception):
     quickly resolve missing package issues.
     """
 
-    INSTALL_COMMANDS = {
-        "redis": "pip install redis",
-        "asyncpg": "pip install asyncpg",
-        "opentelemetry": "pip install opentelemetry-api opentelemetry-sdk",
-        "opentelemetry-otlp": "pip install opentelemetry-exporter-otlp-proto-grpc",
-    }
+    def _get_install_commands(self) -> dict[str, str]:
+        """Get installation commands for dependencies."""
+        return {
+            "redis": "pip install redis",
+            "asyncpg": "pip install asyncpg",
+            "opentelemetry": "pip install opentelemetry-api opentelemetry-sdk",
+            "opentelemetry-otlp": "pip install opentelemetry-exporter-otlp-proto-grpc",
+        }
 
     def __init__(self, package: str, feature: str | None = None):
         self.package = package
         self.feature = feature
 
-        install_cmd = self.INSTALL_COMMANDS.get(package, f"pip install {package}")
+        install_cmd = self._get_install_commands().get(package, f"pip install {package}")
 
         if feature:
             message = (
