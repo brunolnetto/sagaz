@@ -57,9 +57,8 @@ class WireTransferSaga(Saga):
 
     async def _validate_sender(self, ctx: SagaContext) -> dict:
         transfer_id = ctx.get("transfer_id")
-        # SSN is masked in logs; only the last 4 digits placeholder is used for demo safety
-        ssn_suffix = "****"
-        logger.info(f"[TRANSFER {transfer_id}] Validating sender (SSN: ***-**-{ssn_suffix})")
+        # PII fields (SSN, account numbers) are never written to logs
+        logger.info(f"[TRANSFER {transfer_id}] Validating sender identity")
         await asyncio.sleep(0.05)
         return {"sender_validated": True, "validation_time": datetime.now().isoformat()}
 
