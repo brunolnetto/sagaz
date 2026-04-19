@@ -625,60 +625,7 @@ def version_cmd():
 # ============================================================================
 # sagaz examples
 # ============================================================================
-
-
-@click.group(invoke_without_command=True)
-@click.pass_context
-def examples_cmd(ctx):
-    """
-    Manage and run examples.
-
-    \b
-    Commands:
-        list      List all available examples
-        run       Run a specific example by name
-
-    \b
-    Examples:
-        sagaz examples                    # Opens interactive menu
-        sagaz examples list
-        sagaz examples list --category fintech
-        sagaz examples run ecommerce/order_processing
-    """
-    if ctx.invoked_subcommand is None:
-        cli_examples.interactive_cmd()
-
-
-@examples_cmd.command("list")
-@click.option(
-    "--category",
-    "-c",
-    help="Filter by category (e.g., ecommerce, fintech, iot, ml)",
-)
-def list_examples(category: str):
-    """
-    List available examples.
-
-    \b
-    Examples:
-        sagaz examples list
-        sagaz examples list --category fintech
-        sagaz examples list -c iot
-    """
-    cli_examples.list_examples_cmd(category)
-
-
-@examples_cmd.command("run")
-@click.argument("name")
-def run_example(name: str):
-    """
-    Run a specific example by name.
-
-    \b
-    Example:
-        sagaz examples run ecommerce/order_processing
-        sagaz examples run monitoring
-    """
+examples_cmd = cli_examples.examples_cli
 
 
 # ============================================================================

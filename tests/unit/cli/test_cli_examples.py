@@ -12,6 +12,7 @@ from sagaz.cli.examples import (
     _execute_example,
     _fallback_interactive_simple,
     discover_examples,
+    discover_examples_by_domain,
     get_categories,
     get_domains,
     get_example_description,
@@ -199,7 +200,7 @@ class TestGetExampleDescription:
 class TestListExamplesCmd:
     """Tests for list_examples_cmd function."""
 
-    @patch("sagaz.cli.examples.discover_examples")
+    @patch("sagaz.cli.examples.discover_examples_by_domain")
     @patch("sagaz.cli.examples.console")
     def test_no_examples_found(self, mock_console, mock_discover):
         """Test output when no examples found."""
@@ -209,12 +210,14 @@ class TestListExamplesCmd:
         # Should not raise
         list_examples_cmd()
 
-    @patch("sagaz.cli.examples.discover_examples")
+    @patch("sagaz.cli.examples.get_example_description")
+    @patch("sagaz.cli.examples.discover_examples_by_domain")
     @patch("sagaz.cli.examples.console")
-    @patch("sagaz.cli.examples.Table")
-    def test_examples_listed(self, mock_table_class, mock_console, mock_discover):
+    @patch("sagaz.cli.examples.TableClass")
+    def test_examples_listed(self, mock_table_class, mock_console, mock_discover, mock_desc):
         """Test examples are listed in table."""
-        mock_discover.return_value = {"test/example": Path("/tmp/test/example/main.py")}
+        mock_discover.return_value = {"Business": {"test/example": Path("/tmp/test/example/main.py")}}
+        mock_desc.return_value = "Test example description"
         mock_table = MagicMock()
         mock_table_class.return_value = mock_table
         mock_console.print = MagicMock()
@@ -223,21 +226,19 @@ class TestListExamplesCmd:
 
         mock_table.add_row.assert_called()
 
-    @patch("sagaz.cli.examples.discover_examples")
-    @patch("sagaz.cli.examples.get_categories")
-    def test_category_filter_message(self, mock_categories, mock_discover):
-        """Test shows available categories when filter fails."""
-        mock_discover.return_value = {}
-        mock_categories.return_value = ["ecommerce", "fintech"]
+    @patch("sagaz.cli.examples.discover_examples_by_domain")
+    def test_category_filter_message(self, mock_discover):
+        """Test shows available domains when filter fails."""
+        mock_discover.return_value = {"Business": {}, "Technology": {}}
 
         # Should not raise
-        list_examples_cmd(category="nonexistent")
+        list_examples_cmd(domain="nonexistent")
 
 
 class TestRunExampleCmd:
     """Tests for run_example_cmd function."""
 
-    @patch("sagaz.cli.examples.discover_examples")
+    @patch("sagaz.cli.examples.discover_examples_by_domain")
     @patch("click.echo")
     def test_example_not_found(self, mock_echo, mock_discover):
         """Test output when example not found."""
@@ -250,12 +251,12 @@ class TestRunExampleCmd:
         call_args = str(mock_echo.call_args_list)
         assert "not found" in call_args.lower()
 
-    @patch("sagaz.cli.examples.discover_examples")
+    @patch("sagaz.cli.examples.discover_examples_by_domain")
     @patch("sagaz.cli.examples._execute_example")
     @patch("click.echo")
     def test_example_executed(self, mock_echo, mock_execute, mock_discover):
         """Test example is executed when found."""
-        mock_discover.return_value = {"test/example": Path("/tmp/test/example/main.py")}
+        mock_discover.return_value = {"Business": {"test/example": Path("/tmp/test/example/main.py")}}
 
         run_example_cmd("test/example")
 

@@ -161,6 +161,52 @@ def discover_examples(category: str | None = None) -> dict[str, Path]:
     return _find_example_files(search_dir, examples_dir)
 
 
+def discover_examples_by_domain() -> dict[str, dict[str, Path]]:
+    """
+    Discover all examples grouped by domain.
+
+    Returns: {domain_name: {example_name: path_to_main_py}}
+    """
+    examples_dir = get_examples_dir()
+    if not examples_dir.exists():
+        return {}
+
+    # Find all examples by category first
+    all_examples: dict[str, list[tuple[str, Path]]] = {}
+    for root, _, files in os.walk(examples_dir):
+        if "main.py" in files or "demo.py" in files:
+            path = Path(root)
+            try:
+                rel_path = path.relative_to(examples_dir)
+                parts = rel_path.parts
+                if len(parts) >= 2:
+                    category = parts[0]
+                    if category not in all_examples:
+                        all_examples[category] = []
+
+                    name = str(rel_path).replace(os.sep, "/")
+                    if "demo.py" in files and "integrations" in name:
+                        all_examples[category].append((name, path / "demo.py"))
+                    elif "main.py" in files:
+                        all_examples[category].append((name, path / "main.py"))
+            except ValueError:
+                continue
+
+    # Group by domain
+    by_domain: dict[str, dict[str, Path]] = {}
+    for domain, categories in DOMAIN_MAPPING.items():
+        domain_examples: dict[str, Path] = {}
+        for category in categories:
+            if category in all_examples:
+                for name, path in all_examples[category]:
+                    domain_examples[name] = path
+
+        if domain_examples:
+            by_domain[domain] = domain_examples
+
+    return by_domain
+
+
 def get_example_description(path: Path) -> str:
     """Extract description from example's main.py docstring."""
     try:
@@ -206,10 +252,10 @@ def examples_cli(ctx):
 
 
 @examples_cli.command(name="list")
-@click.option("--category", help="Filter by category (e.g. ecommerce)")
-def list_examples(category: str | None = None):
-    """List available examples."""
-    list_examples_cmd(category)
+@click.option("--domain", help="Filter by domain (e.g. Business, Technology)")
+def list_examples(domain: str | None = None):
+    """List available examples grouped by domain."""
+    list_examples_cmd(domain)
 
 
 @examples_cli.command(name="run")
@@ -226,67 +272,94 @@ def select_example(category: str | None = None):
     interactive_cmd(category)
 
 
-def list_examples_cmd(category: str | None = None):
-    """List available examples."""
-    examples = discover_examples(category)
+def list_examples_cmd(domain: str | None = None):
+    """List available examples grouped by domain."""
+    by_domain = discover_examples_by_domain()
 
-    if not examples:
-        _show_no_examples_message(category)
+    if not by_domain:
+        click.echo("No examples found.")
         return
 
+    # Filter to specific domain if requested
+    if domain:
+        if domain not in by_domain:
+            click.echo(f"Error: domain '{domain}' not found.")
+            available = ", ".join(by_domain.keys())
+            click.echo(f"Available domains: {available}")
+            return
+        by_domain = {domain: by_domain[domain]}
+
     if console and TableClass:
-        _display_examples_table(examples, category)
+        _display_examples_table(by_domain)
     else:
-        _display_examples_plain(examples)
+        _display_examples_plain(by_domain)
 
 
-def _show_no_examples_message(category: str | None) -> None:
+def _show_no_examples_message(domain: str | None) -> None:
     """Show message when no examples are found."""
-    if category:
-        click.echo(f"No examples found in category '{category}'.")
-        categories = get_categories()
-        if categories:
-            click.echo(f"Available categories: {', '.join(categories)}")
+    if domain:
+        click.echo(f"No examples found in domain '{domain}'.")
+        domains = discover_examples_by_domain()
+        if domains:
+            click.echo(f"Available domains: {', '.join(domains.keys())}")
     else:
         click.echo("No examples found. Run this command from the sagaz repository root.")
 
 
-def _display_examples_table(examples: dict[str, Path], category: str | None) -> None:
-    """Display examples as a rich table."""
-    title = f"Sagaz Examples - {category}" if category else "Sagaz Examples"
-    table = Table(title=title)
-    table.add_column("Name", style="cyan")
-    table.add_column("Description")
+def _display_examples_table(by_domain: dict[str, dict[str, Path]]) -> None:
+    """Display examples grouped by domain in a rich table."""
+    table = TableClass(
+        title="Sagaz Examples",
+        show_header=True,
+        header_style="bold magenta",
+        expand=False,
+    )
+    table.add_column("Domain", style="bold", no_wrap=True, min_width=16)
+    table.add_column("Name", style="cyan", no_wrap=True, min_width=24)
+    table.add_column("Description", no_wrap=True, overflow="ellipsis")
 
-    for name, path in sorted(examples.items()):
-        desc = get_example_description(path)
-        table.add_row(name, desc)
+    for domain_name, examples in by_domain.items():
+        first = True
+        for name, path in sorted(examples.items()):
+            desc = get_example_description(path)
+            table.add_row(domain_name if first else "", name, desc)
+            first = False
 
     if console:
         console.print(table)
+        domains = discover_examples_by_domain()
+        if domains:
+            console.print("[dim]Run an example: sagaz examples run <name>[/dim]")
 
-    categories = get_categories()
-    if categories and not category and console:
-        console.print(f"\n[dim]Filter by category: --category {{{','.join(categories)}}}[/dim]")
 
-
-def _display_examples_plain(examples: dict[str, Path]) -> None:
-    """Display examples as plain text."""
-    click.echo("Available Examples:")
-    for name in sorted(examples.keys()):
-        click.echo(f"  - {name}")
+def _display_examples_plain(by_domain: dict[str, dict[str, Path]]) -> None:
+    """Display examples grouped by domain as plain text."""
+    click.echo("  Domain                Name                      Description")
+    click.echo("  " + "─" * 70)
+    for domain_name, examples in by_domain.items():
+        first = True
+        for name, path in sorted(examples.items()):
+            desc = get_example_description(path)
+            domain_col = domain_name if first else ""
+            click.echo(f"  {domain_col:<18}  {name:<25}  {desc}")
+            first = False
 
 
 def run_example_cmd(name: str):
     """Run a specific example."""
-    examples = discover_examples()
+    by_domain = discover_examples_by_domain()
 
-    if name not in examples:
+    # Flatten domain-grouped examples to search for name
+    all_examples: dict[str, Path] = {}
+    for examples in by_domain.values():
+        all_examples.update(examples)
+
+    if name not in all_examples:
         click.echo(f"Error: Example '{name}' not found.")
         click.echo("Use 'sagaz examples list' to see available examples.")
         return
 
-    script_path = examples[name]
+    script_path = all_examples[name]
     click.echo(f"Running example: {name}...")
     click.echo(f"Script: {script_path}")
     click.echo("-" * 60)
