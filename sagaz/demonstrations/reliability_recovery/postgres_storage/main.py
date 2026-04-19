@@ -69,7 +69,7 @@ async def _build_order_saga(storage, order_id: str):
         async def refund(self, ctx: dict) -> None:
             pass
 
-    return OrderSaga(initial_context={"order_id": order_id})
+    return OrderSaga()
 
 
 async def _build_failing_saga(storage, order_id: str):
@@ -97,7 +97,7 @@ async def _build_failing_saga(storage, order_id: str):
         async def void_capture(self, ctx: dict) -> None:
             pass
 
-    return FailingPaymentSaga(initial_context={"order_id": order_id})
+    return FailingPaymentSaga()
 
 
 # ---------------------------------------------------------------------------
