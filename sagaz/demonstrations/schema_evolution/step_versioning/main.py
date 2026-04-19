@@ -203,9 +203,8 @@ async def _run() -> None:
 
     ctx_v1 = {"customer": "Alice", "amount": 50.00}
     result_v1 = await OrderSagaV1().run(ctx_v1)
-    print(f"\n  Status:      {result_v1.get('status')}")
-    print(f"  Step schema: {ctx_v1.get('_step_schema')}")
-    print(f"  Charge ID:   {result_v1.get('__charge_payment_completed', {}).get('charge_id', '?')}")
+    print(f"\n  Step schema: {result_v1.get('_step_schema', '?')}")
+    print(f"  Charge ID:   {result_v1.get('charge_id', '?')}")
 
     # --- Phase 2: V2 saga — renamed + new step ------------------------------
     print("\n" + "=" * 60)
@@ -215,10 +214,8 @@ async def _run() -> None:
 
     ctx_v2 = {"customer": "Bob", "amount": 75.00}
     result_v2 = await OrderSagaV2().run(ctx_v2)
-    print(f"\n  Status:        {result_v2.get('status')}")
-    print(f"  Step schema:   {ctx_v2.get('_step_schema')}")
-    enrich_result = result_v2.get("__enrich_order_completed", {})
-    print(f"  Loyalty pts:   {enrich_result.get('loyalty_points', '?')}")
+    print(f"\n  Step schema:   {result_v2.get('_step_schema', '?')}")
+    print(f"  Loyalty pts:   {result_v2.get('loyalty_points', '?')}")
 
     # --- Phase 3: V2 failure — compensation chain with renamed steps --------
     print("\n" + "=" * 60)

@@ -353,7 +353,7 @@ async def successful_pipeline_demo():
             "experiment_id": "exp-20240115-001",
             "dataset_path": "/data/training/customer_churn.parquet",
             "model_name": "churn-predictor",
-            "accuracy_threshold": 0.80,  # Lenient threshold for demo
+            "accuracy_threshold": 0.75,  # Realistic threshold for demo success
             "hyperparameters": {
                 "learning_rate": 0.001,
                 "batch_size": 64,

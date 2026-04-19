@@ -70,8 +70,10 @@ DOMAIN_MAPPING = {
         "finance",
     ],
     "Technology": [
-        "ai_and_data",
-        "telecom_and_iot",
+        "ai",
+        "data",
+        "telecom",
+        "iot",
     ],
     "Healthcare": [
         "healthcare",
@@ -80,14 +82,17 @@ DOMAIN_MAPPING = {
         "operations",
     ],
     "Public Services": [
-        "government_and_education",
+        "government",
+        "education",
     ],
     "Digital Media": [
-        "media_and_gaming",
+        "media",
+        "gaming",
     ],
     "Platform": [
         "integrations",
-        "monitoring_and_observability",
+        "monitoring",
+        "visualization",
     ],
 }
 
@@ -440,7 +445,7 @@ def _category_menu_loop():
             menu_cursor_style=("fg_cyan", "bold"),
             menu_highlight_style=("bg_gray", "fg_cyan", "bold"),
             cycle_cursor=True,
-            clear_screen=False,
+            clear_screen=True,
             skip_empty_entries=True,
         )
 
@@ -485,7 +490,7 @@ def _domain_category_menu_loop(domain: str, categories: list[str]) -> str:
             menu_cursor_style=("fg_cyan", "bold"),
             menu_highlight_style=("bg_gray", "fg_cyan", "bold"),
             cycle_cursor=True,
-            clear_screen=False,
+            clear_screen=True,
             skip_empty_entries=True,
         )
 
@@ -560,7 +565,7 @@ def _handle_menu_selection(menu_entries: list[str], sorted_examples: list) -> st
         menu_cursor_style=("fg_cyan", "bold"),
         menu_highlight_style=("bg_gray", "fg_cyan", "bold"),
         cycle_cursor=True,
-        clear_screen=False,
+        clear_screen=True,
         skip_empty_entries=True,
     )
 
