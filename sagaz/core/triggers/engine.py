@@ -58,10 +58,10 @@ class TriggerEngine:
         )
 
         # Check for configuration errors and re-raise them
-        from sagaz.core.exceptions import IdempotencyKeyMissingInPayloadError
+        from sagaz.core.exceptions import IdempotencyKeyMissingInPayloadError, IdempotencyKeyRequiredError
 
         for result in results:
-            if isinstance(result, IdempotencyKeyMissingInPayloadError):
+            if isinstance(result, (IdempotencyKeyMissingInPayloadError, IdempotencyKeyRequiredError)):
                 raise result
 
         # Filter out None and exceptions (only transient errors remain)
@@ -79,7 +79,17 @@ class TriggerEngine:
             if not self._is_valid_context(context, saga_class, method_name):
                 return None
 
-            # 2. Get or generate saga ID
+            # 2. Check for high-value operations without idempotency key
+            high_value_fields = self._detect_high_value_operation(context)
+            if high_value_fields and not metadata.idempotency_key:
+                from sagaz.core.exceptions import IdempotencyKeyRequiredError
+                raise IdempotencyKeyRequiredError(
+                    saga_name=saga_class.__name__,
+                    source=metadata.source,
+                    detected_fields=high_value_fields
+                )
+
+            # 3. Get or generate saga ID
             saga_id, is_new = await self._resolve_saga_id(metadata, payload, saga_class)
             if saga_id is None:
                 return None
@@ -88,11 +98,11 @@ class TriggerEngine:
             if not is_new:
                 return saga_id
 
-            # 3. Check concurrency
+            # 4. Check concurrency
             if not await self._is_concurrency_allowed(metadata, saga_class):
                 return None
 
-            # 4. Run saga
+            # 5. Run saga
             if context is None:
                 context = {}
             await self._run_saga(saga_class, saga_id, context)
@@ -100,9 +110,9 @@ class TriggerEngine:
 
         except Exception as e:
             # Re-raise configuration errors - these should fail fast
-            from sagaz.core.exceptions import IdempotencyKeyMissingInPayloadError
+            from sagaz.core.exceptions import IdempotencyKeyMissingInPayloadError, IdempotencyKeyRequiredError
 
-            if isinstance(e, IdempotencyKeyMissingInPayloadError):
+            if isinstance(e, (IdempotencyKeyMissingInPayloadError, IdempotencyKeyRequiredError)):
                 raise
 
             # Log and swallow transient errors
@@ -119,6 +129,33 @@ class TriggerEngine:
             )
             return False
         return True
+
+    def _detect_high_value_operation(self, context: dict) -> list[str]:
+        """
+        Detect if context indicates a high-value operation.
+
+        Checks for:
+        - Financial keywords: amount, price, payment, charge, refund, transaction
+        - Numeric values >= 100.0
+
+        Returns:
+            List of detected high-value fields (empty if not high-value)
+        """
+        financial_keywords = {
+            'amount', 'price', 'payment', 'charge',
+            'refund', 'transaction', 'total', 'balance'
+        }
+
+        detected = []
+        for key, value in context.items():
+            # Check field names
+            if key.lower() in financial_keywords:
+                detected.append(key)
+            # Check numeric threshold
+            elif isinstance(value, (int, float)) and value >= 100.0:
+                detected.append(key)
+
+        return detected
 
     async def _resolve_saga_id(
         self, metadata: TriggerMetadata, payload: Any, saga_class
