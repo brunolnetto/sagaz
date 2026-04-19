@@ -45,7 +45,7 @@ async def _run_order(order_id: str, fail: bool = False) -> tuple[str, object]:
     async def validate(ctx: SagaContext):
         return {"valid": True}
 
-    async def cancel_validate(ctx: SagaContext):
+    async def cancel_validate(result: dict, ctx: SagaContext):
         pass
 
     async def charge(ctx: SagaContext):
@@ -54,7 +54,7 @@ async def _run_order(order_id: str, fail: bool = False) -> tuple[str, object]:
             raise RuntimeError(msg)
         return {"charge_id": f"CHG-{order_id}"}
 
-    async def refund(ctx: SagaContext):
+    async def refund(result: dict, ctx: SagaContext):
         pass
 
     saga = Saga(name="order")

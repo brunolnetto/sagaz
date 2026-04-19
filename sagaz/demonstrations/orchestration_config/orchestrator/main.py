@@ -39,7 +39,7 @@ async def process_item(ctx: SagaContext) -> dict:
     return {"item_id": item_id, "processed": True}
 
 
-async def undo_process(ctx: SagaContext) -> None:
+async def undo_process(result: dict, ctx: SagaContext) -> None:
     logger.info(f"  ↩ Undoing item {ctx.get('item_id')}")
 
 
@@ -53,7 +53,7 @@ async def ship_item(ctx: SagaContext) -> dict:
     return {"shipped": True}
 
 
-async def cancel_shipment(ctx: SagaContext) -> None:
+async def cancel_shipment(result: dict, ctx: SagaContext) -> None:
     logger.info(f"  ↩ Cancelling shipment for {ctx.get('item_id')}")
 
 
