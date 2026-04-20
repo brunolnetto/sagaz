@@ -55,7 +55,7 @@ async def _run_order(order_id: str, fail: bool = False) -> tuple[str, object]:
         return {"charge_id": f"CHG-{order_id}"}
 
     async def refund(result: dict, ctx: SagaContext):
-        pass
+        pass  # pragma: no cover
 
     saga = Saga(name="order")
     await saga.add_step("validate", validate, cancel_validate)

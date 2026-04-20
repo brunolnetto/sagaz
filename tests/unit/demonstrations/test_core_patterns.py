@@ -118,6 +118,7 @@ def test_basic_saga_main():
     with patch(
         "sagaz.demonstrations.core_patterns.basic_saga.main.asyncio.run"
     ) as mock_run:
+        mock_run.side_effect = lambda coro: coro.close()
         from sagaz.demonstrations.core_patterns.basic_saga.main import main
 
         main()
@@ -163,6 +164,7 @@ def test_compensation_deep_dive_main():
     with patch(
         "sagaz.demonstrations.core_patterns.compensation_deep_dive.main.asyncio.run"
     ) as mock_run:
+        mock_run.side_effect = lambda coro: coro.close()
         from sagaz.demonstrations.core_patterns.compensation_deep_dive.main import main
 
         main()
@@ -207,6 +209,7 @@ def test_parallel_steps_main():
     with patch(
         "sagaz.demonstrations.core_patterns.parallel_steps.main.asyncio.run"
     ) as mock_run:
+        mock_run.side_effect = lambda coro: coro.close()
         from sagaz.demonstrations.core_patterns.parallel_steps.main import main
 
         main()

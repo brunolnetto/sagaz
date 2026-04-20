@@ -396,6 +396,7 @@ def test_idempotency_main():
     with patch(
         "sagaz.demonstrations.reliability_recovery.idempotency.main.asyncio.run"
     ) as mock_run:
+        mock_run.side_effect = lambda coro: coro.close()
         from sagaz.demonstrations.reliability_recovery.idempotency.main import main
 
         main()
@@ -422,6 +423,7 @@ def test_postgres_storage_main():
     with patch(
         "sagaz.demonstrations.reliability_recovery.postgres_storage.main.asyncio.run"
     ) as mock_run:
+        mock_run.side_effect = lambda coro: coro.close()
         from sagaz.demonstrations.reliability_recovery.postgres_storage.main import main
 
         main()
@@ -463,6 +465,7 @@ def test_replay_compliance_main():
     with patch(
         "sagaz.demonstrations.reliability_recovery.replay_compliance.main.asyncio.run"
     ) as mock_run:
+        mock_run.side_effect = lambda coro: coro.close()
         from sagaz.demonstrations.reliability_recovery.replay_compliance.main import main
 
         main()
@@ -539,6 +542,7 @@ def test_saga_replay_main():
     with patch(
         "sagaz.demonstrations.reliability_recovery.saga_replay.main.asyncio.run"
     ) as mock_run:
+        mock_run.side_effect = lambda coro: coro.close()
         from sagaz.demonstrations.reliability_recovery.saga_replay.main import main
 
         main()
@@ -579,6 +583,7 @@ def test_sqlite_storage_main():
     with patch(
         "sagaz.demonstrations.reliability_recovery.sqlite_storage.main.asyncio.run"
     ) as mock_run:
+        mock_run.side_effect = lambda coro: coro.close()
         from sagaz.demonstrations.reliability_recovery.sqlite_storage.main import main
 
         main()

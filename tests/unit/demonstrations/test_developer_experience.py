@@ -122,6 +122,7 @@ def test_dry_run_main():
     with patch(
         "sagaz.demonstrations.developer_experience.dry_run.main.asyncio.run"
     ) as mock_run:
+        mock_run.side_effect = lambda coro: coro.close()
         from sagaz.demonstrations.developer_experience.dry_run.main import main
 
         main()
@@ -173,6 +174,7 @@ def test_lifecycle_hooks_main():
     with patch(
         "sagaz.demonstrations.developer_experience.lifecycle_hooks.main.asyncio.run"
     ) as mock_run:
+        mock_run.side_effect = lambda coro: coro.close()
         from sagaz.demonstrations.developer_experience.lifecycle_hooks.main import main
 
         main()
@@ -222,6 +224,7 @@ def test_visualization_main():
     with patch(
         "sagaz.demonstrations.developer_experience.visualization.main.asyncio.run"
     ) as mock_run:
+        mock_run.side_effect = lambda coro: coro.close()
         from sagaz.demonstrations.developer_experience.visualization.main import main
 
         main()

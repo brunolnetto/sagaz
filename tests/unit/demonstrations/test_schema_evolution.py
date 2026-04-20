@@ -7,6 +7,45 @@ import pytest
 
 
 # ===========================================================================
+# step_versioning — compensation body coverage
+# ===========================================================================
+
+
+@pytest.mark.asyncio
+async def test_order_saga_v1_compensation_bodies_directly():
+    """Covers OrderSagaV1 compensation bodies (L60, L70, L80)."""
+    from sagaz.demonstrations.schema_evolution.step_versioning.main import OrderSagaV1
+
+    saga = OrderSagaV1()
+    ctx = {"order_id": "O1", "customer_id": "C1", "amount": 50.0}
+    await saga.undo_create_order(ctx)
+    await saga.undo_charge_payment(ctx)
+    await saga.undo_send_notification(ctx)
+
+
+@pytest.mark.asyncio
+async def test_order_saga_v2_compensation_bodies_directly():
+    """Covers OrderSagaV2 compensation bodies (L109, L119, L129, L139)."""
+    from sagaz.demonstrations.schema_evolution.step_versioning.main import OrderSagaV2
+
+    saga = OrderSagaV2()
+    ctx = {"order_id": "O1", "customer_id": {"id": "C1"}, "amount": 50.0}
+    await saga.undo_initialize_order(ctx)
+    await saga.undo_enrich_order(ctx)
+    await saga.undo_charge_payment(ctx)
+    await saga.undo_send_notification(ctx)
+
+
+@pytest.mark.asyncio
+async def test_order_saga_v2_failing_compensation_body_directly():
+    """Covers OrderSagaV2Failing undo_send_notification body (L187)."""
+    from sagaz.demonstrations.schema_evolution.step_versioning.main import OrderSagaV2Failing
+
+    saga = OrderSagaV2Failing()
+    await saga.undo_send_notification({"order_id": "O1"})
+
+
+# ===========================================================================
 # context_migration
 # ===========================================================================
 
@@ -78,10 +117,33 @@ async def test_context_migration_run_function():
     await _run()
 
 
+@pytest.mark.asyncio
+async def test_context_migration_v1_compensation_bodies_directly():
+    """Covers L101 (cancel_order) and L112 (revoke_confirmation) on OrderSagaV1."""
+    from sagaz.demonstrations.schema_evolution.context_migration.main import OrderSagaV1
+
+    saga = OrderSagaV1()
+    ctx = {"customer": "Alice", "_schema_version": 1}
+    await saga.cancel_order(ctx)
+    await saga.revoke_confirmation(ctx)
+
+
+@pytest.mark.asyncio
+async def test_context_migration_v2_compensation_bodies_directly():
+    """Covers L134 (cancel_order) and L146 (revoke_confirmation) on OrderSagaV2."""
+    from sagaz.demonstrations.schema_evolution.context_migration.main import OrderSagaV2
+
+    saga = OrderSagaV2()
+    ctx = {"customer": {"name": "Bob", "email": "bob@example.com"}, "_schema_version": 2}
+    await saga.cancel_order(ctx)
+    await saga.revoke_confirmation(ctx)
+
+
 def test_context_migration_main():
     with patch(
         "sagaz.demonstrations.schema_evolution.context_migration.main.asyncio.run"
     ) as mock_run:
+        mock_run.side_effect = lambda coro: coro.close()
         from sagaz.demonstrations.schema_evolution.context_migration.main import main
 
         main()
@@ -130,6 +192,7 @@ def test_step_versioning_main():
     with patch(
         "sagaz.demonstrations.schema_evolution.step_versioning.main.asyncio.run"
     ) as mock_run:
+        mock_run.side_effect = lambda coro: coro.close()
         from sagaz.demonstrations.schema_evolution.step_versioning.main import main
 
         main()

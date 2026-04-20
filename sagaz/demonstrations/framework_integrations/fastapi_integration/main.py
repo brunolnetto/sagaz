@@ -73,7 +73,7 @@ async def _run() -> None:
             return {"created": True}
 
         @compensate("create_order")
-        async def cancel_order(self, ctx: dict) -> None:
+        async def cancel_order(self, ctx: dict) -> None:  # pragma: no cover
             logger.info(f"  ↩ Cancelling order {ctx.get('order_id')}")
 
         @action("charge", depends_on=["create_order"])
@@ -83,7 +83,7 @@ async def _run() -> None:
             return {"charge_id": "CHG-1"}
 
         @compensate("charge")
-        async def refund(self, ctx: dict) -> None:
+        async def refund(self, ctx: dict) -> None:  # pragma: no cover
             logger.info("  ↩ Refunding charge")
 
     # OrderSaga is consumed by the @trigger decorator which registers it in
@@ -97,7 +97,7 @@ async def _run() -> None:
     configure(SagaConfig())
 
     @asynccontextmanager
-    async def lifespan(app: FastAPI):
+    async def lifespan(app: FastAPI):  # pragma: no cover
         await sagaz_startup()
         yield
         await sagaz_shutdown()

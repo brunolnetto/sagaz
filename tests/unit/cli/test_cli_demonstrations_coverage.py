@@ -37,25 +37,28 @@ class TestImportFallbacks:
     """Tests that cover the ImportError fallback paths at module import time."""
 
     def test_rich_import_error_fallback(self):
-        """Lines 19-21: console=None, TableClass=None when rich is unavailable.
-
-        We test the fallback values by patching the module attributes directly
-        since reloading with rich=None causes cascade import failures.
-        """
-        # Verify the module can be imported and has the expected attributes
-        # (covering the try path when rich is available)
+        """Lines 19-21: console=None, TableClass=None when rich is unavailable."""
         import sagaz.cli.demonstrations as mod
 
-        # The fallback path sets these to None; test that the attribute names exist
-        assert hasattr(mod, "console")
-        assert hasattr(mod, "TableClass")
+        try:
+            with patch.dict(sys.modules, {"rich": None, "rich.console": None, "rich.table": None}):
+                importlib.reload(mod)
+                assert mod.console is None
+                assert mod.TableClass is None
+        finally:
+            importlib.reload(mod)  # restore
 
     def test_simple_term_menu_import_error_fallback(self):
         """Lines 27-29: TERM_MENU_AVAILABLE=False, TerminalMenu=None when package unavailable."""
         import sagaz.cli.demonstrations as mod
 
-        assert hasattr(mod, "TERM_MENU_AVAILABLE")
-        assert hasattr(mod, "TerminalMenu")
+        try:
+            with patch.dict(sys.modules, {"simple_term_menu": None}):
+                importlib.reload(mod)
+                assert mod.TERM_MENU_AVAILABLE is False
+                assert mod.TerminalMenu is None
+        finally:
+            importlib.reload(mod)  # restore
 
 
 # ============================================================================
@@ -208,10 +211,25 @@ class TestHandleDomainAndDemoSelection:
         assert result is False
         mock_console.print.assert_called()
 
+    def test_confirm_yes_continues_loop(self):
+        """Line 298: return True when click.confirm returns True (user wants another demo)."""
+        from sagaz.cli.demonstrations import _handle_domain_and_demo_selection
 
-# ============================================================================
-# _domain_menu_loop — while loop exit (line 330->exit)
-# ============================================================================
+        mock_demo_path = Path("/path/to/demo")
+        with (
+            patch("sagaz.cli.demonstrations.console", None),
+            patch("sagaz.cli.demonstrations._show_domain_menu", return_value=0),
+            patch("sagaz.cli.demonstrations._show_demo_menu", return_value=0),
+            patch("sagaz.cli.demonstrations.run_demo"),
+            patch("click.confirm", return_value=True),
+        ):
+            result = _handle_domain_and_demo_selection(
+                ["core_patterns"],
+                {"core_patterns": {"basic_saga": mock_demo_path}},
+                {},
+            )
+
+        assert result is True
 
 
 class TestDomainMenuLoop:
@@ -269,3 +287,13 @@ class TestExecuteDemo:
 
         captured = capsys.readouterr()
         assert "exited with code 1" in captured.out or "1" in captured.out
+
+    def test_execute_demo_zero_exit(self):
+        """Line 330->exit: _execute_demo exits normally when returncode==0."""
+        from sagaz.cli.demonstrations import _execute_demo
+
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        with patch("subprocess.run", return_value=mock_result):
+            _execute_demo(Path("/path/to/demo/main.py"))
+        # No output expected for successful completion
