@@ -408,15 +408,13 @@ def test_idempotency_main():
 # ===========================================================================
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
-async def test_postgres_storage_run_function_skips_without_docker():
+async def test_postgres_storage_run_function():
     from sagaz.demonstrations.reliability_recovery.postgres_storage.main import _run
 
-    # _run() uses ServiceManager which tries Docker; it should handle the exception gracefully
-    try:
-        await _run()
-    except Exception:
-        pass  # Acceptable if Docker not available
+    # _run() uses ServiceManager which requires Docker — only runs in integration test mode
+    await _run()
 
 
 def test_postgres_storage_main():

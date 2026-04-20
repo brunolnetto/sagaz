@@ -578,13 +578,13 @@ class TestTimeouts:
             return "result"
 
         async def slow_comp(result, ctx):
-            await asyncio.sleep(1.0)  # Longer than compensation_timeout (0.5s)
+            await asyncio.sleep(0.3)  # Longer than compensation_timeout (0.1s)
 
         async def failing_action(ctx):
             msg = "Fail"
             raise ValueError(msg)
 
-        await saga.add_step("step1", action, slow_comp, compensation_timeout=0.5)
+        await saga.add_step("step1", action, slow_comp, compensation_timeout=0.1)
         await saga.add_step("step2", failing_action, max_retries=1)
 
         result = await saga.execute()
@@ -2113,7 +2113,7 @@ class TestRealWorldScenarios:
             pass
 
         await saga.add_step(
-            "slow_service", call_slow_service, compensation, timeout=0.5, max_retries=2
+            "slow_service", call_slow_service, compensation, timeout=0.1, max_retries=1
         )
 
         result = await saga.execute()
