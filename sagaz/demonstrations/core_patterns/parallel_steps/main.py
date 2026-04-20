@@ -102,8 +102,12 @@ async def build_success_saga(strategy: ParallelFailureStrategy) -> Saga:
     """Build a passing saga with the given failure strategy."""
     saga = Saga(name=f"parallel-{strategy.value}", failure_strategy=strategy)
     await saga.add_step("setup", setup, undo_setup, dependencies=set())
-    await saga.add_step("fetch_inventory", fetch_inventory, release_inventory, dependencies={"setup"})
-    await saga.add_step("validate_payment", validate_payment, void_payment_check, dependencies={"setup"})
+    await saga.add_step(
+        "fetch_inventory", fetch_inventory, release_inventory, dependencies={"setup"}
+    )
+    await saga.add_step(
+        "validate_payment", validate_payment, void_payment_check, dependencies={"setup"}
+    )
     await saga.add_step("check_fraud", check_fraud, void_fraud_check, dependencies={"setup"})
     await saga.add_step(
         "finalize",
@@ -118,9 +122,15 @@ async def build_failing_saga(strategy: ParallelFailureStrategy) -> Saga:
     """Build a saga where the fraud check fails."""
     saga = Saga(name=f"parallel-fail-{strategy.value}", failure_strategy=strategy)
     await saga.add_step("setup", setup, undo_setup, dependencies=set())
-    await saga.add_step("fetch_inventory", fetch_inventory, release_inventory, dependencies={"setup"})
-    await saga.add_step("validate_payment", validate_payment, void_payment_check, dependencies={"setup"})
-    await saga.add_step("check_fraud", check_fraud_failing, void_fraud_check, dependencies={"setup"})
+    await saga.add_step(
+        "fetch_inventory", fetch_inventory, release_inventory, dependencies={"setup"}
+    )
+    await saga.add_step(
+        "validate_payment", validate_payment, void_payment_check, dependencies={"setup"}
+    )
+    await saga.add_step(
+        "check_fraud", check_fraud_failing, void_fraud_check, dependencies={"setup"}
+    )
     await saga.add_step(
         "finalize",
         finalize,

@@ -175,4 +175,3 @@ def get_domain_for_demo(name: str) -> str | None:
         if name in demos:
             return domain
     return None
-

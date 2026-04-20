@@ -29,9 +29,7 @@ import logging
 
 from sagaz import Saga, action, compensate
 
-logging.basicConfig(
-    level=logging.WARNING, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.WARNING, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("sagaz.demo.step_versioning")
 
 # ============================================================================

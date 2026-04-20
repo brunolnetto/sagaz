@@ -35,9 +35,7 @@ from sagaz import Saga, action, compensate
 from sagaz.core.storage.backends.memory.saga import InMemorySagaStorage
 from sagaz.core.types import SagaStatus
 
-logging.basicConfig(
-    level=logging.WARNING, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.WARNING, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("sagaz.demo.context_migration")
 
 # ============================================================================
@@ -172,8 +170,10 @@ async def _run() -> None:
 
     saga_id = result_v1.get("saga_id", "v1-saga")
     print(f"\n  V1 saga result status: {result_v1.get('status')}")
-    print(f"  V1 context snapshot:   customer={v1_context['customer']!r}, "
-          f"schema_version={v1_context['_schema_version']}")
+    print(
+        f"  V1 context snapshot:   customer={v1_context['customer']!r}, "
+        f"schema_version={v1_context['_schema_version']}"
+    )
 
     # Persist the V1 context to storage
     await storage.save_saga_state(

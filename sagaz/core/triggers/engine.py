@@ -63,7 +63,9 @@ class TriggerEngine:
 
         # Check for configuration errors and re-raise them
         for result in results:
-            if isinstance(result, (IdempotencyKeyMissingInPayloadError, IdempotencyKeyRequiredError)):
+            if isinstance(
+                result, (IdempotencyKeyMissingInPayloadError, IdempotencyKeyRequiredError)
+            ):
                 raise result
 
         # Filter out None and exceptions (only transient errors remain)
@@ -85,10 +87,11 @@ class TriggerEngine:
             high_value_fields = self._detect_high_value_operation(context)
             if high_value_fields and not metadata.idempotency_key:
                 from sagaz.core.exceptions import IdempotencyKeyRequiredError
+
                 raise IdempotencyKeyRequiredError(
                     saga_name=saga_class.__name__,
                     source=metadata.source,
-                    detected_fields=high_value_fields
+                    detected_fields=high_value_fields,
                 )
 
             # 3. Get or generate saga ID
@@ -142,14 +145,22 @@ class TriggerEngine:
             List of detected high-value fields (empty if not high-value)
         """
         financial_keywords = {
-            "amount", "price", "payment", "charge",
-            "refund", "transaction", "total", "balance"
+            "amount",
+            "price",
+            "payment",
+            "charge",
+            "refund",
+            "transaction",
+            "total",
+            "balance",
         }
 
         detected = []
         for key, value in context.items():
             # Check field names
-            if key.lower() in financial_keywords or (isinstance(value, (int, float)) and value >= 100.0):
+            if key.lower() in financial_keywords or (
+                isinstance(value, (int, float)) and value >= 100.0
+            ):
                 detected.append(key)
 
         return detected

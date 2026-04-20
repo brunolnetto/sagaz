@@ -216,7 +216,9 @@ class TestListExamplesCmd:
     @patch("sagaz.cli.examples.TableClass")
     def test_examples_listed(self, mock_table_class, mock_console, mock_discover, mock_desc):
         """Test examples are listed in table with subdomain column."""
-        mock_discover.return_value = {"Business": {"commerce/order_processing": Path("/tmp/test/example/main.py")}}
+        mock_discover.return_value = {
+            "Business": {"commerce/order_processing": Path("/tmp/test/example/main.py")}
+        }
         mock_desc.return_value = "Test example description"
         mock_table = MagicMock()
         mock_table_class.return_value = mock_table
@@ -259,7 +261,9 @@ class TestRunExampleCmd:
     @patch("click.echo")
     def test_example_executed(self, mock_echo, mock_execute, mock_discover):
         """Test example is executed when found."""
-        mock_discover.return_value = {"Business": {"test/example": Path("/tmp/test/example/main.py")}}
+        mock_discover.return_value = {
+            "Business": {"test/example": Path("/tmp/test/example/main.py")}
+        }
 
         run_example_cmd("test/example")
 

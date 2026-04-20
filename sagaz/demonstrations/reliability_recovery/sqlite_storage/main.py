@@ -120,9 +120,7 @@ async def _run() -> None:
                 if record:
                     loaded_status = record.get("status")
                     match = "✓" if str(loaded_status) in str(original_status.value) else "✗"
-                    print(
-                        f"\n  {match} {order_id}  loaded status={loaded_status}"
-                    )
+                    print(f"\n  {match} {order_id}  loaded status={loaded_status}")
                 else:
                     print(f"\n  ✗ {order_id}  not found (unexpected)")
 

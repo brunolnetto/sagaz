@@ -38,7 +38,9 @@ async def log_enter(ctx: dict, step_name: str) -> None:
 
 
 async def log_success(ctx: dict, step_name: str, result: Any) -> None:
-    print(f"    [hook] on_success → {step_name}  result_keys={sorted(result.keys()) if result else '∅'}")
+    print(
+        f"    [hook] on_success → {step_name}  result_keys={sorted(result.keys()) if result else '∅'}"
+    )
 
 
 async def log_failure(ctx: dict, step_name: str, error: Exception) -> None:
@@ -69,7 +71,9 @@ class AuditListener(SagaListener):
     async def on_step_success(self, saga_name: str, step_name: str, ctx: dict, result: Any) -> None:
         self.trail.append(f"step_success({step_name})")
 
-    async def on_step_failure(self, saga_name: str, step_name: str, ctx: dict, error: Exception) -> None:
+    async def on_step_failure(
+        self, saga_name: str, step_name: str, ctx: dict, error: Exception
+    ) -> None:
         self.trail.append(f"step_failure({step_name})")
 
     async def on_compensation_start(self, saga_name: str, step_name: str, ctx: dict) -> None:
@@ -81,7 +85,9 @@ class AuditListener(SagaListener):
     async def on_saga_complete(self, saga_name: str, saga_id: str, ctx: dict) -> None:
         self.trail.append(f"saga_complete({saga_name})")
 
-    async def on_saga_failed(self, saga_name: str, saga_id: str, ctx: dict, error: Exception) -> None:
+    async def on_saga_failed(
+        self, saga_name: str, saga_id: str, ctx: dict, error: Exception
+    ) -> None:
         self.trail.append(f"saga_failed({saga_name})")
 
 
@@ -164,7 +170,13 @@ class FailingHookedSaga(Saga):
     async def undo_validate(self, ctx: dict) -> None:
         logger.info("  ↩ Undoing validation")
 
-    @step("charge", depends_on=["validate"], on_enter=log_enter, on_success=log_success, on_exit=log_exit)
+    @step(
+        "charge",
+        depends_on=["validate"],
+        on_enter=log_enter,
+        on_success=log_success,
+        on_exit=log_exit,
+    )
     async def charge(self, ctx: dict) -> dict:
         logger.info("  ✓ Charging payment")
         return {"charge_id": "CHG-02"}
@@ -173,7 +185,9 @@ class FailingHookedSaga(Saga):
     async def refund(self, ctx: dict) -> None:
         logger.info("  ↩ Refunding payment")
 
-    @step("ship", depends_on=["charge"], on_enter=log_enter, on_failure=log_failure, on_exit=log_exit)
+    @step(
+        "ship", depends_on=["charge"], on_enter=log_enter, on_failure=log_failure, on_exit=log_exit
+    )
     async def ship(self, ctx: dict) -> dict:
         msg = "Warehouse closed!"
         raise RuntimeError(msg)

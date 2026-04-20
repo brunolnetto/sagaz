@@ -116,12 +116,15 @@ async def _run() -> None:
     print("Phase 1 — Fire webhook event (triggers OrderSaga + NotificationSaga)")
     print("=" * 60)
 
-    saga_ids = await fire_event("webhook", {
-        "order_id": "ORD-100",
-        "customer": "Alice",
-        "amount": 59.99,
-        "notify": True,
-    })
+    saga_ids = await fire_event(
+        "webhook",
+        {
+            "order_id": "ORD-100",
+            "customer": "Alice",
+            "amount": 59.99,
+            "notify": True,
+        },
+    )
     print(f"\n  Saga IDs started: {saga_ids}")
 
     # Allow background tasks to complete
@@ -132,12 +135,15 @@ async def _run() -> None:
     print("Phase 2 — Fire duplicate event (OrderSaga skipped via idempotency)")
     print("=" * 60)
 
-    saga_ids_2 = await fire_event("webhook", {
-        "order_id": "ORD-100",
-        "customer": "Alice",
-        "amount": 59.99,
-        "notify": True,
-    })
+    saga_ids_2 = await fire_event(
+        "webhook",
+        {
+            "order_id": "ORD-100",
+            "customer": "Alice",
+            "amount": 59.99,
+            "notify": True,
+        },
+    )
     print(f"\n  Saga IDs returned: {saga_ids_2}")
     print("  (OrderSaga reuses existing ID; NotificationSaga has no idempotency key)")
 
@@ -148,11 +154,14 @@ async def _run() -> None:
     print("Phase 3 — Fire event without notify flag (only OrderSaga triggers)")
     print("=" * 60)
 
-    saga_ids_3 = await fire_event("webhook", {
-        "order_id": "ORD-200",
-        "customer": "Bob",
-        "amount": 120.00,
-    })
+    saga_ids_3 = await fire_event(
+        "webhook",
+        {
+            "order_id": "ORD-200",
+            "customer": "Bob",
+            "amount": 120.00,
+        },
+    )
     print(f"\n  Saga IDs started: {saga_ids_3}")
 
     await asyncio.sleep(0.3)
