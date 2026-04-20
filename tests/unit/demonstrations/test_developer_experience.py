@@ -7,6 +7,84 @@ import pytest
 
 
 # ===========================================================================
+# dry_run — ShippingSaga action + compensation body coverage
+# ===========================================================================
+
+
+@pytest.mark.asyncio
+async def test_shipping_saga_run_covers_action_bodies():
+    """Running ShippingSaga directly covers all action return statements."""
+    from sagaz.demonstrations.developer_experience.dry_run.main import ShippingSaga
+
+    saga = ShippingSaga()
+    result = await saga.run({"order_id": "ORD-DRY"})
+    assert result.get("tracking_number") == "TRK-123"
+
+
+@pytest.mark.asyncio
+async def test_shipping_saga_compensation_bodies_directly():
+    from sagaz.demonstrations.developer_experience.dry_run.main import ShippingSaga
+
+    saga = ShippingSaga()
+    ctx = {"order_id": "ORD-DRY"}
+    await saga.release_inventory(ctx)
+    await saga.release_warehouse(ctx)
+    await saga.void_shipping(ctx)
+    await saga.refund_customer(ctx)
+    await saga.cancel_dispatch(ctx)
+
+
+# ===========================================================================
+# lifecycle_hooks — hook and compensation body coverage
+# ===========================================================================
+
+
+@pytest.mark.asyncio
+async def test_log_exit_hook_body():
+    from sagaz.demonstrations.developer_experience.lifecycle_hooks.main import log_exit
+
+    await log_exit({"order_id": "O1"}, "some_step")
+
+
+@pytest.mark.asyncio
+async def test_hooked_saga_compensation_bodies_directly():
+    from sagaz.demonstrations.developer_experience.lifecycle_hooks.main import HookedSaga
+
+    saga = HookedSaga()
+    ctx = {"order_id": "ORD-HOOK"}
+    await saga.undo_validate(ctx)
+    await saga.refund(ctx)
+    await saga.cancel_shipment(ctx)
+
+
+@pytest.mark.asyncio
+async def test_failing_hooked_saga_cancel_shipment_directly():
+    from sagaz.demonstrations.developer_experience.lifecycle_hooks.main import FailingHookedSaga
+
+    saga = FailingHookedSaga()
+    await saga.cancel_shipment({"order_id": "ORD-HOOK-FAIL"})
+
+
+# ===========================================================================
+# visualization — FulfillmentSaga compensation body coverage
+# ===========================================================================
+
+
+@pytest.mark.asyncio
+async def test_fulfillment_saga_compensation_bodies_directly():
+    from sagaz.demonstrations.developer_experience.visualization.main import FulfillmentSaga
+
+    saga = FulfillmentSaga()
+    ctx = {"order_id": "ORD-VIZ"}
+    await saga.undo_validate(ctx)
+    await saga.release_inventory(ctx)
+    await saga.void_payment(ctx)
+    await saga.void_fraud(ctx)
+    await saga.refund_payment(ctx)
+    await saga.cancel_shipment(ctx)
+
+
+# ===========================================================================
 # dry_run
 # ===========================================================================
 
@@ -148,3 +226,41 @@ def test_visualization_main():
 
         main()
         mock_run.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_dry_run_empty_forward_layers_branch():
+    """Covers the FALSE branch of 'if result2.forward_layers:' (L113->119)."""
+    from unittest.mock import AsyncMock
+    from sagaz.dry_run import DryRunResult, DryRunMode
+    from sagaz.demonstrations.developer_experience.dry_run.main import _run
+
+    call_count = 0
+
+    async def fake_run(saga, context, mode):
+        nonlocal call_count
+        call_count += 1
+        result = DryRunResult(mode=mode, success=True)
+        if call_count == 1:
+            # Phase 1: VALIDATE — populate validation fields
+            result.validation_errors = []
+            result.validation_warnings = []
+            result.validation_checks = {"has_steps": True}
+        else:
+            # Phase 2: SIMULATE — return empty forward_layers to hit FALSE branch
+            result.execution_order = ["check_inventory"]
+            result.parallel_groups = []
+            result.forward_layers = []  # Triggers FALSE branch at L113
+            result.total_layers = 0
+            result.max_parallel_width = 0
+            result.critical_path = []
+            result.sequential_complexity = 1
+            result.parallel_complexity = 0
+            result.parallelization_ratio = 0.0
+        return result
+
+    with patch(
+        "sagaz.demonstrations.developer_experience.dry_run.main.DryRunEngine"
+    ) as MockEngine:
+        MockEngine.return_value.run = fake_run
+        await _run()
