@@ -268,6 +268,33 @@ async def test_postgres_storage_import_error_path():
 
 
 @pytest.mark.asyncio
+async def test_postgres_storage_service_manager_exception_path():
+    """Covers outer except block (L206-209) when ServiceManager is importable but raises on entry."""
+    import importlib
+    import sys
+    import types
+
+    class FailingSM:
+        def __init__(self, **kw):
+            pass
+
+        def __enter__(self):
+            raise RuntimeError("Docker not available")
+
+        def __exit__(self, *a):
+            pass
+
+    fake_utils = types.ModuleType("sagaz.demonstrations.utils")
+    fake_utils.ServiceManager = FailingSM
+
+    import sagaz.demonstrations.reliability_recovery.postgres_storage.main as m
+
+    with patch.dict(sys.modules, {"sagaz.demonstrations.utils": fake_utils}):
+        importlib.reload(m)
+        await m._run()
+
+
+@pytest.mark.asyncio
 async def test_postgres_storage_run_full_flow_mocked():
     """Covers L134-201 by injecting mocked ServiceManager and PostgreSQLSagaStorage."""
     import sys

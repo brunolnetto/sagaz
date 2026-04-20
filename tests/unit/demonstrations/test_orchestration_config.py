@@ -279,6 +279,63 @@ async def test_storage_backends_in_memory():
     await test_storage("Memory-test", storage)
 
 
+@pytest.mark.asyncio
+async def test_storage_backends_redis_and_postgres_success_path():
+    """Covers Redis (L110-113) and PostgreSQL (L126-129) success paths via mocked ServiceManager."""
+    import importlib
+    import sys
+    import types
+
+    class FakeStorage:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            pass
+
+        async def save_saga_state(self, saga_id, saga_name, status, steps, context, metadata=None):
+            pass
+
+        async def load_saga_state(self, saga_id):
+            return {"status": "completed"}
+
+    class FakeSvc:
+        redis_url = "redis://fake:6379"
+        postgres_url = "postgresql://fake/db"
+
+    class FakeSM:
+        def __init__(self, **kw):
+            pass
+
+        def __enter__(self):
+            return FakeSvc()
+
+        def __exit__(self, *a):
+            pass
+
+    fake_utils = types.ModuleType("sagaz.demonstrations.utils")
+    fake_utils.ServiceManager = FakeSM
+
+    fake_redis_mod = types.ModuleType("sagaz.core.storage.backends.redis.saga")
+    fake_redis_mod.RedisSagaStorage = lambda url: FakeStorage()
+
+    fake_pg_mod = types.ModuleType("sagaz.core.storage.backends.postgresql.saga")
+    fake_pg_mod.PostgreSQLSagaStorage = lambda url: FakeStorage()
+
+    import sagaz.demonstrations.orchestration_config.storage_backends.main as m
+
+    with patch.dict(
+        sys.modules,
+        {
+            "sagaz.demonstrations.utils": fake_utils,
+            "sagaz.core.storage.backends.redis.saga": fake_redis_mod,
+            "sagaz.core.storage.backends.postgresql.saga": fake_pg_mod,
+        },
+    ):
+        importlib.reload(m)
+        await m._run()
+
+
 def test_storage_backends_main():
     with patch(
         "sagaz.demonstrations.orchestration_config.storage_backends.main.asyncio.run"
