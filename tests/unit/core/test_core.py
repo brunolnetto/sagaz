@@ -1001,7 +1001,7 @@ class TestParallelFailureStrategies:
 
         async def slow_success(ctx):
             try:
-                await asyncio.sleep(2.0)
+                await asyncio.sleep(0.5)  # Still slow enough to not complete during test
                 completed.append("slow")
                 return "slow"
             except asyncio.CancelledError:
@@ -1827,7 +1827,7 @@ class TestConcurrency:
 
         async def slow_action(ctx):
             execution_started.set()  # Signal that execution has started
-            await asyncio.sleep(0.5)  # Moderate delay
+            await asyncio.sleep(0.1)  # Sufficient delay for concurrency test
             return "done"
 
         await saga.add_step("slow", slow_action)
@@ -1870,7 +1870,7 @@ class TestConcurrency:
         saga2 = SimpleSaga("Saga2")
 
         async def sleeping_action(ctx):
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(0.1)  # Reduced for faster test
             return "done"
 
         await saga1.add_step("step", sleeping_action)
@@ -1916,7 +1916,7 @@ class TestPerformance:
         saga = SimpleSaga()
 
         async def slow_step(ctx):
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(0.1)  # Reduced for faster test
             return "done"
 
         await saga.add_step("step", slow_step)
@@ -1924,8 +1924,8 @@ class TestPerformance:
         result = await saga.execute()
 
         # Relaxed timing constraints for CI stability
-        assert result.execution_time >= 0.4  # Allow 0.1s tolerance
-        assert result.execution_time < 1.5  # More generous upper bound
+        assert result.execution_time >= 0.05  # Allow 0.05s tolerance
+        assert result.execution_time < 0.5  # More generous upper bound
 
     @pytest.mark.asyncio
     async def test_overhead_is_minimal(self):
