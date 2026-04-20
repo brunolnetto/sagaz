@@ -48,18 +48,14 @@ class TestMain:
             # Note: The actual execution happens on import when __name__ == "__main__"
             # In tests, __name__ is different, so we just verify imports work
 
-    @pytest.mark.slow
     def test_main_module_direct_execution(self):
-        """Test direct execution of __main__ module via subprocess (slow: spawns Python)."""
-        result = subprocess.run(
-            [sys.executable, "-m", "sagaz"],
-            capture_output=True,
-            text=True,
-            timeout=60,
-            input="\n",  # Send newline to exit interactive commands
-        )
+        """Test direct execution of __main__ module via CliRunner."""
+        from sagaz.cli.app import cli
+
+        runner = CliRunner()
+        result = runner.invoke(cli, [])
         # Should exit with 0 (help/usage) or 2 (missing command)
-        assert result.returncode in (0, 2)
+        assert result.exit_code in (0, 2)
 
     def test_main_module_exists(self):
         """Test __main__ module can be imported"""

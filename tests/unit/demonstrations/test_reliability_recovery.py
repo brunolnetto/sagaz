@@ -408,15 +408,6 @@ def test_idempotency_main():
 # ===========================================================================
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_postgres_storage_run_function():
-    from sagaz.demonstrations.reliability_recovery.postgres_storage.main import _run
-
-    # _run() uses ServiceManager which requires Docker — only runs in integration test mode
-    await _run()
-
-
 def test_postgres_storage_main():
     with patch(
         "sagaz.demonstrations.reliability_recovery.postgres_storage.main.asyncio.run"

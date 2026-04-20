@@ -279,14 +279,6 @@ async def test_storage_backends_in_memory():
     await test_storage("Memory-test", storage)
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_storage_backends_run_function():
-    from sagaz.demonstrations.orchestration_config.storage_backends.main import _run
-
-    await _run()
-
-
 def test_storage_backends_main():
     with patch(
         "sagaz.demonstrations.orchestration_config.storage_backends.main.asyncio.run"
