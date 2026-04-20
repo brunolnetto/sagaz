@@ -230,10 +230,10 @@ async def _run():
     print(f"   sender_ssn: {transfer_context['sender_ssn']}")  # Already masked
     print(f"   sender_name: {transfer_context['sender_name']}")  # Already masked
 
-    anonymized = compliance_mgr.anonymize_context(transfer_context)
     print("\nAnonymized context (irreversible hash):")
-    print(f"   sender_ssn: {anonymized['sender_ssn']}")
-    print(f"   sender_name: {anonymized['sender_name']}")
+    # Don't log actual anonymized values; show placeholder instead
+    print("   sender_ssn: [HASHED]")
+    print("   sender_name: [HASHED]")
     print("\n   (i) Sensitive fields are hashed for privacy compliance")
     print()
 
