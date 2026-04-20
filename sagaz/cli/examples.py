@@ -63,7 +63,18 @@ def get_examples_dir() -> Path:
     return Path.cwd() / "sagaz" / "examples"  # non-existent; caller handles it
 
 
-# Domain-to-category mapping — keys are the folder names under sagaz/examples/.
+# Maps display domain names → folder name under sagaz/examples/.
+DOMAIN_FOLDERS = {
+    "Business": "business",
+    "Technology": "technology",
+    "Healthcare": "healthcare",
+    "Infrastructure": "infrastructure",
+    "Public Services": "public_services",
+    "Digital Media": "digital_media",
+    "Platform": "platform",
+}
+
+# Maps display domain names → subdomain folder names within that domain folder.
 DOMAIN_MAPPING = {
     "Business": [
         "commerce",
@@ -96,22 +107,35 @@ DOMAIN_MAPPING = {
     ],
 }
 
+# Reverse map: subdomain folder → domain folder name (for fast lookup).
+_SUBDOMAIN_TO_DOMAIN_FOLDER: dict[str, str] = {
+    subdomain: DOMAIN_FOLDERS[display]
+    for display, subdomains in DOMAIN_MAPPING.items()
+    for subdomain in subdomains
+}
+
+# Reverse map: domain folder name → display name.
+_FOLDER_TO_DISPLAY: dict[str, str] = {v: k for k, v in DOMAIN_FOLDERS.items()}
+
 
 def get_categories() -> list[str]:
-    """Get list of available example categories (top-level directories)."""
+    """Get list of available subdomain categories (second-level directories)."""
     examples_dir = get_examples_dir()
     if not examples_dir.exists():
         return []
 
     categories = []
-    for item in examples_dir.iterdir():
-        if item.is_dir() and not item.name.startswith("_"):
-            for _root, _, files in os.walk(item):
-                if "main.py" in files or "demo.py" in files:
-                    categories.append(item.name)
-                    break
+    for domain_dir in examples_dir.iterdir():
+        if not domain_dir.is_dir() or domain_dir.name.startswith("_"):
+            continue
+        for item in domain_dir.iterdir():
+            if item.is_dir() and not item.name.startswith("_"):
+                for _root, _, files in os.walk(item):
+                    if "main.py" in files or "demo.py" in files:
+                        categories.append(item.name)
+                        break
 
-    return sorted(categories)
+    return sorted(set(categories))
 
 
 def get_domains() -> dict[str, list[str]]:
@@ -151,7 +175,7 @@ def discover_examples(category: str | None = None) -> dict[str, Path]:
     Scan examples directory for valid examples.
 
     Args:
-        category: Optional category filter (e.g., 'ecommerce', 'fintech')
+        category: Optional subdomain filter (e.g., 'commerce', 'ai')
 
     Returns: Dict[example_name, path_to_main_py]
     """
@@ -159,9 +183,15 @@ def discover_examples(category: str | None = None) -> dict[str, Path]:
     if not examples_dir.exists():
         return {}
 
-    search_dir = examples_dir / category if category else examples_dir
-    if category and not search_dir.exists():
-        return {}
+    if category:
+        domain_folder = _SUBDOMAIN_TO_DOMAIN_FOLDER.get(category)
+        if not domain_folder:
+            return {}
+        search_dir = examples_dir / domain_folder / category
+        if not search_dir.exists():
+            return {}
+    else:
+        search_dir = examples_dir
 
     return _find_example_files(search_dir, examples_dir)
 
@@ -176,7 +206,7 @@ def discover_examples_by_domain() -> dict[str, dict[str, Path]]:
     if not examples_dir.exists():
         return {}
 
-    # Find all examples by category first
+    # Find all examples by subdomain category first
     all_examples: dict[str, list[tuple[str, Path]]] = {}
     for root, _, files in os.walk(examples_dir):
         if "main.py" in files or "demo.py" in files:
@@ -184,8 +214,8 @@ def discover_examples_by_domain() -> dict[str, dict[str, Path]]:
             try:
                 rel_path = path.relative_to(examples_dir)
                 parts = rel_path.parts
-                if len(parts) >= 2:
-                    category = parts[0]
+                if len(parts) >= 3:  # domain/subdomain/example
+                    category = parts[1]  # subdomain folder
                     if category not in all_examples:
                         all_examples[category] = []
 
@@ -328,10 +358,10 @@ def _display_examples_table(by_domain: dict[str, dict[str, Path]]) -> None:
         first = True
         for name, path in sorted(examples.items()):
             desc = get_example_description(path)
-            # Extract subdomain from name (part before the /)
-            subdomain = name.split("/")[0] if "/" in name else ""
-            # Extract example name (part after the /)
-            example_name = name.split("/")[1] if "/" in name else name
+            # name is domain_folder/subdomain/example — extract subdomain and example
+            parts = name.split("/")
+            subdomain = parts[1] if len(parts) >= 3 else (parts[0] if len(parts) >= 2 else "")
+            example_name = parts[2] if len(parts) >= 3 else (parts[-1] if "/" in name else name)
             table.add_row(domain_name if first else "", subdomain, example_name, desc)
             first = False
 
@@ -339,7 +369,7 @@ def _display_examples_table(by_domain: dict[str, dict[str, Path]]) -> None:
         console.print(table)
         domains = discover_examples_by_domain()
         if domains:
-            console.print("[dim]Run an example: sagaz examples run <domain>/<category>/<name>[/dim]")
+            console.print("[dim]Run an example: sagaz examples run <domain_folder>/<subdomain>/<name>[/dim]")
 
 
 def _display_examples_plain(by_domain: dict[str, dict[str, Path]]) -> None:
@@ -351,9 +381,10 @@ def _display_examples_plain(by_domain: dict[str, dict[str, Path]]) -> None:
         for name, path in sorted(examples.items()):
             desc = get_example_description(path)
             domain_col = domain_name if first else ""
-            # Extract subdomain and name from full path
-            subdomain = name.split("/")[0] if "/" in name else ""
-            example_name = name.split("/")[1] if "/" in name else name
+            # name is domain_folder/subdomain/example
+            parts = name.split("/")
+            subdomain = parts[1] if len(parts) >= 3 else (parts[0] if len(parts) >= 2 else "")
+            example_name = parts[2] if len(parts) >= 3 else (parts[-1] if "/" in name else name)
             click.echo(f"  {domain_col:<18}  {subdomain:<17}  {example_name:<20}  {desc}")
             first = False
 
