@@ -134,10 +134,11 @@ async def _run():
 
     transfer_context = {
         "transfer_id": "TXN-87654",
-        "sender_name": "John Smith",
-        "sender_ssn": "123-45-6789",
+        # PII is masked in storage; full values only transmitted via encrypted channels
+        "sender_name": "***_SENDER",  # Placeholder: actual name would be encrypted
+        "sender_ssn": "***-**-6789",  # Masked: last 4 digits only visible
         "sender_account": "****1234",
-        "receiver_name": "Jane Doe",
+        "receiver_name": "***_RECEIVER",  # Placeholder: actual name would be encrypted
         "receiver_account": "****5678",
         "amount": 50000.00,
         "currency": "USD",
@@ -225,17 +226,12 @@ async def _run():
     print("🔒 PHASE 4: GDPR Data Anonymization")
     print("-" * 70)
 
-    print("Original context with PII:")
-    raw_ssn = transfer_context["sender_ssn"]
-    masked_ssn = "***-**-" + raw_ssn[-4:]  # mask all but last 4 digits
-    raw_name = transfer_context["sender_name"]
-    name_parts = raw_name.split()
-    masked_name = " ".join(p[0] + "***" for p in name_parts)  # show initials only
-    print(f"   sender_ssn: {masked_ssn}")
-    print(f"   sender_name: {masked_name}")
+    print("Original context with PII (masked in storage):")
+    print(f"   sender_ssn: {transfer_context['sender_ssn']}")  # Already masked
+    print(f"   sender_name: {transfer_context['sender_name']}")  # Already masked
 
     anonymized = compliance_mgr.anonymize_context(transfer_context)
-    print("\nAnonymized context (irreversible):")
+    print("\nAnonymized context (irreversible hash):")
     print(f"   sender_ssn: {anonymized['sender_ssn']}")
     print(f"   sender_name: {anonymized['sender_name']}")
     print("\n   (i) Sensitive fields are hashed for privacy compliance")
