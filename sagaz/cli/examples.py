@@ -118,6 +118,14 @@ _SUBDOMAIN_TO_DOMAIN_FOLDER: dict[str, str] = {
 _FOLDER_TO_DISPLAY: dict[str, str] = {v: k for k, v in DOMAIN_FOLDERS.items()}
 
 
+def _check_subdomain_for_main_file(subdomain_dir: Path) -> bool:
+    """Check if a subdomain directory contains main.py or demo.py files recursively."""
+    for _root, _, files in os.walk(subdomain_dir):
+        if "main.py" in files or "demo.py" in files:
+            return True
+    return False
+
+
 def get_categories() -> list[str]:
     """Get list of available subdomain categories (second-level directories)."""
     examples_dir = get_examples_dir()
@@ -129,11 +137,12 @@ def get_categories() -> list[str]:
         if not domain_dir.is_dir() or domain_dir.name.startswith("_"):
             continue
         for item in domain_dir.iterdir():
-            if item.is_dir() and not item.name.startswith("_"):
-                for _root, _, files in os.walk(item):
-                    if "main.py" in files or "demo.py" in files:
-                        categories.append(item.name)
-                        break
+            if (
+                item.is_dir()
+                and not item.name.startswith("_")
+                and _check_subdomain_for_main_file(item)
+            ):
+                categories.append(item.name)
 
     return sorted(set(categories))
 
@@ -196,6 +205,36 @@ def discover_examples(category: str | None = None) -> dict[str, Path]:
     return _find_example_files(search_dir, examples_dir)
 
 
+def _collect_examples_by_subdomain(examples_dir: Path) -> dict[str, list[tuple[str, Path]]]:
+    """Walk examples directory and collect examples grouped by subdomain."""
+    all_examples: dict[str, list[tuple[str, Path]]] = {}
+
+    for root, _, files in os.walk(examples_dir):
+        if "main.py" not in files and "demo.py" not in files:
+            continue
+
+        path = Path(root)
+        try:
+            rel_path = path.relative_to(examples_dir)
+            parts = rel_path.parts
+            if len(parts) < 3:  # Need domain/subdomain/example
+                continue
+
+            category = parts[1]  # subdomain folder
+            if category not in all_examples:
+                all_examples[category] = []
+
+            name = str(rel_path).replace(os.sep, "/")
+            if "demo.py" in files and "integrations" in name:
+                all_examples[category].append((name, path / "demo.py"))
+            elif "main.py" in files:
+                all_examples[category].append((name, path / "main.py"))
+        except ValueError:
+            continue
+
+    return all_examples
+
+
 def discover_examples_by_domain() -> dict[str, dict[str, Path]]:
     """
     Discover all examples grouped by domain.
@@ -206,26 +245,7 @@ def discover_examples_by_domain() -> dict[str, dict[str, Path]]:
     if not examples_dir.exists():
         return {}
 
-    # Find all examples by subdomain category first
-    all_examples: dict[str, list[tuple[str, Path]]] = {}
-    for root, _, files in os.walk(examples_dir):
-        if "main.py" in files or "demo.py" in files:
-            path = Path(root)
-            try:
-                rel_path = path.relative_to(examples_dir)
-                parts = rel_path.parts
-                if len(parts) >= 3:  # domain/subdomain/example
-                    category = parts[1]  # subdomain folder
-                    if category not in all_examples:
-                        all_examples[category] = []
-
-                    name = str(rel_path).replace(os.sep, "/")
-                    if "demo.py" in files and "integrations" in name:
-                        all_examples[category].append((name, path / "demo.py"))
-                    elif "main.py" in files:
-                        all_examples[category].append((name, path / "main.py"))
-            except ValueError:
-                continue
+    all_examples = _collect_examples_by_subdomain(examples_dir)
 
     # Group by domain
     by_domain: dict[str, dict[str, Path]] = {}
@@ -369,7 +389,9 @@ def _display_examples_table(by_domain: dict[str, dict[str, Path]]) -> None:
         console.print(table)
         domains = discover_examples_by_domain()
         if domains:
-            console.print("[dim]Run an example: sagaz examples run <domain_folder>/<subdomain>/<name>[/dim]")
+            console.print(
+                "[dim]Run an example: sagaz examples run <domain_folder>/<subdomain>/<name>[/dim]"
+            )
 
 
 def _display_examples_plain(by_domain: dict[str, dict[str, Path]]) -> None:
