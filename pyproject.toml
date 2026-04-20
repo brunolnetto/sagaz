@@ -11,6 +11,7 @@ dependencies = [
     "rich>=13.0.0",
     "simple-term-menu>=1.6.0",
     "PyYAML>=6.0.0",
+    "testcontainers>=4.14.2",
 ]
 requires-python = ">=3.11"
 
@@ -84,8 +85,11 @@ dev = [
     "bandit[toml]>=1.7.5",
     "pip-audit>=2.6.1",
     "radon>=6.0.1",
-    "testcontainers[kafka,postgres,rabbitmq,redis]>=4.13.3",
+    "testcontainers[kafka,postgres,rabbitmq,redis,localstack]>=4.13.3",
     "pytest-timeout>=2.4.0",
+    # Django integration tests
+    "django>=5.2.10",
+    "asgiref>=3.8.0",
     # OpenTelemetry (for tracing tests)
     "opentelemetry-api>=1.20.0",
     "opentelemetry-sdk>=1.20.0",
@@ -102,6 +106,8 @@ dev = [
     "aio-pika>=9.0.0",
     "prometheus-client>=0.23.1",
     "httpx>=0.28.1",
+    "pytest-json-report>=1.5.0",
+    "codebase-stats>=0.0.3",
 ]
 django = [
     "django>=5.2.10",
