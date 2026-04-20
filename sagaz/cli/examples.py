@@ -114,9 +114,6 @@ _SUBDOMAIN_TO_DOMAIN_FOLDER: dict[str, str] = {
     for subdomain in subdomains
 }
 
-# Reverse map: domain folder name → display name.
-_FOLDER_TO_DISPLAY: dict[str, str] = {v: k for k, v in DOMAIN_FOLDERS.items()}
-
 
 def _check_subdomain_for_main_file(subdomain_dir: Path) -> bool:
     """Check if a subdomain directory contains main.py or demo.py files recursively."""

@@ -16,7 +16,7 @@ Usage:
 import asyncio
 import logging
 
-from sagaz import Saga, SagaContext, SagaResult, SagaStatus, action, compensate
+from sagaz import Saga, action, compensate
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"

@@ -67,7 +67,7 @@ def _domain_metadata(domain_name: str) -> dict:
         meta = getattr(mod, "DOMAIN", None)
         if isinstance(meta, dict):
             return meta
-    except ImportError:
+    except ImportError:  # Domain package may not yet define DOMAIN; use fallback.
         pass
     # Minimal fallback — no hardcoded knowledge needed here.
     return {
@@ -164,7 +164,7 @@ def get_demo_description(path: Path) -> str:
                         desc = f.readline().strip()
                     return desc if desc else "No description"
                 break
-    except Exception:
+    except Exception:  # Any I/O or parse error falls back gracefully to no description.
         pass
     return "No description"
 

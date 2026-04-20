@@ -157,7 +157,7 @@ async def _run() -> None:
                 failing_saga = await _build_failing_saga(storage, "ORD-101")
                 try:
                     await failing_saga.run({"order_id": "ORD-101"})
-                except Exception:
+                except Exception:  # Expected: saga is designed to fail and roll back.
                     pass
                 failing_id = failing_saga.saga_id
                 print(f"\n  Saga {failing_id} → rolled back (expected)")

@@ -22,7 +22,7 @@ import asyncio
 import logging
 
 from sagaz.core.saga import Saga, SagaContext
-from sagaz.core.types import ParallelFailureStrategy, SagaStatus
+from sagaz.core.types import ParallelFailureStrategy
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"

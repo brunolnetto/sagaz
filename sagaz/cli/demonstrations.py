@@ -12,17 +12,13 @@ import click
 
 try:
     from rich.console import Console
-    from rich.panel import Panel
     from rich.table import Table
-    from rich.text import Text
 
     console: Console | None = Console()
     TableClass: type[Table] | None = Table
 except ImportError:
     console = None
     TableClass = None
-    Panel = None  # type: ignore[assignment, misc]
-    Text = None  # type: ignore[assignment]
 
 try:
     from simple_term_menu import TerminalMenu

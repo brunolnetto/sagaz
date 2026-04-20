@@ -226,8 +226,13 @@ async def _run():
     print("-" * 70)
 
     print("Original context with PII:")
-    print(f"   sender_ssn: {transfer_context['sender_ssn']}")
-    print(f"   sender_name: {transfer_context['sender_name']}")
+    raw_ssn = transfer_context["sender_ssn"]
+    masked_ssn = "***-**-" + raw_ssn[-4:]  # mask all but last 4 digits
+    raw_name = transfer_context["sender_name"]
+    name_parts = raw_name.split()
+    masked_name = " ".join(p[0] + "***" for p in name_parts)  # show initials only
+    print(f"   sender_ssn: {masked_ssn}")
+    print(f"   sender_name: {masked_name}")
 
     anonymized = compliance_mgr.anonymize_context(transfer_context)
     print("\nAnonymized context (irreversible):")

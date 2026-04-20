@@ -19,7 +19,6 @@ import random
 
 from sagaz.core.execution.orchestrator import SagaOrchestrator
 from sagaz.core.saga import Saga, SagaContext
-from sagaz.core.types import SagaStatus
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"

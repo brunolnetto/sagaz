@@ -19,7 +19,7 @@ import asyncio
 import logging
 from typing import Any
 
-from sagaz import Saga, SagaListener, action, compensate
+from sagaz import Saga, SagaListener, compensate
 from sagaz.core.decorators._steps import step
 
 logging.basicConfig(

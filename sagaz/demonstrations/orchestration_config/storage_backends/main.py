@@ -17,12 +17,10 @@ Usage:
 
 import asyncio
 import logging
-from typing import Any
 
 from sagaz.core.saga import Saga, SagaContext
 from sagaz.core.storage.backends.memory.saga import InMemorySagaStorage
 from sagaz.core.storage.base import SagaStorage
-from sagaz.core.types import SagaStatus
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"

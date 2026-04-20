@@ -86,6 +86,10 @@ async def _run() -> None:
         async def refund(self, ctx: dict) -> None:
             logger.info("  ↩ Refunding charge")
 
+    # OrderSaga is consumed by the @trigger decorator which registers it in
+    # TriggerRegistry; an explicit reference prevents static-analysis false positives.
+    _ = OrderSaga
+
     # ------------------------------------------------------------------
     # Build the FastAPI app
     # ------------------------------------------------------------------
