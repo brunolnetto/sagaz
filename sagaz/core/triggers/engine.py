@@ -3,6 +3,10 @@ import uuid
 from typing import Any
 
 from sagaz.core.config import get_config
+from sagaz.core.exceptions import (
+    IdempotencyKeyMissingInPayloadError,
+    IdempotencyKeyRequiredError,
+)
 from sagaz.core.logger import get_logger
 from sagaz.core.triggers.decorators import TriggerMetadata
 from sagaz.core.triggers.registry import TriggerRegistry
@@ -58,8 +62,6 @@ class TriggerEngine:
         )
 
         # Check for configuration errors and re-raise them
-        from sagaz.core.exceptions import IdempotencyKeyMissingInPayloadError, IdempotencyKeyRequiredError
-
         for result in results:
             if isinstance(result, (IdempotencyKeyMissingInPayloadError, IdempotencyKeyRequiredError)):
                 raise result
@@ -110,8 +112,6 @@ class TriggerEngine:
 
         except Exception as e:
             # Re-raise configuration errors - these should fail fast
-            from sagaz.core.exceptions import IdempotencyKeyMissingInPayloadError, IdempotencyKeyRequiredError
-
             if isinstance(e, (IdempotencyKeyMissingInPayloadError, IdempotencyKeyRequiredError)):
                 raise
 
@@ -142,17 +142,14 @@ class TriggerEngine:
             List of detected high-value fields (empty if not high-value)
         """
         financial_keywords = {
-            'amount', 'price', 'payment', 'charge',
-            'refund', 'transaction', 'total', 'balance'
+            "amount", "price", "payment", "charge",
+            "refund", "transaction", "total", "balance"
         }
 
         detected = []
         for key, value in context.items():
             # Check field names
-            if key.lower() in financial_keywords:
-                detected.append(key)
-            # Check numeric threshold
-            elif isinstance(value, (int, float)) and value >= 100.0:
+            if key.lower() in financial_keywords or (isinstance(value, (int, float)) and value >= 100.0):
                 detected.append(key)
 
         return detected
