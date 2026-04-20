@@ -63,9 +63,7 @@ class TriggerEngine:
 
         # Check for configuration errors and re-raise them
         for result in results:
-            if isinstance(
-                result, (IdempotencyKeyMissingInPayloadError, IdempotencyKeyRequiredError)
-            ):
+            if isinstance(result, IdempotencyKeyMissingInPayloadError):
                 raise result
 
         # Filter out None and exceptions (only transient errors remain)
@@ -83,16 +81,10 @@ class TriggerEngine:
             if not self._is_valid_context(context, saga_class, method_name):
                 return None
 
-            # 2. Check for high-value operations without idempotency key
-            high_value_fields = self._detect_high_value_operation(context)
-            if high_value_fields and not metadata.idempotency_key:
-                from sagaz.core.exceptions import IdempotencyKeyRequiredError
-
-                raise IdempotencyKeyRequiredError(
-                    saga_name=saga_class.__name__,
-                    source=metadata.source,
-                    detected_fields=high_value_fields,
-                )
+            # 2. (Removed IdempotencyKeyRequiredError raise)
+            # High-value operations are now only warned at registration time via registry.
+            # Execution continues regardless; it's the developer's responsibility to configure
+            # idempotency_key based on business logic.
 
             # 3. Get or generate saga ID
             saga_id, is_new = await self._resolve_saga_id(metadata, payload, saga_class)
@@ -115,7 +107,7 @@ class TriggerEngine:
 
         except Exception as e:
             # Re-raise configuration errors - these should fail fast
-            if isinstance(e, (IdempotencyKeyMissingInPayloadError, IdempotencyKeyRequiredError)):
+            if isinstance(e, IdempotencyKeyMissingInPayloadError):
                 raise
 
             # Log and swallow transient errors
