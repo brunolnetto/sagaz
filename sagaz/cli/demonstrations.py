@@ -4,6 +4,7 @@ CLI module for discovering and running built-in demonstrations.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -325,8 +326,17 @@ def _fallback_interactive() -> None:
 def _execute_demo(script_path: Path) -> None:
     """Execute a demonstration script as a subprocess."""
     cmd = [sys.executable, str(script_path)]
+    
+    # Set up environment with PYTHONPATH to allow imports from repo root
+    env = os.environ.copy()
+    cwd = Path.cwd()
+    if "PYTHONPATH" in env:
+        env["PYTHONPATH"] = f"{cwd}{os.pathsep}{env['PYTHONPATH']}"
+    else:
+        env["PYTHONPATH"] = str(cwd)
+    
     try:
-        result = subprocess.run(cmd, check=False)
+        result = subprocess.run(cmd, env=env, check=False)
         if result.returncode != 0:
             click.echo(f"\nDemonstration exited with code {result.returncode}")
     except KeyboardInterrupt:
