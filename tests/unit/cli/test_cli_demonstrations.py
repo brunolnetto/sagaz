@@ -182,7 +182,7 @@ class TestRunDemoCommand:
         """Test run_demo_cmd via CLI."""
         with (
             patch("sagaz.cli.demonstrations.discover_demos") as mock_discover,
-            patch("subprocess.run") as mock_run,
+            patch("subprocess.run"),
         ):
             demo_path = Path("/path/to/demo/main.py")
             mock_discover.return_value = {"basic_saga": demo_path}
@@ -215,7 +215,7 @@ class TestDemoCliGroup:
 
     def test_demo_cli_no_subcommand_shows_interactive(self, runner):
         """Test running demo without subcommand invokes interactive mode."""
-        with patch("sagaz.cli.demonstrations.interactive_cmd") as mock_interactive:
+        with patch("sagaz.cli.demonstrations.interactive_cmd"):
             result = runner.invoke(demo_cli, [])
             # Depending on implementation, might show help or run interactive
             assert result.exit_code in [0, None, 2]  # 2 is OK for click help
@@ -236,7 +236,7 @@ class TestDemoCliGroup:
         """Test demo run subcommand."""
         with (
             patch("sagaz.cli.demonstrations.discover_demos") as mock_discover,
-            patch("subprocess.run") as mock_run,
+            patch("subprocess.run"),
         ):
             demo_path = Path("/path/to/demo/main.py")
             mock_discover.return_value = {"basic_saga": demo_path}

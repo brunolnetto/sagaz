@@ -137,7 +137,8 @@ class TestServiceManagerContextManager:
         with pytest.raises(ValueError):
             with ServiceManager(postgres=True) as svc:
                 assert svc.postgres_url is not None
-                raise ValueError("Test error")
+                msg = "Test error"
+                raise ValueError(msg)
 
         # Verify cleanup happened despite exception
         mock_pg.stop.assert_called_once()
