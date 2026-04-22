@@ -2,10 +2,9 @@
 
 import asyncio
 import builtins
-from unittest.mock import patch, AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
-
 
 # ===========================================================================
 # idempotency — trigger body + compensation + exception-path coverage
@@ -16,8 +15,8 @@ import pytest
 async def test_idempotency_trigger_handler_bodies_directly():
     """Covers on_payment return dicts (L35, L57) and refund_payment prints (L47, L69)."""
     from sagaz.demonstrations.reliability_recovery.idempotency.main import (
-        PaymentSagaWithoutIdempotency,
         PaymentSagaWithIdempotency,
+        PaymentSagaWithoutIdempotency,
     )
 
     saga1 = PaymentSagaWithoutIdempotency()
@@ -36,8 +35,8 @@ async def test_idempotency_run_function_covers_exception_branches():
     """Covers IdempotencyKeyRequiredError (L90-92) and unexpected-exception (L103-104)."""
     from sagaz.core.exceptions import IdempotencyKeyRequiredError
     from sagaz.demonstrations.reliability_recovery.idempotency.main import (
-        PaymentSagaWithoutIdempotency,
         PaymentSagaWithIdempotency,
+        PaymentSagaWithoutIdempotency,
     )
 
     call_count = [0]
@@ -45,8 +44,10 @@ async def test_idempotency_run_function_covers_exception_branches():
     async def mock_fire_event(source, payload, **kw):
         call_count[0] += 1
         if call_count[0] == 1:
-            raise IdempotencyKeyRequiredError("payment-saga", "payment_requested", ["amount"])
-        raise RuntimeError("Unexpected service error")
+            msg = "payment-saga"
+            raise IdempotencyKeyRequiredError(msg, "payment_requested", ["amount"])
+        msg = "Unexpected service error"
+        raise RuntimeError(msg)
 
     with patch(
         "sagaz.demonstrations.reliability_recovery.idempotency.main.fire_event",
@@ -101,10 +102,10 @@ async def test_saga_factory_returns_saga_instance():
 async def test_saga_replay_compensation_bodies_directly():
     """Covers undo_validate (L48), release_inventory (L58), refund_payment (L68), cancel_notification (L78)."""
     from sagaz.demonstrations.reliability_recovery.saga_replay.main import (
-        undo_validate,
-        release_inventory,
-        refund_payment,
         cancel_notification,
+        refund_payment,
+        release_inventory,
+        undo_validate,
     )
 
     ctx = {"order_id": "ORD-1"}
@@ -139,7 +140,8 @@ async def test_sqlite_storage_refund_compensation_directly():
         refund_called.append("refund")
 
     async def fail_step(ctx):
-        raise RuntimeError("fail to trigger compensation")
+        msg = "fail to trigger compensation"
+        raise RuntimeError(msg)
 
     async def cancel_fail(result, ctx):
         pass
@@ -161,11 +163,13 @@ async def test_sqlite_storage_import_error_path():
 
     def mock_import(name, *args, **kwargs):
         if name == "sagaz.core.storage.backends.sqlite.saga":
-            raise ImportError(f"No module named {name!r}")
+            msg = f"No module named {name!r}"
+            raise ImportError(msg)
         return real_import(name, *args, **kwargs)
 
-    import sagaz.demonstrations.reliability_recovery.sqlite_storage.main as m
     import importlib
+
+    import sagaz.demonstrations.reliability_recovery.sqlite_storage.main as m
 
     with patch("builtins.__import__", mock_import):
         importlib.reload(m)
@@ -252,8 +256,8 @@ async def test_postgres_storage_failing_saga_run_to_compensate():
 @pytest.mark.asyncio
 async def test_postgres_storage_import_error_path():
     """Covers ImportError branch (L111-113) when sagaz.demonstrations.utils is missing."""
-    import sys
     import importlib
+    import sys
 
     real_module = sys.modules.pop("sagaz.demonstrations.utils", None)
     # Also bust the module if it's cached under a sub-key used by the demo
@@ -279,7 +283,8 @@ async def test_postgres_storage_service_manager_exception_path():
             pass
 
         def __enter__(self):
-            raise RuntimeError("Docker not available")
+            msg = "Docker not available"
+            raise RuntimeError(msg)
 
         def __exit__(self, *a):
             pass
@@ -297,8 +302,8 @@ async def test_postgres_storage_service_manager_exception_path():
 @pytest.mark.asyncio
 async def test_postgres_storage_run_full_flow_mocked():
     """Covers L134-201 by injecting mocked ServiceManager and PostgreSQLSagaStorage."""
-    import sys
     import importlib
+    import sys
     import types
     from contextlib import asynccontextmanager
 
@@ -350,7 +355,7 @@ async def test_postgres_storage_run_full_flow_mocked():
     # We do this by patching the Saga base class to add a saga_id property
     from sagaz.core.decorators import Saga as DecoratorSaga
 
-    original_getattr = getattr(DecoratorSaga, "__getattr__", None)
+    getattr(DecoratorSaga, "__getattr__", None)
 
     def fake_saga_id_property(self):
         return self._saga_id
@@ -385,10 +390,10 @@ async def test_postgres_storage_run_full_flow_mocked():
 
 @pytest.mark.asyncio
 async def test_payment_saga_without_idempotency_runs():
+    from sagaz.core.triggers.registry import TriggerRegistry
     from sagaz.demonstrations.reliability_recovery.idempotency.main import (
         PaymentSagaWithoutIdempotency,
     )
-    from sagaz.core.triggers.registry import TriggerRegistry
 
     saga = PaymentSagaWithoutIdempotency()
     result = await saga.run({"order_id": "ORD-001", "amount": 150.0})
@@ -398,10 +403,10 @@ async def test_payment_saga_without_idempotency_runs():
 
 @pytest.mark.asyncio
 async def test_payment_saga_with_idempotency_runs():
+    from sagaz.core.triggers.registry import TriggerRegistry
     from sagaz.demonstrations.reliability_recovery.idempotency.main import (
         PaymentSagaWithIdempotency,
     )
-    from sagaz.core.triggers.registry import TriggerRegistry
 
     saga = PaymentSagaWithIdempotency()
     result = await saga.run({"order_id": "ORD-002", "amount": 250.0})
@@ -411,8 +416,8 @@ async def test_payment_saga_with_idempotency_runs():
 
 @pytest.mark.asyncio
 async def test_idempotency_run_function():
-    from sagaz.demonstrations.reliability_recovery.idempotency.main import _run
     from sagaz.core.triggers.registry import TriggerRegistry
+    from sagaz.demonstrations.reliability_recovery.idempotency.main import _run
 
     TriggerRegistry.clear()
     await _run()
@@ -453,9 +458,9 @@ def test_postgres_storage_main():
 
 @pytest.mark.asyncio
 async def test_wire_transfer_saga_runs_successfully():
-    from sagaz.demonstrations.reliability_recovery.replay_compliance.main import WireTransferSaga
-    from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
     from sagaz.core.replay import ReplayConfig, SnapshotStrategy
+    from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
+    from sagaz.demonstrations.reliability_recovery.replay_compliance.main import WireTransferSaga
 
     snapshot_storage = InMemorySnapshotStorage()
     replay_config = ReplayConfig(
@@ -495,8 +500,8 @@ def test_replay_compliance_main():
 
 @pytest.mark.asyncio
 async def test_build_saga_and_execute():
-    from sagaz.demonstrations.reliability_recovery.saga_replay.main import build_saga
     from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
+    from sagaz.demonstrations.reliability_recovery.saga_replay.main import build_saga
 
     snapshot_storage = InMemorySnapshotStorage()
     saga = await build_saga(snapshot_storage)
@@ -515,6 +520,7 @@ async def test_saga_replay_run_function():
 async def test_saga_replay_empty_snapshots_branch():
     """Covers L149->175 and L179->199 branch (when snapshots is empty list)."""
     from unittest.mock import AsyncMock, patch
+
     from sagaz.demonstrations.reliability_recovery.saga_replay.main import _run
 
     with patch(
@@ -529,6 +535,7 @@ async def test_saga_replay_empty_snapshots_branch():
 async def test_saga_replay_state_none_branch():
     """Covers L162 (when time_travel.get_state_at returns None)."""
     from unittest.mock import AsyncMock, MagicMock, patch
+
     from sagaz.demonstrations.reliability_recovery.saga_replay.main import _run
 
     with patch(
@@ -544,6 +551,7 @@ async def test_saga_replay_state_none_branch():
 async def test_saga_replay_from_checkpoint_exception_branch():
     """Covers L195-197 (when SagaReplay.from_checkpoint raises an exception)."""
     from unittest.mock import AsyncMock, patch
+
     from sagaz.demonstrations.reliability_recovery.saga_replay.main import _run
 
     with patch(
@@ -609,8 +617,8 @@ def test_sqlite_storage_main():
 @pytest.mark.asyncio
 async def test_postgres_storage_warning_branch_mocked():
     """Covers L189 — WARNING branch when load_saga_state returns None in Phase 4."""
-    import sys
     import importlib
+    import sys
     import types
 
     class FakeStorage:

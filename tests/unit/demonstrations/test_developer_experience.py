@@ -5,7 +5,6 @@ from unittest.mock import patch
 
 import pytest
 
-
 # ===========================================================================
 # dry_run — ShippingSaga action + compensation body coverage
 # ===========================================================================
@@ -235,8 +234,9 @@ def test_visualization_main():
 async def test_dry_run_empty_forward_layers_branch():
     """Covers the FALSE branch of 'if result2.forward_layers:' (L113->119)."""
     from unittest.mock import AsyncMock
-    from sagaz.dry_run import DryRunResult, DryRunMode
+
     from sagaz.demonstrations.developer_experience.dry_run.main import _run
+    from sagaz.dry_run import DryRunMode, DryRunResult
 
     call_count = 0
 
