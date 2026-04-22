@@ -118,9 +118,7 @@ async def test_dry_run_run_function():
 
 
 def test_dry_run_main():
-    with patch(
-        "sagaz.demonstrations.developer_experience.dry_run.main.asyncio.run"
-    ) as mock_run:
+    with patch("sagaz.demonstrations.developer_experience.dry_run.main.asyncio.run") as mock_run:
         mock_run.side_effect = lambda coro: coro.close()
         from sagaz.demonstrations.developer_experience.dry_run.main import main
 
@@ -262,8 +260,6 @@ async def test_dry_run_empty_forward_layers_branch():
             result.parallelization_ratio = 0.0
         return result
 
-    with patch(
-        "sagaz.demonstrations.developer_experience.dry_run.main.DryRunEngine"
-    ) as MockEngine:
+    with patch("sagaz.demonstrations.developer_experience.dry_run.main.DryRunEngine") as MockEngine:
         MockEngine.return_value.run = fake_run
         await _run()

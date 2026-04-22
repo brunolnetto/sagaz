@@ -422,13 +422,9 @@ class TestInteractiveFunctions:
 
         with (
             patch("sagaz.cli.demonstrations.discover_demos_by_domain") as mock_discover,
-            patch(
-                "sagaz.cli.demonstrations._handle_domain_and_demo_selection"
-            ) as mock_handler,
+            patch("sagaz.cli.demonstrations._handle_domain_and_demo_selection") as mock_handler,
         ):
-            mock_discover.return_value = {
-                "core_patterns": {"basic_saga": Path("...")}
-            }
+            mock_discover.return_value = {"core_patterns": {"basic_saga": Path("...")}}
             # Loop once then exit
             mock_handler.side_effect = [True, False]
 
@@ -495,8 +491,6 @@ class TestInteractiveFunctions:
             captured = capsys.readouterr()
             assert "unknown" in captured.out.lower()
             mock_run.assert_not_called()
-
-
 
     """Tests for display/rendering functions."""
 
