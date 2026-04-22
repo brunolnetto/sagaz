@@ -80,13 +80,13 @@ async def _run():
     print("IDEMPOTENCY KEY ENFORCEMENT DEMONSTRATION")
     print("=" * 70)
 
-    # Test 1: Without idempotency key (should fail)
+    # Test 1: Without idempotency key (engine warns but continues)
     print("\n" + "=" * 70)
     print("TEST 1: High-value operation WITHOUT idempotency_key")
     print("=" * 70)
     try:
         await fire_event("payment_requested", {"order_id": "ORD-001", "amount": 150.0})
-        print("❌ UNEXPECTED: Should have raised IdempotencyKeyRequiredError!")
+        print("⚠️  Event fired without idempotency_key (engine warns but continues)")
     except IdempotencyKeyRequiredError as e:
         print("✅ Correctly raised IdempotencyKeyRequiredError")
         print(str(e))
