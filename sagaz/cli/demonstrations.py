@@ -329,6 +329,7 @@ def _execute_demo(script_path: Path) -> None:
         result = subprocess.run(cmd, check=False)
         if result.returncode != 0:
             click.echo(f"\nDemonstration exited with code {result.returncode}")
+            raise SystemExit(result.returncode)
     except KeyboardInterrupt:
         click.echo("\nDemonstration interrupted.")
     except Exception as e:
