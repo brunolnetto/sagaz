@@ -49,7 +49,9 @@ class TestServiceManagerContextManager:
         """Test ServiceManager with only PostgreSQL requested."""
         # Setup mock
         mock_pg = MagicMock()
-        mock_pg.get_connection_url.return_value = "postgresql+psycopg2://user:pass@localhost:5432/test"
+        mock_pg.get_connection_url.return_value = (
+            "postgresql+psycopg2://user:pass@localhost:5432/test"
+        )
         mock_pg_container.return_value = mock_pg
 
         with ServiceManager(postgres=True) as svc:
@@ -83,7 +85,9 @@ class TestServiceManagerContextManager:
         """Test ServiceManager with both PostgreSQL and Redis."""
         # Setup mocks
         mock_pg = MagicMock()
-        mock_pg.get_connection_url.return_value = "postgresql+psycopg2://user:pass@localhost:5432/db"
+        mock_pg.get_connection_url.return_value = (
+            "postgresql+psycopg2://user:pass@localhost:5432/db"
+        )
         mock_pg_container.return_value = mock_pg
 
         mock_redis = MagicMock()
@@ -137,7 +141,8 @@ class TestServiceManagerContextManager:
         with pytest.raises(ValueError):
             with ServiceManager(postgres=True) as svc:
                 assert svc.postgres_url is not None
-                raise ValueError("Test error")
+                msg = "Test error"
+                raise ValueError(msg)
 
         # Verify cleanup happened despite exception
         mock_pg.stop.assert_called_once()

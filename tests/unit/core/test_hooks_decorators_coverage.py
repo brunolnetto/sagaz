@@ -86,7 +86,6 @@ class TestHookDecorators:
 
         async def documented_hook(ctx):
             """This is a documented hook."""
-            pass
 
         decorated = on_step_enter(documented_hook)
         assert decorated.__name__ == "documented_hook"

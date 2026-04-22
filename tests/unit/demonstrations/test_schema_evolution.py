@@ -5,7 +5,6 @@ from unittest.mock import patch
 
 import pytest
 
-
 # ===========================================================================
 # step_versioning — compensation body coverage
 # ===========================================================================
