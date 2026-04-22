@@ -1,12 +1,11 @@
 """Tests for framework_integrations demonstration modules."""
 
 import asyncio
-import sys
 import importlib
+import sys
 from unittest.mock import patch
 
 import pytest
-
 
 # ===========================================================================
 # fastapi_integration
@@ -16,8 +15,8 @@ import pytest
 @pytest.mark.asyncio
 async def test_fastapi_integration_run_function():
     """Test the full FastAPI integration demonstration end-to-end."""
-    from sagaz.demonstrations.framework_integrations.fastapi_integration.main import _run
     from sagaz.core.triggers.registry import TriggerRegistry
+    from sagaz.demonstrations.framework_integrations.fastapi_integration.main import _run
 
     TriggerRegistry.clear()
     try:

@@ -5,7 +5,6 @@ from unittest.mock import patch
 
 import pytest
 
-
 # ===========================================================================
 # dry_run — ShippingSaga action + compensation body coverage
 # ===========================================================================
@@ -119,9 +118,7 @@ async def test_dry_run_run_function():
 
 
 def test_dry_run_main():
-    with patch(
-        "sagaz.demonstrations.developer_experience.dry_run.main.asyncio.run"
-    ) as mock_run:
+    with patch("sagaz.demonstrations.developer_experience.dry_run.main.asyncio.run") as mock_run:
         mock_run.side_effect = lambda coro: coro.close()
         from sagaz.demonstrations.developer_experience.dry_run.main import main
 
@@ -235,8 +232,9 @@ def test_visualization_main():
 async def test_dry_run_empty_forward_layers_branch():
     """Covers the FALSE branch of 'if result2.forward_layers:' (L113->119)."""
     from unittest.mock import AsyncMock
-    from sagaz.dry_run import DryRunResult, DryRunMode
+
     from sagaz.demonstrations.developer_experience.dry_run.main import _run
+    from sagaz.dry_run import DryRunMode, DryRunResult
 
     call_count = 0
 
@@ -262,8 +260,6 @@ async def test_dry_run_empty_forward_layers_branch():
             result.parallelization_ratio = 0.0
         return result
 
-    with patch(
-        "sagaz.demonstrations.developer_experience.dry_run.main.DryRunEngine"
-    ) as MockEngine:
+    with patch("sagaz.demonstrations.developer_experience.dry_run.main.DryRunEngine") as MockEngine:
         MockEngine.return_value.run = fake_run
         await _run()

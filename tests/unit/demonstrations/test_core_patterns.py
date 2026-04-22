@@ -5,7 +5,6 @@ from unittest.mock import patch
 
 import pytest
 
-
 # ===========================================================================
 # basic_saga — compensation body coverage
 # ===========================================================================
@@ -45,7 +44,10 @@ async def test_payment_saga_void_receipt_directly():
 
 @pytest.mark.asyncio
 async def test_trade_saga_compensations_directly():
-    from sagaz.demonstrations.core_patterns.compensation_deep_dive.main import TradeSaga, RecoveryAction
+    from sagaz.demonstrations.core_patterns.compensation_deep_dive.main import (
+        RecoveryAction,
+        TradeSaga,
+    )
 
     saga = TradeSaga()
     ctx = {"trade_id": "TRD-COMP"}
@@ -68,11 +70,11 @@ async def test_trade_saga_compensations_directly():
 @pytest.mark.asyncio
 async def test_parallel_steps_compensation_functions_directly():
     from sagaz.demonstrations.core_patterns.parallel_steps.main import (
-        undo_setup,
         release_inventory,
-        void_payment_check,
-        void_fraud_check,
         undo_finalize,
+        undo_setup,
+        void_fraud_check,
+        void_payment_check,
     )
 
     ctx = {"order_id": "ORD-COMP"}
@@ -115,9 +117,7 @@ async def test_basic_saga_run_function():
 
 
 def test_basic_saga_main():
-    with patch(
-        "sagaz.demonstrations.core_patterns.basic_saga.main.asyncio.run"
-    ) as mock_run:
+    with patch("sagaz.demonstrations.core_patterns.basic_saga.main.asyncio.run") as mock_run:
         mock_run.side_effect = lambda coro: coro.close()
         from sagaz.demonstrations.core_patterns.basic_saga.main import main
 
@@ -178,8 +178,8 @@ def test_compensation_deep_dive_main():
 
 @pytest.mark.asyncio
 async def test_build_success_saga_all_strategies():
-    from sagaz.demonstrations.core_patterns.parallel_steps.main import build_success_saga
     from sagaz.core.types import ParallelFailureStrategy
+    from sagaz.demonstrations.core_patterns.parallel_steps.main import build_success_saga
 
     for strategy in ParallelFailureStrategy:
         saga = await build_success_saga(strategy)
@@ -189,8 +189,8 @@ async def test_build_success_saga_all_strategies():
 
 @pytest.mark.asyncio
 async def test_build_failing_saga():
-    from sagaz.demonstrations.core_patterns.parallel_steps.main import build_failing_saga
     from sagaz.core.types import ParallelFailureStrategy
+    from sagaz.demonstrations.core_patterns.parallel_steps.main import build_failing_saga
 
     saga = await build_failing_saga(ParallelFailureStrategy.FAIL_FAST)
     result = await saga.execute()
@@ -206,9 +206,7 @@ async def test_parallel_steps_run_function():
 
 
 def test_parallel_steps_main():
-    with patch(
-        "sagaz.demonstrations.core_patterns.parallel_steps.main.asyncio.run"
-    ) as mock_run:
+    with patch("sagaz.demonstrations.core_patterns.parallel_steps.main.asyncio.run") as mock_run:
         mock_run.side_effect = lambda coro: coro.close()
         from sagaz.demonstrations.core_patterns.parallel_steps.main import main
 
@@ -220,6 +218,7 @@ def test_parallel_steps_main():
 async def test_compensation_deep_dive_trade_saga_success_mocked():
     """Covers L176 — 'Result keys' print when TradeSaga.run() succeeds."""
     from unittest.mock import AsyncMock
+
     from sagaz.demonstrations.core_patterns.compensation_deep_dive.main import _run
 
     with patch(
