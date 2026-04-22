@@ -1,0 +1,1 @@
+"""SQLite embedded storage demonstration."""

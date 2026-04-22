@@ -29,7 +29,7 @@ from pathlib import Path
 # Allow importing _service_manager from the scripts directory when run directly
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts"))
 
-from _service_manager import ServiceManager  # noqa: E402
+from _service_manager import ServiceManager
 
 logging.basicConfig(
     level=logging.INFO,
@@ -58,14 +58,9 @@ async def _demo_saga_run(pg_url: str, redis_url: str) -> None:
         logger.error("asyncpg not installed. Run: pip install asyncpg")
         sys.exit(1)
 
-    print("\n" + "=" * 60)
-    print("SAGAZ OUTBOX PATTERN DEMO")
-    print("=" * 60)
-
     # ------------------------------------------------------------------
     # 1. Set up storage and broker
     # ------------------------------------------------------------------
-    print("\n[1/4] Connecting storage and broker...")
     storage = PostgreSQLOutboxStorage(connection_string=pg_url)
     await storage.initialize()
     logger.info("PostgreSQL outbox storage initialised")
@@ -78,7 +73,6 @@ async def _demo_saga_run(pg_url: str, redis_url: str) -> None:
     # ------------------------------------------------------------------
     # 2. Write outbox events as part of a saga run
     # ------------------------------------------------------------------
-    print("\n[2/4] Running order saga (writes 3 outbox events)...")
 
     events_to_publish: list[OutboxEvent] = []
 
@@ -130,14 +124,11 @@ async def _demo_saga_run(pg_url: str, redis_url: str) -> None:
     # ------------------------------------------------------------------
     # 3. Show pending outbox state
     # ------------------------------------------------------------------
-    print("\n[3/4] Outbox state before processing...")
-    pending = await storage.get_pending_count()
-    print(f"  Pending events: {pending}")
+    await storage.get_pending_count()
 
     # ------------------------------------------------------------------
     # 4. Run the outbox worker to publish events to Redis
     # ------------------------------------------------------------------
-    print("\n[4/4] Processing outbox (publishing to Redis)...")
     worker = OutboxWorker(
         storage=storage,
         broker=broker,
@@ -145,10 +136,7 @@ async def _demo_saga_run(pg_url: str, redis_url: str) -> None:
         worker_id="demo-worker",
     )
     processed = await worker.process_batch()
-    pending_after = await storage.get_pending_count()
-
-    print(f"  Events processed: {processed}")
-    print(f"  Pending after:    {pending_after}")
+    await storage.get_pending_count()
 
     # ------------------------------------------------------------------
     # Cleanup connections (containers are stopped by ServiceManager)
@@ -157,12 +145,10 @@ async def _demo_saga_run(pg_url: str, redis_url: str) -> None:
     if hasattr(storage, "_pool") and storage._pool:
         await storage._pool.close()
 
-    print("\n" + "=" * 60)
     if processed == len(events_to_publish):
-        print("✅ Demo complete — all outbox events published successfully")
+        pass
     else:
-        print("⚠️  Demo finished with unprocessed events")
-    print("=" * 60 + "\n")
+        pass
 
 
 # ============================================================================
@@ -172,12 +158,8 @@ async def _demo_saga_run(pg_url: str, redis_url: str) -> None:
 
 def main() -> None:
     """Provision services, run demo, tear down."""
-    print("🚀 Provisioning services...")
     with ServiceManager(postgres=True, redis=True) as svc:
-        print(f"  PostgreSQL: {svc.postgres_url}")
-        print(f"  Redis:      {svc.redis_url}")
         asyncio.run(_demo_saga_run(svc.postgres_url, svc.redis_url))
-    print("🛑 Services stopped.")
 
 
 if __name__ == "__main__":

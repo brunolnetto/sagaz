@@ -24,6 +24,7 @@ from sagaz.cli._setup_handlers import (
     _execute_setup,
     _gather_setup_configuration,
 )
+from sagaz.cli.demonstrations import demo_cli
 from sagaz.cli.dry_run import simulate_cmd, validate_cmd
 from sagaz.cli.project import check as check_cmd
 from sagaz.cli.project import list_sagas
@@ -68,6 +69,7 @@ def cli():
     \b
     Library demo:
       examples         Explore examples
+      demo             Run built-in demonstrations
 
 
     \b
@@ -132,8 +134,8 @@ def _prompt_example_choice() -> str | None:
     example_map = {
         1: None,
         2: "simple",
-        3: "ecommerce/order_processing",
-        4: "fintech/payment_processing",
+        3: "business/commerce/order_processing",
+        4: "business/finance/payment_processing",
         5: "healthcare/procedure_scheduling",
     }
     return example_map[example_choice]
@@ -623,60 +625,7 @@ def version_cmd():
 # ============================================================================
 # sagaz examples
 # ============================================================================
-
-
-@click.group(invoke_without_command=True)
-@click.pass_context
-def examples_cmd(ctx):
-    """
-    Manage and run examples.
-
-    \b
-    Commands:
-        list      List all available examples
-        run       Run a specific example by name
-
-    \b
-    Examples:
-        sagaz examples                    # Opens interactive menu
-        sagaz examples list
-        sagaz examples list --category fintech
-        sagaz examples run ecommerce/order_processing
-    """
-    if ctx.invoked_subcommand is None:
-        cli_examples.interactive_cmd()
-
-
-@examples_cmd.command("list")
-@click.option(
-    "--category",
-    "-c",
-    help="Filter by category (e.g., ecommerce, fintech, iot, ml)",
-)
-def list_examples(category: str):
-    """
-    List available examples.
-
-    \b
-    Examples:
-        sagaz examples list
-        sagaz examples list --category fintech
-        sagaz examples list -c iot
-    """
-    cli_examples.list_examples_cmd(category)
-
-
-@examples_cmd.command("run")
-@click.argument("name")
-def run_example(name: str):
-    """
-    Run a specific example by name.
-
-    \b
-    Example:
-        sagaz examples run ecommerce/order_processing
-        sagaz examples run monitoring
-    """
+examples_cmd = cli_examples.examples_cli
 
 
 # ============================================================================
@@ -695,6 +644,7 @@ cli.add_command(setup_cmd, name="setup")
 cli.add_command(check_cmd, name="check")
 cli.add_command(list_sagas, name="list")
 cli.add_command(examples_cmd, name="examples")
+cli.add_command(demo_cli, name="demo")
 
 # Development (Runtime Operations)
 cli.add_command(dev_cmd, name="dev")

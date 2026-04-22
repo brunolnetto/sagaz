@@ -1,0 +1,1 @@
+"""Basic saga pattern demonstration."""

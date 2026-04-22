@@ -161,8 +161,8 @@ class TestListExamplesCommand:
         assert result.exit_code in [0, 1]
 
     def test_list_examples_with_category(self, runner):
-        """Test list with category filter."""
-        result = runner.invoke(examples_cli, ["list", "--category", "ecommerce"])
+        """Test list with domain filter."""
+        result = runner.invoke(examples_cli, ["list", "--domain", "Business"])
         assert result.exit_code in [0, 1]
 
     def test_list_examples_no_examples(self, runner):
