@@ -492,7 +492,7 @@ class DryRunEngine:
             calculate_depth(node, layers)
 
         # Group steps by layer
-        _max_layer = max(layers.values()) if layers else 0
+        max(layers.values()) if layers else 0
         layer_groups: dict[int, list[str]] = {}
 
         for step, layer in layers.items():
