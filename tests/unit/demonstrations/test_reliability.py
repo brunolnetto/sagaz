@@ -2,8 +2,8 @@
 
 import pytest
 
-from sagaz.demonstrations.reliability.dlq_handling.main import _run as dlq_run
 from sagaz.demonstrations.reliability.chaos_patterns.main import _run as chaos_run
+from sagaz.demonstrations.reliability.dlq_handling.main import _run as dlq_run
 
 
 @pytest.mark.asyncio

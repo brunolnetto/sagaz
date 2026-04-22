@@ -1,10 +1,9 @@
 """Tests for orchestration_config demonstration modules."""
 
 import asyncio
-from unittest.mock import patch, AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
-
 
 # ===========================================================================
 # event_triggers — trigger handler body + compensation + registry loop coverage
@@ -39,8 +38,8 @@ async def test_notification_saga_on_webhook_no_notify_returns_none():
 async def test_event_triggers_compensation_bodies_directly():
     """Covers undo_validate (L60), undo_process (L70), unsend (L93)."""
     from sagaz.demonstrations.orchestration_config.event_triggers.main import (
-        OrderSaga,
         NotificationSaga,
+        OrderSaga,
     )
 
     order = OrderSaga()
@@ -55,6 +54,7 @@ async def test_event_triggers_compensation_bodies_directly():
 async def test_event_triggers_run_function_with_registry_populated():
     """Covers the TriggerRegistry print loop (L111-112) by ensuring registry is populated."""
     import importlib
+
     from sagaz.core.triggers.registry import TriggerRegistry
 
     TriggerRegistry.clear()
@@ -86,8 +86,8 @@ async def test_storage_backends_cancel_order_and_refund_payment_directly():
 @pytest.mark.asyncio
 async def test_storage_backends_test_storage_none_return(tmp_path):
     """Covers the load_saga_state → None branch (L84)."""
-    from sagaz.demonstrations.orchestration_config.storage_backends.main import test_storage
     from sagaz.core.storage.backends.memory.saga import InMemorySagaStorage
+    from sagaz.demonstrations.orchestration_config.storage_backends.main import test_storage
 
     storage = InMemorySagaStorage()
 
@@ -101,8 +101,8 @@ async def test_storage_backends_test_storage_none_return(tmp_path):
 @pytest.mark.asyncio
 async def test_storage_backends_redis_exception_path():
     """Covers the Redis except block (L114-115) by injecting a failing ServiceManager into sys.modules."""
-    import sys
     import importlib
+    import sys
     from unittest.mock import MagicMock
 
     fake_utils = MagicMock()
@@ -118,15 +118,16 @@ async def test_storage_backends_redis_exception_path():
 @pytest.mark.asyncio
 async def test_storage_backends_postgres_exception_path():
     """Covers the PostgreSQL except block (L130-131) by making the second ServiceManager call fail."""
-    import sys
     import importlib
+    import sys
     from unittest.mock import MagicMock
 
     call_count = [0]
 
     def make_sm(*args, **kwargs):
         call_count[0] += 1
-        raise RuntimeError("No Postgres")
+        msg = "No Postgres"
+        raise RuntimeError(msg)
 
     fake_utils = MagicMock()
     fake_utils.ServiceManager = make_sm
@@ -146,8 +147,8 @@ async def test_storage_backends_postgres_exception_path():
 @pytest.mark.asyncio
 async def test_order_saga_trigger_success():
     from sagaz import SagaConfig, configure
-    from sagaz.demonstrations.orchestration_config.event_triggers.main import OrderSaga
     from sagaz.core.triggers.registry import TriggerRegistry
+    from sagaz.demonstrations.orchestration_config.event_triggers.main import OrderSaga
 
     configure(SagaConfig())
     saga = OrderSaga()
@@ -158,8 +159,8 @@ async def test_order_saga_trigger_success():
 
 @pytest.mark.asyncio
 async def test_notification_saga_trigger_with_notify():
-    from sagaz.demonstrations.orchestration_config.event_triggers.main import NotificationSaga
     from sagaz.core.triggers.registry import TriggerRegistry
+    from sagaz.demonstrations.orchestration_config.event_triggers.main import NotificationSaga
 
     saga = NotificationSaga()
     result = await saga.run({"order_id": "ORD-N1", "channel": "email"})
@@ -218,8 +219,8 @@ async def test_orchestrator_run_function():
 @pytest.mark.asyncio
 async def test_orchestrator_cancel_shipment_directly():
     """Covers L56 — cancel_shipment logger.info body (compensation for ship step)."""
-    from sagaz.demonstrations.orchestration_config.orchestrator.main import cancel_shipment
     from sagaz.core.saga import SagaContext
+    from sagaz.demonstrations.orchestration_config.orchestrator.main import cancel_shipment
 
     ctx = SagaContext()
     ctx.set("item_id", "ITEM-001")
@@ -234,7 +235,8 @@ async def test_orchestrator_exception_in_results():
     from sagaz.demonstrations.orchestration_config.orchestrator.main import _run
 
     async def fake_execute_saga_raises(saga):
-        raise RuntimeError("Orchestrator internal failure")
+        msg = "Orchestrator internal failure"
+        raise RuntimeError(msg)
 
     fake_stats = {
         "total_sagas": 1,
