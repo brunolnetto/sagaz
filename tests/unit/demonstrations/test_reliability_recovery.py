@@ -321,7 +321,11 @@ async def test_postgres_storage_run_full_flow_mocked():
             pass
 
         async def save_saga_state(self, saga_id, saga_name, status, steps, context):
-            self._records[saga_id] = {"saga_id": saga_id, "saga_name": saga_name, "status": str(status)}
+            self._records[saga_id] = {
+                "saga_id": saga_id,
+                "saga_name": saga_name,
+                "status": str(status),
+            }
 
         async def load_saga_state(self, saga_id):
             return self._records.get(saga_id)
@@ -365,6 +369,7 @@ async def test_postgres_storage_run_full_flow_mocked():
 
     try:
         import sagaz.demonstrations.reliability_recovery.postgres_storage.main as m
+
         with patch.dict(
             sys.modules,
             {
@@ -665,6 +670,7 @@ async def test_postgres_storage_warning_branch_mocked():
 
     try:
         import sagaz.demonstrations.reliability_recovery.postgres_storage.main as m
+
         with patch.dict(
             sys.modules,
             {
