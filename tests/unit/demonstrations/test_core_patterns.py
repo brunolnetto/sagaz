@@ -117,9 +117,7 @@ async def test_basic_saga_run_function():
 
 
 def test_basic_saga_main():
-    with patch(
-        "sagaz.demonstrations.core_patterns.basic_saga.main.asyncio.run"
-    ) as mock_run:
+    with patch("sagaz.demonstrations.core_patterns.basic_saga.main.asyncio.run") as mock_run:
         mock_run.side_effect = lambda coro: coro.close()
         from sagaz.demonstrations.core_patterns.basic_saga.main import main
 
@@ -208,9 +206,7 @@ async def test_parallel_steps_run_function():
 
 
 def test_parallel_steps_main():
-    with patch(
-        "sagaz.demonstrations.core_patterns.parallel_steps.main.asyncio.run"
-    ) as mock_run:
+    with patch("sagaz.demonstrations.core_patterns.parallel_steps.main.asyncio.run") as mock_run:
         mock_run.side_effect = lambda coro: coro.close()
         from sagaz.demonstrations.core_patterns.parallel_steps.main import main
 
