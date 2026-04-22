@@ -5,7 +5,6 @@ from typing import Any
 from sagaz.core.config import get_config
 from sagaz.core.exceptions import (
     IdempotencyKeyMissingInPayloadError,
-    IdempotencyKeyRequiredError,
 )
 from sagaz.core.logger import get_logger
 from sagaz.core.triggers.decorators import TriggerMetadata
