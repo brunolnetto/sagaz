@@ -16,14 +16,14 @@ pytest --cov=sagaz --cov-report=json:coverage.json --cov-report=term --tb=short 
 ## Analyze Results
 
 ```bash
-# Show all files with coverage
-./scripts/coverage_analyzer.py coverage.json
+# Generate comprehensive coverage report using codebase-stats
+python -m codebase_stats --coverage coverage.json
 
-# Show files below 90%
-./scripts/coverage_analyzer.py coverage.json --show-low-coverage 90
+# Generate report with custom threshold (90%)
+python -m codebase_stats --coverage coverage.json --threshold 90
 
-# Show files below 99%, sorted by coverage
-./scripts/coverage_analyzer.py coverage.json --show-low-coverage 99 --sort-by coverage:asc
+# Save report to file
+python -m codebase_stats --coverage coverage.json --output coverage_report.txt
 ```
 
 ## Common Commands

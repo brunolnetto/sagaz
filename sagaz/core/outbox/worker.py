@@ -569,7 +569,6 @@ async def main():
     )
 
     # Create worker
-    from sagaz.core.outbox.worker import OutboxWorker  # pylint: disable=import-self
 
     worker = OutboxWorker(
         storage=storage,
