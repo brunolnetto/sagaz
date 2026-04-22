@@ -1,0 +1,1 @@
+"""Advanced compensation patterns demonstration."""

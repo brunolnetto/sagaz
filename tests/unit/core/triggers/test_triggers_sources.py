@@ -556,7 +556,7 @@ class TestBrokerConsumerCoverage:
 
         # Plant a real task that blocks until cancelled
         async def _blocking():
-            await asyncio.sleep(60)
+            await asyncio.sleep(10)  # Long enough to not complete; will be cancelled
 
         consumer._task = asyncio.create_task(_blocking())
 

@@ -34,23 +34,29 @@ def make_snapshot(
 
 
 @pytest.fixture
-def storage(tmp_path):
+async def storage(tmp_path):
     from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
 
-    return FilesystemSnapshotStorage(
+    storage_obj = FilesystemSnapshotStorage(
         base_path=str(tmp_path / "snapshots"),
         enable_compression=False,
     )
+    yield storage_obj
+    # Cleanup: close storage to prevent aiosqlite thread warnings
+    await storage_obj.close()
 
 
 @pytest.fixture
-def compressed_storage(tmp_path):
+async def compressed_storage(tmp_path):
     from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
 
-    return FilesystemSnapshotStorage(
+    storage_obj = FilesystemSnapshotStorage(
         base_path=str(tmp_path / "snapshots_gz"),
         enable_compression=True,  # Lines 133: compressed write path
     )
+    yield storage_obj
+    # Cleanup: close storage to prevent aiosqlite thread warnings
+    await storage_obj.close()
 
 
 # =============================================================================
