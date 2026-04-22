@@ -667,8 +667,8 @@ class TestRedisStorageIntegration:
             state = await storage.load_saga_state("redis-ttl-test")
             assert state is not None
 
-            # Wait for TTL to expire with some buffer
-            await asyncio.sleep(2.5)
+            # Wait for TTL to expire with minimal buffer
+            await asyncio.sleep(1.2)
 
             # Verify it's expired
             state = await storage.load_saga_state("redis-ttl-test")
@@ -801,11 +801,10 @@ class TestRedisStorageIntegration:
                 metadata={},
             )
 
-            # Sleep to make timestamp older
-            await asyncio.sleep(1.5)
-
-            # Cleanup sagas older than now
-            deleted_count = await storage.cleanup_completed_sagas(older_than=datetime.now(UTC))
+            # Cleanup sagas saved before a time slightly in the future to capture this one
+            deleted_count = await storage.cleanup_completed_sagas(
+                older_than=datetime.now(UTC) + timedelta(seconds=1)
+            )
 
             # At least our test saga should be deleted
             assert deleted_count >= 1

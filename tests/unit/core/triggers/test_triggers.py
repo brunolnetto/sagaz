@@ -326,12 +326,12 @@ class TestConcurrencyControl:
 
             @action("slow")
             async def slow_step(self, ctx):
-                await asyncio.sleep(0.3)
+                await asyncio.sleep(0.1)  # Reduced for faster test
                 return {}
 
         # Fire two events quickly
         ids1 = await fire_event("two_source", {"id": 1})
-        await asyncio.sleep(0.05)  # Let first start
+        await asyncio.sleep(0.01)  # Minimal delay to let first start
         ids2 = await fire_event("two_source", {"id": 2})
 
         # Both should be allowed
@@ -351,7 +351,7 @@ class TestConcurrencyControl:
 
             @action("slow")
             async def slow_step(self, ctx):
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(0.1)  # Reduced for faster test
                 return {}
 
         # Fire first event
@@ -522,7 +522,7 @@ class TestSagaPersistence:
 
             @action("slow")
             async def slow_step(self, ctx):
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(0.1)  # Reduced for faster test
                 return {}
 
         ids = await fire_event("persist_source", {})
@@ -533,7 +533,7 @@ class TestSagaPersistence:
             state = await memory_storage.load_saga_state(saga_id)
             if state:
                 break
-            await asyncio.sleep(0.05)
+            await asyncio.sleep(0.01)  # Minimal poll delay
 
         assert state is not None
         assert state["status"] == SagaStatus.EXECUTING.value

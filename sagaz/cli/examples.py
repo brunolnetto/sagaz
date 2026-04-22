@@ -33,43 +33,64 @@ def get_examples_dir() -> Path:
     Get the directory containing examples.
 
     Priority:
-    1. Current working directory (for development)
-    2. Packaged examples inside sagaz.examples
+    1. Installed package (sagaz.examples) — works in both editable and
+       regular installs.
+    2. ``sagaz/examples/`` relative to the repository root detected from
+       the current working directory — fallback for unusual setups.
     """
     import importlib.resources as pkg_resources
 
-    # First check CWD for development
-    cwd_examples = Path.cwd() / "examples"
-    if cwd_examples.exists() and cwd_examples.is_dir():
-        return cwd_examples
-
-    # Fall back to packaged examples
+    # Prefer the installed package so discovery always finds all examples
+    # regardless of where the user invokes the CLI from.
     try:
-        return Path(str(pkg_resources.files("sagaz.examples")))
+        pkg_path = Path(str(pkg_resources.files("sagaz.examples")))
+        if pkg_path.exists() and any(
+            p.is_dir() and not p.name.startswith("_") for p in pkg_path.iterdir()
+        ):
+            return pkg_path
     except (ModuleNotFoundError, TypeError):
-        return cwd_examples  # Fallback if package not found
+        pass
+
+    # Last resort: sagaz/examples/ relative to CWD (covers editable installs
+    # where importlib.resources may resolve to a namespace package path).
+    for candidate in (
+        Path.cwd() / "sagaz" / "examples",
+        Path.cwd() / "examples",
+    ):
+        if candidate.exists() and candidate.is_dir():
+            return candidate
+
+    return Path.cwd() / "sagaz" / "examples"  # non-existent; caller handles it
 
 
-# Domain-to-category mapping for consolidated navigation
+# Maps display domain names → folder name under sagaz/examples/.
+DOMAIN_FOLDERS = {
+    "Business": "business",
+    "Technology": "technology",
+    "Healthcare": "healthcare",
+    "Infrastructure": "infrastructure",
+    "Public Services": "public_services",
+    "Digital Media": "digital_media",
+    "Platform": "platform",
+}
+
+# Maps display domain names → subdomain folder names within that domain folder.
 DOMAIN_MAPPING = {
     "Business": [
-        "ecommerce",
-        "fintech",
-        "travel",
-        "logistics",
-        "real_estate",
+        "commerce",
+        "finance",
     ],
     "Technology": [
-        "ai_agents",
-        "data_engineering",
-        "ml",
+        "ai",
+        "data",
+        "telecom",
         "iot",
     ],
-    "Healthcare": ["healthcare"],
+    "Healthcare": [
+        "healthcare",
+    ],
     "Infrastructure": [
-        "energy",
-        "manufacturing",
-        "telecom",
+        "operations",
     ],
     "Public Services": [
         "government",
@@ -80,28 +101,47 @@ DOMAIN_MAPPING = {
         "gaming",
     ],
     "Platform": [
-        "replay",
-        "monitoring",
         "integrations",
+        "monitoring",
+        "visualization",
     ],
 }
 
+# Reverse map: subdomain folder → domain folder name (for fast lookup).
+_SUBDOMAIN_TO_DOMAIN_FOLDER: dict[str, str] = {
+    subdomain: DOMAIN_FOLDERS[display]
+    for display, subdomains in DOMAIN_MAPPING.items()
+    for subdomain in subdomains
+}
+
+
+def _check_subdomain_for_main_file(subdomain_dir: Path) -> bool:
+    """Check if a subdomain directory contains main.py or demo.py files recursively."""
+    for _root, _, files in os.walk(subdomain_dir):
+        if "main.py" in files or "demo.py" in files:
+            return True
+    return False
+
 
 def get_categories() -> list[str]:
-    """Get list of available example categories (top-level directories)."""
+    """Get list of available subdomain categories (second-level directories)."""
     examples_dir = get_examples_dir()
     if not examples_dir.exists():
         return []
 
     categories = []
-    for item in examples_dir.iterdir():
-        if item.is_dir() and not item.name.startswith("_"):
-            for _root, _, files in os.walk(item):
-                if "main.py" in files or "demo.py" in files:
-                    categories.append(item.name)
-                    break
+    for domain_dir in examples_dir.iterdir():
+        if not domain_dir.is_dir() or domain_dir.name.startswith("_"):
+            continue
+        for item in domain_dir.iterdir():
+            if (
+                item.is_dir()
+                and not item.name.startswith("_")
+                and _check_subdomain_for_main_file(item)
+            ):
+                categories.append(item.name)
 
-    return sorted(categories)
+    return sorted(set(categories))
 
 
 def get_domains() -> dict[str, list[str]]:
@@ -141,7 +181,7 @@ def discover_examples(category: str | None = None) -> dict[str, Path]:
     Scan examples directory for valid examples.
 
     Args:
-        category: Optional category filter (e.g., 'ecommerce', 'fintech')
+        category: Optional subdomain filter (e.g., 'commerce', 'ai')
 
     Returns: Dict[example_name, path_to_main_py]
     """
@@ -149,11 +189,74 @@ def discover_examples(category: str | None = None) -> dict[str, Path]:
     if not examples_dir.exists():
         return {}
 
-    search_dir = examples_dir / category if category else examples_dir
-    if category and not search_dir.exists():
-        return {}
+    if category:
+        domain_folder = _SUBDOMAIN_TO_DOMAIN_FOLDER.get(category)
+        if not domain_folder:
+            return {}
+        search_dir = examples_dir / domain_folder / category
+        if not search_dir.exists():
+            return {}
+    else:
+        search_dir = examples_dir
 
     return _find_example_files(search_dir, examples_dir)
+
+
+def _collect_examples_by_subdomain(examples_dir: Path) -> dict[str, list[tuple[str, Path]]]:
+    """Walk examples directory and collect examples grouped by subdomain."""
+    all_examples: dict[str, list[tuple[str, Path]]] = {}
+
+    for root, _, files in os.walk(examples_dir):
+        if "main.py" not in files and "demo.py" not in files:
+            continue
+
+        path = Path(root)
+        try:
+            rel_path = path.relative_to(examples_dir)
+            parts = rel_path.parts
+            if len(parts) < 3:  # Need domain/subdomain/example
+                continue
+
+            category = parts[1]  # subdomain folder
+            if category not in all_examples:
+                all_examples[category] = []
+
+            name = str(rel_path).replace(os.sep, "/")
+            if "demo.py" in files and "integrations" in name:
+                all_examples[category].append((name, path / "demo.py"))
+            elif "main.py" in files:
+                all_examples[category].append((name, path / "main.py"))
+        except ValueError:
+            continue
+
+    return all_examples
+
+
+def discover_examples_by_domain() -> dict[str, dict[str, Path]]:
+    """
+    Discover all examples grouped by domain.
+
+    Returns: {domain_name: {example_name: path_to_main_py}}
+    """
+    examples_dir = get_examples_dir()
+    if not examples_dir.exists():
+        return {}
+
+    all_examples = _collect_examples_by_subdomain(examples_dir)
+
+    # Group by domain
+    by_domain: dict[str, dict[str, Path]] = {}
+    for domain, categories in DOMAIN_MAPPING.items():
+        domain_examples: dict[str, Path] = {}
+        for category in categories:
+            if category in all_examples:
+                for name, path in all_examples[category]:
+                    domain_examples[name] = path
+
+        if domain_examples:
+            by_domain[domain] = domain_examples
+
+    return by_domain
 
 
 def get_example_description(path: Path) -> str:
@@ -201,10 +304,10 @@ def examples_cli(ctx):
 
 
 @examples_cli.command(name="list")
-@click.option("--category", help="Filter by category (e.g. ecommerce)")
-def list_examples(category: str | None = None):
-    """List available examples."""
-    list_examples_cmd(category)
+@click.option("--domain", help="Filter by domain (e.g. Business, Technology)")
+def list_examples(domain: str | None = None):
+    """List available examples grouped by domain."""
+    list_examples_cmd(domain)
 
 
 @examples_cli.command(name="run")
@@ -221,67 +324,105 @@ def select_example(category: str | None = None):
     interactive_cmd(category)
 
 
-def list_examples_cmd(category: str | None = None):
-    """List available examples."""
-    examples = discover_examples(category)
+def list_examples_cmd(domain: str | None = None):
+    """List available examples grouped by domain."""
+    by_domain = discover_examples_by_domain()
 
-    if not examples:
-        _show_no_examples_message(category)
+    if not by_domain:
+        click.echo("No examples found.")
         return
 
+    # Filter to specific domain if requested
+    if domain:
+        if domain not in by_domain:
+            click.echo(f"Error: domain '{domain}' not found.")
+            available = ", ".join(by_domain.keys())
+            click.echo(f"Available domains: {available}")
+            return
+        by_domain = {domain: by_domain[domain]}
+
     if console and TableClass:
-        _display_examples_table(examples, category)
+        _display_examples_table(by_domain)
     else:
-        _display_examples_plain(examples)
+        _display_examples_plain(by_domain)
 
 
-def _show_no_examples_message(category: str | None) -> None:
+def _show_no_examples_message(domain: str | None) -> None:
     """Show message when no examples are found."""
-    if category:
-        click.echo(f"No examples found in category '{category}'.")
-        categories = get_categories()
-        if categories:
-            click.echo(f"Available categories: {', '.join(categories)}")
+    if domain:
+        click.echo(f"No examples found in domain '{domain}'.")
+        domains = discover_examples_by_domain()
+        if domains:
+            click.echo(f"Available domains: {', '.join(domains.keys())}")
     else:
         click.echo("No examples found. Run this command from the sagaz repository root.")
 
 
-def _display_examples_table(examples: dict[str, Path], category: str | None) -> None:
-    """Display examples as a rich table."""
-    title = f"Sagaz Examples - {category}" if category else "Sagaz Examples"
-    table = Table(title=title)
-    table.add_column("Name", style="cyan")
-    table.add_column("Description")
+def _display_examples_table(by_domain: dict[str, dict[str, Path]]) -> None:
+    """Display examples grouped by domain in a rich table."""
+    table = TableClass(
+        title="Sagaz Examples",
+        show_header=True,
+        header_style="bold magenta",
+        expand=False,
+    )
+    table.add_column("Domain", style="bold", no_wrap=True, min_width=16)
+    table.add_column("Subdomain", style="yellow", no_wrap=True, min_width=14)
+    table.add_column("Name", style="cyan", no_wrap=True, min_width=20)
+    table.add_column("Description", no_wrap=True, overflow="ellipsis")
 
-    for name, path in sorted(examples.items()):
-        desc = get_example_description(path)
-        table.add_row(name, desc)
+    for domain_name, examples in by_domain.items():
+        first = True
+        for name, path in sorted(examples.items()):
+            desc = get_example_description(path)
+            # name is domain_folder/subdomain/example — extract subdomain and example
+            parts = name.split("/")
+            subdomain = parts[1] if len(parts) >= 3 else (parts[0] if len(parts) >= 2 else "")
+            example_name = parts[2] if len(parts) >= 3 else (parts[-1] if "/" in name else name)
+            table.add_row(domain_name if first else "", subdomain, example_name, desc)
+            first = False
 
     if console:
         console.print(table)
+        domains = discover_examples_by_domain()
+        if domains:
+            console.print(
+                "[dim]Run an example: sagaz examples run <domain_folder>/<subdomain>/<name>[/dim]"
+            )
 
-    categories = get_categories()
-    if categories and not category and console:
-        console.print(f"\n[dim]Filter by category: --category {{{','.join(categories)}}}[/dim]")
 
-
-def _display_examples_plain(examples: dict[str, Path]) -> None:
-    """Display examples as plain text."""
-    click.echo("Available Examples:")
-    for name in sorted(examples.keys()):
-        click.echo(f"  - {name}")
+def _display_examples_plain(by_domain: dict[str, dict[str, Path]]) -> None:
+    """Display examples grouped by domain as plain text."""
+    click.echo("  Domain              Subdomain         Name                  Description")
+    click.echo("  " + "─" * 85)
+    for domain_name, examples in by_domain.items():
+        first = True
+        for name, path in sorted(examples.items()):
+            desc = get_example_description(path)
+            domain_col = domain_name if first else ""
+            # name is domain_folder/subdomain/example
+            parts = name.split("/")
+            subdomain = parts[1] if len(parts) >= 3 else (parts[0] if len(parts) >= 2 else "")
+            example_name = parts[2] if len(parts) >= 3 else (parts[-1] if "/" in name else name)
+            click.echo(f"  {domain_col:<18}  {subdomain:<17}  {example_name:<20}  {desc}")
+            first = False
 
 
 def run_example_cmd(name: str):
     """Run a specific example."""
-    examples = discover_examples()
+    by_domain = discover_examples_by_domain()
 
-    if name not in examples:
+    # Flatten domain-grouped examples to search for name
+    all_examples: dict[str, Path] = {}
+    for examples in by_domain.values():
+        all_examples.update(examples)
+
+    if name not in all_examples:
         click.echo(f"Error: Example '{name}' not found.")
         click.echo("Use 'sagaz examples list' to see available examples.")
         return
 
-    script_path = examples[name]
+    script_path = all_examples[name]
     click.echo(f"Running example: {name}...")
     click.echo(f"Script: {script_path}")
     click.echo("-" * 60)
@@ -354,7 +495,7 @@ def _category_menu_loop():
             menu_cursor_style=("fg_cyan", "bold"),
             menu_highlight_style=("bg_gray", "fg_cyan", "bold"),
             cycle_cursor=True,
-            clear_screen=False,
+            clear_screen=True,
             skip_empty_entries=True,
         )
 
@@ -399,7 +540,7 @@ def _domain_category_menu_loop(domain: str, categories: list[str]) -> str:
             menu_cursor_style=("fg_cyan", "bold"),
             menu_highlight_style=("bg_gray", "fg_cyan", "bold"),
             cycle_cursor=True,
-            clear_screen=False,
+            clear_screen=True,
             skip_empty_entries=True,
         )
 
@@ -474,7 +615,7 @@ def _handle_menu_selection(menu_entries: list[str], sorted_examples: list) -> st
         menu_cursor_style=("fg_cyan", "bold"),
         menu_highlight_style=("bg_gray", "fg_cyan", "bold"),
         cycle_cursor=True,
-        clear_screen=False,
+        clear_screen=True,
         skip_empty_entries=True,
     )
 
