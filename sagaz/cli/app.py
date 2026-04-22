@@ -134,8 +134,8 @@ def _prompt_example_choice() -> str | None:
     example_map = {
         1: None,
         2: "simple",
-        3: "ecommerce/order_processing",
-        4: "fintech/payment_processing",
+        3: "business/commerce/order_processing",
+        4: "business/finance/payment_processing",
         5: "healthcare/procedure_scheduling",
     }
     return example_map[example_choice]
