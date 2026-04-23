@@ -11,7 +11,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from sagaz.storage.transfer.service import TransferResult, transfer_data
+from sagaz.core.storage.transfer.service import TransferResult, transfer_data
 
 if TYPE_CHECKING:
     from sagaz.core.storage.manager import StorageManager

@@ -202,15 +202,20 @@ class TestStorageManagerHealthCheck:
         await manager.initialize()  # memory backend
 
         # Replace saga storage with one that throws on health_check
+        original_saga = manager._saga_storage
         mock_saga = AsyncMock()
         mock_saga.health_check = AsyncMock(side_effect=Exception("DB unavailable"))
         manager._saga_storage = mock_saga  # type: ignore[assignment]
 
-        result = await manager.health_check()
+        try:
+            result = await manager.health_check()
 
-        assert result["saga"]["status"] == "unhealthy"
-        assert "DB unavailable" in result["saga"]["error"]
-        assert result["status"] == "unhealthy"
+            assert result["saga"]["status"] == "unhealthy"
+            assert "DB unavailable" in result["saga"]["error"]
+            assert result["status"] == "unhealthy"
+        finally:
+            manager._saga_storage = original_saga
+            await manager.close()
 
     @pytest.mark.asyncio
     async def test_health_check_outbox_raises_exception(self):
@@ -220,14 +225,19 @@ class TestStorageManagerHealthCheck:
         manager = StorageManager()
         await manager.initialize()  # memory backend
 
+        original_outbox = manager._outbox_storage
         mock_outbox = AsyncMock()
         mock_outbox.health_check = AsyncMock(side_effect=RuntimeError("timeout"))
         manager._outbox_storage = mock_outbox  # type: ignore[assignment]
 
-        result = await manager.health_check()
+        try:
+            result = await manager.health_check()
 
-        assert result["outbox"]["status"] == "unhealthy"
-        assert result["status"] == "unhealthy"
+            assert result["outbox"]["status"] == "unhealthy"
+            assert result["status"] == "unhealthy"
+        finally:
+            manager._outbox_storage = original_outbox
+            await manager.close()
 
 
 class TestManagerAdditionalMissingPaths:
