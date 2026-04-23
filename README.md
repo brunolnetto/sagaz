@@ -296,9 +296,9 @@ diagram = await saga.to_mermaid_with_execution(
 ## Kubernetes Deployment
 
 ```bash
-# One-command deployment
-kubectl create namespace sagaz
-kubectl apply -f k8s/
+# One-command deployment (using templates)
+sagaz init --k8s
+kubectl apply -f deployment/
 
 # Deployed components:
 # - PostgreSQL StatefulSet (20Gi persistent storage)
@@ -314,7 +314,7 @@ kubectl apply -f k8s/
 - Production security (non-root, read-only fs)
 - Complete monitoring stack
 
-See [`k8s/README.md`](k8s/README.md) for detailed deployment guide.
+See [`docs/guides/kubernetes.md`](docs/guides/kubernetes.md) for detailed deployment guide.
 
 ---
 
@@ -337,7 +337,7 @@ consumer_inbox_duplicates_total
 
 ### Grafana Dashboard
 
-Ready-to-import dashboard template at [`grafana/sagaz-dashboard.json`](grafana/sagaz-dashboard.json).
+Ready-to-import dashboard template at [`docs/monitoring/grafana/sagaz-dashboard.json`](docs/monitoring/grafana/sagaz-dashboard.json).
 
 ### Grafana Alerts
 
@@ -379,7 +379,7 @@ pytest tests/test_chaos_engineering.py::TestWorkerCrashRecovery -v
 - Graceful handling of 50 events under extreme load
 - Automatic recovery with exponential backoff
 
-See [docs/CHAOS_ENGINEERING.md](docs/CHAOS_ENGINEERING.md) for detailed chaos test documentation.
+See [docs/monitoring/OBSERVABILITY_REFERENCE.md](docs/monitoring/OBSERVABILITY_REFERENCE.md) for detailed monitoring documentation.
 
 ---
 
@@ -387,16 +387,11 @@ See [docs/CHAOS_ENGINEERING.md](docs/CHAOS_ENGINEERING.md) for detailed chaos te
 
 | Topic | Link |
 |-------|------|
-| **Documentation Index** | [docs/DOCUMENTATION_INDEX.md](docs/DOCUMENTATION_INDEX.md) |
 | **Configuration Guide** | [docs/guides/configuration.md](docs/guides/configuration.md) |
-| **DAG Pattern** | [docs/feature_compensation_graph.md](docs/feature_compensation_graph.md) |
-| **Optimistic Sending** | [docs/optimistic-sending.md](docs/optimistic-sending.md) |
-| **Consumer Inbox** | [docs/consumer-inbox.md](docs/consumer-inbox.md) |
-| **Kubernetes Deploy** | [k8s/README.md](k8s/README.md) |
-| **Grafana Dashboards** | [grafana/README.md](grafana/README.md) |
-| **Chaos Engineering** | [docs/CHAOS_ENGINEERING.md](docs/CHAOS_ENGINEERING.md) |
-| **Observability Reference** | [docs/observability/OBSERVABILITY_REFERENCE.md](docs/observability/OBSERVABILITY_REFERENCE.md) |
-| **Changelog** | [docs/development/changelog.md](docs/development/changelog.md) |
+| **Saga Replay** | [docs/guides/saga-replay.md](docs/guides/saga-replay.md) |
+| **Kubernetes Deploy** | [docs/guides/kubernetes.md](docs/guides/kubernetes.md) |
+| **Observability Reference** | [docs/monitoring/OBSERVABILITY_REFERENCE.md](docs/monitoring/OBSERVABILITY_REFERENCE.md) |
+| **Changelog** | [changelog.md](changelog.md) |
 
 ---
 
@@ -456,26 +451,24 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Project Status
 
-**Current Version**: 1.0.4 (January 2026)
+**Current Version**: 1.6.0 (April 2026)
 
-**Recent Updates** (v1.0.4):
-- **Unified StorageManager** - Shared connection pooling for saga + outbox
-- **SagaConfig Integration** - Simplified configuration with StorageManager
-- Refactored internal storage architecture
-- Fixed CLI interactive menu hangs in tests
+**Recent Updates** (v1.6.0):
+- **Core Storage Refactor** - Moved storage transfer and migration logic to `sagaz.core.storage` for better modularity.
+- **CLI Quality Improvements** - Enhanced test coverage for `migrate` and `visualize` commands.
+- **GitFlow Compliance** - Automated commit validation and branch naming enforcement via Husky and GitHub Actions.
+- **Thread Safety** - Resolved `PytestUnhandledThreadExceptionWarning` in storage manager tests.
 
-**v1.0.3 Features:**
-- Mermaid diagram generation with state markers
-- `to_mermaid_with_execution()` - Auto-fetch trail from storage
-- Connected graph validation for DAG sagas
-- Grafana dashboard template
-- Unified SagaConfig with environment variable support
+**v1.5.0 Features:**
+- **Saga Replay & Time-Travel** - Full 6-phase replay support with storage integration.
+- **Context Streaming** - Optimized data flow for large-scale saga execution.
+- **Expanded Examples** - 24 new industry-specific saga implementations.
 
-**v1.0.0-1.0.2:**
-- Optimistic sending pattern (10x latency improvement)
-- Consumer inbox pattern (exactly-once processing)
-- Kubernetes manifests (production deployment)
-- 96% test coverage with 860+ tests
+**v1.0.0-1.4.0 Highlights:**
+- Unified Storage Layer and Compensation Result Passing.
+- Mermaid diagram generation and Grafana dashboard templates.
+- Optimistic sending pattern and Consumer inbox pattern.
+- 96% test coverage with 860+ tests.
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for roadmap.
 
