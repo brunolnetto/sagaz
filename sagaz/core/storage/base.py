@@ -32,6 +32,7 @@ class SagaStorage(ABC):
         steps: list[dict[str, Any]],
         context: dict[str, Any],
         metadata: dict[str, Any] | None = None,
+        configuration: list[str] | None = None,
     ) -> None:
         """
         Save saga state to persistent storage
@@ -43,6 +44,8 @@ class SagaStorage(ABC):
             steps: List of step definitions and states
             context: Saga execution context
             metadata: Additional metadata (version, timestamps, etc.)
+            configuration: Active StateChart configuration as list of state IDs.
+                Defaults to ``[status.value]`` when omitted for backward compatibility.
         """
 
     @abstractmethod

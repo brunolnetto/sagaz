@@ -113,6 +113,7 @@ class RedisSagaStorage(SagaStorage):
         steps: list[dict[str, Any]],
         context: dict[str, Any],
         metadata: dict[str, Any] | None = None,
+        configuration: list[str] | None = None,
     ) -> None:
         """Save saga state to Redis"""
 
@@ -122,6 +123,7 @@ class RedisSagaStorage(SagaStorage):
             "saga_id": saga_id,
             "saga_name": saga_name,
             "status": status.value,
+            "configuration": configuration if configuration is not None else [status.value],
             "steps": steps,
             "context": context,
             "metadata": metadata or {},
