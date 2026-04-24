@@ -21,7 +21,9 @@ class TestInteractiveExamples:
 
     def test_interactive_cmd_fallback(self):
         with patch("sagaz.cli.examples.interactive.TERM_MENU_AVAILABLE", False):
-            with patch("sagaz.cli.examples.interactive._fallback_interactive_simple") as mock_fallback:
+            with patch(
+                "sagaz.cli.examples.interactive._fallback_interactive_simple"
+            ) as mock_fallback:
                 interactive_cmd("category")
                 mock_fallback.assert_called_once_with("category")
 
@@ -33,11 +35,15 @@ class TestInteractiveExamples:
                 # Select "Business" (index 0), then "Exit" from category menu (index 2)
                 # Then "Exit" from main menu (index 2)
                 mock_instance.show.side_effect = [0, 2, 2]
-                with patch("sagaz.cli.examples.interactive._domain_category_menu_loop", return_value="exit"):
+                with patch(
+                    "sagaz.cli.examples.interactive._domain_category_menu_loop", return_value="exit"
+                ):
                     _category_menu_loop()
 
     def test_domain_category_menu_loop_exit(self):
-        with patch("sagaz.cli.examples.interactive.discover_examples", return_value={"ex1": Path("p1")}):
+        with patch(
+            "sagaz.cli.examples.interactive.discover_examples", return_value={"ex1": Path("p1")}
+        ):
             with patch("sagaz.cli.examples.interactive.TerminalMenu") as mock_menu:
                 mock_instance = mock_menu.return_value
                 # Select "Exit" (index 3)
@@ -46,17 +52,22 @@ class TestInteractiveExamples:
                 assert result == "exit"
 
     def test_domain_category_menu_loop_nested_exit(self):
-        with patch("sagaz.cli.examples.interactive.discover_examples", return_value={"ex1": Path("p1")}):
+        with patch(
+            "sagaz.cli.examples.interactive.discover_examples", return_value={"ex1": Path("p1")}
+        ):
             with patch("sagaz.cli.examples.interactive.TerminalMenu") as mock_menu:
                 mock_instance = mock_menu.return_value
                 # Select "commerce" (index 0), which returns "exit"
                 mock_instance.show.return_value = 0
-                with patch("sagaz.cli.examples.interactive._examples_menu_loop", return_value="exit"):
+                with patch(
+                    "sagaz.cli.examples.interactive._examples_menu_loop", return_value="exit"
+                ):
                     result = _domain_category_menu_loop("Business", ["commerce"])
                     assert result == "exit"
 
     def test_prepare_example_menu_entries(self):
         from sagaz.cli.examples.interactive import _prepare_example_menu_entries
+
         sorted_ex = [("domain/cat/name", Path("script.py"))]
         with patch("sagaz.cli.examples.interactive.get_example_description", return_value="Desc"):
             entries = _prepare_example_menu_entries(sorted_ex)
@@ -83,6 +94,7 @@ class TestInteractiveExamples:
 
     def test_fallback_interactive_simple_no_examples(self, capsys):
         from sagaz.cli.examples.interactive import _fallback_interactive_simple
+
         with patch("sagaz.cli.examples.interactive.discover_examples", return_value={}):
             _fallback_interactive_simple()
             captured = capsys.readouterr()

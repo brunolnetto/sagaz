@@ -11,16 +11,20 @@ from .local import init_local
 
 def init_selfhost(broker: str, with_observability: bool, separate_outbox: bool = False):
     """Create self-hosted setup scripts."""
-    if utils.console: utils.console.print("Creating [bold yellow]self-hosted[/bold yellow] setup scripts...")
+    if utils.console:
+        utils.console.print("Creating [bold yellow]self-hosted[/bold yellow] setup scripts...")
     Path("selfhost").mkdir(exist_ok=True)
     _create_systemd_service("sagaz-worker", "Sagaz Worker Service", "python -m sagaz.worker")
     if with_observability:
         _create_selfhost_monitoring()
 
     env_content = f"SAGAZ_BROKER={broker}\n"
-    if separate_outbox: env_content += "OUTBOX_URL=postgresql://localhost:5432/outbox\n"
-    if broker == "kafka": env_content += "KAFKA_BOOTSTRAP_SERVERS=localhost:9092\n"
-    elif broker == "rabbitmq": env_content += "RABBITMQ_URL=amqp://sagaz:sagaz@localhost:5672/\n"
+    if separate_outbox:
+        env_content += "OUTBOX_URL=postgresql://localhost:5432/outbox\n"
+    if broker == "kafka":
+        env_content += "KAFKA_BOOTSTRAP_SERVERS=localhost:9092\n"
+    elif broker == "rabbitmq":
+        env_content += "RABBITMQ_URL=amqp://sagaz:sagaz@localhost:5672/\n"
 
     Path("selfhost/sagaz.env").write_text(env_content)
     Path("selfhost/install.sh").write_text("#!/bin/bash\n# Sagaz installation script\n")
@@ -37,17 +41,21 @@ def _create_selfhost_monitoring():
 
 def init_hybrid(broker: str = "redis", oltp_storage: str = "postgresql"):
     """Create hybrid deployment setup."""
-    if utils.console: utils.console.print("Creating [bold yellow]hybrid[/bold yellow] deployment setup...")
+    if utils.console:
+        utils.console.print("Creating [bold yellow]hybrid[/bold yellow] deployment setup...")
 
     hybrid_dir = Path("hybrid")
     hybrid_dir.mkdir(exist_ok=True)
 
     # Create README.md
-    (hybrid_dir / "README.md").write_text("# Sagaz Hybrid Deployment\n\nSetup for hybrid cloud/local environment.\n")
+    (hybrid_dir / "README.md").write_text(
+        "# Sagaz Hybrid Deployment\n\nSetup for hybrid cloud/local environment.\n"
+    )
 
     # Create hybrid.env
     broker_url = "localhost:6379" if broker == "redis" else "localhost:9092"
-    if broker == "rabbitmq": broker_url = "amqp://sagaz:sagaz@localhost:5672/"
+    if broker == "rabbitmq":
+        broker_url = "amqp://sagaz:sagaz@localhost:5672/"
 
     env_content = [
         f"SAGAZ_BROKER={broker}",
@@ -61,6 +69,7 @@ def init_hybrid(broker: str = "redis", oltp_storage: str = "postgresql"):
     # Create docker-compose.yaml via init_local (using a temporary change of directory)
     if oltp_storage != "in-memory":
         import os
+
         old_cwd = os.getcwd()
         try:
             os.chdir(hybrid_dir)
@@ -71,7 +80,8 @@ def init_hybrid(broker: str = "redis", oltp_storage: str = "postgresql"):
 
 def init_benchmarks():
     """Create benchmark environment."""
-    if utils.console: utils.console.print("Creating [bold yellow]benchmark[/bold yellow] environment...")
+    if utils.console:
+        utils.console.print("Creating [bold yellow]benchmark[/bold yellow] environment...")
 
     # Create directory
     bench_dir = Path("benchmarks")

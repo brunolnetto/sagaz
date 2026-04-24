@@ -503,7 +503,6 @@ class SagaExecutionGraph:
             else 0
         )
 
-
         for attempt in range(max_retries + 1):
             try:
                 # Detect function signature

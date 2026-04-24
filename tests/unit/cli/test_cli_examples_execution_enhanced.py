@@ -32,7 +32,7 @@ class TestExampleExecution:
         with patch("subprocess.run") as mock_run:
             mock_run.side_effect = subprocess.CalledProcessError(1, "cmd")
             with patch("pathlib.Path.exists") as mock_exists:
-                mock_exists.return_value = True # Pretend requirements.txt exists
+                mock_exists.return_value = True  # Pretend requirements.txt exists
                 execute_example(script)
 
                 captured = capsys.readouterr()
@@ -48,7 +48,9 @@ class TestExampleExecution:
         with patch("pathlib.Path.open", mock_open(read_data="pkg1\npkg2")):
             with patch("sagaz.cli.examples.execution._check_package_installed") as mock_installed:
                 mock_installed.side_effect = [False, True]
-                with patch("sagaz.cli.examples.execution._display_missing_packages") as mock_display:
+                with patch(
+                    "sagaz.cli.examples.execution._display_missing_packages"
+                ) as mock_display:
                     with patch("sagaz.cli.examples.execution._prompt_user_continue") as mock_prompt:
                         mock_prompt.return_value = True
                         _check_requirements(Path("req.txt"))
@@ -57,7 +59,9 @@ class TestExampleExecution:
     def test_check_requirements_abort_on_prompt(self):
         with patch("pathlib.Path.open", mock_open(read_data="pkg1")):
             with patch("sagaz.cli.examples.execution._check_package_installed", return_value=False):
-                with patch("sagaz.cli.examples.execution._prompt_user_continue", return_value=False):
+                with patch(
+                    "sagaz.cli.examples.execution._prompt_user_continue", return_value=False
+                ):
                     with pytest.raises(KeyboardInterrupt):
                         _check_requirements(Path("req.txt"))
 

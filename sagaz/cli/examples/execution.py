@@ -11,6 +11,7 @@ import click
 
 try:
     from rich.console import Console
+
     console: Console | None = Console()
 except ImportError:
     console = None
@@ -77,6 +78,7 @@ def _parse_package_name(req: str) -> str:
 def _check_package_installed(pkg_name: str) -> bool:
     """Check if a package is installed."""
     import importlib.util
+
     package_to_import = {
         "python-dotenv": "dotenv",
         "pillow": "PIL",

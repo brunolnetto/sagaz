@@ -34,6 +34,7 @@ try:
     from rich.json import JSON
     from rich.panel import Panel
     from rich.table import Table
+
     _console = Console()
     HAS_RICH = True
 except ImportError:
@@ -46,33 +47,59 @@ except ImportError:
 # For backward compatibility with modules that import it
 console = _console
 
+
 # Backwards compatibility for tests (proper functions to capture patched HAS_RICH and click.echo)
 def _display_replay_config(*args, **kwargs):
-    return display_replay_config(*args, rich_available=HAS_RICH, echo_func=click.echo, console=console, **kwargs)
+    return display_replay_config(
+        *args, rich_available=HAS_RICH, echo_func=click.echo, console=console, **kwargs
+    )
+
 
 def _display_success(*args, **kwargs):
-    return display_success(*args, rich_available=HAS_RICH, echo_func=click.echo, console=console, **kwargs)
+    return display_success(
+        *args, rich_available=HAS_RICH, echo_func=click.echo, console=console, **kwargs
+    )
+
 
 def _display_failure(*args, **kwargs):
-    return display_failure(*args, rich_available=HAS_RICH, echo_func=click.echo, console=console, **kwargs)
+    return display_failure(
+        *args, rich_available=HAS_RICH, echo_func=click.echo, console=console, **kwargs
+    )
+
 
 def _handle_exception(*args, **kwargs):
-    return handle_exception(*args, rich_available=HAS_RICH, echo_func=click.echo, console=console, **kwargs)
+    return handle_exception(
+        *args, rich_available=HAS_RICH, echo_func=click.echo, console=console, **kwargs
+    )
+
 
 def _show_checkpoints(*args, **kwargs):
-    return show_checkpoints(*args, rich_available=HAS_RICH, echo_func=click.echo, console=console, **kwargs)
+    return show_checkpoints(
+        *args, rich_available=HAS_RICH, echo_func=click.echo, console=console, **kwargs
+    )
+
 
 def _show_replay_result(*args, **kwargs):
-    return show_replay_result(*args, rich_available=HAS_RICH, echo_func=click.echo, console=console, **kwargs)
+    return show_replay_result(
+        *args, rich_available=HAS_RICH, echo_func=click.echo, console=console, **kwargs
+    )
+
 
 def _display_key_value(*args, **kwargs):
     return display_key_value(*args, echo_func=click.echo, **kwargs)
 
+
 def _display_full_state(*args, **kwargs):
-    return display_full_state(*args, rich_available=HAS_RICH, echo_func=click.echo, console=console, **kwargs)
+    return display_full_state(
+        *args, rich_available=HAS_RICH, echo_func=click.echo, console=console, **kwargs
+    )
+
 
 def _display_changes(*args, **kwargs):
-    return display_changes(*args, rich_available=HAS_RICH, echo_func=click.echo, console=console, **kwargs)
+    return display_changes(
+        *args, rich_available=HAS_RICH, echo_func=click.echo, console=console, **kwargs
+    )
+
 
 def _display_state_table(*args, **kwargs):
     return _display_full_state(*args, output_format="table", **kwargs)
@@ -169,7 +196,14 @@ def replay_command(
     default="text",
     help="Output format",
 )
-def time_travel_command(saga_id: str, at: str, storage: str, storage_url: str | None, key: str | None, output_format: str):
+def time_travel_command(
+    saga_id: str,
+    at: str,
+    storage: str,
+    storage_url: str | None,
+    key: str | None,
+    output_format: str,
+):
     """Query saga state at a specific point in time."""
     # Parse saga_id
     try:
@@ -212,7 +246,9 @@ def time_travel_command(saga_id: str, at: str, storage: str, storage_url: str | 
     type=click.Choice(["memory", "redis", "postgres"]),
     help="Snapshot storage backend",
 )
-def list_changes_command(saga_id: str, after: str | None, before: str | None, limit: int, storage: str):
+def list_changes_command(
+    saga_id: str, after: str | None, before: str | None, limit: int, storage: str
+):
     """List all state changes for a saga."""
     # Parse saga_id
     try:
@@ -280,6 +316,7 @@ async def _execute_replay(
     # Create storage
     if storage_type == "memory":
         from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
+
         storage = InMemorySnapshotStorage()
     else:
         msg = f"Storage type '{storage_type}' not yet supported"
@@ -323,6 +360,7 @@ async def _execute_time_travel(
     # Create storage
     if storage_type == "memory":
         from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
+
         storage = InMemorySnapshotStorage()
     else:
         msg = f"Storage type '{storage_type}' not yet supported"
@@ -363,6 +401,7 @@ async def _execute_list_changes(
     # Create storage
     if storage_type == "memory":
         from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
+
         storage = InMemorySnapshotStorage()
     else:
         msg = f"Storage type '{storage_type}' not yet supported"

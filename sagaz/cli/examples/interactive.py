@@ -8,12 +8,14 @@ import click
 
 try:
     from rich.console import Console
+
     console: Console | None = Console()
 except ImportError:
     console = None
 
 try:
     from simple_term_menu import TerminalMenu
+
     TERM_MENU_AVAILABLE = True
 except ImportError:
     TERM_MENU_AVAILABLE = False
@@ -93,11 +95,14 @@ def _domain_category_menu_loop(domain: str, categories: list[str]) -> str:
         menu = TerminalMenu(menu_entries, cycle_cursor=True, clear_screen=True)
         selected_index = menu.show()
 
-        if selected_index == len(menu_entries) - 2: return "back"
-        if selected_index is None or selected_index == len(menu_entries) - 1: return "exit"
+        if selected_index == len(menu_entries) - 2:
+            return "back"
+        if selected_index is None or selected_index == len(menu_entries) - 1:
+            return "exit"
 
         result = _examples_menu_loop(categories[selected_index])
-        if result == "exit": return "exit"
+        if result == "exit":
+            return "exit"
 
 
 def _prepare_example_menu_entries(sorted_examples: list[tuple[str, Path]]) -> list[str]:
@@ -130,7 +135,9 @@ def _examples_menu_loop(category: str) -> str:
             return "back"
 
         if console:
-            console.print(f"\n[bold blue]  📁 {_format_category_name(category)} Examples  [/bold blue]")
+            console.print(
+                f"\n[bold blue]  📁 {_format_category_name(category)} Examples  [/bold blue]"
+            )
 
         menu_entries = _prepare_example_menu_entries(sorted_examples)
         menu = TerminalMenu(menu_entries, cycle_cursor=True, clear_screen=True)
@@ -161,7 +168,8 @@ def _fallback_interactive_simple(category: str | None = None):
 
         try:
             choice = click.prompt("\nEnter number to run", type=int, default=0)
-            if choice == 0: return
+            if choice == 0:
+                return
             if 1 <= choice <= len(sorted_examples):
                 name, path = sorted_examples[choice - 1]
                 execute_example(path)

@@ -11,6 +11,7 @@ try:
     from rich.json import JSON
     from rich.panel import Panel
     from rich.table import Table
+
     _console = Console()
     _HAS_RICH = True
 except ImportError:
@@ -24,6 +25,7 @@ except ImportError:
 HAS_RICH = _HAS_RICH
 console = _console
 
+
 def display_replay_config(
     saga_id: str,
     from_step: str,
@@ -32,7 +34,7 @@ def display_replay_config(
     dry_run: bool,
     rich_available: bool | None = None,
     echo_func=None,
-    console=None
+    console=None,
 ):
     """Display replay configuration."""
     if rich_available is None:
@@ -86,7 +88,9 @@ def display_failure(rich_available: bool | None = None, echo_func=None, console=
         echo("✗ Replay failed", err=True)
 
 
-def handle_exception(e: Exception, verbose: bool, rich_available: bool | None = None, echo_func=None, console=None):
+def handle_exception(
+    e: Exception, verbose: bool, rich_available: bool | None = None, echo_func=None, console=None
+):
     """Handle and display exception."""
     if rich_available is None:
         rich_available = _HAS_RICH
@@ -100,10 +104,17 @@ def handle_exception(e: Exception, verbose: bool, rich_available: bool | None = 
         echo(f"Error: {e}", err=True)
     if verbose:
         import traceback
+
         traceback.print_exc()
 
 
-def show_checkpoints(checkpoints: list, verbose: bool, rich_available: bool | None = None, echo_func=None, console=None):
+def show_checkpoints(
+    checkpoints: list,
+    verbose: bool,
+    rich_available: bool | None = None,
+    echo_func=None,
+    console=None,
+):
     """Display available checkpoints."""
     if not verbose:
         return
@@ -127,7 +138,14 @@ def show_checkpoints(checkpoints: list, verbose: bool, rich_available: bool | No
             echo(f"  - {cp['step_name']} at {cp['created_at']}")
 
 
-def show_replay_result(result, verbose: bool, dry_run: bool, rich_available: bool | None = None, echo_func=None, console=None):
+def show_replay_result(
+    result,
+    verbose: bool,
+    dry_run: bool,
+    rich_available: bool | None = None,
+    echo_func=None,
+    console=None,
+):
     """Display replay result."""
     if not (verbose or dry_run):
         return
@@ -163,12 +181,15 @@ def display_key_value(key: str, value: Any, output_format: str, echo_func=None):
     echo = echo_func or click.echo
     if output_format == "json":
         import json
+
         echo(json.dumps({key: value}, indent=2))
     else:
         echo(f"{key}: {value}")
 
 
-def display_full_state(state, output_format: str, rich_available: bool | None = None, echo_func=None, console=None):
+def display_full_state(
+    state, output_format: str, rich_available: bool | None = None, echo_func=None, console=None
+):
     """Display full saga state."""
     if rich_available is None:
         rich_available = _HAS_RICH
@@ -178,6 +199,7 @@ def display_full_state(state, output_format: str, rich_available: bool | None = 
 
     if output_format == "json":
         import json
+
         echo(json.dumps(state.to_dict(), indent=2))
     elif output_format == "table" and rich_available and con:
         _display_state_table(state, console=con)
@@ -218,7 +240,9 @@ def _display_state_text(state, echo_func=None):
         echo(f"  {k}: {v}")
 
 
-def display_changes(changes: list, saga_id: Any, rich_available: bool | None = None, echo_func=None, console=None):
+def display_changes(
+    changes: list, saga_id: Any, rich_available: bool | None = None, echo_func=None, console=None
+):
     """Display state changes."""
     if rich_available is None:
         rich_available = _HAS_RICH

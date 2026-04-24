@@ -9,6 +9,7 @@ import click
 try:
     from rich.console import Console
     from rich.table import Table
+
     console: Console | None = Console()
     TableClass: type[Table] | None = Table
 except ImportError:

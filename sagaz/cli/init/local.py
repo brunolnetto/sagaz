@@ -25,24 +25,47 @@ def init_local(
 
 
 def _log_local_init_start(broker: str, with_ha: bool, oltp_storage: str, dev_mode: bool):
-    if not utils.console: return
+    if not utils.console:
+        return
     if dev_mode:
-        utils.console.print("Creating [bold yellow]in-memory development[/bold yellow] environment...")
+        utils.console.print(
+            "Creating [bold yellow]in-memory development[/bold yellow] environment..."
+        )
     elif with_ha:
         utils.console.print("Creating local HA PostgreSQL environment...")
     else:
-        utils.console.print(f"Creating local environment (storage: {oltp_storage}, broker: {broker})...")
+        utils.console.print(
+            f"Creating local environment (storage: {oltp_storage}, broker: {broker})..."
+        )
 
 
-def _init_docker_compose(broker, with_ha, with_observability=False, separate_outbox=False, oltp_storage="postgresql", outbox_storage="same", dev_mode=False):
+def _init_docker_compose(
+    broker,
+    with_ha,
+    with_observability=False,
+    separate_outbox=False,
+    oltp_storage="postgresql",
+    outbox_storage="same",
+    dev_mode=False,
+):
     target = "docker-compose.yaml"
     if Path(target).exists() and not utils.click.confirm(f"{target} already exists. Overwrite?"):
         return
     this = sys.modules[__name__]
-    this._copy_docker_compose_files(broker, with_ha, with_observability, separate_outbox, oltp_storage, outbox_storage, dev_mode)
+    this._copy_docker_compose_files(
+        broker, with_ha, with_observability, separate_outbox, oltp_storage, outbox_storage, dev_mode
+    )
 
 
-def _copy_docker_compose_files(broker, with_ha, with_observability=False, separate_outbox=False, oltp_storage="postgresql", outbox_storage="same", dev_mode=False):
+def _copy_docker_compose_files(
+    broker,
+    with_ha,
+    with_observability=False,
+    separate_outbox=False,
+    oltp_storage="postgresql",
+    outbox_storage="same",
+    dev_mode=False,
+):
     this = sys.modules[__name__]
     if dev_mode:
         this._create_inmemory_docker_compose(broker)
@@ -57,8 +80,16 @@ def _copy_docker_compose_files(broker, with_ha, with_observability=False, separa
 def _get_broker_config(broker: str) -> tuple[str, int, str]:
     configs = {
         "redis": ("redis:7-alpine", 6379, "ALLOW_ANONYMOUS_LOGIN: 'yes'"),
-        "rabbitmq": ("rabbitmq:3-management", 5672, "RABBITMQ_DEFAULT_USER: sagaz\n      RABBITMQ_DEFAULT_PASS: sagaz"),
-        "kafka": ("confluentinc/cp-kafka:latest", 9092, "KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092\n      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181"),
+        "rabbitmq": (
+            "rabbitmq:3-management",
+            5672,
+            "RABBITMQ_DEFAULT_USER: sagaz\n      RABBITMQ_DEFAULT_PASS: sagaz",
+        ),
+        "kafka": (
+            "confluentinc/cp-kafka:latest",
+            9092,
+            "KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092\n      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181",
+        ),
     }
     return configs.get(broker, configs["redis"])
 
@@ -86,7 +117,8 @@ def _init_monitoring(broker: str, with_ha: bool):
 
 
 def _log_local_init_complete(with_observability: bool, with_ha: bool, dev_mode: bool):
-    if not utils.console: return
+    if not utils.console:
+        return
     utils.console.print("\n[bold green]Deployment setup complete![/bold green]")
     if dev_mode:
         utils.console.print("  - Local in-memory services are ready.")

@@ -164,7 +164,9 @@ class MermaidGenerator:
         """Identify pivot steps and check trail existence."""
         self._pivot_steps = [s for s in self.steps if s.pivot]
         self._has_pivots = bool(self._pivot_steps)
-        self._has_trail = bool(self.trail.completed or self.trail.failed_step or self.trail.compensated)
+        self._has_trail = bool(
+            self.trail.completed or self.trail.failed_step or self.trail.compensated
+        )
 
     def generate(self) -> str:
         """Generate the complete Mermaid diagram."""
@@ -201,13 +203,16 @@ class MermaidGenerator:
         if not self.show_state_markers:
             return
 
-
         if self._has_trail:
             if self.trail.failed_step:
-                label = f'("✗ {self.trail.total_duration}")' if self.trail.total_duration else "((◎))"
+                label = (
+                    f'("✗ {self.trail.total_duration}")' if self.trail.total_duration else "((◎))"
+                )
                 state.add_line(f"ROLLED_BACK{label}")
             else:
-                label = f'("✓ {self.trail.total_duration}")' if self.trail.total_duration else "((◎))"
+                label = (
+                    f'("✓ {self.trail.total_duration}")' if self.trail.total_duration else "((◎))"
+                )
                 state.add_line(f"SUCCESS{label}")
         else:
             state.add_line("SUCCESS((◎))")
@@ -294,12 +299,16 @@ class MermaidGenerator:
                         step.name, "-. compensate .->", f"comp_{step.name}", True, "compensation"
                     )
             elif step.has_compensation:
-                state.add_link(step.name, "-. compensate .->", f"comp_{step.name}", False, "compensation")
+                state.add_link(
+                    step.name, "-. compensate .->", f"comp_{step.name}", False, "compensation"
+                )
             else:
                 ancestors = self._get_compensable_ancestors(step)
                 if ancestors:
                     target = sorted(ancestors)[0]
-                    state.add_link(step.name, "-. compensate .->", f"comp_{target}", False, "compensation")
+                    state.add_link(
+                        step.name, "-. compensate .->", f"comp_{target}", False, "compensation"
+                    )
 
         # Compensation Chain
         self._add_compensation_chain(state)
@@ -380,7 +389,9 @@ class MermaidGenerator:
         if self.show_pivot_zones and self._has_pivots:
             state.add_comment("Pivot Zone Styles")
             state.add_line("classDef reversible fill:#98FB98,stroke:#28a745,color:#155724")
-            state.add_line("classDef pivot fill:#FFD700,stroke:#FFA500,color:#8B4513,stroke-width:3px")
+            state.add_line(
+                "classDef pivot fill:#FFD700,stroke:#FFA500,color:#8B4513,stroke-width:3px"
+            )
             state.add_line("classDef committed fill:#87CEEB,stroke:#4169E1,color:#00008B")
             state.add_line("classDef tainted fill:#DDA0DD,stroke:#8B008B,color:#4B0082")
 
@@ -401,7 +412,9 @@ class MermaidGenerator:
         if self.trail.failed_step:
             state.add_line(f"class {self.trail.failed_step} failure")
         if self.trail.compensated:
-            state.add_line(f"class {','.join(f'comp_{s}' for s in sorted(self.trail.compensated))} compensation")
+            state.add_line(
+                f"class {','.join(f'comp_{s}' for s in sorted(self.trail.compensated))} compensation"
+            )
 
         if self.show_state_markers:
             markers = ["START", "ROLLED_BACK" if self.trail.failed_step else "SUCCESS"]
@@ -415,7 +428,9 @@ class MermaidGenerator:
             state.add_line(f"class {','.join(s.name for s in self.steps)} success")
 
         if self.show_compensation and self._compensable_steps:
-            state.add_line(f"class {','.join(f'comp_{s.name}' for s in self._compensable_steps)} compensation")
+            state.add_line(
+                f"class {','.join(f'comp_{s.name}' for s in self._compensable_steps)} compensation"
+            )
 
         if self.show_state_markers:
             markers = ["START", "SUCCESS"]
@@ -425,7 +440,12 @@ class MermaidGenerator:
 
     def _apply_zone_classes(self, state: DiagramState) -> None:
         """Apply zone-based styling (v1.3.0)."""
-        zones: dict[str, list[str]] = {"reversible": [], "pivot": [], "committed": [], "tainted": []}
+        zones: dict[str, list[str]] = {
+            "reversible": [],
+            "pivot": [],
+            "committed": [],
+            "tainted": [],
+        }
         for s in self.steps:
             if s.tainted:
                 zones["tainted"].append(s.name)
@@ -446,11 +466,13 @@ class MermaidGenerator:
         visited, queue = set(), list(step.depends_on)
         while queue:
             name = queue.pop(0)
-            if name in pivots: return True
+            if name in pivots:
+                return True
             if name not in visited:
                 visited.add(name)
                 s = self._step_map.get(name)
-                if s: queue.extend(s.depends_on)
+                if s:
+                    queue.extend(s.depends_on)
         return False
 
     def _apply_link_styles(self, state: DiagramState) -> None:
@@ -458,6 +480,10 @@ class MermaidGenerator:
         state.add_line("")
         state.add_line("linkStyle default stroke:#adb5bd")
         if state.success_links:
-            state.add_line(f"linkStyle {','.join(state.success_links)} stroke-width:3px,stroke:#28a745")
+            state.add_line(
+                f"linkStyle {','.join(state.success_links)} stroke-width:3px,stroke:#28a745"
+            )
         if state.compensation_links:
-            state.add_line(f"linkStyle {','.join(state.compensation_links)} stroke-width:3px,stroke:#ffc107")
+            state.add_line(
+                f"linkStyle {','.join(state.compensation_links)} stroke-width:3px,stroke:#ffc107"
+            )

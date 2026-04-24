@@ -1099,7 +1099,10 @@ class TestCopyDirResource:
         mock_files = MagicMock()
         mock_files.joinpath.side_effect = [mock_top, mock_empty]
 
-        with patch("sagaz.cli.init.utils.pkg_resources") as mock_pkg, patch("sagaz.cli.init.utils.click"):
+        with (
+            patch("sagaz.cli.init.utils.pkg_resources") as mock_pkg,
+            patch("sagaz.cli.init.utils.click"),
+        ):
             mock_pkg.files.return_value = mock_files
             m._copy_dir_resource("root/dir", str(tmp_path / "out"))
             # joinpath called twice: once for root/dir, once for root/dir/subdir
@@ -1190,6 +1193,7 @@ class TestConsoleImportError:
 
         with patch.dict(sys.modules, {"rich": None, "rich.console": None}):
             import sagaz.cli._init_handlers as reloaded
+
             assert reloaded.console is None
 
         # Restore original module

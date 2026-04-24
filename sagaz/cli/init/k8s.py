@@ -19,7 +19,8 @@ def init_k8s(
     """Copy Kubernetes manifests."""
     try:
         _log_k8s_init_start(with_ha, oltp_storage)
-        if not _prepare_k8s_directory(): return
+        if not _prepare_k8s_directory():
+            return
 
         _copy_k8s_manifests(with_ha, separate_outbox, oltp_storage)
         _copy_k8s_observability(with_observability)
@@ -30,9 +31,12 @@ def init_k8s(
 
 
 def _log_k8s_init_start(with_ha: bool, oltp_storage: str):
-    if not utils.console: return
+    if not utils.console:
+        return
     ha_msg = " with [bold yellow]HA PostgreSQL[/bold yellow]" if with_ha else ""
-    utils.console.print(f"Copying Kubernetes manifests{ha_msg} (storage: [bold cyan]{oltp_storage}[/bold cyan])...")
+    utils.console.print(
+        f"Copying Kubernetes manifests{ha_msg} (storage: [bold cyan]{oltp_storage}[/bold cyan])..."
+    )
 
 
 def _prepare_k8s_directory() -> bool:
@@ -44,7 +48,9 @@ def _prepare_k8s_directory() -> bool:
     return True
 
 
-def _copy_k8s_manifests(with_ha: bool, separate_outbox: bool = False, oltp_storage: str = "postgresql"):
+def _copy_k8s_manifests(
+    with_ha: bool, separate_outbox: bool = False, oltp_storage: str = "postgresql"
+):
     if oltp_storage == "postgresql":
         if with_ha:
             utils.copy_resource("k8s/postgresql-ha.yaml", "k8s/postgresql-ha.yaml")
@@ -56,7 +62,12 @@ def _copy_k8s_manifests(with_ha: bool, separate_outbox: bool = False, oltp_stora
     if separate_outbox:
         utils.copy_resource("k8s/outbox-postgresql.yaml", "k8s/outbox-postgresql.yaml")
 
-    for manifest in ["outbox-worker.yaml", "configmap.yaml", "secrets-example.yaml", "migration-job.yaml"]:
+    for manifest in [
+        "outbox-worker.yaml",
+        "configmap.yaml",
+        "secrets-example.yaml",
+        "migration-job.yaml",
+    ]:
         utils.copy_resource(f"k8s/{manifest}", f"k8s/{manifest}")
 
 
@@ -75,10 +86,13 @@ def _copy_k8s_benchmarks(with_benchmarks: bool):
 
 
 def _log_k8s_init_complete(with_ha: bool):
-    if not utils.console: return
+    if not utils.console:
+        return
     utils.console.print("[bold green]Kubernetes manifests copied successfully![/bold green]")
     if with_ha:
-        utils.console.print("  - [bold yellow]HA PostgreSQL[/bold yellow] manifests included (port 5432)")
+        utils.console.print(
+            "  - [bold yellow]HA PostgreSQL[/bold yellow] manifests included (port 5432)"
+        )
 
 
 def _create_k8s_benchmark_config():

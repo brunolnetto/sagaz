@@ -9,6 +9,7 @@ import click
 
 try:
     from rich.console import Console
+
     console: Console | None = Console()
 except ImportError:
     console = None

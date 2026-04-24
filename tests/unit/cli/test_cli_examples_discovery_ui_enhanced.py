@@ -18,7 +18,7 @@ class TestDiscoveryEnhanced:
     def test_get_examples_dir_fallbacks(self):
         with patch("importlib.resources.files", side_effect=ModuleNotFoundError):
             with patch("pathlib.Path.exists") as mock_exists:
-                mock_exists.side_effect = [True] # candidate exists
+                mock_exists.side_effect = [True]  # candidate exists
                 d = get_examples_dir()
                 assert "examples" in d.name
 
@@ -43,11 +43,10 @@ class TestDiscoveryEnhanced:
         f3.write_text('#!/usr/bin/env python\n# some comment\nprint("hi")\n')
         assert get_example_description(f3) == "No description"
 
+
 class TestUIEnhanced:
     def test_display_examples_plain(self, capsys):
-        by_domain = {
-            "Business": {"business/commerce/order": Path("/p1")}
-        }
+        by_domain = {"Business": {"business/commerce/order": Path("/p1")}}
         with patch("sagaz.cli.examples.ui.console", None):
             with patch("sagaz.cli.examples.ui.get_example_description", return_value="Desc"):
                 display_examples(by_domain)

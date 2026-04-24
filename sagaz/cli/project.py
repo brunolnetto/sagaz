@@ -155,7 +155,9 @@ def _discover_sagas_in_paths(paths: list[str]) -> list[dict[str, Any]]:
     return discovered
 
 
-def _discover_sagas_in_directory(directory: Path, sys_mod, importlib, inspect, saga_base) -> list[dict[str, Any]]:
+def _discover_sagas_in_directory(
+    directory: Path, sys_mod, importlib, inspect, saga_base
+) -> list[dict[str, Any]]:
     """Legacy helper for tests."""
     return _discover_sagas_in_paths([str(directory)])
 
@@ -166,20 +168,26 @@ def _try_load_sagas_from_file(file_path: Path, *args, **kwargs) -> list[dict[str
     return _inspect_module(module_name, file_path)
 
 
-def _extract_sagas_from_module(module, file_path: Path, inspect_mod, saga_base) -> list[dict[str, Any]]:
+def _extract_sagas_from_module(
+    module, file_path: Path, inspect_mod, saga_base
+) -> list[dict[str, Any]]:
     """Legacy helper for tests."""
     from sagaz import Saga
+
     discovered = []
     import inspect as real_inspect
+
     for name, obj in real_inspect.getmembers(module):
         if _is_valid_saga_class(name, obj):
             doc = real_inspect.getdoc(obj) or ""
-            discovered.append({
-                "name": name,
-                "file": str(file_path),
-                "doc": doc.split("\n", maxsplit=1)[0] if doc else "No description",
-                "class": obj,
-            })
+            discovered.append(
+                {
+                    "name": name,
+                    "file": str(file_path),
+                    "doc": doc.split("\n", maxsplit=1)[0] if doc else "No description",
+                    "class": obj,
+                }
+            )
     return discovered
 
 

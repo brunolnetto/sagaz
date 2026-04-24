@@ -24,6 +24,7 @@ This creates the 'sagaz' command via entry point in pyproject.toml.
 
 try:
     from rich.console import Console
+
     console = Console()
 except ImportError:
     console = None

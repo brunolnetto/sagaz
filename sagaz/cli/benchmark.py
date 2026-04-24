@@ -10,6 +10,7 @@ import click
 try:
     from rich.console import Console
     from rich.panel import Panel
+
     console: Console | None = Console()
 except ImportError:
     console = None

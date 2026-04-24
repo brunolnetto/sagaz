@@ -34,6 +34,7 @@ try:
     from rich.console import Console
     from rich.panel import Panel
     from rich.table import Table
+
     console = Console()
     RICH_AVAILABLE = True
 except ImportError:
@@ -51,6 +52,7 @@ def _display_validation_results(results, rich_available=None):
         return _display_project_validation_results_rich(results)
     return _display_project_validation_results_plain(results)
 
+
 def _display_simulation_results(results, show_parallel=False, rich_available=None):
     if rich_available is None:
         rich_available = RICH_AVAILABLE
@@ -58,26 +60,40 @@ def _display_simulation_results(results, show_parallel=False, rich_available=Non
         return _display_project_simulation_results_rich(results, show_parallel)
     return _display_project_simulation_results_plain(results, show_parallel)
 
+
 def _display_project_validation_results_plain(results):
     return _display_project_validation_results_plain_ui(results, echo_func=click.echo)
 
+
 def _display_project_simulation_results_plain(results, show_parallel=False):
-    return _display_project_simulation_results_plain_ui(results, show_parallel, echo_func=click.echo)
+    return _display_project_simulation_results_plain_ui(
+        results, show_parallel, echo_func=click.echo
+    )
+
 
 def _display_project_validation_results_rich(results):
-    return display_validation_results(results, rich_available=True, echo_func=click.echo, console=console)
+    return display_validation_results(
+        results, rich_available=True, echo_func=click.echo, console=console
+    )
+
 
 def _display_project_simulation_results_rich(results, show_parallel=False):
-    return display_simulation_results(results, show_parallel, rich_available=True, echo_func=click.echo, console=console)
+    return display_simulation_results(
+        results, show_parallel, rich_available=True, echo_func=click.echo, console=console
+    )
+
 
 def _run_validation_for_sagas(sagas, ctx):
     return _run_engine_for_sagas(sagas, ctx, DryRunMode.VALIDATE)
 
+
 def _run_simulation_for_sagas(sagas, ctx):
     return _run_engine_for_sagas(sagas, ctx, DryRunMode.SIMULATE)
 
+
 def _discover_project_sagas(paths=None):
     return _discover_sagas_in_paths(paths or ["sagas/"])
+
 
 def _load_saga(*args, **kwargs):
     return _try_load_sagas_from_file(*args, **kwargs)
@@ -165,6 +181,7 @@ def _discover_and_select_sagas(
 def _run_engine_for_sagas(sagas: list, ctx: dict, mode: DryRunMode) -> list:
     """Run dry-run engine for given sagas."""
     import asyncio
+
     engine = DryRunEngine()
     results = []
     for saga_info in sagas:

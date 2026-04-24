@@ -42,7 +42,9 @@ class TestDiscoveryFinal:
         assert _find_example_files(search_dir, other_dir) == {}
 
     def test_discover_examples_by_domain_dir_missing(self):
-        with patch("sagaz.cli.examples.discovery.get_examples_dir", return_value=Path("/nonexistent")):
+        with patch(
+            "sagaz.cli.examples.discovery.get_examples_dir", return_value=Path("/nonexistent")
+        ):
             assert discover_examples_by_domain() == {}
 
     def test_collect_examples_parts_short(self, tmp_path):

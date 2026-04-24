@@ -8,6 +8,7 @@ try:
     from rich.console import Console
     from rich.panel import Panel
     from rich.table import Table
+
     _console = Console()
     _RICH_AVAILABLE = True
 except ImportError:
@@ -16,7 +17,10 @@ except ImportError:
     Panel = None
     Table = None
 
-def display_validation_results(results: list, rich_available: bool | None = None, echo_func=None, console=None):
+
+def display_validation_results(
+    results: list, rich_available: bool | None = None, echo_func=None, console=None
+):
     """Display validation results."""
     if rich_available is None:
         rich_available = _RICH_AVAILABLE
@@ -29,7 +33,13 @@ def display_validation_results(results: list, rich_available: bool | None = None
         display_project_validation_results_plain(results, echo_func=echo_func)
 
 
-def display_simulation_results(results: list, show_parallel: bool = False, rich_available: bool | None = None, echo_func=None, console=None):
+def display_simulation_results(
+    results: list,
+    show_parallel: bool = False,
+    rich_available: bool | None = None,
+    echo_func=None,
+    console=None,
+):
     """Display simulation results."""
     if rich_available is None:
         rich_available = _RICH_AVAILABLE
@@ -124,7 +134,9 @@ def _display_project_simulation_results_rich(results, show_parallel: bool, conso
         _display_single_simulation_result_rich(saga_name, result, show_parallel, console=con)
 
 
-def _display_single_simulation_result_rich(saga_name: str, result, show_parallel: bool, console=None):
+def _display_single_simulation_result_rich(
+    saga_name: str, result, show_parallel: bool, console=None
+):
     """Display simulation result for a single saga."""
     con = console or _console
     con.print(f"\n[bold cyan]═══ Saga: {saga_name} ═══[/bold cyan]")
