@@ -29,7 +29,12 @@ Usage:
 
 from typing import TYPE_CHECKING, Optional
 
-from statemachine import State, StateMachine
+from statemachine import (
+    HistoryState,
+    State,
+    StateChart,
+    StateMachine,
+)
 from statemachine.exceptions import TransitionNotAllowed
 
 if TYPE_CHECKING:
@@ -240,6 +245,152 @@ class SagaStepStateMachine(StateMachine):
         # Override in saga implementation if needed
 
 
+class SagaStateChart(StateChart):
+    """
+    ADR-038 Phase 2: SCXML-compliant saga-level StateChart.
+
+    Drop-in ``StateChart``-based replacement for :class:`SagaStateMachine` when
+    Phase 2 is enabled via ``SagaConfig.use_step_statechart = True``.
+
+    Provides everything ``SagaStateMachine`` does, plus:
+
+    * ``configuration_values`` — SCXML-compliant set of currently active states
+    * Compound ``compensating`` region with a deep :class:`HistoryState`
+      (``hist``) so that an interrupted compensation sequence resumes from
+      exactly the sub-state it was in when the process crashed or was paused.
+
+    The topology mirrors the smcheck ``OrderProcessing`` pattern: the top-level
+    lifecycle states are flat, but the ``compensating`` state is a
+    ``State.Compound`` with two substates (``active`` → ``done``) and a deep
+    ``HistoryState``.  Subclasses can replace ``executing`` with a
+    ``State.Parallel`` to model concurrent workflow tracks (inventory, payment,
+    shipping…) as shown in the reference architecture.
+
+    States::
+
+        pending → executing → completed (final)
+                           ↘ compensating.active → compensating.done
+                                compensating →→ rolled_back (final)
+                           ↘ failed (final)
+
+    Usage::
+
+        # Option A — use the framework base directly:
+        sm = SagaStateChart(saga=my_saga)
+        await sm.activate_initial_state()
+        await sm.start()          # pending → executing
+        await sm.succeed()        # executing → completed
+
+        # Option B — subclass for domain-specific parallel tracks:
+        class OrderProcessingSagaStateChart(SagaStateChart):
+            class executing(State.Parallel):
+                class inventory(State.Compound): ...
+                class payment(State.Compound):   ...
+                class shipping(State.Compound):  ...
+    """
+
+    pending = State(initial=True)
+    executing = State()
+    completed = State(final=True)
+    rolled_back = State(final=True)
+    failed = State(final=True)
+
+    class compensating(State.Compound):  # noqa: N801 — state ID must be lowercase
+        hist = HistoryState(type="deep")
+        active = State(initial=True)
+        done = State(final=True)
+        advance = active.to(done)
+
+    start = pending.to(executing)
+    succeed = executing.to(completed)
+    fail = executing.to(compensating)
+    fail_unrecoverable = executing.to(failed)
+    finish_compensation = compensating.to(rolled_back)
+    compensation_failed = compensating.to(failed)
+
+    def __init__(self, saga: Optional["Saga"] = None, **kwargs):
+        self.saga = saga
+        super().__init__(**kwargs)
+
+    def has_steps(self) -> bool:
+        """Guard: can only start if we have steps defined."""
+        if self.saga is None:
+            return True
+        return len(getattr(self.saga, "steps", [])) > 0
+
+    def has_completed_steps(self) -> bool:
+        """Guard: can only compensate if we have completed steps to undo."""
+        if self.saga is None:
+            return True
+        return len(getattr(self.saga, "completed_steps", [])) > 0
+
+    async def on_enter_executing(self) -> None:
+        if self.saga and hasattr(self.saga, "_on_enter_executing"):
+            await self.saga._on_enter_executing()
+
+    async def on_enter_compensating(self) -> None:
+        if self.saga and hasattr(self.saga, "_on_enter_compensating"):
+            await self.saga._on_enter_compensating()
+
+    async def on_enter_completed(self) -> None:
+        if self.saga and hasattr(self.saga, "_on_enter_completed"):
+            await self.saga._on_enter_completed()
+
+    async def on_enter_rolled_back(self) -> None:
+        if self.saga and hasattr(self.saga, "_on_enter_rolled_back"):
+            await self.saga._on_enter_rolled_back()
+
+    async def on_enter_failed(self) -> None:
+        if self.saga and hasattr(self.saga, "_on_enter_failed"):
+            await self.saga._on_enter_failed()
+
+    async def on_exit_pending(self) -> None:
+        if self.saga and hasattr(self.saga, "_on_exit_pending"):
+            await self.saga._on_exit_pending()
+
+    async def on_exit_executing(self) -> None:
+        if self.saga and hasattr(self.saga, "_on_exit_executing"):
+            await self.saga._on_exit_executing()
+
+
+def create_step_state_machine(step_name: str = "", **_kwargs) -> SagaStepStateMachine:
+    """
+    Factory: return a :class:`SagaStepStateMachine` for the given step.
+
+    Per-step state tracking always uses :class:`SagaStepStateMachine` (Phase 1).
+    Phase 2 compound/parallel topology is modelled at the **saga level** via
+    :class:`SagaStateChart` — individual steps do not need a StateChart base.
+
+    Args:
+        step_name: Name of the saga step for observability.
+        **_kwargs: Ignored; kept for backward compatibility.
+
+    Returns:
+        An initialised :class:`SagaStepStateMachine` instance.
+    """
+    return SagaStepStateMachine(step_name=step_name)
+
+
+def create_saga_state_machine(
+    saga=None, *, use_step_statechart: bool = False
+) -> "SagaStateMachine | SagaStateChart":
+    """
+    Factory: return :class:`SagaStateChart` (Phase 2) or :class:`SagaStateMachine` (Phase 1).
+
+    Args:
+        saga: The saga instance to attach.
+        use_step_statechart: When ``True`` returns the Phase 2 :class:`SagaStateChart`
+            with the compound compensating region and SCXML ``configuration_values``.
+            Reads from ``SagaConfig.use_step_statechart``.
+
+    Returns:
+        An initialised saga state machine instance.
+    """
+    if use_step_statechart:
+        return SagaStateChart(saga=saga)
+    return SagaStateMachine(saga=saga)
+
+
 def validate_state_transition(current_state: str, target_state: str) -> bool:
     """
     Validate if a state transition is allowed.
@@ -287,9 +438,12 @@ def get_valid_next_states(current_state: str) -> list[str]:
 
 # Re-export TransitionNotAllowed for convenience
 __all__ = [
+    "SagaStateChart",
     "SagaStateMachine",
     "SagaStepStateMachine",
     "TransitionNotAllowed",
+    "create_saga_state_machine",
+    "create_step_state_machine",
     "get_valid_next_states",
     "validate_state_transition",
 ]
