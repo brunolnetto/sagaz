@@ -9,10 +9,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from sagaz.cli.examples import (
-    execute_example,
     _fallback_interactive_simple,
     discover_examples,
     discover_examples_by_domain,
+    execute_example,
     get_categories,
     get_domains,
     get_example_description,

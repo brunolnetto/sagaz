@@ -3,6 +3,7 @@ UI helpers for displaying examples in the CLI.
 """
 
 from pathlib import Path
+
 import click
 
 try:
@@ -14,7 +15,7 @@ except ImportError:
     console = None
     TableClass = None
 
-from .discovery import get_example_description, discover_examples_by_domain
+from .discovery import discover_examples_by_domain, get_example_description
 
 
 def display_examples(by_domain: dict[str, dict[str, Path]]):

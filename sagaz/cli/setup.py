@@ -3,6 +3,7 @@ Interactive setup for deployment environments.
 """
 
 import click
+
 from sagaz.cli._setup_handlers import (
     _check_project_exists,
     _display_configuration_summary,

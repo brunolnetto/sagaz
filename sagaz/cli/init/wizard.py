@@ -2,9 +2,10 @@
 Interactive wizard for project initialization.
 """
 
-from pathlib import Path
-import click
 import sys
+from pathlib import Path
+
+import click
 
 try:
     from rich.console import Console

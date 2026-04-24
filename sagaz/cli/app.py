@@ -6,6 +6,7 @@ Commands are organized into sub-modules for maintainability.
 """
 
 import sys
+
 import click
 
 from sagaz.cli import examples as cli_examples

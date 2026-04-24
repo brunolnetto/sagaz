@@ -3,6 +3,7 @@ UI and display logic for replay and time-travel commands.
 """
 
 from typing import Any
+
 import click
 
 try:
@@ -29,17 +30,17 @@ def display_replay_config(
     storage: str,
     context_override: dict,
     dry_run: bool,
-    rich_available: bool = None,
+    rich_available: bool | None = None,
     echo_func=None,
     console=None
 ):
     """Display replay configuration."""
     if rich_available is None:
         rich_available = _HAS_RICH
-    
+
     con = console or _console
     echo = echo_func or click.echo
-        
+
     if rich_available and con:
         con.print(
             Panel(
@@ -57,11 +58,11 @@ def display_replay_config(
         echo(f"Replaying saga {saga_id} from step {from_step}...")
 
 
-def display_success(rich_available: bool = None, echo_func=None, console=None):
+def display_success(rich_available: bool | None = None, echo_func=None, console=None):
     """Display success message."""
     if rich_available is None:
         rich_available = _HAS_RICH
-        
+
     con = console or _console
     echo = echo_func or click.echo
 
@@ -71,7 +72,7 @@ def display_success(rich_available: bool = None, echo_func=None, console=None):
         echo("✓ Replay completed successfully")
 
 
-def display_failure(rich_available: bool = None, echo_func=None, console=None):
+def display_failure(rich_available: bool | None = None, echo_func=None, console=None):
     """Display failure message."""
     if rich_available is None:
         rich_available = _HAS_RICH
@@ -85,7 +86,7 @@ def display_failure(rich_available: bool = None, echo_func=None, console=None):
         echo("✗ Replay failed", err=True)
 
 
-def handle_exception(e: Exception, verbose: bool, rich_available: bool = None, echo_func=None, console=None):
+def handle_exception(e: Exception, verbose: bool, rich_available: bool | None = None, echo_func=None, console=None):
     """Handle and display exception."""
     if rich_available is None:
         rich_available = _HAS_RICH
@@ -102,14 +103,14 @@ def handle_exception(e: Exception, verbose: bool, rich_available: bool = None, e
         traceback.print_exc()
 
 
-def show_checkpoints(checkpoints: list, verbose: bool, rich_available: bool = None, echo_func=None, console=None):
+def show_checkpoints(checkpoints: list, verbose: bool, rich_available: bool | None = None, echo_func=None, console=None):
     """Display available checkpoints."""
     if not verbose:
         return
 
     if rich_available is None:
         rich_available = _HAS_RICH
-        
+
     con = console or _console
     echo = echo_func or click.echo
 
@@ -126,14 +127,14 @@ def show_checkpoints(checkpoints: list, verbose: bool, rich_available: bool = No
             echo(f"  - {cp['step_name']} at {cp['created_at']}")
 
 
-def show_replay_result(result, verbose: bool, dry_run: bool, rich_available: bool = None, echo_func=None, console=None):
+def show_replay_result(result, verbose: bool, dry_run: bool, rich_available: bool | None = None, echo_func=None, console=None):
     """Display replay result."""
     if not (verbose or dry_run):
         return
 
     if rich_available is None:
         rich_available = _HAS_RICH
-        
+
     con = console or _console
     echo = echo_func or click.echo
 
@@ -167,11 +168,11 @@ def display_key_value(key: str, value: Any, output_format: str, echo_func=None):
         echo(f"{key}: {value}")
 
 
-def display_full_state(state, output_format: str, rich_available: bool = None, echo_func=None, console=None):
+def display_full_state(state, output_format: str, rich_available: bool | None = None, echo_func=None, console=None):
     """Display full saga state."""
     if rich_available is None:
         rich_available = _HAS_RICH
-        
+
     con = console or _console
     echo = echo_func or click.echo
 
@@ -217,11 +218,11 @@ def _display_state_text(state, echo_func=None):
         echo(f"  {k}: {v}")
 
 
-def display_changes(changes: list, saga_id: Any, rich_available: bool = None, echo_func=None, console=None):
+def display_changes(changes: list, saga_id: Any, rich_available: bool | None = None, echo_func=None, console=None):
     """Display state changes."""
     if rich_available is None:
         rich_available = _HAS_RICH
-        
+
     con = console or _console
     echo = echo_func or click.echo
 

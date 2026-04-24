@@ -1,14 +1,16 @@
-import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from sagaz.cli.examples.interactive import (
-    _format_category_name,
-    interactive_cmd,
     _category_menu_loop,
     _domain_category_menu_loop,
-    _examples_menu_loop
+    _examples_menu_loop,
+    _format_category_name,
+    interactive_cmd,
 )
+
 
 class TestInteractiveExamples:
     def test_format_category_name(self):
@@ -30,7 +32,7 @@ class TestInteractiveExamples:
                 mock_instance = mock_menu.return_value
                 # Select "Business" (index 0), then "Exit" from category menu (index 2)
                 # Then "Exit" from main menu (index 2)
-                mock_instance.show.side_effect = [0, 2, 2] 
+                mock_instance.show.side_effect = [0, 2, 2]
                 with patch("sagaz.cli.examples.interactive._domain_category_menu_loop", return_value="exit"):
                     _category_menu_loop()
 
@@ -69,7 +71,7 @@ class TestInteractiveExamples:
                 # Select "Back" (index 2)
                 mock_instance.show.return_value = 2
                 assert _examples_menu_loop("commerce") == "back"
-                
+
                 # Select "Exit" (index 3)
                 mock_instance.show.return_value = 3
                 assert _examples_menu_loop("commerce") == "exit"

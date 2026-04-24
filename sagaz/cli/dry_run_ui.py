@@ -16,26 +16,26 @@ except ImportError:
     Panel = None
     Table = None
 
-def display_validation_results(results: list, rich_available: bool = None, echo_func=None, console=None):
+def display_validation_results(results: list, rich_available: bool | None = None, echo_func=None, console=None):
     """Display validation results."""
     if rich_available is None:
         rich_available = _RICH_AVAILABLE
-    
+
     con = console or _console
-    
+
     if rich_available and con:
         _display_project_validation_results_rich(results, console=con)
     else:
         display_project_validation_results_plain(results, echo_func=echo_func)
 
 
-def display_simulation_results(results: list, show_parallel: bool = False, rich_available: bool = None, echo_func=None, console=None):
+def display_simulation_results(results: list, show_parallel: bool = False, rich_available: bool | None = None, echo_func=None, console=None):
     """Display simulation results."""
     if rich_available is None:
         rich_available = _RICH_AVAILABLE
-        
+
     con = console or _console
-        
+
     if rich_available and con:
         _display_project_simulation_results_rich(results, show_parallel, console=con)
     else:
@@ -187,7 +187,7 @@ def display_project_simulation_results_plain(results, show_parallel: bool, echo_
         echo(f"Saga {saga_name} Simulation:")
         if result.success:
             echo(f"  Steps: {', '.join(result.steps_planned)}")
-            if hasattr(result, 'execution_order'):
+            if hasattr(result, "execution_order"):
                 echo(f"  Execution Order: {' -> '.join(result.execution_order)}")
         else:
             echo("  Simulation failed validation.")

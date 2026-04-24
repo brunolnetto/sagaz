@@ -201,7 +201,6 @@ class MermaidGenerator:
         if not self.show_state_markers:
             return
 
-        duration_label = f'"{self.trail.total_duration}"' if self.trail.total_duration else "◎"
 
         if self._has_trail:
             if self.trail.failed_step:
@@ -270,12 +269,12 @@ class MermaidGenerator:
         """Add a link between two steps with trail highlighting."""
         src_step = self._step_map.get(src)
         dst_step = self._step_map.get(dst)
-        
+
         # If either step is missing from the map (should only happen in invalid/test graphs),
         # we treat it as not touched.
         src_touched = self._is_step_touched(src_step) if src_step else False
         dst_touched = self._is_step_touched(dst_step) if dst_step else False
-        
+
         highlight = src_touched and dst_touched
         if self._has_trail and not highlight:
             return
@@ -403,7 +402,7 @@ class MermaidGenerator:
             state.add_line(f"class {self.trail.failed_step} failure")
         if self.trail.compensated:
             state.add_line(f"class {','.join(f'comp_{s}' for s in sorted(self.trail.compensated))} compensation")
-        
+
         if self.show_state_markers:
             markers = ["START", "ROLLED_BACK" if self.trail.failed_step else "SUCCESS"]
             state.add_line(f"class {','.join(markers)} startEnd")
@@ -414,10 +413,10 @@ class MermaidGenerator:
             self._apply_zone_classes(state)
         else:
             state.add_line(f"class {','.join(s.name for s in self.steps)} success")
-        
+
         if self.show_compensation and self._compensable_steps:
             state.add_line(f"class {','.join(f'comp_{s.name}' for s in self._compensable_steps)} compensation")
-        
+
         if self.show_state_markers:
             markers = ["START", "SUCCESS"]
             if self.show_compensation and self._compensable_steps:
@@ -436,7 +435,7 @@ class MermaidGenerator:
                 zones["committed"].append(s.name)
             else:
                 zones["reversible"].append(s.name)
-        
+
         for zone, names in zones.items():
             if names:
                 state.add_line(f"class {','.join(names)} {zone}")

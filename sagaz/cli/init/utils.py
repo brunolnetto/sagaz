@@ -4,6 +4,7 @@ Common utilities for Sagaz CLI initialization.
 
 import importlib.resources as pkg_resources
 from pathlib import Path
+
 import click
 
 try:

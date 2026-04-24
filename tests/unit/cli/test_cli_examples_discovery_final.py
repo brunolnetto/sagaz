@@ -1,16 +1,18 @@
-import pytest
-from pathlib import Path
-from unittest.mock import MagicMock, patch, mock_open
 import sys
+from pathlib import Path
+from unittest.mock import MagicMock, mock_open, patch
+
+import pytest
 
 from sagaz.cli.examples.discovery import (
-    get_examples_dir,
     _check_subdomain_for_main_file,
-    discover_examples,
+    _collect_examples_by_subdomain,
     _find_example_files,
+    discover_examples,
     discover_examples_by_domain,
-    _collect_examples_by_subdomain
+    get_examples_dir,
 )
+
 
 class TestDiscoveryFinal:
     def test_get_examples_dir_final_fallback(self):
@@ -49,6 +51,6 @@ class TestDiscoveryFinal:
         assert _collect_examples_by_subdomain(tmp_path) == {}
 
     def test_collect_examples_relative_to_fails(self, tmp_path):
-        # This is hard to trigger without real os.walk issues, 
+        # This is hard to trigger without real os.walk issues,
         # but we can mock relative_to on the Path objects if needed.
         pass

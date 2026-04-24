@@ -503,7 +503,6 @@ class SagaExecutionGraph:
             else 0
         )
 
-        last_error: Exception | None = None
 
         for attempt in range(max_retries + 1):
             try:
@@ -527,14 +526,14 @@ class SagaExecutionGraph:
 
                 return result
 
-            except Exception as e:
-                last_error = e
+            except Exception:
                 if attempt < max_retries:
                     # Exponential backoff before retry
                     await asyncio.sleep(2**attempt * 0.1)
                     continue
                 # No more retries, raise the error
                 raise
+        return None
 
     def _should_skip_step(
         self,

@@ -1,24 +1,26 @@
-import pytest
-from pathlib import Path
-from unittest.mock import MagicMock, patch, mock_open
 import subprocess
 import sys
+from pathlib import Path
+from unittest.mock import MagicMock, mock_open, patch
+
+import pytest
 
 from sagaz.cli.examples.execution import (
-    execute_example,
-    _check_requirements,
-    _parse_package_name,
     _check_package_installed,
+    _check_requirements,
     _display_missing_packages,
-    _prompt_user_continue
+    _parse_package_name,
+    _prompt_user_continue,
+    execute_example,
 )
+
 
 class TestExampleExecution:
     def test_execute_example_requirements_keyboard_interrupt(self, tmp_path):
         req_file = tmp_path / "requirements.txt"
         req_file.write_text("some-pkg")
         script = tmp_path / "script.py"
-        
+
         with patch("sagaz.cli.examples.execution._check_requirements") as mock_check:
             mock_check.side_effect = KeyboardInterrupt
             with patch("sagaz.cli.examples.execution.console") as mock_console:
@@ -32,7 +34,7 @@ class TestExampleExecution:
             with patch("pathlib.Path.exists") as mock_exists:
                 mock_exists.return_value = True # Pretend requirements.txt exists
                 execute_example(script)
-                
+
                 captured = capsys.readouterr()
                 assert "Example failed with exit code 1" in captured.out
                 assert "This example may require additional dependencies" in captured.out
@@ -70,7 +72,7 @@ class TestExampleExecution:
             mock_find.return_value = MagicMock()
             assert _check_package_installed("python-dotenv") is True
             mock_find.assert_called_with("dotenv")
-            
+
             assert _check_package_installed("pillow") is True
             mock_find.assert_called_with("PIL")
 

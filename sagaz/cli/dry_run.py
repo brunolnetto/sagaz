@@ -13,7 +13,11 @@ import click
 
 from sagaz.cli.dry_run_ui import (
     display_project_simulation_results_plain as _display_project_simulation_results_plain_ui,
+)
+from sagaz.cli.dry_run_ui import (
     display_project_validation_results_plain as _display_project_validation_results_plain_ui,
+)
+from sagaz.cli.dry_run_ui import (
     display_simulation_results,
     display_validation_results,
 )
@@ -45,16 +49,14 @@ def _display_validation_results(results, rich_available=None):
         rich_available = RICH_AVAILABLE
     if rich_available:
         return _display_project_validation_results_rich(results)
-    else:
-        return _display_project_validation_results_plain(results)
+    return _display_project_validation_results_plain(results)
 
 def _display_simulation_results(results, show_parallel=False, rich_available=None):
     if rich_available is None:
         rich_available = RICH_AVAILABLE
     if rich_available:
         return _display_project_simulation_results_rich(results, show_parallel)
-    else:
-        return _display_project_simulation_results_plain(results, show_parallel)
+    return _display_project_simulation_results_plain(results, show_parallel)
 
 def _display_project_validation_results_plain(results):
     return _display_project_validation_results_plain_ui(results, echo_func=click.echo)
@@ -91,7 +93,7 @@ def validate_cmd(saga: str | None, context: str, interactive: bool):
     """Validate saga configuration for project."""
     ctx = json.loads(context)
     sagas = _discover_and_select_sagas(saga, "validate", interactive)
-    
+
     # Use aliases for test patching
     results = _run_validation_for_sagas(sagas, ctx)
     _display_validation_results(results)
@@ -111,7 +113,7 @@ def simulate_cmd(saga: str | None, context: str, show_parallel: bool, interactiv
     """Simulate saga execution and show step order."""
     ctx = json.loads(context)
     sagas = _discover_and_select_sagas(saga, "simulate", interactive)
-    
+
     # Use aliases for test patching
     results = _run_simulation_for_sagas(sagas, ctx)
     _display_simulation_results(results, show_parallel)

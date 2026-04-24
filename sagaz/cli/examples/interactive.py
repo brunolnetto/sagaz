@@ -3,6 +3,7 @@ Interactive menu logic for Sagaz examples.
 """
 
 from pathlib import Path
+
 import click
 
 try:
@@ -18,11 +19,7 @@ except ImportError:
     TERM_MENU_AVAILABLE = False
     TerminalMenu = None
 
-from .discovery import (
-    get_domains, 
-    discover_examples, 
-    get_example_description
-)
+from .discovery import discover_examples, get_domains, get_example_description
 from .execution import execute_example
 
 

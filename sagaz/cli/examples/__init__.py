@@ -3,24 +3,26 @@ CLI group for discovery and running Sagaz examples.
 Modified to maintain backward compatibility with tests (v1.6.1).
 """
 
-import click
 import logging
+
+import click
+
 from .discovery import (
-    get_examples_dir,
-    get_categories,
-    get_domains,
     discover_examples,
     discover_examples_by_domain,
+    get_categories,
+    get_domains,
     get_example_description,
+    get_examples_dir,
 )
-from .ui import display_examples, console, TableClass
 from .execution import execute_example
 from .interactive import (
-    interactive_cmd,
     _category_menu_loop,
     _examples_menu_loop,
     _fallback_interactive_simple,
+    interactive_cmd,
 )
+from .ui import TableClass, console, display_examples
 
 logger = logging.getLogger(__name__)
 

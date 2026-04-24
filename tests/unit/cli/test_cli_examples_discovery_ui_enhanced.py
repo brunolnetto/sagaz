@@ -1,16 +1,18 @@
-import pytest
-from pathlib import Path
-from unittest.mock import MagicMock, patch, mock_open
 import os
+from pathlib import Path
+from unittest.mock import MagicMock, mock_open, patch
+
+import pytest
 
 from sagaz.cli.examples.discovery import (
-    get_examples_dir,
-    get_categories,
     discover_examples,
     discover_examples_by_domain,
-    get_example_description
+    get_categories,
+    get_example_description,
+    get_examples_dir,
 )
 from sagaz.cli.examples.ui import display_examples
+
 
 class TestDiscoveryEnhanced:
     def test_get_examples_dir_fallbacks(self):

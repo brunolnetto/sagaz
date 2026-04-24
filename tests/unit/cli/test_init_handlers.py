@@ -71,7 +71,7 @@ class TestCreateInmemoryDockerCompose:
     def test_creates_file(self, tmp_path):
         from sagaz.cli._init_handlers import _create_inmemory_docker_compose
 
-        with patch("sagaz.cli.init.utils.click") as mock_click:
+        with patch("sagaz.cli.init.utils.click"):
             old_cwd = Path.cwd()
             import os
 

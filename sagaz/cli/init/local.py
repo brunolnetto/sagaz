@@ -1,6 +1,8 @@
 import sys
 from pathlib import Path
+
 from . import utils
+
 
 def init_local(
     broker: str,
