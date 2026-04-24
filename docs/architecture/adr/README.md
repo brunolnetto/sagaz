@@ -45,6 +45,7 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 
 | ADR | Title | Target | Description |
 |-----|-------|--------|-------------|
+| [ADR-039](adr-039-gradio-ui-monitor.md) | Gradio-Based Saga Asset Monitor | v1.7.0 | Zero-config developer monitor |
 
 ### Low Priority / Future
 
