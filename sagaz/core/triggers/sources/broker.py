@@ -95,6 +95,7 @@ class BrokerTriggerConsumer:
             try:
                 await self._task
             except asyncio.CancelledError:
+                # Normal cancellation during shutdown
                 pass
             self._task = None
         logger.info("Broker trigger consumer stopped")

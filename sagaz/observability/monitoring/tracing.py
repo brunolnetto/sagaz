@@ -411,6 +411,7 @@ def setup_tracing(
             trace.get_tracer_provider().add_span_processor(span_processor)  # type: ignore[attr-defined]
 
         except ImportError:
+            # OpenTelemetry OTLP exporter not installed; graceful degradation to no-op
             pass
 
     return SagaTracer(service_name)
