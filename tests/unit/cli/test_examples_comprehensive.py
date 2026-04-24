@@ -327,7 +327,7 @@ class TestCLIOutputFormatting:
 
     def test_plain_output_fallback(self, runner):
         """Test plain output when rich unavailable."""
-        with patch("sagaz.cli.examples.console", None):
+        with patch("sagaz.cli.examples.ui.console", None):
             result = runner.invoke(examples_cli, ["list"])
             assert result.exit_code in [0, 1]
 

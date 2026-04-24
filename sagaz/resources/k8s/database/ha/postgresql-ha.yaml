@@ -1,0 +1,379 @@
+---
+# ============================================================================
+# PostgreSQL High-Availability StatefulSet
+# ============================================================================
+# This manifest deploys PostgreSQL with:
+# - 1 Primary (pod-0) - accepts writes
+# - 2+ Replicas (pod-1, pod-2, ...) - streaming replication
+# - Automatic failover support (via external tools like Patroni/Repmgr)
+# ============================================================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgresql-ha-config
+  namespace: sagaz
+  labels:
+    app: postgresql
+    component: database
+data:
+  # PostgreSQL configuration for replication
+  postgresql.conf: |
+    # Replication settings
+    wal_level = replica
+    hot_standby = on
+    max_wal_senders = 10
+    max_replication_slots = 10
+    hot_standby_feedback = on
+    
+    # Performance tuning
+    shared_buffers = 1GB
+    effective_cache_size = 3GB
+    maintenance_work_mem = 256MB
+    checkpoint_completion_target = 0.9
+    wal_buffers = 16MB
+    default_statistics_target = 100
+    random_page_cost = 1.1
+    effective_io_concurrency = 200
+    work_mem = 10MB
+    min_wal_size = 1GB
+    max_wal_size = 4GB
+    
+    # Connection pooling preparation
+    max_connections = 200
+    
+    # Logging
+    log_statement = 'ddl'
+    log_min_duration_statement = 1000
+    log_line_prefix = '%t [%p]: [%l-1] user=%u,db=%d,app=%a,client=%h '
+    
+    # Extensions
+    shared_preload_libraries = 'pg_stat_statements'
+    pg_stat_statements.track = all
+
+  pg_hba.conf: |
+    # TYPE  DATABASE        USER            ADDRESS                 METHOD
+    # Local connections
+    local   all             all                                     trust
+    host    all             all             127.0.0.1/32            trust
+    host    all             all             ::1/128                 trust
+    
+    # Allow connections from all pods in the cluster
+    host    all             all             0.0.0.0/0               md5
+    
+    # Replication connections
+    host    replication     postgres        0.0.0.0/0               trust
+    host    replication     replicator      0.0.0.0/0               trust
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgresql
+  namespace: sagaz
+  labels:
+    app: postgresql
+    component: database
+spec:
+  serviceName: postgresql-headless
+  replicas: 3  # 1 primary + 2 replicas
+  selector:
+    matchLabels:
+      app: postgresql
+  
+  # Pod management policy for ordered startup
+  podManagementPolicy: OrderedReady
+  
+  template:
+    metadata:
+      labels:
+        app: postgresql
+    spec:
+      securityContext:
+        fsGroup: 999
+        runAsUser: 999
+        runAsNonRoot: true
+      
+      # Init container to determine if this is primary or replica
+      initContainers:
+        - name: init-postgresql
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              echo "Pod: $POD_NAME, Ordinal: $POD_ORDINAL"
+              
+              # pod-0 is always primary
+              if [ "$POD_ORDINAL" = "0" ]; then
+                echo "This is the PRIMARY node"
+                mkdir -p /var/lib/postgresql/data/pgdata
+                
+                # If data doesn't exist, initialize
+                if [ ! -f /var/lib/postgresql/data/pgdata/PG_VERSION ]; then
+                  echo "Initializing primary database..."
+                  initdb -D /var/lib/postgresql/data/pgdata
+                fi
+              else
+                echo "This is a REPLICA node"
+                
+                # If data doesn't exist, clone from primary
+                if [ ! -f /var/lib/postgresql/data/pgdata/PG_VERSION ]; then
+                  echo "Cloning from primary (postgresql-0)..."
+                  rm -rf /var/lib/postgresql/data/pgdata/*
+                  
+                  # Wait for primary to be ready
+                  until pg_isready -h postgresql-0.postgresql-headless.sagaz.svc.cluster.local -p 5432; do
+                    echo "Waiting for primary to be ready..."
+                    sleep 2
+                  done
+                  
+                  # Clone database from primary
+                  pg_basebackup \
+                    -h postgresql-0.postgresql-headless.sagaz.svc.cluster.local \
+                    -U postgres \
+                    -D /var/lib/postgresql/data/pgdata \
+                    -Fp -Xs -P -R
+                  
+                  # Create standby signal
+                  touch /var/lib/postgresql/data/pgdata/standby.signal
+                  
+                  # Configure replication
+                  cat >> /var/lib/postgresql/data/pgdata/postgresql.auto.conf <<EOF
+              primary_conninfo = 'host=postgresql-0.postgresql-headless.sagaz.svc.cluster.local port=5432 user=postgres'
+              EOF
+                fi
+              fi
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_ORDINAL
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['apps.kubernetes.io/pod-index']
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      
+      containers:
+        - name: postgresql
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: sagaz-db-credentials
+                  key: postgres-password
+            - name: POSTGRES_DB
+              value: sagaz
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          
+          ports:
+            - name: postgresql
+              containerPort: 5432
+              protocol: TCP
+          
+          # Health checks
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - exec pg_isready -U postgres -h 127.0.0.1 -p 5432
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - exec pg_isready -U postgres -h 127.0.0.1 -p 5432
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          
+          # Resource limits
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 2000m
+              memory: 4Gi
+          
+          # Volume mounts
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: config
+              mountPath: /etc/postgresql/postgresql.conf
+              subPath: postgresql.conf
+            - name: config
+              mountPath: /etc/postgresql/pg_hba.conf
+              subPath: pg_hba.conf
+      
+      volumes:
+        - name: config
+          configMap:
+            name: postgresql-ha-config
+  
+  # Persistent volume claim template
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: standard  # Change to your storage class
+        resources:
+          requests:
+            storage: 50Gi
+
+---
+# Headless service for StatefulSet (required for pod DNS)
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql-headless
+  namespace: sagaz
+  labels:
+    app: postgresql
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: postgresql
+      port: 5432
+      targetPort: postgresql
+      protocol: TCP
+  selector:
+    app: postgresql
+
+---
+# Service for PRIMARY (write traffic) - targets pod-0 only
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql-primary
+  namespace: sagaz
+  labels:
+    app: postgresql
+    role: primary
+spec:
+  type: ClusterIP
+  ports:
+    - name: postgresql
+      port: 5432
+      targetPort: postgresql
+      protocol: TCP
+  # Use selector with statefulset.kubernetes.io/pod-name
+  # This ensures only pod-0 receives traffic
+  selector:
+    app: postgresql
+    statefulset.kubernetes.io/pod-name: postgresql-0
+
+---
+# Service for REPLICAS (read traffic) - load balances across pod-1, pod-2, ...
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql-read
+  namespace: sagaz
+  labels:
+    app: postgresql
+    role: replica
+spec:
+  type: ClusterIP
+  ports:
+    - name: postgresql
+      port: 5432
+      targetPort: postgresql
+      protocol: TCP
+  # This will load balance across ALL pods
+  # Application should read from replicas, not primary
+  selector:
+    app: postgresql
+  # Use session affinity for long-running analytics queries
+  sessionAffinity: ClientIP
+
+---
+# Partition Maintenance CronJob
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgresql-partition-maintenance
+  namespace: sagaz
+  labels:
+    app: postgresql
+    component: maintenance
+spec:
+  # Run daily at 2 AM
+  schedule: "0 2 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: postgresql
+            component: partition-maintenance
+        spec:
+          restartPolicy: OnFailure
+          
+          containers:
+            - name: partition-maintenance
+              image: postgres:16-alpine
+              env:
+                - name: PGHOST
+                  value: postgresql-primary
+                - name: PGPORT
+                  value: "5432"
+                - name: PGUSER
+                  value: postgres
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: sagaz-db-credentials
+                      key: postgres-password
+                - name: PGDATABASE
+                  value: sagaz
+              
+              command:
+                - sh
+                - -c
+                - |
+                  echo "Running partition maintenance..."
+                  psql -c "SELECT * FROM maintain_all_partitions();"
+                  echo "Partition maintenance complete!"
+                  
+                  echo "Running consumer inbox cleanup (90 days)..."
+                  psql -c "SELECT cleanup_consumer_inbox(90);"
+                  echo "Cleanup complete!"
+              
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi

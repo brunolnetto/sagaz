@@ -1,0 +1,1 @@
+# Sagaz resources package.

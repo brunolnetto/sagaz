@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from sagaz.cli.examples import (
-    _execute_example,
+    execute_example,
     _fallback_interactive_simple,
     discover_examples,
     discover_examples_by_domain,
@@ -50,7 +50,7 @@ class TestGetCategories:
         result = get_categories()
         assert result == sorted(result)
 
-    @patch("sagaz.cli.examples.get_examples_dir")
+    @patch("sagaz.cli.examples.discovery.get_examples_dir")
     def test_empty_when_dir_not_exists(self, mock_dir):
         """Test returns empty list when examples dir doesn't exist."""
         mock_path = MagicMock()
@@ -129,7 +129,7 @@ class TestDiscoverExamples:
                 for name in filtered:
                     assert name.startswith(category)
 
-    @patch("sagaz.cli.examples.get_examples_dir")
+    @patch("sagaz.cli.examples.discovery.get_examples_dir")
     def test_empty_when_dir_not_exists(self, mock_dir):
         """Test returns empty dict when examples dir doesn't exist."""
         mock_path = MagicMock()
@@ -139,7 +139,7 @@ class TestDiscoverExamples:
         result = discover_examples()
         assert result == {}
 
-    @patch("sagaz.cli.examples.get_examples_dir")
+    @patch("sagaz.cli.examples.discovery.get_examples_dir")
     def test_category_not_found(self, mock_dir):
         """Test returns empty dict when category dir doesn't exist."""
         mock_examples = MagicMock()
@@ -201,7 +201,7 @@ class TestListExamplesCmd:
     """Tests for list_examples_cmd function."""
 
     @patch("sagaz.cli.examples.discover_examples_by_domain")
-    @patch("sagaz.cli.examples.console")
+    @patch("sagaz.cli.examples.ui.console")
     def test_no_examples_found(self, mock_console, mock_discover):
         """Test output when no examples found."""
         mock_discover.return_value = {}
@@ -210,10 +210,10 @@ class TestListExamplesCmd:
         # Should not raise
         list_examples_cmd()
 
-    @patch("sagaz.cli.examples.get_example_description")
+    @patch("sagaz.cli.examples.discovery.get_example_description")
     @patch("sagaz.cli.examples.discover_examples_by_domain")
-    @patch("sagaz.cli.examples.console")
-    @patch("sagaz.cli.examples.TableClass")
+    @patch("sagaz.cli.examples.ui.console")
+    @patch("sagaz.cli.examples.ui.TableClass")
     def test_examples_listed(self, mock_table_class, mock_console, mock_discover, mock_desc):
         """Test examples are listed in table with subdomain column."""
         mock_discover.return_value = {
@@ -257,7 +257,7 @@ class TestRunExampleCmd:
         assert "not found" in call_args.lower()
 
     @patch("sagaz.cli.examples.discover_examples_by_domain")
-    @patch("sagaz.cli.examples._execute_example")
+    @patch("sagaz.cli.examples.execute_example")
     @patch("click.echo")
     def test_example_executed(self, mock_echo, mock_execute, mock_discover):
         """Test example is executed when found."""
@@ -271,7 +271,7 @@ class TestRunExampleCmd:
 
 
 class TestExecuteExample:
-    """Tests for _execute_example function."""
+    """Tests for execute_example function."""
 
     @patch("subprocess.run")
     @patch("sys.executable", "/usr/bin/python3")
@@ -279,7 +279,7 @@ class TestExecuteExample:
         """Test that subprocess is called."""
         script_path = Path("/tmp/test/main.py")
 
-        _execute_example(script_path)
+        execute_example(script_path)
 
         mock_run.assert_called_once()
         args = mock_run.call_args[0][0]
@@ -294,7 +294,7 @@ class TestExecuteExample:
 
         mock_run.side_effect = subprocess.CalledProcessError(1, "python")
 
-        _execute_example(Path("/tmp/test/main.py"))
+        execute_example(Path("/tmp/test/main.py"))
 
         # Should show error message
         call_args = str(mock_echo.call_args)
@@ -306,7 +306,7 @@ class TestExecuteExample:
         """Test handles Ctrl+C gracefully."""
         mock_run.side_effect = KeyboardInterrupt()
 
-        _execute_example(Path("/tmp/test/main.py"))
+        execute_example(Path("/tmp/test/main.py"))
 
         mock_echo.assert_called()
 
@@ -314,8 +314,8 @@ class TestExecuteExample:
 class TestInteractiveCmd:
     """Tests for interactive_cmd function."""
 
-    @patch("sagaz.cli.examples.TERM_MENU_AVAILABLE", False)
-    @patch("sagaz.cli.examples.discover_examples")
+    @patch("sagaz.cli.examples.interactive.TERM_MENU_AVAILABLE", False)
+    @patch("sagaz.cli.examples.interactive.discover_examples")
     @patch("click.echo")
     def test_no_examples_found(self, mock_echo, mock_discover):
         """Test output when no examples found."""
@@ -325,9 +325,9 @@ class TestInteractiveCmd:
 
         mock_echo.assert_called()
 
-    @patch("sagaz.cli.examples.TERM_MENU_AVAILABLE", False)
-    @patch("sagaz.cli.examples.discover_examples")
-    @patch("sagaz.cli.examples._fallback_interactive_simple")
+    @patch("sagaz.cli.examples.interactive.TERM_MENU_AVAILABLE", False)
+    @patch("sagaz.cli.examples.interactive.discover_examples")
+    @patch("sagaz.cli.examples.interactive._fallback_interactive_simple")
     def test_uses_fallback_when_no_term_menu(self, mock_fallback, mock_discover):
         """Test falls back to numbered menu when term menu unavailable."""
         mock_discover.return_value = {"test": Path("/tmp/test/main.py")}
@@ -337,16 +337,16 @@ class TestInteractiveCmd:
         # Should call fallback when term menu not available
         mock_fallback.assert_called_once()
 
-    @patch("sagaz.cli.examples.TERM_MENU_AVAILABLE", True)
-    @patch("sagaz.cli.examples._category_menu_loop")
+    @patch("sagaz.cli.examples.interactive.TERM_MENU_AVAILABLE", True)
+    @patch("sagaz.cli.examples.interactive._category_menu_loop")
     def test_uses_term_menu_when_available(self, mock_menu_loop):
         """Test uses term menu when available and no category specified."""
         interactive_cmd()
 
         mock_menu_loop.assert_called_once()
 
-    @patch("sagaz.cli.examples.TERM_MENU_AVAILABLE", True)
-    @patch("sagaz.cli.examples._examples_menu_loop")
+    @patch("sagaz.cli.examples.interactive.TERM_MENU_AVAILABLE", True)
+    @patch("sagaz.cli.examples.interactive._examples_menu_loop")
     def test_uses_examples_menu_with_category(self, mock_menu_loop):
         """Test goes directly to examples menu when category specified."""
         interactive_cmd(category="ecommerce")
@@ -357,10 +357,10 @@ class TestInteractiveCmd:
 class TestFallbackInteractive:
     """Tests for _fallback_interactive_simple function."""
 
-    @patch("sagaz.cli.examples.discover_examples")
+    @patch("sagaz.cli.examples.interactive.discover_examples")
     @patch("click.prompt")
     @patch("click.echo")
-    @patch("sagaz.cli.examples.get_example_description")
+    @patch("sagaz.cli.examples.discovery.get_example_description")
     def test_quit_option(self, mock_desc, mock_echo, mock_prompt, mock_discover):
         """Test user can quit with 0."""
         mock_discover.return_value = {"test/example": Path("/tmp/test/main.py")}
@@ -371,12 +371,12 @@ class TestFallbackInteractive:
 
         # Should not raise
 
-    @patch("sagaz.cli.examples.discover_examples")
+    @patch("sagaz.cli.examples.interactive.discover_examples")
     @patch("builtins.input")
     @patch("click.prompt")
     @patch("click.echo")
-    @patch("sagaz.cli.examples.get_example_description")
-    @patch("sagaz.cli.examples._execute_example")
+    @patch("sagaz.cli.examples.discovery.get_example_description")
+    @patch("sagaz.cli.examples.execute_example")
     def test_selects_example(
         self, mock_execute, mock_desc, mock_echo, mock_prompt, mock_input, mock_discover
     ):
@@ -389,10 +389,10 @@ class TestFallbackInteractive:
 
         _fallback_interactive_simple()
 
-    @patch("sagaz.cli.examples.discover_examples")
+    @patch("sagaz.cli.examples.interactive.discover_examples")
     @patch("click.prompt")
     @patch("click.echo")
-    @patch("sagaz.cli.examples.get_example_description")
+    @patch("sagaz.cli.examples.discovery.get_example_description")
     def test_invalid_number(self, mock_desc, mock_echo, mock_prompt, mock_discover):
         """Test handles invalid number."""
         mock_discover.return_value = {"test/example": Path("/tmp/test/main.py")}
@@ -401,10 +401,10 @@ class TestFallbackInteractive:
 
         _fallback_interactive_simple()
 
-    @patch("sagaz.cli.examples.discover_examples")
+    @patch("sagaz.cli.examples.interactive.discover_examples")
     @patch("click.prompt")
     @patch("click.echo")
-    @patch("sagaz.cli.examples.get_example_description")
+    @patch("sagaz.cli.examples.discovery.get_example_description")
     def test_value_error(self, mock_desc, mock_echo, mock_prompt, mock_discover):
         """Test handles ValueError from non-numeric input."""
         mock_discover.return_value = {"test/example": Path("/tmp/test/main.py")}
@@ -413,7 +413,7 @@ class TestFallbackInteractive:
 
         _fallback_interactive_simple()
 
-    @patch("sagaz.cli.examples.discover_examples")
+    @patch("sagaz.cli.examples.interactive.discover_examples")
     @patch("click.echo")
     def test_no_examples(self, mock_echo, mock_discover):
         """Test handles no examples found."""

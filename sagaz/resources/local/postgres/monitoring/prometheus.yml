@@ -1,0 +1,81 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'sagaz-local'
+    environment: 'development'
+
+# Alertmanager configuration (optional)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['alertmanager:9093']
+
+# Load rules once and periodically evaluate them
+rule_files:
+  # - "alerts/*.yml"
+
+# Scrape configurations
+scrape_configs:
+  # ============================================================================
+  # PostgreSQL Exporter (Primary)
+  # ============================================================================
+  - job_name: 'postgres-primary'
+    static_configs:
+      - targets: ['postgres-exporter-primary:9187']
+        labels:
+          role: 'primary'
+          instance: 'postgres-primary'
+
+  # ============================================================================
+  # PostgreSQL Exporter (Replica)
+  # ============================================================================
+  - job_name: 'postgres-replica'
+    static_configs:
+      - targets: ['postgres-exporter-replica:9187']
+        labels:
+          role: 'replica'
+          instance: 'postgres-replica'
+
+  # ============================================================================
+  # PgBouncer Exporter (Write Pool)
+  # ============================================================================
+  - job_name: 'pgbouncer-rw'
+    static_configs:
+      - targets: ['pgbouncer-exporter-rw:9127']
+        labels:
+          pool_type: 'write'
+          pool_mode: 'transaction'
+
+  # ============================================================================
+  # PgBouncer Exporter (Read Pool)
+  # ============================================================================
+  - job_name: 'pgbouncer-ro'
+    static_configs:
+      - targets: ['pgbouncer-exporter-ro:9127']
+        labels:
+          pool_type: 'read'
+          pool_mode: 'session'
+
+  # ============================================================================
+  # Redis Exporter
+  # ============================================================================
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  # ============================================================================
+  # Sagaz Outbox Worker Metrics
+  # ============================================================================
+  - job_name: 'sagaz-worker'
+    static_configs:
+      - targets: ['outbox-worker:8000']
+        labels:
+          component: 'outbox-worker'
+
+  # ============================================================================
+  # Prometheus Self-Scraping
+  # ============================================================================
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

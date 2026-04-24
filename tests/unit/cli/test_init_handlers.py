@@ -71,7 +71,7 @@ class TestCreateInmemoryDockerCompose:
     def test_creates_file(self, tmp_path):
         from sagaz.cli._init_handlers import _create_inmemory_docker_compose
 
-        with patch("sagaz.cli._init_handlers.click") as _mock_click:
+        with patch("sagaz.cli.init.utils.click") as mock_click:
             old_cwd = Path.cwd()
             import os
 
@@ -92,7 +92,7 @@ class TestCreateInmemoryDockerCompose:
         old_cwd = Path.cwd()
         os.chdir(tmp_path)
         try:
-            with patch("sagaz.cli._init_handlers.click"):
+            with patch("sagaz.cli.init.utils.click"):
                 _create_inmemory_docker_compose("kafka")
             content = (tmp_path / "docker-compose.yaml").read_text()
             assert "kafka" in content.lower()
@@ -114,7 +114,7 @@ class TestCopyDockerComposeFiles:
         old_cwd = Path.cwd()
         os.chdir(tmp_path)
         try:
-            with patch("sagaz.cli._init_handlers._create_inmemory_docker_compose") as m:
+            with patch("sagaz.cli.init.local._create_inmemory_docker_compose") as m:
                 _copy_docker_compose_files("redis", False, dev_mode=True)
                 m.assert_called_once_with("redis")
         finally:
@@ -124,8 +124,8 @@ class TestCopyDockerComposeFiles:
         from sagaz.cli._init_handlers import _copy_docker_compose_files
 
         with (
-            patch("sagaz.cli._init_handlers._copy_resource") as mock_res,
-            patch("sagaz.cli._init_handlers._copy_dir_resource") as _mock_dir,
+            patch("sagaz.cli.init.utils.copy_resource") as mock_res,
+            patch("sagaz.cli.init.utils.copy_dir_resource") as _mock_dir,
         ):
             _copy_docker_compose_files("redis", True, dev_mode=False)
             mock_res.assert_any_call("local/postgres-ha/docker-compose.yaml", "docker-compose.yaml")
@@ -133,7 +133,7 @@ class TestCopyDockerComposeFiles:
     def test_no_ha_no_dev(self):
         from sagaz.cli._init_handlers import _copy_docker_compose_files
 
-        with patch("sagaz.cli._init_handlers._copy_resource") as mock_res:
+        with patch("sagaz.cli.init.utils.copy_resource") as mock_res:
             _copy_docker_compose_files("redis", False, dev_mode=False)
             mock_res.assert_called_once_with(
                 "local/redis/docker-compose.yaml", "docker-compose.yaml"
@@ -155,7 +155,7 @@ class TestInitDockerCompose:
         os.chdir(tmp_path)
         try:
             (tmp_path / "docker-compose.yaml").write_text("existing")
-            with patch("sagaz.cli._init_handlers.click") as mock_click:
+            with patch("sagaz.cli.init.utils.click") as mock_click:
                 mock_click.confirm.return_value = False
                 mock_click.echo = _noop
                 _init_docker_compose("redis", False)
@@ -172,7 +172,7 @@ class TestInitDockerCompose:
         old_cwd = Path.cwd()
         os.chdir(tmp_path)
         try:
-            with patch("sagaz.cli._init_handlers._copy_docker_compose_files") as mock_copy:
+            with patch("sagaz.cli.init.local._copy_docker_compose_files") as mock_copy:
                 _init_docker_compose("redis", False)
                 mock_copy.assert_called_once()
         finally:
@@ -188,8 +188,8 @@ class TestInitDockerCompose:
         try:
             (tmp_path / "docker-compose.yaml").write_text("old")
             with (
-                patch("sagaz.cli._init_handlers.click") as mock_click,
-                patch("sagaz.cli._init_handlers._copy_docker_compose_files") as mock_copy,
+                patch("sagaz.cli.init.utils.click") as mock_click,
+                patch("sagaz.cli.init.local._copy_docker_compose_files") as mock_copy,
             ):
                 mock_click.confirm.return_value = True
                 mock_click.echo = _noop
@@ -208,14 +208,14 @@ class TestInitMonitoring:
     def test_with_ha(self):
         from sagaz.cli._init_handlers import _init_monitoring
 
-        with patch("sagaz.cli._init_handlers._copy_dir_resource") as mock_dir:
+        with patch("sagaz.cli.init.utils.copy_dir_resource") as mock_dir:
             _init_monitoring("redis", True)
             mock_dir.assert_called_once_with("local/postgres-ha/monitoring", "monitoring")
 
     def test_without_ha(self):
         from sagaz.cli._init_handlers import _init_monitoring
 
-        with patch("sagaz.cli._init_handlers._copy_dir_resource") as mock_dir:
+        with patch("sagaz.cli.init.utils.copy_dir_resource") as mock_dir:
             _init_monitoring("redis", False)
             mock_dir.assert_called_once_with("local/redis/monitoring", "monitoring")
 
@@ -230,7 +230,7 @@ class TestLogLocalInitStart:
         from sagaz.cli._init_handlers import _log_local_init_start
 
         mock_console = MagicMock()
-        with patch("sagaz.cli._init_handlers.console", mock_console):
+        with patch("sagaz.cli.init.utils.console", mock_console):
             _log_local_init_start("redis", False, "postgresql", dev_mode=True)
             mock_console.print.assert_called_once()
             msg = mock_console.print.call_args[0][0]
@@ -240,7 +240,7 @@ class TestLogLocalInitStart:
         from sagaz.cli._init_handlers import _log_local_init_start
 
         mock_console = MagicMock()
-        with patch("sagaz.cli._init_handlers.console", mock_console):
+        with patch("sagaz.cli.init.utils.console", mock_console):
             _log_local_init_start("redis", True, "postgresql", dev_mode=False)
             mock_console.print.assert_called_once()
             msg = mock_console.print.call_args[0][0]
@@ -250,14 +250,14 @@ class TestLogLocalInitStart:
         from sagaz.cli._init_handlers import _log_local_init_start
 
         mock_console = MagicMock()
-        with patch("sagaz.cli._init_handlers.console", mock_console):
+        with patch("sagaz.cli.init.utils.console", mock_console):
             _log_local_init_start("redis", False, "postgresql", dev_mode=False)
             mock_console.print.assert_called_once()
 
     def test_no_console(self):
         from sagaz.cli._init_handlers import _log_local_init_start
 
-        with patch("sagaz.cli._init_handlers.console", None):
+        with patch("sagaz.cli.init.utils.console", None):
             # Should not raise
             _log_local_init_start("redis", False, "postgresql", dev_mode=False)
 
@@ -271,14 +271,14 @@ class TestLogLocalInitComplete:
     def test_no_console(self):
         from sagaz.cli._init_handlers import _log_local_init_complete
 
-        with patch("sagaz.cli._init_handlers.console", None):
+        with patch("sagaz.cli.init.utils.console", None):
             _log_local_init_complete(True, True, True)  # must not raise
 
     def test_dev_mode(self):
         from sagaz.cli._init_handlers import _log_local_init_complete
 
         mock_console = MagicMock()
-        with patch("sagaz.cli._init_handlers.console", mock_console):
+        with patch("sagaz.cli.init.utils.console", mock_console):
             _log_local_init_complete(False, False, dev_mode=True)
             assert mock_console.print.called
 
@@ -286,7 +286,7 @@ class TestLogLocalInitComplete:
         from sagaz.cli._init_handlers import _log_local_init_complete
 
         mock_console = MagicMock()
-        with patch("sagaz.cli._init_handlers.console", mock_console):
+        with patch("sagaz.cli.init.utils.console", mock_console):
             _log_local_init_complete(with_observability=True, with_ha=False, dev_mode=False)
             calls = [str(c) for c in mock_console.print.call_args_list]
             assert any("3000" in c for c in calls)
@@ -295,7 +295,7 @@ class TestLogLocalInitComplete:
         from sagaz.cli._init_handlers import _log_local_init_complete
 
         mock_console = MagicMock()
-        with patch("sagaz.cli._init_handlers.console", mock_console):
+        with patch("sagaz.cli.init.utils.console", mock_console):
             _log_local_init_complete(with_observability=False, with_ha=True, dev_mode=False)
             calls = [str(c) for c in mock_console.print.call_args_list]
             assert any("5432" in c or "Primary" in c or "primary" in c for c in calls)
@@ -316,10 +316,10 @@ class TestInitLocal:
         os.chdir(tmp_path)
         try:
             with (
-                patch("sagaz.cli._init_handlers._log_local_init_start") as m_start,
-                patch("sagaz.cli._init_handlers._init_docker_compose") as m_compose,
-                patch("sagaz.cli._init_handlers._init_monitoring") as m_mon,
-                patch("sagaz.cli._init_handlers._log_local_init_complete") as m_complete,
+                patch("sagaz.cli.init.local._log_local_init_start") as m_start,
+                patch("sagaz.cli.init.local._init_docker_compose") as m_compose,
+                patch("sagaz.cli.init.local._init_monitoring") as m_mon,
+                patch("sagaz.cli.init.local._log_local_init_complete") as m_complete,
             ):
                 _init_local("redis", with_observability=True)
                 m_start.assert_called_once()
@@ -338,10 +338,10 @@ class TestInitLocal:
         os.chdir(tmp_path)
         try:
             with (
-                patch("sagaz.cli._init_handlers._log_local_init_start"),
-                patch("sagaz.cli._init_handlers._init_docker_compose"),
-                patch("sagaz.cli._init_handlers._init_monitoring") as m_mon,
-                patch("sagaz.cli._init_handlers._log_local_init_complete"),
+                patch("sagaz.cli.init.local._log_local_init_start"),
+                patch("sagaz.cli.init.local._init_docker_compose"),
+                patch("sagaz.cli.init.local._init_monitoring") as m_mon,
+                patch("sagaz.cli.init.local._log_local_init_complete"),
             ):
                 _init_local("redis", with_observability=False)
                 m_mon.assert_not_called()
@@ -364,7 +364,7 @@ class TestCreateSystemdService:
         os.chdir(tmp_path)
         try:
             (tmp_path / "selfhost").mkdir()
-            with patch("sagaz.cli._init_handlers.click"):
+            with patch("sagaz.cli.init.utils.click"):
                 _create_systemd_service("sagaz-worker", "Test Service", "python -m sagaz.worker")
             assert (tmp_path / "selfhost" / "sagaz-worker.service").exists()
             content = (tmp_path / "selfhost" / "sagaz-worker.service").read_text()
@@ -388,7 +388,7 @@ class TestCreateSelfhostMonitoring:
         os.chdir(tmp_path)
         try:
             (tmp_path / "selfhost").mkdir()
-            with patch("sagaz.cli._init_handlers.click"):
+            with patch("sagaz.cli.init.utils.click"):
                 _create_selfhost_monitoring()
             assert (tmp_path / "selfhost" / "prometheus.yml").exists()
         finally:
@@ -411,8 +411,8 @@ class TestInitSelfhost:
         try:
             mock_console = MagicMock()
             with (
-                patch("sagaz.cli._init_handlers.console", mock_console),
-                patch("sagaz.cli._init_handlers.click") as mock_click,
+                patch("sagaz.cli.init.utils.console", mock_console),
+                patch("sagaz.cli.init.utils.click") as mock_click,
             ):
                 mock_click.echo = _noop
                 _init_selfhost("redis", with_observability=False)
@@ -431,8 +431,8 @@ class TestInitSelfhost:
         os.chdir(tmp_path)
         try:
             with (
-                patch("sagaz.cli._init_handlers.console", MagicMock()),
-                patch("sagaz.cli._init_handlers.click") as mock_click,
+                patch("sagaz.cli.init.utils.console", MagicMock()),
+                patch("sagaz.cli.init.utils.click") as mock_click,
             ):
                 mock_click.echo = _noop
                 _init_selfhost("redis", with_observability=True)
@@ -449,8 +449,8 @@ class TestInitSelfhost:
         os.chdir(tmp_path)
         try:
             with (
-                patch("sagaz.cli._init_handlers.console", MagicMock()),
-                patch("sagaz.cli._init_handlers.click") as mock_click,
+                patch("sagaz.cli.init.utils.console", MagicMock()),
+                patch("sagaz.cli.init.utils.click") as mock_click,
             ):
                 mock_click.echo = _noop
                 _init_selfhost("kafka", with_observability=False)
@@ -468,8 +468,8 @@ class TestInitSelfhost:
         os.chdir(tmp_path)
         try:
             with (
-                patch("sagaz.cli._init_handlers.console", MagicMock()),
-                patch("sagaz.cli._init_handlers.click") as mock_click,
+                patch("sagaz.cli.init.utils.console", MagicMock()),
+                patch("sagaz.cli.init.utils.click") as mock_click,
             ):
                 mock_click.echo = _noop
                 _init_selfhost("rabbitmq", with_observability=False)
@@ -487,8 +487,8 @@ class TestInitSelfhost:
         os.chdir(tmp_path)
         try:
             with (
-                patch("sagaz.cli._init_handlers.console", MagicMock()),
-                patch("sagaz.cli._init_handlers.click") as mock_click,
+                patch("sagaz.cli.init.utils.console", MagicMock()),
+                patch("sagaz.cli.init.utils.click") as mock_click,
             ):
                 mock_click.echo = _noop
                 _init_selfhost("redis", with_observability=False, separate_outbox=True)
@@ -506,8 +506,8 @@ class TestInitSelfhost:
         os.chdir(tmp_path)
         try:
             with (
-                patch("sagaz.cli._init_handlers.console", None),
-                patch("sagaz.cli._init_handlers.click") as mock_click,
+                patch("sagaz.cli.init.utils.console", None),
+                patch("sagaz.cli.init.utils.click") as mock_click,
             ):
                 mock_click.echo = _noop
                 _init_selfhost("redis", with_observability=False)
@@ -527,7 +527,7 @@ class TestLogK8s:
         from sagaz.cli._init_handlers import _log_k8s_init_start
 
         mock_console = MagicMock()
-        with patch("sagaz.cli._init_handlers.console", mock_console):
+        with patch("sagaz.cli.init.utils.console", mock_console):
             _log_k8s_init_start(True, "postgresql")
             mock_console.print.assert_called_once()
 
@@ -535,21 +535,21 @@ class TestLogK8s:
         from sagaz.cli._init_handlers import _log_k8s_init_start
 
         mock_console = MagicMock()
-        with patch("sagaz.cli._init_handlers.console", mock_console):
+        with patch("sagaz.cli.init.utils.console", mock_console):
             _log_k8s_init_start(False, "postgresql")
             mock_console.print.assert_called_once()
 
     def test_log_start_no_console(self):
         from sagaz.cli._init_handlers import _log_k8s_init_start
 
-        with patch("sagaz.cli._init_handlers.console", None):
+        with patch("sagaz.cli.init.utils.console", None):
             _log_k8s_init_start(False, "postgresql")  # must not raise
 
     def test_log_complete_with_ha(self):
         from sagaz.cli._init_handlers import _log_k8s_init_complete
 
         mock_console = MagicMock()
-        with patch("sagaz.cli._init_handlers.console", mock_console):
+        with patch("sagaz.cli.init.utils.console", mock_console):
             _log_k8s_init_complete(True)
             calls = [str(c) for c in mock_console.print.call_args_list]
             assert any("5432" in c or "HA" in c or "primary" in c.lower() for c in calls)
@@ -558,14 +558,14 @@ class TestLogK8s:
         from sagaz.cli._init_handlers import _log_k8s_init_complete
 
         mock_console = MagicMock()
-        with patch("sagaz.cli._init_handlers.console", mock_console):
+        with patch("sagaz.cli.init.utils.console", mock_console):
             _log_k8s_init_complete(False)
             mock_console.print.assert_called_once()
 
     def test_log_complete_no_console(self):
         from sagaz.cli._init_handlers import _log_k8s_init_complete
 
-        with patch("sagaz.cli._init_handlers.console", None):
+        with patch("sagaz.cli.init.utils.console", None):
             _log_k8s_init_complete(False)  # must not raise
 
 
@@ -598,7 +598,7 @@ class TestPrepareK8sDirectory:
         os.chdir(tmp_path)
         try:
             (tmp_path / "k8s").mkdir()
-            with patch("sagaz.cli._init_handlers.click") as mock_click:
+            with patch("sagaz.cli.init.utils.click") as mock_click:
                 mock_click.confirm.return_value = False
                 mock_click.echo = _noop
                 result = _prepare_k8s_directory()
@@ -616,7 +616,7 @@ class TestPrepareK8sDirectory:
         try:
             (tmp_path / "k8s").mkdir()
             (tmp_path / "k8s" / "old.yaml").write_text("old")
-            with patch("sagaz.cli._init_handlers.click") as mock_click:
+            with patch("sagaz.cli.init.utils.click") as mock_click:
                 mock_click.confirm.return_value = True
                 mock_click.echo = _noop
                 result = _prepare_k8s_directory()
@@ -637,8 +637,8 @@ class TestCopyK8sManifests:
         from sagaz.cli._init_handlers import _copy_k8s_manifests
 
         with (
-            patch("sagaz.cli._init_handlers._copy_resource") as mock_res,
-            patch("sagaz.cli._init_handlers.click") as mock_click,
+            patch("sagaz.cli.init.utils.copy_resource") as mock_res,
+            patch("sagaz.cli.init.utils.click") as mock_click,
         ):
             mock_click.echo = _noop
             _copy_k8s_manifests(False, False, "postgresql")
@@ -654,9 +654,9 @@ class TestCopyK8sManifests:
         try:
             (tmp_path / "k8s").mkdir()
             with (
-                patch("sagaz.cli._init_handlers._copy_resource") as mock_res,
-                patch("sagaz.cli._init_handlers._copy_dir_resource"),
-                patch("sagaz.cli._init_handlers.click") as mock_click,
+                patch("sagaz.cli.init.utils.copy_resource") as mock_res,
+                patch("sagaz.cli.init.utils.copy_dir_resource"),
+                patch("sagaz.cli.init.utils.click") as mock_click,
             ):
                 mock_click.echo = _noop
                 _copy_k8s_manifests(True, False, "postgresql")
@@ -668,8 +668,8 @@ class TestCopyK8sManifests:
         from sagaz.cli._init_handlers import _copy_k8s_manifests
 
         with (
-            patch("sagaz.cli._init_handlers._copy_resource") as mock_res,
-            patch("sagaz.cli._init_handlers.click") as mock_click,
+            patch("sagaz.cli.init.utils.copy_resource") as mock_res,
+            patch("sagaz.cli.init.utils.click") as mock_click,
         ):
             mock_click.echo = _noop
             _copy_k8s_manifests(False, False, "in-memory")
@@ -681,8 +681,8 @@ class TestCopyK8sManifests:
         from sagaz.cli._init_handlers import _copy_k8s_manifests
 
         with (
-            patch("sagaz.cli._init_handlers._copy_resource") as mock_res,
-            patch("sagaz.cli._init_handlers.click") as mock_click,
+            patch("sagaz.cli.init.utils.copy_resource") as mock_res,
+            patch("sagaz.cli.init.utils.click") as mock_click,
         ):
             mock_click.echo = _noop
             _copy_k8s_manifests(False, True, "postgresql")
@@ -699,8 +699,8 @@ class TestCopyK8sOptionals:
         from sagaz.cli._init_handlers import _copy_k8s_observability
 
         with (
-            patch("sagaz.cli._init_handlers._copy_resource") as mock_res,
-            patch("sagaz.cli._init_handlers._copy_dir_resource"),
+            patch("sagaz.cli.init.utils.copy_resource") as mock_res,
+            patch("sagaz.cli.init.utils.copy_dir_resource"),
         ):
             _copy_k8s_observability(True)
             mock_res.assert_any_call(
@@ -711,8 +711,8 @@ class TestCopyK8sOptionals:
         from sagaz.cli._init_handlers import _copy_k8s_observability
 
         with (
-            patch("sagaz.cli._init_handlers._copy_resource") as mock_res,
-            patch("sagaz.cli._init_handlers.click") as mock_click,
+            patch("sagaz.cli.init.utils.copy_resource") as mock_res,
+            patch("sagaz.cli.init.utils.click") as mock_click,
         ):
             mock_click.echo = _noop
             _copy_k8s_observability(False)
@@ -727,7 +727,7 @@ class TestCopyK8sOptionals:
         os.chdir(tmp_path)
         try:
             (tmp_path / "k8s").mkdir()
-            with patch("sagaz.cli._init_handlers.click") as mock_click:
+            with patch("sagaz.cli.init.utils.click") as mock_click:
                 mock_click.echo = _noop
                 _copy_k8s_benchmarks(True)
             assert (tmp_path / "k8s" / "benchmark").is_dir()
@@ -737,7 +737,7 @@ class TestCopyK8sOptionals:
     def test_benchmarks_disabled(self):
         from sagaz.cli._init_handlers import _copy_k8s_benchmarks
 
-        with patch("sagaz.cli._init_handlers.click") as mock_click:
+        with patch("sagaz.cli.init.utils.click") as mock_click:
             mock_click.echo = MagicMock()
             _copy_k8s_benchmarks(False)
             # Just echo skip message; no file creation
@@ -759,7 +759,7 @@ class TestCreateK8sBenchmarkConfig:
         os.chdir(tmp_path)
         try:
             (tmp_path / "k8s").mkdir()
-            with patch("sagaz.cli._init_handlers.click") as mock_click:
+            with patch("sagaz.cli.init.utils.click") as mock_click:
                 mock_click.echo = _noop
                 _create_k8s_benchmark_config()
             assert (tmp_path / "k8s" / "benchmark" / "job.yaml").exists()
@@ -783,12 +783,12 @@ class TestInitK8s:
         os.chdir(tmp_path)
         try:
             with (
-                patch("sagaz.cli._init_handlers._log_k8s_init_start"),
-                patch("sagaz.cli._init_handlers._prepare_k8s_directory", return_value=True),
-                patch("sagaz.cli._init_handlers._copy_k8s_manifests"),
-                patch("sagaz.cli._init_handlers._copy_k8s_observability"),
-                patch("sagaz.cli._init_handlers._copy_k8s_benchmarks"),
-                patch("sagaz.cli._init_handlers._log_k8s_init_complete") as m_complete,
+                patch("sagaz.cli.init.k8s._log_k8s_init_start"),
+                patch("sagaz.cli.init.k8s._prepare_k8s_directory", return_value=True),
+                patch("sagaz.cli.init.k8s._copy_k8s_manifests"),
+                patch("sagaz.cli.init.k8s._copy_k8s_observability"),
+                patch("sagaz.cli.init.k8s._copy_k8s_benchmarks"),
+                patch("sagaz.cli.init.k8s._log_k8s_init_complete") as m_complete,
             ):
                 _init_k8s(with_observability=True, with_benchmarks=False)
                 m_complete.assert_called_once()
@@ -804,9 +804,9 @@ class TestInitK8s:
         os.chdir(tmp_path)
         try:
             with (
-                patch("sagaz.cli._init_handlers._log_k8s_init_start"),
-                patch("sagaz.cli._init_handlers._prepare_k8s_directory", return_value=False),
-                patch("sagaz.cli._init_handlers._copy_k8s_manifests") as m_copy,
+                patch("sagaz.cli.init.k8s._log_k8s_init_start"),
+                patch("sagaz.cli.init.k8s._prepare_k8s_directory", return_value=False),
+                patch("sagaz.cli.init.k8s._copy_k8s_manifests") as m_copy,
             ):
                 _init_k8s(with_observability=True, with_benchmarks=False)
                 m_copy.assert_not_called()
@@ -822,17 +822,17 @@ class TestInitK8s:
         os.chdir(tmp_path)
         try:
             with (
-                patch("sagaz.cli._init_handlers._log_k8s_init_start"),
-                patch("sagaz.cli._init_handlers._prepare_k8s_directory", return_value=True),
+                patch("sagaz.cli.init.k8s._log_k8s_init_start"),
+                patch("sagaz.cli.init.k8s._prepare_k8s_directory", return_value=True),
                 patch(
-                    "sagaz.cli._init_handlers._copy_k8s_manifests",
+                    "sagaz.cli.init.k8s._copy_k8s_manifests",
                     side_effect=RuntimeError("boom"),
                 ),
-                patch("sagaz.cli._init_handlers.click") as mock_click,
+                patch("sagaz.cli.init.utils.click") as mock_click,
             ):
                 mock_click.echo = _noop
                 _init_k8s(with_observability=False, with_benchmarks=False)
-                # Should not raise; exception is swallowed and click.echo called
+                # Should not raise; exception is swallowed and sagaz.cli.init.utils.click.echo called
         finally:
             os.chdir(old_cwd)
 
@@ -852,8 +852,8 @@ class TestInitHybrid:
         os.chdir(tmp_path)
         try:
             with (
-                patch("sagaz.cli._init_handlers.console", MagicMock()),
-                patch("sagaz.cli._init_handlers.click") as mock_click,
+                patch("sagaz.cli.init.utils.console", MagicMock()),
+                patch("sagaz.cli.init.utils.click") as mock_click,
             ):
                 mock_click.echo = _noop
                 _init_hybrid("redis")
@@ -872,8 +872,8 @@ class TestInitHybrid:
         os.chdir(tmp_path)
         try:
             with (
-                patch("sagaz.cli._init_handlers.console", MagicMock()),
-                patch("sagaz.cli._init_handlers.click") as mock_click,
+                patch("sagaz.cli.init.utils.console", MagicMock()),
+                patch("sagaz.cli.init.utils.click") as mock_click,
             ):
                 mock_click.echo = _noop
                 _init_hybrid("kafka")
@@ -891,8 +891,8 @@ class TestInitHybrid:
         os.chdir(tmp_path)
         try:
             with (
-                patch("sagaz.cli._init_handlers.console", MagicMock()),
-                patch("sagaz.cli._init_handlers.click") as mock_click,
+                patch("sagaz.cli.init.utils.console", MagicMock()),
+                patch("sagaz.cli.init.utils.click") as mock_click,
             ):
                 mock_click.echo = _noop
                 _init_hybrid("rabbitmq")
@@ -910,8 +910,8 @@ class TestInitHybrid:
         os.chdir(tmp_path)
         try:
             with (
-                patch("sagaz.cli._init_handlers.console", None),
-                patch("sagaz.cli._init_handlers.click") as mock_click,
+                patch("sagaz.cli.init.utils.console", None),
+                patch("sagaz.cli.init.utils.click") as mock_click,
             ):
                 mock_click.echo = _noop
                 _init_hybrid("redis")
@@ -928,8 +928,8 @@ class TestInitHybrid:
         os.chdir(tmp_path)
         try:
             with (
-                patch("sagaz.cli._init_handlers.console", MagicMock()),
-                patch("sagaz.cli._init_handlers.click") as mock_click,
+                patch("sagaz.cli.init.utils.console", MagicMock()),
+                patch("sagaz.cli.init.utils.click") as mock_click,
             ):
                 mock_click.echo = _noop
                 _init_hybrid("redis", oltp_storage="in-memory")
@@ -955,7 +955,7 @@ class TestInitBenchmarks:
         old_cwd = Path.cwd()
         os.chdir(tmp_path)
         try:
-            with patch("sagaz.cli._init_handlers.click") as mock_click:
+            with patch("sagaz.cli.init.utils.click") as mock_click:
                 mock_click.echo = _noop
                 _init_benchmarks()
             run_sh = tmp_path / "benchmarks" / "run.sh"
@@ -975,7 +975,7 @@ class TestCopyExampleSaga:
     def test_simple_template(self, tmp_path):
         from sagaz.cli._init_handlers import _copy_example_saga
 
-        with patch("sagaz.cli._init_handlers.click") as mock_click:
+        with patch("sagaz.cli.init.utils.click") as mock_click:
             mock_click.echo = _noop
             _copy_example_saga("simple", tmp_path)
         assert (tmp_path / "example_saga.py").exists()
@@ -992,8 +992,8 @@ class TestCopyExampleSaga:
         _mock_files = MagicMock(return_value=mock_traversable)
 
         with (
-            patch("sagaz.cli._init_handlers.pkg_resources") as mock_pkg,
-            patch("sagaz.cli._init_handlers.click") as mock_click,
+            patch("sagaz.cli.init.utils.pkg_resources") as mock_pkg,
+            patch("sagaz.cli.init.utils.click") as mock_click,
         ):
             mock_click.echo = _noop
             mock_source = MagicMock()
@@ -1005,8 +1005,8 @@ class TestCopyExampleSaga:
         from sagaz.cli._init_handlers import _copy_example_saga
 
         with (
-            patch("sagaz.cli._init_handlers.pkg_resources") as mock_pkg,
-            patch("sagaz.cli._init_handlers.click") as mock_click,
+            patch("sagaz.cli.init.utils.pkg_resources") as mock_pkg,
+            patch("sagaz.cli.init.utils.click") as mock_click,
         ):
             mock_click.echo = MagicMock()
             # Make the inner try fail
@@ -1019,8 +1019,8 @@ class TestCopyExampleSaga:
         from sagaz.cli._init_handlers import _copy_example_saga
 
         with (
-            patch("sagaz.cli._init_handlers.pkg_resources") as mock_pkg,
-            patch("sagaz.cli._init_handlers.click") as mock_click,
+            patch("sagaz.cli.init.utils.pkg_resources") as mock_pkg,
+            patch("sagaz.cli.init.utils.click") as mock_click,
         ):
             mock_click.echo = _noop
             # Make main.py read_text fail → should recursively call simple
@@ -1050,8 +1050,8 @@ class TestCopyDirResource:
         mock_traversable.iterdir.return_value = [mock_file]
 
         with (
-            patch("sagaz.cli._init_handlers.pkg_resources") as mock_pkg,
-            patch("sagaz.cli._init_handlers.click") as mock_click,
+            patch("sagaz.cli.init.utils.pkg_resources") as mock_pkg,
+            patch("sagaz.cli.init.utils.click") as mock_click,
         ):
             mock_click.echo = _noop
             mock_pkg.files.return_value.joinpath.return_value = mock_traversable
@@ -1072,8 +1072,8 @@ class TestCopyDirResource:
         mock_traversable.iterdir.return_value = [mock_file]
 
         with (
-            patch("sagaz.cli._init_handlers.pkg_resources") as mock_pkg,
-            patch("sagaz.cli._init_handlers.click") as mock_click,
+            patch("sagaz.cli.init.utils.pkg_resources") as mock_pkg,
+            patch("sagaz.cli.init.utils.click") as mock_click,
         ):
             mock_click.echo = _noop
             mock_pkg.files.return_value.joinpath.return_value = mock_traversable
@@ -1099,7 +1099,7 @@ class TestCopyDirResource:
         mock_files = MagicMock()
         mock_files.joinpath.side_effect = [mock_top, mock_empty]
 
-        with patch.object(m, "pkg_resources") as mock_pkg, patch("sagaz.cli._init_handlers.click"):
+        with patch("sagaz.cli.init.utils.pkg_resources") as mock_pkg, patch("sagaz.cli.init.utils.click"):
             mock_pkg.files.return_value = mock_files
             m._copy_dir_resource("root/dir", str(tmp_path / "out"))
             # joinpath called twice: once for root/dir, once for root/dir/subdir
@@ -1108,7 +1108,7 @@ class TestCopyDirResource:
     def test_not_found_returns_silently(self):
         from sagaz.cli._init_handlers import _copy_dir_resource
 
-        with patch("sagaz.cli._init_handlers.pkg_resources") as mock_pkg:
+        with patch("sagaz.cli.init.utils.pkg_resources") as mock_pkg:
             mock_traversable = MagicMock()
             mock_traversable.iterdir.side_effect = FileNotFoundError("no dir")
             mock_pkg.files.return_value.joinpath.return_value = mock_traversable
@@ -1118,7 +1118,7 @@ class TestCopyDirResource:
     def test_exception_swallowed(self):
         from sagaz.cli._init_handlers import _copy_dir_resource
 
-        with patch("sagaz.cli._init_handlers.pkg_resources") as mock_pkg:
+        with patch("sagaz.cli.init.utils.pkg_resources") as mock_pkg:
             mock_pkg.files.side_effect = Exception("unexpected")
             # Should not raise
             _copy_dir_resource("some/dir", "/tmp/output")
@@ -1134,8 +1134,8 @@ class TestCopyResource:
         from sagaz.cli._init_handlers import _copy_resource
 
         with (
-            patch("sagaz.cli._init_handlers.pkg_resources") as mock_pkg,
-            patch("sagaz.cli._init_handlers.click") as mock_click,
+            patch("sagaz.cli.init.utils.pkg_resources") as mock_pkg,
+            patch("sagaz.cli.init.utils.click") as mock_click,
         ):
             mock_click.echo = _noop
             mock_pkg.files.return_value.joinpath.return_value.read_text.return_value = "content"
@@ -1146,8 +1146,8 @@ class TestCopyResource:
         from sagaz.cli._init_handlers import _copy_resource
 
         with (
-            patch("sagaz.cli._init_handlers.pkg_resources") as mock_pkg,
-            patch("sagaz.cli._init_handlers.click") as mock_click,
+            patch("sagaz.cli.init.utils.pkg_resources") as mock_pkg,
+            patch("sagaz.cli.init.utils.click") as mock_click,
         ):
             mock_click.echo = MagicMock()
             mock_pkg.files.side_effect = Exception("pkg error")
@@ -1183,13 +1183,13 @@ class TestConsoleImportError:
         import sys
         from unittest.mock import patch
 
-        mods_to_remove = [k for k in sys.modules if "_init_handlers" in k]
+        mods_to_remove = ["sagaz.cli._init_handlers", "sagaz.cli.init.utils"]
         for mod in mods_to_remove:
-            del sys.modules[mod]
+            if mod in sys.modules:
+                del sys.modules[mod]
 
         with patch.dict(sys.modules, {"rich": None, "rich.console": None}):
             import sagaz.cli._init_handlers as reloaded
-
             assert reloaded.console is None
 
         # Restore original module
@@ -1214,8 +1214,8 @@ class TestRemainingBranches:
             from sagaz.cli._init_handlers import _init_selfhost
 
             with (
-                patch("sagaz.cli._init_handlers.console", None),
-                patch("sagaz.cli._init_handlers.click.echo"),
+                patch("sagaz.cli.init.utils.console", None),
+                patch("sagaz.cli.init.utils.click.echo"),
             ):
                 _init_selfhost("grpc", with_observability=False)
             env_file = tmp_path / "selfhost" / "sagaz.env"
@@ -1234,8 +1234,8 @@ class TestRemainingBranches:
         from sagaz.cli._init_handlers import _copy_k8s_manifests
 
         with (
-            patch("sagaz.cli._init_handlers._copy_resource") as mock_res,
-            patch("sagaz.cli._init_handlers.click.echo"),
+            patch("sagaz.cli.init.utils.copy_resource") as mock_res,
+            patch("sagaz.cli.init.utils.click.echo"),
         ):
             _copy_k8s_manifests(False, False, "sqlite")
         # Neither postgresql.yaml nor any "skip" message - just falls through

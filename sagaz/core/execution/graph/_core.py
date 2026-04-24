@@ -536,11 +536,6 @@ class SagaExecutionGraph:
                 # No more retries, raise the error
                 raise
 
-        # Should not reach here, but satisfy type checker
-        if last_error:  # pragma: no cover
-            raise last_error  # pragma: no cover
-        return None  # pragma: no cover
-
     def _should_skip_step(
         self,
         step_id: str,

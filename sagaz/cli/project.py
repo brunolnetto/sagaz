@@ -144,11 +144,42 @@ def _discover_sagas(paths: list[str]) -> list[dict[str, Any]]:
     Discover Saga classes in given paths.
     Returns a list of dicts with metadata.
     """
+    return _discover_sagas_in_paths(paths)
+
+
+def _discover_sagas_in_paths(paths: list[str]) -> list[dict[str, Any]]:
+    """Yield all sagas from multiple paths."""
     discovered = []
     for file_path in _iter_python_files(paths):
-        module_name = f"sagaz_user_code.{file_path.stem}"
-        discovered.extend(_inspect_module(module_name, file_path))
+        discovered.extend(_try_load_sagas_from_file(file_path))
+    return discovered
 
+
+def _discover_sagas_in_directory(directory: Path, sys_mod, importlib, inspect, saga_base) -> list[dict[str, Any]]:
+    """Legacy helper for tests."""
+    return _discover_sagas_in_paths([str(directory)])
+
+
+def _try_load_sagas_from_file(file_path: Path, *args, **kwargs) -> list[dict[str, Any]]:
+    """Helper to try loading sagas from a file."""
+    module_name = f"sagaz_user_code.{file_path.stem}"
+    return _inspect_module(module_name, file_path)
+
+
+def _extract_sagas_from_module(module, file_path: Path, inspect_mod, saga_base) -> list[dict[str, Any]]:
+    """Legacy helper for tests."""
+    from sagaz import Saga
+    discovered = []
+    import inspect as real_inspect
+    for name, obj in real_inspect.getmembers(module):
+        if _is_valid_saga_class(name, obj):
+            doc = real_inspect.getdoc(obj) or ""
+            discovered.append({
+                "name": name,
+                "file": str(file_path),
+                "doc": doc.split("\n", maxsplit=1)[0] if doc else "No description",
+                "class": obj,
+            })
     return discovered
 
 

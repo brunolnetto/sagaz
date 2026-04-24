@@ -22,9 +22,11 @@ Benchmarking:
 This creates the 'sagaz' command via entry point in pyproject.toml.
 """
 
-from rich.console import Console
-
-console = Console()
+try:
+    from rich.console import Console
+    console = Console()
+except ImportError:
+    console = None
 
 
 def main():

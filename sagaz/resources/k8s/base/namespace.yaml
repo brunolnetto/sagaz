@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sagaz
+  labels:
+    name: sagaz
+    app.kubernetes.io/name: sagaz
+    app.kubernetes.io/part-of: sagaz-platform
