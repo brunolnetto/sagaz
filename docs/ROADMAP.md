@@ -152,6 +152,7 @@ PR #42 (fix/coverage-and-container-timeouts)
 | v1.5.0 | DLQ pattern, AlertManager rules | #60, #61 |
 | v1.6.0 | SQLite backend, storage migration | #62, #63 |
 | v1.7.0-beta | sqldim analytics pipeline (`sagaz[analytics]`) | #74 |
+| v1.7.0-beta | Gradio Asset Monitor UI (`sagaz[monitor]`) | #267 |
 | v1.7.0-beta | Visualization UI + live analytics tab | #71 |
 
 ### Deferred to Q3+ (Jul–Dec 2026)
