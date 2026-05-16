@@ -29,19 +29,20 @@ Usage:
 
 from typing import TYPE_CHECKING, Optional
 
-from statemachine import State, StateMachine
+from statemachine import State, StateChart
 from statemachine.exceptions import TransitionNotAllowed
 
 if TYPE_CHECKING:
     from sagaz.core.saga import Saga
 
 
-class SagaStateMachine(StateMachine):
+class SagaStateMachine(StateChart):
     """
     State machine for managing saga lifecycle transitions.
 
-    Provides state management with guards and hooks for saga execution.
-    Supports async callbacks via python-statemachine's native async support.
+    Inherits from StateChart (python-statemachine 3.0+) for SCXML-compliant
+    defaults: catch_errors_as_events, non-atomic configuration updates, and
+    proper is_terminated support.
 
     States:
         pending: Initial state, saga not yet started
@@ -58,6 +59,7 @@ class SagaStateMachine(StateMachine):
         fail_unrecoverable: Unrecoverable failure (executing -> failed)
         finish_compensation: Compensation completed (compensating -> rolled_back)
         compensation_failed: Compensation failed (compensating -> failed)
+        error_execution: Structured error routing from SCXML (any -> failed)
 
     Usage:
         >>> sm = SagaStateMachine(saga_instance)
@@ -72,6 +74,10 @@ class SagaStateMachine(StateMachine):
         >>> # On failure with compensation
         >>> await sm.fail()
         >>> await sm.finish_compensation()
+
+        >>> # Query active configuration (supports compound/parallel in Phase 2)
+        >>> sm.configuration_values  # e.g. ['executing']
+        >>> sm.is_terminated  # True when in any final state
     """
 
     # Define saga states
@@ -86,10 +92,12 @@ class SagaStateMachine(StateMachine):
     # Note: cond is a string method name that returns bool
     start = pending.to(executing, cond="has_steps")
     succeed = executing.to(completed)
-    fail = executing.to(compensating, cond="has_completed_steps")
+    fail = executing.to(compensating)
     fail_unrecoverable = executing.to(failed)
     finish_compensation = compensating.to(rolled_back)
     compensation_failed = compensating.to(failed)
+    # SCXML error.execution routing: unhandled exceptions in callbacks → failed
+    error_execution = executing.to(failed) | compensating.to(failed)
 
     def __init__(self, saga: Optional["Saga"] = None, **kwargs):
         """
@@ -97,7 +105,7 @@ class SagaStateMachine(StateMachine):
 
         Args:
             saga: The saga instance to manage state for
-            **kwargs: Additional kwargs passed to StateMachine
+            **kwargs: Additional kwargs passed to StateChart
         """
         self.saga = saga
         super().__init__(**kwargs)
@@ -114,6 +122,11 @@ class SagaStateMachine(StateMachine):
         if self.saga is None:
             return True
         return len(getattr(self.saga, "completed_steps", [])) > 0
+
+    @property
+    def active_configuration(self) -> list[str]:
+        """Return the active state configuration as a list of state value strings."""
+        return list(self.configuration_values)
 
     # State entry callbacks - using naming convention on_enter_<state_id>
     # These can be async when the SM is used in async context
@@ -138,9 +151,15 @@ class SagaStateMachine(StateMachine):
         if self.saga and hasattr(self.saga, "_on_enter_rolled_back"):
             await self.saga._on_enter_rolled_back()
 
-    async def on_enter_failed(self) -> None:
-        """Called when entering FAILED state - unrecoverable failure."""
-        if self.saga and hasattr(self.saga, "_on_enter_failed"):
+    async def on_enter_failed(self, error: BaseException | None = None, **kwargs) -> None:
+        """Called when entering FAILED state - unrecoverable failure.
+
+        The `error` kwarg is injected automatically by StateChart when
+        triggered via the error.execution routing path.
+        """
+        if error is not None and self.saga and hasattr(self.saga, "_on_execution_error"):
+            await self.saga._on_execution_error(error)
+        elif self.saga and hasattr(self.saga, "_on_enter_failed"):
             await self.saga._on_enter_failed()
 
     # State exit callbacks
@@ -168,11 +187,13 @@ class SagaStateMachine(StateMachine):
         # Override in subclass if needed
 
 
-class SagaStepStateMachine(StateMachine):
+class SagaStepStateMachine(StateChart):
     """
     State machine for individual saga step execution.
 
-    Manages the lifecycle of a single step within a saga.
+    Inherits from StateChart (python-statemachine 3.0+) for SCXML-compliant
+    defaults.  Use ``active_configuration`` to query which state is active;
+    use ``is_terminated`` instead of checking state names directly.
 
     States:
         pending: Step not yet started
@@ -213,10 +234,15 @@ class SagaStepStateMachine(StateMachine):
 
         Args:
             step_name: Name of the step for logging
-            **kwargs: Additional kwargs passed to StateMachine
+            **kwargs: Additional kwargs passed to StateChart
         """
         self.step_name = step_name
         super().__init__(**kwargs)
+
+    @property
+    def active_configuration(self) -> list[str]:
+        """Return the active state configuration as a list of state value strings."""
+        return list(self.configuration_values)
 
     # State entry callbacks
     async def on_enter_executing(self) -> None:
@@ -293,3 +319,11 @@ __all__ = [
     "get_valid_next_states",
     "validate_state_transition",
 ]
+
+
+# Backward-compatible alias for code that polls sm.current_state.name
+# Deprecated: use sm.configuration_values or sm.active_configuration instead.
+def _compat_current_state_name(sm: SagaStateMachine | SagaStepStateMachine) -> str:
+    """Return the first active state ID for single-state machines (Phase 1)."""
+    values = list(sm.configuration_values)
+    return values[0] if values else ""

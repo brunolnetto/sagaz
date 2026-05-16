@@ -71,6 +71,7 @@ class SagaSnapshot:
 
     # Metadata
     created_at: datetime
+    configuration: list[str] = field(default_factory=list)
     retention_until: datetime | None = None
 
     # External references (for large payloads)
@@ -86,6 +87,7 @@ class SagaSnapshot:
         status: str,
         context: dict[str, Any],
         completed_steps: list[str],
+        configuration: list[str] | None = None,
         retention_until: datetime | None = None,
     ) -> "SagaSnapshot":
         """Factory method to create a new snapshot"""
@@ -96,6 +98,7 @@ class SagaSnapshot:
             step_name=step_name,
             step_index=step_index,
             status=status,
+            configuration=list(configuration) if configuration is not None else [],
             context=context.copy(),  # Defensive copy
             completed_steps=completed_steps.copy(),
             created_at=datetime.now(UTC),
@@ -111,6 +114,7 @@ class SagaSnapshot:
             "step_name": self.step_name,
             "step_index": self.step_index,
             "status": self.status,
+            "configuration": self.configuration,
             "context": self.context,
             "completed_steps": self.completed_steps,
             "external_refs": self.external_refs,
@@ -128,6 +132,7 @@ class SagaSnapshot:
             step_name=data["step_name"],
             step_index=data["step_index"],
             status=data["status"],
+            configuration=data.get("configuration", []),
             context=data["context"],
             completed_steps=data["completed_steps"],
             external_refs=data.get("external_refs", {}),

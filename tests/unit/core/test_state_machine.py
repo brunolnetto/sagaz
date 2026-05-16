@@ -149,13 +149,13 @@ class TestSagaStepStateMachine:
 
     @pytest.mark.asyncio
     async def test_invalid_transition(self):
-        """Test invalid state transition raises error"""
+        """StateChart silently ignores invalid transitions (SCXML compliance)."""
         sm = SagaStepStateMachine("test_step")
         await sm.activate_initial_state()
 
-        # Cannot go from pending to compensating
-        with pytest.raises(TransitionNotAllowed):
-            await sm.compensate()
+        # SCXML compliance: invalid transitions from pending are silently ignored
+        await sm.compensate()
+        assert list(sm.configuration_values) == ["pending"]
 
 
 class TestStateValidation:
