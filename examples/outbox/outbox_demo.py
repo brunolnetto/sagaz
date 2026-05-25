@@ -29,7 +29,7 @@ from pathlib import Path
 # Allow importing _service_manager from the scripts directory when run directly
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts"))
 
-from _service_manager import ServiceManager  # noqa: E402
+from _service_manager import ServiceManager
 
 logging.basicConfig(
     level=logging.INFO,

@@ -3,6 +3,7 @@ UI and display logic for replay and time-travel commands.
 """
 
 from typing import Any
+
 import click
 
 try:
@@ -10,6 +11,7 @@ try:
     from rich.json import JSON
     from rich.panel import Panel
     from rich.table import Table
+
     _console = Console()
     _HAS_RICH = True
 except ImportError:
@@ -23,45 +25,51 @@ except ImportError:
 HAS_RICH = _HAS_RICH
 console = _console
 
+
 def display_replay_config(
     saga_id: str,
     from_step: str,
     storage: str,
     context_override: dict,
     dry_run: bool,
-    rich_available: bool = None,
+    rich_available: bool | None = None,
     echo_func=None,
-    console=None
+    console=None,
 ):
     """Display replay configuration."""
     if rich_available is None:
         rich_available = _HAS_RICH
-    
+
     con = console or _console
     echo = echo_func or click.echo
-        
+
     if rich_available and con:
-        con.print(
-            Panel(
-                f"[bold]Saga Replay[/bold]\n\n"
-                f"Saga ID: {saga_id}\n"
-                f"From Step: {from_step}\n"
-                f"Storage: {storage}\n"
-                f"Overrides: {len(context_override)}\n"
-                f"Dry Run: {dry_run}",
-                title="Replay Configuration",
-                border_style="blue",
-            )
-        )
+        _display_replay_config_rich(con, saga_id, from_step, storage, context_override, dry_run)
     else:
         echo(f"Replaying saga {saga_id} from step {from_step}...")
 
 
-def display_success(rich_available: bool = None, echo_func=None, console=None):
+def _display_replay_config_rich(con, saga_id, from_step, storage, context_override, dry_run):
+    """Internal Rich display for replay config."""
+    con.print(
+        Panel(
+            f"[bold]Saga Replay[/bold]\n\n"
+            f"Saga ID: {saga_id}\n"
+            f"From Step: {from_step}\n"
+            f"Storage: {storage}\n"
+            f"Overrides: {len(context_override)}\n"
+            f"Dry Run: {dry_run}",
+            title="Replay Configuration",
+            border_style="blue",
+        )
+    )
+
+
+def display_success(rich_available: bool | None = None, echo_func=None, console=None):
     """Display success message."""
     if rich_available is None:
         rich_available = _HAS_RICH
-        
+
     con = console or _console
     echo = echo_func or click.echo
 
@@ -71,7 +79,7 @@ def display_success(rich_available: bool = None, echo_func=None, console=None):
         echo("✓ Replay completed successfully")
 
 
-def display_failure(rich_available: bool = None, echo_func=None, console=None):
+def display_failure(rich_available: bool | None = None, echo_func=None, console=None):
     """Display failure message."""
     if rich_available is None:
         rich_available = _HAS_RICH
@@ -85,7 +93,9 @@ def display_failure(rich_available: bool = None, echo_func=None, console=None):
         echo("✗ Replay failed", err=True)
 
 
-def handle_exception(e: Exception, verbose: bool, rich_available: bool = None, echo_func=None, console=None):
+def handle_exception(
+    e: Exception, verbose: bool, rich_available: bool | None = None, echo_func=None, console=None
+):
     """Handle and display exception."""
     if rich_available is None:
         rich_available = _HAS_RICH
@@ -97,64 +107,99 @@ def handle_exception(e: Exception, verbose: bool, rich_available: bool = None, e
         con.print(f"[red]Error: {e}[/red]")
     else:
         echo(f"Error: {e}", err=True)
+
     if verbose:
         import traceback
+
         traceback.print_exc()
 
 
-def show_checkpoints(checkpoints: list, verbose: bool, rich_available: bool = None, echo_func=None, console=None):
+def show_checkpoints(
+    checkpoints: list,
+    verbose: bool,
+    rich_available: bool | None = None,
+    echo_func=None,
+    console=None,
+):
     """Display available checkpoints."""
     if not verbose:
         return
 
     if rich_available is None:
         rich_available = _HAS_RICH
-        
+
     con = console or _console
     echo = echo_func or click.echo
 
     if rich_available and con:
-        table = Table(title="Available Checkpoints")
-        table.add_column("Step", style="cyan")
-        table.add_column("Created At", style="green")
-        for cp in checkpoints:
-            table.add_row(cp["step_name"], cp["created_at"])
-        con.print(table)
+        _show_checkpoints_rich(con, checkpoints)
     else:
-        echo("\nAvailable checkpoints:")
-        for cp in checkpoints:
-            echo(f"  - {cp['step_name']} at {cp['created_at']}")
+        _show_checkpoints_text(echo, checkpoints)
 
 
-def show_replay_result(result, verbose: bool, dry_run: bool, rich_available: bool = None, echo_func=None, console=None):
+def _show_checkpoints_rich(con, checkpoints):
+    """Internal Rich display for checkpoints."""
+    table = Table(title="Available Checkpoints")
+    table.add_column("Step", style="cyan")
+    table.add_column("Created At", style="green")
+    for cp in checkpoints:
+        table.add_row(cp["step_name"], cp["created_at"])
+    con.print(table)
+
+
+def _show_checkpoints_text(echo, checkpoints):
+    """Internal Text display for checkpoints."""
+    echo("\nAvailable checkpoints:")
+    for cp in checkpoints:
+        echo(f"  - {cp['step_name']} at {cp['created_at']}")
+
+
+def show_replay_result(
+    result,
+    verbose: bool,
+    dry_run: bool,
+    rich_available: bool | None = None,
+    echo_func=None,
+    console=None,
+):
     """Display replay result."""
     if not (verbose or dry_run):
         return
 
     if rich_available is None:
         rich_available = _HAS_RICH
-        
+
     con = console or _console
     echo = echo_func or click.echo
 
     if rich_available and con:
-        con.print(
-            Panel(
-                f"Status: {result.replay_status.value}\n"
-                f"Original Saga ID: {result.original_saga_id}\n"
-                f"New Saga ID: {result.new_saga_id}\n"
-                f"Checkpoint: {result.checkpoint_step}\n"
-                f"Error: {result.error_message or 'None'}",
-                title="Replay Result",
-                border_style="green" if result.replay_status.value == "success" else "red",
-            )
-        )
+        _show_replay_result_rich(con, result)
     else:
-        echo(f"\nReplay status: {result.replay_status.value}")
-        echo(f"Original saga ID: {result.original_saga_id}")
-        echo(f"New saga ID: {result.new_saga_id}")
-        if result.error_message:
-            echo(f"Error: {result.error_message}")
+        _show_replay_result_text(echo, result)
+
+
+def _show_replay_result_rich(con, result):
+    """Internal Rich display for replay result."""
+    con.print(
+        Panel(
+            f"Status: {result.replay_status.value}\n"
+            f"Original Saga ID: {result.original_saga_id}\n"
+            f"New Saga ID: {result.new_saga_id}\n"
+            f"Checkpoint: {result.checkpoint_step}\n"
+            f"Error: {result.error_message or 'None'}",
+            title="Replay Result",
+            border_style="green" if result.replay_status.value == "success" else "red",
+        )
+    )
+
+
+def _show_replay_result_text(echo, result):
+    """Internal Text display for replay result."""
+    echo(f"\nReplay status: {result.replay_status.value}")
+    echo(f"Original saga ID: {result.original_saga_id}")
+    echo(f"New saga ID: {result.new_saga_id}")
+    if result.error_message:
+        echo(f"Error: {result.error_message}")
 
 
 def display_key_value(key: str, value: Any, output_format: str, echo_func=None):
@@ -162,21 +207,25 @@ def display_key_value(key: str, value: Any, output_format: str, echo_func=None):
     echo = echo_func or click.echo
     if output_format == "json":
         import json
+
         echo(json.dumps({key: value}, indent=2))
     else:
         echo(f"{key}: {value}")
 
 
-def display_full_state(state, output_format: str, rich_available: bool = None, echo_func=None, console=None):
+def display_full_state(
+    state, output_format: str, rich_available: bool | None = None, echo_func=None, console=None
+):
     """Display full saga state."""
     if rich_available is None:
         rich_available = _HAS_RICH
-        
+
     con = console or _console
     echo = echo_func or click.echo
 
     if output_format == "json":
         import json
+
         echo(json.dumps(state.to_dict(), indent=2))
     elif output_format == "table" and rich_available and con:
         _display_state_table(state, console=con)
@@ -217,38 +266,50 @@ def _display_state_text(state, echo_func=None):
         echo(f"  {k}: {v}")
 
 
-def display_changes(changes: list, saga_id: Any, rich_available: bool = None, echo_func=None, console=None):
+def display_changes(
+    changes: list, saga_id: Any, rich_available: bool | None = None, echo_func=None, console=None
+):
     """Display state changes."""
     if rich_available is None:
         rich_available = _HAS_RICH
-        
+
     con = console or _console
     echo = echo_func or click.echo
 
     if rich_available and con:
-        table = Table(title=f"State Changes for {saga_id}")
-        table.add_column("#", style="dim")
-        table.add_column("Timestamp", style="cyan")
-        table.add_column("Step", style="green")
-        table.add_column("Status", style="yellow")
-        table.add_column("Completed", style="blue")
-
-        for i, change in enumerate(changes, 1):
-            table.add_row(
-                str(i),
-                change.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
-                change.current_step or "N/A",
-                change.status,
-                str(len(change.completed_steps)),
-            )
-
-        con.print(table)
-        con.print(f"\n[dim]Total: {len(changes)} changes[/dim]")
+        _display_changes_rich(con, changes, saga_id)
     else:
-        echo(f"State changes for {saga_id}:")
-        for i, change in enumerate(changes, 1):
-            echo(
-                f"{i}. {change.timestamp} - Step: {change.current_step}, "
-                f"Status: {change.status}, Completed: {len(change.completed_steps)}"
-            )
-        echo(f"\nTotal: {len(changes)} changes")
+        _display_changes_text(echo, changes, saga_id)
+
+
+def _display_changes_rich(con, changes, saga_id):
+    """Internal Rich display for state changes."""
+    table = Table(title=f"State Changes for {saga_id}")
+    table.add_column("#", style="dim")
+    table.add_column("Timestamp", style="cyan")
+    table.add_column("Step", style="green")
+    table.add_column("Status", style="yellow")
+    table.add_column("Completed", style="blue")
+
+    for i, change in enumerate(changes, 1):
+        table.add_row(
+            str(i),
+            change.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+            change.current_step or "N/A",
+            change.status,
+            str(len(change.completed_steps)),
+        )
+
+    con.print(table)
+    con.print(f"\n[dim]Total: {len(changes)} changes[/dim]")
+
+
+def _display_changes_text(echo, changes, saga_id):
+    """Internal Text display for state changes."""
+    echo(f"State changes for {saga_id}:")
+    for i, change in enumerate(changes, 1):
+        echo(
+            f"{i}. {change.timestamp} - Step: {change.current_step}, "
+            f"Status: {change.status}, Completed: {len(change.completed_steps)}"
+        )
+    echo(f"\nTotal: {len(changes)} changes")
