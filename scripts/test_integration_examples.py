@@ -112,7 +112,10 @@ def test_fastapi_saga():
 
         @action("ship_order", depends_on=["charge_payment"])
         async def ship_order(self, ctx: dict):
-            return {"shipment_id": f"SHIP-{ctx['order_id']}", "tracking": f"TRACK-{ctx['order_id']}"}
+            return {
+                "shipment_id": f"SHIP-{ctx['order_id']}",
+                "tracking": f"TRACK-{ctx['order_id']}",
+            }
 
     saga = OrderSaga()
     assert saga.saga_name == "fastapi-order"
@@ -129,7 +132,9 @@ def test_django_saga():
     print("\n✓ Testing Django OrderSaga...")
 
     # Import from actual django_app to verify imports work
-    sys.path.insert(0, str(Path(__file__).parent.parent / "sagaz" / "examples" / "integrations" / "django_app"))
+    sys.path.insert(
+        0, str(Path(__file__).parent.parent / "sagaz" / "examples" / "integrations" / "django_app")
+    )
 
     try:
         from orders.sagas import OrderSaga
