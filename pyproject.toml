@@ -28,6 +28,7 @@ storage = [
 integration-tests = [
     # Integration testing with real databases (requires Docker)
     "testcontainers[kafka,postgres,rabbitmq,redis]>=4.13.0",
+    "aioboto3>=12.0.0",
 ]
 redis = [
     "redis>=7.1.0",
