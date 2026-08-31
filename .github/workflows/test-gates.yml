@@ -214,4 +214,3 @@ jobs:
           fi
           echo "Performance check passed"
 
-  benchmark-comparison:
