@@ -3789,7 +3789,9 @@ compression = [
     { name = "zstandard" },
 ]
 integration-tests = [
+    { name = "aioboto3" },
     { name = "testcontainers", extra = ["rabbitmq", "redis"] },
+    { name = "zstandard" },
 ]
 kafka = [
     { name = "aiokafka" },
@@ -3889,6 +3891,7 @@ web = [
 requires-dist = [
     { name = "aio-pika", marker = "extra == 'rabbitmq'", specifier = ">=9.0.0" },
     { name = "aioboto3", marker = "extra == 'aws'", specifier = ">=12.0.0" },
+    { name = "aioboto3", marker = "extra == 'integration-tests'", specifier = ">=12.0.0" },
     { name = "aiofiles", specifier = ">=25.1.0" },
     { name = "aiokafka", marker = "extra == 'kafka'", specifier = ">=0.12.0" },
     { name = "asyncpg", marker = "extra == 'postgres'", specifier = ">=0.31.0" },
@@ -3909,6 +3912,7 @@ requires-dist = [
     { name = "testcontainers", extras = ["kafka", "postgres", "rabbitmq", "redis"], marker = "extra == 'integration-tests'", specifier = ">=4.13.0" },
     { name = "zstandard", marker = "extra == 'aws'", specifier = ">=0.22.0" },
     { name = "zstandard", marker = "extra == 'compression'", specifier = ">=0.22.0" },
+    { name = "zstandard", marker = "extra == 'integration-tests'", specifier = ">=0.22.0" },
 ]
 provides-extras = ["storage", "integration-tests", "redis", "postgres", "kafka", "rabbitmq", "tracing", "prometheus", "aws", "compression"]
 
