@@ -15,9 +15,6 @@ from sagaz.cli.replay_ui import (
     HAS_RICH as _HAS_RICH_UI,
 )
 from sagaz.cli.replay_ui import (
-    console as _console_ui,
-)
-from sagaz.cli.replay_ui import (
     display_changes,
     display_failure,
     display_full_state,
