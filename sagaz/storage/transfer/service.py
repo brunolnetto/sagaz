@@ -29,7 +29,7 @@ from datetime import UTC, datetime, timezone
 from enum import Enum
 from typing import Any
 
-from sagaz.core.storage.core import StorageError, TransferError
+from sagaz.core.storage.core import TransferError
 
 logger = logging.getLogger(__name__)
 
