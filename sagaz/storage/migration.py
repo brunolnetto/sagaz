@@ -8,7 +8,7 @@ at the top-level ``sagaz.storage.migration`` path so tests can patch
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from sagaz.storage.transfer.service import TransferResult, transfer_data
