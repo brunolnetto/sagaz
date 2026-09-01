@@ -1,6 +1,7 @@
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 from click.testing import CliRunner
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from sagaz.cli.migrate import migrate_cmd
 

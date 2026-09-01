@@ -135,24 +135,24 @@ class SQLiteOutboxStorage:
         assert conn is not None
         await conn.commit()
 
-    async def _ensure_optional_columns(self, conn: "aiosqlite.Connection") -> None:
+    async def _ensure_optional_columns(self, conn: aiosqlite.Connection) -> None:
         """Add newer optional columns when the table already exists."""
         cursor = await conn.execute("PRAGMA table_info(outbox_events)")
         rows = await cursor.fetchall()
         existing_columns = {row["name"] for row in rows}
 
-        required_columns = {
-            "dead_letter_at": "TEXT",
-            "dead_letter_reason": "TEXT",
-            "error_type": "TEXT",
-            "error_classification": "TEXT",
-            "error_fingerprint": "TEXT",
-            "replay_count": "INTEGER DEFAULT 0",
-        }
-
-        for name, definition in required_columns.items():
-            if name not in existing_columns:
-                await conn.execute(f"ALTER TABLE outbox_events ADD COLUMN {name} {definition}")
+        if "dead_letter_at" not in existing_columns:
+            await conn.execute("ALTER TABLE outbox_events ADD COLUMN dead_letter_at TEXT")
+        if "dead_letter_reason" not in existing_columns:
+            await conn.execute("ALTER TABLE outbox_events ADD COLUMN dead_letter_reason TEXT")
+        if "error_type" not in existing_columns:
+            await conn.execute("ALTER TABLE outbox_events ADD COLUMN error_type TEXT")
+        if "error_classification" not in existing_columns:
+            await conn.execute("ALTER TABLE outbox_events ADD COLUMN error_classification TEXT")
+        if "error_fingerprint" not in existing_columns:
+            await conn.execute("ALTER TABLE outbox_events ADD COLUMN error_fingerprint TEXT")
+        if "replay_count" not in existing_columns:
+            await conn.execute("ALTER TABLE outbox_events ADD COLUMN replay_count INTEGER DEFAULT 0")
 
     async def __aenter__(self):
         """Async context manager entry."""
@@ -268,9 +268,37 @@ class SQLiteOutboxStorage:
         """Update event status."""
         conn = await self._get_connection()
         now = datetime.now(UTC).isoformat()
+        query, params = self._build_update_status_query(event_id, status, error_message, event, now)
+        await conn.execute(query, params)
+        await conn.commit()
+
+        return await self.get_by_id(event_id)
+
+    def _build_update_status_query(
+        self,
+        event_id: str,
+        status: OutboxStatus,
+        error_message: str | None,
+        event: OutboxEvent | None,
+        now: str,
+    ) -> tuple[str, tuple]:
         if status == OutboxStatus.FAILED:
-            await conn.execute(
-                """
+            return self._failed_status_query(event_id, status, error_message, event)
+        if status == OutboxStatus.DEAD_LETTER:
+            return self._dead_letter_status_query(event_id, status, error_message, event, now)
+        if status == OutboxStatus.PENDING:
+            return self._pending_status_query(event_id, status, event)
+        return self._default_status_query(event_id, status, error_message, now)
+
+    def _failed_status_query(
+        self,
+        event_id: str,
+        status: OutboxStatus,
+        error_message: str | None,
+        event: OutboxEvent | None,
+    ) -> tuple[str, tuple]:
+        return (
+            """
                 UPDATE outbox_events
                 SET status = ?,
                     retry_count = retry_count + 1,
@@ -279,19 +307,27 @@ class SQLiteOutboxStorage:
                     error_classification = ?,
                     error_fingerprint = ?
                 WHERE event_id = ?
-                """,
-                (
-                    status.value,
-                    error_message,
-                    event.error_type if event else None,
-                    event.error_classification if event else None,
-                    event.error_fingerprint if event else None,
-                    event_id,
-                ),
-            )
-        elif status == OutboxStatus.DEAD_LETTER:
-            await conn.execute(
-                """
+            """,
+            (
+                status.value,
+                error_message,
+                event.error_type if event else None,
+                event.error_classification if event else None,
+                event.error_fingerprint if event else None,
+                event_id,
+            ),
+        )
+
+    def _dead_letter_status_query(
+        self,
+        event_id: str,
+        status: OutboxStatus,
+        error_message: str | None,
+        event: OutboxEvent | None,
+        now: str,
+    ) -> tuple[str, tuple]:
+        return (
+            """
                 UPDATE outbox_events
                 SET status = ?,
                     dead_letter_at = COALESCE(?, ?),
@@ -300,21 +336,27 @@ class SQLiteOutboxStorage:
                     error_classification = COALESCE(?, error_classification),
                     error_fingerprint = COALESCE(?, error_fingerprint)
                 WHERE event_id = ?
-                """,
-                (
-                    status.value,
-                    event.dead_letter_at.isoformat() if event and event.dead_letter_at else None,
-                    now,
-                    event.dead_letter_reason if event else error_message,
-                    event.error_type if event else None,
-                    event.error_classification if event else None,
-                    event.error_fingerprint if event else None,
-                    event_id,
-                ),
-            )
-        elif status == OutboxStatus.PENDING:
-            await conn.execute(
-                """
+            """,
+            (
+                status.value,
+                event.dead_letter_at.isoformat() if event and event.dead_letter_at else None,
+                now,
+                event.dead_letter_reason if event else error_message,
+                event.error_type if event else None,
+                event.error_classification if event else None,
+                event.error_fingerprint if event else None,
+                event_id,
+            ),
+        )
+
+    def _pending_status_query(
+        self,
+        event_id: str,
+        status: OutboxStatus,
+        event: OutboxEvent | None,
+    ) -> tuple[str, tuple]:
+        return (
+            """
                 UPDATE outbox_events
                 SET status = ?,
                     worker_id = NULL,
@@ -323,26 +365,30 @@ class SQLiteOutboxStorage:
                     dead_letter_reason = NULL,
                     replay_count = COALESCE(?, replay_count)
                 WHERE event_id = ?
-                """,
-                (
-                    status.value,
-                    event.replay_count if event else None,
-                    event_id,
-                ),
-            )
-        else:
-            sent_at = now if status == OutboxStatus.SENT else None
-            await conn.execute(
-                """
+            """,
+            (
+                status.value,
+                event.replay_count if event else None,
+                event_id,
+            ),
+        )
+
+    def _default_status_query(
+        self,
+        event_id: str,
+        status: OutboxStatus,
+        error_message: str | None,
+        now: str,
+    ) -> tuple[str, tuple]:
+        sent_at = now if status == OutboxStatus.SENT else None
+        return (
+            """
                 UPDATE outbox_events
                 SET status = ?, last_error = ?, sent_at = COALESCE(?, sent_at)
                 WHERE event_id = ?
-                """,
-                (status.value, error_message, sent_at, event_id),
-            )
-        await conn.commit()
-
-        return await self.get_by_id(event_id)
+            """,
+            (status.value, error_message, sent_at, event_id),
+        )
 
     async def claim_batch(
         self,

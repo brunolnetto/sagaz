@@ -282,77 +282,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
     ) -> OutboxEvent:
         """Update the status of an event."""
         conn = self._get_connection(connection)
-
-        if status == OutboxStatus.SENT:
-            query = """
-                UPDATE saga_outbox
-                SET status = $2, sent_at = NOW()
-                WHERE event_id = $1
-                RETURNING *
-            """
-            params = (event_id, status.value)
-        elif status == OutboxStatus.FAILED:
-            query = """
-                UPDATE saga_outbox
-                SET status = $2,
-                retry_count = retry_count + 1,
-                last_error = $3,
-                error_type = $4,
-                error_classification = $5,
-                error_fingerprint = $6
-                WHERE event_id = $1
-                RETURNING *
-            """
-            params = (
-                event_id,
-                status.value,
-                error_message,
-                event.error_type if event else None,
-                event.error_classification if event else None,
-                event.error_fingerprint if event else None,
-            )
-        elif status == OutboxStatus.DEAD_LETTER:
-            query = """
-                UPDATE saga_outbox
-                SET status = $2,
-                    dead_letter_at = COALESCE($3, NOW()),
-                    dead_letter_reason = COALESCE($4, last_error, dead_letter_reason, 'max_retries_exceeded'),
-                    error_type = COALESCE($5, error_type),
-                    error_classification = COALESCE($6, error_classification),
-                    error_fingerprint = COALESCE($7, error_fingerprint)
-                WHERE event_id = $1
-                RETURNING *
-            """
-            params = (
-                event_id,
-                status.value,
-                event.dead_letter_at if event else None,
-                event.dead_letter_reason if event else error_message,
-                event.error_type if event else None,
-                event.error_classification if event else None,
-                event.error_fingerprint if event else None,
-            )
-        elif status == OutboxStatus.PENDING:
-            query = """
-                UPDATE saga_outbox
-                SET status = $2,
-                worker_id = NULL,
-                claimed_at = NULL,
-                dead_letter_at = NULL,
-                dead_letter_reason = NULL,
-                replay_count = COALESCE($3, replay_count)
-                WHERE event_id = $1
-                RETURNING *
-            """
-            params = (event_id, status.value, event.replay_count if event else None)
-        else:
-            query = """
-                UPDATE saga_outbox
-                SET status = $2
-                WHERE event_id = $1
-                RETURNING *
-            """
-            params = (event_id, status.value)
+        query, params = self._build_update_status_query(event_id, status, error_message, event)
 
         async def _update(c):
             row = await c.fetchrow(query, *params)
@@ -365,6 +295,122 @@ class PostgreSQLOutboxStorage(OutboxStorage):
             return await _update(conn)  # type: ignore[no-any-return]
         async with conn.acquire() as c:
             return await _update(c)  # type: ignore[no-any-return]
+
+    def _build_update_status_query(
+        self,
+        event_id: str,
+        status: OutboxStatus,
+        error_message: str | None,
+        event: OutboxEvent | None,
+    ) -> tuple[str, tuple[Any, ...]]:
+        if status == OutboxStatus.SENT:
+            return self._sent_status_query(event_id, status)
+        if status == OutboxStatus.FAILED:
+            return self._failed_status_query(event_id, status, error_message, event)
+        if status == OutboxStatus.DEAD_LETTER:
+            return self._dead_letter_status_query(event_id, status, error_message, event)
+        if status == OutboxStatus.PENDING:
+            return self._pending_status_query(event_id, status, event)
+        return self._generic_status_query(event_id, status)
+
+    def _sent_status_query(self, event_id: str, status: OutboxStatus) -> tuple[str, tuple[Any, ...]]:
+        return (
+            """
+                UPDATE saga_outbox
+                SET status = $2, sent_at = NOW()
+                WHERE event_id = $1
+                RETURNING *
+            """,
+            (event_id, status.value),
+        )
+
+    def _failed_status_query(
+        self,
+        event_id: str,
+        status: OutboxStatus,
+        error_message: str | None,
+        event: OutboxEvent | None,
+    ) -> tuple[str, tuple[Any, ...]]:
+        return (
+            """
+                UPDATE saga_outbox
+                SET status = $2,
+                retry_count = retry_count + 1,
+                last_error = $3,
+                error_type = $4,
+                error_classification = $5,
+                error_fingerprint = $6
+                WHERE event_id = $1
+                RETURNING *
+            """,
+            (
+                event_id,
+                status.value,
+                error_message,
+                event.error_type if event else None,
+                event.error_classification if event else None,
+                event.error_fingerprint if event else None,
+            ),
+        )
+
+    def _dead_letter_status_query(
+        self,
+        event_id: str,
+        status: OutboxStatus,
+        error_message: str | None,
+        event: OutboxEvent | None,
+    ) -> tuple[str, tuple[Any, ...]]:
+        return (
+            """
+                UPDATE saga_outbox
+                SET status = $2,
+                    dead_letter_at = COALESCE($3, NOW()),
+                    dead_letter_reason = COALESCE($4, last_error, dead_letter_reason, 'max_retries_exceeded'),
+                    error_type = COALESCE($5, error_type),
+                    error_classification = COALESCE($6, error_classification),
+                    error_fingerprint = COALESCE($7, error_fingerprint)
+                WHERE event_id = $1
+                RETURNING *
+            """,
+            (
+                event_id,
+                status.value,
+                event.dead_letter_at if event else None,
+                event.dead_letter_reason if event else error_message,
+                event.error_type if event else None,
+                event.error_classification if event else None,
+                event.error_fingerprint if event else None,
+            ),
+        )
+
+    def _pending_status_query(
+        self, event_id: str, status: OutboxStatus, event: OutboxEvent | None
+    ) -> tuple[str, tuple[Any, ...]]:
+        return (
+            """
+                UPDATE saga_outbox
+                SET status = $2,
+                worker_id = NULL,
+                claimed_at = NULL,
+                dead_letter_at = NULL,
+                dead_letter_reason = NULL,
+                replay_count = COALESCE($3, replay_count)
+                WHERE event_id = $1
+                RETURNING *
+            """,
+            (event_id, status.value, event.replay_count if event else None),
+        )
+
+    def _generic_status_query(self, event_id: str, status: OutboxStatus) -> tuple[str, tuple[Any, ...]]:
+        return (
+            """
+                UPDATE saga_outbox
+                SET status = $2
+                WHERE event_id = $1
+                RETURNING *
+            """,
+            (event_id, status.value),
+        )
 
     async def get_by_id(self, event_id: str) -> OutboxEvent | None:
         """Get an event by its ID."""
@@ -499,7 +545,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
     def _row_to_event(self, row: "asyncpg.Record") -> OutboxEvent:
         """Convert database row to OutboxEvent."""
         def _row_value(key: str, default=None):
-            if hasattr(row, "keys") and key in row.keys():
+            if hasattr(row, "__contains__") and key in row:
                 return row[key]
             if hasattr(row, "get"):
                 return row.get(key, default)
@@ -609,12 +655,13 @@ class PostgreSQLOutboxStorage(OutboxStorage):
         """
         async with self._pool.acquire() as conn:  # type: ignore[union-attr]
             result = await conn.execute(
-                f"""
+                """
                 DELETE FROM consumer_inbox
                 WHERE consumer_name = $1
-                AND consumed_at < NOW() - INTERVAL '{older_than_days} days'
+                AND consumed_at < NOW() - ($2::text || ' days')::interval
                 """,
                 consumer_name,
+                older_than_days,
             )
             # Parse "DELETE N" to get count
             return int(result.split()[-1]) if result.startswith("DELETE") else 0
