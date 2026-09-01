@@ -25,7 +25,7 @@ export OPENAI_API_KEY="your-key"
 ## Running the Example
 
 ```bash
-python -m sagaz.examples.ai.digital_media.content_generation.ai_content_pipeline.main
+python -m sagaz.examples.technology.ai.ai_content_pipeline.main
 ```
 
 ## Workflow
