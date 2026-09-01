@@ -663,7 +663,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
                 """
                 DELETE FROM consumer_inbox
                 WHERE consumer_name = $1
-                AND consumed_at < NOW() - ($2::text || ' days')::interval
+                AND consumed_at < NOW() - make_interval(days => $2)
                 """,
                 consumer_name,
                 older_than_days,
