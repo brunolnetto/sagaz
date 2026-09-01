@@ -152,7 +152,9 @@ class SQLiteOutboxStorage:
         if "error_fingerprint" not in existing_columns:
             await conn.execute("ALTER TABLE outbox_events ADD COLUMN error_fingerprint TEXT")
         if "replay_count" not in existing_columns:
-            await conn.execute("ALTER TABLE outbox_events ADD COLUMN replay_count INTEGER DEFAULT 0")
+            await conn.execute(
+                "ALTER TABLE outbox_events ADD COLUMN replay_count INTEGER DEFAULT 0"
+            )
 
     async def __aenter__(self):
         """Async context manager entry."""
@@ -593,7 +595,9 @@ class SQLiteOutboxStorage:
                 "created_at": event.created_at.isoformat() if event.created_at else None,
                 "retry_count": event.retry_count,
                 "last_error": event.last_error,
-                "dead_letter_at": event.dead_letter_at.isoformat() if event.dead_letter_at else None,
+                "dead_letter_at": event.dead_letter_at.isoformat()
+                if event.dead_letter_at
+                else None,
                 "dead_letter_reason": event.dead_letter_reason,
                 "error_type": event.error_type,
                 "error_classification": event.error_classification,

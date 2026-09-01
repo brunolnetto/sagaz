@@ -57,13 +57,15 @@ from examples.healthcare.lab_processing import LabTestProcessingSaga
 
 saga = LabTestProcessingSaga()
 
-result = await saga.run({
-    "sample_id": "SAMP-2026-001",
-    "patient_id": "PAT-12345",
-    "sample_type": "blood",
-    "ordering_provider": "DR-SMITH",
-    "tests_ordered": ["CBC", "CMP", "LIPID"],
-})
+result = await saga.run(
+    {
+        "sample_id": "SAMP-2026-001",
+        "patient_id": "PAT-12345",
+        "sample_type": "blood",
+        "ordering_provider": "DR-SMITH",
+        "tests_ordered": ["CBC", "CMP", "LIPID"],
+    }
+)
 ```
 
 ## Context Schema

@@ -98,11 +98,13 @@ from examples.data_engineering.etl_pipeline import ETLPipelineSaga
 
 async def run_etl(**context):
     saga = ETLPipelineSaga()
-    result = await saga.run({
-        "source_table": context["params"]["source"],
-        "target_table": context["params"]["target"],
-        "batch_date": context["ds"],
-    })
+    result = await saga.run(
+        {
+            "source_table": context["params"]["source"],
+            "target_table": context["params"]["target"],
+            "batch_date": context["ds"],
+        }
+    )
     return result
 
 

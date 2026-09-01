@@ -129,8 +129,10 @@ def _get_broker_config(broker: str) -> tuple[str, int, str]:
         "kafka": (
             "confluentinc/cp-kafka:latest",
             9092,
-            "KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092\n"
-            "      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181",
+            (
+                "KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092\n"
+                "      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181"
+            ),
         ),
     }
     return configs.get(broker, configs["redis"])

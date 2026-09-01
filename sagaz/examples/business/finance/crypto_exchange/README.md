@@ -57,15 +57,17 @@ from decimal import Decimal
 
 saga = CryptoExchangeSaga()
 
-result = await saga.run({
-    "trade_id": "TRADE-001",
-    "user_id": "USER-456",
-    "from_currency": "BTC",
-    "to_currency": "ETH",
-    "amount": Decimal("0.5"),
-    "destination_wallet": "0x742d35Cc6634C0532925a3b844Bc9e7595f2bAcE",
-    "network": "ethereum",
-})
+result = await saga.run(
+    {
+        "trade_id": "TRADE-001",
+        "user_id": "USER-456",
+        "from_currency": "BTC",
+        "to_currency": "ETH",
+        "amount": Decimal("0.5"),
+        "destination_wallet": "0x742d35Cc6634C0532925a3b844Bc9e7595f2bAcE",
+        "network": "ethereum",
+    }
+)
 ```
 
 ## Context Schema

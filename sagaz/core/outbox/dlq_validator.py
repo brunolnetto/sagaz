@@ -42,15 +42,19 @@ class DLQReplayValidator:
         if event.error_classification == "PERMANENT":
             return (
                 False,
-                f"Event {event.event_id} has a PERMANENT error classification "
-                f"(error_type={event.error_type!r}); replaying will not succeed.",
+                (
+                    f"Event {event.event_id} has a PERMANENT error classification "
+                    f"(error_type={event.error_type!r}); replaying will not succeed."
+                ),
             )
 
         if event.replay_count >= self.max_replays:
             return (
                 False,
-                f"Event {event.event_id} has been replayed {event.replay_count} time(s) "
-                f"(max {self.max_replays}). Use force=True to override.",
+                (
+                    f"Event {event.event_id} has been replayed {event.replay_count} time(s) "
+                    f"(max {self.max_replays}). Use force=True to override."
+                ),
             )
 
         return True, ""

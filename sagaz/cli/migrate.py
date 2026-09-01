@@ -93,6 +93,7 @@ def migrate_run(
 @click.option("--source", required=True, help="Source storage backend URL.")
 def migrate_status(source: str) -> None:
     """Show the current record counts in SOURCE backend."""
+
     async def _run() -> None:
         click.echo(f"Fetching record counts from {source} …")
         async with create_storage_manager(url=source) as manager:

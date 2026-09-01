@@ -73,16 +73,18 @@ from decimal import Decimal
 
 saga = PropertyClosingSaga()
 
-result = await saga.run({
-    "transaction_id": "CLOSE-2026-001",
-    "property_id": "PROP-123456",
-    "buyer_name": "Alice Johnson",
-    "seller_name": "Bob Smith",
-    "purchase_price": Decimal("550000"),
-    "escrow_amount": Decimal("550000"),
-    "seller_account": "ACCT-SELLER-001",
-    "county": "San Francisco County",
-})
+result = await saga.run(
+    {
+        "transaction_id": "CLOSE-2026-001",
+        "property_id": "PROP-123456",
+        "buyer_name": "Alice Johnson",
+        "seller_name": "Bob Smith",
+        "purchase_price": Decimal("550000"),
+        "escrow_amount": Decimal("550000"),
+        "seller_account": "ACCT-SELLER-001",
+        "county": "San Francisco County",
+    }
+)
 ```
 
 ## Context Schema

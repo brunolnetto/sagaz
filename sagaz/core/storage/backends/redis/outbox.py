@@ -161,7 +161,7 @@ class RedisOutboxStorage(OutboxStorage):
         return {
             "event_id": event.event_id,
             "saga_id": event.saga_id,
-            "aggregate_type": event.aggregate_type,
+            "aggregate_type": event.aggregate_type or "saga",
             "aggregate_id": self._optional_text(event.aggregate_id),
             "event_type": event.event_type,
             "payload": serialize(event.payload),

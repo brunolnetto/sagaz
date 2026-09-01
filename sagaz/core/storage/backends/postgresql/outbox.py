@@ -313,7 +313,9 @@ class PostgreSQLOutboxStorage(OutboxStorage):
             return self._pending_status_query(event_id, status, event)
         return self._generic_status_query(event_id, status)
 
-    def _sent_status_query(self, event_id: str, status: OutboxStatus) -> tuple[str, tuple[Any, ...]]:
+    def _sent_status_query(
+        self, event_id: str, status: OutboxStatus
+    ) -> tuple[str, tuple[Any, ...]]:
         return (
             """
                 UPDATE saga_outbox
@@ -401,7 +403,9 @@ class PostgreSQLOutboxStorage(OutboxStorage):
             (event_id, status.value, event.replay_count if event else None),
         )
 
-    def _generic_status_query(self, event_id: str, status: OutboxStatus) -> tuple[str, tuple[Any, ...]]:
+    def _generic_status_query(
+        self, event_id: str, status: OutboxStatus
+    ) -> tuple[str, tuple[Any, ...]]:
         return (
             """
                 UPDATE saga_outbox
@@ -544,6 +548,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
 
     def _row_to_event(self, row: "asyncpg.Record") -> OutboxEvent:
         """Convert database row to OutboxEvent."""
+
         def _row_value(key: str, default=None):
             if hasattr(row, "__contains__") and key in row:
                 return row[key]

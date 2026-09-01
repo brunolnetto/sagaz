@@ -55,7 +55,9 @@ class VerificationResult:
 
     @property
     def sagas_match(self) -> bool:
-        return self.source_sagas >= 0 and self.dest_sagas >= 0 and self.source_sagas == self.dest_sagas
+        return (
+            self.source_sagas >= 0 and self.dest_sagas >= 0 and self.source_sagas == self.dest_sagas
+        )
 
     @property
     def events_match(self) -> bool:

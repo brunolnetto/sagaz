@@ -195,12 +195,14 @@ from examples.ecommerce.order_processing.main import OrderProcessingSaga
 saga = OrderProcessingSaga()
 
 # Pass order data through the run() method
-result = await saga.run({
-    "order_id": "ORD-123",
-    "user_id": "USER-456",
-    "items": [{"id": "ITEM-1", "quantity": 2}],
-    "total_amount": 99.99,
-})
+result = await saga.run(
+    {
+        "order_id": "ORD-123",
+        "user_id": "USER-456",
+        "items": [{"id": "ITEM-1", "quantity": 2}],
+        "total_amount": 99.99,
+    }
+)
 ```
 
 ### 💳 Payment Processing
@@ -215,11 +217,13 @@ from examples.fintech.payment_processing.main import PaymentProcessingSaga
 
 saga = PaymentProcessingSaga()
 
-result = await saga.run({
-    "payment_id": "PAY-101",
-    "amount": 250.00,
-    "providers": ["Stripe", "PayPal", "Square"],
-})
+result = await saga.run(
+    {
+        "payment_id": "PAY-101",
+        "amount": 250.00,
+        "providers": ["Stripe", "PayPal", "Square"],
+    }
+)
 ```
 
 ### 📈 Trade Execution
@@ -234,13 +238,15 @@ from examples.fintech.trade_execution.main import TradeExecutionSaga
 
 saga = TradeExecutionSaga()
 
-result = await saga.run({
-    "trade_id": 12345,
-    "symbol": "AAPL",
-    "quantity": 100,
-    "price": 150.00,
-    "user_id": 789,
-})
+result = await saga.run(
+    {
+        "trade_id": 12345,
+        "symbol": "AAPL",
+        "quantity": 100,
+        "price": 150.00,
+        "user_id": 789,
+    }
+)
 ```
 
 ### ✈️ Travel Booking
@@ -255,13 +261,15 @@ from examples.travel.booking.main import TravelBookingSaga
 
 saga = TravelBookingSaga()
 
-result = await saga.run({
-    "booking_id": "BOOK-456",
-    "user_id": "USER-789",
-    "flight_details": {"flight_number": "AA123", "from": "NYC", "to": "LAX"},
-    "hotel_details": {"hotel_name": "Grand Hotel", "nights": 3},
-    "car_details": {"car_type": "Sedan", "days": 3},
-})
+result = await saga.run(
+    {
+        "booking_id": "BOOK-456",
+        "user_id": "USER-789",
+        "flight_details": {"flight_number": "AA123", "from": "NYC", "to": "LAX"},
+        "hotel_details": {"hotel_name": "Grand Hotel", "nights": 3},
+        "car_details": {"car_type": "Sedan", "days": 3},
+    }
+)
 ```
 
 ### 🏥 Healthcare Patient Onboarding
@@ -276,15 +284,17 @@ from examples.healthcare.patient_onboarding.main import HealthcarePatientOnboard
 
 saga = HealthcarePatientOnboardingSaga()
 
-result = await saga.run({
-    "patient_id": "PAT-2026-001",
-    "first_name": "Alice",
-    "last_name": "Johnson",
-    "date_of_birth": "1985-06-15",
-    "ssn_last_4": "1234",
-    "email": "alice.johnson@email.com",
-    "phone": "+1-555-0123",
-})
+result = await saga.run(
+    {
+        "patient_id": "PAT-2026-001",
+        "first_name": "Alice",
+        "last_name": "Johnson",
+        "date_of_birth": "1985-06-15",
+        "ssn_last_4": "1234",
+        "email": "alice.johnson@email.com",
+        "phone": "+1-555-0123",
+    }
+)
 ```
 
 ### 📱 IoT Device Orchestration
@@ -299,12 +309,14 @@ from examples.iot.device_orchestration.main import IoTDeviceOrchestrationSaga
 
 saga = IoTDeviceOrchestrationSaga()
 
-result = await saga.run({
-    "routine_id": "ROUTINE-001",
-    "home_id": "HOME-123",
-    "user_id": "USER-456",
-    "device_count": 100,
-})
+result = await saga.run(
+    {
+        "routine_id": "ROUTINE-001",
+        "home_id": "HOME-123",
+        "user_id": "USER-456",
+        "device_count": 100,
+    }
+)
 ```
 
 ### ⚡ Smart Grid Energy Management
@@ -319,13 +331,15 @@ from examples.iot.smart_grid.main import SmartGridEnergySaga
 
 saga = SmartGridEnergySaga()
 
-result = await saga.run({
-    "event_id": "DR-2026-HEATWAVE-001",
-    "grid_operator_id": "GRID-CAISO",
-    "target_reduction_mw": 1.5,
-    "event_duration_hours": 4,
-    "incentive_rate_per_kwh": 0.15,
-})
+result = await saga.run(
+    {
+        "event_id": "DR-2026-HEATWAVE-001",
+        "grid_operator_id": "GRID-CAISO",
+        "target_reduction_mw": 1.5,
+        "event_duration_hours": 4,
+        "incentive_rate_per_kwh": 0.15,
+    }
+)
 ```
 
 ### 🚁 Supply Chain Drone Delivery
@@ -340,15 +354,17 @@ from examples.logistics.drone_delivery.main import SupplyChainDroneDeliverySaga
 
 saga = SupplyChainDroneDeliverySaga()
 
-result = await saga.run({
-    "delivery_id": "DEL-2026-001",
-    "package_id": "PKG-54321",
-    "warehouse_id": "WH-SF-01",
-    "destination_lat": 37.7899,
-    "destination_lon": -122.3999,
-    "package_weight_kg": 2.5,
-    "priority": "standard",
-})
+result = await saga.run(
+    {
+        "delivery_id": "DEL-2026-001",
+        "package_id": "PKG-54321",
+        "warehouse_id": "WH-SF-01",
+        "destination_lat": 37.7899,
+        "destination_lon": -122.3999,
+        "package_weight_kg": 2.5,
+        "priority": "standard",
+    }
+)
 ```
 
 ### 🤖 ML Training Pipeline
@@ -368,13 +384,15 @@ from examples.ml.training.main import MLTrainingPipelineSaga
 
 saga = MLTrainingPipelineSaga()
 
-result = await saga.run({
-    "experiment_id": "exp-001",
-    "dataset_path": "/data/training/dataset.parquet",
-    "model_name": "churn-predictor",
-    "accuracy_threshold": 0.85,
-    "hyperparameters": {"learning_rate": 0.001, "epochs": 15},
-})
+result = await saga.run(
+    {
+        "experiment_id": "exp-001",
+        "dataset_path": "/data/training/dataset.parquet",
+        "model_name": "churn-predictor",
+        "accuracy_threshold": 0.85,
+        "hyperparameters": {"learning_rate": 0.001, "epochs": 15},
+    }
+)
 ```
 
 ### 🤖 Edge Federated Learning
@@ -389,14 +407,16 @@ from examples.ml.federated_learning.main import EdgeFederatedLearningSaga
 
 saga = EdgeFederatedLearningSaga()
 
-result = await saga.run({
-    "training_round_id": "FL-ROUND-042",
-    "model_name": "user-behavior-predictor",
-    "model_version": "3.2.0",
-    "target_accuracy": 0.85,
-    "min_participating_nodes": 10,
-    "training_rounds": 5,
-})
+result = await saga.run(
+    {
+        "training_round_id": "FL-ROUND-042",
+        "model_name": "user-behavior-predictor",
+        "model_version": "3.2.0",
+        "target_accuracy": 0.85,
+        "min_participating_nodes": 10,
+        "training_rounds": 5,
+    }
+)
 ```
 
 ### 📊 Monitoring & Visualization
