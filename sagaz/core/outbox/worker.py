@@ -401,6 +401,7 @@ class OutboxWorker:
             event.event_id,
             OutboxStatus.FAILED,
             error_message=error_message,
+            event=event,
         )
 
         self._events_failed += 1
@@ -421,6 +422,7 @@ class OutboxWorker:
             await self.storage.update_status(
                 event.event_id,
                 OutboxStatus.PENDING,
+                event=event,
             )
 
     async def _move_to_dead_letter(self, event: OutboxEvent) -> None:
@@ -436,6 +438,8 @@ class OutboxWorker:
         await self.storage.update_status(
             event.event_id,
             OutboxStatus.DEAD_LETTER,
+            error_message=event.dead_letter_reason,
+            event=event,
         )
 
         self._events_dead_lettered += 1

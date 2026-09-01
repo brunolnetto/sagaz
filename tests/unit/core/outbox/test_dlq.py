@@ -978,13 +978,26 @@ class TestCLIRichFallback:
             "Table should be None or a class"
         )
 
-    def test_get_storage_returns_in_memory_storage(self):
+    def test_get_storage_returns_in_memory_storage(self, monkeypatch):
         """Test: _get_storage() returns InMemoryOutboxStorage instance."""
+        monkeypatch.delenv("SAGAZ_OUTBOX_URL", raising=False)
+        monkeypatch.delenv("OUTBOX_URL", raising=False)
+        monkeypatch.delenv("SAGAZ_STORAGE_URL", raising=False)
+        monkeypatch.delenv("DATABASE_URL", raising=False)
+
         from sagaz.cli.dlq import _get_storage
         from sagaz.core.storage.backends.memory.outbox import InMemoryOutboxStorage
 
         storage = _get_storage()
         assert isinstance(storage, InMemoryOutboxStorage)
+
+    def test_get_storage_uses_configured_redis_backend(self, monkeypatch):
+        from sagaz.cli.dlq import _get_storage
+        from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
+
+        monkeypatch.setenv("SAGAZ_OUTBOX_URL", "redis://localhost:6379/0")
+        storage = _get_storage()
+        assert isinstance(storage, RedisOutboxStorage)
 
 
 # ===========================================================================

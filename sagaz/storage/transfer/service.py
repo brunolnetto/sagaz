@@ -327,7 +327,13 @@ class TransferService:
             )
 
         async for record in self.source.export_all():
-            yield record
+            if isinstance(record, dict):
+                yield record
+            elif hasattr(record, "to_dict"):
+                yield record.to_dict()
+            else:
+                msg = f"Unsupported export record type: {type(record).__name__}"
+                raise TransferError(msg)
 
     async def _transfer_batch(
         self,

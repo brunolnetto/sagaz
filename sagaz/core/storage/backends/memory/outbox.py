@@ -84,6 +84,7 @@ class InMemoryOutboxStorage(OutboxStorage):
         status: OutboxStatus,
         error_message: str | None = None,
         connection: Any | None = None,
+        event: OutboxEvent | None = None,
     ) -> OutboxEvent:
         """Update event status."""
         outbox_status_cls = _get_outbox_status()

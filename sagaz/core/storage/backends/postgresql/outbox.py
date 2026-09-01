@@ -21,7 +21,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
 
 from sagaz.core.exceptions import MissingDependencyError
-from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
+from sagaz.core.outbox.types import OutboxEvent, OutboxStatus, ReplayLoopError
 from sagaz.core.storage.interfaces.outbox import OutboxStorage, OutboxStorageError
 
 # Check for asyncpg availability
@@ -52,6 +52,12 @@ CREATE TABLE IF NOT EXISTS saga_outbox (
     retry_count     INTEGER NOT NULL DEFAULT 0,
     last_error      TEXT,
     worker_id       VARCHAR(255),
+    dead_letter_at  TIMESTAMPTZ,
+    dead_letter_reason TEXT,
+    error_type      VARCHAR(255),
+    error_classification VARCHAR(255),
+    error_fingerprint VARCHAR(255),
+    replay_count    INTEGER NOT NULL DEFAULT 0,
 
     -- Indexes for common queries
     CONSTRAINT valid_status CHECK (
@@ -92,6 +98,13 @@ CREATE TABLE IF NOT EXISTS consumer_inbox (
 -- Index for cleanup queries
 CREATE INDEX IF NOT EXISTS idx_consumer_inbox_cleanup
     ON consumer_inbox (consumer_name, consumed_at);
+
+ALTER TABLE saga_outbox ADD COLUMN IF NOT EXISTS dead_letter_at TIMESTAMPTZ;
+ALTER TABLE saga_outbox ADD COLUMN IF NOT EXISTS dead_letter_reason TEXT;
+ALTER TABLE saga_outbox ADD COLUMN IF NOT EXISTS error_type VARCHAR(255);
+ALTER TABLE saga_outbox ADD COLUMN IF NOT EXISTS error_classification VARCHAR(255);
+ALTER TABLE saga_outbox ADD COLUMN IF NOT EXISTS error_fingerprint VARCHAR(255);
+ALTER TABLE saga_outbox ADD COLUMN IF NOT EXISTS replay_count INTEGER NOT NULL DEFAULT 0;
 """
 
 
@@ -184,8 +197,13 @@ class PostgreSQLOutboxStorage(OutboxStorage):
         query = """
             INSERT INTO saga_outbox (
                 event_id, saga_id, aggregate_type, aggregate_id,
-                event_type, payload, headers, status, created_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                event_type, payload, headers, status, created_at,
+                retry_count, last_error, worker_id, dead_letter_at, dead_letter_reason,
+                error_type, error_classification, error_fingerprint, replay_count
+            ) VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8, $9,
+                $10, $11, $12, $13, $14, $15, $16, $17, $18
+            )
             RETURNING *
         """
 
@@ -201,6 +219,15 @@ class PostgreSQLOutboxStorage(OutboxStorage):
                 json.dumps(event.headers),
                 event.status.value,
                 event.created_at,
+                event.retry_count,
+                event.last_error,
+                event.worker_id,
+                event.dead_letter_at,
+                event.dead_letter_reason,
+                event.error_type,
+                event.error_classification,
+                event.error_fingerprint,
+                event.replay_count,
             )
             return event
 
@@ -251,6 +278,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
         status: OutboxStatus,
         error_message: str | None = None,
         connection: Any | None = None,
+        event: OutboxEvent | None = None,
     ) -> OutboxEvent:
         """Update the status of an event."""
         conn = self._get_connection(connection)
@@ -268,21 +296,55 @@ class PostgreSQLOutboxStorage(OutboxStorage):
                 UPDATE saga_outbox
                 SET status = $2,
                 retry_count = retry_count + 1,
-                last_error = $3
+                last_error = $3,
+                error_type = $4,
+                error_classification = $5,
+                error_fingerprint = $6
                 WHERE event_id = $1
                 RETURNING *
             """
-            params = (event_id, status.value, error_message)  # type: ignore[assignment]
+            params = (
+                event_id,
+                status.value,
+                error_message,
+                event.error_type if event else None,
+                event.error_classification if event else None,
+                event.error_fingerprint if event else None,
+            )
+        elif status == OutboxStatus.DEAD_LETTER:
+            query = """
+                UPDATE saga_outbox
+                SET status = $2,
+                    dead_letter_at = COALESCE($3, NOW()),
+                    dead_letter_reason = COALESCE($4, last_error, dead_letter_reason, 'max_retries_exceeded'),
+                    error_type = COALESCE($5, error_type),
+                    error_classification = COALESCE($6, error_classification),
+                    error_fingerprint = COALESCE($7, error_fingerprint)
+                WHERE event_id = $1
+                RETURNING *
+            """
+            params = (
+                event_id,
+                status.value,
+                event.dead_letter_at if event else None,
+                event.dead_letter_reason if event else error_message,
+                event.error_type if event else None,
+                event.error_classification if event else None,
+                event.error_fingerprint if event else None,
+            )
         elif status == OutboxStatus.PENDING:
             query = """
                 UPDATE saga_outbox
                 SET status = $2,
                 worker_id = NULL,
-                claimed_at = NULL
+                claimed_at = NULL,
+                dead_letter_at = NULL,
+                dead_letter_reason = NULL,
+                replay_count = COALESCE($3, replay_count)
                 WHERE event_id = $1
                 RETURNING *
             """
-            params = (event_id, status.value)
+            params = (event_id, status.value, event.replay_count if event else None)
         else:
             query = """
                 UPDATE saga_outbox
@@ -436,6 +498,13 @@ class PostgreSQLOutboxStorage(OutboxStorage):
 
     def _row_to_event(self, row: "asyncpg.Record") -> OutboxEvent:
         """Convert database row to OutboxEvent."""
+        def _row_value(key: str, default=None):
+            if hasattr(row, "keys") and key in row.keys():
+                return row[key]
+            if hasattr(row, "get"):
+                return row.get(key, default)
+            return default
+
         payload = row["payload"]
         if isinstance(payload, str):
             payload = json.loads(payload)
@@ -459,6 +528,12 @@ class PostgreSQLOutboxStorage(OutboxStorage):
             retry_count=row["retry_count"],
             last_error=row["last_error"],
             worker_id=row["worker_id"],
+            dead_letter_at=_row_value("dead_letter_at"),
+            dead_letter_reason=_row_value("dead_letter_reason"),
+            error_type=_row_value("error_type"),
+            error_classification=_row_value("error_classification"),
+            error_fingerprint=_row_value("error_fingerprint"),
+            replay_count=_row_value("replay_count", 0) or 0,
         )
 
     # Consumer Inbox Methods
@@ -576,6 +651,16 @@ class PostgreSQLOutboxStorage(OutboxStorage):
                             "created_at": event.created_at.isoformat()
                             if event.created_at
                             else None,
+                            "retry_count": event.retry_count,
+                            "last_error": event.last_error,
+                            "dead_letter_at": event.dead_letter_at.isoformat()
+                            if event.dead_letter_at
+                            else None,
+                            "dead_letter_reason": event.dead_letter_reason,
+                            "error_type": event.error_type,
+                            "error_classification": event.error_classification,
+                            "error_fingerprint": event.error_fingerprint,
+                            "replay_count": event.replay_count,
                         }
                 except Exception:  # pylint: disable=try-except-raise
                     # Transaction rollback is automatic with context manager
@@ -590,5 +675,60 @@ class PostgreSQLOutboxStorage(OutboxStorage):
             event_type=record["event_type"],
             payload=record.get("payload", {}),
             status=OutboxStatus(record.get("status", "pending")),
+            retry_count=int(record.get("retry_count", 0) or 0),
+            last_error=record.get("last_error"),
+            dead_letter_at=datetime.fromisoformat(record["dead_letter_at"])
+            if record.get("dead_letter_at")
+            else None,
+            dead_letter_reason=record.get("dead_letter_reason"),
+            error_type=record.get("error_type"),
+            error_classification=record.get("error_classification"),
+            error_fingerprint=record.get("error_fingerprint"),
+            replay_count=int(record.get("replay_count", 0) or 0),
         )
         await self.insert(event)
+
+    async def requeue_dead_letter_event(self, event_id: str, force: bool = False) -> OutboxEvent:
+        """Move a dead-letter event back to PENDING for replay."""
+        event = await self.get_by_id(event_id)
+        if event is None:
+            msg = f"Event {event_id} not found"
+            raise KeyError(msg)
+
+        max_replays = 3
+        if not force and event.replay_count >= max_replays:
+            raise ReplayLoopError(
+                event_id=event_id,
+                replay_count=event.replay_count,
+                max_replays=max_replays,
+            )
+
+        event.replay_count += 1
+        event.retry_count = 0
+        event.dead_letter_at = None
+        event.dead_letter_reason = None
+        event.worker_id = None
+        event.claimed_at = None
+        return await self.update_status(event_id, OutboxStatus.PENDING, event=event)
+
+    async def purge_dead_letter_events(self, older_than: timedelta | None = None) -> int:
+        """Permanently remove dead-letter events."""
+        if not self._pool:
+            msg = "Storage not initialized"
+            raise OutboxStorageError(msg)
+
+        async with self._pool.acquire() as conn:
+            if older_than is None:
+                result = await conn.execute("DELETE FROM saga_outbox WHERE status = 'dead_letter'")
+            else:
+                cutoff = datetime.now(UTC) - older_than
+                result = await conn.execute(
+                    """
+                    DELETE FROM saga_outbox
+                    WHERE status = 'dead_letter'
+                    AND dead_letter_at IS NOT NULL
+                    AND dead_letter_at < $1
+                    """,
+                    cutoff,
+                )
+            return int(result.split()[-1]) if result.startswith("DELETE") else 0

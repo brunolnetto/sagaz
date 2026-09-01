@@ -98,6 +98,7 @@ class OutboxStorage(ABC):
         status: OutboxStatus,
         error_message: str | None = None,
         connection: Any | None = None,
+        event: OutboxEvent | None = None,
     ) -> OutboxEvent:
         """
         Update the status of an event.
@@ -107,6 +108,7 @@ class OutboxStorage(ABC):
             status: New status
             error_message: Optional error message (for FAILED status)
             connection: Optional database connection (for transactions)
+            event: Optional full event carrying metadata to persist
 
         Returns:
             Updated event

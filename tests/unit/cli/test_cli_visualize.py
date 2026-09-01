@@ -162,3 +162,9 @@ def test_visualize_direction(runner):
         result = runner.invoke(visualize_cmd, ["myapp:MySaga", "--direction", "LR"])
         assert result.exit_code == 0
         assert "graph LR" in result.output
+
+
+def test_visualize_registered_on_main_cli():
+    from sagaz.cli.app import cli
+
+    assert "visualize" in cli.commands

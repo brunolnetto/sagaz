@@ -10,7 +10,7 @@ import time
 from datetime import UTC, datetime
 from typing import Any
 
-from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
+from sagaz.core.outbox.types import OutboxEvent, OutboxStatus, ReplayLoopError
 from sagaz.core.storage.core import (
     HealthCheckResult,
     HealthStatus,
@@ -148,6 +148,12 @@ class RedisOutboxStorage(OutboxStorage):
             "worker_id": event.worker_id or "",
             "routing_key": event.routing_key or "",
             "partition_key": event.partition_key or "",
+            "dead_letter_at": event.dead_letter_at.isoformat() if event.dead_letter_at else "",
+            "dead_letter_reason": event.dead_letter_reason or "",
+            "error_type": event.error_type or "",
+            "error_classification": event.error_classification or "",
+            "error_fingerprint": event.error_fingerprint or "",
+            "replay_count": str(event.replay_count),
         }
 
     def _deserialize_event(self, data: dict[bytes | str, bytes | str]) -> OutboxEvent:
@@ -181,6 +187,12 @@ class RedisOutboxStorage(OutboxStorage):
             worker_id=decoded.get("worker_id") or None,
             routing_key=decoded.get("routing_key") or None,
             partition_key=decoded.get("partition_key") or None,
+            dead_letter_at=parse_datetime(decoded.get("dead_letter_at", "")),
+            dead_letter_reason=decoded.get("dead_letter_reason") or None,
+            error_type=decoded.get("error_type") or None,
+            error_classification=decoded.get("error_classification") or None,
+            error_fingerprint=decoded.get("error_fingerprint") or None,
+            replay_count=int(decoded.get("replay_count", 0)),
         )
 
     # ==========================================================================
@@ -243,6 +255,7 @@ class RedisOutboxStorage(OutboxStorage):
         status: OutboxStatus,
         error_message: str | None = None,
         connection: Any | None = None,
+        event: OutboxEvent | None = None,
     ) -> OutboxEvent:
         """Update event status."""
         if not self._initialized:
@@ -257,7 +270,34 @@ class RedisOutboxStorage(OutboxStorage):
         if status == OutboxStatus.SENT:
             updates["sent_at"] = now
         elif status == OutboxStatus.FAILED and error_message:
+            current = await self.get_by_id(event_id)
+            updates["retry_count"] = str((current.retry_count if current else 0) + 1)
             updates["last_error"] = error_message
+            updates["error_type"] = event.error_type if event and event.error_type else ""
+            updates["error_classification"] = (
+                event.error_classification if event and event.error_classification else ""
+            )
+            updates["error_fingerprint"] = (
+                event.error_fingerprint if event and event.error_fingerprint else ""
+            )
+        elif status == OutboxStatus.DEAD_LETTER:
+            updates["dead_letter_at"] = (
+                event.dead_letter_at.isoformat() if event and event.dead_letter_at else now
+            )
+            updates["dead_letter_reason"] = (
+                event.dead_letter_reason if event and event.dead_letter_reason else error_message or ""
+            )
+            updates["error_type"] = event.error_type if event and event.error_type else ""
+            updates["error_classification"] = (
+                event.error_classification if event and event.error_classification else ""
+            )
+            updates["error_fingerprint"] = (
+                event.error_fingerprint if event and event.error_fingerprint else ""
+            )
+        elif status == OutboxStatus.PENDING and event:
+            updates["replay_count"] = str(event.replay_count)
+            updates["dead_letter_at"] = ""
+            updates["dead_letter_reason"] = ""
 
         await self._redis.hset(meta_key, mapping=updates)
 
@@ -522,21 +562,24 @@ class RedisOutboxStorage(OutboxStorage):
         assert self._redis is not None
 
         events = []
-
+        pattern = f"{self._prefix}:meta:*"
+        cursor = 0
         try:
-            messages = await self._redis.xrange(self._dlq_key, count=limit)
-            for _message_id, data in messages:
-                event_id = (
-                    data.get(b"event_id", b"").decode()
-                    if isinstance(data.get(b"event_id"), bytes)
-                    else data.get("event_id", "")
-                )
-                event = await self.get_by_id(event_id)
-                if event:
-                    events.append(event)
+            while True:
+                cursor, keys = await self._redis.scan(cursor, match=pattern, count=100)
+                for key in keys:
+                    data = await self._redis.hgetall(key)
+                    if not data:
+                        continue
+                    event = self._deserialize_event(data)
+                    if event.status == OutboxStatus.DEAD_LETTER:
+                        events.append(event)
+                        if len(events) >= limit:
+                            return events
+                if cursor == 0:
+                    break
         except Exception as e:
             logger.warning(f"Error reading DLQ: {e}")
-
         return events
 
     async def health_check(self) -> HealthCheckResult:
@@ -625,8 +668,81 @@ class RedisOutboxStorage(OutboxStorage):
             event_type=record["event_type"],
             payload=record.get("payload", {}),
             status=OutboxStatus(record.get("status", "pending")),
+            retry_count=int(record.get("retry_count", 0) or 0),
+            last_error=record.get("last_error"),
+            dead_letter_at=datetime.fromisoformat(record["dead_letter_at"])
+            if record.get("dead_letter_at")
+            else None,
+            dead_letter_reason=record.get("dead_letter_reason"),
+            error_type=record.get("error_type"),
+            error_classification=record.get("error_classification"),
+            error_fingerprint=record.get("error_fingerprint"),
+            replay_count=int(record.get("replay_count", 0) or 0),
         )
         await self.insert(event)
+
+    async def requeue_dead_letter_event(self, event_id: str, force: bool = False) -> OutboxEvent:
+        """Move a DLQ event back to PENDING."""
+        if not self._initialized:
+            await self.initialize()
+        event = await self.get_by_id(event_id)
+        if event is None:
+            msg = f"Event {event_id} not found"
+            raise KeyError(msg)
+
+        max_replays = 3
+        if not force and event.replay_count >= max_replays:
+            raise ReplayLoopError(
+                event_id=event_id,
+                replay_count=event.replay_count,
+                max_replays=max_replays,
+            )
+
+        event.replay_count += 1
+        event.status = OutboxStatus.PENDING
+        event.retry_count = 0
+        event.worker_id = None
+        event.claimed_at = None
+        event.dead_letter_at = None
+        event.dead_letter_reason = None
+
+        assert self._redis is not None
+        await self._redis.xadd(
+            self._stream_key,
+            {"event_id": event.event_id, "saga_id": event.saga_id, "event_type": event.event_type},
+            maxlen=self._max_stream_length,
+        )
+        return await self.update_status(event_id, OutboxStatus.PENDING, event=event)
+
+    async def purge_dead_letter_events(self, older_than=None) -> int:
+        """Permanently remove DLQ events."""
+        if not self._initialized:
+            await self.initialize()
+        assert self._redis is not None
+
+        now = datetime.now(UTC)
+        purged = 0
+        pattern = f"{self._prefix}:meta:*"
+        cursor = 0
+
+        while True:
+            cursor, keys = await self._redis.scan(cursor, match=pattern, count=100)
+            for key in keys:
+                data = await self._redis.hgetall(key)
+                if not data:
+                    continue
+                event = self._deserialize_event(data)
+                if event.status != OutboxStatus.DEAD_LETTER:
+                    continue
+                if older_than is not None:
+                    if event.dead_letter_at is None or (now - event.dead_letter_at) < older_than:
+                        continue
+                await self._redis.delete(key)
+                purged += 1
+            if cursor == 0:
+                break
+
+        return purged
 
     # ==========================================================================
     # Context Manager

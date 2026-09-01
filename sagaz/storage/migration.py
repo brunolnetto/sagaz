@@ -55,11 +55,15 @@ class VerificationResult:
 
     @property
     def sagas_match(self) -> bool:
-        return self.source_sagas == self.dest_sagas
+        return self.source_sagas >= 0 and self.dest_sagas >= 0 and self.source_sagas == self.dest_sagas
 
     @property
     def events_match(self) -> bool:
-        return self.source_events == self.dest_events
+        return (
+            self.source_events >= 0
+            and self.dest_events >= 0
+            and self.source_events == self.dest_events
+        )
 
     @property
     def ok(self) -> bool:
@@ -106,7 +110,7 @@ class SagaStorageMigrator:
             on_error=on_error,
         )
         result.sagas_transferred = saga_result.transferred
-        result.sagas_failed = saga_result.failed
+        result.sagas_failed = saga_result.failed + saga_result.skipped
 
         outbox_result: TransferResult = await transfer_data(
             self._source.outbox,
@@ -116,7 +120,7 @@ class SagaStorageMigrator:
             on_error=on_error,
         )
         result.events_transferred = outbox_result.transferred
-        result.events_failed = outbox_result.failed
+        result.events_failed = outbox_result.failed + outbox_result.skipped
 
         logger.info(
             "Migration complete: sagas=%d(+%d failed), events=%d(+%d failed)",

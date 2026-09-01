@@ -17,7 +17,7 @@ Usage:
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -32,7 +32,7 @@ except ImportError:
     aiosqlite = None  # type: ignore[assignment]
 
 from sagaz.core.exceptions import MissingDependencyError
-from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
+from sagaz.core.outbox.types import OutboxEvent, OutboxStatus, ReplayLoopError
 from sagaz.core.storage.core import (
     HealthCheckResult,
     HealthStatus,
@@ -118,15 +118,41 @@ class SQLiteOutboxStorage:
                 aggregate_id TEXT,
                 headers TEXT,
                 routing_key TEXT,
-                partition_key TEXT
+                partition_key TEXT,
+                dead_letter_at TEXT,
+                dead_letter_reason TEXT,
+                error_type TEXT,
+                error_classification TEXT,
+                error_fingerprint TEXT,
+                replay_count INTEGER DEFAULT 0
             );
 
             CREATE INDEX IF NOT EXISTS idx_outbox_status ON outbox_events(status);
             CREATE INDEX IF NOT EXISTS idx_outbox_saga_id ON outbox_events(saga_id);
             CREATE INDEX IF NOT EXISTS idx_outbox_claimed_at ON outbox_events(claimed_at);
         """)
+        await self._ensure_optional_columns(conn)
         assert conn is not None
         await conn.commit()
+
+    async def _ensure_optional_columns(self, conn: "aiosqlite.Connection") -> None:
+        """Add newer optional columns when the table already exists."""
+        cursor = await conn.execute("PRAGMA table_info(outbox_events)")
+        rows = await cursor.fetchall()
+        existing_columns = {row["name"] for row in rows}
+
+        required_columns = {
+            "dead_letter_at": "TEXT",
+            "dead_letter_reason": "TEXT",
+            "error_type": "TEXT",
+            "error_classification": "TEXT",
+            "error_fingerprint": "TEXT",
+            "replay_count": "INTEGER DEFAULT 0",
+        }
+
+        for name, definition in required_columns.items():
+            if name not in existing_columns:
+                await conn.execute(f"ALTER TABLE outbox_events ADD COLUMN {name} {definition}")
 
     async def __aenter__(self):
         """Async context manager entry."""
@@ -153,8 +179,10 @@ class SQLiteOutboxStorage:
             """
             INSERT INTO outbox_events (
                 event_id, saga_id, event_type, payload, status, created_at,
-                aggregate_type, aggregate_id, headers, routing_key, partition_key
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                aggregate_type, aggregate_id, headers, routing_key, partition_key,
+                retry_count, last_error, worker_id, dead_letter_at, dead_letter_reason,
+                error_type, error_classification, error_fingerprint, replay_count
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 event.event_id,
@@ -168,6 +196,15 @@ class SQLiteOutboxStorage:
                 serialize(event.headers) if event.headers else None,
                 event.routing_key,
                 event.partition_key,
+                event.retry_count,
+                event.last_error,
+                event.worker_id,
+                event.dead_letter_at.isoformat() if event.dead_letter_at else None,
+                event.dead_letter_reason,
+                event.error_type,
+                event.error_classification,
+                event.error_fingerprint,
+                event.replay_count,
             ),
         )
         await conn.commit()
@@ -210,6 +247,14 @@ class SQLiteOutboxStorage:
             headers=deserialize(row["headers"]) if row["headers"] else {},
             routing_key=row["routing_key"],
             partition_key=row["partition_key"],
+            dead_letter_at=datetime.fromisoformat(row["dead_letter_at"])
+            if row["dead_letter_at"]
+            else None,
+            dead_letter_reason=row["dead_letter_reason"],
+            error_type=row["error_type"],
+            error_classification=row["error_classification"],
+            error_fingerprint=row["error_fingerprint"],
+            replay_count=row["replay_count"] or 0,
         )
 
     async def update_status(
@@ -218,21 +263,83 @@ class SQLiteOutboxStorage:
         status: OutboxStatus,
         error_message: str | None = None,
         connection=None,
+        event: OutboxEvent | None = None,
     ) -> OutboxEvent | None:
         """Update event status."""
         conn = await self._get_connection()
         now = datetime.now(UTC).isoformat()
-
-        sent_at = now if status == OutboxStatus.SENT else None
-
-        await conn.execute(
-            """
-            UPDATE outbox_events
-            SET status = ?, last_error = ?, sent_at = COALESCE(?, sent_at)
-            WHERE event_id = ?
-            """,
-            (status.value, error_message, sent_at, event_id),
-        )
+        if status == OutboxStatus.FAILED:
+            await conn.execute(
+                """
+                UPDATE outbox_events
+                SET status = ?,
+                    retry_count = retry_count + 1,
+                    last_error = ?,
+                    error_type = ?,
+                    error_classification = ?,
+                    error_fingerprint = ?
+                WHERE event_id = ?
+                """,
+                (
+                    status.value,
+                    error_message,
+                    event.error_type if event else None,
+                    event.error_classification if event else None,
+                    event.error_fingerprint if event else None,
+                    event_id,
+                ),
+            )
+        elif status == OutboxStatus.DEAD_LETTER:
+            await conn.execute(
+                """
+                UPDATE outbox_events
+                SET status = ?,
+                    dead_letter_at = COALESCE(?, ?),
+                    dead_letter_reason = COALESCE(?, last_error, dead_letter_reason, 'max_retries_exceeded'),
+                    error_type = COALESCE(?, error_type),
+                    error_classification = COALESCE(?, error_classification),
+                    error_fingerprint = COALESCE(?, error_fingerprint)
+                WHERE event_id = ?
+                """,
+                (
+                    status.value,
+                    event.dead_letter_at.isoformat() if event and event.dead_letter_at else None,
+                    now,
+                    event.dead_letter_reason if event else error_message,
+                    event.error_type if event else None,
+                    event.error_classification if event else None,
+                    event.error_fingerprint if event else None,
+                    event_id,
+                ),
+            )
+        elif status == OutboxStatus.PENDING:
+            await conn.execute(
+                """
+                UPDATE outbox_events
+                SET status = ?,
+                    worker_id = NULL,
+                    claimed_at = NULL,
+                    dead_letter_at = NULL,
+                    dead_letter_reason = NULL,
+                    replay_count = COALESCE(?, replay_count)
+                WHERE event_id = ?
+                """,
+                (
+                    status.value,
+                    event.replay_count if event else None,
+                    event_id,
+                ),
+            )
+        else:
+            sent_at = now if status == OutboxStatus.SENT else None
+            await conn.execute(
+                """
+                UPDATE outbox_events
+                SET status = ?, last_error = ?, sent_at = COALESCE(?, sent_at)
+                WHERE event_id = ?
+                """,
+                (status.value, error_message, sent_at, event_id),
+            )
         await conn.commit()
 
         return await self.get_by_id(event_id)
@@ -438,6 +545,14 @@ class SQLiteOutboxStorage:
                 "payload": event.payload,
                 "status": event.status.value,
                 "created_at": event.created_at.isoformat() if event.created_at else None,
+                "retry_count": event.retry_count,
+                "last_error": event.last_error,
+                "dead_letter_at": event.dead_letter_at.isoformat() if event.dead_letter_at else None,
+                "dead_letter_reason": event.dead_letter_reason,
+                "error_type": event.error_type,
+                "error_classification": event.error_classification,
+                "error_fingerprint": event.error_fingerprint,
+                "replay_count": event.replay_count,
             }
 
     async def import_record(self, record: dict[str, Any]) -> None:
@@ -448,5 +563,65 @@ class SQLiteOutboxStorage:
             event_type=record["event_type"],
             payload=record.get("payload", {}),
             status=OutboxStatus(record.get("status", "pending")),
+            retry_count=int(record.get("retry_count", 0) or 0),
+            last_error=record.get("last_error"),
+            dead_letter_at=datetime.fromisoformat(record["dead_letter_at"])
+            if record.get("dead_letter_at")
+            else None,
+            dead_letter_reason=record.get("dead_letter_reason"),
+            error_type=record.get("error_type"),
+            error_classification=record.get("error_classification"),
+            error_fingerprint=record.get("error_fingerprint"),
+            replay_count=int(record.get("replay_count", 0) or 0),
         )
         await self.insert(event)
+
+    async def requeue_dead_letter_event(self, event_id: str, force: bool = False) -> OutboxEvent:
+        """Move a DLQ event back to PENDING for replay."""
+        event = await self.get_by_id(event_id)
+        if event is None:
+            msg = f"Event {event_id} not found"
+            raise KeyError(msg)
+
+        max_replays = 3
+        if not force and event.replay_count >= max_replays:
+            raise ReplayLoopError(
+                event_id=event_id,
+                replay_count=event.replay_count,
+                max_replays=max_replays,
+            )
+
+        event.replay_count += 1
+        event.retry_count = 0
+        event.worker_id = None
+        event.claimed_at = None
+        event.dead_letter_at = None
+        event.dead_letter_reason = None
+        updated = await self.update_status(event_id, OutboxStatus.PENDING, event=event)
+        if updated is None:
+            msg = f"Event {event_id} not found"
+            raise KeyError(msg)
+        return updated
+
+    async def purge_dead_letter_events(
+        self,
+        older_than: timedelta | None = None,
+    ) -> int:
+        """Permanently remove DLQ events."""
+        conn = await self._get_connection()
+
+        if older_than is None:
+            cursor = await conn.execute("DELETE FROM outbox_events WHERE status = 'dead_letter'")
+        else:
+            cutoff = (datetime.now(UTC) - older_than).isoformat()
+            cursor = await conn.execute(
+                """
+                DELETE FROM outbox_events
+                WHERE status = 'dead_letter'
+                AND dead_letter_at IS NOT NULL
+                AND dead_letter_at < ?
+                """,
+                (cutoff,),
+            )
+        await conn.commit()
+        return cursor.rowcount

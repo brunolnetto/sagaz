@@ -35,10 +35,11 @@ def _mock_manager(saga_total: int = 5, event_count: int = 3) -> MagicMock:
     return manager
 
 
-def _transfer_result(transferred: int = 5, failed: int = 0) -> MagicMock:
+def _transfer_result(transferred: int = 5, failed: int = 0, skipped: int = 0) -> MagicMock:
     r = MagicMock()
     r.transferred = transferred
     r.failed = failed
+    r.skipped = skipped
     return r
 
 
@@ -239,6 +240,7 @@ class TestSagaStorageMigratorVerify:
         vr = await migrator.verify()
         assert vr.source_sagas == -1
         assert vr.dest_sagas == -1
+        assert vr.ok is False
 
     @pytest.mark.asyncio
     async def test_event_count_error_returns_minus_one(self):
@@ -251,3 +253,20 @@ class TestSagaStorageMigratorVerify:
         vr = await migrator.verify()
         assert vr.source_events == -1
         assert vr.dest_events == -1
+        assert vr.ok is False
+
+    @pytest.mark.asyncio
+    async def test_skipped_records_are_counted_as_failures(self):
+        source = _mock_manager()
+        dest = _mock_manager()
+        migrator = SagaStorageMigrator(source, dest)
+
+        saga_r = _transfer_result(transferred=4, failed=0, skipped=2)
+        event_r = _transfer_result(transferred=3, failed=0, skipped=1)
+
+        with patch(_TRANSFER_DATA_PATH, new=AsyncMock(side_effect=[saga_r, event_r])):
+            result = await migrator.migrate()
+
+        assert result.sagas_failed == 2
+        assert result.events_failed == 1
+        assert result.success is False
