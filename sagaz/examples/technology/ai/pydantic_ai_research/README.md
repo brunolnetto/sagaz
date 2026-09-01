@@ -27,7 +27,7 @@ export ANTHROPIC_API_KEY="your-key"
 ## Running the Example
 
 ```bash
-python -m sagaz.examples.ai.technology.llm.pydantic_ai_research.main
+python -m sagaz.examples.technology.ai.pydantic_ai_research.main
 ```
 
 ## Workflow
