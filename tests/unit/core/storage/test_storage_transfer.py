@@ -11,6 +11,7 @@ from uuid import uuid4
 
 import pytest
 
+import sagaz.storage.transfer.service as compat_transfer
 from sagaz.core.storage.core import TransferError
 from sagaz.core.storage.transfer import (
     TransferConfig,
@@ -20,6 +21,16 @@ from sagaz.core.storage.transfer import (
     TransferService,
     transfer_data,
 )
+
+
+def test_storage_transfer_compat_reexports():
+    """Compatibility module should re-export canonical transfer API."""
+    assert compat_transfer.TransferService is TransferService
+    assert compat_transfer.TransferConfig is TransferConfig
+    assert compat_transfer.TransferErrorPolicy is TransferErrorPolicy
+    assert compat_transfer.TransferResult is TransferResult
+    assert compat_transfer.TransferProgress is TransferProgress
+    assert compat_transfer.transfer_data is transfer_data
 
 
 class MockExportableStorage:
