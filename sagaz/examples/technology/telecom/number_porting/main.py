@@ -200,7 +200,7 @@ class MobileNumberPortingSaga(Saga):
         new_carrier = ctx.get("new_carrier")
         account_number = ctx.get("account_number")
 
-        logger.info(f"📱 [{port_id}] Submitting port request for {phone_number}...")
+        logger.info(f"📱 [{port_id}] Submitting port request...")
 
         result = await TelecomSimulator.submit_port_request(
             phone_number,
@@ -302,7 +302,7 @@ class MobileNumberPortingSaga(Saga):
         donor_carrier = ctx.get("donor_carrier")
 
         logger.info(f"🔒 [{port_id}] PIVOT: Executing port in NPAC...")
-        logger.info(f"   📱 {phone_number}: {donor_carrier} → {new_carrier}")
+        logger.info(f"   📱 Carrier migration: {donor_carrier} → {new_carrier}")
 
         result = await TelecomSimulator.execute_port_in_npac(
             phone_number,

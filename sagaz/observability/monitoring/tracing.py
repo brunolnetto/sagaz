@@ -31,7 +31,7 @@ from typing import Any, ParamSpec, TypeVar
 
 try:
     from opentelemetry import context, trace
-    from opentelemetry.trace import Span, Status, StatusCode
+    from opentelemetry.trace import Status, StatusCode
     from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
     TRACING_AVAILABLE = True
@@ -39,7 +39,6 @@ except ImportError:
     # Graceful degradation if OpenTelemetry is not installed
     TRACING_AVAILABLE = False
     trace = None  # type: ignore[assignment]
-    Span = None  # type: ignore[assignment, misc]
     Status = None  # type: ignore[assignment, misc]
     StatusCode = None  # type: ignore[assignment, misc]
 

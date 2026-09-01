@@ -37,7 +37,6 @@ __all__ = [
 # Global tracking for webhook status (in-memory for demo)
 _webhook_tracking: dict[str, dict[str, Any]] = {}
 _saga_to_webhook: dict[str, str] = {}  # saga_id -> correlation_id mapping
-_listener_registered = False
 
 
 class _WebhookStatusListener(SagaListener):
@@ -68,15 +67,12 @@ class _WebhookStatusListener(SagaListener):
 
 def _ensure_listener_registered():
     """Ensure webhook status listener is registered (called lazily on first use)."""
-    global _listener_registered
-    if not _listener_registered:
-        from sagaz.core.config import get_config
+    from sagaz.core.config import get_config
 
-        # Add webhook status listener to config
-        config = get_config()
-        if _WebhookStatusListener not in [type(listener) for listener in config.listeners]:
-            config._listeners.append(_WebhookStatusListener())
-        _listener_registered = True
+    # Add webhook status listener to config
+    config = get_config()
+    if _WebhookStatusListener not in [type(listener) for listener in config.listeners]:
+        config._listeners.append(_WebhookStatusListener())
         logger.info("Sagaz Django initialized with webhook status tracking")
 
 
@@ -343,7 +339,7 @@ def _check_existing_saga_status(loop, saga_ids: list[str], correlation_id: str):
             status_val = state.get("status")
             _update_saga_status(correlation_id, saga_id, status_val, state)
         except Exception:
-            pass
+            logger.debug(f"Failed to load existing saga status for {saga_id}", exc_info=True)
 
 
 def sagaz_webhook_status_view(request, source: str, correlation_id: str):

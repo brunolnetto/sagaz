@@ -360,8 +360,8 @@ async def main():
 
     try:
         await saga.run(failure_data)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.info(f"Expected failure scenario completed with rollback: {exc}")
 
 
 if __name__ == "__main__":
