@@ -24,7 +24,7 @@ export OPENAI_API_KEY="your-key"
 ## Running the Example
 
 ```bash
-python -m sagaz.examples.ai.technology.llm.langgraph_support_agent.main
+python -m sagaz.examples.technology.ai.langgraph_support_agent.main
 ```
 
 ## Workflow
