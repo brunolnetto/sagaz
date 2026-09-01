@@ -336,7 +336,7 @@ class TestSaga:
         class TestSaga(Saga):
             @step(name="slow_step", timeout_seconds=0.1)
             async def slow_step(self, ctx):
-                await asyncio.sleep(0.5)  # Will timeout (longer than 0.1s timeout)
+                await asyncio.sleep(0.2)  # Still much longer than 0.1s timeout
                 return {}
 
         saga = TestSaga()

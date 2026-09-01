@@ -2,7 +2,32 @@
 
 ## Overview
 
-The Dead Letter Queue pattern handles messages that cannot be processed successfully after multiple retry attempts. Instead of losing these messages, they are moved to a separate queue for later analysis and reprocessing.
+The Dead Letter Queue pattern handles messages that cannot be processed
+successfully after multiple retry attempts.  Instead of losing these
+messages, they are moved to a separate queue for later analysis and
+reprocessing.
+
+## OutboxEvent DLQ fields
+
+After an event is moved to the DLQ, two additional fields are populated
+on the `OutboxEvent` dataclass:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `dead_letter_at` | `datetime \| None` | UTC timestamp of when the event was dead-lettered |
+| `dead_letter_reason` | `str \| None` | The last error message or `"max_retries_exceeded"` |
+
+These fields are included in `to_dict()` / `from_dict()` so they round-trip
+correctly through all storage backends.
+
+## Prometheus metric
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `sagaz_dlq_depth` | Gauge | Current number of events sitting in the DLQ |
+
+The gauge is incremented each time `OutboxWorker._move_to_dead_letter` fires
+and should be scraped alongside the existing outbox counters.
 
 ## Architecture
 
@@ -254,28 +279,37 @@ For each error type, document:
 
 ## Recovery Commands
 
-### Replay All DLQ Messages
+The `sagaz dlq` command group provides full DLQ management once a
+project's storage backend is configured.
+
+### List DLQ events
 
 ```bash
-# Using sagaz CLI
-sagaz dlq replay --topic saga_events_dlq --all
+# Show the first 100 DLQ events (table format)
+sagaz dlq list
 
-# With filter
-sagaz dlq replay --topic saga_events_dlq --error-type DatabaseError
+# Increase the limit or switch to JSON
+sagaz dlq list --limit 500 --format json
 ```
 
-### Purge DLQ (Caution!)
+### Replay (re-queue) events
 
 ```bash
-# After review, purge resolved messages
-sagaz dlq purge --topic saga_events_dlq --older-than 7d --status resolved
+# Re-queue a single event by ID
+sagaz dlq replay --id <event-id>
+
+# Re-queue every event currently in the DLQ
+sagaz dlq replay --all
 ```
 
-### Export for Analysis
+### Purge DLQ (permanent removal — use with caution)
 
 ```bash
-# Export to JSON for analysis
-sagaz dlq export --topic saga_events_dlq --format json > dlq_messages.json
+# Remove events older than 7 days (interactive confirmation required)
+sagaz dlq purge --older 7d
+
+# Remove all DLQ events
+sagaz dlq purge
 ```
 
 ## Related Documentation

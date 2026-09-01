@@ -7,6 +7,7 @@ import sys
 from unittest.mock import patch
 
 import pytest
+from click.testing import CliRunner
 
 
 class TestMain:
@@ -17,25 +18,21 @@ class TestMain:
         import sagaz.__main__  # noqa: F401
 
     def test_main_cli_invocation(self):
-        """Test CLI can be invoked via -m flag"""
-        result = subprocess.run(
-            [sys.executable, "-m", "sagaz", "--help"],
-            capture_output=True,
-            text=True,
-            timeout=60,
-        )
-        assert result.returncode == 0
-        assert "Sagaz" in result.stdout or "sagaz" in result.stdout.lower()
+        """Test CLI --help via CliRunner (avoids subprocess startup overhead)."""
+        from sagaz.cli.app import cli
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["--help"])
+        assert result.exit_code == 0
+        assert "sagaz" in result.output.lower() or "Sagaz" in result.output
 
     def test_main_version(self):
-        """Test version command via __main__"""
-        result = subprocess.run(
-            [sys.executable, "-m", "sagaz", "--version"],
-            capture_output=True,
-            text=True,
-            timeout=60,
-        )
-        assert result.returncode == 0
+        """Test --version via CliRunner (avoids subprocess startup overhead)."""
+        from sagaz.cli.app import cli
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["--version"])
+        assert result.exit_code == 0
 
     @patch("sagaz.cli.app.cli")
     def test_main_calls_cli(self, mock_cli):
@@ -52,17 +49,13 @@ class TestMain:
             # In tests, __name__ is different, so we just verify imports work
 
     def test_main_module_direct_execution(self):
-        """Test direct execution of __main__ module"""
-        # Simulate running: python -m sagaz
-        result = subprocess.run(
-            [sys.executable, "-m", "sagaz"],
-            capture_output=True,
-            text=True,
-            timeout=60,
-            input="\n",  # Send newline to exit interactive commands
-        )
+        """Test direct execution of __main__ module via CliRunner."""
+        from sagaz.cli.app import cli
+
+        runner = CliRunner()
+        result = runner.invoke(cli, [])
         # Should exit with 0 (help/usage) or 2 (missing command)
-        assert result.returncode in (0, 2)
+        assert result.exit_code in (0, 2)
 
     def test_main_module_exists(self):
         """Test __main__ module can be imported"""

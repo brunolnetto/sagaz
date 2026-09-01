@@ -18,7 +18,7 @@ from typing import Any
 from uuid import UUID
 
 from sagaz.core.exceptions import MissingDependencyError
-from sagaz.core.replay import ReplayResult, SagaSnapshot, SnapshotNotFoundError
+from sagaz.core.replay import ReplayResult, SagaSnapshot
 from sagaz.core.storage.interfaces.snapshot import SnapshotStorage
 
 try:
@@ -96,12 +96,12 @@ class S3SnapshotStorage(SnapshotStorage):
         if self._s3_client is None:
             try:
                 self._session = aioboto3.Session()
-                self._s3_client = await self._session.client(
+                self._s3_client = await self._session.client(  # pylint: disable=unnecessary-dunder-call
                     "s3", region_name=self.region_name, **self.s3_kwargs
                 ).__aenter__()
             except Exception as e:
                 msg = f"Failed to create S3 client: {e}"
-                raise ConnectionError(msg)
+                raise ConnectionError(msg) from e
 
         return self._s3_client
 

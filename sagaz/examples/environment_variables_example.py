@@ -60,7 +60,7 @@ SAGAZ_METRICS_ENABLED=true
 SAGAZ_LOG_LEVEL=DEBUG
 """
 
-    with Path(".env.example").open("w") as f:
+    with Path(".env.example").open("w", encoding="utf-8") as f:
         f.write(env_content)
 
     # Create sagaz.yaml with variable substitution
@@ -85,7 +85,7 @@ observability:
     level: "${SAGAZ_LOG_LEVEL:-INFO}"
 """
 
-    with Path("sagaz.example.yaml").open("w") as f:
+    with Path("sagaz.example.yaml").open("w", encoding="utf-8") as f:
         f.write(yaml_content)
 
     # Load configuration

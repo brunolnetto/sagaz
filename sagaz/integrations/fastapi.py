@@ -9,9 +9,6 @@ Provides:
 - Webhook status tracking
 """
 
-import asyncio
-from collections.abc import Callable
-from contextlib import asynccontextmanager
 from typing import Any
 
 from sagaz.core.listeners import SagaListener
@@ -145,9 +142,9 @@ def create_webhook_router(url_prefix: str = "/webhooks"):
     try:
         from fastapi import APIRouter, BackgroundTasks, Request
         from fastapi.responses import JSONResponse
-    except ImportError:
+    except ImportError as exc:
         msg = "FastAPI is required for this integration. Install with: pip install fastapi"
-        raise ImportError(msg)
+        raise ImportError(msg) from exc
 
     router = APIRouter(prefix=url_prefix, tags=["webhooks"])
 

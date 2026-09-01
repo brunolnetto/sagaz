@@ -136,4 +136,4 @@ def create_env_template(
         ]
     )
 
-    path.write_text("\n".join(lines))
+    path.write_text("\n".join(lines), encoding="utf-8")

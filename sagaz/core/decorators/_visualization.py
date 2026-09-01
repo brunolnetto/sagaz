@@ -166,4 +166,7 @@ class _DecoratorVisualizationMixin:
         Returns:
             Mermaid diagram in markdown format.
         """
-        return f"```mermaid\n{self.to_mermaid(direction, show_compensation, highlight_trail, show_state_markers)}\n```"
+        mermaid_code = self.to_mermaid(
+            direction, show_compensation, highlight_trail, show_state_markers
+        )
+        return f"```mermaid\n{mermaid_code}\n```"

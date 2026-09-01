@@ -5,15 +5,12 @@ Validates and previews saga execution without side effects.
 Provides validation, simulation, estimation, and tracing capabilities.
 """
 
-from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from sagaz.core.saga import Saga
-
-from sagaz.core.types import SagaStatus
 
 
 @dataclass

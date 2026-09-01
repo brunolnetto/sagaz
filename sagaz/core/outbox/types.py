@@ -106,6 +106,14 @@ class OutboxEvent:
     worker_id: str | None = None
     routing_key: str | None = None
     partition_key: str | None = None
+    dead_letter_at: datetime | None = None
+    dead_letter_reason: str | None = None
+    # Phase 1: error classification
+    error_type: str | None = None
+    error_classification: str | None = None
+    error_fingerprint: str | None = None
+    # Phase 2: replay tracking
+    replay_count: int = 0
 
     def __post_init__(self):
         """Set aggregate_id to saga_id if not specified."""
@@ -129,6 +137,12 @@ class OutboxEvent:
             "retry_count": self.retry_count,
             "last_error": self.last_error,
             "worker_id": self.worker_id,
+            "dead_letter_at": self.dead_letter_at.isoformat() if self.dead_letter_at else None,
+            "dead_letter_reason": self.dead_letter_reason,
+            "error_type": self.error_type,
+            "error_classification": self.error_classification,
+            "error_fingerprint": self.error_fingerprint,
+            "replay_count": self.replay_count,
         }
 
     @classmethod
@@ -149,6 +163,12 @@ class OutboxEvent:
             retry_count=data.get("retry_count", 0),
             last_error=data.get("last_error"),
             worker_id=data.get("worker_id"),
+            dead_letter_at=cls._parse_datetime(data.get("dead_letter_at")),
+            dead_letter_reason=data.get("dead_letter_reason"),
+            error_type=data.get("error_type"),
+            error_classification=data.get("error_classification"),
+            error_fingerprint=data.get("error_fingerprint"),
+            replay_count=data.get("replay_count", 0),
         )
 
     @staticmethod
@@ -195,13 +215,13 @@ class OutboxConfig:
         import os
 
         return cls(
-            batch_size=int(os.getenv("OUTBOX_BATCH_SIZE", 100)),
-            poll_interval_seconds=float(os.getenv("OUTBOX_POLL_INTERVAL", 1.0)),
-            claim_timeout_seconds=float(os.getenv("OUTBOX_CLAIM_TIMEOUT", 300.0)),
-            max_retries=int(os.getenv("OUTBOX_MAX_RETRIES", 10)),
+            batch_size=int(os.getenv("OUTBOX_BATCH_SIZE", "100")),
+            poll_interval_seconds=float(os.getenv("OUTBOX_POLL_INTERVAL", "1.0")),
+            claim_timeout_seconds=float(os.getenv("OUTBOX_CLAIM_TIMEOUT", "300.0")),
+            max_retries=int(os.getenv("OUTBOX_MAX_RETRIES", "10")),
             optimistic_publish=os.getenv("OUTBOX_OPTIMISTIC", "true").lower() == "true",
-            optimistic_timeout_ms=int(os.getenv("OUTBOX_OPTIMISTIC_TIMEOUT_MS", 500)),
-            archive_after_days=int(os.getenv("OUTBOX_ARCHIVE_DAYS", 7)),
+            optimistic_timeout_ms=int(os.getenv("OUTBOX_OPTIMISTIC_TIMEOUT_MS", "500")),
+            archive_after_days=int(os.getenv("OUTBOX_ARCHIVE_DAYS", "7")),
         )
 
 
@@ -220,3 +240,16 @@ class OutboxPublishError(OutboxError):
 
 class OutboxClaimError(OutboxError):
     """Error claiming events from outbox."""
+
+
+class ReplayLoopError(OutboxError):
+    """Raised when replay_count has reached the configured maximum."""
+
+    def __init__(self, event_id: str, replay_count: int, max_replays: int):
+        self.event_id = event_id
+        self.replay_count = replay_count
+        self.max_replays = max_replays
+        super().__init__(
+            f"Event {event_id} has been replayed {replay_count} times "
+            f"(max {max_replays}). Use force=True to override."
+        )

@@ -12,7 +12,6 @@ import logging
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sagaz.core.execution.graph._types import CompensationFailureStrategy
 from sagaz.core.types import ParallelFailureStrategy, SagaResult, SagaStatus
 
 if TYPE_CHECKING:

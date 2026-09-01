@@ -27,7 +27,7 @@ class StorageError(Exception):
         return self.message
 
 
-class ConnectionError(StorageError):
+class ConnectionError(StorageError):  # pylint: disable=redefined-builtin
     """
     Failed to connect to storage backend.
 

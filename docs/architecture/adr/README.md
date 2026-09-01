@@ -40,12 +40,12 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | ADR | Title | Target | Description |
 |-----|-------|--------|-------------|
 | [ADR-029](adr-029-saga-choreography.md) | Saga Choreography Pattern | v2.2.0 | Event-driven distributed coordination |
+| [ADR-039](adr-039-gradio-ui-monitor.md) | Gradio-Based Saga Asset Monitor | v1.7.0 | Python-native monitoring UI for development |
 
 ### Medium / Low Priority
 
 | ADR | Title | Target | Description |
 |-----|-------|--------|-------------|
-
 ### Low Priority / Future
 
 | ADR | Title | Target | Description |

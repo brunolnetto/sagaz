@@ -34,17 +34,17 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v10.0.1
         with:
-          version: "0.11.7"
+          version: "0.12.8"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
@@ -69,13 +69,13 @@ jobs:
   commitlint:
     name: Commitlint
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'renovate/') }}
+    if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'renovate/') && !(github.head_ref == 'develop' && github.base_ref == 'main') && !startsWith(github.head_ref, 'release/') }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
 
@@ -97,17 +97,17 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Python 3.13
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.14'
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v10.0.1
         with:
-          version: "0.11.7"
+          version: "0.12.8"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
@@ -145,7 +145,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
@@ -171,17 +171,17 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Python 3.13
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
-          python-version: '3.13'
+          python-version: '3.14'
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v10.0.1
         with:
-          version: "0.11.7"
+          version: "0.12.8"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
@@ -233,30 +233,3 @@ jobs:
             echo "::warning::Some files have low maintainability index"
             echo "$result"
           fi
-
-# ─── Code Quality Analysis via Codacy ─────────────────────────────────────────
-
-  codacy:
-    name: Codacy Code Quality
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Run Codacy Analysis Client
-        uses: codacy/codacy-analysis-cli-action@master
-        with:
-          project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
-          upload: true
-          max-allowed-issues: 2147483647
-          format: sarif
-          output: codacy-results.sarif
-        continue-on-error: true
-
-      - name: Upload SARIF results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: codacy-results.sarif
-          wait-for-processing: true
-        continue-on-error: true

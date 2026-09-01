@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any, Generic, TypeVar
 
-from .errors import ConnectionError
+from .errors import ConnectionError  # pylint: disable=redefined-builtin
 from .health import HealthCheckResult, HealthStatus
 
 # Generic type for connection objects

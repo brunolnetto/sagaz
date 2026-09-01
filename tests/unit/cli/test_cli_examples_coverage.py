@@ -15,15 +15,21 @@ def test_list_examples_no_console(capsys):
     with (
         patch("sagaz.cli.examples.console", None),
         patch("sagaz.cli.examples.Table", None),
-        patch("sagaz.cli.examples.discover_examples") as mock_discover,
+        patch("sagaz.cli.examples.discover_examples_by_domain") as mock_discover,
     ):
-        mock_discover.return_value = {"example1": Path("/path/to/example1/main.py")}
+        mock_discover.return_value = {
+            "business": {"business/commerce/order_processing": Path("/path/to/example1/main.py")}
+        }
 
         list_examples_cmd()
 
         captured = capsys.readouterr()
-        assert "Available Examples:" in captured.out
-        assert "- example1" in captured.out
+        # Check for table header format (plain text display)
+        assert "Domain" in captured.out
+        assert "Subdomain" in captured.out
+        assert "Name" in captured.out
+        assert "Description" in captured.out
+        assert "order_processing" in captured.out
 
 
 def test_execute_example_pythonpath():

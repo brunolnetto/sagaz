@@ -6,7 +6,7 @@ with support for datetime, UUID, Enum, and custom types.
 """
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 from typing import Any
@@ -28,33 +28,33 @@ class StorageEncoder(json.JSONEncoder):
     - set -> list
     """
 
-    def default(self, obj: Any) -> Any:
-        if isinstance(obj, datetime):
-            return {"__type__": "datetime", "value": obj.isoformat()}
-        if isinstance(obj, UUID):
-            return {"__type__": "uuid", "value": str(obj)}
-        if isinstance(obj, Enum):
+    def default(self, o: Any) -> Any:
+        if isinstance(o, datetime):
+            return {"__type__": "datetime", "value": o.isoformat()}
+        if isinstance(o, UUID):
+            return {"__type__": "uuid", "value": str(o)}
+        if isinstance(o, Enum):
             return {
                 "__type__": "enum",
-                "class": f"{obj.__class__.__module__}.{obj.__class__.__name__}",
-                "value": obj.value,
+                "class": f"{o.__class__.__module__}.{o.__class__.__name__}",
+                "value": o.value,
             }
-        if isinstance(obj, Decimal):
-            return {"__type__": "decimal", "value": str(obj)}
-        if isinstance(obj, bytes):
+        if isinstance(o, Decimal):
+            return {"__type__": "decimal", "value": str(o)}
+        if isinstance(o, bytes):
             import base64
 
-            return {"__type__": "bytes", "value": base64.b64encode(obj).decode("ascii")}
-        if isinstance(obj, set):
-            return {"__type__": "set", "value": list(obj)}
-        if isinstance(obj, frozenset):
-            return {"__type__": "frozenset", "value": list(obj)}
+            return {"__type__": "bytes", "value": base64.b64encode(o).decode("ascii")}
+        if isinstance(o, set):
+            return {"__type__": "set", "value": list(o)}
+        if isinstance(o, frozenset):
+            return {"__type__": "frozenset", "value": list(o)}
 
         # Try to serialize as dict
-        if hasattr(obj, "__dict__"):
-            return obj.__dict__
+        if hasattr(o, "__dict__"):
+            return o.__dict__
 
-        return super().default(obj)
+        return super().default(o)
 
 
 def storage_decoder(obj: dict[str, Any]) -> Any:

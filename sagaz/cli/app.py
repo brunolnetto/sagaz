@@ -24,10 +24,14 @@ from sagaz.cli._setup_handlers import (
     _execute_setup,
     _gather_setup_configuration,
 )
+from sagaz.cli.demonstrations import demo_cli
+from sagaz.cli.dlq import dlq_cli
 from sagaz.cli.dry_run import simulate_cmd, validate_cmd
+from sagaz.cli.migrate import migrate_cmd
 from sagaz.cli.project import check as check_cmd
 from sagaz.cli.project import list_sagas
 from sagaz.cli.replay import replay
+from sagaz.cli.visualize import visualize_cmd
 
 try:
     from rich.console import Console
@@ -68,6 +72,7 @@ def cli():
     \b
     Library demo:
       examples         Explore examples
+      demo             Run built-in demonstrations
 
 
     \b
@@ -400,7 +405,7 @@ def dev_cmd(detach: bool):
         cmd.append("-d")
 
     click.echo("Starting development environment...")
-    subprocess.run(cmd)
+    subprocess.run(cmd, check=False)
 
 
 # ============================================================================
@@ -416,7 +421,7 @@ def stop_cmd():
         sys.exit(1)
 
     click.echo("Stopping development environment...")
-    subprocess.run(["docker", "compose", "down"])
+    subprocess.run(["docker", "compose", "down"], check=False)
 
 
 # ============================================================================
@@ -438,7 +443,10 @@ def status_cmd():
 
         # Check Docker Compose services
         result = subprocess.run(
-            ["docker", "compose", "ps", "--format", "json"], capture_output=True, text=True
+            ["docker", "compose", "ps", "--format", "json"],
+            capture_output=True,
+            text=True,
+            check=False,
         )
 
         if result.returncode == 0 and result.stdout.strip():
@@ -458,7 +466,7 @@ def status_cmd():
 
         console.print(table)
     else:
-        subprocess.run(["docker", "compose", "ps"])
+        subprocess.run(["docker", "compose", "ps"], check=False)
 
 
 # ============================================================================
@@ -543,10 +551,10 @@ asyncio.run(main())
         ]
 
     # Run benchmark
-    result = subprocess.run(cmd, capture_output=output is not None)
+    result = subprocess.run(cmd, capture_output=output is not None, check=False)
 
     if output and result.returncode == 0:
-        Path(output).write_text(result.stdout.decode() if result.stdout else "")
+        Path(output).write_text(result.stdout.decode() if result.stdout else "", encoding="utf-8")
         click.echo(f"Results saved to {output}")
 
     return result.returncode
@@ -583,11 +591,11 @@ def logs_cmd(saga_id: str, follow: bool, service: str):
     if saga_id:
         # Filter logs by saga ID using grep
         click.echo(f"Searching for saga: {saga_id}")
-        p1 = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-        p2 = subprocess.Popen(["grep", saga_id], stdin=p1.stdout)
-        p2.wait()
+        with subprocess.Popen(cmd, stdout=subprocess.PIPE) as p1:
+            with subprocess.Popen(["grep", saga_id], stdin=p1.stdout) as p2:
+                p2.wait()
     else:
-        subprocess.run(cmd)
+        subprocess.run(cmd, check=False)
 
 
 # ============================================================================
@@ -620,60 +628,7 @@ def version_cmd():
 # ============================================================================
 # sagaz examples
 # ============================================================================
-
-
-@click.group(invoke_without_command=True)
-@click.pass_context
-def examples_cmd(ctx):
-    """
-    Manage and run examples.
-
-    \b
-    Commands:
-        list      List all available examples
-        run       Run a specific example by name
-
-    \b
-    Examples:
-        sagaz examples                    # Opens interactive menu
-        sagaz examples list
-        sagaz examples list --category fintech
-        sagaz examples run ecommerce/order_processing
-    """
-    if ctx.invoked_subcommand is None:
-        cli_examples.interactive_cmd()
-
-
-@examples_cmd.command("list")
-@click.option(
-    "--category",
-    "-c",
-    help="Filter by category (e.g., ecommerce, fintech, iot, ml)",
-)
-def list_examples(category: str):
-    """
-    List available examples.
-
-    \b
-    Examples:
-        sagaz examples list
-        sagaz examples list --category fintech
-        sagaz examples list -c iot
-    """
-    cli_examples.list_examples_cmd(category)
-
-
-@examples_cmd.command("run")
-@click.argument("name")
-def run_example(name: str):
-    """
-    Run a specific example by name.
-
-    \b
-    Example:
-        sagaz examples run ecommerce/order_processing
-        sagaz examples run monitoring
-    """
+examples_cmd = cli_examples.examples_cli
 
 
 # ============================================================================
@@ -692,6 +647,7 @@ cli.add_command(setup_cmd, name="setup")
 cli.add_command(check_cmd, name="check")
 cli.add_command(list_sagas, name="list")
 cli.add_command(examples_cmd, name="examples")
+cli.add_command(demo_cli, name="demo")
 
 # Development (Runtime Operations)
 cli.add_command(dev_cmd, name="dev")
@@ -705,8 +661,13 @@ cli.add_command(benchmark_cmd, name="benchmark")
 
 # Utilities
 cli.add_command(version_cmd, name="version")
+cli.add_command(visualize_cmd, name="visualize")
+
+# DLQ Management
+cli.add_command(dlq_cli, name="dlq")
 
 # State Modification (Highest Risk)
+cli.add_command(migrate_cmd, name="migrate")
 cli.add_command(replay, name="replay")
 
 if __name__ == "__main__":

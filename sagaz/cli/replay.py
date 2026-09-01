@@ -5,8 +5,7 @@ Commands for saga replay and time-travel operations.
 """
 
 import asyncio
-from datetime import UTC, datetime, timezone
-from pathlib import Path
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -16,7 +15,6 @@ try:
     from rich.console import Console
     from rich.json import JSON
     from rich.panel import Panel
-    from rich.syntax import Syntax
     from rich.table import Table
 
     console = Console()
@@ -337,7 +335,7 @@ def time_travel_command(
     storage: str,
     storage_url: str | None,
     key: str | None,
-    format: str,
+    format: str,  # pylint: disable=redefined-builtin
 ):
     """
     Query saga state at a specific point in time.

@@ -89,7 +89,7 @@ class RedisSagaStorage(SagaStorage):
                 await self._redis.ping()  # type: ignore[attr-defined]
             except Exception as e:
                 msg = f"Failed to connect to Redis: {e}"
-                raise SagaStorageConnectionError(msg)
+                raise SagaStorageConnectionError(msg) from e
 
         return self._redis
 
@@ -164,7 +164,7 @@ class RedisSagaStorage(SagaStorage):
             return json.loads(saga_data_json)  # type: ignore[no-any-return]
         except json.JSONDecodeError as e:
             msg = f"Failed to decode saga data for {saga_id}: {e}"
-            raise SagaStorageError(msg)
+            raise SagaStorageError(msg) from e
 
     async def delete_saga_state(self, saga_id: str) -> bool:
         """Delete saga state from Redis"""
@@ -425,7 +425,7 @@ class RedisSagaStorage(SagaStorage):
 
             if result != b"ok":
                 msg = "Read/write test failed"
-                raise Exception(msg)
+                raise RuntimeError(msg)
 
             # Get Redis info
             info = await redis_client.info()

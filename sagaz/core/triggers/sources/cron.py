@@ -21,7 +21,6 @@ Example:
 
 import asyncio
 from datetime import datetime
-from typing import Any
 
 from sagaz.core.logger import get_logger
 from sagaz.core.triggers import fire_event
@@ -135,6 +134,7 @@ class CronScheduler:
             try:
                 await self._task
             except asyncio.CancelledError:
+                # Normal cancellation during shutdown
                 pass
             self._task = None
         logger.info("Cron scheduler stopped")

@@ -49,7 +49,7 @@ from .core import (
     ConcurrencyError,
     # Connection
     ConnectionConfig,
-    ConnectionError,
+    ConnectionError,  # pylint: disable=redefined-builtin
     ConnectionManager,
     HealthCheckable,
     # Health

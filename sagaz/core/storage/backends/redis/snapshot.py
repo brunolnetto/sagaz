@@ -18,7 +18,7 @@ from typing import Any
 from uuid import UUID
 
 from sagaz.core.exceptions import MissingDependencyError
-from sagaz.core.replay import ReplayResult, SagaSnapshot, SnapshotNotFoundError
+from sagaz.core.replay import ReplayResult, SagaSnapshot
 from sagaz.core.storage.interfaces.snapshot import SnapshotStorage
 
 try:
@@ -91,7 +91,7 @@ class RedisSnapshotStorage(SnapshotStorage):
                 await self._redis.ping()  # type: ignore[attr-defined]
             except Exception as e:
                 msg = f"Failed to connect to Redis: {e}"
-                raise ConnectionError(msg)
+                raise ConnectionError(msg) from e
 
         return self._redis
 

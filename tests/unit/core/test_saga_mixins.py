@@ -264,7 +264,7 @@ class TestSagaCompensationMixin:
     @pytest.mark.asyncio
     async def test_compensate_step_timeout(self):
         async def slow_comp(result, ctx):
-            await asyncio.sleep(10)
+            await asyncio.sleep(0.5)  # Still much longer than 0.01s timeout
 
         host = _CompensationHost()
         step = SagaStep(name="s", action=_noop, compensation=slow_comp, compensation_timeout=0.01)

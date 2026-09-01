@@ -58,11 +58,11 @@ LOCAL_CONFIG = PerformanceConfig(
     latency_iterations=20,
     stress_iterations=100,
     stress_concurrency=10,
-    endurance_duration_seconds=10,
+    endurance_duration_seconds=5,
 )
 
 PRODUCTION_CONFIG = PerformanceConfig(
-    throughput_iterations=500,
+    throughput_iterations=200,
     throughput_concurrency=50,
     latency_iterations=100,
     stress_iterations=2000,

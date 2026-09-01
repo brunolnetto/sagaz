@@ -95,16 +95,16 @@ class _SagaCompensationMixin:
             step.compensated_at = datetime.now()
             logger.info(f"Step '{step.name}' compensated successfully")
 
-        except TimeoutError:
+        except TimeoutError as exc:
             step.status = SagaStepStatus.FAILED
             msg = f"Compensation for '{step.name}' timed out after {step.compensation_timeout}s"
-            raise SagaCompensationError(msg)
+            raise SagaCompensationError(msg) from exc
 
         except Exception as e:
             step.status = SagaStepStatus.FAILED
             step.error = e
             msg = f"Compensation for step '{step.name}' failed: {e!s}"
-            raise SagaCompensationError(msg)
+            raise SagaCompensationError(msg) from e
 
     @staticmethod
     async def _invoke(func: Callable[..., Any], *args, **kwargs) -> Any:

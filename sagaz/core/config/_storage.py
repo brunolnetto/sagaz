@@ -218,7 +218,7 @@ class StorageConfigManager:
             from sagaz.core.storage.redis import RedisSagaStorage
 
             return RedisSagaStorage(url)
-        if url == "memory://" or url == "":
+        if url in ("memory://", ""):
             from sagaz.core.storage.memory import InMemorySagaStorage
 
             return InMemorySagaStorage()

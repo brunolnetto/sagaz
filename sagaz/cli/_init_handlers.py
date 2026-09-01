@@ -55,16 +55,21 @@ def _log_local_init_start(broker: str, with_ha: bool, oltp_storage: str, dev_mod
 
     if dev_mode:
         console.print(
-            "Creating [bold yellow]in-memory development[/bold yellow] environment (no external dependencies)..."
+            "Creating [bold yellow]in-memory development[/bold yellow] environment"
+            " (no external dependencies)..."
         )
     elif with_ha:
         console.print(
-            "Creating local HA PostgreSQL environment with [bold green]primary + replica + PgBouncer[/bold green]..."
+            "Creating local HA PostgreSQL environment with [bold green]primary +"
+            " replica + PgBouncer[/bold green]..."
         )
     else:
-        console.print(
-            f"Creating local development environment (storage: [bold green]{oltp_storage}[/bold green], broker: [bold green]{broker}[/bold green])..."
+        msg = (
+            f"Creating local development environment (storage:"
+            f" [bold green]{oltp_storage}[/bold green], broker:"
+            f" [bold green]{broker}[/bold green])..."
         )
+        console.print(msg)
 
 
 def _init_docker_compose(
@@ -124,7 +129,10 @@ def _get_broker_config(broker: str) -> tuple[str, int, str]:
         "kafka": (
             "confluentinc/cp-kafka:latest",
             9092,
-            "KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092\n      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181",
+            (
+                "KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092\n"
+                "      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181"
+            ),
         ),
     }
     return configs.get(broker, configs["redis"])
@@ -214,7 +222,13 @@ def _init_selfhost(
 POSTGRES_URL=postgresql://sagaz:sagaz@localhost:5432/sagaz
 
 # Outbox Database {"(separate)" if separate_outbox else "(same as OLTP)"}
-{"OUTBOX_URL=postgresql://sagaz:sagaz@localhost:5432/sagaz_outbox" if separate_outbox else "# OUTBOX_URL=$POSTGRES_URL"}
+{
+        (
+            "OUTBOX_URL=postgresql://sagaz:sagaz@localhost:5432/sagaz_outbox"
+            if separate_outbox
+            else "# OUTBOX_URL=$POSTGRES_URL"
+        )
+    }
 
 # Broker ({broker})
 BROKER_TYPE={broker}
@@ -236,7 +250,7 @@ SAGAZ_LOG_JSON=true
     if with_observability:
         env_content += "SAGAZ_TRACING_ENDPOINT=http://localhost:14268/api/traces\n"
 
-    Path("selfhost/sagaz.env").write_text(env_content)
+    Path("selfhost/sagaz.env").write_text(env_content, encoding="utf-8")
     click.echo("  CREATE selfhost/sagaz.env")
 
     # Create installation script
@@ -346,7 +360,9 @@ def _log_k8s_init_start(with_ha: bool, oltp_storage: str):
         return
     ha_msg = " with [bold yellow]HA PostgreSQL[/bold yellow]" if with_ha else ""
     console.print(
-        f"Copying Kubernetes manifests{ha_msg} (storage: [bold cyan]{oltp_storage}[/bold cyan]) to [bold cyan]./k8s[/bold cyan]..."
+        f"Copying Kubernetes manifests{ha_msg} (storage:"
+        f" [bold cyan]{oltp_storage}[/bold cyan]) to"
+        f" [bold cyan]./k8s[/bold cyan]..."
     )
 
 
@@ -538,7 +554,7 @@ This directory contains configuration for a hybrid Sagaz deployment where:
 
 Edit `hybrid.env` with your cloud broker credentials.
 """
-    Path("hybrid/README.md").write_text(readme)
+    Path("hybrid/README.md").write_text(readme, encoding="utf-8")
     click.echo("  CREATE hybrid/README.md")
 
     # Create hybrid docker-compose based on storage type
@@ -726,8 +742,8 @@ def _copy_dir_resource(resource_dir: str, target_dir: str) -> None:
                 _copy_dir_resource(f"{resource_dir}/{item.name}", f"{target_dir}/{item.name}")
             else:
                 try:
-                    text_content = item.read_text()
-                    Path(target_dir, item.name).write_text(text_content)
+                    text_content = item.read_text(encoding="utf-8")
+                    Path(target_dir, item.name).write_text(text_content, encoding="utf-8")
                 except UnicodeDecodeError:
                     binary_content = item.read_bytes()
                     Path(target_dir, item.name).write_bytes(binary_content)
@@ -740,8 +756,12 @@ def _copy_dir_resource(resource_dir: str, target_dir: str) -> None:
 def _copy_resource(resource_path: str, target_path: str):
     """Copy a resource file from the package to the target path."""
     try:
-        content = pkg_resources.files("sagaz.resources").joinpath(resource_path).read_text()
-        Path(target_path).write_text(content)
+        content = (
+            pkg_resources.files("sagaz.resources")
+            .joinpath(resource_path)
+            .read_text(encoding="utf-8")
+        )
+        Path(target_path).write_text(content, encoding="utf-8")
         click.echo(f"  CREATE {target_path}")
     except Exception as e:
         click.echo(f"  ERROR copying {resource_path}: {e}")

@@ -91,7 +91,7 @@ class TestCoreTo100:
         saga = ClassicSaga(name="TestSaga")
 
         async def slow_action(ctx: SagaContext):
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(0.1)  # Reduced for faster test
             return {}
 
         await saga.add_step("step1", slow_action)

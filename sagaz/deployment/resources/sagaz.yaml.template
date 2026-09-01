@@ -21,6 +21,21 @@ storage:
     user: "${SAGAZ_STORAGE_USER:-postgres}"
     password: "${SAGAZ_STORAGE_PASSWORD}"
 
+# ── SQLite (zero-dependency local dev / embedded) ──────────────────────────
+# Uncomment to use SQLite instead of PostgreSQL. No extra services needed.
+#
+# storage:
+#   type: "sqlite"
+#   connection:
+#     url: "sqlite:///./sagaz.db"      # file-based (persisted)
+#     # url: "sqlite://:memory:"       # in-memory (ephemeral, for testing)
+#
+# outbox_storage:
+#   type: "sqlite"
+#   connection:
+#     url: "sqlite:///./sagaz_outbox.db"
+# ──────────────────────────────────────────────────────────────────────────
+
 # Outbox storage (optional - defaults to same as saga storage)
 outbox_storage:
   # Uncomment to use separate database for outbox pattern

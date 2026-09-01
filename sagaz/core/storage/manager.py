@@ -247,9 +247,9 @@ class StorageManager(BaseStorageManager):
 
         try:
             import asyncpg
-        except ImportError:
+        except ImportError as exc:
             msg = "asyncpg"
-            raise MissingDependencyError(msg, "PostgreSQL storage backend")
+            raise MissingDependencyError(msg, "PostgreSQL storage backend") from exc
 
         pool_min = self._kwargs.get("pool_min_size", 5)
         pool_max = self._kwargs.get("pool_max_size", 20)
@@ -287,9 +287,9 @@ class StorageManager(BaseStorageManager):
 
         try:
             import redis.asyncio as redis
-        except ImportError:
+        except ImportError as exc:
             msg = "redis"
-            raise MissingDependencyError(msg, "Redis storage backend")
+            raise MissingDependencyError(msg, "Redis storage backend") from exc
 
         assert self._saga_url is not None
         self._shared_pool = redis.from_url(self._saga_url)

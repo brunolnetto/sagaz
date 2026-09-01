@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 from sagaz.core.storage.core import HealthCheckResult, StorageStatistics
@@ -97,6 +98,7 @@ class OutboxStorage(ABC):
         status: OutboxStatus,
         error_message: str | None = None,
         connection: Any | None = None,
+        event: OutboxEvent | None = None,
     ) -> OutboxEvent:
         """
         Update the status of an event.
@@ -106,6 +108,7 @@ class OutboxStorage(ABC):
             status: New status
             error_message: Optional error message (for FAILED status)
             connection: Optional database connection (for transactions)
+            event: Optional full event carrying metadata to persist
 
         Returns:
             Updated event
@@ -345,6 +348,46 @@ class OutboxStorage(ABC):
 
         Override if your backend needs cleanup.
         """
+
+    async def requeue_dead_letter_event(self, event_id: str, force: bool = False) -> OutboxEvent:
+        """
+        Move a DLQ event back to PENDING for reprocessing.
+
+        Resets retry_count to 0 and clears dead_letter_at / dead_letter_reason.
+        Increments replay_count and raises ReplayLoopError when the count
+        reaches the configured maximum (unless *force* is True).
+
+        Args:
+            event_id: The ID of the DLQ event to requeue.
+            force: Bypass the replay-loop guard when True.
+
+        Returns:
+            The updated event with PENDING status.
+
+        Raises:
+            KeyError: If the event is not found.
+            ReplayLoopError: If replay_count >= max_replays and force is False.
+        """
+        msg = f"{self.__class__.__name__} does not implement requeue_dead_letter_event."
+        raise NotImplementedError(msg)
+
+    async def purge_dead_letter_events(
+        self,
+        older_than: timedelta | None = None,
+    ) -> int:
+        """
+        Permanently remove DLQ events.
+
+        Args:
+            older_than: If provided, only remove events whose dead_letter_at
+                        is older than this duration.  All DLQ events are
+                        removed when None.
+
+        Returns:
+            Number of events purged.
+        """
+        msg = f"{self.__class__.__name__} does not implement purge_dead_letter_events."
+        raise NotImplementedError(msg)
 
 
 # ==========================================================================

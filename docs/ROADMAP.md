@@ -140,6 +140,7 @@ PR #42 (fix/coverage-and-container-timeouts)
 | D18–D22 | Apr 30–May 6 | Storage migration layer + transfer API | [#63](https://github.com/brunolnetto/sagaz/pull/63) / [#47](https://github.com/brunolnetto/sagaz/issues/47) | M2 |
 | D23–D30 | May 7–16 | sqldim analytics — Bronze reads + Silver star schema | [#74](https://github.com/brunolnetto/sagaz/pull/74) / [#73](https://github.com/brunolnetto/sagaz/issues/73) | M2 |
 | D31–D38 | May 19–28 | CLI v1.0 (`init`, `dev`, `status`, `logs`, `visualize`) | [#64](https://github.com/brunolnetto/sagaz/pull/64) / [#48](https://github.com/brunolnetto/sagaz/issues/48) | M3 |
+| D31–D35 | May 10–18 | **Gradio Asset Monitor** (ADR-039) | [#267](https://github.com/brunolnetto/sagaz/issues/267) | M3 |
 | D39–D52 | May 29–Jun 17 | Visualization UI — REST/SSE API + dashboard (Phases 1–3) | [#71](https://github.com/brunolnetto/sagaz/pull/71) / [#58](https://github.com/brunolnetto/sagaz/issues/58) | M3 |
 | D53–D57 | Jun 18–24 | sqldim Gold aggregations + UI analytics tab integration | [#74](https://github.com/brunolnetto/sagaz/pull/74) | M3 |
 | D58–D61 | Jun 25–30 | Integration testing, bugfix buffer, cut v1.5.0 / v1.6.0-beta | — | M3 |
@@ -151,6 +152,7 @@ PR #42 (fix/coverage-and-container-timeouts)
 | v1.5.0 | DLQ pattern, AlertManager rules | #60, #61 |
 | v1.6.0 | SQLite backend, storage migration | #62, #63 |
 | v1.7.0-beta | sqldim analytics pipeline (`sagaz[analytics]`) | #74 |
+| v1.7.0-beta | Gradio Asset Monitor UI (`sagaz[monitor]`) | #267 |
 | v1.7.0-beta | Visualization UI + live analytics tab | #71 |
 
 ### Deferred to Q3+ (Jul–Dec 2026)

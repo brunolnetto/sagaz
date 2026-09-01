@@ -387,7 +387,7 @@ class Saga(_SagaVisualizationMixin, _SagaCompensationMixin, _SagaSnapshotMixin, 
             await self._state_machine.start()
         except TransitionNotAllowed as e:
             msg = f"Cannot start saga: {e}"
-            raise SagaExecutionError(msg)
+            raise SagaExecutionError(msg) from e
 
         # Execute based on mode
         if self._has_dependencies:
