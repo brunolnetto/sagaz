@@ -25,10 +25,17 @@
 Wave 0  ─── v1.5.0 ──────── Governance & lightweight ops  (no core changes)
 Wave 1  ─── v1.6.0 ──────── Storage extensions             (storage/ layer only)
 Wave 1b ─── v1.7.0 ──────── SCXML state machine migration  (core/execution only — ADR-038)
+<<<<<<< HEAD
 Wave 2  ─── v1.8.0 ──────── Analytics & chaos              (new sagaz[analytics] extra)
 Wave 3  ─── v1.9.0 ──────── CLI v2 + CDC + tenancy         (service/infra expansion)
 Wave 4  ─── v1.10.0 ─────── Event-driven choreography      (new execution model)
 Wave 5  ─── v2.0.0 ──────── Core extensions                (saga.add_step wired — blocked)
+=======
+Wave 2  ─── v2.0.0 ──────── Analytics & chaos              (new sagaz[analytics] extra)
+Wave 3  ─── v2.1.0 ──────── CLI v2 + CDC + tenancy         (service/infra expansion)
+Wave 4  ─── v2.2.0 ──────── Event-driven choreography      (new execution model)
+Wave 5  ─── v2.3.0 ──────── Core extensions                (saga.add_step wired — blocked)
+>>>>>>> 7452d95 (docs(docs): move ADR-038 from Wave 5 to v1.7.0 Wave 1b in release plan)
 ```
 
 ---
@@ -70,7 +77,34 @@ Wave 5  ─── v2.0.0 ──────── Core extensions               
 
 ---
 
+<<<<<<< HEAD
 ## Wave 2 — v1.8.0 "Analytics & Chaos"
+=======
+## Wave 1b — v1.7.0 "SCXML State Machine Migration" (ADR-038)
+
+**Target**: May 2026  
+**Risk**: Medium — replaces `StateMachine` base class in `sagaz/core/execution/` for all sagas  
+**Merge order**: #189 → #191
+
+| PR | Branch | Feature | Issue | Merge pre-req |
+|----|--------|---------|-------|--------------|
+| #189 | feature/statechart-saga-state-management | ADR-038 Phase 1: migrate `SagaStateMachine` to `StateChart` | #188 | none |
+| #191 | feature/statechart-compound-parallel-steps | ADR-038 Phase 2: `SagaStateChart` saga-level compound/parallel topology | #190 | #189 |
+
+**Notes**:
+- Phase 1 (#189) is a base-class swap with full backward compatibility; all storage backends gain a `configuration` field defaulting to `[status.value]`.
+- Phase 2 (#191) is **opt-in** via `SagaConfig(use_step_statechart=True)`; default path is unchanged.
+- Must not land in v1.6.0 — that wave is storage-isolated (low-risk constraint); ADR-038 touches core execution.
+- Originally planned for Wave 5 / v2.3.0; pulled forward because Phase 1 is prerequisite for storage `configuration` column work already in #189.
+
+**Gap watch**:
+- Validate `SagaStateChart` subclassing pattern against at least one real business saga before merge.
+- Update ADR-038 status from Draft → Accepted on #189 merge.
+
+---
+
+## Wave 2 — v2.0.0 "Analytics & Chaos"
+>>>>>>> 7452d95 (docs(docs): move ADR-038 from Wave 5 to v1.7.0 Wave 1b in release plan)
 
 **Target**: May / June 2026  
 **Risk**: Low — new `sagaz[analytics]` optional extra, chaos is opt-in  
@@ -216,6 +250,7 @@ fix/#104           ────────────────────�
 |---------|------|---------|-------|
 | v1.5.0  | 0    | Q2 2026 | Governance & ops |
 | v1.6.0  | 1    | Q2 2026 | Storage extensions |
+| v1.7.0  | 1b   | Q2 2026 | SCXML state machine migration (ADR-038) |
 | v2.0.0  | 2    | Q2/Q3 2026 | Analytics & chaos |
 | v2.1.0  | 3    | Q3 2026 | CLI + CDC + tenancy |
 | v2.2.0  | 4    | Q3 2026 | Choreography + Redis Streams |
