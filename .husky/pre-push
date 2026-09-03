@@ -31,8 +31,16 @@ if ! echo "$current_branch" | grep -E '^(feature|fix|docs|refactor|test|chore|ci
   exit 1
 fi
 
-# Get commits to be pushed
-commits=$(git rev-list origin/$current_branch..$current_branch 2>/dev/null || git rev-list HEAD 2>/dev/null | head -1)
+# Get commits to be pushed.
+# Use merge-base against origin/develop so that only the commits unique to
+# this feature branch are validated, even after a rebase that brings in many
+# base commits from develop that shouldn't be re-checked here.
+base_ref=$(git merge-base origin/develop HEAD 2>/dev/null || git rev-parse origin/${current_branch} 2>/dev/null || "")
+if [ -n "$base_ref" ]; then
+  commits=$(git rev-list "${base_ref}..HEAD" 2>/dev/null)
+else
+  commits=$(git rev-list HEAD 2>/dev/null | head -1)
+fi
 
 if [ -z "$commits" ]; then
   exit 0
