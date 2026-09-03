@@ -135,7 +135,20 @@ from sagaz.dry_run import (
     ValidationResult,
 )
 
+# =============================================================================
+# Testing Utilities - Chaos Engineering (ADR-017)
+# =============================================================================
+from sagaz.testing import (
+    ChaosDisabled,
+    ChaosMonkey,
+    ChaosReport,
+    FaultType,
+)
+
 __all__ = [
+    "ChaosDisabled",
+    "ChaosMonkey",
+    "ChaosReport",
     "CircularDependencyError",
     "CompensationFailureStrategy",
     "CompensationGraphError",
@@ -148,6 +161,7 @@ __all__ = [
     "DryRunEngine",
     "DryRunMode",
     "DryRunResult",
+    "FaultType",
     # =========================================================================
     # Exceptions
     # =========================================================================
