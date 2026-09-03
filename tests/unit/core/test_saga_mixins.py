@@ -349,6 +349,7 @@ class _SnapshotHost(_SagaSnapshotMixin):
         # Mock the state machine to avoid async initialization requirement
         self._state_machine = MagicMock()
         self._state_machine.current_state.name = "pending"
+        self._state_machine.configuration_values = ["pending"]
         self._executing = False
         self._execution_lock = asyncio.Lock()
         self._executed_step_keys: set[str] = set()

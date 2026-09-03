@@ -351,6 +351,10 @@ class Saga(_SagaVisualizationMixin, _SagaCompensationMixin, _SagaSnapshotMixin, 
         Raises:
             SagaExecutionError: If saga is already executing or in invalid state
         """
+        if self._executing:
+            msg = "Saga is already executing"
+            raise SagaExecutionError(msg)
+
         async with self._execution_lock:
             if self._executing:
                 msg = "Saga is already executing"
