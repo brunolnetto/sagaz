@@ -127,14 +127,11 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
-      - name: Install dependencies
-        run: |
-          # Install to system Python with all optional dependencies for testing
-          uv pip install --system -e .[storage,integration-tests]
-          uv pip install --system pytest pytest-asyncio aiokafka
+      - name: Install locked test dependencies
+        run: uv sync --locked --group dev --extra integration-tests
 
       - name: Run tests
-        run: pytest tests/ -x -q --tb=short
+        run: uv run pytest tests/ -x -q --tb=short
 
   # Build and publish to PyPI
   publish:
