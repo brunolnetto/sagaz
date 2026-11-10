@@ -319,14 +319,19 @@ class TestRedisOutboxStorageUnit:
             mock_redis.close.assert_called()
 
     @pytest.mark.asyncio
-    async def test_count(self, storage, mock_redis):
-        """Test counting events."""
-        mock_redis.xlen.return_value = 15
+    async def test_count_includes_sent_failed_and_dead_letter_events(
+        self, storage, mock_redis
+    ):
+        """Count all metadata records, not only pending stream entries."""
+        mock_redis.scan.side_effect = [
+            (1, [b"test:outbox:meta:pending", b"test:outbox:meta:sent"]),
+            (0, [b"test:outbox:meta:dead-letter"]),
+        ]
 
         count = await storage.count()
 
-        assert count == 15
-        mock_redis.xlen.assert_called()
+        assert count == 3
+        assert mock_redis.scan.call_count == 2
 
     @pytest.mark.asyncio
     async def test_export_all(self, storage, mock_redis):
@@ -398,9 +403,11 @@ class TestRedisOutboxStorageUnit:
             events.append(event)
 
         assert len(events) == 3
-        assert events[0].event_id == "evt-1"
-        assert events[1].event_id == "evt-2"
-        assert events[2].event_id == "evt-3"
+        assert events[0]["event_id"] == "evt-1"
+        assert events[1]["event_id"] == "evt-2"
+        assert events[2]["event_id"] == "evt-3"
+        assert events[0]["routing_key"] is None
+        assert events[0]["partition_key"] is None
 
     @pytest.mark.asyncio
     async def test_export_all_empty(self, storage, mock_redis):
