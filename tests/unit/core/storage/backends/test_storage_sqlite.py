@@ -46,6 +46,7 @@ class TestSQLiteSagaStorage:
             status=SagaStatus.EXECUTING,
             steps=[{"name": "step1", "status": "pending"}],
             context={"order_id": "123"},
+            configuration=["executing", "step1"],
         )
 
         saga = await storage.load_saga_state("test-saga-1")
@@ -54,7 +55,57 @@ class TestSQLiteSagaStorage:
         assert saga["saga_id"] == "test-saga-1"
         assert saga["saga_name"] == "OrderSaga"
         assert saga["status"] == "executing"
+        assert saga["configuration"] == ["executing", "step1"]
         assert saga["context"]["order_id"] == "123"
+
+    @pytest.mark.asyncio
+    async def test_existing_database_is_upgraded_and_old_rows_are_backfilled(self, tmp_path):
+        import aiosqlite
+
+        from sagaz.core.storage.backends.sqlite import SQLiteSagaStorage
+
+        db_path = tmp_path / "legacy-sagas.db"
+        conn = await aiosqlite.connect(str(db_path))
+        await conn.execute(
+            """
+            CREATE TABLE sagas (
+                saga_id TEXT PRIMARY KEY,
+                saga_name TEXT NOT NULL,
+                status TEXT NOT NULL,
+                steps TEXT NOT NULL,
+                context TEXT NOT NULL,
+                metadata TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        await conn.execute(
+            """
+            INSERT INTO sagas
+                (saga_id, saga_name, status, steps, context, metadata, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "legacy-saga",
+                "LegacySaga",
+                "executing",
+                "[]",
+                "{}",
+                None,
+                "2026-01-01T00:00:00+00:00",
+                "2026-01-01T00:00:00+00:00",
+            ),
+        )
+        await conn.commit()
+        await conn.close()
+
+        storage = SQLiteSagaStorage(str(db_path))
+        async with storage:
+            loaded = await storage.load_saga_state("legacy-saga")
+
+        assert loaded is not None
+        assert loaded["configuration"] == ["executing"]
 
     @pytest.mark.asyncio
     async def test_load_nonexistent_saga(self, storage):
