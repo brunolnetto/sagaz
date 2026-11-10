@@ -1,5 +1,8 @@
 # Versioning Strategy Decision Document
 
+> **Release execution status — 2026-11-09:** This document retains historical options and schedules discussed earlier in 2026. Older milestone maps and alternative version proposals are historical context, not the current release schedule. The authoritative execution order is the **Final Version Plan** below, aligned with `docs/planning/release-plan.md`. The latest published package is v1.5.0; the next release candidate is v1.6.0.
+
+
 **Date**: April 11, 2026  
 **Status**: ✅ DECIDED & IMPLEMENTED  
 **Issue**: Version gap from 1.1.2 → 1.5.0 with skipped intermediate versions
@@ -24,16 +27,21 @@
 
 All three are published as GitHub Releases at https://github.com/brunolnetto/sagaz/releases
 
-### 2. Milestones Renamed (SemVer Compliant)
+### 2. Historical Milestone Rename Proposal
 
-| Old Name | New Name | Milestone # | PRs |
-|----------|----------|-------------|-----|
-| v2.0.0: Analytics & Chaos | **v1.7.0: Analytics & Chaos** | 9 | #67, #71, #74, #79 |
-| v2.1.0: CLI v2 + CDC + Tenancy | **v1.8.0: CLI v2 + CDC + Tenancy** | 10 | #64, #65, #66, #68, #81 |
-| v2.2.0: Choreography | **v1.9.0: Choreography** | 11 | #69 |
-| v2.3.0: Core Extensions | **v1.10.0: Core Extensions** | 12 | #70, #72 |
+The table below records the earlier SemVer proposal before the dependency-ordered
+StateChart release was added. Its version mapping is superseded by the **Final
+Version Plan** later in this document and by `docs/planning/release-plan.md`.
+Do not use this historical table to close milestones or trigger releases.
 
-v2.0.0 is now **reserved for actual breaking API changes**.
+| Old Name | Earlier Proposed Name | Milestone # | PRs |
+|----------|-----------------------|-------------|-----|
+| v2.0.0: Analytics & Chaos | v1.7.0: Analytics & Chaos | 9 | #67, #71, #74, #79 |
+| v2.1.0: CLI v2 + CDC + Tenancy | v1.8.0: CLI v2 + CDC + Tenancy | 10 | #64, #65, #66, #68, #81 |
+| v2.2.0: Choreography | v1.9.0: Choreography | 11 | #69 |
+| v2.3.0: Core Extensions | v1.10.0: Core Extensions | 12 | #70, #72 |
+
+v2.0.0 remains **reserved for actual breaking API changes**.
 
 ### 3. GitHub Actions Release Automation
 
