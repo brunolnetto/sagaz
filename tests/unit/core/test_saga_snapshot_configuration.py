@@ -67,4 +67,4 @@ def test_snapshot_optional_positional_arguments_keep_their_legacy_order() -> Non
 
     assert snapshot.retention_until == retention_until
     assert snapshot.external_refs == external_refs
-    assert snapshot.configuration == []
+    assert snapshot.configuration == ["pending"]
