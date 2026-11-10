@@ -43,7 +43,9 @@ class InMemorySagaStorage(SagaStorage):
                 "saga_id": saga_id,
                 "saga_name": saga_name,
                 "status": status.value,
-                "configuration": list(configuration) if configuration is not None else [status.value],
+                "configuration": (
+                    list(configuration) if configuration is not None else [status.value]
+                ),
                 "steps": steps,
                 "context": context,
                 "metadata": metadata or {},
