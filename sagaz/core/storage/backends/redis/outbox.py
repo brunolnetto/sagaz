@@ -691,9 +691,20 @@ class RedisOutboxStorage(OutboxStorage):
         )
 
     async def count(self) -> int:
-        """Count total outbox events (pending + processed + dlq)."""
-        # This is expensive, requires counting metakeys or stream lengths
-        return await self.get_pending_count()
+        """Count all retained outbox event metadata records."""
+        if not self._initialized:
+            await self.initialize()
+        assert self._redis is not None
+
+        total = 0
+        cursor = 0
+        pattern = f"{self._prefix}:meta:*"
+        while True:
+            cursor, keys = await self._redis.scan(cursor, match=pattern, count=500)
+            total += len(keys)
+            if cursor == 0:
+                break
+        return total
 
     async def export_all(self):
         """Export all events."""
@@ -708,31 +719,27 @@ class RedisOutboxStorage(OutboxStorage):
             for key in keys:
                 data = await self._redis.hgetall(key)
                 if data:
-                    yield self._deserialize_event(data)
+                    yield self._deserialize_event(data).to_dict()
             if cursor == 0:
                 break
 
     async def import_record(self, record: dict[str, Any]) -> None:
         """Import a record."""
-        # Convert dict to OutboxEvent then insert
-        event = OutboxEvent(
-            event_id=str(record.get("event_id")),
-            saga_id=record["saga_id"],
-            event_type=record["event_type"],
-            payload=record.get("payload", {}),
-            status=OutboxStatus(record.get("status", "pending")),
-            retry_count=int(record.get("retry_count", 0) or 0),
-            last_error=record.get("last_error"),
-            dead_letter_at=datetime.fromisoformat(record["dead_letter_at"])
-            if record.get("dead_letter_at")
-            else None,
-            dead_letter_reason=record.get("dead_letter_reason"),
-            error_type=record.get("error_type"),
-            error_classification=record.get("error_classification"),
-            error_fingerprint=record.get("error_fingerprint"),
-            replay_count=int(record.get("replay_count", 0) or 0),
+        # Import the complete canonical event. Avoid adding a duplicate stream
+        # entry when a previous partial migration already inserted its metadata.
+        event = OutboxEvent.from_dict(record)
+        if not self._initialized:
+            await self.initialize()
+        existing = await self.get_by_id(event.event_id)
+        if existing is None:
+            await self.insert(event)
+            return
+
+        assert self._redis is not None
+        await self._redis.hset(
+            self._meta_key(event.event_id),
+            mapping=self._serialize_event(event),
         )
-        await self.insert(event)
 
     async def requeue_dead_letter_event(self, event_id: str, force: bool = False) -> OutboxEvent:
         """Move a DLQ event back to PENDING."""
