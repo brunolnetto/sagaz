@@ -54,19 +54,21 @@ Wave 5  ─── v2.0.0 ──────── Core extensions               
 
 ## Wave 1 — v1.6.0 "Storage Extensions"
 
-**Target**: May 2026  
-**Risk**: Low — extends `sagaz/storage/` and `sagaz/outbox/` only  
-**Merge order**: #62 → #63 → #60
+**Target**: TBD — the original May 2026 target has elapsed; set a new date after the release gates pass  
+**Risk**: Medium — persistent storage, cross-backend data integrity, and outbox recovery  
+**Original feature merge order**: #62 → #63 → #60 (all three feature PRs are already in `develop`)
 
-| PR | Branch | Feature | Issue | Merge pre-req |
-|----|--------|---------|-------|--------------|
-| #62 | feature/sqlite-backend | SQLite storage + outbox backend | #46 | none |
-| #63 | feature/storage-data-transfer | Storage migration/transfer layer | #47 | #62 (SQLite src/dst) |
-| #60 | feature/dead-letter-queue | Dead Letter Queue (DLQ) pattern | #44 | none |
+| PR | Branch | Feature | Issue | Current status |
+|----|--------|---------|-------|----------------|
+| #62 | feature/sqlite-backend | SQLite storage + outbox backend | #46 | Merged; unit coverage and the `sagaz[sqlite]` extra are present |
+| #63 | feature/storage-data-transfer | Storage migration/transfer layer | #47 | Merged; integrity gaps reopened for hardening |
+| #60 | feature/dead-letter-queue | Dead Letter Queue (DLQ) pattern | #44 | Merged; awaiting full SQLite + RabbitMQ lifecycle test |
 
-**Gap watch** (from review report):
-- #62: no unit tests — add before merge (see issue #105)
-- #60: no fill-and-replay integration test — add before merge (see issue #106)
+**Release gates (reconciled 2026-11-10)**:
+- #62: SQLite Saga/Outbox unit coverage exists; legacy outbox schema backfill and optional install extra are covered by the v1.6.0 hardening work.
+- #63: [PR #351](https://github.com/brunolnetto/sagaz/pull/351) addresses reopened issue #47. It adds canonical serialization, schema upgrades, full-content validation/checksums, PostgreSQL archive transfer, and a SQLite → PostgreSQL round-trip test. Pause outbox workers during transfer/cutover. Do not release until the PR and integration test pass.
+- #60: issue #110 is reopened. [PR #350](https://github.com/brunolnetto/sagaz/pull/350) adds the missing end-to-end test using persistent SQLite storage and a real RabbitMQ container. Do not release until its integration test passes.
+- CI workflow repairs are tracked separately; a green release run remains a release gate, not assumed evidence.
 
 ---
 
