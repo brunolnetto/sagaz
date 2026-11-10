@@ -22,6 +22,7 @@ Usage:
 """
 
 import asyncio
+import json
 import logging
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
@@ -170,8 +171,8 @@ class TransferResult:
 
     @property
     def success(self) -> bool:
-        """Check if transfer was successful (no failures)."""
-        return self.failed == 0
+        """A transfer is successful only when no records failed or were skipped."""
+        return self.failed == 0 and self.skipped == 0
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
@@ -401,6 +402,41 @@ class TransferService:
                     target=self.target.__class__.__name__,
                 )
 
+            # Outbox records have a canonical full-fidelity serializer. Checking
+            # only the ID lets an import silently drop headers, routing keys,
+            # timestamps, or DLQ metadata while still reporting success.
+            if "event_id" in record:
+                expected = self._canonical_record(record)
+                actual = self._canonical_record(loaded)
+                if expected != actual:
+                    raise TransferError(
+                        message=f"Validation failed: event {record_id} differs after import",
+                        target=self.target.__class__.__name__,
+                    )
+
+    @staticmethod
+    def _canonical_record(record: Any) -> str:
+        """Serialize dicts and model objects into stable comparison JSON."""
+        if hasattr(record, "to_dict"):
+            record = record.to_dict()
+
+        def _default(value: Any) -> str:
+            if isinstance(value, datetime):
+                return value.isoformat()
+            if isinstance(value, Enum):
+                return value.value
+            if hasattr(value, "to_dict"):
+                return value.to_dict()
+            raise TypeError(f"Unsupported value in transfer record: {type(value).__name__}")
+
+        return json.dumps(
+            record,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            default=_default,
+        )
+
     async def _retry_transfer(self, record: dict[str, Any]) -> bool:
         """Retry transfer with configured retries."""
         for attempt in range(self.config.max_retries):
@@ -432,6 +468,7 @@ async def transfer_data(
     batch_size: int = 100,
     validate: bool = True,
     on_error: str = "skip",
+    progress_callback: Callable[[int, int, int], None] | None = None,
 ) -> TransferResult:
     """
     Convenience function for transferring data between storages.
@@ -450,6 +487,7 @@ async def transfer_data(
         batch_size=batch_size,
         validate=validate,
         on_error=TransferErrorPolicy(on_error),
+        progress_callback=progress_callback,
     )
 
     service = TransferService(source, target, config)
