@@ -40,7 +40,7 @@ from sagaz.core.storage.core import (
     deserialize,
     serialize,
 )
-from sagaz.core.storage.interfaces.outbox import OutboxStorage
+from sagaz.core.storage.interfaces.outbox import OutboxStorage, OutboxStorageError
 
 logger = logging.getLogger(__name__)
 
@@ -130,9 +130,11 @@ class SQLiteOutboxStorage(OutboxStorage):
 
             CREATE INDEX IF NOT EXISTS idx_outbox_status ON outbox_events(status);
             CREATE INDEX IF NOT EXISTS idx_outbox_saga_id ON outbox_events(saga_id);
-            CREATE INDEX IF NOT EXISTS idx_outbox_claimed_at ON outbox_events(claimed_at);
         """)
         await self._ensure_optional_columns(conn)
+        await conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_outbox_claimed_at ON outbox_events(claimed_at)"
+        )
         assert conn is not None
         await conn.commit()
 
@@ -156,6 +158,38 @@ class SQLiteOutboxStorage(OutboxStorage):
             await conn.execute(
                 "ALTER TABLE outbox_events ADD COLUMN replay_count INTEGER DEFAULT 0"
             )
+        if "aggregate_type" not in existing_columns:
+            await conn.execute("ALTER TABLE outbox_events ADD COLUMN aggregate_type TEXT")
+        if "aggregate_id" not in existing_columns:
+            await conn.execute("ALTER TABLE outbox_events ADD COLUMN aggregate_id TEXT")
+        if "headers" not in existing_columns:
+            await conn.execute("ALTER TABLE outbox_events ADD COLUMN headers TEXT")
+        if "routing_key" not in existing_columns:
+            await conn.execute("ALTER TABLE outbox_events ADD COLUMN routing_key TEXT")
+        if "partition_key" not in existing_columns:
+            await conn.execute("ALTER TABLE outbox_events ADD COLUMN partition_key TEXT")
+        if "claimed_at" not in existing_columns:
+            await conn.execute("ALTER TABLE outbox_events ADD COLUMN claimed_at TEXT")
+        if "sent_at" not in existing_columns:
+            await conn.execute("ALTER TABLE outbox_events ADD COLUMN sent_at TEXT")
+        if "worker_id" not in existing_columns:
+            await conn.execute("ALTER TABLE outbox_events ADD COLUMN worker_id TEXT")
+        if "retry_count" not in existing_columns:
+            await conn.execute("ALTER TABLE outbox_events ADD COLUMN retry_count INTEGER DEFAULT 0")
+        if "last_error" not in existing_columns:
+            await conn.execute("ALTER TABLE outbox_events ADD COLUMN last_error TEXT")
+
+        # Legacy rows predate optional metadata columns. Normalize them before
+        # export so they remain valid when imported into stricter backends.
+        await conn.execute(
+            """
+            UPDATE outbox_events
+            SET aggregate_type = COALESCE(aggregate_type, 'saga'),
+                aggregate_id = COALESCE(aggregate_id, saga_id),
+                headers = COALESCE(headers, '{}'),
+                retry_count = COALESCE(retry_count, 0)
+            """
+        )
 
     async def __aenter__(self):
         """Async context manager entry."""
@@ -182,10 +216,11 @@ class SQLiteOutboxStorage(OutboxStorage):
             """
             INSERT INTO outbox_events (
                 event_id, saga_id, event_type, payload, status, created_at,
+                claimed_at, sent_at, worker_id, retry_count, last_error,
                 aggregate_type, aggregate_id, headers, routing_key, partition_key,
-                retry_count, last_error, worker_id, dead_letter_at, dead_letter_reason,
-                error_type, error_classification, error_fingerprint, replay_count
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                dead_letter_at, dead_letter_reason, error_type, error_classification,
+                error_fingerprint, replay_count
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 event.event_id,
@@ -193,15 +228,17 @@ class SQLiteOutboxStorage(OutboxStorage):
                 event.event_type,
                 serialize(event.payload),
                 event.status.value,
-                now,
+                event.created_at.isoformat() if event.created_at else now,
+                event.claimed_at.isoformat() if event.claimed_at else None,
+                event.sent_at.isoformat() if event.sent_at else None,
+                event.worker_id,
+                event.retry_count,
+                event.last_error,
                 event.aggregate_type,
                 event.aggregate_id,
                 serialize(event.headers) if event.headers else None,
                 event.routing_key,
                 event.partition_key,
-                event.retry_count,
-                event.last_error,
-                event.worker_id,
                 event.dead_letter_at.isoformat() if event.dead_letter_at else None,
                 event.dead_letter_reason,
                 event.error_type,
@@ -593,44 +630,19 @@ class SQLiteOutboxStorage(OutboxStorage):
 
         async for row in cursor:
             event = self._row_to_event(row)
-            yield {
-                "event_id": event.event_id,
-                "saga_id": event.saga_id,
-                "event_type": event.event_type,
-                "payload": event.payload,
-                "status": event.status.value,
-                "created_at": event.created_at.isoformat() if event.created_at else None,
-                "retry_count": event.retry_count,
-                "last_error": event.last_error,
-                "dead_letter_at": event.dead_letter_at.isoformat()
-                if event.dead_letter_at
-                else None,
-                "dead_letter_reason": event.dead_letter_reason,
-                "error_type": event.error_type,
-                "error_classification": event.error_classification,
-                "error_fingerprint": event.error_fingerprint,
-                "replay_count": event.replay_count,
-            }
+            yield event.to_dict()
 
     async def import_record(self, record: dict[str, Any]) -> None:
-        """Import a single record from transfer."""
-        event = OutboxEvent(
-            event_id=str(record.get("event_id")),
-            saga_id=record["saga_id"],
-            event_type=record["event_type"],
-            payload=record.get("payload", {}),
-            status=OutboxStatus(record.get("status", "pending")),
-            retry_count=int(record.get("retry_count", 0) or 0),
-            last_error=record.get("last_error"),
-            dead_letter_at=datetime.fromisoformat(record["dead_letter_at"])
-            if record.get("dead_letter_at")
-            else None,
-            dead_letter_reason=record.get("dead_letter_reason"),
-            error_type=record.get("error_type"),
-            error_classification=record.get("error_classification"),
-            error_fingerprint=record.get("error_fingerprint"),
-            replay_count=int(record.get("replay_count", 0) or 0),
-        )
+        """Import an event without overwriting existing destination state."""
+        event = OutboxEvent.from_dict(record)
+        existing = await self.get_by_id(event.event_id)
+
+        if existing is not None:
+            if existing != event:
+                msg = f"Outbox event {event.event_id} already exists with different state"
+                raise OutboxStorageError(msg)
+            return
+
         await self.insert(event)
 
     async def requeue_dead_letter_event(self, event_id: str, force: bool = False) -> OutboxEvent:
@@ -654,7 +666,11 @@ class SQLiteOutboxStorage(OutboxStorage):
         event.claimed_at = None
         event.dead_letter_at = None
         event.dead_letter_reason = None
-        return await self.update_status(event_id, OutboxStatus.PENDING, event=event)
+        updated = await self.update_status(event_id, OutboxStatus.PENDING, event=event)
+        if updated is None:
+            msg = f"Event {event_id} not found"
+            raise KeyError(msg)
+        return updated
 
     async def purge_dead_letter_events(
         self,

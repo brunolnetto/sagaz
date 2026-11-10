@@ -1,7 +1,7 @@
 # Scoped Release Plan — sagaz 2026
 
-> **Last updated**: 2026-04-08  
-> **Current version**: 1.1.2  
+> **Last updated**: 2026-04-08
+> **Current version**: 1.1.2
 > **Strategy**: Minimum-disruption, scoped releases. Each wave ships only additive/isolated features. Core-invasive changes are deferred to later waves.
 
 ---
@@ -35,8 +35,8 @@ Wave 5  ─── v2.0.0 ──────── Core extensions               
 
 ## Wave 0 — v1.5.0 "Governance & Lightweight Ops"
 
-**Target**: April / May 2026  
-**Risk**: Very low — no code touching the core `Saga` execution path  
+**Target**: April / May 2026
+**Risk**: Very low — no code touching the core `Saga` execution path
 **Merge order**: #82 → #61 → (docs overhaul PR)
 
 | PR | Branch | Feature | Issue | Merge pre-req |
@@ -54,26 +54,28 @@ Wave 5  ─── v2.0.0 ──────── Core extensions               
 
 ## Wave 1 — v1.6.0 "Storage Extensions"
 
-**Target**: May 2026  
-**Risk**: Low — extends `sagaz/storage/` and `sagaz/outbox/` only  
-**Merge order**: #62 → #63 → #60
+**Target**: TBD — the original May 2026 target has elapsed; set a new date after the release gates pass
+**Risk**: Medium — persistent storage, cross-backend data integrity, and outbox recovery
+**Original feature merge order**: #62 → #63 → #60 (all three feature PRs are already in `develop`)
 
-| PR | Branch | Feature | Issue | Merge pre-req |
-|----|--------|---------|-------|--------------|
-| #62 | feature/sqlite-backend | SQLite storage + outbox backend | #46 | none |
-| #63 | feature/storage-data-transfer | Storage migration/transfer layer | #47 | #62 (SQLite src/dst) |
-| #60 | feature/dead-letter-queue | Dead Letter Queue (DLQ) pattern | #44 | none |
+| PR | Branch | Feature | Issue | Current status |
+|----|--------|---------|-------|----------------|
+| #62 | feature/sqlite-backend | SQLite storage + outbox backend | #46 | Merged; unit coverage and the `sagaz[sqlite]` extra are present |
+| #63 | feature/storage-data-transfer | Storage migration/transfer layer | #47 | Merged; integrity gaps reopened for hardening |
+| #60 | feature/dead-letter-queue | Dead Letter Queue (DLQ) pattern | #44 | Merged; awaiting full SQLite + RabbitMQ lifecycle test |
 
-**Gap watch** (from review report):
-- #62: no unit tests — add before merge (see issue #105)
-- #60: no fill-and-replay integration test — add before merge (see issue #106)
+**Release gates (reconciled 2026-11-10)**:
+- #62: SQLite Saga/Outbox unit coverage exists; legacy outbox schema backfill and optional install extra are covered by the v1.6.0 hardening work.
+- #63: [PR #351](https://github.com/brunolnetto/sagaz/pull/351) addresses reopened issue #47. It adds canonical serialization, schema upgrades, full-content validation/checksums, PostgreSQL archive transfer, and a SQLite → PostgreSQL round-trip test. Pause outbox workers during transfer/cutover. Do not release until the PR and integration test pass.
+- #60: issue #110 is reopened. [PR #350](https://github.com/brunolnetto/sagaz/pull/350) adds the missing end-to-end test using persistent SQLite storage and a real RabbitMQ container. Do not release until its integration test passes.
+- CI workflow repairs are tracked separately; a green release run remains a release gate, not assumed evidence.
 
 ---
 
 ## Wave 2 — v1.8.0 "Analytics & Chaos"
 
-**Target**: May / June 2026  
-**Risk**: Low — new `sagaz[analytics]` optional extra, chaos is opt-in  
+**Target**: May / June 2026
+**Risk**: Low — new `sagaz[analytics]` optional extra, chaos is opt-in
 **Merge order**: #79 → #74 → #71 → #67
 
 | PR | Branch | Feature | Issue | Merge pre-req |
@@ -92,8 +94,8 @@ Wave 5  ─── v2.0.0 ──────── Core extensions               
 
 ## Wave 3 — v1.9.0 "CLI v2 + CDC + Tenancy + Versioning"
 
-**Target**: June / July 2026  
-**Risk**: Medium — CDC requires Docker/Kafka in integration tests; tenancy extends executor layer  
+**Target**: June / July 2026
+**Risk**: Medium — CDC requires Docker/Kafka in integration tests; tenancy extends executor layer
 **Merge order**: #81 → #64 → #65 → #68 → #66
 
 | PR | Branch | Feature | Issue | Merge pre-req |
@@ -113,8 +115,8 @@ Wave 5  ─── v2.0.0 ──────── Core extensions               
 
 ## Wave 4 — v1.10.0 "Event-Driven Choreography"
 
-**Target**: August / September 2026  
-**Risk**: Medium — new execution model but fully isolated from `Saga` class  
+**Target**: August / September 2026
+**Risk**: Medium — new execution model but fully isolated from `Saga` class
 **Merge order**: feature/redis-streams-eventbus → #69
 
 | PR | Branch | Feature | Issue | Merge pre-req |
@@ -131,8 +133,8 @@ Wave 5  ─── v2.0.0 ──────── Core extensions               
 
 ## Wave 5 — v2.0.0 "Core Extensions" *(blocked)*
 
-**Target**: October - December 2026  
-**Risk**: High — wires new behaviour into `Saga.__init__` and `Saga.add_step()`  
+**Target**: October - December 2026
+**Risk**: High — wires new behaviour into `Saga.__init__` and `Saga.add_step()`
 **Merge order**: fix/event-sourcing-wiring → #70 → fix/region-affinity-wiring → #72
 
 | PR / Branch | Feature | Issue | Merge pre-req |
@@ -183,25 +185,25 @@ Wave 5  ─── v2.0.0 ──────── Core extensions               
 ```
 #82 (docs)         ──────────────────────────────────────────► Wave 0
 #61 (alertmgr)     ──────────────────────────────────────────► Wave 0
-                                                               
+
 #62 (sqlite)       ──────────────────────────────────────────► Wave 1
 #60 (dlq)          ──────────────────────────────────────────► Wave 1
 #63 (storage-tx)   after #62 ──────────────────────────────► Wave 1
-                                                               
+
 #79 (chaos)        ──────────────────────────────────────────► Wave 2
 #67 (fluss)        ──────────────────────────────────────────► Wave 2
 #74 (sqldim)       ──────────────────────────────────────────► Wave 2
 #71 (viz)          ──────────────────────────────────────────► Wave 2
-                                                               
+
 #64 (cli-local)    ──────────────────────────────────────────► Wave 3
 #81 (versioning)   needs #109 closed ──────────────────────► Wave 3
 #65 (cli-cloud)    after #64 ─────────────────────────────── Wave 3
 #68 (tenancy)      ──────────────────────────────────────────► Wave 3
 #66 (cdc)          ──────────────────────────────────────────► Wave 3
-                                                               
+
 redis-streams-bus  ──────────────────────────────────────────► Wave 4 (new)
 #69 (choreography) after redis-streams-bus ─────────────────► Wave 4
-                                                               
+
 fix/#102           ──────────────────────────────────────────► Wave 5
 #70 (event-src)    after fix/#102 ──────────────────────────► Wave 5
 fix/#104           ──────────────────────────────────────────► Wave 5

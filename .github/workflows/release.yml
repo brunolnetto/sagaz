@@ -1,0 +1,292 @@
+name: Release
+
+on:
+  # Triggered automatically when a milestone is closed
+  milestone:
+    types: [closed]
+  # Manual trigger for hotfixes or overrides
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Explicit version to release (e.g. 1.5.0). Overrides milestone title.'
+        required: false
+        type: string
+      dry_run:
+        description: 'Dry run (do not publish)'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  PYTHONDONTWRITEBYTECODE: 1
+
+jobs:
+  # Resolve which version to release from milestone title or manual input
+  resolve-version:
+    name: Resolve Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      milestone_title: ${{ steps.version.outputs.milestone_title }}
+      dry_run: ${{ steps.version.outputs.dry_run }}
+      source_sha: ${{ steps.version.outputs.source_sha }}
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        env:
+          MILESTONE_TITLE: ${{ github.event.milestone.title }}
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: |
+          if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
+            echo "Release workflow must run from main (got ${GITHUB_REF})." >&2
+            exit 1
+          fi
+
+          # Manual override takes precedence
+          if [[ -n "$INPUT_VERSION" ]]; then
+            VERSION="$INPUT_VERSION"
+            MILESTONE_TITLE="v${INPUT_VERSION}"
+            DRY_RUN="${INPUT_DRY_RUN:-false}"
+          elif [[ -n "$MILESTONE_TITLE" ]]; then
+            # Extract "1.5.0" from "v1.5.0: Governance & Ops"
+            VERSION=$(echo "$MILESTONE_TITLE" | grep -oP 'v?\K[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+            DRY_RUN="false"
+          else
+            echo "No version source found (milestone or manual input)" >&2
+            exit 1
+          fi
+
+          if [[ -z "$VERSION" ]]; then
+            echo "Could not extract version from: '$MILESTONE_TITLE'" >&2
+            exit 1
+          fi
+
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Version must use MAJOR.MINOR.PATCH (got '$VERSION')." >&2
+            exit 1
+          fi
+
+          CURRENT_VERSION="$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          python - "$CURRENT_VERSION" "$VERSION" <<'PY'
+          import re
+          import sys
+
+          def parse(value):
+              if not re.fullmatch(r"\d+\.\d+\.\d+", value):
+                  raise SystemExit(f"Invalid semantic version: {value}")
+              return tuple(int(part) for part in value.split("."))
+
+          current, requested = map(parse, sys.argv[1:])
+          if requested <= current:
+              raise SystemExit(
+                  f"Release {sys.argv[2]} must be newer than source version {sys.argv[1]}"
+              )
+          PY
+
+          if git ls-remote --exit-code --tags origin "refs/tags/v${VERSION}" >/dev/null 2>&1; then
+            echo "Tag v${VERSION} already exists; refusing to overwrite it." >&2
+            exit 1
+          fi
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "milestone_title=${MILESTONE_TITLE}" >> "$GITHUB_OUTPUT"
+          echo "dry_run=${DRY_RUN}" >> "$GITHUB_OUTPUT"
+          echo "source_sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: ${VERSION} (tag: v${VERSION}, source: ${GITHUB_SHA}, dry_run: ${DRY_RUN})"
+
+  # Run tests before releasing
+  test:
+    name: Pre-release Tests
+    runs-on: ubuntu-latest
+    needs: resolve-version
+
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve-version.outputs.source_sha }}
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          version: "0.12.8"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install locked test dependencies
+        run: uv sync --locked --group dev --extra integration-tests
+
+      - name: Run tests
+        run: uv run pytest tests/ -x -q --tb=short
+
+  # Build and publish to PyPI
+  publish:
+    name: Build & Publish
+    runs-on: ubuntu-latest
+    # Publication is gated on tests for this exact release source commit.
+    needs: [resolve-version, test]
+
+    permissions:
+      id-token: write  # Required for trusted publishing
+      contents: read
+
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve-version.outputs.source_sha }}
+          fetch-depth: 0
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+
+      - name: Install build tools
+        run: python -m pip install --upgrade pip build twine
+
+      - name: Set target version in pyproject.toml
+        env:
+          VERSION: ${{ needs.resolve-version.outputs.version }}
+        run: |
+          sed -i "s/^version = \".*\"/version = \"${VERSION}\"/" pyproject.toml
+          echo "Bumped pyproject.toml to ${VERSION}"
+
+      - name: Build package
+        run: python -m build
+
+      - name: Check package
+        run: |
+          twine check dist/*
+          echo "Built packages:"
+          ls -la dist/
+
+      - name: Publish to Test PyPI (dry run)
+        if: needs.resolve-version.outputs.dry_run == 'true'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
+
+      - name: Publish to PyPI
+        if: needs.resolve-version.outputs.dry_run == 'false'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        # Uses trusted publishing - no token needed if configured on PyPI
+
+  # Commit version bump, tag, and create GitHub Release
+  tag-and-release:
+    name: Tag & Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [resolve-version, test, publish]
+    if: needs.resolve-version.outputs.dry_run == 'false'
+
+    permissions:
+      contents: write  # Required to push tags and create releases
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.resolve-version.outputs.source_sha }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump version in pyproject.toml and commit
+        env:
+          VERSION: ${{ needs.resolve-version.outputs.version }}
+          TAG: ${{ needs.resolve-version.outputs.tag }}
+          SOURCE_SHA: ${{ needs.resolve-version.outputs.source_sha }}
+        run: |
+          git fetch origin main --tags
+          if [[ "$(git rev-parse HEAD)" != "$SOURCE_SHA" ]]; then
+            echo "Checked out commit differs from the resolved release source." >&2
+            exit 1
+          fi
+          if [[ "$(git rev-parse origin/main)" != "$SOURCE_SHA" ]]; then
+            echo "main moved during release; refusing to tag a stale source commit." >&2
+            exit 1
+          fi
+
+          sed -i "s/^version = \".*\"/version = \"${VERSION}\"/" pyproject.toml
+          git add pyproject.toml
+          git commit -m "chore(release): bump version to ${VERSION} [skip ci]"
+
+      - name: Create and push tag
+        env:
+          VERSION: ${{ needs.resolve-version.outputs.version }}
+          TAG: ${{ needs.resolve-version.outputs.tag }}
+          MILESTONE_TITLE: ${{ needs.resolve-version.outputs.milestone_title }}
+        run: |
+          git tag -a "${TAG}" -m "Release ${TAG}: ${MILESTONE_TITLE}"
+          git push origin HEAD:main --follow-tags
+
+      - name: Generate release notes from milestone PRs
+        id: notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.resolve-version.outputs.tag }}
+          MILESTONE_TITLE: ${{ needs.resolve-version.outputs.milestone_title }}
+          MILESTONE_NUMBER: ${{ github.event.milestone.number }}
+          SOURCE_SHA: ${{ needs.resolve-version.outputs.source_sha }}
+        run: |
+          # Collect merged PRs in the milestone
+          if [[ -n "$MILESTONE_NUMBER" ]]; then
+            NOTES=$(gh pr list \
+              --state merged \
+              --search "milestone:\"${MILESTONE_TITLE}\"" \
+              --json number,title,url \
+              --jq '.[] | "- \(.title) ([#\(.number)](\(.url)))"' \
+              2>/dev/null || echo "")
+          fi
+
+          if [[ -z "$NOTES" ]]; then
+            PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -vx "$TAG" | head -1 || true)
+            if [[ -n "$PREVIOUS_TAG" ]]; then
+              NOTES="See the [comparison from ${PREVIOUS_TAG}](https://github.com/${GITHUB_REPOSITORY}/compare/${PREVIOUS_TAG}...${SOURCE_SHA}) for the commits included in this release."
+            else
+              NOTES="Source commit: https://github.com/${GITHUB_REPOSITORY}/commit/${SOURCE_SHA}"
+            fi
+          fi
+
+          {
+            echo "body<<EOF"
+            echo "## ${MILESTONE_TITLE}"
+            echo ""
+            echo "### Changes"
+            echo "${NOTES}"
+            echo ""
+            echo "### Installation"
+            echo '```'
+            echo "pip install sagaz==${TAG#v}"
+            echo '```'
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.resolve-version.outputs.tag }}
+          MILESTONE_TITLE: ${{ needs.resolve-version.outputs.milestone_title }}
+        run: |
+          gh release create "${TAG}" \
+            --title "${TAG}: ${MILESTONE_TITLE}" \
+            --notes "${{ steps.notes.outputs.body }}" \
+            --target main
