@@ -30,6 +30,8 @@ class TestSagaStateMachine:
     @pytest.mark.asyncio
     async def test_configuration_and_legacy_current_state_track_transitions(self):
         sm = SagaStateMachine(saga=None)
+        assert sm.current_state == sm.pending
+        assert sm.active_configuration == ["pending"]
         await sm.activate_initial_state()
 
         assert sm.configuration_values == ["pending"]
