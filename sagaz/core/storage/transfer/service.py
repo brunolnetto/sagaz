@@ -22,6 +22,7 @@ Usage:
 """
 
 import asyncio
+import json
 import logging
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
@@ -170,8 +171,8 @@ class TransferResult:
 
     @property
     def success(self) -> bool:
-        """Check if transfer was successful (no failures)."""
-        return self.failed == 0
+        """A transfer is successful only when no records failed or were skipped."""
+        return self.failed == 0 and self.skipped == 0
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
@@ -379,27 +380,91 @@ class TransferService:
             await self._validate_record(record)
 
     async def _validate_record(self, record: dict[str, Any]) -> None:
-        """Validate a transferred record exists in target."""
-        # Get record ID
-        record_id = record.get("saga_id") or record.get("event_id") or record.get("id")
+        """Validate a transferred record exists in target storage."""
+        record_id = record.get("event_id") or record.get("saga_id") or record.get("id")
         if not record_id:
             return
 
-        # Try to load from target
-        if hasattr(self.target, "load_saga_state"):
+        # Outbox events must be resolved by event_id, even when the target
+        # also implements saga-state lookup.
+        if "event_id" in record:
+            if not hasattr(self.target, "get_by_id"):
+                return
+            loaded = await self.target.get_by_id(record_id)
+        elif ("saga_id" in record and hasattr(self.target, "load_saga_state")) or hasattr(
+            self.target, "load_saga_state"
+        ):
             loaded = await self.target.load_saga_state(record_id)
-            if loaded is None:
-                raise TransferError(
-                    message=f"Validation failed: record {record_id} not found in target",
-                    target=self.target.__class__.__name__,
-                )
         elif hasattr(self.target, "get_by_id"):
             loaded = await self.target.get_by_id(record_id)
-            if loaded is None:
+        else:
+            return
+
+        if loaded is None:
+            raise TransferError(
+                message=f"Validation failed: record {record_id} not found in target",
+                target=self.target.__class__.__name__,
+            )
+
+        if "event_id" in record:
+            expected = self._canonical_record(record)
+            actual = self._canonical_record(loaded)
+            if expected != actual:
                 raise TransferError(
-                    message=f"Validation failed: record {record_id} not found in target",
+                    message=f"Validation failed: event {record_id} differs after import",
                     target=self.target.__class__.__name__,
                 )
+
+    @staticmethod
+    def _canonical_record(record: Any) -> str:
+        """Serialize records with normalized timestamps for cross-backend comparison."""
+        if hasattr(record, "to_dict"):
+            record = record.to_dict()
+
+        # Fill optional OutboxEvent fields with their canonical defaults so older
+        # callers that export a minimal record remain comparable after import.
+        if isinstance(record, dict) and {
+            "event_id",
+            "saga_id",
+            "event_type",
+            "payload",
+        }.issubset(record):
+            from sagaz.core.outbox.types import OutboxEvent
+
+            record = OutboxEvent.from_dict(record).to_dict()
+
+        timestamp_fields = {"created_at", "claimed_at", "sent_at", "dead_letter_at"}
+
+        def _normalize(value: Any, field_name: str | None = None) -> Any:
+            if isinstance(value, datetime):
+                normalized = value
+                if normalized.tzinfo is not None:
+                    normalized = normalized.astimezone(UTC)
+                return normalized.isoformat()
+            if isinstance(value, Enum):
+                return value.value
+            if field_name in timestamp_fields and isinstance(value, str):
+                try:
+                    parsed = datetime.fromisoformat(value)
+                except ValueError:
+                    return value
+                if parsed.tzinfo is not None:
+                    parsed = parsed.astimezone(UTC)
+                return parsed.isoformat()
+            if isinstance(value, dict):
+                return {key: _normalize(item, str(key)) for key, item in value.items()}
+            if isinstance(value, (list, tuple)):
+                return [_normalize(item) for item in value]
+            if hasattr(value, "to_dict"):
+                return _normalize(value.to_dict())
+            return value
+
+        return json.dumps(
+            _normalize(record),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        )
 
     async def _retry_transfer(self, record: dict[str, Any]) -> bool:
         """Retry transfer with configured retries."""
@@ -432,6 +497,7 @@ async def transfer_data(
     batch_size: int = 100,
     validate: bool = True,
     on_error: str = "skip",
+    progress_callback: Callable[[int, int, int], None] | None = None,
 ) -> TransferResult:
     """
     Convenience function for transferring data between storages.
@@ -450,6 +516,7 @@ async def transfer_data(
         batch_size=batch_size,
         validate=validate,
         on_error=TransferErrorPolicy(on_error),
+        progress_callback=progress_callback,
     )
 
     service = TransferService(source, target, config)

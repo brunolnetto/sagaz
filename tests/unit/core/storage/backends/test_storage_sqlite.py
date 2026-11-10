@@ -456,6 +456,126 @@ class TestSQLiteOutboxStorage:
         count = await storage.count()
         assert count == 1
 
+    @pytest.mark.asyncio
+    async def test_import_does_not_overwrite_destination_delivery_progress(self, storage):
+        from sagaz.core.storage.interfaces.outbox import OutboxStorageError
+
+        event = OutboxEvent(
+            event_id="migration-stale-event",
+            saga_id="migration-saga",
+            event_type="OrderCreated",
+            payload={"order_id": "123"},
+        )
+        await storage.insert(event)
+
+        stale_snapshot = event.to_dict()
+        sent = await storage.update_status(event.event_id, OutboxStatus.SENT)
+
+        with pytest.raises(OutboxStorageError, match="different state"):
+            await storage.import_record(stale_snapshot)
+
+        persisted = await storage.get_by_id(event.event_id)
+        assert persisted is not None
+        assert persisted.status == OutboxStatus.SENT
+        assert persisted.sent_at == sent.sent_at
+
+    @pytest.mark.asyncio
+    async def test_legacy_outbox_schema_is_upgraded_with_transfer_defaults(self, tmp_path):
+        import aiosqlite
+
+        from sagaz.core.storage.backends.sqlite import SQLiteOutboxStorage
+
+        db_path = tmp_path / "legacy-outbox.db"
+        conn = await aiosqlite.connect(str(db_path))
+        await conn.execute(
+            """
+            CREATE TABLE outbox_events (
+                event_id TEXT PRIMARY KEY,
+                saga_id TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                payload TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                created_at TEXT NOT NULL,
+                retry_count INTEGER DEFAULT 0,
+                last_error TEXT
+            )
+            """
+        )
+        await conn.execute(
+            """
+            INSERT INTO outbox_events
+                (event_id, saga_id, event_type, payload, status, created_at, retry_count)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "legacy-event-1",
+                "legacy-saga-1",
+                "OrderCreated",
+                '{"order_id":"123"}',
+                "sent",
+                "2026-01-01T00:00:00+00:00",
+                1,
+            ),
+        )
+        await conn.commit()
+        await conn.close()
+
+        storage = SQLiteOutboxStorage(str(db_path))
+        async with storage:
+            loaded = await storage.get_by_id("legacy-event-1")
+            exported = [record async for record in storage.export_all()]
+
+        assert loaded is not None
+        assert loaded.aggregate_type == "saga"
+        assert loaded.aggregate_id == "legacy-saga-1"
+        assert loaded.headers == {}
+        assert loaded.retry_count == 1
+        assert exported[0] == loaded.to_dict()
+
+    @pytest.mark.asyncio
+    async def test_full_outbox_event_roundtrip_is_lossless_and_idempotent(self, storage):
+        from datetime import datetime
+
+        created_at = datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC)
+        claimed_at = datetime(2026, 1, 2, 3, 5, 5, tzinfo=UTC)
+        dead_letter_at = datetime(2026, 1, 2, 3, 6, 5, tzinfo=UTC)
+        event = OutboxEvent(
+            event_id="e1a2b3c4-0000-4000-8000-000000000001",
+            saga_id="order-123",
+            event_type="OrderFailed",
+            payload={"order_id": "123", "reason": "payment_declined"},
+            aggregate_type="order",
+            aggregate_id="order-123",
+            headers={"trace_id": "trace-123", "tenant": "tenant-a"},
+            status=OutboxStatus.DEAD_LETTER,
+            created_at=created_at,
+            claimed_at=claimed_at,
+            worker_id="worker-7",
+            retry_count=3,
+            last_error="broker unavailable",
+            routing_key="orders.failed",
+            partition_key="tenant-a",
+            dead_letter_at=dead_letter_at,
+            dead_letter_reason="max_retries_exceeded",
+            error_type="BrokerPublishError",
+            error_classification="transient",
+            error_fingerprint="sha256:abc123",
+            replay_count=2,
+        )
+
+        await storage.insert(event)
+        exported = [record async for record in storage.export_all()]
+        assert exported == [event.to_dict()]
+
+        # Importing the exported record twice must not duplicate or degrade it.
+        await storage.import_record(exported[0])
+        await storage.import_record(exported[0])
+
+        assert await storage.count() == 1
+        loaded = await storage.get_by_id(event.event_id)
+        assert loaded is not None
+        assert loaded.to_dict() == event.to_dict()
+
 
 class TestSQLiteStorageFactory:
     """Tests for SQLite storage via factory."""

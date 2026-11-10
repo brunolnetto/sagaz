@@ -220,6 +220,10 @@ class TestTransferResult:
         result = TransferResult(transferred=90, failed=10)
         assert result.success is False
 
+    def test_skipped_records_are_not_reported_as_success(self):
+        result = TransferResult(transferred=90, skipped=10)
+        assert result.success is False
+
     def test_to_dict(self):
         """Test conversion to dictionary."""
         result = TransferResult(
@@ -464,6 +468,62 @@ class TestTransferService:
         assert result.success is True
 
     @pytest.mark.asyncio
+    async def test_outbox_validation_detects_metadata_drift(self):
+        """A record with the right event ID but changed headers must fail validation."""
+        from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
+
+        event = OutboxEvent(
+            event_id="e1a2b3c4-0000-4000-8000-000000000021",
+            saga_id="saga-21",
+            event_type="OrderCreated",
+            payload={"order_id": "21"},
+            headers={"trace_id": "trace-original"},
+            status=OutboxStatus.PENDING,
+            routing_key="orders.created",
+            partition_key="tenant-21",
+        )
+        source = MockExportableStorage([event.to_dict()])
+
+        class DriftedTarget(MockImportableStorage):
+            async def get_by_id(self, event_id: str):
+                record = dict(self.imported[0])
+                record["headers"] = {"trace_id": "trace-modified"}
+                return record
+
+        target = DriftedTarget()
+        service = TransferService(
+            source,
+            target,
+            TransferConfig(validate=True, on_error=TransferErrorPolicy.SKIP),
+        )
+
+        result = await service.transfer_all()
+
+        assert result.transferred == 0
+        assert result.skipped == 1
+        assert result.success is False
+        assert any("differs after import" in error for error in result.errors)
+
+    def test_outbox_timestamp_offsets_compare_as_the_same_instant(self):
+        from sagaz.core.storage.transfer.service import TransferService
+
+        source = {
+            "event_id": "event-time-1",
+            "saga_id": "saga-time-1",
+            "event_type": "OrderCreated",
+            "payload": {"order_id": "123"},
+            "status": "sent",
+            "created_at": "2026-01-01T02:00:00+02:00",
+        }
+        destination = {
+            **source,
+            "created_at": "2026-01-01T00:00:00+00:00",
+        }
+
+        assert TransferService._canonical_record(source) == (
+            TransferService._canonical_record(destination)
+        )
+
     async def test_transfer_validation_failure(self, source_storage):
         """Test transfer with validation that fails."""
 
