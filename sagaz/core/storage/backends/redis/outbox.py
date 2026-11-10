@@ -754,7 +754,10 @@ class RedisOutboxStorage(OutboxStorage):
             return
 
         await self._redis.hset(meta_key, mapping=event_data)
-        if existing.status not in (OutboxStatus.PENDING, OutboxStatus.CLAIMED)\n            and event.status in (OutboxStatus.PENDING, OutboxStatus.CLAIMED):
+        if (
+            existing.status not in (OutboxStatus.PENDING, OutboxStatus.CLAIMED)
+            and event.status in (OutboxStatus.PENDING, OutboxStatus.CLAIMED)
+        ):
             await self._redis.xadd(
                 self._stream_key,
                 {
