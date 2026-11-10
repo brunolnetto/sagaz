@@ -55,6 +55,13 @@ def test_release_stages_use_one_pinned_source_commit() -> None:
         assert _checkout_step(jobs[name])["with"]["ref"] == SOURCE_SHA
 
 
+
+def test_release_notes_fallback_uses_an_existing_comparison_target() -> None:
+    workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
+    assert "compare/${PREVIOUS_TAG}...${SOURCE_SHA}" in workflow
+    assert "blob/main/CHANGELOG.md" not in workflow
+
+
 def test_release_tag_and_github_release_target_main() -> None:
     tag_steps = _workflow()["jobs"]["tag-and-release"]["steps"]
     commands = "\n".join(step.get("run", "") for step in tag_steps)
