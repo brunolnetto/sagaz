@@ -121,7 +121,7 @@ class TestInMemorySagaStorage:
         ]
         context = {"data": "test_value"}
         metadata = {"version": "1.0"}
-        configuration = ["executing"]
+        configuration = ["completed"]
 
         await storage.save_saga_state(
             saga_id=saga_id,
