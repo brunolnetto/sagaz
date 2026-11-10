@@ -460,13 +460,13 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Project Status
 
-**Current Version**: 1.5.0 (April 2026)
+**Current Version**: 1.6.0 (November 2026)
 
-**Recent Updates** (v1.5.0):
-- **Compliance and data governance (ADR-037)** - audit trails, retention policies, and encryption support
-- **Saga lifecycle hooks and observers (ADR-036)** - step-level hooks and saga-level event dispatch
-- **Enhanced PostgreSQL storage** - partitioning, connection pooling, and high-availability improvements
-- **CI and release governance** - GitFlow validation and release-process improvements
+**Recent Updates** (v1.6.0):
+- **Dead Letter Queue** - park, replay, and purge failed outbox events, with Prometheus depth metrics
+- **SQLite storage** - Saga storage and transactional outbox through the optional `sagaz[sqlite]` extra
+- **Storage migration** - cross-backend transfer tooling, canonical validation, checksums, and destination-state safeguards
+- **Developer workflow** - conventional-commit and branch-name validation improvements
 
 **Earlier Releases**:
 - v1.4.0: Lightweight context streaming, industry examples, and saga replay/time-travel
