@@ -504,6 +504,26 @@ class TestTransferService:
         assert result.success is False
         assert any("differs after import" in error for error in result.errors)
 
+    def test_outbox_timestamp_offsets_compare_as_the_same_instant(self):
+        from sagaz.core.storage.transfer.service import TransferService
+
+        source = {
+            "event_id": "event-time-1",
+            "saga_id": "saga-time-1",
+            "event_type": "OrderCreated",
+            "payload": {"order_id": "123"},
+            "status": "sent",
+            "created_at": "2026-01-01T02:00:00+02:00",
+        }
+        destination = {
+            **source,
+            "created_at": "2026-01-01T00:00:00+00:00",
+        }
+
+        assert TransferService._canonical_record(source) == (
+            TransferService._canonical_record(destination)
+        )
+
     async def test_transfer_validation_failure(self, source_storage):
         """Test transfer with validation that fails."""
 
