@@ -86,6 +86,8 @@ class SagaStateMachine(StateChart):
     def current_state(self) -> State:
         """Backward-compatible State object accessor for flat Phase 1 topology."""
         active_states = list(self.configuration)
+        if not active_states:
+            return self.pending
         if len(active_states) != 1:
             raise RuntimeError("current_state is only available for a single active state")
         return active_states[0]
@@ -93,7 +95,8 @@ class SagaStateMachine(StateChart):
     @property
     def active_configuration(self) -> list[str]:
         """Return active state IDs; unlike current_state, this is configuration-safe."""
-        return list(self.configuration_values)
+        values = list(self.configuration_values)
+        return values or [self.pending.id]
 
     # Define saga states
     pending = State("Pending", initial=True)
@@ -118,7 +121,7 @@ class SagaStateMachine(StateChart):
 
         Args:
             saga: The saga instance to manage state for
-            **kwargs: Additional kwargs passed to StateMachine
+            **kwargs: Additional kwargs passed to StateChart
         """
         self.saga = saga
         super().__init__(**kwargs)
@@ -222,6 +225,8 @@ class SagaStepStateMachine(StateChart):
     def current_state(self) -> State:
         """Backward-compatible State object accessor for this flat step machine."""
         active_states = list(self.configuration)
+        if not active_states:
+            return self.pending
         if len(active_states) != 1:
             raise RuntimeError("current_state is only available for a single active state")
         return active_states[0]
@@ -229,7 +234,8 @@ class SagaStepStateMachine(StateChart):
     @property
     def active_configuration(self) -> list[str]:
         """Return active state IDs."""
-        return list(self.configuration_values)
+        values = list(self.configuration_values)
+        return values or [self.pending.id]
 
     # Define step states
     pending = State("Pending", initial=True)
@@ -253,7 +259,7 @@ class SagaStepStateMachine(StateChart):
 
         Args:
             step_name: Name of the step for logging
-            **kwargs: Additional kwargs passed to StateMachine
+            **kwargs: Additional kwargs passed to StateChart
         """
         self.step_name = step_name
         super().__init__(**kwargs)
