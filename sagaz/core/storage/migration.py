@@ -139,11 +139,11 @@ class VerificationResult:
 
     @property
     def sagas_match(self) -> bool:
-        return self.source_sagas == self.dest_sagas
+        return self.source_sagas >= 0 and self.source_sagas == self.dest_sagas
 
     @property
     def events_match(self) -> bool:
-        return self.source_events == self.dest_events
+        return self.source_events >= 0 and self.source_events == self.dest_events
 
     @property
     def saga_checksums_match(self) -> bool:
