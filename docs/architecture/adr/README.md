@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-**Last Updated**: 2026-04-11
+**Last Updated**: 2026-11-10
 
 This directory contains Architecture Decision Records (ADRs) documenting significant technical decisions for Sagaz.
 
@@ -41,6 +41,7 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 |-----|-------|--------|-------------|
 | [ADR-029](adr-029-saga-choreography.md) | Saga Choreography Pattern | v2.2.0 | Event-driven distributed coordination |
 | [ADR-039](adr-039-gradio-ui-monitor.md) | Gradio-Based Saga Asset Monitor | v1.7.0 | Python-native monitoring UI for development |
+| [ADR-040](adr-040-statechart-saga-lifecycle.md) | Compatibility-Preserving StateChart Adoption | v1.7.0 | Flat Saga/step lifecycle migration and persisted configuration |
 
 ### Medium / Low Priority
 
