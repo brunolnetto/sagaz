@@ -113,6 +113,7 @@ class RedisSagaStorage(SagaStorage):
         steps: list[dict[str, Any]],
         context: dict[str, Any],
         metadata: dict[str, Any] | None = None,
+        configuration: list[str] | None = None,
     ) -> None:
         """Save saga state to Redis"""
 
@@ -122,6 +123,7 @@ class RedisSagaStorage(SagaStorage):
             "saga_id": saga_id,
             "saga_name": saga_name,
             "status": status.value,
+            "configuration": list(configuration) if configuration is not None else [status.value],
             "steps": steps,
             "context": context,
             "metadata": metadata or {},
@@ -161,7 +163,9 @@ class RedisSagaStorage(SagaStorage):
             return None
 
         try:
-            return json.loads(saga_data_json)  # type: ignore[no-any-return]
+            saga_data = json.loads(saga_data_json)
+            saga_data.setdefault("configuration", [saga_data["status"]])
+            return saga_data  # type: ignore[no-any-return]
         except json.JSONDecodeError as e:
             msg = f"Failed to decode saga data for {saga_id}: {e}"
             raise SagaStorageError(msg) from e
@@ -493,4 +497,5 @@ class RedisSagaStorage(SagaStorage):
             steps=record.get("steps", []),
             context=record.get("context", {}),
             metadata=record.get("metadata"),
+            configuration=record.get("configuration"),
         )
