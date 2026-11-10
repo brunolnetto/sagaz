@@ -1,6 +1,6 @@
 # Versioning Strategy Decision Document
 
-> **Release execution status — 2026-11-10:** The repository has been promoted to v1.6.0 on `main` (merge commit `9ffb07d082bc9ded427edafc37de71153e4a70d7`). Verify the v1.6.0 PyPI upload and GitHub Release record before treating that version as publicly available. The next planned release is v1.7.0, StateChart Phase 1 under ADR-040. The authoritative execution order is `docs/planning/release-plan.md`; older milestone maps below are historical context.
+> **Release execution status — 2026-11-10:** The repository has been promoted to v1.6.0 on `main` (merge commit `9ffb07d082bc9ded427edafc37de71153e4a70d7`); the `v1.6.0` GitHub Release and both PyPI artifacts (wheel and sdist) are confirmed published on 2026-11-10. The next planned release is v1.7.0, StateChart Phase 1 under ADR-040. The authoritative execution order is `docs/planning/release-plan.md`; older milestone maps below are historical context.
 
 
 **Date**: April 11, 2026  
@@ -77,7 +77,7 @@ v1.3.0  (Jan 11, 2026) — CLI, Dry-Run, Framework Integration   ← RETROACTIVE
 v1.4.0  (Jan 12, 2026) — Context Streaming, Examples, Replay   ← RETROACTIVELY TAGGED
 
 v1.5.0  (Apr 16, 2026) — Governance, lifecycle hooks & storage enhancements [published]
-v1.6.0  (Nov 10, 2026) — Storage extensions: DLQ, SQLite, migration [promoted to main; verify public artifacts]
+v1.6.0  (Nov 10, 2026) — Storage extensions: DLQ, SQLite, migration [GitHub Release + PyPI published]
 v1.7.0  (planned)      — StateChart migration, Phase 1 / ADR-040 [issue #188; refreshed PR pending]
 v1.8.0  (planned)      — Analytics & chaos [PRs #67, #71, #74, #79]
 v1.9.0  (planned)      — CLI v2, CDC, tenancy & versioning [PRs #64-66, #68, #81]
