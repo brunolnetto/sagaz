@@ -206,10 +206,14 @@ class TestPostgreSQLSagaStorageMocked:
                 steps=[{"name": "step1", "status": "pending"}],
                 context={"order_id": "123"},
                 metadata={"version": 1},
+                configuration=["executing"],
             )
 
-            # Verify execute was called for saga upsert
+            # Verify the upsert persists the ordered StateChart configuration.
             assert conn.execute.called
+            upsert = conn.execute.await_args_list[0]
+            assert "configuration" in upsert.args[0]
+            assert json.loads(upsert.args[4]) == ["executing"]
 
     @pytest.mark.asyncio
     async def test_load_saga_state(self, mock_pool):
@@ -226,6 +230,7 @@ class TestPostgreSQLSagaStorageMocked:
                 "saga_id": "saga-123",
                 "saga_name": "OrderSaga",
                 "status": "executing",
+                "configuration": '["executing"]',
                 "context": '{"order_id": "123"}',
                 "metadata": "{}",
                 "created_at": datetime.now(UTC),
@@ -250,6 +255,7 @@ class TestPostgreSQLSagaStorageMocked:
 
             assert result["saga_id"] == "saga-123"
             assert result["saga_name"] == "OrderSaga"
+            assert result["configuration"] == ["executing"]
 
     @pytest.mark.asyncio
     async def test_update_step_state(self, mock_pool):
