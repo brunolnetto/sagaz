@@ -156,7 +156,7 @@ class OutboxEvent:
             aggregate_type=data.get("aggregate_type", "saga"),
             aggregate_id=data.get("aggregate_id"),
             event_type=data["event_type"],
-            payload=data["payload"],
+            payload=data.get("payload", {}),
             headers=data.get("headers", {}),
             routing_key=data.get("routing_key"),
             partition_key=data.get("partition_key"),
