@@ -175,7 +175,10 @@ class SQLiteSagaStorage(SagaStorage):
 
         await conn.execute(
             """
-            INSERT INTO sagas (saga_id, saga_name, status, configuration, steps, context, metadata, created_at, updated_at)
+            INSERT INTO sagas (
+                saga_id, saga_name, status, configuration, steps,
+                context, metadata, created_at, updated_at
+            )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(saga_id) DO UPDATE SET
                 saga_name = excluded.saga_name,
@@ -221,7 +224,11 @@ class SQLiteSagaStorage(SagaStorage):
             "saga_id": row["saga_id"],
             "saga_name": row["saga_name"],
             "status": row["status"],
-            "configuration": deserialize(row["configuration"]) if row["configuration"] else [row["status"]],
+            "configuration": (
+                deserialize(row["configuration"])
+                if row["configuration"]
+                else [row["status"]]
+            ),
             "steps": deserialize(row["steps"]),
             "context": deserialize(row["context"]),
             "metadata": deserialize(row["metadata"]) if row["metadata"] else None,
