@@ -62,20 +62,25 @@ v1.0.2  (Dec 26, 2025) — Patch
 v1.0.3  (Dec 27, 2025) — Patch
 v1.1.0  (Feb 24, 2026) — Stability & testing improvements
 v1.1.1  (Feb 24, 2026) — Patch
-v1.1.2  (Feb 24, 2026) — Patch                        ← current latest on PyPI
+v1.5.0  (Apr 16, 2026) — Governance, lifecycle hooks & storage enhancements ← latest published on PyPI
 
 v1.2.0  (Jan 2, 2026)  — Unified Storage, Compensation Passing ← RETROACTIVELY TAGGED
 v1.3.0  (Jan 11, 2026) — CLI, Dry-Run, Framework Integration   ← RETROACTIVELY TAGGED
 v1.4.0  (Jan 12, 2026) — Context Streaming, Examples, Replay   ← RETROACTIVELY TAGGED
 
-v1.5.0  (Apr 2026)     — Governance & Ops          [PRs #60, #61]
-v1.6.0  (May 2026)     — Storage Extensions        [PRs #62, #63]
-v1.7.0  (Jun 2026)     — Analytics & Chaos         [PRs #67, #71, #74, #79]
-v1.8.0  (Jul 2026)     — CLI v2 + CDC + Tenancy    [PRs #64-66, #68, #81]
-v1.9.0  (Sep 2026)     — Choreography              [PR #69]
-v1.10.0 (Nov 2026)     — Core Extensions           [PRs #70, #72]
+v1.5.0  (Apr 16, 2026) — Governance, lifecycle hooks & storage enhancements [published]
+v1.6.0  (next)         — Storage extensions: DLQ, SQLite, migration [PRs #60, #62, #63]
+v1.7.0  (planned)      — StateChart migration, Phase 1 / ADR-038 [PR #189]
+v1.8.0  (planned)      — Analytics & chaos [PRs #67, #71, #74, #79]
+v1.9.0  (planned)      — CLI v2, CDC, tenancy & versioning [PRs #64-66, #68, #81]
+v1.10.0 (planned)      — Event-driven choreography [PR #115 prerequisite, PR #69]
+v2.0.0  (planned)      — Core extensions / breaking API work [PRs #70, #72; blockers #102, #104]
 
-v2.0.0  (TBD)          — RESERVED for breaking API changes only
+The canonical dependency order is maintained in `docs/planning/release-plan.md`.
+StateChart Phase 2 (PR #191) remains deferred until its target release and compatibility
+requirements are reconciled with ADR-038 and the core-extension roadmap.
+
+v2.0.0 remains reserved for actual breaking API changes.
 ```
 
 ---
