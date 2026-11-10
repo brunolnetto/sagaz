@@ -458,6 +458,59 @@ class TestSQLiteOutboxStorage:
 
 
     @pytest.mark.asyncio
+    async def test_legacy_outbox_schema_is_upgraded_with_transfer_defaults(self, tmp_path):
+        import aiosqlite
+
+        from sagaz.core.storage.backends.sqlite import SQLiteOutboxStorage
+
+        db_path = tmp_path / "legacy-outbox.db"
+        conn = await aiosqlite.connect(str(db_path))
+        await conn.execute(
+            """
+            CREATE TABLE outbox_events (
+                event_id TEXT PRIMARY KEY,
+                saga_id TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                payload TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                created_at TEXT NOT NULL,
+                retry_count INTEGER DEFAULT 0,
+                last_error TEXT
+            )
+            """
+        )
+        await conn.execute(
+            """
+            INSERT INTO outbox_events
+                (event_id, saga_id, event_type, payload, status, created_at, retry_count)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "legacy-event-1",
+                "legacy-saga-1",
+                "OrderCreated",
+                '{"order_id":"123"}',
+                "sent",
+                "2026-01-01T00:00:00+00:00",
+                1,
+            ),
+        )
+        await conn.commit()
+        await conn.close()
+
+        storage = SQLiteOutboxStorage(str(db_path))
+        async with storage:
+            loaded = await storage.get_by_id("legacy-event-1")
+            exported = [record async for record in storage.export_all()]
+
+        assert loaded is not None
+        assert loaded.aggregate_type == "saga"
+        assert loaded.aggregate_id == "legacy-saga-1"
+        assert loaded.headers == {}
+        assert loaded.retry_count == 1
+        assert exported[0] == loaded.to_dict()
+
+    @pytest.mark.asyncio
     async def test_full_outbox_event_roundtrip_is_lossless_and_idempotent(self, storage):
         from datetime import datetime
 
