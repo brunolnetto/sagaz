@@ -77,7 +77,7 @@ v1.3.0  (Jan 11, 2026) — CLI, Dry-Run, Framework Integration   ← RETROACTIVE
 v1.4.0  (Jan 12, 2026) — Context Streaming, Examples, Replay   ← RETROACTIVELY TAGGED
 
 v1.5.0  (Apr 16, 2026) — Governance, lifecycle hooks & storage enhancements [published]
-v1.6.0  (next)         — Storage extensions: DLQ, SQLite, migration [PRs #60, #62, #63]
+v1.6.0  (Nov 10, 2026) — Storage extensions: DLQ, SQLite, migration [promoted to main; verify public artifacts]
 v1.7.0  (planned)      — StateChart migration, Phase 1 / ADR-040 [issue #188; refreshed PR pending]
 v1.8.0  (planned)      — Analytics & chaos [PRs #67, #71, #74, #79]
 v1.9.0  (planned)      — CLI v2, CDC, tenancy & versioning [PRs #64-66, #68, #81]
@@ -105,12 +105,17 @@ v1.0.2  (Dec 26, 2025)
 v1.0.3  (Dec 27, 2025)
 v1.1.0  (Feb 24, 2026)
 v1.1.1  (Feb 24, 2026)
-v1.1.2  (Feb 24, 2026) ← CURRENT
+v1.1.2  (Feb 24, 2026)
+v1.2.0  (Jan 02, 2026) — retrospectively tagged
+v1.3.0  (Jan 11, 2026) — retrospectively tagged
+v1.4.0  (Jan 12, 2026) — retrospectively tagged
+v1.5.0  (Apr 16, 2026)
+v1.6.0  (Nov 10, 2026) ← CURRENT REPOSITORY VERSION; verify PyPI/GitHub release artifacts
 ```
 
-### Features That Were Built But Never Tagged
+### Historical Feature Release Notes (retrospective tags already created)
 
-Per ROADMAP, these features are **✅ Done** but lack git tags:
+The following table records the features retrospectively associated with v1.2.0–v1.4.0. Its old 'never tagged' framing is superseded:
 
 | Version | Features | Status | Code Location | PRs Implementing |
 |---------|----------|--------|----------------|-----------------|
