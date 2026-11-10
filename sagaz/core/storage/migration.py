@@ -286,32 +286,44 @@ class SagaStorageMigrator:
         vr = VerificationResult()
 
         try:
-            vr.source_sagas, vr.source_saga_checksum = await _storage_checksum(
-                self._source.saga,
-                ignored_fields=frozenset({"created_at", "updated_at"}),
-            )
+            if callable(getattr(self._source.saga, "export_all", None)):
+                vr.source_sagas, vr.source_saga_checksum = await _storage_checksum(
+                    self._source.saga,
+                    ignored_fields=frozenset({"created_at", "updated_at"}),
+                )
+            else:
+                vr.source_sagas = (await self._source.saga.get_statistics()).total_records
         except Exception:
             vr.source_sagas = -1
 
         try:
-            vr.dest_sagas, vr.dest_saga_checksum = await _storage_checksum(
-                self._destination.saga,
-                ignored_fields=frozenset({"created_at", "updated_at"}),
-            )
+            if callable(getattr(self._destination.saga, "export_all", None)):
+                vr.dest_sagas, vr.dest_saga_checksum = await _storage_checksum(
+                    self._destination.saga,
+                    ignored_fields=frozenset({"created_at", "updated_at"}),
+                )
+            else:
+                vr.dest_sagas = (await self._destination.saga.get_statistics()).total_records
         except Exception:
             vr.dest_sagas = -1
 
         try:
-            vr.source_events, vr.source_event_checksum = await _storage_checksum(
-                self._source.outbox
-            )
+            if callable(getattr(self._source.outbox, "export_all", None)):
+                vr.source_events, vr.source_event_checksum = await _storage_checksum(
+                    self._source.outbox
+                )
+            else:
+                vr.source_events = await self._source.outbox.count()
         except Exception:
             vr.source_events = -1
 
         try:
-            vr.dest_events, vr.dest_event_checksum = await _storage_checksum(
-                self._destination.outbox
-            )
+            if callable(getattr(self._destination.outbox, "export_all", None)):
+                vr.dest_events, vr.dest_event_checksum = await _storage_checksum(
+                    self._destination.outbox
+                )
+            else:
+                vr.dest_events = await self._destination.outbox.count()
         except Exception:
             vr.dest_events = -1
 
