@@ -181,10 +181,33 @@ class SQLiteOutboxStorage:
             """
             INSERT INTO outbox_events (
                 event_id, saga_id, event_type, payload, status, created_at,
+                claimed_at, sent_at, worker_id, retry_count, last_error,
                 aggregate_type, aggregate_id, headers, routing_key, partition_key,
-                retry_count, last_error, worker_id, dead_letter_at, dead_letter_reason,
-                error_type, error_classification, error_fingerprint, replay_count
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                dead_letter_at, dead_letter_reason, error_type, error_classification,
+                error_fingerprint, replay_count
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(event_id) DO UPDATE SET
+                saga_id = excluded.saga_id,
+                event_type = excluded.event_type,
+                payload = excluded.payload,
+                status = excluded.status,
+                created_at = excluded.created_at,
+                claimed_at = excluded.claimed_at,
+                sent_at = excluded.sent_at,
+                worker_id = excluded.worker_id,
+                retry_count = excluded.retry_count,
+                last_error = excluded.last_error,
+                aggregate_type = excluded.aggregate_type,
+                aggregate_id = excluded.aggregate_id,
+                headers = excluded.headers,
+                routing_key = excluded.routing_key,
+                partition_key = excluded.partition_key,
+                dead_letter_at = excluded.dead_letter_at,
+                dead_letter_reason = excluded.dead_letter_reason,
+                error_type = excluded.error_type,
+                error_classification = excluded.error_classification,
+                error_fingerprint = excluded.error_fingerprint,
+                replay_count = excluded.replay_count
             """,
             (
                 event.event_id,
@@ -192,15 +215,17 @@ class SQLiteOutboxStorage:
                 event.event_type,
                 serialize(event.payload),
                 event.status.value,
-                now,
+                event.created_at.isoformat() if event.created_at else now,
+                event.claimed_at.isoformat() if event.claimed_at else None,
+                event.sent_at.isoformat() if event.sent_at else None,
+                event.worker_id,
+                event.retry_count,
+                event.last_error,
                 event.aggregate_type,
                 event.aggregate_id,
                 serialize(event.headers) if event.headers else None,
                 event.routing_key,
                 event.partition_key,
-                event.retry_count,
-                event.last_error,
-                event.worker_id,
                 event.dead_letter_at.isoformat() if event.dead_letter_at else None,
                 event.dead_letter_reason,
                 event.error_type,
@@ -586,44 +611,11 @@ class SQLiteOutboxStorage:
 
         async for row in cursor:
             event = self._row_to_event(row)
-            yield {
-                "event_id": event.event_id,
-                "saga_id": event.saga_id,
-                "event_type": event.event_type,
-                "payload": event.payload,
-                "status": event.status.value,
-                "created_at": event.created_at.isoformat() if event.created_at else None,
-                "retry_count": event.retry_count,
-                "last_error": event.last_error,
-                "dead_letter_at": event.dead_letter_at.isoformat()
-                if event.dead_letter_at
-                else None,
-                "dead_letter_reason": event.dead_letter_reason,
-                "error_type": event.error_type,
-                "error_classification": event.error_classification,
-                "error_fingerprint": event.error_fingerprint,
-                "replay_count": event.replay_count,
-            }
+                yield event.to_dict()
 
     async def import_record(self, record: dict[str, Any]) -> None:
         """Import a single record from transfer."""
-        event = OutboxEvent(
-            event_id=str(record.get("event_id")),
-            saga_id=record["saga_id"],
-            event_type=record["event_type"],
-            payload=record.get("payload", {}),
-            status=OutboxStatus(record.get("status", "pending")),
-            retry_count=int(record.get("retry_count", 0) or 0),
-            last_error=record.get("last_error"),
-            dead_letter_at=datetime.fromisoformat(record["dead_letter_at"])
-            if record.get("dead_letter_at")
-            else None,
-            dead_letter_reason=record.get("dead_letter_reason"),
-            error_type=record.get("error_type"),
-            error_classification=record.get("error_classification"),
-            error_fingerprint=record.get("error_fingerprint"),
-            replay_count=int(record.get("replay_count", 0) or 0),
-        )
+        event = OutboxEvent.from_dict(record)
         await self.insert(event)
 
     async def requeue_dead_letter_event(self, event_id: str, force: bool = False) -> OutboxEvent:
