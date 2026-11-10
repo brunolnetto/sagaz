@@ -479,6 +479,30 @@ class TestInMemoryOutboxStorage:
         event = await storage.get_by_id(event.event_id)
         assert event.status == OutboxStatus.PENDING
 
+    @pytest.mark.asyncio
+    async def test_import_does_not_overwrite_destination_delivery_progress(self):
+        from sagaz.core.storage.interfaces.outbox import OutboxStorageError
+
+        storage = InMemoryOutboxStorage()
+        event = OutboxEvent(
+            event_id="migration-stale-event",
+            saga_id="migration-saga",
+            event_type="OrderCreated",
+            payload={"order_id": "123"},
+        )
+        await storage.insert(event)
+
+        stale_snapshot = event.to_dict()
+        await storage.update_status(event.event_id, OutboxStatus.SENT)
+
+        with pytest.raises(OutboxStorageError, match="different state"):
+            await storage.import_record(stale_snapshot)
+
+        persisted = await storage.get_by_id(event.event_id)
+        assert persisted is not None
+        assert persisted.status == OutboxStatus.SENT
+        assert persisted.sent_at is not None
+
 
 class TestOutboxWorker:
     """Tests for OutboxWorker."""

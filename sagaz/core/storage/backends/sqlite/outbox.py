@@ -40,6 +40,7 @@ from sagaz.core.storage.core import (
     deserialize,
     serialize,
 )
+from sagaz.core.storage.interfaces.outbox import OutboxStorageError
 
 logger = logging.getLogger(__name__)
 
@@ -129,9 +130,11 @@ class SQLiteOutboxStorage:
 
             CREATE INDEX IF NOT EXISTS idx_outbox_status ON outbox_events(status);
             CREATE INDEX IF NOT EXISTS idx_outbox_saga_id ON outbox_events(saga_id);
-            CREATE INDEX IF NOT EXISTS idx_outbox_claimed_at ON outbox_events(claimed_at);
         """)
         await self._ensure_optional_columns(conn)
+        await conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_outbox_claimed_at ON outbox_events(claimed_at)"
+        )
         assert conn is not None
         await conn.commit()
 
@@ -218,28 +221,6 @@ class SQLiteOutboxStorage:
                 dead_letter_at, dead_letter_reason, error_type, error_classification,
                 error_fingerprint, replay_count
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(event_id) DO UPDATE SET
-                saga_id = excluded.saga_id,
-                event_type = excluded.event_type,
-                payload = excluded.payload,
-                status = excluded.status,
-                created_at = excluded.created_at,
-                claimed_at = excluded.claimed_at,
-                sent_at = excluded.sent_at,
-                worker_id = excluded.worker_id,
-                retry_count = excluded.retry_count,
-                last_error = excluded.last_error,
-                aggregate_type = excluded.aggregate_type,
-                aggregate_id = excluded.aggregate_id,
-                headers = excluded.headers,
-                routing_key = excluded.routing_key,
-                partition_key = excluded.partition_key,
-                dead_letter_at = excluded.dead_letter_at,
-                dead_letter_reason = excluded.dead_letter_reason,
-                error_type = excluded.error_type,
-                error_classification = excluded.error_classification,
-                error_fingerprint = excluded.error_fingerprint,
-                replay_count = excluded.replay_count
             """,
             (
                 event.event_id,
@@ -643,11 +624,19 @@ class SQLiteOutboxStorage:
 
         async for row in cursor:
             event = self._row_to_event(row)
-                yield event.to_dict()
+            yield event.to_dict()
 
     async def import_record(self, record: dict[str, Any]) -> None:
-        """Import a single record from transfer."""
+        """Import an event without overwriting existing destination state."""
         event = OutboxEvent.from_dict(record)
+        existing = await self.get_by_id(event.event_id)
+
+        if existing is not None:
+            if existing != event:
+                msg = f"Outbox event {event.event_id} already exists with different state"
+                raise OutboxStorageError(msg)
+            return
+
         await self.insert(event)
 
     async def requeue_dead_letter_event(self, event_id: str, force: bool = False) -> OutboxEvent:

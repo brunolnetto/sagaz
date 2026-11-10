@@ -380,41 +380,40 @@ class TransferService:
             await self._validate_record(record)
 
     async def _validate_record(self, record: dict[str, Any]) -> None:
-        """Validate a transferred record exists in target."""
-        # Get record ID
-        # Outbox records carry both saga_id and event_id. Resolve the event ID
-        # first so validation queries the target OutboxStorage by its primary key.
+        """Validate a transferred record exists in target storage."""
         record_id = record.get("event_id") or record.get("saga_id") or record.get("id")
         if not record_id:
             return
 
-        # Try to load from target
-        if hasattr(self.target, "load_saga_state"):
+        # Outbox events must be resolved by event_id, even when the target
+        # also implements saga-state lookup.
+        if "event_id" in record:
+            if not hasattr(self.target, "get_by_id"):
+                return
+            loaded = await self.target.get_by_id(record_id)
+        elif ("saga_id" in record and hasattr(self.target, "load_saga_state")) or hasattr(
+            self.target, "load_saga_state"
+        ):
             loaded = await self.target.load_saga_state(record_id)
-            if loaded is None:
-                raise TransferError(
-                    message=f"Validation failed: record {record_id} not found in target",
-                    target=self.target.__class__.__name__,
-                )
         elif hasattr(self.target, "get_by_id"):
             loaded = await self.target.get_by_id(record_id)
-            if loaded is None:
+        else:
+            return
+
+        if loaded is None:
+            raise TransferError(
+                message=f"Validation failed: record {record_id} not found in target",
+                target=self.target.__class__.__name__,
+            )
+
+        if "event_id" in record:
+            expected = self._canonical_record(record)
+            actual = self._canonical_record(loaded)
+            if expected != actual:
                 raise TransferError(
-                    message=f"Validation failed: record {record_id} not found in target",
+                    message=f"Validation failed: event {record_id} differs after import",
                     target=self.target.__class__.__name__,
                 )
-
-            # Outbox records have a canonical full-fidelity serializer. Checking
-            # only the ID lets an import silently drop headers, routing keys,
-            # timestamps, or DLQ metadata while still reporting success.
-            if "event_id" in record:
-                expected = self._canonical_record(record)
-                actual = self._canonical_record(loaded)
-                if expected != actual:
-                    raise TransferError(
-                        message=f"Validation failed: event {record_id} differs after import",
-                        target=self.target.__class__.__name__,
-                    )
 
     @staticmethod
     def _canonical_record(record: Any) -> str:
@@ -453,10 +452,7 @@ class TransferService:
                     parsed = parsed.astimezone(UTC)
                 return parsed.isoformat()
             if isinstance(value, dict):
-                return {
-                    key: _normalize(item, str(key))
-                    for key, item in value.items()
-                }
+                return {key: _normalize(item, str(key)) for key, item in value.items()}
             if isinstance(value, (list, tuple)):
                 return [_normalize(item) for item in value]
             if hasattr(value, "to_dict"):

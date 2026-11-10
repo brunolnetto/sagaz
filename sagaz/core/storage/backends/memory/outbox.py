@@ -177,9 +177,17 @@ class InMemoryOutboxStorage(OutboxStorage):
             yield event.to_dict()
 
     async def import_record(self, record: dict[str, Any]) -> None:
-        """Import a single record from transfer."""
+        """Import an event without overwriting existing destination state."""
         outbox_event_cls = _get_outbox_event()
         event = outbox_event_cls.from_dict(record)
+
+        existing = await self.get_by_id(event.event_id)
+        if existing is not None:
+            if existing != event:
+                msg = f"Outbox event {event.event_id} already exists with different state"
+                raise OutboxStorageError(msg)
+            return
+
         await self.insert(event)
 
     async def requeue_dead_letter_event(self, event_id: str, force: bool = False) -> OutboxEvent:

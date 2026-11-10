@@ -2,7 +2,7 @@
 Tests for Redis Outbox Storage.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -34,6 +34,10 @@ class TestRedisOutboxStorageUnit:
 
         # Pipeline mock
         pipeline_mock = AsyncMock()
+        pipeline_mock.watch = AsyncMock()
+        pipeline_mock.hgetall = AsyncMock(return_value={})
+        pipeline_mock.unwatch = AsyncMock()
+        pipeline_mock.multi = MagicMock()
         pipeline_mock.hset = MagicMock()
         pipeline_mock.expire = MagicMock()
         pipeline_mock.xadd = MagicMock()
@@ -319,9 +323,7 @@ class TestRedisOutboxStorageUnit:
             mock_redis.close.assert_called()
 
     @pytest.mark.asyncio
-    async def test_count_includes_sent_failed_and_dead_letter_events(
-        self, storage, mock_redis
-    ):
+    async def test_count_includes_sent_failed_and_dead_letter_events(self, storage, mock_redis):
         """Count all metadata records, not only pending stream entries."""
         mock_redis.scan.side_effect = [
             (1, [b"test:outbox:meta:pending", b"test:outbox:meta:sent"]),
@@ -461,8 +463,9 @@ class TestRedisOutboxStorageUnit:
     async def test_reimport_existing_pending_record_does_not_duplicate_stream(
         self, storage, mock_redis
     ):
-        """Rerunning import updates metadata without appending another stream entry."""
-        mock_redis.hgetall.return_value = {
+        """An identical re-import is a no-op."""
+        pipeline = mock_redis.pipeline.return_value
+        pipeline.hgetall.return_value = {
             b"event_id": b"event-pending",
             b"saga_id": b"saga-pending",
             b"aggregate_type": b"order",
@@ -502,9 +505,42 @@ class TestRedisOutboxStorageUnit:
 
         await storage.import_record(record)
 
-        mock_redis.hset.assert_awaited()
-        mock_redis.xadd.assert_not_awaited()
-        mock_redis.pipeline.return_value.xadd.assert_not_called()
+        pipeline.hset.assert_not_called()
+        pipeline.xadd.assert_not_called()
+        pipeline.execute.assert_not_awaited()
+        pipeline.unwatch.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_import_rejects_stale_state_without_overwriting_sent_event(
+        self, storage, mock_redis
+    ):
+        from sagaz.core.storage.interfaces.outbox import OutboxStorageError
+
+        sent_at = datetime(2026, 1, 1, tzinfo=UTC)
+        existing = OutboxEvent(
+            event_id="event-already-sent",
+            saga_id="saga-1",
+            event_type="OrderCreated",
+            payload={"order_id": "123"},
+            status=OutboxStatus.SENT,
+            sent_at=sent_at,
+        )
+        pipeline = mock_redis.pipeline.return_value
+        pipeline.hgetall.return_value = {
+            key.encode(): value.encode()
+            for key, value in storage._serialize_event(existing).items()
+        }
+
+        stale_snapshot = existing.to_dict()
+        stale_snapshot["status"] = OutboxStatus.PENDING.value
+        stale_snapshot["sent_at"] = None
+
+        with pytest.raises(OutboxStorageError, match="different state"):
+            await storage.import_record(stale_snapshot)
+
+        pipeline.hset.assert_not_called()
+        pipeline.xadd.assert_not_called()
+        pipeline.execute.assert_not_awaited()
 
     async def test_import_record_without_optional_fields(self, storage, mock_redis):
         """Test importing a minimal record."""

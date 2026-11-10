@@ -724,49 +724,62 @@ class RedisOutboxStorage(OutboxStorage):
                 break
 
     async def import_record(self, record: dict[str, Any]) -> None:
-        """Import a record."""
-        # Import the complete canonical event. Only pending events belong in
-        # the delivery stream; sent/failed/DLQ records are metadata-only.
-        # On retry, update metadata without appending a duplicate stream entry.
+        """Import an event atomically without overwriting destination state."""
+        from redis.exceptions import WatchError
+
         event = OutboxEvent.from_dict(record)
+
         if not self._initialized:
             await self.initialize()
-        existing = await self.get_by_id(event.event_id)
 
         assert self._redis is not None
         meta_key = self._meta_key(event.event_id)
         event_data = self._serialize_event(event)
-        if existing is None:
-            async with self._redis.pipeline() as pipe:
-                pipe.hset(meta_key, mapping=event_data)
-                pipe.expire(meta_key, self._event_ttl_seconds)
-                if event.status in (OutboxStatus.PENDING, OutboxStatus.CLAIMED):
-                    pipe.xadd(
-                        self._stream_key,
-                        {
-                            "event_id": event.event_id,
-                            "saga_id": event.saga_id,
-                            "event_type": event.event_type,
-                        },
-                        maxlen=self._max_stream_length,
-                    )
-                await pipe.execute()
-            return
 
-        await self._redis.hset(meta_key, mapping=event_data)
-        if (
-            existing.status not in (OutboxStatus.PENDING, OutboxStatus.CLAIMED)
-            and event.status in (OutboxStatus.PENDING, OutboxStatus.CLAIMED)
-        ):
-            await self._redis.xadd(
-                self._stream_key,
-                {
-                    "event_id": event.event_id,
-                    "saga_id": event.saga_id,
-                    "event_type": event.event_type,
-                },
-                maxlen=self._max_stream_length,
-            )
+        while True:
+            async with self._redis.pipeline(transaction=True) as pipe:
+                try:
+                    # WATCH detects changes made by workers or other importers
+                    # between reading metadata and committing the import.
+                    await pipe.watch(meta_key)
+                    existing_data = await pipe.hgetall(meta_key)
+
+                    if existing_data:
+                        existing = self._deserialize_event(existing_data)
+                        if existing != event:
+                            msg = (
+                                f"Outbox event {event.event_id} already exists with different state"
+                            )
+                            raise OutboxStorageError(msg)
+
+                        await pipe.unwatch()
+                        return
+
+                    pipe.multi()
+                    pipe.hset(meta_key, mapping=event_data)
+                    pipe.expire(meta_key, self._event_ttl_seconds)
+
+                    if event.status in (
+                        OutboxStatus.PENDING,
+                        OutboxStatus.CLAIMED,
+                    ):
+                        pipe.xadd(
+                            self._stream_key,
+                            {
+                                "event_id": event.event_id,
+                                "saga_id": event.saga_id,
+                                "event_type": event.event_type,
+                            },
+                            maxlen=self._max_stream_length,
+                        )
+
+                    await pipe.execute()
+                    return
+
+                except WatchError:
+                    # Metadata changed concurrently. Re-read and compare
+                    # instead of applying a potentially stale snapshot.
+                    continue
 
     async def requeue_dead_letter_event(self, event_id: str, force: bool = False) -> OutboxEvent:
         """Move a DLQ event back to PENDING."""

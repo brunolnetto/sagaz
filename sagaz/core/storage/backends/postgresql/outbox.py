@@ -18,7 +18,7 @@ Usage:
 
 import json
 from datetime import UTC, datetime, timedelta
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.outbox.types import OutboxEvent, OutboxStatus, ReplayLoopError
@@ -31,7 +31,7 @@ try:
     ASYNCPG_AVAILABLE = True
 except ImportError:
     ASYNCPG_AVAILABLE = False
-    asyncpg = None
+    asyncpg = cast(Any, None)
 
 
 # SQL for creating the outbox schema
@@ -211,28 +211,6 @@ class PostgreSQLOutboxStorage(OutboxStorage):
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
                 $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22
             )
-            ON CONFLICT (event_id) DO UPDATE SET
-                saga_id = EXCLUDED.saga_id,
-                aggregate_type = EXCLUDED.aggregate_type,
-                aggregate_id = EXCLUDED.aggregate_id,
-                event_type = EXCLUDED.event_type,
-                payload = EXCLUDED.payload,
-                headers = EXCLUDED.headers,
-                status = EXCLUDED.status,
-                created_at = EXCLUDED.created_at,
-                claimed_at = EXCLUDED.claimed_at,
-                sent_at = EXCLUDED.sent_at,
-                retry_count = EXCLUDED.retry_count,
-                last_error = EXCLUDED.last_error,
-                worker_id = EXCLUDED.worker_id,
-                dead_letter_at = EXCLUDED.dead_letter_at,
-                dead_letter_reason = EXCLUDED.dead_letter_reason,
-                error_type = EXCLUDED.error_type,
-                error_classification = EXCLUDED.error_classification,
-                error_fingerprint = EXCLUDED.error_fingerprint,
-                replay_count = EXCLUDED.replay_count,
-                routing_key = EXCLUDED.routing_key,
-                partition_key = EXCLUDED.partition_key
         """
 
         async def _insert(c):
@@ -449,15 +427,21 @@ class PostgreSQLOutboxStorage(OutboxStorage):
         )
 
     async def get_by_id(self, event_id: str) -> OutboxEvent | None:
-        """Get an event by its ID."""
+        """Get an event by ID from active or archived storage."""
         if not self._pool:
             msg = "Storage not initialized"
             raise OutboxStorageError(msg)
 
-        query = "SELECT * FROM saga_outbox WHERE event_id = $1"
-
         async with self._pool.acquire() as conn:
-            row = await conn.fetchrow(query, event_id)
+            row = await conn.fetchrow(
+                "SELECT * FROM saga_outbox WHERE event_id = $1",
+                event_id,
+            )
+            if row is None:
+                row = await conn.fetchrow(
+                    "SELECT * FROM saga_outbox_archive WHERE event_id = $1",
+                    event_id,
+                )
             return self._row_to_event(row) if row else None
 
     async def get_events_by_saga(self, saga_id: str) -> list[OutboxEvent]:
@@ -748,10 +732,49 @@ class PostgreSQLOutboxStorage(OutboxStorage):
                     raise
 
     async def import_record(self, record: dict[str, Any]) -> None:
-        """Import a single record from transfer."""
-        # Using insert which is already idempotent-ish or effectively so
+        """Import without overwriting existing active or archived state."""
         event = OutboxEvent.from_dict(record)
-        await self.insert(event)
+
+        if not self._pool:
+            msg = "Storage not initialized"
+            raise OutboxStorageError(msg)
+
+        async with self._pool.acquire() as conn:
+            async with conn.transaction():
+                # Serialize concurrent migration imports for the same event.
+                await conn.fetchval(
+                    "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+                    event.event_id,
+                )
+
+                row = await conn.fetchrow(
+                    """
+                    SELECT * FROM saga_outbox
+                    WHERE event_id = $1
+                    FOR UPDATE
+                    """,
+                    event.event_id,
+                )
+
+                if row is None:
+                    row = await conn.fetchrow(
+                        """
+                        SELECT * FROM saga_outbox_archive
+                        WHERE event_id = $1
+                        FOR UPDATE
+                        """,
+                        event.event_id,
+                    )
+
+                if row is not None:
+                    existing = self._row_to_event(row)
+                    if existing != event:
+                        msg = f"Outbox event {event.event_id} already exists with different state"
+                        raise OutboxStorageError(msg)
+                    return
+
+                # insert() now uses a plain INSERT, never an upsert.
+                await self.insert(event, connection=conn)
 
     async def requeue_dead_letter_event(self, event_id: str, force: bool = False) -> OutboxEvent:
         """Move a dead-letter event back to PENDING for replay."""

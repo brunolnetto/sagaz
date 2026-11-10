@@ -21,8 +21,8 @@ async def test_sqlite_to_postgresql_migration_preserves_saga_and_outbox_records(
 
     from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
     from sagaz.core.storage.manager import StorageManager
-    from sagaz.storage.migration import SagaStorageMigrator
     from sagaz.core.types import SagaStatus
+    from sagaz.storage.migration import SagaStorageMigrator
 
     postgres_url = postgres_container.get_connection_url().replace(
         "postgresql+psycopg2://",
@@ -108,6 +108,61 @@ async def test_sqlite_to_postgresql_migration_preserves_saga_and_outbox_records(
             second_verification = await migrator.verify()
             assert second_verification.ok is True
             assert (
-                second_verification.source_event_checksum
-                == second_verification.dest_event_checksum
+                second_verification.source_event_checksum == second_verification.dest_event_checksum
             )
+
+            # Destination has advanced since the source snapshot was taken.
+            sent = await destination.outbox.update_status(
+                event.event_id,
+                OutboxStatus.SENT,
+            )
+            assert sent.status == OutboxStatus.SENT
+            assert sent.sent_at is not None
+
+            stale_retry = await migrator.migrate(
+                batch_size=1,
+                on_error="skip",
+            )
+
+            assert stale_retry.success is False
+            assert stale_retry.events_transferred == 0
+            assert stale_retry.events_skipped == 1
+
+            preserved = await destination.outbox.get_by_id(event.event_id)
+            assert preserved is not None
+            assert preserved.status == OutboxStatus.SENT
+            assert preserved.sent_at == sent.sent_at
+
+            # Move the destination event into the archive to verify that
+            # migration lookup and validation include archived records.
+            pool = destination.outbox._pool
+            assert pool is not None
+
+            async with pool.acquire() as conn:
+                async with conn.transaction():
+                    await conn.execute(
+                        """
+                        INSERT INTO saga_outbox_archive
+                        SELECT * FROM saga_outbox
+                        WHERE event_id = $1
+                        """,
+                        event.event_id,
+                    )
+                    await conn.execute(
+                        "DELETE FROM saga_outbox WHERE event_id = $1",
+                        event.event_id,
+                    )
+
+            archived_retry = await migrator.migrate(
+                batch_size=1,
+                on_error="skip",
+            )
+
+            assert archived_retry.success is False
+            assert archived_retry.events_transferred == 0
+            assert archived_retry.events_skipped == 1
+
+            archived = await destination.outbox.get_by_id(event.event_id)
+            assert archived is not None
+            assert archived.status == OutboxStatus.SENT
+            assert archived.sent_at == sent.sent_at

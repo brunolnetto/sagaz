@@ -456,6 +456,28 @@ class TestSQLiteOutboxStorage:
         count = await storage.count()
         assert count == 1
 
+    @pytest.mark.asyncio
+    async def test_import_does_not_overwrite_destination_delivery_progress(self, storage):
+        from sagaz.core.storage.interfaces.outbox import OutboxStorageError
+
+        event = OutboxEvent(
+            event_id="migration-stale-event",
+            saga_id="migration-saga",
+            event_type="OrderCreated",
+            payload={"order_id": "123"},
+        )
+        await storage.insert(event)
+
+        stale_snapshot = event.to_dict()
+        sent = await storage.update_status(event.event_id, OutboxStatus.SENT)
+
+        with pytest.raises(OutboxStorageError, match="different state"):
+            await storage.import_record(stale_snapshot)
+
+        persisted = await storage.get_by_id(event.event_id)
+        assert persisted is not None
+        assert persisted.status == OutboxStatus.SENT
+        assert persisted.sent_at == sent.sent_at
 
     @pytest.mark.asyncio
     async def test_legacy_outbox_schema_is_upgraded_with_transfer_defaults(self, tmp_path):
