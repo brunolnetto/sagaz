@@ -159,8 +159,7 @@ jobs:
       - name: Install build tools
         run: python -m pip install --upgrade pip build twine
 
-      - name: Bump version in pyproject.toml
-        if: needs.resolve-version.outputs.dry_run == 'false'
+      - name: Set target version in pyproject.toml
         env:
           VERSION: ${{ needs.resolve-version.outputs.version }}
         run: |
