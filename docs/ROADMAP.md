@@ -53,8 +53,8 @@ Sagaz competes with AWS Step Functions, Temporal, and Azure Durable Functions by
 | **Lightweight Context Streaming** | 1.4.0 | ✅ Done — [ADR-021](architecture/adr/adr-021-lightweight-context-streaming.md) |
 | **Industry Examples** (24 examples, 12 verticals) | 1.4.0 | ✅ Done — [ADR-026](architecture/adr/adr-026-industry-examples-expansion.md) |
 | **Saga Replay & Time-Travel** | 1.4.0 | ✅ Done — [ADR-024](architecture/adr/adr-024-saga-replay.md) |
-| **Compliance & Data Governance** | 1.5.0 | ✅ Published — [ADR-037](architecture/adr/adr-037-compliance.md) |
-| **Saga Lifecycle Hooks & Observers** | 1.5.0 | ✅ Published — [ADR-036](architecture/adr/adr-036-lifecycle-hooks.md) |
+| **Compliance & Data Governance** | 1.5.0 | ✅ Published — [ADR-037](architecture/adr/adr-037-compliance-data-governance.md) |
+| **Saga Lifecycle Hooks & Observers** | 1.5.0 | ✅ Published — [ADR-036](architecture/adr/adr-036-lifecycle-hooks-observers.md) |
 | **Dead Letter Queue + CLI** | 1.6.0 | 📦 In current release candidate |
 | **SQLite Storage + Outbox** | 1.6.0 | 📦 In current release candidate |
 | **Cross-Backend Storage Migration** | 1.6.0 | 📦 In current release candidate |
