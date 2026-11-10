@@ -382,7 +382,9 @@ class TransferService:
     async def _validate_record(self, record: dict[str, Any]) -> None:
         """Validate a transferred record exists in target."""
         # Get record ID
-        record_id = record.get("saga_id") or record.get("event_id") or record.get("id")
+        # Outbox records carry both saga_id and event_id. Resolve the event ID
+        # first so validation queries the target OutboxStorage by its primary key.
+        record_id = record.get("event_id") or record.get("saga_id") or record.get("id")
         if not record_id:
             return
 
