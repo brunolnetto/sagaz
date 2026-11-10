@@ -29,14 +29,14 @@ Usage:
 
 from typing import TYPE_CHECKING, Optional
 
-from statemachine import State, StateMachine
+from statemachine import State, StateChart
 from statemachine.exceptions import TransitionNotAllowed
 
 if TYPE_CHECKING:
     from sagaz.core.saga import Saga
 
 
-class SagaStateMachine(StateMachine):
+class SagaStateMachine(StateChart):
     """
     State machine for managing saga lifecycle transitions.
 
@@ -73,6 +73,27 @@ class SagaStateMachine(StateMachine):
         >>> await sm.fail()
         >>> await sm.finish_compensation()
     """
+
+    # Preserve StateMachine 2.x runtime behavior while adopting the StateChart API.
+    # StateChart's SCXML defaults are a separate behavior change and are deliberately
+    # not enabled in this compatibility migration.
+    allow_event_without_transition = False
+    enable_self_transition_entries = False
+    atomic_configuration_update = True
+    catch_errors_as_events = False
+
+    @property
+    def current_state(self) -> State:
+        """Backward-compatible State object accessor for flat Phase 1 topology."""
+        active_states = list(self.configuration)
+        if len(active_states) != 1:
+            raise RuntimeError("current_state is only available for a single active state")
+        return active_states[0]
+
+    @property
+    def active_configuration(self) -> list[str]:
+        """Return active state IDs; unlike current_state, this is configuration-safe."""
+        return list(self.configuration_values)
 
     # Define saga states
     pending = State("Pending", initial=True)
@@ -168,7 +189,7 @@ class SagaStateMachine(StateMachine):
         # Override in subclass if needed
 
 
-class SagaStepStateMachine(StateMachine):
+class SagaStepStateMachine(StateChart):
     """
     State machine for individual saga step execution.
 
@@ -190,6 +211,25 @@ class SagaStepStateMachine(StateMachine):
         compensation_success: Compensation succeeded
         compensation_failure: Compensation failed
     """
+
+    # Preserve the flat StateMachine 2.x event and callback semantics.
+    allow_event_without_transition = False
+    enable_self_transition_entries = False
+    atomic_configuration_update = True
+    catch_errors_as_events = False
+
+    @property
+    def current_state(self) -> State:
+        """Backward-compatible State object accessor for this flat step machine."""
+        active_states = list(self.configuration)
+        if len(active_states) != 1:
+            raise RuntimeError("current_state is only available for a single active state")
+        return active_states[0]
+
+    @property
+    def active_configuration(self) -> list[str]:
+        """Return active state IDs."""
+        return list(self.configuration_values)
 
     # Define step states
     pending = State("Pending", initial=True)
