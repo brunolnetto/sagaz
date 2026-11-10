@@ -53,6 +53,7 @@ class PostgreSQLSagaStorage(SagaStorage):
         saga_id VARCHAR(255) PRIMARY KEY,
         saga_name VARCHAR(255) NOT NULL,
         status VARCHAR(50) NOT NULL,
+        configuration JSONB,
         context JSONB,
         metadata JSONB,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -119,6 +120,17 @@ class PostgreSQLSagaStorage(SagaStorage):
                 # Initialize database schema
                 async with self._pool.acquire() as conn:  # type: ignore[attr-defined]
                     await conn.execute(self.CREATE_TABLES_SQL)
+                    # CREATE TABLE IF NOT EXISTS does not upgrade existing deployments.
+                    await conn.execute(
+                        "ALTER TABLE sagas ADD COLUMN IF NOT EXISTS configuration JSONB"
+                    )
+                    await conn.execute(
+                        """
+                        UPDATE sagas
+                        SET configuration = jsonb_build_array(status)
+                        WHERE configuration IS NULL
+                        """
+                    )
 
             except Exception as e:
                 msg = f"Failed to connect to PostgreSQL: {e}"
@@ -134,6 +146,7 @@ class PostgreSQLSagaStorage(SagaStorage):
         steps: list[dict[str, Any]],
         context: dict[str, Any],
         metadata: dict[str, Any] | None = None,
+        configuration: list[str] | None = None,
     ) -> None:
         """Save saga state to PostgreSQL"""
 
@@ -144,12 +157,13 @@ class PostgreSQLSagaStorage(SagaStorage):
                 # Upsert saga record
                 await conn.execute(
                     """
-                    INSERT INTO sagas (saga_id, saga_name, status, context, metadata, updated_at)
-                    VALUES ($1, $2, $3, $4, $5, NOW())
+                    INSERT INTO sagas (saga_id, saga_name, status, configuration, context, metadata, updated_at)
+                    VALUES ($1, $2, $3, $4, $5, $6, NOW())
                     ON CONFLICT (saga_id)
                     DO UPDATE SET
                         saga_name = EXCLUDED.saga_name,
                         status = EXCLUDED.status,
+                        configuration = EXCLUDED.configuration,
                         context = EXCLUDED.context,
                         metadata = EXCLUDED.metadata,
                         updated_at = NOW()
@@ -157,6 +171,7 @@ class PostgreSQLSagaStorage(SagaStorage):
                     saga_id,
                     saga_name,
                     status.value,
+                    json.dumps(configuration if configuration is not None else [status.value]),
                     json.dumps(context),
                     json.dumps(metadata or {}),
                 )
@@ -199,7 +214,7 @@ class PostgreSQLSagaStorage(SagaStorage):
         async with pool.acquire() as conn:
             saga_row = await conn.fetchrow(
                 """
-                SELECT saga_id, saga_name, status, context, metadata, created_at, updated_at
+                SELECT saga_id, saga_name, status, configuration, context, metadata, created_at, updated_at
                 FROM sagas WHERE saga_id = $1
             """,
                 saga_id,
@@ -220,10 +235,22 @@ class PostgreSQLSagaStorage(SagaStorage):
 
     def _build_saga_dict(self, saga_row, step_rows) -> dict[str, Any]:
         """Build saga dict from database rows."""
+        try:
+            configuration_raw = saga_row["configuration"]
+        except (KeyError, IndexError):
+            configuration_raw = None
+        if configuration_raw is None:
+            configuration = [saga_row["status"]]
+        elif isinstance(configuration_raw, str):
+            configuration = self._parse_json_safe(configuration_raw)
+        else:
+            configuration = list(configuration_raw)
+
         return {
             "saga_id": saga_row["saga_id"],
             "saga_name": saga_row["saga_name"],
             "status": saga_row["status"],
+            "configuration": configuration,
             "context": json.loads(saga_row["context"]) if saga_row["context"] else {},
             "metadata": json.loads(saga_row["metadata"]) if saga_row["metadata"] else {},
             "steps": [self._parse_step_row(row) for row in step_rows],
@@ -523,4 +550,5 @@ class PostgreSQLSagaStorage(SagaStorage):
             steps=record.get("steps", []),
             context=record.get("context", {}),
             metadata=record.get("metadata"),
+            configuration=record.get("configuration"),
         )
