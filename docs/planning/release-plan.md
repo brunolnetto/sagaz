@@ -64,9 +64,9 @@ Wave 5  ─── v2.0.0 ──────── Core extensions               
 | #63 | feature/storage-data-transfer | Storage migration/transfer layer | #47 | #62 (SQLite src/dst) |
 | #60 | feature/dead-letter-queue | Dead Letter Queue (DLQ) pattern | #44 | none |
 
-**Gap watch** (from review report):
-- #62: no unit tests — add before merge (see issue #105)
-- #60: no fill-and-replay integration test — add before merge (see issue #106)
+**Gap watch** (reconciled 2026-11-10):
+- #62: SQLite Saga/Outbox unit coverage exists in `tests/unit/core/storage/backends/test_storage_sqlite.py`; issue #109 is closed.
+- #60: the promised worker/broker fill-and-replay lifecycle test was absent despite issue #110 being closed. Issue #110 has been reopened and is tracked by [PR #349](https://github.com/brunolnetto/sagaz/pull/349).
 
 ---
 
