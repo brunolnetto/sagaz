@@ -27,7 +27,7 @@ class _SagaSnapshotMixin:
     @property
     def configuration(self) -> list[str]:
         """Return the active state IDs for the current flat Saga statechart."""
-        return list(self._state_machine.configuration_values)  # type: ignore[union-attr]
+        return list(self._state_machine.active_configuration)  # type: ignore[union-attr]
 
     @property
     def current_state(self) -> str:
