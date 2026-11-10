@@ -246,6 +246,7 @@ jobs:
           TAG: ${{ needs.resolve-version.outputs.tag }}
           MILESTONE_TITLE: ${{ needs.resolve-version.outputs.milestone_title }}
           MILESTONE_NUMBER: ${{ github.event.milestone.number }}
+          SOURCE_SHA: ${{ needs.resolve-version.outputs.source_sha }}
         run: |
           # Collect merged PRs in the milestone
           if [[ -n "$MILESTONE_NUMBER" ]]; then
@@ -258,7 +259,12 @@ jobs:
           fi
 
           if [[ -z "$NOTES" ]]; then
-            NOTES="See [CHANGELOG](https://github.com/brunolnetto/sagaz/blob/main/CHANGELOG.md) for details."
+            PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -vx "$TAG" | head -1 || true)
+            if [[ -n "$PREVIOUS_TAG" ]]; then
+              NOTES="See the [comparison from ${PREVIOUS_TAG}](https://github.com/${GITHUB_REPOSITORY}/compare/${PREVIOUS_TAG}...${SOURCE_SHA}) for the commits included in this release."
+            else
+              NOTES="Source commit: https://github.com/${GITHUB_REPOSITORY}/commit/${SOURCE_SHA}"
+            fi
           fi
 
           {
