@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from urllib.parse import quote, urlunsplit
 from uuid import uuid4
 
 import pytest
@@ -11,7 +12,9 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.mark.asyncio
-async def test_dlq_event_is_replayed_after_rabbitmq_recovers(rabbitmq_container, tmp_path) -> None:
+async def test_dlq_event_is_replayed_after_transient_publish_failure(
+    rabbitmq_container, tmp_path
+) -> None:
     """A failed delivery reaches DLQ, then the same event is delivered once."""
     aio_pika = pytest.importorskip("aio_pika")
     pytest.importorskip("aiosqlite")
@@ -25,7 +28,19 @@ async def test_dlq_event_is_replayed_after_rabbitmq_recovers(rabbitmq_container,
     from sagaz.core.outbox.worker import OutboxWorker
     from sagaz.core.storage.backends.sqlite import SQLiteOutboxStorage
 
-    amqp_url = rabbitmq_container.get_connection_url()
+    connection_params = rabbitmq_container.get_connection_params()
+    credentials = connection_params.credentials
+    host = connection_params.host
+    if ":" in host and not host.startswith("["):
+        host = f"[{host}]"
+
+    netloc = (
+        f"{quote(credentials.username, safe='')}:"
+        f"{quote(credentials.password, safe='')}@"
+        f"{host}:{connection_params.port}"
+    )
+    virtual_host = quote(connection_params.virtual_host, safe="")
+    amqp_url = urlunsplit(("amqp", netloc, f"/{virtual_host}", "", ""))
     exchange_name = f"sagaz.dlq.{uuid4().hex}"
     queue_name = f"sagaz-dlq-{uuid4().hex}"
     routing_key = "OrderCreated"
@@ -46,7 +61,8 @@ async def test_dlq_event_is_replayed_after_rabbitmq_recovers(rabbitmq_container,
         ) -> None:
             self.publish_attempts += 1
             if self.publish_attempts == 1:
-                raise BrokerPublishError("temporary broker outage")
+                reason = "temporary broker outage"
+                raise BrokerPublishError(reason)
 
             await super().publish(
                 topic=topic,
