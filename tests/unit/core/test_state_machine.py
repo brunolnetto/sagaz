@@ -63,8 +63,10 @@ class TestSagaStateMachine:
         """Test state machine transitions during saga execution"""
         saga = Saga("StateMachineTest")
 
-        # Initial state - status is an Enum with lowercase values
+        # Initial state - scalar status and the compatibility inspection API remain stable.
         assert saga.status.value == "pending"
+        assert saga.current_state == "Pending"
+        assert saga.get_status()["configuration"] == ["pending"]
 
         # Add step
         async def step_action(ctx):
