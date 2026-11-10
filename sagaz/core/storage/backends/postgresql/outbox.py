@@ -109,6 +109,8 @@ ALTER TABLE saga_outbox ADD COLUMN IF NOT EXISTS error_fingerprint VARCHAR(255);
 ALTER TABLE saga_outbox ADD COLUMN IF NOT EXISTS replay_count INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE saga_outbox ADD COLUMN IF NOT EXISTS routing_key VARCHAR(255);
 ALTER TABLE saga_outbox ADD COLUMN IF NOT EXISTS partition_key VARCHAR(255);
+ALTER TABLE saga_outbox_archive ADD COLUMN IF NOT EXISTS routing_key VARCHAR(255);
+ALTER TABLE saga_outbox_archive ADD COLUMN IF NOT EXISTS partition_key VARCHAR(255);
 """
 
 
