@@ -268,8 +268,10 @@ class InMemorySagaStorage(SagaStorage):
             # Sort by ID to ensure consistent order
             sorted_sagas = sorted(self._sagas.values(), key=lambda x: x["saga_id"])
             for saga_data in sorted_sagas:
-                # Yield a copy
-                yield dict(saga_data)
+                # Normalize records created before the configuration field existed.
+                exported = dict(saga_data)
+                exported.setdefault("configuration", [exported["status"]])
+                yield exported
 
     async def import_record(self, record: dict[str, Any]) -> None:
         """Import a single record from transfer."""
