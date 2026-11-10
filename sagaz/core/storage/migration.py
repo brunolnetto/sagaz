@@ -36,17 +36,32 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _canonical_checksum_value(value: Any) -> Any:
+def _canonical_checksum_value(value: Any, field_name: str | None = None) -> Any:
     """Convert storage values to a JSON-safe, deterministic representation."""
+    timestamp_fields = {"created_at", "claimed_at", "sent_at", "dead_letter_at"}
+
     if hasattr(value, "to_dict"):
         return _canonical_checksum_value(value.to_dict())
     if isinstance(value, dict):
-        return {str(key): _canonical_checksum_value(item) for key, item in value.items()}
+        return {
+            str(key): _canonical_checksum_value(item, str(key))
+            for key, item in value.items()
+        }
     if isinstance(value, (list, tuple)):
         return [_canonical_checksum_value(item) for item in value]
     if isinstance(value, set):
         normalized = [_canonical_checksum_value(item) for item in value]
         return sorted(normalized, key=lambda item: json.dumps(item, sort_keys=True, default=str))
+    if isinstance(value, datetime):
+        normalized = value.astimezone(UTC) if value.tzinfo is not None else value
+        return normalized.isoformat()
+    if field_name in timestamp_fields and isinstance(value, str):
+        try:
+            parsed = datetime.fromisoformat(value)
+        except ValueError:
+            return value
+        normalized = parsed.astimezone(UTC) if parsed.tzinfo is not None else parsed
+        return normalized.isoformat()
     if hasattr(value, "isoformat"):
         return value.isoformat()
     if hasattr(value, "value"):
@@ -54,7 +69,11 @@ def _canonical_checksum_value(value: Any) -> Any:
     return value
 
 
-async def _storage_checksum(storage: Any, *, ignored_fields: frozenset[str] = frozenset()) -> tuple[int, str]:
+async def _storage_checksum(
+    storage: Any,
+    *,
+    ignored_fields: frozenset[str] = frozenset(),
+) -> tuple[int, str]:
     """Compute an order-independent checksum over all exported storage records."""
     if not hasattr(storage, "export_all"):
         raise TypeError(f"{storage.__class__.__name__} does not support export_all()")
