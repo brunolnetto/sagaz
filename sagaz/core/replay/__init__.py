@@ -136,7 +136,7 @@ class SagaSnapshot:
             completed_steps=data["completed_steps"],
             external_refs=data.get("external_refs", {}),
             created_at=datetime.fromisoformat(data["created_at"]),
-            configuration=data.get("configuration", [data["status"]]),
+            configuration=data.get("configuration") or [data["status"]],
             retention_until=datetime.fromisoformat(data["retention_until"])
             if data.get("retention_until")
             else None,
