@@ -420,6 +420,18 @@ class TransferService:
         if hasattr(record, "to_dict"):
             record = record.to_dict()
 
+        # Fill optional OutboxEvent fields with their canonical defaults so older
+        # callers that export a minimal record remain comparable after import.
+        if isinstance(record, dict) and {
+            "event_id",
+            "saga_id",
+            "event_type",
+            "payload",
+        }.issubset(record):
+            from sagaz.core.outbox.types import OutboxEvent
+
+            record = OutboxEvent.from_dict(record).to_dict()
+
         def _default(value: Any) -> str:
             if isinstance(value, datetime):
                 return value.isoformat()
