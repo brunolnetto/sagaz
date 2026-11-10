@@ -5,9 +5,11 @@ Tests the state machine logic that manages saga and step lifecycle transitions.
 """
 
 import pytest
+from statemachine import StateChart
 from statemachine.exceptions import TransitionNotAllowed
 
 from sagaz.core.execution.state_machine import (
+    SagaStateMachine,
     SagaStepStateMachine,
     get_valid_next_states,
     validate_state_transition,
@@ -17,6 +19,42 @@ from sagaz.core.saga import Saga
 
 class TestSagaStateMachine:
     """Tests for SagaStateMachine - tested through Saga integration"""
+
+    def test_statechart_migration_preserves_legacy_runtime_defaults(self):
+        assert issubclass(SagaStateMachine, StateChart)
+        assert SagaStateMachine.allow_event_without_transition is False
+        assert SagaStateMachine.enable_self_transition_entries is False
+        assert SagaStateMachine.atomic_configuration_update is True
+        assert SagaStateMachine.catch_errors_as_events is False
+
+    @pytest.mark.asyncio
+    async def test_configuration_and_legacy_current_state_track_transitions(self):
+        sm = SagaStateMachine(saga=None)
+        await sm.activate_initial_state()
+
+        assert sm.configuration_values == ["pending"]
+        assert sm.active_configuration == ["pending"]
+        assert sm.current_state == sm.pending
+
+        await sm.start()
+        assert sm.configuration_values == ["executing"]
+        assert sm.current_state == sm.executing
+
+        await sm.succeed()
+        assert sm.configuration_values == ["completed"]
+        assert sm.current_state == sm.completed
+
+    @pytest.mark.asyncio
+    async def test_guard_rejection_still_raises_transition_not_allowed(self):
+        class EmptySaga:
+            steps = []
+            completed_steps = []
+
+        sm = SagaStateMachine(saga=EmptySaga())
+        await sm.activate_initial_state()
+
+        with pytest.raises(TransitionNotAllowed):
+            await sm.start()
 
     @pytest.mark.asyncio
     async def test_state_machine_through_saga_execution(self):
@@ -35,8 +73,10 @@ class TestSagaStateMachine:
         # Execute saga
         await saga.execute()
 
-        # Final state
+        # Final state and backward-compatible inspection API
         assert saga.status.value == "completed"
+        assert saga.current_state == "Completed"
+        assert saga.get_status()["configuration"] == ["completed"]
 
     @pytest.mark.asyncio
     async def test_state_machine_compensation_flow(self):
@@ -78,6 +118,8 @@ class TestSagaStepStateMachine:
 
         assert sm.current_state == sm.pending
         assert sm.current_state.id == "pending"
+        assert sm.configuration_values == ["pending"]
+        assert sm.active_configuration == ["pending"]
         assert sm.step_name == "test_step"
 
     @pytest.mark.asyncio
