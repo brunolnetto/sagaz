@@ -52,6 +52,8 @@ class TestOutboxEvent:
             event_type="OrderCreated",
             payload={"items": []},
             headers={"trace_id": "abc"},
+            routing_key="orders.created",
+            partition_key="tenant-a",
             status=OutboxStatus.PENDING,
             created_at=now,
         )
@@ -60,6 +62,8 @@ class TestOutboxEvent:
         assert event.aggregate_type == "order"
         assert event.aggregate_id == "ORD-456"
         assert event.headers == {"trace_id": "abc"}
+        assert event.routing_key == "orders.created"
+        assert event.partition_key == "tenant-a"
 
     def test_to_dict(self):
         """Test serializing event to dict."""
@@ -77,6 +81,21 @@ class TestOutboxEvent:
         assert data["status"] == "pending"
         assert "event_id" in data
         assert "created_at" in data
+
+    def test_to_dict_roundtrip_preserves_routing_metadata(self):
+        event = OutboxEvent(
+            event_id="evt-route-1",
+            saga_id="saga-route-1",
+            event_type="OrderCreated",
+            payload={"order_id": "123"},
+            headers={"trace_id": "trace-123"},
+            routing_key="orders.created",
+            partition_key="tenant-a",
+        )
+
+        restored = OutboxEvent.from_dict(event.to_dict())
+
+        assert restored.to_dict() == event.to_dict()
 
     def test_from_dict(self):
         """Test deserializing event from dict."""
