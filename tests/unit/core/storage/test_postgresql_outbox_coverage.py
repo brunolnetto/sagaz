@@ -577,6 +577,21 @@ class TestRowToEventJsonParsing:
         assert event.headers == {"already": "headers"}
 
 
+class TestCountIncludesArchive:
+    async def test_count_includes_active_and_archived_rows(self):
+        storage = _uninitialized_storage()
+        mock_conn = AsyncMock()
+        mock_conn.fetchval = AsyncMock(return_value=12)
+        storage._pool = _make_pool_with_conn(mock_conn)
+
+        count = await storage.count()
+
+        assert count == 12
+        query = mock_conn.fetchval.await_args.args[0]
+        assert "FROM saga_outbox" in query
+        assert "FROM saga_outbox_archive" in query
+
+
 # ==========================================================================
 # Lines 568-586: export_all() body
 # ==========================================================================
@@ -610,6 +625,9 @@ class TestExportAll:
         assert len(results) == 1
         assert results[0]["event_id"] == "evt-001"
         assert results[0]["event_type"] == "TestEvent"
+        query = mock_conn.cursor.await_args.args[0]
+        assert "FROM saga_outbox_archive" in query
+        assert "UNION ALL" in query
 
     async def test_export_all_with_null_created_at(self):
         """Line 580-582: None created_at → None in output."""

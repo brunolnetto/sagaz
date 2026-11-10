@@ -38,8 +38,9 @@
 - **Type-safe instances** - Real storage/broker instances, not brittle strings
 
 ### Storage Backends
+- **SQLite** - File-based persistence for local development and smaller deployments
 - **PostgreSQL** - Production-grade with ACID guarantees
-- **Redis** - High-performance caching layer
+- **Redis** - High-performance storage backend
 - **In-Memory** - Testing and development
 
 ### Monitoring & Operations
@@ -56,25 +57,28 @@
 ## Installation
 
 ```bash
-# Core library
+# Core library (includes the CLI)
 pip install sagaz
 
-# With CLI for deployment management
-pip install sagaz[cli]
+# With SQLite persistence
+pip install "sagaz[sqlite]"
 
 # With PostgreSQL support
-pip install sagaz[postgresql]
+pip install "sagaz[postgres]"
+
+# With Redis support
+pip install "sagaz[redis]"
+
+# With both PostgreSQL and Redis storage adapters
+pip install "sagaz[storage]"
 
 # With Kafka broker
-pip install sagaz[kafka]
-
-# All features
-pip install sagaz[all]
+pip install "sagaz[kafka]"
 ```
 
 ### CLI Deployment Scenarios
 
-After installing with `sagaz[cli]`, use the CLI for your deployment scenario:
+The CLI is included in the core package; use it for your deployment scenario:
 
 ```bash
 # Local development (Docker Compose)

@@ -174,26 +174,20 @@ class InMemoryOutboxStorage(OutboxStorage):
         # Sort by ID
         sorted_events = sorted(self._events.values(), key=lambda x: x.event_id)
         for event in sorted_events:
-            yield {
-                "event_id": event.event_id,
-                "saga_id": event.saga_id,
-                "event_type": event.event_type,
-                "payload": event.payload,
-                "status": event.status.value,
-                "created_at": event.created_at.isoformat() if event.created_at else None,
-            }
+            yield event.to_dict()
 
     async def import_record(self, record: dict[str, Any]) -> None:
-        """Import a single record from transfer."""
+        """Import an event without overwriting existing destination state."""
         outbox_event_cls = _get_outbox_event()
-        outbox_status_cls = _get_outbox_status()
-        event = outbox_event_cls(
-            event_id=record.get("event_id"),
-            saga_id=record["saga_id"],
-            event_type=record["event_type"],
-            payload=record.get("payload", {}),
-            status=outbox_status_cls(record.get("status", "pending")),
-        )
+        event = outbox_event_cls.from_dict(record)
+
+        existing = await self.get_by_id(event.event_id)
+        if existing is not None:
+            if existing != event:
+                msg = f"Outbox event {event.event_id} already exists with different state"
+                raise OutboxStorageError(msg)
+            return
+
         await self.insert(event)
 
     async def requeue_dead_letter_event(self, event_id: str, force: bool = False) -> OutboxEvent:

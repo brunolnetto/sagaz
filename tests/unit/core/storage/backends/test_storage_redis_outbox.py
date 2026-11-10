@@ -2,7 +2,7 @@
 Tests for Redis Outbox Storage.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -34,6 +34,10 @@ class TestRedisOutboxStorageUnit:
 
         # Pipeline mock
         pipeline_mock = AsyncMock()
+        pipeline_mock.watch = AsyncMock()
+        pipeline_mock.hgetall = AsyncMock(return_value={})
+        pipeline_mock.unwatch = AsyncMock()
+        pipeline_mock.multi = MagicMock()
         pipeline_mock.hset = MagicMock()
         pipeline_mock.expire = MagicMock()
         pipeline_mock.xadd = MagicMock()
@@ -319,14 +323,17 @@ class TestRedisOutboxStorageUnit:
             mock_redis.close.assert_called()
 
     @pytest.mark.asyncio
-    async def test_count(self, storage, mock_redis):
-        """Test counting events."""
-        mock_redis.xlen.return_value = 15
+    async def test_count_includes_sent_failed_and_dead_letter_events(self, storage, mock_redis):
+        """Count all metadata records, not only pending stream entries."""
+        mock_redis.scan.side_effect = [
+            (1, [b"test:outbox:meta:pending", b"test:outbox:meta:sent"]),
+            (0, [b"test:outbox:meta:dead-letter"]),
+        ]
 
         count = await storage.count()
 
-        assert count == 15
-        mock_redis.xlen.assert_called()
+        assert count == 3
+        assert mock_redis.scan.call_count == 2
 
     @pytest.mark.asyncio
     async def test_export_all(self, storage, mock_redis):
@@ -398,9 +405,11 @@ class TestRedisOutboxStorageUnit:
             events.append(event)
 
         assert len(events) == 3
-        assert events[0].event_id == "evt-1"
-        assert events[1].event_id == "evt-2"
-        assert events[2].event_id == "evt-3"
+        assert events[0]["event_id"] == "evt-1"
+        assert events[1]["event_id"] == "evt-2"
+        assert events[2]["event_id"] == "evt-3"
+        assert events[0]["routing_key"] is None
+        assert events[0]["partition_key"] is None
 
     @pytest.mark.asyncio
     async def test_export_all_empty(self, storage, mock_redis):
@@ -430,6 +439,109 @@ class TestRedisOutboxStorageUnit:
         mock_redis.pipeline.assert_called()
 
     @pytest.mark.asyncio
+    async def test_import_dead_letter_record_does_not_enqueue_delivery(self, storage, mock_redis):
+        """Terminal events are stored as metadata, not added to the delivery stream."""
+        record = {
+            "event_id": "event-dlq",
+            "saga_id": "saga-dlq",
+            "event_type": "OrderFailed",
+            "payload": {"order_id": "123"},
+            "status": "dead_letter",
+            "dead_letter_reason": "max_retries_exceeded",
+            "routing_key": "orders.failed",
+            "partition_key": "tenant-a",
+        }
+
+        await storage.import_record(record)
+
+        pipeline = mock_redis.pipeline.return_value
+        pipeline.hset.assert_called()
+        pipeline.expire.assert_called()
+        pipeline.xadd.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_reimport_existing_pending_record_does_not_duplicate_stream(
+        self, storage, mock_redis
+    ):
+        """An identical re-import is a no-op."""
+        pipeline = mock_redis.pipeline.return_value
+        pipeline.hgetall.return_value = {
+            b"event_id": b"event-pending",
+            b"saga_id": b"saga-pending",
+            b"aggregate_type": b"order",
+            b"aggregate_id": b"order-123",
+            b"event_type": b"OrderCreated",
+            b"payload": b'{"order_id":"123"}',
+            b"headers": b'{"trace_id":"trace-1"}',
+            b"status": b"pending",
+            b"retry_count": b"0",
+            b"created_at": b"2026-01-01T00:00:00+00:00",
+            b"claimed_at": b"",
+            b"sent_at": b"",
+            b"last_error": b"",
+            b"worker_id": b"",
+            b"routing_key": b"orders.created",
+            b"partition_key": b"tenant-a",
+            b"dead_letter_at": b"",
+            b"dead_letter_reason": b"",
+            b"error_type": b"",
+            b"error_classification": b"",
+            b"error_fingerprint": b"",
+            b"replay_count": b"0",
+        }
+        record = {
+            "event_id": "event-pending",
+            "saga_id": "saga-pending",
+            "aggregate_type": "order",
+            "aggregate_id": "order-123",
+            "event_type": "OrderCreated",
+            "payload": {"order_id": "123"},
+            "headers": {"trace_id": "trace-1"},
+            "status": "pending",
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "routing_key": "orders.created",
+            "partition_key": "tenant-a",
+        }
+
+        await storage.import_record(record)
+
+        pipeline.hset.assert_not_called()
+        pipeline.xadd.assert_not_called()
+        pipeline.execute.assert_not_awaited()
+        pipeline.unwatch.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_import_rejects_stale_state_without_overwriting_sent_event(
+        self, storage, mock_redis
+    ):
+        from sagaz.core.storage.interfaces.outbox import OutboxStorageError
+
+        sent_at = datetime(2026, 1, 1, tzinfo=UTC)
+        existing = OutboxEvent(
+            event_id="event-already-sent",
+            saga_id="saga-1",
+            event_type="OrderCreated",
+            payload={"order_id": "123"},
+            status=OutboxStatus.SENT,
+            sent_at=sent_at,
+        )
+        pipeline = mock_redis.pipeline.return_value
+        pipeline.hgetall.return_value = {
+            key.encode(): value.encode()
+            for key, value in storage._serialize_event(existing).items()
+        }
+
+        stale_snapshot = existing.to_dict()
+        stale_snapshot["status"] = OutboxStatus.PENDING.value
+        stale_snapshot["sent_at"] = None
+
+        with pytest.raises(OutboxStorageError, match="different state"):
+            await storage.import_record(stale_snapshot)
+
+        pipeline.hset.assert_not_called()
+        pipeline.xadd.assert_not_called()
+        pipeline.execute.assert_not_awaited()
+
     async def test_import_record_without_optional_fields(self, storage, mock_redis):
         """Test importing a minimal record."""
         record = {
