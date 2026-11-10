@@ -54,7 +54,7 @@ Wave 5  ─── v2.0.0 ──────── Core extensions               
 
 ## Wave 1 — v1.6.0 "Storage Extensions"
 
-**Target**: 2026-11-10 release candidate preparation; publication remains subject to validation review
+**Status**: Released 2026-11-10; GitHub tag/release and PyPI wheel + sdist are published
 **Risk**: Medium — persistent storage, cross-backend data integrity, and outbox recovery
 **Original feature merge order**: #62 → #63 → #60 (all three feature PRs are merged into `develop`)
 
@@ -68,7 +68,7 @@ Wave 5  ─── v2.0.0 ──────── Core extensions               
 - #62: SQLite Saga/Outbox unit coverage, legacy outbox schema backfill, and the optional `sagaz[sqlite]` extra are present.
 - #63: [PR #351](https://github.com/brunolnetto/sagaz/pull/351) adds canonical serialization, schema upgrades, full-content validation/checksums, PostgreSQL archive transfer, and migration integrity safeguards. The local backend/migration unit batch reported 163 passed and 3 skipped. The skipped container-dependent tests mean live PostgreSQL/Redis migration behavior has not been fully verified in that run. Pause outbox workers during transfer/cutover.
 - #60: [PR #350](https://github.com/brunolnetto/sagaz/pull/350) adds the SQLite + RabbitMQ DLQ lifecycle integration test. Local result: 1 passed. The corresponding GitHub integration job was skipped.
-- CI: several GitHub Actions checks remain failing. This release preparation does not represent a green CI run. Manual publication requires an explicit decision to accept that limitation.
+- CI: several GitHub Actions checks were blocked/failing, so this was not a fully green CI release. v1.6.0 was nevertheless published after explicit acceptance of the documented CI and container-integration limitations.
 - **Outstanding validation**: run the PostgreSQL/Redis container-dependent migration tests before claiming full cross-backend integration coverage. Do not describe those paths as verified until they pass.
 
 
