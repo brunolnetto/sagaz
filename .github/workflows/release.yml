@@ -108,7 +108,7 @@ jobs:
     name: Pre-release Tests
     runs-on: ubuntu-latest
     needs: resolve-version
-    
+
     steps:
       - name: Check out release source
         uses: actions/checkout@v7
@@ -139,7 +139,7 @@ jobs:
     runs-on: ubuntu-latest
     # Publication is gated on tests for this exact release source commit.
     needs: [resolve-version, test]
-    
+
     permissions:
       id-token: write  # Required for trusted publishing
       contents: read

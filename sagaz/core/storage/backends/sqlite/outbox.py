@@ -40,12 +40,12 @@ from sagaz.core.storage.core import (
     deserialize,
     serialize,
 )
-from sagaz.core.storage.interfaces.outbox import OutboxStorageError
+from sagaz.core.storage.interfaces.outbox import OutboxStorage, OutboxStorageError
 
 logger = logging.getLogger(__name__)
 
 
-class SQLiteOutboxStorage:
+class SQLiteOutboxStorage(OutboxStorage):
     """
     SQLite-based outbox storage.
 
@@ -304,7 +304,7 @@ class SQLiteOutboxStorage:
         error_message: str | None = None,
         connection=None,
         event: OutboxEvent | None = None,
-    ) -> OutboxEvent | None:
+    ) -> OutboxEvent:
         """Update event status."""
         conn = await self._get_connection()
         now = datetime.now(UTC).isoformat()
@@ -312,7 +312,11 @@ class SQLiteOutboxStorage:
         await conn.execute(query, params)
         await conn.commit()
 
-        return await self.get_by_id(event_id)
+        updated = await self.get_by_id(event_id)
+        if updated is None:
+            msg = f"Event {event_id} not found"
+            raise KeyError(msg)
+        return updated
 
     def _build_update_status_query(
         self,
@@ -403,11 +407,13 @@ class SQLiteOutboxStorage:
                     claimed_at = NULL,
                     dead_letter_at = NULL,
                     dead_letter_reason = NULL,
+                    retry_count = COALESCE(?, retry_count),
                     replay_count = COALESCE(?, replay_count)
                 WHERE event_id = ?
             """,
             (
                 status.value,
+                event.retry_count if event else None,
                 event.replay_count if event else None,
                 event_id,
             ),
