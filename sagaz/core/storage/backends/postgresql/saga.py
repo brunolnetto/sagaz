@@ -157,7 +157,10 @@ class PostgreSQLSagaStorage(SagaStorage):
                 # Upsert saga record
                 await conn.execute(
                     """
-                    INSERT INTO sagas (saga_id, saga_name, status, configuration, context, metadata, updated_at)
+                    INSERT INTO sagas (
+                        saga_id, saga_name, status, configuration,
+                        context, metadata, updated_at
+                    )
                     VALUES ($1, $2, $3, $4, $5, $6, NOW())
                     ON CONFLICT (saga_id)
                     DO UPDATE SET
@@ -214,7 +217,9 @@ class PostgreSQLSagaStorage(SagaStorage):
         async with pool.acquire() as conn:
             saga_row = await conn.fetchrow(
                 """
-                SELECT saga_id, saga_name, status, configuration, context, metadata, created_at, updated_at
+                SELECT
+                    saga_id, saga_name, status, configuration,
+                    context, metadata, created_at, updated_at
                 FROM sagas WHERE saga_id = $1
             """,
                 saga_id,
