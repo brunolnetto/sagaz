@@ -457,6 +457,51 @@ class TestSQLiteOutboxStorage:
         assert count == 1
 
 
+    @pytest.mark.asyncio
+    async def test_full_outbox_event_roundtrip_is_lossless_and_idempotent(self, storage):
+        from datetime import datetime
+
+        created_at = datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC)
+        claimed_at = datetime(2026, 1, 2, 3, 5, 5, tzinfo=UTC)
+        dead_letter_at = datetime(2026, 1, 2, 3, 6, 5, tzinfo=UTC)
+        event = OutboxEvent(
+            event_id="e1a2b3c4-0000-4000-8000-000000000001",
+            saga_id="order-123",
+            event_type="OrderFailed",
+            payload={"order_id": "123", "reason": "payment_declined"},
+            aggregate_type="order",
+            aggregate_id="order-123",
+            headers={"trace_id": "trace-123", "tenant": "tenant-a"},
+            status=OutboxStatus.DEAD_LETTER,
+            created_at=created_at,
+            claimed_at=claimed_at,
+            worker_id="worker-7",
+            retry_count=3,
+            last_error="broker unavailable",
+            routing_key="orders.failed",
+            partition_key="tenant-a",
+            dead_letter_at=dead_letter_at,
+            dead_letter_reason="max_retries_exceeded",
+            error_type="BrokerPublishError",
+            error_classification="transient",
+            error_fingerprint="sha256:abc123",
+            replay_count=2,
+        )
+
+        await storage.insert(event)
+        exported = [record async for record in storage.export_all()]
+        assert exported == [event.to_dict()]
+
+        # Importing the exported record twice must not duplicate or degrade it.
+        await storage.import_record(exported[0])
+        await storage.import_record(exported[0])
+
+        assert await storage.count() == 1
+        loaded = await storage.get_by_id(event.event_id)
+        assert loaded is not None
+        assert loaded.to_dict() == event.to_dict()
+
+
 class TestSQLiteStorageFactory:
     """Tests for SQLite storage via factory."""
 
