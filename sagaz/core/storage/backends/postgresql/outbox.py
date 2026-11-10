@@ -58,6 +58,8 @@ CREATE TABLE IF NOT EXISTS saga_outbox (
     error_classification VARCHAR(255),
     error_fingerprint VARCHAR(255),
     replay_count    INTEGER NOT NULL DEFAULT 0,
+    routing_key     VARCHAR(255),
+    partition_key   VARCHAR(255),
 
     -- Indexes for common queries
     CONSTRAINT valid_status CHECK (
@@ -105,6 +107,8 @@ ALTER TABLE saga_outbox ADD COLUMN IF NOT EXISTS error_type VARCHAR(255);
 ALTER TABLE saga_outbox ADD COLUMN IF NOT EXISTS error_classification VARCHAR(255);
 ALTER TABLE saga_outbox ADD COLUMN IF NOT EXISTS error_fingerprint VARCHAR(255);
 ALTER TABLE saga_outbox ADD COLUMN IF NOT EXISTS replay_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE saga_outbox ADD COLUMN IF NOT EXISTS routing_key VARCHAR(255);
+ALTER TABLE saga_outbox ADD COLUMN IF NOT EXISTS partition_key VARCHAR(255);
 """
 
 
@@ -198,13 +202,35 @@ class PostgreSQLOutboxStorage(OutboxStorage):
             INSERT INTO saga_outbox (
                 event_id, saga_id, aggregate_type, aggregate_id,
                 event_type, payload, headers, status, created_at,
-                retry_count, last_error, worker_id, dead_letter_at, dead_letter_reason,
-                error_type, error_classification, error_fingerprint, replay_count
+                claimed_at, sent_at, retry_count, last_error, worker_id,
+                dead_letter_at, dead_letter_reason, error_type, error_classification,
+                error_fingerprint, replay_count, routing_key, partition_key
             ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9,
-                $10, $11, $12, $13, $14, $15, $16, $17, $18
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+                $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22
             )
-            RETURNING *
+            ON CONFLICT (event_id) DO UPDATE SET
+                saga_id = EXCLUDED.saga_id,
+                aggregate_type = EXCLUDED.aggregate_type,
+                aggregate_id = EXCLUDED.aggregate_id,
+                event_type = EXCLUDED.event_type,
+                payload = EXCLUDED.payload,
+                headers = EXCLUDED.headers,
+                status = EXCLUDED.status,
+                created_at = EXCLUDED.created_at,
+                claimed_at = EXCLUDED.claimed_at,
+                sent_at = EXCLUDED.sent_at,
+                retry_count = EXCLUDED.retry_count,
+                last_error = EXCLUDED.last_error,
+                worker_id = EXCLUDED.worker_id,
+                dead_letter_at = EXCLUDED.dead_letter_at,
+                dead_letter_reason = EXCLUDED.dead_letter_reason,
+                error_type = EXCLUDED.error_type,
+                error_classification = EXCLUDED.error_classification,
+                error_fingerprint = EXCLUDED.error_fingerprint,
+                replay_count = EXCLUDED.replay_count,
+                routing_key = EXCLUDED.routing_key,
+                partition_key = EXCLUDED.partition_key
         """
 
         async def _insert(c):
@@ -219,6 +245,8 @@ class PostgreSQLOutboxStorage(OutboxStorage):
                 json.dumps(event.headers),
                 event.status.value,
                 event.created_at,
+                event.claimed_at,
+                event.sent_at,
                 event.retry_count,
                 event.last_error,
                 event.worker_id,
@@ -228,6 +256,8 @@ class PostgreSQLOutboxStorage(OutboxStorage):
                 event.error_classification,
                 event.error_fingerprint,
                 event.replay_count,
+                event.routing_key,
+                event.partition_key,
             )
             return event
 
@@ -585,6 +615,8 @@ class PostgreSQLOutboxStorage(OutboxStorage):
             error_classification=_row_value("error_classification"),
             error_fingerprint=_row_value("error_fingerprint"),
             replay_count=_row_value("replay_count", 0) or 0,
+            routing_key=_row_value("routing_key"),
+            partition_key=_row_value("partition_key"),
         )
 
     # Consumer Inbox Methods
@@ -694,26 +726,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
                     cursor = await conn.cursor("SELECT * FROM saga_outbox ORDER BY event_id")
                     async for row in cursor:
                         event = self._row_to_event(row)
-                        yield {
-                            "event_id": event.event_id,
-                            "saga_id": event.saga_id,
-                            "event_type": event.event_type,
-                            "payload": event.payload,
-                            "status": event.status.value,
-                            "created_at": event.created_at.isoformat()
-                            if event.created_at
-                            else None,
-                            "retry_count": event.retry_count,
-                            "last_error": event.last_error,
-                            "dead_letter_at": event.dead_letter_at.isoformat()
-                            if event.dead_letter_at
-                            else None,
-                            "dead_letter_reason": event.dead_letter_reason,
-                            "error_type": event.error_type,
-                            "error_classification": event.error_classification,
-                            "error_fingerprint": event.error_fingerprint,
-                            "replay_count": event.replay_count,
-                        }
+                        yield event.to_dict()
                 except Exception:  # pylint: disable=try-except-raise
                     # Transaction rollback is automatic with context manager
                     raise
@@ -721,23 +734,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
     async def import_record(self, record: dict[str, Any]) -> None:
         """Import a single record from transfer."""
         # Using insert which is already idempotent-ish or effectively so
-        event = OutboxEvent(
-            event_id=str(record.get("event_id")),
-            saga_id=record["saga_id"],
-            event_type=record["event_type"],
-            payload=record.get("payload", {}),
-            status=OutboxStatus(record.get("status", "pending")),
-            retry_count=int(record.get("retry_count", 0) or 0),
-            last_error=record.get("last_error"),
-            dead_letter_at=datetime.fromisoformat(record["dead_letter_at"])
-            if record.get("dead_letter_at")
-            else None,
-            dead_letter_reason=record.get("dead_letter_reason"),
-            error_type=record.get("error_type"),
-            error_classification=record.get("error_classification"),
-            error_fingerprint=record.get("error_fingerprint"),
-            replay_count=int(record.get("replay_count", 0) or 0),
-        )
+        event = OutboxEvent.from_dict(record)
         await self.insert(event)
 
     async def requeue_dead_letter_event(self, event_id: str, force: bool = False) -> OutboxEvent:
