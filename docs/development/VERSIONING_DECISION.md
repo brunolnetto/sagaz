@@ -1,6 +1,6 @@
 # Versioning Strategy Decision Document
 
-> **Release execution status — 2026-11-09:** This document retains historical options and schedules discussed earlier in 2026. Older milestone maps and alternative version proposals are historical context, not the current release schedule. The authoritative execution order is the **Final Version Plan** below, aligned with `docs/planning/release-plan.md`. The latest published package is v1.5.0; the next release candidate is v1.6.0.
+> **Release execution status — 2026-11-10:** The repository has been promoted to v1.6.0 on `main` (merge commit `9ffb07d082bc9ded427edafc37de71153e4a70d7`). Verify the v1.6.0 PyPI upload and GitHub Release record before treating that version as publicly available. The next planned release is v1.7.0, StateChart Phase 1 under ADR-040. The authoritative execution order is `docs/planning/release-plan.md`; older milestone maps below are historical context.
 
 
 **Date**: April 11, 2026  
@@ -78,15 +78,14 @@ v1.4.0  (Jan 12, 2026) — Context Streaming, Examples, Replay   ← RETROACTIVE
 
 v1.5.0  (Apr 16, 2026) — Governance, lifecycle hooks & storage enhancements [published]
 v1.6.0  (next)         — Storage extensions: DLQ, SQLite, migration [PRs #60, #62, #63]
-v1.7.0  (planned)      — StateChart migration, Phase 1 / ADR-038 [PR #189]
+v1.7.0  (planned)      — StateChart migration, Phase 1 / ADR-040 [issue #188; refreshed PR pending]
 v1.8.0  (planned)      — Analytics & chaos [PRs #67, #71, #74, #79]
 v1.9.0  (planned)      — CLI v2, CDC, tenancy & versioning [PRs #64-66, #68, #81]
 v1.10.0 (planned)      — Event-driven choreography [PR #115 prerequisite, PR #69]
 v2.0.0  (planned)      — Core extensions / breaking API work [PRs #70, #72; blockers #102, #104]
 
 The canonical dependency order is maintained in `docs/planning/release-plan.md`.
-StateChart Phase 2 (PR #191) remains deferred until its target release and compatibility
-requirements are reconciled with ADR-038 and the core-extension roadmap.
+StateChart Phase 2 (issue #190; historical PR #191) remains deferred. It is explicitly excluded from v1.7.0; select its target only after recovery, compensation, and migration semantics are reviewed against ADR-040 and the release plan.
 
 v2.0.0 remains reserved for actual breaking API changes.
 ```
