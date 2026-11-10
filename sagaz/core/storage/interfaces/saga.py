@@ -79,6 +79,7 @@ class SagaStorage(ABC):
             steps: List of step definitions and states
             context: Saga execution context
             metadata: Additional metadata (version, timestamps, etc.)
+            configuration: Active state IDs; defaults to the scalar Saga status for legacy callers
         """
         ...
 
