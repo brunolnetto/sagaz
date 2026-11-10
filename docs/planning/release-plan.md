@@ -54,21 +54,22 @@ Wave 5  ─── v2.0.0 ──────── Core extensions               
 
 ## Wave 1 — v1.6.0 "Storage Extensions"
 
-**Target**: TBD — the original May 2026 target has elapsed; set a new date after the release gates pass
+**Target**: 2026-11-10 release candidate preparation; publication remains subject to validation review
 **Risk**: Medium — persistent storage, cross-backend data integrity, and outbox recovery
-**Original feature merge order**: #62 → #63 → #60 (all three feature PRs are already in `develop`)
+**Original feature merge order**: #62 → #63 → #60 (all three feature PRs are merged into `develop`)
 
 | PR | Branch | Feature | Issue | Current status |
 |----|--------|---------|-------|----------------|
-| #62 | feature/sqlite-backend | SQLite storage + outbox backend | #46 | Merged; unit coverage and the `sagaz[sqlite]` extra are present |
-| #63 | feature/storage-data-transfer | Storage migration/transfer layer | #47 | Merged; integrity gaps reopened for hardening |
-| #60 | feature/dead-letter-queue | Dead Letter Queue (DLQ) pattern | #44 | Merged; awaiting full SQLite + RabbitMQ lifecycle test |
+| #62 | feature/sqlite-backend | SQLite storage + outbox backend | #46 | Merged; SQLite extra, legacy schema handling, and unit coverage present |
+| #63 | feature/storage-data-transfer | Storage migration/transfer layer | #47 | Merged via PR #351; local unit/regression coverage passed; container integration evidence remains incomplete |
+| #60 | feature/dead-letter-queue | Dead Letter Queue (DLQ) pattern | #44 | Merged via PR #350; RabbitMQ + SQLite lifecycle integration test passed locally |
 
-**Release gates (reconciled 2026-11-10)**:
-- #62: SQLite Saga/Outbox unit coverage exists; legacy outbox schema backfill and optional install extra are covered by the v1.6.0 hardening work.
-- #63: [PR #351](https://github.com/brunolnetto/sagaz/pull/351) addresses reopened issue #47. It adds canonical serialization, schema upgrades, full-content validation/checksums, PostgreSQL archive transfer, and a SQLite → PostgreSQL round-trip test. Pause outbox workers during transfer/cutover. Do not release until the PR and integration test pass.
-- #60: issue #110 is reopened. [PR #350](https://github.com/brunolnetto/sagaz/pull/350) adds the missing end-to-end test using persistent SQLite storage and a real RabbitMQ container. Do not release until its integration test passes.
-- CI workflow repairs are tracked separately; a green release run remains a release gate, not assumed evidence.
+**Validation record (2026-11-10)**:
+- #62: SQLite Saga/Outbox unit coverage, legacy outbox schema backfill, and the optional `sagaz[sqlite]` extra are present.
+- #63: [PR #351](https://github.com/brunolnetto/sagaz/pull/351) adds canonical serialization, schema upgrades, full-content validation/checksums, PostgreSQL archive transfer, and migration integrity safeguards. The local backend/migration unit batch reported 163 passed and 3 skipped. The skipped container-dependent tests mean live PostgreSQL/Redis migration behavior has not been fully verified in that run. Pause outbox workers during transfer/cutover.
+- #60: [PR #350](https://github.com/brunolnetto/sagaz/pull/350) adds the SQLite + RabbitMQ DLQ lifecycle integration test. Local result: 1 passed. The corresponding GitHub integration job was skipped.
+- CI: several GitHub Actions checks remain failing. This release preparation does not represent a green CI run. Manual publication requires an explicit decision to accept that limitation.
+- **Outstanding validation**: run the PostgreSQL/Redis container-dependent migration tests before claiming full cross-backend integration coverage. Do not describe those paths as verified until they pass.
 
 ---
 

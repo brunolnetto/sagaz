@@ -1052,12 +1052,30 @@ class TestPostgreSQLOutboxStorageCoverage:
 
     @pytest.mark.asyncio
     async def test_postgresql_outbox_import_record(self):
-        """Test import_record() method."""
+        """Test import_record() locks, checks, and inserts a missing event."""
         from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
         storage = PostgreSQLOutboxStorage("postgresql://localhost/test")
 
-        # Mock insert method
+        # Model an acquired connection and an active transaction.
+        mock_conn = AsyncMock()
+        mock_conn.fetchval = AsyncMock(return_value=None)
+        mock_conn.fetchrow = AsyncMock(side_effect=[None, None])
+
+        mock_transaction = MagicMock()
+        mock_transaction.__aenter__ = AsyncMock(return_value=None)
+        mock_transaction.__aexit__ = AsyncMock(return_value=None)
+        mock_conn.transaction = MagicMock(return_value=mock_transaction)
+
+        mock_pool_context = MagicMock()
+        mock_pool_context.__aenter__ = AsyncMock(return_value=mock_conn)
+        mock_pool_context.__aexit__ = AsyncMock(return_value=None)
+
+        mock_pool = MagicMock()
+        mock_pool.acquire = MagicMock(return_value=mock_pool_context)
+        storage._pool = mock_pool
+
+        # Isolate the persistence boundary while exercising import_record().
         storage.insert = AsyncMock()
 
         await storage.import_record(
@@ -1070,10 +1088,17 @@ class TestPostgreSQLOutboxStorageCoverage:
             }
         )
 
-        storage.insert.assert_called_once()
-        call_args = storage.insert.call_args[0][0]
-        assert call_args.saga_id == "saga-456"
-        assert call_args.event_type == "TestEvent"
+        # Advisory lock + active/archive lookups.
+        mock_conn.fetchval.assert_awaited_once()
+        assert mock_conn.fetchrow.await_count == 2
+
+        # New events are inserted using the transaction's connection.
+        storage.insert.assert_awaited_once()
+        event = storage.insert.await_args.args[0]
+        assert event.event_id == "evt-123"
+        assert event.saga_id == "saga-456"
+        assert event.event_type == "TestEvent"
+        assert storage.insert.await_args.kwargs["connection"] is mock_conn
 
 
 # =============================================================================

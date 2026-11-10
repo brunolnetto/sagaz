@@ -7,66 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for v1.6.0 — Storage Extensions
+## [1.6.0] - 2026-11-10
+
+### Added
 
 #### Dead Letter Queue
-- Add dead-letter timestamps and reasons to outbox events, with storage round-trip support.
-- Park permanently failing events so later events are not blocked indefinitely.
-- Expose replay and purge operations through storage interfaces and the `sagaz dlq` CLI.
-- Export the `sagaz_dlq_depth` Prometheus gauge for operational alerting.
+- Added dead-letter timestamps and failure reasons to outbox events, with persistence support.
+- Added operations to park, replay, and purge dead-lettered events.
+- Added the `sagaz dlq` CLI interface for DLQ operations.
+- Exposed the `sagaz_dlq_depth` Prometheus gauge.
 
 #### SQLite Storage
-- Add SQLite implementations for Saga storage and the transactional outbox.
-- Expose the backend through the optional `sagaz[sqlite]` extra.
+- Added SQLite implementations for Saga storage and the transactional outbox.
+- Added the optional `sagaz[sqlite]` installation extra.
+- Added backward-compatible handling for legacy SQLite outbox schemas.
 
 #### Cross-Backend Storage Migration
-- Add the `SagaStorageMigrator` service and `sagaz migrate` CLI command.
-- Support transferring Saga data between supported storage backends without changing existing Saga APIs.
+- Added the `SagaStorageMigrator` service and `sagaz migrate` CLI command.
+- Added canonical serialization, content validation, and checksums for transferred storage data.
+- Added PostgreSQL archive transfer support and migration integrity checks.
+- Added safeguards against overwriting destination state that has advanced since the migration snapshot.
 
-#### Compatibility and Validation
-- Keep DLQ metadata nullable and backward-compatible for existing outbox records.
-- Add tests for DLQ lifecycle, SQLite storage/outbox behavior, and storage migration.
+#### Developer Workflow
+- Added conventional-commit and branch-name validation hooks and automation.
+- Added Renovate commit-message configuration and developer workflow documentation.
 
-### Added - GitFlow Compliance System
+### Tests
+- Added an end-to-end DLQ replay test using persistent SQLite storage and a RabbitMQ container.
+- Expanded storage migration and outbox regression coverage.
 
-#### 🔒 Automatic Commit Validation
-- **NEW:** Husky git hooks for automatic commit message validation
-  - `commit-msg` hook - Validates conventional commit format, rejects empty messages
-  - `pre-push` hook - Validates branch naming patterns before push
-  - `prepare-commit-msg` hook - Provides helpful template for empty messages
-- **NEW:** GitHub Actions workflow (`.github/workflows/validate-commits.yml`)
-  - Validates all commits in PRs and feature branches
-  - Enforces conventional commit format (type, scope, subject)
-  - Checks branch naming compliance automatically
-  - Blocks merging of non-compliant commits
-
-#### 📋 Conventional Commit Enforcement
-- **NEW:** Renovate bot configuration for proper commit messages
-  - Enforces `chore(deps): update <package> to <version>` format
-  - Prevents empty commit messages from automated tools
-  - Configurable via `commitMessagePrefix`, `commitMessageAction`, `commitMessageTopic`
-- **NEW:** Approved scope list for conventional commits
-  - Types: `feat`, `fix`, `docs`, `refactor`, `test`, `perf`, `build`, `ci`, `chore`, `revert`
-  - Scopes: `saga`, `dag`, `outbox`, `storage`, `strategies`, `monitoring`, `cli`, `execution`, `triggers`, `visualization`, `integrations`, `sagaz`, `docs`, `ci`, `deps`, `tests`
-
-#### 📚 Documentation & Guides
-- **NEW:** `docs/development/commit-validation.md` - Comprehensive guide to conventional commits
-- **NEW:** `docs/development/github-branch-protection.md` - GitHub branch protection setup guide
-- **NEW:** `docs/development/GITFLOW_IMPLEMENTATION.md` - Complete system architecture and testing procedures
-- **NEW:** `.github/pull_request_template.md` - PR template reminding about commit format requirements
-- **NEW:** `scripts/setup-branch-protection.sh` - Bash script for GitHub API configuration
-
-#### 🛠️ Developer Workflow
-- **NEW:** npm scripts for hook management
-  - `npm run hooks:install` - Install git hooks
-  - `npm run hooks:uninstall` - Remove git hooks
-  - `npm run validate:commits` - Check recent commits for compliance
-- **NEW:** Automatic hook installation via `npm install` (via prepare script)
-- **NEW:** Complete troubleshooting guides and examples
-
-### Fixed
-- **FIX:** 323 empty commit messages in repository history by enforcing validation
-- **FIX:** 142+ bot commits not following conventional format via Renovate configuration
+### Validation Notes
+- The RabbitMQ DLQ lifecycle integration test passed locally.
+- Some PostgreSQL and Redis container-dependent migration tests were not run locally.
+- GitHub Actions checks were not fully green at release preparation time; see `docs/planning/release-plan.md` for the validation record.
 
 ## [1.5.0] - 2026-04-16
 
