@@ -740,7 +740,7 @@ class RedisOutboxStorage(OutboxStorage):
             async with self._redis.pipeline() as pipe:
                 pipe.hset(meta_key, mapping=event_data)
                 pipe.expire(meta_key, self._event_ttl_seconds)
-                if event.status == OutboxStatus.PENDING:
+                if event.status in (OutboxStatus.PENDING, OutboxStatus.CLAIMED):
                     pipe.xadd(
                         self._stream_key,
                         {
@@ -754,7 +754,7 @@ class RedisOutboxStorage(OutboxStorage):
             return
 
         await self._redis.hset(meta_key, mapping=event_data)
-        if existing.status != OutboxStatus.PENDING and event.status == OutboxStatus.PENDING:
+        if existing.status not in (OutboxStatus.PENDING, OutboxStatus.CLAIMED)\n            and event.status in (OutboxStatus.PENDING, OutboxStatus.CLAIMED):
             await self._redis.xadd(
                 self._stream_key,
                 {
