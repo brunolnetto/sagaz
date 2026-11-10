@@ -44,10 +44,7 @@ def _canonical_checksum_value(value: Any, field_name: str | None = None) -> Any:
     if hasattr(value, "to_dict"):
         return _canonical_checksum_value(value.to_dict())
     if isinstance(value, dict):
-        return {
-            str(key): _canonical_checksum_value(item, str(key))
-            for key, item in value.items()
-        }
+        return {str(key): _canonical_checksum_value(item, str(key)) for key, item in value.items()}
     if isinstance(value, (list, tuple)):
         return [_canonical_checksum_value(item) for item in value]
     if isinstance(value, set):
@@ -77,7 +74,8 @@ async def _storage_checksum(
 ) -> tuple[int, str]:
     """Compute an order-independent checksum over all exported storage records."""
     if not hasattr(storage, "export_all"):
-        raise TypeError(f"{storage.__class__.__name__} does not support export_all()")
+        msg = f"{storage.__class__.__name__} does not support export_all()"
+        raise TypeError(msg)
 
     count = 0
     sum_digest = 0
@@ -103,9 +101,7 @@ async def _storage_checksum(
         count += 1
 
     checksum_payload = (
-        count.to_bytes(8, "big")
-        + sum_digest.to_bytes(32, "big")
-        + sum_squares.to_bytes(32, "big")
+        count.to_bytes(8, "big") + sum_digest.to_bytes(32, "big") + sum_squares.to_bytes(32, "big")
     )
     return count, hashlib.sha256(checksum_payload).hexdigest()
 
@@ -167,20 +163,13 @@ class VerificationResult:
 
     @property
     def saga_checksums_match(self) -> bool:
-        return (
-            not self.source_saga_checksum
-            and not self.dest_saga_checksum
-        ) or (
-            bool(self.source_saga_checksum)
-            and self.source_saga_checksum == self.dest_saga_checksum
+        return (not self.source_saga_checksum and not self.dest_saga_checksum) or (
+            bool(self.source_saga_checksum) and self.source_saga_checksum == self.dest_saga_checksum
         )
 
     @property
     def event_checksums_match(self) -> bool:
-        return (
-            not self.source_event_checksum
-            and not self.dest_event_checksum
-        ) or (
+        return (not self.source_event_checksum and not self.dest_event_checksum) or (
             bool(self.source_event_checksum)
             and self.source_event_checksum == self.dest_event_checksum
         )

@@ -129,6 +129,7 @@ class TestInMemorySagaStorage:
             steps=steps,
             context=context,
             metadata=metadata,
+            configuration=["executing"],
         )
 
         loaded = await storage.load_saga_state(saga_id)
@@ -140,6 +141,35 @@ class TestInMemorySagaStorage:
         assert loaded["steps"] == steps
         assert loaded["context"] == context
         assert loaded["metadata"] == metadata
+        assert loaded["configuration"] == ["executing"]
+
+    @pytest.mark.asyncio
+    async def test_configuration_is_defensively_copied(self):
+        storage = InMemorySagaStorage()
+        configuration = ["executing"]
+
+        await storage.save_saga_state(
+            saga_id="configuration-copy",
+            saga_name="ConfigurationCopySaga",
+            status=SagaStatus.EXECUTING,
+            steps=[],
+            context={},
+            configuration=configuration,
+        )
+
+        # Mutating the caller's original list must not affect storage.
+        configuration.append("external-mutation")
+
+        loaded = await storage.load_saga_state("configuration-copy")
+        assert loaded is not None
+        assert loaded["configuration"] == ["executing"]
+
+        # Mutating a loaded record must not affect storage either.
+        loaded["configuration"].append("caller-mutation")
+
+        reloaded = await storage.load_saga_state("configuration-copy")
+        assert reloaded is not None
+        assert reloaded["configuration"] == ["executing"]
 
     @pytest.mark.asyncio
     async def test_load_nonexistent_saga(self):

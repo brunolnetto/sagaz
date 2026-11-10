@@ -32,7 +32,7 @@ class TestSagaStorageInterface:
 
         class MinimalSagaStorage(SagaStorage):
             async def save_saga_state(
-                self, saga_id, saga_name, status, steps, context, metadata=None
+                self, saga_id, saga_name, status, steps, context, metadata=None, configuration=None
             ):
                 pass
 

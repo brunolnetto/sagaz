@@ -119,6 +119,55 @@ class TestSagaSnapshot:
         assert data["context"] == {"key": "value"}
         assert data["completed_steps"] == ["step0"]
 
+    def test_snapshot_configuration_defaults_to_status(self):
+        snapshot = SagaSnapshot.create(
+            saga_id=uuid4(),
+            saga_name="TestSaga",
+            step_name="step1",
+            step_index=0,
+            status="executing",
+            context={},
+            completed_steps=[],
+        )
+
+        assert snapshot.configuration == ["executing"]
+
+    def test_snapshot_configuration_roundtrip(self):
+        configuration = ["executing"]
+        snapshot = SagaSnapshot.create(
+            saga_id=uuid4(),
+            saga_name="TestSaga",
+            step_name="step1",
+            step_index=0,
+            status="executing",
+            context={},
+            completed_steps=[],
+            configuration=configuration,
+        )
+
+        configuration.append("mutated")
+        restored = SagaSnapshot.from_dict(snapshot.to_dict())
+
+        assert snapshot.configuration == ["executing"]
+        assert restored.configuration == ["executing"]
+
+    def test_legacy_snapshot_without_configuration_uses_status(self):
+        snapshot = SagaSnapshot.create(
+            saga_id=uuid4(),
+            saga_name="TestSaga",
+            step_name="step1",
+            step_index=0,
+            status="executing",
+            context={},
+            completed_steps=[],
+        )
+        legacy_data = snapshot.to_dict()
+        legacy_data.pop("configuration")
+
+        restored = SagaSnapshot.from_dict(legacy_data)
+
+        assert restored.configuration == ["executing"]
+
     def test_snapshot_from_dict(self):
         original = SagaSnapshot.create(
             saga_id=uuid4(),

@@ -46,6 +46,7 @@ class TestSQLiteSagaStorage:
             status=SagaStatus.EXECUTING,
             steps=[{"name": "step1", "status": "pending"}],
             context={"order_id": "123"},
+            configuration=["executing"],
         )
 
         saga = await storage.load_saga_state("test-saga-1")
@@ -55,6 +56,63 @@ class TestSQLiteSagaStorage:
         assert saga["saga_name"] == "OrderSaga"
         assert saga["status"] == "executing"
         assert saga["context"]["order_id"] == "123"
+        assert saga["configuration"] == ["executing"]
+
+    @pytest.mark.asyncio
+    async def test_legacy_saga_schema_is_upgraded_and_backfilled(self, tmp_path):
+        db_path = tmp_path / "legacy-sagas.db"
+        conn = await aiosqlite.connect(str(db_path))
+        await conn.executescript(
+            """
+            CREATE TABLE sagas (
+                saga_id TEXT PRIMARY KEY,
+                saga_name TEXT NOT NULL,
+                status TEXT NOT NULL,
+                steps TEXT NOT NULL,
+                context TEXT NOT NULL,
+                metadata TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
+            INSERT INTO sagas (
+                saga_id, saga_name, status, steps, context,
+                metadata, created_at, updated_at
+            ) VALUES (
+                'legacy-saga', 'LegacySaga', 'completed', '[]', '{}',
+                NULL, '2026-01-01T00:00:00+00:00',
+                '2026-01-01T00:00:00+00:00'
+            );
+            """
+        )
+        await conn.commit()
+        await conn.close()
+
+        from sagaz.core.storage.backends.sqlite import SQLiteSagaStorage
+
+        storage = SQLiteSagaStorage(str(db_path))
+        async with storage:
+            legacy = await storage.load_saga_state("legacy-saga")
+            assert legacy is not None
+            assert legacy["configuration"] == ["completed"]
+
+            # Initialization is idempotent.
+            await storage._init_schema()
+            restored = await storage.load_saga_state("legacy-saga")
+            assert restored is not None
+            assert restored["configuration"] == ["completed"]
+
+            await storage.save_saga_state(
+                saga_id="legacy-saga",
+                saga_name="LegacySaga",
+                status=SagaStatus.EXECUTING,
+                steps=[],
+                context={},
+                configuration=["executing"],
+            )
+            updated = await storage.load_saga_state("legacy-saga")
+            assert updated is not None
+            assert updated["configuration"] == ["executing"]
 
     @pytest.mark.asyncio
     async def test_load_nonexistent_saga(self, storage):
@@ -274,6 +332,7 @@ class TestSQLiteSagaStorage:
         saga = await storage.load_saga_state("imported-saga")
         assert saga is not None
         assert saga["saga_name"] == "ImportedSaga"
+        assert saga["configuration"] == ["completed"]
 
 
 class TestSQLiteOutboxStorage:

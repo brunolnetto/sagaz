@@ -972,3 +972,29 @@ class TestTransferServiceBranches:
 
 # ==========================================================================
 # strategies/fail_fast.py  – 78->77
+
+
+@pytest.mark.asyncio
+async def test_saga_configuration_survives_storage_transfer():
+    from sagaz.core.storage.backends.memory.saga import InMemorySagaStorage
+    from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
+    from sagaz.core.types import SagaStatus
+
+    source = InMemorySagaStorage()
+    await source.save_saga_state(
+        saga_id="configuration-transfer",
+        saga_name="ConfigurationTransferSaga",
+        status=SagaStatus.EXECUTING,
+        steps=[],
+        context={},
+        configuration=["executing"],
+    )
+
+    target = SQLiteSagaStorage(":memory:")
+    async with target:
+        result = await transfer_data(source, target, validate=True)
+
+        assert result.transferred == 1
+        restored = await target.load_saga_state("configuration-transfer")
+        assert restored is not None
+        assert restored["configuration"] == ["executing"]

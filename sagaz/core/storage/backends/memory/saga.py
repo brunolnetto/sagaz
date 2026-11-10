@@ -34,6 +34,7 @@ class InMemorySagaStorage(SagaStorage):
         steps: list[dict[str, Any]],
         context: dict[str, Any],
         metadata: dict[str, Any] | None = None,
+        configuration: list[str] | None = None,
     ) -> None:
         """Save saga state to memory"""
 
@@ -45,6 +46,7 @@ class InMemorySagaStorage(SagaStorage):
                 "steps": steps,
                 "context": context,
                 "metadata": metadata or {},
+                "configuration": list(configuration) if configuration else [status.value],
                 "created_at": datetime.now(UTC).isoformat(),
                 "updated_at": datetime.now(UTC).isoformat(),
             }
@@ -55,8 +57,10 @@ class InMemorySagaStorage(SagaStorage):
         async with self._lock:
             saga_data = self._sagas.get(saga_id)
             if saga_data:
-                # Return a copy to prevent external modification
-                return dict(saga_data)
+                # Return a copy to prevent external modification.
+                result = dict(saga_data)
+                result["configuration"] = list(result.get("configuration") or [result["status"]])
+                return result
             return None
 
     async def delete_saga_state(self, saga_id: str) -> bool:
@@ -264,8 +268,10 @@ class InMemorySagaStorage(SagaStorage):
             # Sort by ID to ensure consistent order
             sorted_sagas = sorted(self._sagas.values(), key=lambda x: x["saga_id"])
             for saga_data in sorted_sagas:
-                # Yield a copy
-                yield dict(saga_data)
+                # Yield a copy with a fallback for legacy in-memory records.
+                record = dict(saga_data)
+                record["configuration"] = list(record.get("configuration") or [record["status"]])
+                yield record
 
     async def import_record(self, record: dict[str, Any]) -> None:
         """Import a single record from transfer."""
@@ -276,4 +282,5 @@ class InMemorySagaStorage(SagaStorage):
             steps=record.get("steps", []),
             context=record.get("context", {}),
             metadata=record.get("metadata"),
+            configuration=record.get("configuration") or [record["status"]],
         )

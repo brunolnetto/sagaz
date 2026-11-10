@@ -3906,7 +3906,7 @@ requires-dist = [
     { name = "opentelemetry-sdk", marker = "extra == 'tracing'", specifier = ">=1.39.1" },
     { name = "prometheus-client", marker = "extra == 'prometheus'", specifier = ">=0.23.1" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
-    { name = "python-statemachine", specifier = ">=2.1.0" },
+    { name = "python-statemachine", specifier = ">=3.0.0" },
     { name = "pyyaml", specifier = ">=6.0.0" },
     { name = "redis", marker = "extra == 'redis'", specifier = ">=7.1.0" },
     { name = "redis", marker = "extra == 'storage'", specifier = ">=7.0.0" },

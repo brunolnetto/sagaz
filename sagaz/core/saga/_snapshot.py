@@ -29,6 +29,12 @@ class _SagaSnapshotMixin:
         """Get current state name"""
         return self._state_machine.current_state.name  # type: ignore[union-attr, no-any-return]
 
+    @property
+    def state_configuration(self) -> list[str]:
+        """Return active state values in a serializable representation."""
+        values = [str(value) for value in self._state_machine.configuration_values]
+        return values or [self.status.value]
+
     def get_status(self) -> dict[str, Any]:
         """Get detailed saga status"""
         return {
@@ -37,6 +43,7 @@ class _SagaSnapshotMixin:
             "version": self.version,
             "status": self.status.value,
             "current_state": self.current_state,
+            "configuration": self.state_configuration,
             "total_steps": len(self.steps),
             "completed_steps": len(self.completed_steps),
             "steps": [self._get_step_status(step) for step in self.steps],
@@ -109,6 +116,7 @@ class _SagaSnapshotMixin:
                 context=self.context.data.copy(),
                 completed_steps=[s.name for s in self.completed_steps],
                 retention_until=self.replay_config.get_retention_until(),
+                configuration=self.state_configuration,
             )
             await self.snapshot_storage.save_snapshot(snapshot)
             logger.debug(
