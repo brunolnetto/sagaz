@@ -2,7 +2,9 @@
 
 Active development roadmap for the Sagaz saga pattern library.
 
-> **Updated**: 2026-04-08 | **Version**: 1.1.2 → 2.x
+> **Release snapshot**: 2026-11-09 | **Latest published**: v1.5.0 | **Next candidate**: v1.6.0 — Storage Extensions
+
+> **Source of truth for release ordering**: [the dependency-ordered release plan](planning/release-plan.md). The sprint dates and alternative release schedules below are retained as historical planning context and must not override that plan.
 
 ---
 
@@ -20,7 +22,7 @@ Sagaz competes with AWS Step Functions, Temporal, and Azure Durable Functions by
 
 ---
 
-## Current Version: 1.1.2
+## Current Version: 1.5.0
 
 ### ✅ Completed Features
 
@@ -50,7 +52,12 @@ Sagaz competes with AWS Step Functions, Temporal, and Azure Durable Functions by
 | **Framework Integration** (FastAPI/Django/Flask) | 1.3.0 | ✅ Done — [ADR-028](architecture/adr/adr-028-framework-integration.md) |
 | **Lightweight Context Streaming** | 1.4.0 | ✅ Done — [ADR-021](architecture/adr/adr-021-lightweight-context-streaming.md) |
 | **Industry Examples** (24 examples, 12 verticals) | 1.4.0 | ✅ Done — [ADR-026](architecture/adr/adr-026-industry-examples-expansion.md) |
-| **Saga Replay & Time-Travel** | 2.1.0 | ✅ Done — [ADR-024](architecture/adr/adr-024-saga-replay.md) |
+| **Saga Replay & Time-Travel** | 1.4.0 | ✅ Done — [ADR-024](architecture/adr/adr-024-saga-replay.md) |
+| **Compliance & Data Governance** | 1.5.0 | ✅ Published — [ADR-037](architecture/adr/adr-037-compliance-data-governance.md) |
+| **Saga Lifecycle Hooks & Observers** | 1.5.0 | ✅ Published — [ADR-036](architecture/adr/adr-036-lifecycle-hooks-observers.md) |
+| **Dead Letter Queue + CLI** | 1.6.0 | 📦 In current release candidate |
+| **SQLite Storage + Outbox** | 1.6.0 | 📦 In current release candidate |
+| **Cross-Backend Storage Migration** | 1.6.0 | 📦 In current release candidate |
 
 ---
 

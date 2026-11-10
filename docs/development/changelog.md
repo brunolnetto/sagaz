@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Planned for v1.6.0 — Storage Extensions
+
+#### Dead Letter Queue
+- Add dead-letter timestamps and reasons to outbox events, with storage round-trip support.
+- Park permanently failing events so later events are not blocked indefinitely.
+- Expose replay and purge operations through storage interfaces and the `sagaz dlq` CLI.
+- Export the `sagaz_dlq_depth` Prometheus gauge for operational alerting.
+
+#### SQLite Storage
+- Add SQLite implementations for Saga storage and the transactional outbox.
+- Expose the backend through the optional `sagaz[sqlite]` extra.
+
+#### Cross-Backend Storage Migration
+- Add the `SagaStorageMigrator` service and `sagaz migrate` CLI command.
+- Support transferring Saga data between supported storage backends without changing existing Saga APIs.
+
+#### Compatibility and Validation
+- Keep DLQ metadata nullable and backward-compatible for existing outbox records.
+- Add tests for DLQ lifecycle, SQLite storage/outbox behavior, and storage migration.
+
 ### Added - GitFlow Compliance System
 
 #### 🔒 Automatic Commit Validation
@@ -47,6 +67,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **FIX:** 323 empty commit messages in repository history by enforcing validation
 - **FIX:** 142+ bot commits not following conventional format via Renovate configuration
+
+## [1.5.0] - 2026-04-16
+
+### Added
+- Compliance and data-governance capabilities from ADR-037, including audit trails, retention policies, and encryption support.
+- Step-level Saga lifecycle hooks and saga-level observer/event dispatch from ADR-036.
+- AlertManager integration guidance and monitoring support.
+
+### Enhanced
+- PostgreSQL storage guidance and high-availability improvements, including partitioning and connection-pooling recommendations.
+- CI/CD governance, GitFlow validation, and release-process documentation.
+
+### Compatibility
+- The release notes describe the published v1.5.0 package. Later storage extensions are tracked under the upcoming v1.6.0 release.
+
+---
 
 ## [1.0.3] - 2024-12-26
 

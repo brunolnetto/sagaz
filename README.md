@@ -460,23 +460,18 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Project Status
 
-**Current Version**: 1.0.4 (January 2026)
+**Current Version**: 1.5.0 (April 2026)
 
-**Recent Updates** (v1.0.4):
-- **Unified StorageManager** - Shared connection pooling for saga + outbox
-- **SagaConfig Integration** - Simplified configuration with StorageManager
-- Refactored internal storage architecture
-- Fixed CLI interactive menu hangs in tests
+**Recent Updates** (v1.5.0):
+- **Compliance and data governance (ADR-037)** - audit trails, retention policies, and encryption support
+- **Saga lifecycle hooks and observers (ADR-036)** - step-level hooks and saga-level event dispatch
+- **Enhanced PostgreSQL storage** - partitioning, connection pooling, and high-availability improvements
+- **CI and release governance** - GitFlow validation and release-process improvements
 
-**v1.0.3 Features:**
-- Mermaid diagram generation with state markers
-- `to_mermaid_with_execution()` - Auto-fetch trail from storage
-- Connected graph validation for DAG sagas
-- Grafana dashboard template
-- Unified SagaConfig with environment variable support
-
-**v1.0.0-1.0.2:**
-- Optimistic sending pattern (10x latency improvement)
+**Earlier Releases**:
+- v1.4.0: Lightweight context streaming, industry examples, and saga replay/time-travel
+- v1.3.0: Pivot steps, event triggers, dry-run mode, CLI, and framework integration
+- v1.2.0: Unified storage layer and compensation result passing
 - Consumer inbox pattern (exactly-once processing)
 - Kubernetes manifests (production deployment)
 - 96% test coverage with 860+ tests

@@ -1,5 +1,8 @@
 # Versioning Strategy Decision Document
 
+> **Release execution status — 2026-11-09:** This document retains historical options and schedules discussed earlier in 2026. Older milestone maps and alternative version proposals are historical context, not the current release schedule. The authoritative execution order is the **Final Version Plan** below, aligned with `docs/planning/release-plan.md`. The latest published package is v1.5.0; the next release candidate is v1.6.0.
+
+
 **Date**: April 11, 2026  
 **Status**: ✅ DECIDED & IMPLEMENTED  
 **Issue**: Version gap from 1.1.2 → 1.5.0 with skipped intermediate versions
@@ -24,16 +27,21 @@
 
 All three are published as GitHub Releases at https://github.com/brunolnetto/sagaz/releases
 
-### 2. Milestones Renamed (SemVer Compliant)
+### 2. Historical Milestone Rename Proposal
 
-| Old Name | New Name | Milestone # | PRs |
-|----------|----------|-------------|-----|
-| v2.0.0: Analytics & Chaos | **v1.7.0: Analytics & Chaos** | 9 | #67, #71, #74, #79 |
-| v2.1.0: CLI v2 + CDC + Tenancy | **v1.8.0: CLI v2 + CDC + Tenancy** | 10 | #64, #65, #66, #68, #81 |
-| v2.2.0: Choreography | **v1.9.0: Choreography** | 11 | #69 |
-| v2.3.0: Core Extensions | **v1.10.0: Core Extensions** | 12 | #70, #72 |
+The table below records the earlier SemVer proposal before the dependency-ordered
+StateChart release was added. Its version mapping is superseded by the **Final
+Version Plan** later in this document and by `docs/planning/release-plan.md`.
+Do not use this historical table to close milestones or trigger releases.
 
-v2.0.0 is now **reserved for actual breaking API changes**.
+| Old Name | Earlier Proposed Name | Milestone # | PRs |
+|----------|-----------------------|-------------|-----|
+| v2.0.0: Analytics & Chaos | v1.7.0: Analytics & Chaos | 9 | #67, #71, #74, #79 |
+| v2.1.0: CLI v2 + CDC + Tenancy | v1.8.0: CLI v2 + CDC + Tenancy | 10 | #64, #65, #66, #68, #81 |
+| v2.2.0: Choreography | v1.9.0: Choreography | 11 | #69 |
+| v2.3.0: Core Extensions | v1.10.0: Core Extensions | 12 | #70, #72 |
+
+v2.0.0 remains **reserved for actual breaking API changes**.
 
 ### 3. GitHub Actions Release Automation
 
@@ -62,20 +70,25 @@ v1.0.2  (Dec 26, 2025) — Patch
 v1.0.3  (Dec 27, 2025) — Patch
 v1.1.0  (Feb 24, 2026) — Stability & testing improvements
 v1.1.1  (Feb 24, 2026) — Patch
-v1.1.2  (Feb 24, 2026) — Patch                        ← current latest on PyPI
+v1.5.0  (Apr 16, 2026) — Governance, lifecycle hooks & storage enhancements ← latest published on PyPI
 
 v1.2.0  (Jan 2, 2026)  — Unified Storage, Compensation Passing ← RETROACTIVELY TAGGED
 v1.3.0  (Jan 11, 2026) — CLI, Dry-Run, Framework Integration   ← RETROACTIVELY TAGGED
 v1.4.0  (Jan 12, 2026) — Context Streaming, Examples, Replay   ← RETROACTIVELY TAGGED
 
-v1.5.0  (Apr 2026)     — Governance & Ops          [PRs #60, #61]
-v1.6.0  (May 2026)     — Storage Extensions        [PRs #62, #63]
-v1.7.0  (Jun 2026)     — Analytics & Chaos         [PRs #67, #71, #74, #79]
-v1.8.0  (Jul 2026)     — CLI v2 + CDC + Tenancy    [PRs #64-66, #68, #81]
-v1.9.0  (Sep 2026)     — Choreography              [PR #69]
-v1.10.0 (Nov 2026)     — Core Extensions           [PRs #70, #72]
+v1.5.0  (Apr 16, 2026) — Governance, lifecycle hooks & storage enhancements [published]
+v1.6.0  (next)         — Storage extensions: DLQ, SQLite, migration [PRs #60, #62, #63]
+v1.7.0  (planned)      — StateChart migration, Phase 1 / ADR-038 [PR #189]
+v1.8.0  (planned)      — Analytics & chaos [PRs #67, #71, #74, #79]
+v1.9.0  (planned)      — CLI v2, CDC, tenancy & versioning [PRs #64-66, #68, #81]
+v1.10.0 (planned)      — Event-driven choreography [PR #115 prerequisite, PR #69]
+v2.0.0  (planned)      — Core extensions / breaking API work [PRs #70, #72; blockers #102, #104]
 
-v2.0.0  (TBD)          — RESERVED for breaking API changes only
+The canonical dependency order is maintained in `docs/planning/release-plan.md`.
+StateChart Phase 2 (PR #191) remains deferred until its target release and compatibility
+requirements are reconciled with ADR-038 and the core-extension roadmap.
+
+v2.0.0 remains reserved for actual breaking API changes.
 ```
 
 ---
