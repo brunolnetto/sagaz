@@ -24,7 +24,7 @@
 ```
 Wave 0  ─── v1.5.0 ──────── Governance & lightweight ops  (no core changes)
 Wave 1  ─── v1.6.0 ──────── Storage extensions             (storage/ layer only)
-Wave 1b ─── v1.7.0 ──────── SCXML state machine migration  (core/execution only — ADR-038)
+Wave 1b ─── v1.7.0 ──────── StateChart compatibility migration (core/execution + storage — ADR-040)
 Wave 2  ─── v1.8.0 ──────── Analytics & chaos              (new sagaz[analytics] extra)
 Wave 3  ─── v1.9.0 ──────── CLI v2 + CDC + tenancy         (service/infra expansion)
 Wave 4  ─── v1.10.0 ─────── Event-driven choreography      (new execution model)
@@ -67,6 +67,29 @@ Wave 5  ─── v2.0.0 ──────── Core extensions               
 **Gap watch** (from review report):
 - #62: no unit tests — add before merge (see issue #105)
 - #60: no fill-and-replay integration test — add before merge (see issue #106)
+
+---
+
+## Wave 1b — v1.7.0 "StateChart Compatibility Migration" (ADR-040)
+
+**Target**: After v1.6.0; calendar date to be set after the release candidate is validated  
+**Risk**: Medium — changes the state-machine base class used by all Saga executions  
+**Scope**: Phase 1 only; preserve flat state-machine behavior while exposing serializable configuration
+
+| Work item | Feature | Issue | Merge prerequisite |
+|------------|---------|-------|-------------------|
+| StateChart Phase 1 | Migrate Saga and step state machines; preserve legacy semantics; add configuration persistence and schema upgrades | #188 | v1.6.0 published |
+
+**Phase 1 acceptance**:
+- Existing Saga/step transitions, guard failures, callback exception propagation, and `current_state` inspection remain compatible.
+- `configuration_values` is exposed in Saga status and snapshots.
+- Memory, Redis, SQLite, and PostgreSQL storage round-trip configuration.
+- Existing SQLite and PostgreSQL schemas upgrade without data loss; legacy snapshots/records default to `[status]`.
+- Unit tests cover compatibility behavior; integration tests cover a pre-existing PostgreSQL schema upgrade.
+
+**Deferred**:
+- Compound/parallel execution, invoke/DoneData/HistoryState, and `error.execution` routing remain in issue #190. They are not part of v1.7.0 Phase 1.
+- Phase 2 receives a separate release target after its runtime and recovery semantics are reviewed.
 
 ---
 
