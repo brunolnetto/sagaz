@@ -67,6 +67,7 @@ class SagaStorage(ABC):
         steps: list[dict[str, Any]],
         context: dict[str, Any],
         metadata: dict[str, Any] | None = None,
+        configuration: list[str] | None = None,
     ) -> None:
         """
         Save saga state to persistent storage.
