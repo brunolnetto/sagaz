@@ -289,11 +289,11 @@ class TestSagaStorageMigratorVerify:
         assert vr.ok is False
 
     @pytest.mark.asyncio
-    async def test_saga_stats_error_returns_minus_one(self):
+    async def test_saga_export_error_returns_minus_one(self):
         source = _mock_manager()
         dest = _mock_manager()
-        source.saga.get_statistics = AsyncMock(side_effect=RuntimeError("unavailable"))
-        dest.saga.get_statistics = AsyncMock(side_effect=RuntimeError("unavailable"))
+        source.saga.export_all = MagicMock(side_effect=RuntimeError("unavailable"))
+        dest.saga.export_all = MagicMock(side_effect=RuntimeError("unavailable"))
         migrator = SagaStorageMigrator(source, dest)
 
         vr = await migrator.verify()
@@ -302,11 +302,11 @@ class TestSagaStorageMigratorVerify:
         assert vr.ok is False
 
     @pytest.mark.asyncio
-    async def test_event_count_error_returns_minus_one(self):
+    async def test_event_export_error_returns_minus_one(self):
         source = _mock_manager()
         dest = _mock_manager()
-        source.outbox.count = AsyncMock(side_effect=RuntimeError("db down"))
-        dest.outbox.count = AsyncMock(side_effect=RuntimeError("db down"))
+        source.outbox.export_all = MagicMock(side_effect=RuntimeError("db down"))
+        dest.outbox.export_all = MagicMock(side_effect=RuntimeError("db down"))
         migrator = SagaStorageMigrator(source, dest)
 
         vr = await migrator.verify()
