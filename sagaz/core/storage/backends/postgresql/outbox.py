@@ -714,10 +714,17 @@ class PostgreSQLOutboxStorage(OutboxStorage):
             raise OutboxStorageError(msg)
 
         async with self._pool.acquire() as conn:
-            return int(await conn.fetchval("SELECT COUNT(*) FROM saga_outbox"))
+            count = await conn.fetchval(
+                """
+                SELECT
+                    (SELECT COUNT(*) FROM saga_outbox)
+                    + (SELECT COUNT(*) FROM saga_outbox_archive)
+                """
+            )
+            return int(count)
 
     async def export_all(self):
-        """Export all records for transfer."""
+        """Export active and archived outbox records for transfer."""
         if not self._pool:
             msg = "Storage not initialized"
             raise OutboxStorageError(msg)
@@ -725,7 +732,14 @@ class PostgreSQLOutboxStorage(OutboxStorage):
         async with self._pool.acquire() as conn:
             async with conn.transaction():
                 try:
-                    cursor = await conn.cursor("SELECT * FROM saga_outbox ORDER BY event_id")
+                    cursor = await conn.cursor(
+                        """
+                        SELECT * FROM saga_outbox
+                        UNION ALL
+                        SELECT * FROM saga_outbox_archive
+                        ORDER BY event_id
+                        """
+                    )
                     async for row in cursor:
                         event = self._row_to_event(row)
                         yield event.to_dict()
