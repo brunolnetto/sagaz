@@ -25,8 +25,13 @@ class _SagaSnapshotMixin:
     # =========================================================================
 
     @property
+    def configuration(self) -> list[str]:
+        """Return the active state IDs for the current flat Saga statechart."""
+        return list(self._state_machine.configuration_values)  # type: ignore[union-attr]
+
+    @property
     def current_state(self) -> str:
-        """Get current state name"""
+        """Get the legacy, title-cased current state name."""
         return self._state_machine.current_state.name  # type: ignore[union-attr, no-any-return]
 
     def get_status(self) -> dict[str, Any]:
@@ -36,6 +41,7 @@ class _SagaSnapshotMixin:
             "name": self.name,
             "version": self.version,
             "status": self.status.value,
+            "configuration": self.configuration,
             "current_state": self.current_state,
             "total_steps": len(self.steps),
             "completed_steps": len(self.completed_steps),
@@ -106,6 +112,7 @@ class _SagaSnapshotMixin:
                 step_name=step_name,
                 step_index=step_index,
                 status=self.status.value,
+                configuration=self.configuration,
                 context=self.context.data.copy(),
                 completed_steps=[s.name for s in self.completed_steps],
                 retention_until=self.replay_config.get_retention_until(),
