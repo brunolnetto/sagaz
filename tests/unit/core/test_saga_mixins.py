@@ -365,6 +365,7 @@ class TestSnapshotMixinStatusMethods:
         assert status["saga_id"] == host.saga_id
         assert status["name"] == "TestSaga"
         assert status["version"] == "1.0"
+        assert status["configuration"] == ["pending"]
         assert status["total_steps"] == 0
         assert status["completed_steps"] == 0
         assert status["error"] is None
