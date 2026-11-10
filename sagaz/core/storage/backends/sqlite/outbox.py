@@ -155,6 +155,26 @@ class SQLiteOutboxStorage:
             await conn.execute(
                 "ALTER TABLE outbox_events ADD COLUMN replay_count INTEGER DEFAULT 0"
             )
+        if "aggregate_type" not in existing_columns:
+            await conn.execute("ALTER TABLE outbox_events ADD COLUMN aggregate_type TEXT")
+        if "aggregate_id" not in existing_columns:
+            await conn.execute("ALTER TABLE outbox_events ADD COLUMN aggregate_id TEXT")
+        if "headers" not in existing_columns:
+            await conn.execute("ALTER TABLE outbox_events ADD COLUMN headers TEXT")
+        if "routing_key" not in existing_columns:
+            await conn.execute("ALTER TABLE outbox_events ADD COLUMN routing_key TEXT")
+        if "partition_key" not in existing_columns:
+            await conn.execute("ALTER TABLE outbox_events ADD COLUMN partition_key TEXT")
+        if "claimed_at" not in existing_columns:
+            await conn.execute("ALTER TABLE outbox_events ADD COLUMN claimed_at TEXT")
+        if "sent_at" not in existing_columns:
+            await conn.execute("ALTER TABLE outbox_events ADD COLUMN sent_at TEXT")
+        if "worker_id" not in existing_columns:
+            await conn.execute("ALTER TABLE outbox_events ADD COLUMN worker_id TEXT")
+        if "retry_count" not in existing_columns:
+            await conn.execute("ALTER TABLE outbox_events ADD COLUMN retry_count INTEGER DEFAULT 0")
+        if "last_error" not in existing_columns:
+            await conn.execute("ALTER TABLE outbox_events ADD COLUMN last_error TEXT")
 
     async def __aenter__(self):
         """Async context manager entry."""
