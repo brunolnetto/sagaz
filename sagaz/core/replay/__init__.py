@@ -71,11 +71,11 @@ class SagaSnapshot:
 
     # Metadata
     created_at: datetime
-    configuration: list[str] = field(default_factory=list)
     retention_until: datetime | None = None
 
     # External references (for large payloads)
     external_refs: dict[str, str] = field(default_factory=dict)
+    configuration: list[str] = field(default_factory=list)
 
     @classmethod
     def create(
