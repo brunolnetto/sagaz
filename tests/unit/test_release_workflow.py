@@ -56,6 +56,25 @@ def test_release_stages_use_one_pinned_source_commit() -> None:
 
 
 
+
+def test_dry_run_builds_the_requested_version_before_upload() -> None:
+    jobs = _workflow()["jobs"]
+    publish_steps = jobs["publish"]["steps"]
+    bump = next(
+        step
+        for step in publish_steps
+        if step.get("name") == "Set target version in pyproject.toml"
+    )
+    assert "if" not in bump
+    assert bump["env"]["VERSION"] == (
+        "${{ needs.resolve-version.outputs.version }}"
+    )
+    assert (
+        jobs["tag-and-release"]["if"]
+        == "needs.resolve-version.outputs.dry_run == 'false'"
+    )
+
+
 def test_release_notes_fallback_uses_an_existing_comparison_target() -> None:
     workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
     assert "compare/${PREVIOUS_TAG}...${SOURCE_SHA}" in workflow
