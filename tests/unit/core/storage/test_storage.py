@@ -121,6 +121,7 @@ class TestInMemorySagaStorage:
         ]
         context = {"data": "test_value"}
         metadata = {"version": "1.0"}
+        configuration = ["executing"]
 
         await storage.save_saga_state(
             saga_id=saga_id,
@@ -129,6 +130,7 @@ class TestInMemorySagaStorage:
             steps=steps,
             context=context,
             metadata=metadata,
+            configuration=configuration,
         )
 
         loaded = await storage.load_saga_state(saga_id)
@@ -137,9 +139,29 @@ class TestInMemorySagaStorage:
         assert loaded["saga_id"] == saga_id
         assert loaded["saga_name"] == saga_name
         assert loaded["status"] == status.value
+        assert loaded["configuration"] == configuration
         assert loaded["steps"] == steps
         assert loaded["context"] == context
         assert loaded["metadata"] == metadata
+
+    @pytest.mark.asyncio
+    async def test_legacy_record_defaults_configuration_to_status(self):
+        storage = InMemorySagaStorage()
+        storage._sagas["legacy-saga"] = {
+            "saga_id": "legacy-saga",
+            "saga_name": "LegacySaga",
+            "status": "executing",
+            "steps": [],
+            "context": {},
+            "metadata": {},
+            "created_at": datetime.now(UTC).isoformat(),
+            "updated_at": datetime.now(UTC).isoformat(),
+        }
+
+        loaded = await storage.load_saga_state("legacy-saga")
+
+        assert loaded is not None
+        assert loaded["configuration"] == ["executing"]
 
     @pytest.mark.asyncio
     async def test_load_nonexistent_saga(self):
