@@ -78,7 +78,7 @@ v1.4.0  (Jan 12, 2026) — Context Streaming, Examples, Replay   ← RETROACTIVE
 
 v1.5.0  (Apr 16, 2026) — Governance, lifecycle hooks & storage enhancements [published]
 v1.6.0  (Nov 10, 2026) — Storage extensions: DLQ, SQLite, migration [GitHub Release + PyPI published]
-v1.7.0  (planned)      — StateChart migration, Phase 1 / ADR-040 [issue #188; refreshed PR pending]
+v1.7.0  (planned)      — StateChart migration, Phase 1 / ADR-040 [PR #363; issue #188]
 v1.8.0  (planned)      — Analytics & chaos [PRs #67, #71, #74, #79]
 v1.9.0  (planned)      — CLI v2, CDC, tenancy & versioning [PRs #64-66, #68, #81]
 v1.10.0 (planned)      — Event-driven choreography [PR #115 prerequisite, PR #69]
