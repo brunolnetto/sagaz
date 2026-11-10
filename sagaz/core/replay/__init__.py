@@ -77,6 +77,11 @@ class SagaSnapshot:
     external_refs: dict[str, str] = field(default_factory=dict)
     configuration: list[str] = field(default_factory=list)
 
+    def __post_init__(self) -> None:
+        """Normalize legacy snapshots created without an explicit configuration."""
+        if not self.configuration:
+            self.configuration = [self.status]
+
     @classmethod
     def create(
         cls,
@@ -101,7 +106,7 @@ class SagaSnapshot:
             context=context.copy(),  # Defensive copy
             completed_steps=completed_steps.copy(),
             created_at=datetime.now(UTC),
-            configuration=list(configuration) if configuration is not None else [status],
+            configuration=list(configuration) if configuration else [status],
             retention_until=retention_until,
         )
 
