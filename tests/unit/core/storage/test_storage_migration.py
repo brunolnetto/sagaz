@@ -10,7 +10,7 @@ import pytest
 
 from sagaz.storage.migration import MigrationResult, SagaStorageMigrator, VerificationResult
 
-_TRANSFER_DATA_PATH = "sagaz.storage.migration.transfer_data"
+_TRANSFER_DATA_PATH = "sagaz.core.storage.migration.transfer_data"
 
 
 # ---------------------------------------------------------------------------
