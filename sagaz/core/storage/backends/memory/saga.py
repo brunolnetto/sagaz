@@ -34,6 +34,7 @@ class InMemorySagaStorage(SagaStorage):
         steps: list[dict[str, Any]],
         context: dict[str, Any],
         metadata: dict[str, Any] | None = None,
+        configuration: list[str] | None = None,
     ) -> None:
         """Save saga state to memory"""
 
@@ -42,6 +43,7 @@ class InMemorySagaStorage(SagaStorage):
                 "saga_id": saga_id,
                 "saga_name": saga_name,
                 "status": status.value,
+                "configuration": list(configuration) if configuration is not None else [status.value],
                 "steps": steps,
                 "context": context,
                 "metadata": metadata or {},
@@ -55,8 +57,10 @@ class InMemorySagaStorage(SagaStorage):
         async with self._lock:
             saga_data = self._sagas.get(saga_id)
             if saga_data:
-                # Return a copy to prevent external modification
-                return dict(saga_data)
+                # Return a copy and support records created before configuration was added.
+                result = dict(saga_data)
+                result.setdefault("configuration", [result["status"]])
+                return result
             return None
 
     async def delete_saga_state(self, saga_id: str) -> bool:
@@ -276,4 +280,5 @@ class InMemorySagaStorage(SagaStorage):
             steps=record.get("steps", []),
             context=record.get("context", {}),
             metadata=record.get("metadata"),
+            configuration=record.get("configuration"),
         )
