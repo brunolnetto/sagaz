@@ -18,16 +18,37 @@ _TRANSFER_DATA_PATH = "sagaz.storage.migration.transfer_data"
 # ---------------------------------------------------------------------------
 
 
+def _async_records(records):
+    async def _iterate():
+        for record in records:
+            yield record
+
+    return _iterate()
+
+
 def _mock_manager(saga_total: int = 5, event_count: int = 3) -> MagicMock:
-    """Return a minimal StorageManager mock."""
+    """Return a StorageManager mock with deterministic export streams."""
     stats = MagicMock()
     stats.total_records = saga_total
 
     saga = MagicMock()
     saga.get_statistics = AsyncMock(return_value=stats)
+    saga.export_all = MagicMock(
+        return_value=_async_records(
+            [{"saga_id": f"saga-{index}", "status": "completed", "context": {"index": index}}
+             for index in range(saga_total)]
+        )
+    )
 
     outbox = MagicMock()
     outbox.count = AsyncMock(return_value=event_count)
+    outbox.export_all = MagicMock(
+        return_value=_async_records(
+            [{"event_id": f"event-{index}", "saga_id": f"saga-{index}",
+              "event_type": "Created", "payload": {"index": index}}
+             for index in range(event_count)]
+        )
+    )
 
     manager = MagicMock()
     manager.saga = saga
@@ -76,8 +97,10 @@ class TestMigrationResult:
         assert set(d.keys()) == {
             "sagas_transferred",
             "sagas_failed",
+            "sagas_skipped",
             "events_transferred",
             "events_failed",
+            "events_skipped",
             "dry_run",
             "success",
         }
@@ -96,6 +119,42 @@ class TestVerificationResult:
     def test_not_ok_when_sagas_differ(self):
         vr = VerificationResult(source_sagas=10, dest_sagas=9, source_events=5, dest_events=5)
         assert vr.sagas_match is False
+        assert vr.ok is False
+
+    def test_not_ok_when_saga_checksums_differ(self):
+        vr = VerificationResult(
+            source_sagas=10,
+            dest_sagas=10,
+            source_events=5,
+            dest_events=5,
+            source_saga_checksum="source-checksum",
+            dest_saga_checksum="different-checksum",
+        )
+        assert vr.sagas_match is True
+        assert vr.saga_checksums_match is False
+        assert vr.ok is False
+
+    def test_not_ok_when_event_checksums_differ(self):
+        vr = VerificationResult(
+            source_sagas=10,
+            dest_sagas=10,
+            source_events=5,
+            dest_events=5,
+            source_event_checksum="source-checksum",
+            dest_event_checksum="different-checksum",
+        )
+        assert vr.events_match is True
+        assert vr.event_checksums_match is False
+        assert vr.ok is False
+
+    def test_not_ok_when_one_side_checksum_is_unavailable(self):
+        vr = VerificationResult(
+            source_sagas=10,
+            dest_sagas=10,
+            source_events=5,
+            dest_events=5,
+            source_event_checksum="available",
+        )
         assert vr.ok is False
 
     def test_not_ok_when_events_differ(self):
@@ -267,6 +326,8 @@ class TestSagaStorageMigratorVerify:
         with patch(_TRANSFER_DATA_PATH, new=AsyncMock(side_effect=[saga_r, event_r])):
             result = await migrator.migrate()
 
-        assert result.sagas_failed == 2
-        assert result.events_failed == 1
+        assert result.sagas_failed == 0
+        assert result.sagas_skipped == 2
+        assert result.events_failed == 0
+        assert result.events_skipped == 1
         assert result.success is False
