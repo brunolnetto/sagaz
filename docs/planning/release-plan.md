@@ -66,7 +66,7 @@ Wave 5  ─── v2.0.0 ──────── Core extensions               
 
 **Release gates (reconciled 2026-11-10)**:
 - #62: SQLite Saga/Outbox unit coverage exists; legacy outbox schema backfill and optional install extra are covered by the v1.6.0 hardening work.
-- #63: issue #47 is reopened. The original transfer implementation did not preserve all OutboxEvent fields, did not import consistently/idempotently across backends, and verified only record counts. The hardening branch adds canonical serialization, schema upgrades, full-content validation/checksums, and a SQLite → PostgreSQL round-trip test. Do not release until that PR and integration test are accepted.
+- #63: [PR #351](https://github.com/brunolnetto/sagaz/pull/351) addresses reopened issue #47. It adds canonical serialization, schema upgrades, full-content validation/checksums, PostgreSQL archive transfer, and a SQLite → PostgreSQL round-trip test. Pause outbox workers during transfer/cutover. Do not release until the PR and integration test pass.
 - #60: issue #110 is reopened. [PR #350](https://github.com/brunolnetto/sagaz/pull/350) adds the missing end-to-end test using persistent SQLite storage and a real RabbitMQ container. Do not release until its integration test passes.
 - CI workflow repairs are tracked separately; a green release run remains a release gate, not assumed evidence.
 
