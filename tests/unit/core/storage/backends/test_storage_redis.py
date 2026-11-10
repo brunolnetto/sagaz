@@ -182,9 +182,12 @@ class TestRedisSagaStorageMocked:
                 status=SagaStatus.EXECUTING,
                 steps=[{"name": "step1", "status": "pending"}],
                 context={"order_id": "123"},
+                configuration=["executing"],
             )
 
             pipeline.hset.assert_called()
+            stored = json.loads(pipeline.hset.await_args.kwargs["mapping"]["data"])
+            assert stored["configuration"] == ["executing"]
 
     @pytest.mark.asyncio
     async def test_load_saga_state(self, mock_redis):
@@ -211,6 +214,7 @@ class TestRedisSagaStorageMocked:
             result = await storage.load_saga_state("saga-123")
 
             assert result["saga_id"] == "saga-123"
+            assert result["configuration"] == ["executing"]
 
     @pytest.mark.asyncio
     async def test_load_saga_state_not_found(self, mock_redis):
