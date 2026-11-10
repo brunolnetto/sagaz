@@ -176,6 +176,18 @@ class SQLiteOutboxStorage:
         if "last_error" not in existing_columns:
             await conn.execute("ALTER TABLE outbox_events ADD COLUMN last_error TEXT")
 
+        # Legacy rows predate optional metadata columns. Normalize them before
+        # export so they remain valid when imported into stricter backends.
+        await conn.execute(
+            """
+            UPDATE outbox_events
+            SET aggregate_type = COALESCE(aggregate_type, 'saga'),
+                aggregate_id = COALESCE(aggregate_id, saga_id),
+                headers = COALESCE(headers, '{}'),
+                retry_count = COALESCE(retry_count, 0)
+            """
+        )
+
     async def __aenter__(self):
         """Async context manager entry."""
         await self._get_connection()
