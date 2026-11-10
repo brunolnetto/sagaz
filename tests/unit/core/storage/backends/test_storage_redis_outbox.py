@@ -437,6 +437,75 @@ class TestRedisOutboxStorageUnit:
         mock_redis.pipeline.assert_called()
 
     @pytest.mark.asyncio
+    async def test_import_dead_letter_record_does_not_enqueue_delivery(self, storage, mock_redis):
+        """Terminal events are stored as metadata, not added to the delivery stream."""
+        record = {
+            "event_id": "event-dlq",
+            "saga_id": "saga-dlq",
+            "event_type": "OrderFailed",
+            "payload": {"order_id": "123"},
+            "status": "dead_letter",
+            "dead_letter_reason": "max_retries_exceeded",
+            "routing_key": "orders.failed",
+            "partition_key": "tenant-a",
+        }
+
+        await storage.import_record(record)
+
+        pipeline = mock_redis.pipeline.return_value
+        pipeline.hset.assert_called()
+        pipeline.expire.assert_called()
+        pipeline.xadd.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_reimport_existing_pending_record_does_not_duplicate_stream(
+        self, storage, mock_redis
+    ):
+        """Rerunning import updates metadata without appending another stream entry."""
+        mock_redis.hgetall.return_value = {
+            b"event_id": b"event-pending",
+            b"saga_id": b"saga-pending",
+            b"aggregate_type": b"order",
+            b"aggregate_id": b"order-123",
+            b"event_type": b"OrderCreated",
+            b"payload": b'{"order_id":"123"}',
+            b"headers": b'{"trace_id":"trace-1"}',
+            b"status": b"pending",
+            b"retry_count": b"0",
+            b"created_at": b"2026-01-01T00:00:00+00:00",
+            b"claimed_at": b"",
+            b"sent_at": b"",
+            b"last_error": b"",
+            b"worker_id": b"",
+            b"routing_key": b"orders.created",
+            b"partition_key": b"tenant-a",
+            b"dead_letter_at": b"",
+            b"dead_letter_reason": b"",
+            b"error_type": b"",
+            b"error_classification": b"",
+            b"error_fingerprint": b"",
+            b"replay_count": b"0",
+        }
+        record = {
+            "event_id": "event-pending",
+            "saga_id": "saga-pending",
+            "aggregate_type": "order",
+            "aggregate_id": "order-123",
+            "event_type": "OrderCreated",
+            "payload": {"order_id": "123"},
+            "headers": {"trace_id": "trace-1"},
+            "status": "pending",
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "routing_key": "orders.created",
+            "partition_key": "tenant-a",
+        }
+
+        await storage.import_record(record)
+
+        mock_redis.hset.assert_awaited()
+        mock_redis.xadd.assert_not_awaited()
+        mock_redis.pipeline.return_value.xadd.assert_not_called()
+
     async def test_import_record_without_optional_fields(self, storage, mock_redis):
         """Test importing a minimal record."""
         record = {
