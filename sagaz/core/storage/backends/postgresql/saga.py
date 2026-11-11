@@ -531,7 +531,7 @@ class PostgreSQLSagaStorage(SagaStorage):
         async with pool.acquire() as conn:
             async with conn.transaction():
                 # Stream sagas
-                cursor = await conn.cursor("SELECT * FROM sagas ORDER BY saga_id")
+                cursor = conn.cursor("SELECT * FROM sagas ORDER BY saga_id")
 
                 async for row in cursor:
                     # Fetch steps for this saga (not super efficient but avoids giant joins)

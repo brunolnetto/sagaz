@@ -867,7 +867,7 @@ class TestPostgreSQLSagaMissingBranches:
                     raise StopAsyncIteration
 
         cursor = AsyncRowIter([row])
-        conn.cursor = AsyncMock(return_value=cursor)
+        conn.cursor = MagicMock(return_value=cursor)
         conn.fetch = AsyncMock(return_value=[])
         conn.transaction.return_value = AsyncContextManagerMock(None)
         pool.acquire.return_value = AsyncContextManagerMock(conn)

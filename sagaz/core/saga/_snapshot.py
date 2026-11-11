@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 if TYPE_CHECKING:
+    from sagaz.core.execution.state_machine import SagaStateMachine
     from sagaz.core.replay import SagaSnapshot, SnapshotStrategy
 
 from statemachine.exceptions import TransitionNotAllowed
@@ -19,6 +20,9 @@ logger = logging.getLogger(__name__)
 
 class _SagaSnapshotMixin:
     """Mixin adding status reporting and snapshot/replay support to the Saga class."""
+
+    _state_machine: "SagaStateMachine"
+    status: SagaStatus
 
     # =========================================================================
     # Status Reporting
