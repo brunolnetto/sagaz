@@ -35,8 +35,10 @@ def _mock_manager(saga_total: int = 5, event_count: int = 3) -> MagicMock:
     saga.get_statistics = AsyncMock(return_value=stats)
     saga.export_all = MagicMock(
         return_value=_async_records(
-            [{"saga_id": f"saga-{index}", "status": "completed", "context": {"index": index}}
-             for index in range(saga_total)]
+            [
+                {"saga_id": f"saga-{index}", "status": "completed", "context": {"index": index}}
+                for index in range(saga_total)
+            ]
         )
     )
 
@@ -44,9 +46,15 @@ def _mock_manager(saga_total: int = 5, event_count: int = 3) -> MagicMock:
     outbox.count = AsyncMock(return_value=event_count)
     outbox.export_all = MagicMock(
         return_value=_async_records(
-            [{"event_id": f"event-{index}", "saga_id": f"saga-{index}",
-              "event_type": "Created", "payload": {"index": index}}
-             for index in range(event_count)]
+            [
+                {
+                    "event_id": f"event-{index}",
+                    "saga_id": f"saga-{index}",
+                    "event_type": "Created",
+                    "payload": {"index": index},
+                }
+                for index in range(event_count)
+            ]
         )
     )
 
@@ -331,3 +339,128 @@ class TestSagaStorageMigratorVerify:
         assert result.events_failed == 0
         assert result.events_skipped == 1
         assert result.success is False
+
+
+class TestCanonicalChecksumValue:
+    """Characterize deterministic normalization used by storage checksums."""
+
+    def test_object_with_to_dict_is_recursively_normalized(self):
+        from sagaz.core.storage.migration import _canonical_checksum_value
+
+        class Record:
+            def to_dict(self):
+                return {"payload": (1, 2), "name": "example"}
+
+        assert _canonical_checksum_value(Record()) == {
+            "payload": [1, 2],
+            "name": "example",
+        }
+
+    def test_dictionary_keys_are_converted_to_strings(self):
+        from sagaz.core.storage.migration import _canonical_checksum_value
+
+        value = {1: "one", 2: {"nested": "value"}}
+
+        assert _canonical_checksum_value(value) == {
+            "1": "one",
+            "2": {"nested": "value"},
+        }
+
+    def test_list_and_tuple_are_normalized_to_lists(self):
+        from sagaz.core.storage.migration import _canonical_checksum_value
+
+        assert _canonical_checksum_value((1, (2, 3))) == [1, [2, 3]]
+
+    def test_set_is_sorted_deterministically(self):
+        from sagaz.core.storage.migration import _canonical_checksum_value
+
+        assert _canonical_checksum_value({"charlie", "alpha", "bravo"}) == [
+            "alpha",
+            "bravo",
+            "charlie",
+        ]
+
+    def test_aware_datetime_is_normalized_to_utc(self):
+        from datetime import datetime, timedelta, timezone
+
+        from sagaz.core.storage.migration import _canonical_checksum_value
+
+        value = datetime(2024, 1, 1, 3, tzinfo=timezone(timedelta(hours=3)))
+
+        assert _canonical_checksum_value(value) == "2024-01-01T00:00:00+00:00"
+
+    def test_naive_datetime_keeps_its_local_representation(self):
+        from datetime import datetime
+
+        from sagaz.core.storage.migration import _canonical_checksum_value
+
+        value = datetime(2024, 1, 1, 12, 30)
+
+        assert _canonical_checksum_value(value) == "2024-01-01T12:30:00"
+
+    @pytest.mark.parametrize(
+        "field_name",
+        ["created_at", "claimed_at", "sent_at", "dead_letter_at"],
+    )
+    def test_timestamp_fields_are_normalized_to_utc(self, field_name):
+        from sagaz.core.storage.migration import _canonical_checksum_value
+
+        value = "2024-01-01T03:00:00+03:00"
+
+        assert _canonical_checksum_value(value, field_name) == ("2024-01-01T00:00:00+00:00")
+
+    def test_invalid_timestamp_string_is_preserved(self):
+        from sagaz.core.storage.migration import _canonical_checksum_value
+
+        assert _canonical_checksum_value("not-a-date", "created_at") == "not-a-date"
+
+    def test_non_timestamp_string_is_not_parsed(self):
+        from sagaz.core.storage.migration import _canonical_checksum_value
+
+        value = "2024-01-01T03:00:00+03:00"
+
+        assert _canonical_checksum_value(value, "description") == value
+
+    def test_isoformat_fallback_is_preserved(self):
+        from datetime import date
+
+        from sagaz.core.storage.migration import _canonical_checksum_value
+
+        assert _canonical_checksum_value(date(2024, 1, 2)) == "2024-01-02"
+
+    def test_value_attribute_fallback_is_preserved(self):
+        from enum import Enum
+
+        from sagaz.core.storage.migration import _canonical_checksum_value
+
+        class Status(Enum):
+            COMPLETED = "completed"
+
+        assert _canonical_checksum_value(Status.COMPLETED) == "completed"
+
+
+class TestStorageChecksumCanonicalCompatibility:
+    """Ensure equivalent timestamp representations produce equal checksums."""
+
+    @pytest.mark.asyncio
+    async def test_equivalent_timestamp_representations_produce_same_checksum(self):
+        from datetime import datetime, timedelta, timezone
+
+        from sagaz.core.storage.migration import _storage_checksum
+
+        class Storage:
+            def __init__(self, record):
+                self.record = record
+
+            async def export_all(self):
+                yield self.record
+
+        offset_datetime = datetime(2024, 1, 1, 3, tzinfo=timezone(timedelta(hours=3)))
+
+        string_storage = Storage({"event_id": "event-1", "created_at": "2024-01-01T03:00:00+03:00"})
+        datetime_storage = Storage({"event_id": "event-1", "created_at": offset_datetime})
+
+        string_checksum = await _storage_checksum(string_storage)
+        datetime_checksum = await _storage_checksum(datetime_storage)
+
+        assert string_checksum == datetime_checksum

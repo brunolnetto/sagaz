@@ -305,26 +305,8 @@ class OutboxWorker:
         # Store reference to prevent garbage collection
         self._shutdown_task = asyncio.create_task(self.stop())
 
-    async def process_batch(self) -> int:
-        """
-        Process a single batch of events.
-
-        Returns:
-            Number of events processed
-        """
-        # Claim batch of events
-        events = await self.storage.claim_batch(
-            worker_id=self.worker_id,
-            batch_size=self.config.batch_size,
-        )
-
-        if not events:
-            return 0
-
-        batch_size = len(events)
-        logger.debug(f"Worker {self.worker_id} claimed {batch_size} events")
-
-        # Record Prometheus metrics
+    def _record_batch_started(self, batch_size: int) -> None:
+        """Record metrics for a newly claimed batch."""
         if (
             PROMETHEUS_AVAILABLE
             and OUTBOX_BATCH_SIZE is not None
@@ -333,19 +315,22 @@ class OutboxWorker:
             OUTBOX_BATCH_SIZE.labels(worker_id=self.worker_id).set(batch_size)
             OUTBOX_PROCESSING_EVENTS.labels(worker_id=self.worker_id).set(batch_size)
 
-        # Process events in parallel
-        tasks = [self._process_event(event) for event in events]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        # Count successes and failures
+    def _count_batch_results(
+        self,
+        events: list[OutboxEvent],
+        results: list[None | BaseException],
+    ) -> int:
+        """Log failed events and return the number of successful events."""
         processed = 0
         for event, result in zip(events, results, strict=False):
             if isinstance(result, Exception):
                 logger.error(f"Failed to process event {event.event_id}: {result}")
             else:
                 processed += 1
+        return processed
 
-        # Record batch completion
+    def _record_batch_completed(self) -> None:
+        """Record completion metrics and clear the in-flight gauge."""
         if (
             PROMETHEUS_AVAILABLE
             and OUTBOX_BATCH_PROCESSED is not None
@@ -354,6 +339,29 @@ class OutboxWorker:
             OUTBOX_BATCH_PROCESSED.labels(worker_id=self.worker_id).inc()
             OUTBOX_PROCESSING_EVENTS.labels(worker_id=self.worker_id).set(0)
 
+    async def process_batch(self) -> int:
+        """
+        Process a single batch of events.
+
+        Returns:
+            Number of events processed
+        """
+        events = await self.storage.claim_batch(
+            worker_id=self.worker_id,
+            batch_size=self.config.batch_size,
+        )
+        if not events:
+            return 0
+
+        batch_size = len(events)
+        logger.debug(f"Worker {self.worker_id} claimed {batch_size} events")
+        self._record_batch_started(batch_size)
+
+        tasks = [self._process_event(event) for event in events]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        processed = self._count_batch_results(events, results)
+        self._record_batch_completed()
         return processed
 
     async def _process_event(self, event: OutboxEvent) -> None:

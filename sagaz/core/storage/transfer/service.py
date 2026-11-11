@@ -24,7 +24,7 @@ Usage:
 import asyncio
 import json
 import logging
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
@@ -379,26 +379,33 @@ class TransferService:
         if self.config.validate:
             await self._validate_record(record)
 
+    def _get_validation_lookup(
+        self,
+        record: dict[str, Any],
+    ) -> Callable[[str], Awaitable[Any]] | None:
+        """Select the target lookup method according to record type."""
+        if "event_id" in record:
+            return self.target.get_by_id if hasattr(self.target, "get_by_id") else None
+
+        if hasattr(self.target, "load_saga_state"):
+            return self.target.load_saga_state
+
+        if hasattr(self.target, "get_by_id"):
+            return self.target.get_by_id
+
+        return None
+
     async def _validate_record(self, record: dict[str, Any]) -> None:
-        """Validate a transferred record exists in target storage."""
+        """Validate a transferred record exists and matches in target storage."""
         record_id = record.get("event_id") or record.get("saga_id") or record.get("id")
         if not record_id:
             return
 
-        # Outbox events must be resolved by event_id, even when the target
-        # also implements saga-state lookup.
-        if "event_id" in record:
-            if not hasattr(self.target, "get_by_id"):
-                return
-            loaded = await self.target.get_by_id(record_id)
-        elif ("saga_id" in record and hasattr(self.target, "load_saga_state")) or hasattr(
-            self.target, "load_saga_state"
-        ):
-            loaded = await self.target.load_saga_state(record_id)
-        elif hasattr(self.target, "get_by_id"):
-            loaded = await self.target.get_by_id(record_id)
-        else:
+        lookup = self._get_validation_lookup(record)
+        if lookup is None:
             return
+
+        loaded = await lookup(record_id)
 
         if loaded is None:
             raise TransferError(
@@ -407,13 +414,23 @@ class TransferService:
             )
 
         if "event_id" in record:
-            expected = self._canonical_record(record)
-            actual = self._canonical_record(loaded)
-            if expected != actual:
-                raise TransferError(
-                    message=f"Validation failed: event {record_id} differs after import",
-                    target=self.target.__class__.__name__,
-                )
+            self._validate_event_record(record, loaded, record_id)
+
+    def _validate_event_record(
+        self,
+        expected_record: dict[str, Any],
+        actual_record: Any,
+        record_id: str,
+    ) -> None:
+        """Ensure an imported outbox event matches its source representation."""
+        expected = self._canonical_record(expected_record)
+        actual = self._canonical_record(actual_record)
+
+        if expected != actual:
+            raise TransferError(
+                message=f"Validation failed: event {record_id} differs after import",
+                target=self.target.__class__.__name__,
+            )
 
     @staticmethod
     def _canonical_record(record: Any) -> str:
