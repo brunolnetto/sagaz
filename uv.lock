@@ -3356,11 +3356,11 @@ wheels = [
 
 [[package]]
 name = "python-statemachine"
-version = "3.0.0"
+version = "3.2.2"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/f4/a6/d0626b1efb56d9502fe8686fa5dbf23d444b5985adac974be2aa8780c956/python_statemachine-3.0.0.tar.gz", hash = "sha256:91523f9ead73c1d6fecc975d5c6e0bfe363fbf537c5f0bf309bcd0f94f9441b2", size = 852800, upload-time = "2026-02-24T18:06:04.908Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5f/30/52678909680544def104120a59fa64baf506b288702c600adb593a3479f8/python_statemachine-3.2.2.tar.gz", hash = "sha256:5968c5e07a537f7531b8b1d0a0d5067a3452c88941fa0ac6c244870d48f78325", size = 858814, upload-time = "2026-10-14T00:46:36.305Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a2/ba/9863be42c209d66623e188223484c1502f25a2412f258f00505c613f6e5d/python_statemachine-3.0.0-py3-none-any.whl", hash = "sha256:f967ee864cfd26375c91f49560e790357613482811efcec8b2020c1f874a5eaf", size = 103801, upload-time = "2026-02-24T18:06:03.31Z" },
+    { url = "https://files.pythonhosted.org/packages/85/d1/d722672f4bfbe1176588157e0f9fa6dd5331a71922bed36aca0e79271535/python_statemachine-3.2.2-py3-none-any.whl", hash = "sha256:141d20e00776815692e424d3df825b1bd7ccaeedc6fda7787ddf249e767e1676", size = 167322, upload-time = "2026-10-14T00:46:34.988Z" },
 ]
 
 [[package]]
@@ -3906,7 +3906,7 @@ requires-dist = [
     { name = "opentelemetry-sdk", marker = "extra == 'tracing'", specifier = ">=1.39.1" },
     { name = "prometheus-client", marker = "extra == 'prometheus'", specifier = ">=0.23.1" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
-    { name = "python-statemachine", specifier = ">=3.0.0" },
+    { name = "python-statemachine", specifier = ">=3.2.0" },
     { name = "pyyaml", specifier = ">=6.0.0" },
     { name = "redis", marker = "extra == 'redis'", specifier = ">=7.1.0" },
     { name = "redis", marker = "extra == 'storage'", specifier = ">=7.0.0" },
