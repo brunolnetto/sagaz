@@ -10,17 +10,26 @@ from __future__ import annotations
 import asyncio
 import os
 from datetime import timedelta
+from typing import TYPE_CHECKING
 
 import click
 
-try:
-    from rich.console import Console
-    from rich.table import Table
+if TYPE_CHECKING:
+    from rich.console import Console as RichConsole
+    from rich.table import Table as RichTable
 
-    console: Console | None = Console()
+console: RichConsole | None
+Table: type[RichTable] | None
+
+try:
+    from rich.console import Console as _Console
+    from rich.table import Table as _Table
+
+    console = _Console()
+    Table = _Table
 except ImportError:
     console = None
-    Table = None  # type: ignore[assignment,misc]
+    Table = None
 
 
 # ---------------------------------------------------------------------------
@@ -129,7 +138,7 @@ def dlq_list(limit: int, output_format: str) -> None:
                 click.echo(json.dumps([e.to_dict() for e in events], indent=2, default=str))
                 return
 
-            if console and Table:
+            if console is not None and Table is not None:
                 table = Table(title=f"Dead Letter Queue ({len(events)} event(s))")
                 table.add_column("Event ID", style="dim")
                 table.add_column("Saga ID")

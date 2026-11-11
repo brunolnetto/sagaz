@@ -99,7 +99,7 @@ async def _run() -> None:
     print("=" * 60)
 
     for i, res in enumerate(results):
-        if isinstance(res, Exception):
+        if isinstance(res, BaseException):
             print(f"  ITEM-{i:03d}: EXCEPTION — {res}")
         else:
             print(f"  ITEM-{i:03d}: {res.status.value}")

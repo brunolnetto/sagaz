@@ -48,18 +48,21 @@ def _canonical_checksum_value(value: Any, field_name: str | None = None) -> Any:
     if isinstance(value, (list, tuple)):
         return [_canonical_checksum_value(item) for item in value]
     if isinstance(value, set):
-        normalized = [_canonical_checksum_value(item) for item in value]
-        return sorted(normalized, key=lambda item: json.dumps(item, sort_keys=True, default=str))
+        normalized_values = [_canonical_checksum_value(item) for item in value]
+        return sorted(
+            normalized_values,
+            key=lambda item: json.dumps(item, sort_keys=True, default=str),
+        )
     if isinstance(value, datetime):
-        normalized = value.astimezone(UTC) if value.tzinfo is not None else value
-        return normalized.isoformat()
+        normalized_datetime = value.astimezone(UTC) if value.tzinfo is not None else value
+        return normalized_datetime.isoformat()
     if field_name in timestamp_fields and isinstance(value, str):
         try:
             parsed = datetime.fromisoformat(value)
         except ValueError:
             return value
-        normalized = parsed.astimezone(UTC) if parsed.tzinfo is not None else parsed
-        return normalized.isoformat()
+        normalized_timestamp = parsed.astimezone(UTC) if parsed.tzinfo is not None else parsed
+        return normalized_timestamp.isoformat()
     if hasattr(value, "isoformat"):
         return value.isoformat()
     if hasattr(value, "value"):

@@ -3,11 +3,16 @@
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from sagaz.core.saga._step import SagaStep
     from sagaz.core.storage.base import SagaStorage
 
 
 class _SagaVisualizationMixin:
     """Mixin adding Mermaid diagram generation to the Saga class."""
+
+    # Attributes provided by the concrete Saga host.
+    steps: list["SagaStep"]
+    step_dependencies: dict[str, set[str]]
 
     def to_mermaid(
         self,

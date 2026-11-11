@@ -1,13 +1,19 @@
 """Saga snapshot/replay and status mixin for the imperative Saga class."""
 
+from __future__ import annotations
+
 import logging
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 if TYPE_CHECKING:
+    from asyncio import Lock
+
     from sagaz.core.execution.state_machine import SagaStateMachine
-    from sagaz.core.replay import SagaSnapshot, SnapshotStrategy
+    from sagaz.core.replay import ReplayConfig, SagaSnapshot, SnapshotStrategy
+    from sagaz.core.saga._step import SagaStep
+    from sagaz.core.storage.interfaces.snapshot import SnapshotStorage
 
 from statemachine.exceptions import TransitionNotAllowed
 
@@ -21,8 +27,30 @@ logger = logging.getLogger(__name__)
 class _SagaSnapshotMixin:
     """Mixin adding status reporting and snapshot/replay support to the Saga class."""
 
-    _state_machine: "SagaStateMachine"
+    # Attributes provided by the concrete Saga host.
+    name: str
+    version: str
+    saga_id: str
     status: SagaStatus
+    steps: list[SagaStep]
+    completed_steps: list[SagaStep]
+    context: SagaContext
+    started_at: datetime | None
+    completed_at: datetime | None
+    error: Exception | None
+    compensation_errors: list[Exception]
+    replay_config: ReplayConfig | None
+    snapshot_storage: SnapshotStorage | None
+    _state_machine: SagaStateMachine
+    _executing: bool
+    _execution_lock: Lock
+
+    if TYPE_CHECKING:
+
+        async def _execute_step_with_retry(self, step: SagaStep) -> None: ...
+        async def _handle_execution_failure(
+            self, error: Exception, start_time: datetime
+        ) -> SagaResult: ...
 
     # =========================================================================
     # Status Reporting
@@ -77,7 +105,7 @@ class _SagaSnapshotMixin:
     # Replay & Snapshot Support
     # =========================================================================
 
-    def _should_capture_snapshot(self, strategy: "SnapshotStrategy", before: bool) -> bool:
+    def _should_capture_snapshot(self, strategy: SnapshotStrategy, before: bool) -> bool:
         """Check if snapshot should be captured based on strategy."""
         from sagaz.core.replay import SnapshotStrategy
 
@@ -132,7 +160,7 @@ class _SagaSnapshotMixin:
 
     async def execute_from_snapshot(
         self,
-        snapshot: "SagaSnapshot",
+        snapshot: SagaSnapshot,
         context_override: dict[str, Any] | None = None,
     ) -> SagaResult:
         """

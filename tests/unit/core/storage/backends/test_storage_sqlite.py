@@ -871,48 +871,45 @@ class TestSqliteSagaBranches:
         from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
         from sagaz.core.types import SagaStatus, SagaStepStatus
 
-        storage = SQLiteSagaStorage(":memory:")
-        await storage.initialize()
-        saga_id = str(uuid4())
-        await storage.save_saga_state(
-            saga_id=saga_id,
-            saga_name="TestSaga",
-            status=SagaStatus.EXECUTING,
-            steps=[{"name": "step1", "status": "pending"}],
-            context={},
-        )
-        # Update a step that doesn't exist → 275->287 (loop exits without break)
-        await storage.update_step_state(
-            saga_id=saga_id,
-            step_name="nonexistent_step",  # Not in steps list
-            status=SagaStepStatus.COMPLETED,
-        )
+        async with SQLiteSagaStorage(":memory:") as storage:
+            saga_id = str(uuid4())
+            await storage.save_saga_state(
+                saga_id=saga_id,
+                saga_name="TestSaga",
+                status=SagaStatus.EXECUTING,
+                steps=[{"name": "step1", "status": "pending"}],
+                context={},
+            )
+            # Update a step that doesn't exist → 275->287 (loop exits without break)
+            await storage.update_step_state(
+                saga_id=saga_id,
+                step_name="nonexistent_step",  # Not in steps list
+                status=SagaStepStatus.COMPLETED,
+            )
 
     async def test_update_step_status_step_name_mismatch(self):
         """276->275: if step.get('name') == step_name: False → continue loop."""
         from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
         from sagaz.core.types import SagaStatus, SagaStepStatus
 
-        storage = SQLiteSagaStorage(":memory:")
-        await storage.initialize()
-        saga_id = str(uuid4())
-        await storage.save_saga_state(
-            saga_id=saga_id,
-            saga_name="TestSaga",
-            status=SagaStatus.EXECUTING,
-            steps=[
-                {"name": "step1", "status": "pending"},
-                {"name": "step2", "status": "pending"},
-            ],
-            context={},
-        )
-        # Update step2 → step1 skipped (276->275), step2 matched
-        await storage.update_step_state(
-            saga_id=saga_id,
-            step_name="step2",
-            status=SagaStepStatus.COMPLETED,
-        )
-
+        async with SQLiteSagaStorage(":memory:") as storage:
+            saga_id = str(uuid4())
+            await storage.save_saga_state(
+                saga_id=saga_id,
+                saga_name="TestSaga",
+                status=SagaStatus.EXECUTING,
+                steps=[
+                    {"name": "step1", "status": "pending"},
+                    {"name": "step2", "status": "pending"},
+                ],
+                context={},
+            )
+            # Update step2 → step1 skipped (276->275), step2 matched
+            await storage.update_step_state(
+                saga_id=saga_id,
+                step_name="step2",
+                status=SagaStepStatus.COMPLETED,
+            )
 
 # ==========================================================================
 # storage/base.py  – 193->196

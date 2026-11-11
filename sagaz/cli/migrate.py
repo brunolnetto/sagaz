@@ -97,9 +97,9 @@ def migrate_status(source: str) -> None:
     async def _run() -> None:
         click.echo(f"Fetching record counts from {source} …")
         async with create_storage_manager(url=source) as manager:
-            saga_stats = await manager.saga.get_statistics()
+            saga_count = await manager.saga.count()
             event_count = await manager.outbox.count()
-            click.echo(f"  sagas={saga_stats.total_records}")
+            click.echo(f"  sagas={saga_count}")
             click.echo(f"  outbox_events={event_count}")
 
     asyncio.run(_run())
