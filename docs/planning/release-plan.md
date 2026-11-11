@@ -1,7 +1,7 @@
 # Scoped Release Plan — sagaz 2026
 
-> **Last updated**: 2026-04-08
-> **Current version**: 1.1.2
+> **Last updated**: 2026-11-10
+> **Current version**: 1.6.0
 > **Strategy**: Minimum-disruption, scoped releases. Each wave ships only additive/isolated features. Core-invasive changes are deferred to later waves.
 
 ---
@@ -24,7 +24,7 @@
 ```
 Wave 0  ─── v1.5.0 ──────── Governance & lightweight ops  (no core changes)
 Wave 1  ─── v1.6.0 ──────── Storage extensions             (storage/ layer only)
-Wave 1b ─── v1.7.0 ──────── SCXML state machine migration  (core/execution only — ADR-038)
+Wave 1b ─── v1.7.0 ──────── StateChart migration, Phase 1  (core/execution + snapshots/storage — ADR-040)
 Wave 2  ─── v1.8.0 ──────── Analytics & chaos              (new sagaz[analytics] extra)
 Wave 3  ─── v1.9.0 ──────── CLI v2 + CDC + tenancy         (service/infra expansion)
 Wave 4  ─── v1.10.0 ─────── Event-driven choreography      (new execution model)
@@ -54,7 +54,7 @@ Wave 5  ─── v2.0.0 ──────── Core extensions               
 
 ## Wave 1 — v1.6.0 "Storage Extensions"
 
-**Target**: 2026-11-10 release candidate preparation; publication remains subject to validation review
+**Status**: Released 2026-11-10; GitHub tag/release and PyPI wheel + sdist are published
 **Risk**: Medium — persistent storage, cross-backend data integrity, and outbox recovery
 **Original feature merge order**: #62 → #63 → #60 (all three feature PRs are merged into `develop`)
 
@@ -68,14 +68,44 @@ Wave 5  ─── v2.0.0 ──────── Core extensions               
 - #62: SQLite Saga/Outbox unit coverage, legacy outbox schema backfill, and the optional `sagaz[sqlite]` extra are present.
 - #63: [PR #351](https://github.com/brunolnetto/sagaz/pull/351) adds canonical serialization, schema upgrades, full-content validation/checksums, PostgreSQL archive transfer, and migration integrity safeguards. The local backend/migration unit batch reported 163 passed and 3 skipped. The skipped container-dependent tests mean live PostgreSQL/Redis migration behavior has not been fully verified in that run. Pause outbox workers during transfer/cutover.
 - #60: [PR #350](https://github.com/brunolnetto/sagaz/pull/350) adds the SQLite + RabbitMQ DLQ lifecycle integration test. Local result: 1 passed. The corresponding GitHub integration job was skipped.
-- CI: several GitHub Actions checks remain failing. This release preparation does not represent a green CI run. Manual publication requires an explicit decision to accept that limitation.
+- CI: several GitHub Actions checks were blocked/failing, so this was not a fully green CI release. v1.6.0 was nevertheless published after explicit acceptance of the documented CI and container-integration limitations.
 - **Outstanding validation**: run the PostgreSQL/Redis container-dependent migration tests before claiming full cross-backend integration coverage. Do not describe those paths as verified until they pass.
+
+
+---
+
+## Wave 1b — v1.7.0 "StateChart Migration — Phase 1"
+
+**Target**: After v1.6.0 promotion; release timing subject to PR merge, full-suite CI, and package verification  
+**Risk**: Medium — execution lifecycle compatibility and persistent configuration schema evolution  
+**Scope**: ADR-040 Phase 1 only; no compound/parallel statechart execution
+
+| Item | Scope | Acceptance / evidence |
+|------|-------|-----------------------|
+| Issue #188 | Migrate `SagaStateMachine` and `SagaStepStateMachine` to `StateChart` | Preserve flat Saga behavior and legacy runtime flags |
+| State inspection | Expose serializable active configuration while preserving `current_state` compatibility | Real StateChart lifecycle assertions for pending → executing → completed |
+| Snapshots | Persist configuration in Saga status and snapshot serialization | Historical snapshots without configuration fall back to `[status]` |
+| Storage API | Add optional `configuration: list[str]` to `save_saga_state` | Existing callers remain compatible through `[status.value]` fallback |
+| Backends | Preserve configuration in Memory, Redis, SQLite, and PostgreSQL | Backend round-trip, storage transfer, and legacy schema tests |
+| Schema evolution | Idempotent SQLite and PostgreSQL upgrades | Existing rows retained and backfilled from scalar status |
+
+**Validation record (local, 2026-11-10)**:
+- Combined Phase 1 regression suite: **989 passed**.
+- Focused StateChart + snapshot regression: **98 passed**.
+- Ruff and `git diff --check`: passed.
+- This is local validation evidence, not a claim that the GitHub Actions release workflow is green. The full release test suite and PR CI must still pass before publication.
+
+**Explicit exclusions**:
+- StateChart Phase 2 compound/parallel execution (#190; historical implementation PR #191) remains deferred and is not a v1.7.0 dependency.
+- ChaosMonkey and chaos-pattern demonstrations belong to the v1.8.0 Analytics & Chaos scope, not v1.7.0.
+- Do not close the v1.7.0 milestone until the StateChart Phase 1 implementation is merged to `develop`, promoted to `main`, and release gates are verified.
+
 
 ---
 
 ## Wave 2 — v1.8.0 "Analytics & Chaos"
 
-**Target**: May / June 2026
+**Target**: After v1.7.0; schedule to be confirmed
 **Risk**: Low — new `sagaz[analytics]` optional extra, chaos is opt-in
 **Merge order**: #79 → #74 → #71 → #67
 
