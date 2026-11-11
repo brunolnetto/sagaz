@@ -584,6 +584,11 @@ class TestSQLiteOutboxStorage:
             loaded = await storage.get_by_id("legacy-event-1")
             exported = [record async for record in storage.export_all()]
 
+            # Re-running the upgrade must not attempt to add existing columns.
+            conn = storage._conn
+            assert conn is not None
+            await storage._ensure_optional_columns(conn)
+
         assert loaded is not None
         assert loaded.aggregate_type == "saga"
         assert loaded.aggregate_id == "legacy-saga-1"
@@ -910,6 +915,7 @@ class TestSqliteSagaBranches:
                 step_name="step2",
                 status=SagaStepStatus.COMPLETED,
             )
+
 
 # ==========================================================================
 # storage/base.py  – 193->196
