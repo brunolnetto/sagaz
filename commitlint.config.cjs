@@ -38,6 +38,7 @@ module.exports = {
         "ci",        // CI/CD workflows
         "deps",      // dependency management
         "tests",     // test infrastructure / fixtures
+        "release",  // release preparation and versioning
       ],
     ],
     "subject-case": [2, "never", ["sentence-case", "start-case", "pascal-case"]],
