@@ -76,8 +76,9 @@ Wave 5  ─── v2.0.0 ──────── Core extensions               
 
 ## Wave 1b — v1.7.0 "StateChart Migration — Phase 1"
 
-**Target**: After v1.6.0 promotion; release timing subject to PR merge, full-suite CI, and package verification  
-**Risk**: Medium — execution lifecycle compatibility and persistent configuration schema evolution  
+**Target**: After v1.6.0 promotion; release timing subject to PR merge, full-suite CI, and package verification
+
+**Risk**: Medium — execution lifecycle compatibility and persistent configuration schema evolution
 **Scope**: ADR-040 Phase 1 only; no compound/parallel statechart execution
 
 | Item | Scope | Acceptance / evidence |
