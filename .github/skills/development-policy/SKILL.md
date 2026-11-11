@@ -81,7 +81,7 @@ Commits must follow conventional commit style:
 
 ### Approved Scopes
 
-`saga`, `dag`, `outbox`, `storage`, `strategies`, `monitoring`, `cli`, `execution`, `triggers`, `visualization`, `integrations`, `sagaz`, `docs`, `ci`, `deps`, `tests`
+`saga`, `dag`, `outbox`, `storage`, `strategies`, `monitoring`, `cli`, `execution`, `triggers`, `visualization`, `integrations`, `sagaz`, `docs`, `ci`, `deps`, `tests`, `release`
 
 ### Examples
 
