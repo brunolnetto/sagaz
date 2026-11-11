@@ -39,6 +39,7 @@ module.exports = {
         "deps",      // dependency management
         "tests",     // test infrastructure / fixtures
         "release",  // release preparation and versioning
+        "changelog", // changelog entries
       ],
     ],
     "subject-case": [2, "never", ["sentence-case", "start-case", "pascal-case"]],
