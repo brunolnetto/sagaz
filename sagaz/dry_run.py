@@ -7,10 +7,7 @@ Provides validation, simulation, estimation, and tracing capabilities.
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from sagaz.core.saga import Saga
+from typing import Any
 
 
 @dataclass
@@ -111,7 +108,7 @@ class DryRunEngine:
 
     async def run(
         self,
-        saga: "Saga",
+        saga: object,
         context: dict[str, Any],
         mode: DryRunMode,  # type: ignore
     ) -> DryRunResult:
@@ -167,7 +164,7 @@ class DryRunEngine:
 
     async def _validate(
         self,
-        saga: "Saga",
+        saga: object,
         context: dict[str, Any],  # type: ignore
     ) -> ValidationResult:
         """Validate saga configuration."""
@@ -232,7 +229,7 @@ class DryRunEngine:
 
     def _validate_context_fields(
         self,
-        saga: "Saga",
+        saga: object,
         context: dict[str, Any],
         checks: dict,
         errors: list,  # type: ignore
@@ -296,7 +293,7 @@ class DryRunEngine:
 
         return cycles
 
-    def _extract_steps(self, saga: "Saga") -> list:  # type: ignore
+    def _extract_steps(self, saga: object) -> list:  # type: ignore
         """Extract steps from saga instance."""
         if hasattr(saga, "_steps") and saga._steps:
             return list(saga._steps)
@@ -331,7 +328,7 @@ class DryRunEngine:
 
     async def _simulate(
         self,
-        saga: "Saga",
+        saga: object,
         context: dict[str, Any],  # type: ignore
     ) -> SimulationResult:
         """Simulate saga execution to preview step order.
@@ -431,7 +428,7 @@ class DryRunEngine:
 
         return [g for g in groups if g]  # Remove empty groups
 
-    def _build_dag(self, saga: "Saga") -> dict[str, list[str]]:  # type: ignore
+    def _build_dag(self, saga: object) -> dict[str, list[str]]:  # type: ignore
         """Build DAG from saga steps.
 
         Args:
@@ -576,7 +573,7 @@ class DryRunEngine:
 
         return path
 
-    def _get_compensatable_steps(self, saga: "Saga") -> set[str]:  # type: ignore
+    def _get_compensatable_steps(self, saga: object) -> set[str]:  # type: ignore
         """Get set of steps that have compensation functions."""
         steps = self._extract_steps(saga)
         compensatable_steps: set[str] = set()
@@ -595,7 +592,7 @@ class DryRunEngine:
 
     def _analyze_backward_layers(
         self,
-        saga: "Saga",  # type: ignore
+        saga: object,  # type: ignore
         forward_layers: list[ParallelLayerInfo],
     ) -> list[ParallelLayerInfo]:
         """Analyze compensation (backward) execution layers.

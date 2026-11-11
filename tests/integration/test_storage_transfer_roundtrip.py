@@ -12,7 +12,7 @@ pytestmark = pytest.mark.integration
 
 @pytest.mark.asyncio
 async def test_sqlite_to_postgresql_migration_preserves_saga_and_outbox_records(
-    postgres_container,
+    isolated_postgres_url,
     tmp_path,
 ) -> None:
     """Migrate complete Saga and Outbox state, verify checksums, then rerun safely."""
@@ -24,10 +24,7 @@ async def test_sqlite_to_postgresql_migration_preserves_saga_and_outbox_records(
     from sagaz.core.types import SagaStatus
     from sagaz.storage.migration import SagaStorageMigrator
 
-    postgres_url = postgres_container.get_connection_url().replace(
-        "postgresql+psycopg2://",
-        "postgresql://",
-    )
+    postgres_url = isolated_postgres_url
     sqlite_path = tmp_path / "source.sqlite"
     sqlite_url = f"sqlite:///{sqlite_path}"
 

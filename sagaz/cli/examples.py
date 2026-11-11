@@ -360,6 +360,10 @@ def _show_no_examples_message(domain: str | None) -> None:
 
 def _display_examples_table(by_domain: dict[str, dict[str, Path]]) -> None:
     """Display examples grouped by domain in a rich table."""
+    if TableClass is None:
+        _display_examples_plain(by_domain)
+        return
+
     table = TableClass(
         title="Sagaz Examples",
         show_header=True,

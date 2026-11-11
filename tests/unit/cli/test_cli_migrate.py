@@ -53,8 +53,7 @@ def test_migrate_status(runner):
     manager = AsyncMock()
     manager.__aenter__.return_value = manager
     manager.__aexit__.return_value = None
-    stats = MagicMock(total_records=7)
-    manager.saga.get_statistics = AsyncMock(return_value=stats)
+    manager.saga.count = AsyncMock(return_value=7)
     manager.outbox.count = AsyncMock(return_value=11)
 
     with patch("sagaz.cli.migrate.create_storage_manager", return_value=manager):

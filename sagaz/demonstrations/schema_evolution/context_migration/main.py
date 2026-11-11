@@ -45,9 +45,13 @@ logger = logging.getLogger("sagaz.demo.context_migration")
 CURRENT_SCHEMA_VERSION = 2
 
 
-def get_schema_version(ctx: dict) -> int:
+def get_schema_version(ctx: dict[str, Any]) -> int:
     """Return schema version embedded in context, defaulting to 1."""
-    return ctx.get("_schema_version", 1)
+    version = ctx.get("_schema_version", 1)
+    if isinstance(version, bool) or not isinstance(version, int):
+        msg = "_schema_version must be an integer"
+        raise ValueError(msg)
+    return version
 
 
 def migrate_v1_to_v2(ctx: dict) -> dict:

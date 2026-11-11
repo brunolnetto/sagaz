@@ -5,9 +5,11 @@ Tests the state machine logic that manages saga and step lifecycle transitions.
 """
 
 import pytest
+from statemachine import StateChart
 from statemachine.exceptions import TransitionNotAllowed
 
 from sagaz.core.execution.state_machine import (
+    SagaStateMachine,
     SagaStepStateMachine,
     get_valid_next_states,
     validate_state_transition,
@@ -158,6 +160,53 @@ class TestSagaStepStateMachine:
             await sm.compensate()
 
 
+class TestStateChartCompatibility:
+    """Verify the StateChart migration preserves the legacy runtime contract."""
+
+    @pytest.mark.parametrize(
+        "machine_cls",
+        [SagaStateMachine, SagaStepStateMachine],
+    )
+    def test_statechart_inheritance_and_legacy_flags(self, machine_cls):
+        assert issubclass(machine_cls, StateChart)
+        assert machine_cls.allow_event_without_transition is False
+        assert machine_cls.enable_self_transition_entries is False
+        assert machine_cls.atomic_configuration_update is True
+        assert machine_cls.catch_errors_as_events is False
+
+    @pytest.mark.asyncio
+    async def test_saga_current_state_remains_a_state_object(self):
+        sm = SagaStateMachine()
+        await sm.activate_initial_state()
+
+        assert sm.current_state == sm.pending
+        assert sm.current_state.id == "pending"
+
+    @pytest.mark.asyncio
+    async def test_invalid_saga_transition_raises(self):
+        sm = SagaStateMachine()
+        await sm.activate_initial_state()
+
+        with pytest.raises(TransitionNotAllowed):
+            await sm.succeed()
+
+    @pytest.mark.asyncio
+    async def test_callback_exceptions_propagate(self):
+        class FailingSaga:
+            steps = [object()]
+            completed_steps = []
+
+            async def _on_enter_executing(self):
+                msg = "callback failure"
+                raise RuntimeError(msg)
+
+        sm = SagaStateMachine(FailingSaga())
+        await sm.activate_initial_state()
+
+        with pytest.raises(RuntimeError, match="callback failure"):
+            await sm.start()
+
+
 class TestStateValidation:
     """Tests for state validation functions"""
 
@@ -200,3 +249,48 @@ class TestStateValidation:
     def test_get_valid_next_states_unknown(self):
         """Test getting valid states for unknown state"""
         assert get_valid_next_states("UnknownState") == []
+
+
+@pytest.mark.asyncio
+async def test_saga_state_configuration_tracks_real_statechart_lifecycle():
+    """Ensure snapshot configuration follows the real StateChart lifecycle."""
+    from sagaz.core.execution.state_machine import SagaStateMachine
+    from sagaz.core.saga._snapshot import _SagaSnapshotMixin
+    from sagaz.core.types import SagaStatus
+
+    class SagaStub:
+        steps = [object()]
+
+    class SnapshotView(_SagaSnapshotMixin):
+        def __init__(self, state_machine):
+            self._state_machine = state_machine
+            self.status = SagaStatus.PENDING
+
+    machine = SagaStateMachine(SagaStub())
+    view = SnapshotView(machine)
+
+    def assert_configuration_matches_active_states():
+        active_states = list(machine.configuration)
+        assert len(active_states) == 1
+
+        values = [str(value) for value in machine.configuration_values]
+        assert values
+        assert view.state_configuration == values
+        return values
+
+    # StateChart requires explicit initial-state activation.
+    await machine.activate_initial_state()
+    pending_configuration = assert_configuration_matches_active_states()
+
+    # Pending -> Executing (the SagaStub satisfies the has_steps guard).
+    await machine.start()
+    view.status = SagaStatus.EXECUTING
+    executing_configuration = assert_configuration_matches_active_states()
+    assert executing_configuration != pending_configuration
+
+    # Executing -> Completed.
+    await machine.succeed()
+    view.status = SagaStatus.COMPLETED
+    completed_configuration = assert_configuration_matches_active_states()
+    assert completed_configuration != executing_configuration
+    assert completed_configuration != pending_configuration

@@ -17,6 +17,8 @@ Usage:
     >>> await worker.process_batch()  # Process one batch
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import os
@@ -26,6 +28,10 @@ import time
 import uuid
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import prometheus_client
 
 from sagaz.core.outbox.brokers.base import BrokerError, MessageBroker
 from sagaz.core.outbox.error_classifier import classify_error, create_error_fingerprint
@@ -39,6 +45,19 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+OUTBOX_BATCH_PROCESSED: prometheus_client.Counter | None
+OUTBOX_PUBLISHED_EVENTS: prometheus_client.Counter | None
+OUTBOX_FAILED_EVENTS: prometheus_client.Counter | None
+OUTBOX_DEAD_LETTER_EVENTS: prometheus_client.Counter | None
+OUTBOX_REPLAY_LOOP_DETECTED: prometheus_client.Counter | None
+OUTBOX_RETRY_ATTEMPTS: prometheus_client.Counter | None
+OUTBOX_PENDING_EVENTS: prometheus_client.Gauge | None
+OUTBOX_PROCESSING_EVENTS: prometheus_client.Gauge | None
+OUTBOX_BATCH_SIZE: prometheus_client.Gauge | None
+OUTBOX_EVENTS_BY_STATE: prometheus_client.Gauge | None
+OUTBOX_DLQ_DEPTH: prometheus_client.Gauge | None
+OUTBOX_PUBLISH_DURATION: prometheus_client.Histogram | None
 
 # ============================================================================
 # Prometheus Metrics (optional - gracefully degrade if not installed)
@@ -247,7 +266,7 @@ class OutboxWorker:
         """Process one iteration of the loop. Returns True if loop should break."""
         try:
             # Update pending events gauge
-            if PROMETHEUS_AVAILABLE:
+            if PROMETHEUS_AVAILABLE and OUTBOX_PENDING_EVENTS is not None:
                 try:
                     pending_count = await self.storage.get_pending_count()
                     OUTBOX_PENDING_EVENTS.set(pending_count)
@@ -306,7 +325,11 @@ class OutboxWorker:
         logger.debug(f"Worker {self.worker_id} claimed {batch_size} events")
 
         # Record Prometheus metrics
-        if PROMETHEUS_AVAILABLE:
+        if (
+            PROMETHEUS_AVAILABLE
+            and OUTBOX_BATCH_SIZE is not None
+            and OUTBOX_PROCESSING_EVENTS is not None
+        ):
             OUTBOX_BATCH_SIZE.labels(worker_id=self.worker_id).set(batch_size)
             OUTBOX_PROCESSING_EVENTS.labels(worker_id=self.worker_id).set(batch_size)
 
@@ -323,7 +346,11 @@ class OutboxWorker:
                 processed += 1
 
         # Record batch completion
-        if PROMETHEUS_AVAILABLE:
+        if (
+            PROMETHEUS_AVAILABLE
+            and OUTBOX_BATCH_PROCESSED is not None
+            and OUTBOX_PROCESSING_EVENTS is not None
+        ):
             OUTBOX_BATCH_PROCESSED.labels(worker_id=self.worker_id).inc()
             OUTBOX_PROCESSING_EVENTS.labels(worker_id=self.worker_id).set(0)
 
@@ -352,7 +379,11 @@ class OutboxWorker:
             self._events_processed += 1
 
             # Record Prometheus metrics
-            if PROMETHEUS_AVAILABLE:
+            if (
+                PROMETHEUS_AVAILABLE
+                and OUTBOX_PUBLISHED_EVENTS is not None
+                and OUTBOX_PUBLISH_DURATION is not None
+            ):
                 duration = time.time() - start_time
                 OUTBOX_PUBLISHED_EVENTS.labels(
                     worker_id=self.worker_id, event_type=event_type
@@ -407,7 +438,11 @@ class OutboxWorker:
         self._events_failed += 1
 
         # Record Prometheus metrics
-        if PROMETHEUS_AVAILABLE:
+        if (
+            PROMETHEUS_AVAILABLE
+            and OUTBOX_FAILED_EVENTS is not None
+            and OUTBOX_RETRY_ATTEMPTS is not None
+        ):
             OUTBOX_FAILED_EVENTS.labels(worker_id=self.worker_id, event_type=event_type).inc()
             OUTBOX_RETRY_ATTEMPTS.labels(worker_id=self.worker_id).inc()
 
@@ -445,7 +480,11 @@ class OutboxWorker:
         self._events_dead_lettered += 1
 
         # Record Prometheus metrics
-        if PROMETHEUS_AVAILABLE:
+        if (
+            PROMETHEUS_AVAILABLE
+            and OUTBOX_DEAD_LETTER_EVENTS is not None
+            and OUTBOX_DLQ_DEPTH is not None
+        ):
             event_type = event.event_type or "unknown"
             error_type_label = event.error_type or "unknown"
             OUTBOX_DEAD_LETTER_EVENTS.labels(

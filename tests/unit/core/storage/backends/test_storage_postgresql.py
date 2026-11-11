@@ -206,10 +206,21 @@ class TestPostgreSQLSagaStorageMocked:
                 steps=[{"name": "step1", "status": "pending"}],
                 context={"order_id": "123"},
                 metadata={"version": 1},
+                configuration=["executing"],
             )
 
             # Verify execute was called for saga upsert
             assert conn.execute.called
+            upsert_args = conn.execute.await_args_list[0].args
+            assert json.loads(upsert_args[6]) == ["executing"]
+
+    def test_schema_contains_idempotent_configuration_upgrade(self):
+        from sagaz.core.storage.postgresql import PostgreSQLSagaStorage
+
+        schema = PostgreSQLSagaStorage.CREATE_TABLES_SQL
+        assert "ADD COLUMN IF NOT EXISTS configuration JSONB" in schema
+        assert "jsonb_build_array(status)" in schema
+        assert "ALTER COLUMN configuration SET NOT NULL" in schema
 
     @pytest.mark.asyncio
     async def test_load_saga_state(self, mock_pool):
@@ -250,6 +261,7 @@ class TestPostgreSQLSagaStorageMocked:
 
             assert result["saga_id"] == "saga-123"
             assert result["saga_name"] == "OrderSaga"
+            assert result["configuration"] == ["executing"]
 
     @pytest.mark.asyncio
     async def test_update_step_state(self, mock_pool):
@@ -534,6 +546,91 @@ class TestPostgreSQLStorageIntegration:
             assert state["steps"][0]["name"] == "step1"
 
     @pytest.mark.asyncio
+    async def test_legacy_schema_upgrade_preserves_existing_sagas(self, postgres_container):
+        """Upgrade an old schema without losing existing Saga records."""
+        from uuid import uuid4
+
+        import asyncpg
+
+        from sagaz.core.storage.postgresql import PostgreSQLSagaStorage
+
+        connection_string = postgres_container.get_connection_url().replace(
+            "postgresql+psycopg2://", "postgresql://"
+        )
+
+        # Use an isolated schema so this test cannot interfere with other tests.
+        schema = f"legacy_{uuid4().hex}"
+        server_settings = {"search_path": schema}
+
+        admin = await asyncpg.connect(connection_string)
+        try:
+            await admin.execute(f'CREATE SCHEMA "{schema}"')
+        finally:
+            await admin.close()
+
+        try:
+            legacy_conn = await asyncpg.connect(
+                connection_string,
+                server_settings=server_settings,
+            )
+            try:
+                # This is the pre-StateChart Saga schema.
+                await legacy_conn.execute(
+                    """
+                    CREATE TABLE sagas (
+                        saga_id VARCHAR(255) PRIMARY KEY,
+                        saga_name VARCHAR(255) NOT NULL,
+                        status VARCHAR(50) NOT NULL,
+                        context JSONB,
+                        metadata JSONB,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    )
+                    """
+                )
+
+                await legacy_conn.execute(
+                    """
+                    INSERT INTO sagas (
+                        saga_id, saga_name, status, context, metadata
+                    )
+                    VALUES (
+                        'legacy-saga', 'LegacySaga', 'completed',
+                        '{"preserve": true}'::jsonb,
+                        '{"version": 1}'::jsonb
+                    )
+                    """
+                )
+            finally:
+                await legacy_conn.close()
+
+            async with PostgreSQLSagaStorage(
+                connection_string,
+                server_settings=server_settings,
+            ) as storage:
+                legacy = await storage.load_saga_state("legacy-saga")
+
+                assert legacy is not None
+                assert legacy["context"] == {"preserve": True}
+                assert legacy["metadata"] == {"version": 1}
+                assert legacy["configuration"] == ["completed"]
+
+                # The migration must also be safe to execute a second time.
+                async with storage._pool.acquire() as conn:
+                    await conn.execute(storage.CREATE_TABLES_SQL)
+
+                restored = await storage.load_saga_state("legacy-saga")
+                assert restored is not None
+                assert restored["configuration"] == ["completed"]
+
+        finally:
+            admin = await asyncpg.connect(connection_string)
+            try:
+                await admin.execute(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE')
+            finally:
+                await admin.close()
+
+    @pytest.mark.asyncio
     async def test_load_nonexistent_saga(self, postgres_container):
         """Test loading a saga that doesn't exist"""
         from sagaz.core.storage.postgresql import PostgreSQLSagaStorage
@@ -770,7 +867,7 @@ class TestPostgreSQLSagaMissingBranches:
                     raise StopAsyncIteration
 
         cursor = AsyncRowIter([row])
-        conn.cursor = AsyncMock(return_value=cursor)
+        conn.cursor = MagicMock(return_value=cursor)
         conn.fetch = AsyncMock(return_value=[])
         conn.transaction.return_value = AsyncContextManagerMock(None)
         pool.acquire.return_value = AsyncContextManagerMock(conn)

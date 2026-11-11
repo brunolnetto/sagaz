@@ -55,9 +55,20 @@ class PostgreSQLSagaStorage(SagaStorage):
         status VARCHAR(50) NOT NULL,
         context JSONB,
         metadata JSONB,
+        configuration JSONB NOT NULL DEFAULT '[]'::jsonb,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
+
+    -- Idempotent upgrade for databases created before StateChart configuration.
+    ALTER TABLE sagas ADD COLUMN IF NOT EXISTS configuration JSONB;
+    UPDATE sagas
+    SET configuration = jsonb_build_array(status)
+    WHERE configuration IS NULL OR configuration = '[]'::jsonb;
+    ALTER TABLE sagas
+        ALTER COLUMN configuration SET DEFAULT '[]'::jsonb;
+    ALTER TABLE sagas
+        ALTER COLUMN configuration SET NOT NULL;
 
     CREATE TABLE IF NOT EXISTS saga_steps (
         id SERIAL PRIMARY KEY,
@@ -134,6 +145,7 @@ class PostgreSQLSagaStorage(SagaStorage):
         steps: list[dict[str, Any]],
         context: dict[str, Any],
         metadata: dict[str, Any] | None = None,
+        configuration: list[str] | None = None,
     ) -> None:
         """Save saga state to PostgreSQL"""
 
@@ -144,14 +156,18 @@ class PostgreSQLSagaStorage(SagaStorage):
                 # Upsert saga record
                 await conn.execute(
                     """
-                    INSERT INTO sagas (saga_id, saga_name, status, context, metadata, updated_at)
-                    VALUES ($1, $2, $3, $4, $5, NOW())
+                    INSERT INTO sagas (
+                        saga_id, saga_name, status, context, metadata,
+                        configuration, updated_at
+                    )
+                    VALUES ($1, $2, $3, $4, $5, $6, NOW())
                     ON CONFLICT (saga_id)
                     DO UPDATE SET
                         saga_name = EXCLUDED.saga_name,
                         status = EXCLUDED.status,
                         context = EXCLUDED.context,
                         metadata = EXCLUDED.metadata,
+                        configuration = EXCLUDED.configuration,
                         updated_at = NOW()
                 """,
                     saga_id,
@@ -159,6 +175,7 @@ class PostgreSQLSagaStorage(SagaStorage):
                     status.value,
                     json.dumps(context),
                     json.dumps(metadata or {}),
+                    json.dumps(configuration or [status.value]),
                 )
 
                 # Delete existing steps and insert new ones
@@ -199,7 +216,8 @@ class PostgreSQLSagaStorage(SagaStorage):
         async with pool.acquire() as conn:
             saga_row = await conn.fetchrow(
                 """
-                SELECT saga_id, saga_name, status, context, metadata, created_at, updated_at
+                SELECT saga_id, saga_name, status, context, metadata,
+                       configuration, created_at, updated_at
                 FROM sagas WHERE saga_id = $1
             """,
                 saga_id,
@@ -220,10 +238,20 @@ class PostgreSQLSagaStorage(SagaStorage):
 
     def _build_saga_dict(self, saga_row, step_rows) -> dict[str, Any]:
         """Build saga dict from database rows."""
+        try:
+            raw_configuration = saga_row["configuration"]
+        except (KeyError, IndexError):
+            raw_configuration = None
+
+        if isinstance(raw_configuration, str):
+            raw_configuration = json.loads(raw_configuration)
+        configuration = raw_configuration or [saga_row["status"]]
+
         return {
             "saga_id": saga_row["saga_id"],
             "saga_name": saga_row["saga_name"],
             "status": saga_row["status"],
+            "configuration": configuration,
             "context": json.loads(saga_row["context"]) if saga_row["context"] else {},
             "metadata": json.loads(saga_row["metadata"]) if saga_row["metadata"] else {},
             "steps": [self._parse_step_row(row) for row in step_rows],
@@ -503,7 +531,7 @@ class PostgreSQLSagaStorage(SagaStorage):
         async with pool.acquire() as conn:
             async with conn.transaction():
                 # Stream sagas
-                cursor = await conn.cursor("SELECT * FROM sagas ORDER BY saga_id")
+                cursor = conn.cursor("SELECT * FROM sagas ORDER BY saga_id")
 
                 async for row in cursor:
                     # Fetch steps for this saga (not super efficient but avoids giant joins)
@@ -523,4 +551,5 @@ class PostgreSQLSagaStorage(SagaStorage):
             steps=record.get("steps", []),
             context=record.get("context", {}),
             metadata=record.get("metadata"),
+            configuration=record.get("configuration") or [record["status"]],
         )

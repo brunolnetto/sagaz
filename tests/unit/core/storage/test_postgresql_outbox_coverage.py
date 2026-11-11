@@ -614,7 +614,7 @@ class TestExportAll:
         mock_cursor = AsyncIterableMock([mock_row])
 
         mock_conn = AsyncMock()
-        mock_conn.cursor = AsyncMock(return_value=mock_cursor)
+        mock_conn.cursor = MagicMock(return_value=mock_cursor)
         mock_conn.transaction = MagicMock(return_value=_make_transaction_ctx())
         storage._pool = _make_pool_with_conn(mock_conn)
 
@@ -625,7 +625,7 @@ class TestExportAll:
         assert len(results) == 1
         assert results[0]["event_id"] == "evt-001"
         assert results[0]["event_type"] == "TestEvent"
-        query = mock_conn.cursor.await_args.args[0]
+        query = mock_conn.cursor.call_args.args[0]
         assert "FROM saga_outbox_archive" in query
         assert "UNION ALL" in query
 
@@ -637,7 +637,7 @@ class TestExportAll:
         mock_cursor = AsyncIterableMock([row])
 
         mock_conn = AsyncMock()
-        mock_conn.cursor = AsyncMock(return_value=mock_cursor)
+        mock_conn.cursor = MagicMock(return_value=mock_cursor)
         mock_conn.transaction = MagicMock(return_value=_make_transaction_ctx())
         storage._pool = _make_pool_with_conn(mock_conn)
 
@@ -660,7 +660,7 @@ class TestExportAll:
                 raise RuntimeError(msg)
 
         mock_conn = AsyncMock()
-        mock_conn.cursor = AsyncMock(return_value=ErrorCursor())
+        mock_conn.cursor = MagicMock(return_value=ErrorCursor())
         mock_conn.transaction = MagicMock(return_value=_make_transaction_ctx())
         storage._pool = _make_pool_with_conn(mock_conn)
 

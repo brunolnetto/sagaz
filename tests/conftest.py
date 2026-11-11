@@ -230,3 +230,45 @@ def redis_storage_factory(redis_url):
         return RedisSagaStorage(redis_url=redis_url, **kwargs)
 
     return factory
+
+
+@pytest.fixture
+async def isolated_postgres_url(postgres_container):
+    """Create a dedicated PostgreSQL database for one test."""
+    from urllib.parse import urlsplit, urlunsplit
+    from uuid import uuid4
+
+    asyncpg = pytest.importorskip("asyncpg")
+
+    admin_url = postgres_container.get_connection_url().replace(
+        "postgresql+psycopg2://",
+        "postgresql://",
+    )
+    database_name = f"sagaz_test_{uuid4().hex}"
+
+    admin = await asyncpg.connect(admin_url)
+    try:
+        await admin.execute(f'CREATE DATABASE "{database_name}"')
+    finally:
+        await admin.close()
+
+    parts = urlsplit(admin_url)
+    database_url = urlunsplit(parts._replace(path=f"/{database_name}"))
+
+    try:
+        yield database_url
+    finally:
+        admin = await asyncpg.connect(admin_url)
+        try:
+            await admin.execute(
+                """
+                SELECT pg_terminate_backend(pid)
+                FROM pg_stat_activity
+                WHERE datname = $1
+                  AND pid <> pg_backend_pid()
+                """,
+                database_name,
+            )
+            await admin.execute(f'DROP DATABASE IF EXISTS "{database_name}"')
+        finally:
+            await admin.close()
