@@ -1,7 +1,7 @@
 # Scoped Release Plan — sagaz 2026
 
-> **Last updated**: 2026-11-10
-> **Current version**: 1.6.0
+> **Last updated**: 2026-11-12
+> **Current version**: 1.7.2
 > **Strategy**: Minimum-disruption, scoped releases. Each wave ships only additive/isolated features. Core-invasive changes are deferred to later waves.
 
 ---
@@ -29,6 +29,7 @@ Wave 2  ─── v1.8.0 ──────── Analytics & chaos             
 Wave 3  ─── v1.9.0 ──────── CLI v2 + CDC + tenancy         (service/infra expansion)
 Wave 4  ─── v1.10.0 ─────── Event-driven choreography      (new execution model)
 Wave 5  ─── v2.0.0 ──────── Core extensions                (saga.add_step wired — blocked)
+Wave 6  ─── TBD   ────────── Streaming & historical analytics (Fluss + Iceberg; post-core stabilization)
 ```
 
 ---
@@ -108,14 +109,17 @@ Wave 5  ─── v2.0.0 ──────── Core extensions               
 
 **Target**: After v1.7.0; schedule to be confirmed
 **Risk**: Low — new `sagaz[analytics]` optional extra, chaos is opt-in
-**Merge order**: #79 → #74 → #71 → #67
+**Merge order**: #79 → #74 → #71
 
 | PR | Branch | Feature | Issue | Merge pre-req |
 |----|--------|---------|-------|--------------|
 | #79 | feature/chaos-engineering | ChaosMonkey injection (ADR-017) | #78 | none |
 | #74 | feature/sqldim-analytics-pipeline | sqldim OLTP analytics pipeline | #73 | none |
 | #71 | feature/visualization-ui | Saga visualization dashboard (ADR-035) | #58 | none |
-| #67 | feature/fluss-iceberg-analytics | Fluss streaming + Iceberg tiering (ADR-013) | #51 | none |
+
+**Scope decision (2026-11-12)**:
+- Issue #51 and PR #67 are intentionally excluded from v1.8.0. Issue #51 remains open and is reserved for a dedicated Wave 6 after Wave 5 core extensions have shipped and stabilized.
+- Wave 6's release version is **TBD**. Do not assign one until the conflicting version maps below are reconciled.
 
 **Gap watch**:
 - #79: add real `Saga` E2E integration test through `ChaosMonkey` → compensation fires (see issue #111)
@@ -178,6 +182,27 @@ Wave 5  ─── v2.0.0 ──────── Core extensions               
 
 ---
 
+## Wave 6 — TBD "Streaming & Historical Analytics"
+
+**Target**: After Wave 5 (v2.0.0) has shipped and the core extensions have stabilized; no calendar date committed
+**Risk**: High — streaming delivery, failure recovery, and historical table tiering require end-to-end reliability evidence
+**Reserved scope**: Issue #51 — Fluss streaming analytics + Apache Iceberg historical tiering (ADR-013)
+
+| PR | Branch | Feature | Issue | Entry condition |
+|----|--------|---------|-------|-----------------|
+| #67 | feature/fluss-iceberg-analytics | Fluss streaming + Iceberg tiering | #51 | Rebase/rework against current `main`; complete all acceptance gates below |
+
+**Release gates**:
+- Fluss lifecycle events are delivered and verified under a real integration test (including the 1,000-Saga / 1-second acceptance target).
+- Fluss-to-Iceberg tiering completes end to end, with a query verifying the expected historical row count.
+- Buffer/flush failures cannot silently lose events; async paths do not perform blocking network I/O on the event loop.
+- Local Fluss + MinIO services, the tiering job, Grafana dashboard, and the monitoring guide are delivered and exercised.
+- The two monitoring modules meet the issue's 90%+ coverage target.
+
+**Planning note**: PR #67 is an implementation starting point, not a release-ready commitment. Its current branch must be reconciled with `main` and re-reviewed against the reliability and integration gates before it is admitted to the wave.
+
+---
+
 ## Blocking Issues Tracker
 
 | Issue | Blocks PR | Status | Summary |
@@ -223,7 +248,6 @@ Wave 5  ─── v2.0.0 ──────── Core extensions               
 #63 (storage-tx)   after #62 ──────────────────────────────► Wave 1
 
 #79 (chaos)        ──────────────────────────────────────────► Wave 2
-#67 (fluss)        ──────────────────────────────────────────► Wave 2
 #74 (sqldim)       ──────────────────────────────────────────► Wave 2
 #71 (viz)          ──────────────────────────────────────────► Wave 2
 
@@ -240,11 +264,15 @@ fix/#102           ────────────────────�
 #70 (event-src)    after fix/#102 ──────────────────────────► Wave 5
 fix/#104           ──────────────────────────────────────────► Wave 5
 #72 (multi-region) after fix/#104 ──────────────────────────► Wave 5
+
+#51 (Fluss + Iceberg) ── after Wave 5 stabilization ────────► Wave 6
 ```
 
 ---
 
-## Version Map (target)
+## Version Map (target — pending reconciliation)
+
+> **Do not use this table to assign Wave 6 yet.** It conflicts with the Wave Map above: the Wave Map assigns v1.8.0/v1.9.0/v1.10.0/v2.0.0 to Waves 2–5, while this table assigns v2.0.0/v2.1.0/v2.2.0/v2.3.0. Reconcile these mappings before setting a version for Wave 6.
 
 | Version | Wave | Quarter | Notes |
 |---------|------|---------|-------|
