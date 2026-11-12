@@ -4,6 +4,7 @@ Tests for sagaz.__main__ module
 
 import subprocess
 import sys
+from importlib.metadata import version
 from unittest.mock import patch
 
 import pytest
@@ -33,6 +34,7 @@ class TestMain:
         runner = CliRunner()
         result = runner.invoke(cli, ["--version"])
         assert result.exit_code == 0
+        assert result.output == f"sagaz, version {version('sagaz')}\n"
 
     @patch("sagaz.cli.app.cli")
     def test_main_calls_cli(self, mock_cli):
