@@ -7,21 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-11-11
+
 ### Added
 - Expose the active StateChart configuration in imperative Saga status and snapshots.
 - Preserve serializable Saga configuration across Memory, Redis, SQLite, and PostgreSQL storage and transfer paths.
 
 ### Changed
 - Migrate Saga and Saga-step lifecycle machines to `python-statemachine.StateChart` while preserving the flat execution contract and legacy transition/error behavior.
-- Raise the minimum supported `python-statemachine` version to 3.0.0.
+- Raise the minimum supported `python-statemachine` version to 3.2.0.
 
 ### Compatibility
 - Keep `current_state` as the existing State-object accessor.
 - Backfill legacy SQLite/PostgreSQL rows and historical snapshots without configuration using the scalar status representation.
 
 ### Validation
-- Local Phase 1 regression suite: 989 passed; focused StateChart/snapshot suite: 98 passed.
-- Full release CI and packaging checks remain release gates.
+- Combined release-candidate unit regression: 3,171 passed, 29 skipped; 120 deselected.
+- Integration regression: 109 passed; 3,211 deselected.
+- Ruff formatting/lint, strict Radon complexity, Commitlint (Node 24), and all four workflow YAML checks passed locally.
+- The v1.7.0 wheel and source distribution are built and checked in the manual publication preparation.
+- GitHub Actions, CodeQL, and hosted security scans could not run because the account is locked due to a billing issue; they are not claimed as passed.
 
 
 ## [1.6.0] - 2026-11-10
