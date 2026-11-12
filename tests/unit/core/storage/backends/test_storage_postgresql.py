@@ -546,8 +546,6 @@ class TestPostgreSQLStorageIntegration:
             assert state["steps"][0]["name"] == "step1"
 
     @pytest.mark.asyncio
-    async def test_legacy_schema_upgrade_preserves_existing_sagas(self, postgres_container):
-    @pytest.mark.asyncio
     async def test_statechart_configuration_roundtrip(self, isolated_postgres_url):
         """Round-trip the complete StateChart configuration through PostgreSQL JSONB."""
         from sagaz.core.storage.postgresql import PostgreSQLSagaStorage
