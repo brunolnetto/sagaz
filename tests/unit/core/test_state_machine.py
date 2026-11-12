@@ -241,9 +241,9 @@ class TestStateChartCompatibility:
         assert tuple(machine.configuration_values) == executing_configuration
 
     @pytest.mark.asyncio
-    async def test_self_transition_skips_entry_and_exit_callbacks(self):
-        class SelfTransitionSagaStateMachine(SagaStateMachine):
-            repeat = SagaStateMachine.pending.to.itself()
+    async def test_internal_self_transition_skips_entry_and_exit_callbacks(self):
+        class InternalSelfTransitionSagaStateMachine(SagaStateMachine):
+            repeat = SagaStateMachine.pending.to.itself(internal=True)
 
             def __init__(self):
                 self.lifecycle_callbacks = []
@@ -255,7 +255,7 @@ class TestStateChartCompatibility:
             async def on_exit_pending(self):
                 self.lifecycle_callbacks.append("exit")
 
-        machine = SelfTransitionSagaStateMachine()
+        machine = InternalSelfTransitionSagaStateMachine()
         await machine.activate_initial_state()
         machine.lifecycle_callbacks.clear()
 
@@ -263,6 +263,31 @@ class TestStateChartCompatibility:
 
         assert machine.current_state == machine.pending
         assert machine.lifecycle_callbacks == []
+        assert list(machine.configuration_values) == ["pending"]
+
+    @pytest.mark.asyncio
+    async def test_external_self_transition_runs_entry_and_exit_callbacks(self):
+        class ExternalSelfTransitionSagaStateMachine(SagaStateMachine):
+            repeat = SagaStateMachine.pending.to.itself(internal=False)
+
+            def __init__(self):
+                self.lifecycle_callbacks = []
+                super().__init__()
+
+            async def on_enter_pending(self):
+                self.lifecycle_callbacks.append("enter")
+
+            async def on_exit_pending(self):
+                self.lifecycle_callbacks.append("exit")
+
+        machine = ExternalSelfTransitionSagaStateMachine()
+        await machine.activate_initial_state()
+        machine.lifecycle_callbacks.clear()
+
+        await machine.repeat()
+
+        assert machine.current_state == machine.pending
+        assert machine.lifecycle_callbacks == ["exit", "enter"]
         assert list(machine.configuration_values) == ["pending"]
 
     @pytest.mark.asyncio
