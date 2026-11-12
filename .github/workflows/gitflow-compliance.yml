@@ -209,7 +209,7 @@ jobs:
                 `Current title: "${title}"\n` +
                 `\n` +
                 `Valid types: feat, fix, docs, refactor, test, perf, build, ci, chore, revert, release\n` +
-                `Valid scopes: saga, dag, outbox, storage, strategies, monitoring, cli, execution, triggers, visualization, integrations, sagaz, docs, ci, deps, tests\n` +
+                `Valid scopes: saga, dag, outbox, storage, strategies, monitoring, cli, execution, triggers, visualization, integrations, sagaz, docs, ci, deps, tests, release, changelog\n` +
                 `Release scope: v<major>.<minor>.<patch> (example: release(v1.6.0): ...)\n` +
                 `\n` +
                 `Examples:\n` +
