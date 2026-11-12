@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.2] - 2026-11-12
+
+### Changed
+- Make `sagaz --version` report the installed distribution version instead of the hard-coded legacy value `1.0.3`.
+
+
 ### Documentation
 - Record ADR-040 for the accepted flat StateChart Saga lifecycle migration and its Phase 2 boundary.
 
@@ -18,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - StateChart and storage unit regressions: 904 passed, 17 deselected.
 - Validation runs emitted a `PytestUnhandledThreadExceptionWarning` from an `aiosqlite` worker attempting to notify an already-closed asyncio event loop during teardown. It appeared in `tests/unit/core/storage/test_postgresql_outbox_coverage.py::TestClose::test_close_no_pool` in one run and `tests/unit/core/storage/test_manager_missing_paths.py::TestManagerAdditionalMissingPaths::test_initialize_sqlite_unified_without_scheme` in another; no pytest assertion failed.
 - PostgreSQL Testcontainers integration suite: 8 passed, 30 deselected.
+- CLI version regression: 6 passed; Ruff lint/format and `uv lock --check` passed.
+- Full default test suite: 3,328 passed; one known `aiosqlite` worker teardown warning occurred without test failures.
+- The published wheel and source distribution both passed independent clean-install tests on CPython 3.14.9; metadata, imports, CLI `--version`, and CLI `--help` were verified.
+- Production PyPI wheel and sdist hashes match the locally validated artifacts and TestPyPI publication.
+
 
 ## [1.7.0] - 2026-11-11
 
