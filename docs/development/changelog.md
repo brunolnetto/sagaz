@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+- Record ADR-040 for the accepted flat StateChart Saga lifecycle migration and its Phase 2 boundary.
+
+### Tests
+- Add explicit guard, self-transition callback, and atomic configuration-update regression tests.
+- Verify PostgreSQL JSONB configuration round-trips through a real Testcontainers database.
+
 ## [1.7.0] - 2026-11-11
 
 ### Added

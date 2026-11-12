@@ -207,6 +207,88 @@ class TestStateChartCompatibility:
             await sm.start()
 
 
+    @pytest.mark.asyncio
+    async def test_start_guard_rejects_saga_without_steps(self):
+        class EmptySaga:
+            steps = []
+            completed_steps = []
+
+        machine = SagaStateMachine(EmptySaga())
+        await machine.activate_initial_state()
+        initial_configuration = tuple(machine.configuration_values)
+
+        with pytest.raises(TransitionNotAllowed):
+            await machine.start()
+
+        assert machine.current_state == machine.pending
+        assert tuple(machine.configuration_values) == initial_configuration
+
+    @pytest.mark.asyncio
+    async def test_fail_guard_rejects_saga_without_completed_steps(self):
+        class SagaWithoutCompletedSteps:
+            steps = [object()]
+            completed_steps = []
+
+        machine = SagaStateMachine(SagaWithoutCompletedSteps())
+        await machine.activate_initial_state()
+        await machine.start()
+        executing_configuration = tuple(machine.configuration_values)
+
+        with pytest.raises(TransitionNotAllowed):
+            await machine.fail()
+
+        assert machine.current_state == machine.executing
+        assert tuple(machine.configuration_values) == executing_configuration
+
+    @pytest.mark.asyncio
+    async def test_self_transition_skips_entry_and_exit_callbacks(self):
+        class SelfTransitionSagaStateMachine(SagaStateMachine):
+            repeat = SagaStateMachine.pending.to.itself()
+
+            def __init__(self):
+                self.lifecycle_callbacks = []
+                super().__init__()
+
+            async def on_enter_pending(self):
+                self.lifecycle_callbacks.append("enter")
+
+            async def on_exit_pending(self):
+                self.lifecycle_callbacks.append("exit")
+
+        machine = SelfTransitionSagaStateMachine()
+        await machine.activate_initial_state()
+        machine.lifecycle_callbacks.clear()
+
+        await machine.repeat()
+
+        assert machine.current_state == machine.pending
+        assert machine.lifecycle_callbacks == []
+        assert list(machine.configuration_values) == ["pending"]
+
+    @pytest.mark.asyncio
+    async def test_configuration_remains_atomic_during_transition_callback(self):
+        class SagaWithSteps:
+            steps = [object()]
+            completed_steps = []
+
+        class AtomicObservationSagaStateMachine(SagaStateMachine):
+            async def on_start(self):
+                self.configuration_during_start = tuple(
+                    state.id for state in self.configuration
+                )
+                self.pending_active_during_start = self.pending.is_active
+                self.executing_active_during_start = self.executing.is_active
+
+        machine = AtomicObservationSagaStateMachine(SagaWithSteps())
+        await machine.activate_initial_state()
+        await machine.start()
+
+        assert machine.configuration_during_start == ("pending",)
+        assert machine.pending_active_during_start is True
+        assert machine.executing_active_during_start is False
+        assert list(machine.configuration_values) == ["executing"]
+
+
 class TestStateValidation:
     """Tests for state validation functions"""
 
