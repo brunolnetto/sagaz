@@ -61,7 +61,7 @@ class OrderedGroup(click.Group):
 
 
 @click.group(cls=OrderedGroup)
-@click.version_option(version="1.0.3", prog_name="sagaz")
+@click.version_option(package_name="sagaz", prog_name="sagaz")
 def cli():
     """
     Sagaz - Production-ready Saga Pattern Orchestration.
