@@ -163,6 +163,17 @@ class TestSagaStepStateMachine:
 class TestStateChartCompatibility:
     """Verify the StateChart migration preserves the legacy runtime contract."""
 
+    @pytest.fixture
+    def restore_shared_pending_transitions(self):
+        """Restore inherited State transitions after self-transition tests."""
+        transitions = SagaStateMachine.pending.transitions.transitions
+        original_transitions = list(transitions)
+
+        try:
+            yield
+        finally:
+            transitions[:] = original_transitions
+
     @pytest.mark.parametrize(
         "machine_cls",
         [SagaStateMachine, SagaStepStateMachine],
@@ -205,6 +216,198 @@ class TestStateChartCompatibility:
 
         with pytest.raises(RuntimeError, match="callback failure"):
             await sm.start()
+
+    @pytest.mark.asyncio
+    async def test_start_guard_rejects_saga_without_steps(self):
+        class EmptySaga:
+            steps = []
+            completed_steps = []
+
+        machine = SagaStateMachine(EmptySaga())
+        await machine.activate_initial_state()
+        initial_configuration = tuple(machine.configuration_values)
+
+        with pytest.raises(TransitionNotAllowed):
+            await machine.start()
+
+        assert machine.current_state == machine.pending
+        assert tuple(machine.configuration_values) == initial_configuration
+
+    @pytest.mark.asyncio
+    async def test_fail_guard_rejects_saga_without_completed_steps(self):
+        class SagaWithoutCompletedSteps:
+            steps = [object()]
+            completed_steps = []
+
+        machine = SagaStateMachine(SagaWithoutCompletedSteps())
+        await machine.activate_initial_state()
+        await machine.start()
+        executing_configuration = tuple(machine.configuration_values)
+
+        with pytest.raises(TransitionNotAllowed):
+            await machine.fail()
+
+        assert machine.current_state == machine.executing
+        assert tuple(machine.configuration_values) == executing_configuration
+
+    @pytest.mark.usefixtures("restore_shared_pending_transitions")
+    @pytest.mark.asyncio
+    async def test_internal_self_transition_skips_entry_and_exit_callbacks(self):
+        class ExitObserver:
+            def __init__(self):
+                self.lifecycle_callbacks = []
+
+            async def _on_exit_pending(self):
+                self.lifecycle_callbacks.append("exit")
+
+        class InternalSelfTransitionSagaStateMachine(SagaStateMachine):
+            repeat_internal_legacy = SagaStateMachine.pending.to.itself(internal=True)
+
+            def __init__(self):
+                self.observer = ExitObserver()
+                super().__init__(self.observer)
+
+            async def on_exit_pending(self):
+                await super().on_exit_pending()
+
+            async def on_enter_pending(self):
+                self.observer.lifecycle_callbacks.append("enter")
+
+        machine = InternalSelfTransitionSagaStateMachine()
+        await machine.activate_initial_state()
+        machine.observer.lifecycle_callbacks.clear()
+
+        await machine.repeat_internal_legacy()
+
+        assert machine.enable_self_transition_entries is False
+        assert machine.current_state == machine.pending
+        assert machine.observer.lifecycle_callbacks == []
+        assert list(machine.configuration_values) == ["pending"]
+
+    @pytest.mark.usefixtures("restore_shared_pending_transitions")
+    @pytest.mark.asyncio
+    async def test_external_self_transition_runs_callbacks_with_legacy_flag(self):
+        class ExitObserver:
+            def __init__(self):
+                self.lifecycle_callbacks = []
+
+            async def _on_exit_pending(self):
+                self.lifecycle_callbacks.append("exit")
+
+        class LegacyExternalSelfTransitionSagaStateMachine(SagaStateMachine):
+            repeat_external_legacy = SagaStateMachine.pending.to.itself(internal=False)
+
+            def __init__(self):
+                self.observer = ExitObserver()
+                super().__init__(self.observer)
+
+            async def on_exit_pending(self):
+                await super().on_exit_pending()
+
+            async def on_enter_pending(self):
+                self.observer.lifecycle_callbacks.append("enter")
+
+        machine = LegacyExternalSelfTransitionSagaStateMachine()
+        await machine.activate_initial_state()
+        machine.observer.lifecycle_callbacks.clear()
+
+        await machine.repeat_external_legacy()
+
+        assert machine.enable_self_transition_entries is False
+        assert machine.current_state == machine.pending
+        assert machine.observer.lifecycle_callbacks == ["exit", "enter"]
+        assert list(machine.configuration_values) == ["pending"]
+
+    @pytest.mark.usefixtures("restore_shared_pending_transitions")
+    @pytest.mark.asyncio
+    async def test_external_self_transition_runs_callbacks_when_enabled(self):
+        class ExitObserver:
+            def __init__(self):
+                self.lifecycle_callbacks = []
+
+            async def _on_exit_pending(self):
+                self.lifecycle_callbacks.append("exit")
+
+        class SCXMLExternalSelfTransitionSagaStateMachine(SagaStateMachine):
+            enable_self_transition_entries = True
+            repeat_external_scxml = SagaStateMachine.pending.to.itself(internal=False)
+
+            def __init__(self):
+                self.observer = ExitObserver()
+                super().__init__(self.observer)
+
+            async def on_exit_pending(self):
+                await super().on_exit_pending()
+
+            async def on_enter_pending(self):
+                self.observer.lifecycle_callbacks.append("enter")
+
+        machine = SCXMLExternalSelfTransitionSagaStateMachine()
+        await machine.activate_initial_state()
+        machine.observer.lifecycle_callbacks.clear()
+
+        await machine.repeat_external_scxml()
+
+        assert machine.enable_self_transition_entries is True
+        assert machine.current_state == machine.pending
+        assert machine.observer.lifecycle_callbacks == ["exit", "enter"]
+        assert list(machine.configuration_values) == ["pending"]
+
+    @pytest.mark.usefixtures("restore_shared_pending_transitions")
+    @pytest.mark.asyncio
+    async def test_internal_self_transition_enters_target_when_enabled(self):
+        class ExitObserver:
+            def __init__(self):
+                self.lifecycle_callbacks = []
+
+            async def _on_exit_pending(self):
+                self.lifecycle_callbacks.append("exit")
+
+        class SCXMLInternalSelfTransitionSagaStateMachine(SagaStateMachine):
+            enable_self_transition_entries = True
+            repeat_internal_scxml = SagaStateMachine.pending.to.itself(internal=True)
+
+            def __init__(self):
+                self.observer = ExitObserver()
+                super().__init__(self.observer)
+
+            async def on_exit_pending(self):
+                await super().on_exit_pending()
+
+            async def on_enter_pending(self):
+                self.observer.lifecycle_callbacks.append("enter")
+
+        machine = SCXMLInternalSelfTransitionSagaStateMachine()
+        await machine.activate_initial_state()
+        machine.observer.lifecycle_callbacks.clear()
+
+        await machine.repeat_internal_scxml()
+
+        assert machine.enable_self_transition_entries is True
+        assert machine.current_state == machine.pending
+        assert machine.observer.lifecycle_callbacks == ["enter"]
+        assert list(machine.configuration_values) == ["pending"]
+
+    @pytest.mark.asyncio
+    async def test_configuration_remains_atomic_during_transition_callback(self):
+        class SagaWithSteps:
+            steps = [object()]
+            completed_steps = []
+
+        class AtomicObservationSagaStateMachine(SagaStateMachine):
+            async def on_start(self):
+                self.configuration_during_start = tuple(state.id for state in self.configuration)
+                self.pending_active_during_start = self.pending.is_active
+                self.executing_active_during_start = self.executing.is_active
+
+        machine = AtomicObservationSagaStateMachine(SagaWithSteps())
+        await machine.activate_initial_state()
+        await machine.start()
+
+        assert machine.configuration_during_start == ("pending",)
+        assert machine.pending_active_during_start is True
+        assert machine.executing_active_during_start is False
+        assert list(machine.configuration_values) == ["executing"]
 
 
 class TestStateValidation:
