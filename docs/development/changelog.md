@@ -11,8 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Record ADR-040 for the accepted flat StateChart Saga lifecycle migration and its Phase 2 boundary.
 
 ### Tests
-- Add explicit guard and atomic-configuration regressions; distinguish internal self-transitions (callbacks suppressed) from external self-transitions (callbacks executed).
+- Add explicit guard and atomic-configuration regressions; verify that external self-transitions execute exit/entry callbacks and that internal self-transitions honor `enable_self_transition_entries` (no callbacks when disabled; entry callback only when enabled).
 - Verify PostgreSQL JSONB configuration round-trips through a real Testcontainers database.
+
+### Validation
+- StateChart and storage unit regressions: 904 passed, 17 deselected.
+- Validation runs emitted a `PytestUnhandledThreadExceptionWarning` from an `aiosqlite` worker attempting to notify an already-closed asyncio event loop during teardown. It appeared in `tests/unit/core/storage/test_postgresql_outbox_coverage.py::TestClose::test_close_no_pool` in one run and `tests/unit/core/storage/test_manager_missing_paths.py::TestManagerAdditionalMissingPaths::test_initialize_sqlite_unified_without_scheme` in another; no pytest assertion failed.
+- PostgreSQL Testcontainers integration suite: 8 passed, 30 deselected.
 
 ## [1.7.0] - 2026-11-11
 

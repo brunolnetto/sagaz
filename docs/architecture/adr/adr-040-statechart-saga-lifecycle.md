@@ -45,20 +45,25 @@ Both state-machine classes declare these class-level settings:
 | Attribute | Phase 1 value | Preserved behavior |
 |---|---:|---|
 | `allow_event_without_transition` | `False` | An unmatched event or failed guard raises `TransitionNotAllowed`. |
-| `enable_self_transition_entries` | `False` | Internal self-transitions skip state entry/exit callbacks; external self-transitions still execute them. |
+| `enable_self_transition_entries` | `False` | Disables target entry for internal self-transitions; external self-transitions still execute exit and entry callbacks. |
 | `atomic_configuration_update` | `True` | Transition callbacks observe the pre-transition configuration; the configuration is replaced atomically after the transition callback completes. |
 | `catch_errors_as_events` | `False` | Callback exceptions propagate to the caller and remain under Saga executor control. |
 
 These values are intentional compatibility settings, not incidental library
 defaults. Tests must verify their observable behavior as well as their values.
 
-For self-transitions, the distinction between external and internal transitions is
-important. `to.itself()` defaults to `internal=False`; it exits and re-enters the
-state and therefore runs exit/entry callbacks even when
-`enable_self_transition_entries=False`. With `internal=True`, the same flag
-suppresses those callbacks. Phase 1's Saga and step lifecycle declarations do
-not currently define self-transitions. The regression suite explicitly tests
-both forms so future declarations cannot silently blur this distinction.
+For self-transitions, `to.itself()` defaults to `internal=False`.
+External self-transitions execute both exit and entry callbacks regardless
+of `enable_self_transition_entries`.
+
+For `internal=True`, the source state is not exited. With
+`enable_self_transition_entries=False`, the target is not re-entered and no
+lifecycle callbacks execute. With the flag set to `True`, the target is
+entered and its entry callback executes, but no exit callback executes.
+
+Phase 1's Saga and step lifecycle declarations do not currently define
+self-transitions. The regression suite explicitly verifies both external and
+internal self-transition behavior under the relevant flag settings.
 
 ### 3. Preserve existing state inspection APIs
 
