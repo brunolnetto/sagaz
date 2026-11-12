@@ -29,14 +29,14 @@ Usage:
 
 from typing import TYPE_CHECKING, Optional
 
-from statemachine import State, StateMachine
+from statemachine import State, StateChart
 from statemachine.exceptions import TransitionNotAllowed
 
 if TYPE_CHECKING:
     from sagaz.core.saga import Saga
 
 
-class SagaStateMachine(StateMachine):
+class SagaStateMachine(StateChart):
     """
     State machine for managing saga lifecycle transitions.
 
@@ -73,6 +73,12 @@ class SagaStateMachine(StateMachine):
         >>> await sm.fail()
         >>> await sm.finish_compensation()
     """
+
+    # Preserve the legacy StateMachine 2.x runtime contract.
+    allow_event_without_transition = False
+    enable_self_transition_entries = False
+    atomic_configuration_update = True
+    catch_errors_as_events = False
 
     # Define saga states
     pending = State("Pending", initial=True)
@@ -168,7 +174,7 @@ class SagaStateMachine(StateMachine):
         # Override in subclass if needed
 
 
-class SagaStepStateMachine(StateMachine):
+class SagaStepStateMachine(StateChart):
     """
     State machine for individual saga step execution.
 
@@ -190,6 +196,12 @@ class SagaStepStateMachine(StateMachine):
         compensation_success: Compensation succeeded
         compensation_failure: Compensation failed
     """
+
+    # Preserve the legacy StateMachine 2.x runtime contract.
+    allow_event_without_transition = False
+    enable_self_transition_entries = False
+    atomic_configuration_update = True
+    catch_errors_as_events = False
 
     # Define step states
     pending = State("Pending", initial=True)

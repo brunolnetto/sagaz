@@ -46,6 +46,7 @@ class TestSQLiteSagaStorage:
             status=SagaStatus.EXECUTING,
             steps=[{"name": "step1", "status": "pending"}],
             context={"order_id": "123"},
+            configuration=["executing"],
         )
 
         saga = await storage.load_saga_state("test-saga-1")
@@ -55,6 +56,63 @@ class TestSQLiteSagaStorage:
         assert saga["saga_name"] == "OrderSaga"
         assert saga["status"] == "executing"
         assert saga["context"]["order_id"] == "123"
+        assert saga["configuration"] == ["executing"]
+
+    @pytest.mark.asyncio
+    async def test_legacy_saga_schema_is_upgraded_and_backfilled(self, tmp_path):
+        db_path = tmp_path / "legacy-sagas.db"
+        conn = await aiosqlite.connect(str(db_path))
+        await conn.executescript(
+            """
+            CREATE TABLE sagas (
+                saga_id TEXT PRIMARY KEY,
+                saga_name TEXT NOT NULL,
+                status TEXT NOT NULL,
+                steps TEXT NOT NULL,
+                context TEXT NOT NULL,
+                metadata TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
+            INSERT INTO sagas (
+                saga_id, saga_name, status, steps, context,
+                metadata, created_at, updated_at
+            ) VALUES (
+                'legacy-saga', 'LegacySaga', 'completed', '[]', '{}',
+                NULL, '2026-01-01T00:00:00+00:00',
+                '2026-01-01T00:00:00+00:00'
+            );
+            """
+        )
+        await conn.commit()
+        await conn.close()
+
+        from sagaz.core.storage.backends.sqlite import SQLiteSagaStorage
+
+        storage = SQLiteSagaStorage(str(db_path))
+        async with storage:
+            legacy = await storage.load_saga_state("legacy-saga")
+            assert legacy is not None
+            assert legacy["configuration"] == ["completed"]
+
+            # Initialization is idempotent.
+            await storage._init_schema()
+            restored = await storage.load_saga_state("legacy-saga")
+            assert restored is not None
+            assert restored["configuration"] == ["completed"]
+
+            await storage.save_saga_state(
+                saga_id="legacy-saga",
+                saga_name="LegacySaga",
+                status=SagaStatus.EXECUTING,
+                steps=[],
+                context={},
+                configuration=["executing"],
+            )
+            updated = await storage.load_saga_state("legacy-saga")
+            assert updated is not None
+            assert updated["configuration"] == ["executing"]
 
     @pytest.mark.asyncio
     async def test_load_nonexistent_saga(self, storage):
@@ -274,6 +332,7 @@ class TestSQLiteSagaStorage:
         saga = await storage.load_saga_state("imported-saga")
         assert saga is not None
         assert saga["saga_name"] == "ImportedSaga"
+        assert saga["configuration"] == ["completed"]
 
 
 class TestSQLiteOutboxStorage:
@@ -524,6 +583,11 @@ class TestSQLiteOutboxStorage:
         async with storage:
             loaded = await storage.get_by_id("legacy-event-1")
             exported = [record async for record in storage.export_all()]
+
+            # Re-running the upgrade must not attempt to add existing columns.
+            conn = storage._conn
+            assert conn is not None
+            await storage._ensure_optional_columns(conn)
 
         assert loaded is not None
         assert loaded.aggregate_type == "saga"
@@ -812,47 +876,45 @@ class TestSqliteSagaBranches:
         from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
         from sagaz.core.types import SagaStatus, SagaStepStatus
 
-        storage = SQLiteSagaStorage(":memory:")
-        await storage.initialize()
-        saga_id = str(uuid4())
-        await storage.save_saga_state(
-            saga_id=saga_id,
-            saga_name="TestSaga",
-            status=SagaStatus.EXECUTING,
-            steps=[{"name": "step1", "status": "pending"}],
-            context={},
-        )
-        # Update a step that doesn't exist → 275->287 (loop exits without break)
-        await storage.update_step_state(
-            saga_id=saga_id,
-            step_name="nonexistent_step",  # Not in steps list
-            status=SagaStepStatus.COMPLETED,
-        )
+        async with SQLiteSagaStorage(":memory:") as storage:
+            saga_id = str(uuid4())
+            await storage.save_saga_state(
+                saga_id=saga_id,
+                saga_name="TestSaga",
+                status=SagaStatus.EXECUTING,
+                steps=[{"name": "step1", "status": "pending"}],
+                context={},
+            )
+            # Update a step that doesn't exist → 275->287 (loop exits without break)
+            await storage.update_step_state(
+                saga_id=saga_id,
+                step_name="nonexistent_step",  # Not in steps list
+                status=SagaStepStatus.COMPLETED,
+            )
 
     async def test_update_step_status_step_name_mismatch(self):
         """276->275: if step.get('name') == step_name: False → continue loop."""
         from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
         from sagaz.core.types import SagaStatus, SagaStepStatus
 
-        storage = SQLiteSagaStorage(":memory:")
-        await storage.initialize()
-        saga_id = str(uuid4())
-        await storage.save_saga_state(
-            saga_id=saga_id,
-            saga_name="TestSaga",
-            status=SagaStatus.EXECUTING,
-            steps=[
-                {"name": "step1", "status": "pending"},
-                {"name": "step2", "status": "pending"},
-            ],
-            context={},
-        )
-        # Update step2 → step1 skipped (276->275), step2 matched
-        await storage.update_step_state(
-            saga_id=saga_id,
-            step_name="step2",
-            status=SagaStepStatus.COMPLETED,
-        )
+        async with SQLiteSagaStorage(":memory:") as storage:
+            saga_id = str(uuid4())
+            await storage.save_saga_state(
+                saga_id=saga_id,
+                saga_name="TestSaga",
+                status=SagaStatus.EXECUTING,
+                steps=[
+                    {"name": "step1", "status": "pending"},
+                    {"name": "step2", "status": "pending"},
+                ],
+                context={},
+            )
+            # Update step2 → step1 skipped (276->275), step2 matched
+            await storage.update_step_state(
+                saga_id=saga_id,
+                step_name="step2",
+                status=SagaStepStatus.COMPLETED,
+            )
 
 
 # ==========================================================================

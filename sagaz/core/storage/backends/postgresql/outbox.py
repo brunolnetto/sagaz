@@ -716,7 +716,7 @@ class PostgreSQLOutboxStorage(OutboxStorage):
         async with self._pool.acquire() as conn:
             async with conn.transaction():
                 try:
-                    cursor = await conn.cursor(
+                    cursor = conn.cursor(
                         """
                         SELECT * FROM saga_outbox
                         UNION ALL

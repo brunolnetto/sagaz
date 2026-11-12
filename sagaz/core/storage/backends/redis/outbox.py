@@ -7,7 +7,7 @@ for reliable event delivery with consumer groups.
 
 import logging
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sagaz.core.outbox.types import OutboxEvent, OutboxStatus, ReplayLoopError
@@ -814,7 +814,7 @@ class RedisOutboxStorage(OutboxStorage):
         )
         return await self.update_status(event_id, OutboxStatus.PENDING, event=event)
 
-    async def purge_dead_letter_events(self, older_than=None) -> int:
+    async def purge_dead_letter_events(self, older_than: timedelta | None = None) -> int:
         """Permanently remove DLQ events."""
         if not self._initialized:
             await self.initialize()
@@ -841,7 +841,9 @@ class RedisOutboxStorage(OutboxStorage):
         return purged
 
     @staticmethod
-    def _should_purge_dead_letter(event: OutboxEvent, older_than, now: datetime) -> bool:
+    def _should_purge_dead_letter(
+        event: OutboxEvent, older_than: timedelta | None, now: datetime
+    ) -> bool:
         if event.status != OutboxStatus.DEAD_LETTER:
             return False
         if older_than is None:

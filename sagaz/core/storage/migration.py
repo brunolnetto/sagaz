@@ -37,37 +37,78 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _canonical_checksum_value(value: Any, field_name: str | None = None) -> Any:
-    """Convert storage values to a JSON-safe, deterministic representation."""
-    timestamp_fields = {"created_at", "claimed_at", "sent_at", "dead_letter_at"}
+_TIMESTAMP_FIELDS = frozenset({"created_at", "claimed_at", "sent_at", "dead_letter_at"})
 
-    if hasattr(value, "to_dict"):
-        return _canonical_checksum_value(value.to_dict())
-    if isinstance(value, dict):
-        return {
-            str(key): _canonical_checksum_value(item, str(key))
-            for key, item in value.items()
-        }
-    if isinstance(value, (list, tuple)):
-        return [_canonical_checksum_value(item) for item in value]
-    if isinstance(value, set):
-        normalized = [_canonical_checksum_value(item) for item in value]
-        return sorted(normalized, key=lambda item: json.dumps(item, sort_keys=True, default=str))
+
+def _canonical_datetime(value: datetime) -> str:
+    """Normalize aware datetimes to UTC; preserve naive datetimes."""
+    normalized = value.astimezone(UTC) if value.tzinfo is not None else value
+    return normalized.isoformat()
+
+
+def _canonical_timestamp_string(value: str) -> str:
+    """Normalize parseable timestamp strings while preserving invalid values."""
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return value
+
+    return _canonical_datetime(parsed)
+
+
+def _canonical_sort_key(value: Any) -> str:
+    """Produce the deterministic ordering key used for normalized sets."""
+    return json.dumps(value, sort_keys=True, default=str)
+
+
+def _canonicalize_mapping(value: dict[Any, Any]) -> dict[str, Any]:
+    """Normalize mapping keys and recursively normalize their values."""
+    return {str(key): _canonical_checksum_value(item, str(key)) for key, item in value.items()}
+
+
+def _canonicalize_sequence(value: list[Any] | tuple[Any, ...]) -> list[Any]:
+    """Normalize lists and tuples into recursively normalized lists."""
+    return [_canonical_checksum_value(item) for item in value]
+
+
+def _canonicalize_set(value: set[Any]) -> list[Any]:
+    """Normalize and deterministically order set elements."""
+    normalized = [_canonical_checksum_value(item) for item in value]
+    return sorted(normalized, key=_canonical_sort_key)
+
+
+def _canonicalize_scalar(value: Any, field_name: str | None = None) -> Any:
+    """Normalize datetime, timestamp, and scalar-like objects."""
     if isinstance(value, datetime):
-        normalized = value.astimezone(UTC) if value.tzinfo is not None else value
-        return normalized.isoformat()
-    if field_name in timestamp_fields and isinstance(value, str):
-        try:
-            parsed = datetime.fromisoformat(value)
-        except ValueError:
-            return value
-        normalized = parsed.astimezone(UTC) if parsed.tzinfo is not None else parsed
-        return normalized.isoformat()
+        return _canonical_datetime(value)
+
+    if field_name in _TIMESTAMP_FIELDS and isinstance(value, str):
+        return _canonical_timestamp_string(value)
+
     if hasattr(value, "isoformat"):
         return value.isoformat()
+
     if hasattr(value, "value"):
         return value.value
+
     return value
+
+
+def _canonical_checksum_value(value: Any, field_name: str | None = None) -> Any:
+    """Convert storage values to a JSON-safe, deterministic representation."""
+    if hasattr(value, "to_dict"):
+        return _canonical_checksum_value(value.to_dict())
+
+    if isinstance(value, dict):
+        return _canonicalize_mapping(value)
+
+    if isinstance(value, (list, tuple)):
+        return _canonicalize_sequence(value)
+
+    if isinstance(value, set):
+        return _canonicalize_set(value)
+
+    return _canonicalize_scalar(value, field_name)
 
 
 async def _storage_checksum(
@@ -77,7 +118,8 @@ async def _storage_checksum(
 ) -> tuple[int, str]:
     """Compute an order-independent checksum over all exported storage records."""
     if not hasattr(storage, "export_all"):
-        raise TypeError(f"{storage.__class__.__name__} does not support export_all()")
+        msg = f"{storage.__class__.__name__} does not support export_all()"
+        raise TypeError(msg)
 
     count = 0
     sum_digest = 0
@@ -103,9 +145,7 @@ async def _storage_checksum(
         count += 1
 
     checksum_payload = (
-        count.to_bytes(8, "big")
-        + sum_digest.to_bytes(32, "big")
-        + sum_squares.to_bytes(32, "big")
+        count.to_bytes(8, "big") + sum_digest.to_bytes(32, "big") + sum_squares.to_bytes(32, "big")
     )
     return count, hashlib.sha256(checksum_payload).hexdigest()
 
@@ -167,20 +207,13 @@ class VerificationResult:
 
     @property
     def saga_checksums_match(self) -> bool:
-        return (
-            not self.source_saga_checksum
-            and not self.dest_saga_checksum
-        ) or (
-            bool(self.source_saga_checksum)
-            and self.source_saga_checksum == self.dest_saga_checksum
+        return (not self.source_saga_checksum and not self.dest_saga_checksum) or (
+            bool(self.source_saga_checksum) and self.source_saga_checksum == self.dest_saga_checksum
         )
 
     @property
     def event_checksums_match(self) -> bool:
-        return (
-            not self.source_event_checksum
-            and not self.dest_event_checksum
-        ) or (
+        return (not self.source_event_checksum and not self.dest_event_checksum) or (
             bool(self.source_event_checksum)
             and self.source_event_checksum == self.dest_event_checksum
         )

@@ -972,3 +972,158 @@ class TestTransferServiceBranches:
 
 # ==========================================================================
 # strategies/fail_fast.py  – 78->77
+
+
+@pytest.mark.asyncio
+async def test_saga_configuration_survives_storage_transfer():
+    from sagaz.core.storage.backends.memory.saga import InMemorySagaStorage
+    from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
+    from sagaz.core.types import SagaStatus
+
+    source = InMemorySagaStorage()
+    await source.save_saga_state(
+        saga_id="configuration-transfer",
+        saga_name="ConfigurationTransferSaga",
+        status=SagaStatus.EXECUTING,
+        steps=[],
+        context={},
+        configuration=["executing"],
+    )
+
+    target = SQLiteSagaStorage(":memory:")
+    async with target:
+        result = await transfer_data(source, target, validate=True)
+
+        assert result.transferred == 1
+        restored = await target.load_saga_state("configuration-transfer")
+        assert restored is not None
+        assert restored["configuration"] == ["executing"]
+
+
+class TestTransferRecordValidation:
+    """Characterize target lookup precedence and validation behavior."""
+
+    def _service(self, target):
+        from sagaz.core.storage.transfer.service import TransferService
+
+        return TransferService(source=MagicMock(), target=target)
+
+    @pytest.mark.asyncio
+    async def test_event_id_prefers_get_by_id(self):
+        from types import SimpleNamespace
+
+        record = {
+            "event_id": "event-1",
+            "saga_id": "saga-1",
+            "event_type": "Created",
+            "payload": {"value": 1},
+        }
+        target = SimpleNamespace(
+            get_by_id=AsyncMock(return_value=record.copy()),
+            load_saga_state=AsyncMock(),
+        )
+
+        service = self._service(target)
+
+        # This test covers lookup precedence, not canonical serialization.
+        with patch.object(
+            type(service),
+            "_canonical_record",
+            return_value="canonical-event",
+        ):
+            await service._validate_record(record)
+
+        target.get_by_id.assert_awaited_once_with("event-1")
+        target.load_saga_state.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_saga_id_prefers_load_saga_state(self):
+        from types import SimpleNamespace
+
+        target = SimpleNamespace(
+            load_saga_state=AsyncMock(return_value={"saga_id": "saga-1"}),
+            get_by_id=AsyncMock(),
+        )
+
+        await self._service(target)._validate_record({"saga_id": "saga-1"})
+
+        target.load_saga_state.assert_awaited_once_with("saga-1")
+        target.get_by_id.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_generic_id_uses_load_saga_state_when_available(self):
+        from types import SimpleNamespace
+
+        target = SimpleNamespace(
+            load_saga_state=AsyncMock(return_value={"id": "record-1"}),
+            get_by_id=AsyncMock(),
+        )
+
+        await self._service(target)._validate_record({"id": "record-1"})
+
+        target.load_saga_state.assert_awaited_once_with("record-1")
+        target.get_by_id.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_get_by_id_is_fallback_without_saga_lookup(self):
+        from types import SimpleNamespace
+
+        target = SimpleNamespace(get_by_id=AsyncMock(return_value={"id": "record-1"}))
+
+        await self._service(target)._validate_record({"id": "record-1"})
+
+        target.get_by_id.assert_awaited_once_with("record-1")
+
+    @pytest.mark.asyncio
+    async def test_event_without_get_by_id_is_not_validated(self):
+        from types import SimpleNamespace
+
+        target = SimpleNamespace(load_saga_state=AsyncMock(return_value={"saga_id": "saga-1"}))
+
+        await self._service(target)._validate_record({"event_id": "event-1", "saga_id": "saga-1"})
+
+        target.load_saga_state.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_target_without_lookup_method_is_not_validated(self):
+        from types import SimpleNamespace
+
+        await self._service(SimpleNamespace())._validate_record({"saga_id": "saga-1"})
+
+    @pytest.mark.asyncio
+    async def test_missing_record_raises_transfer_error(self):
+        from types import SimpleNamespace
+
+        from sagaz.core.storage.core import TransferError
+
+        target = SimpleNamespace(get_by_id=AsyncMock(return_value=None))
+
+        with pytest.raises(TransferError, match="record event-1 not found"):
+            await self._service(target)._validate_record({"event_id": "event-1"})
+
+    @pytest.mark.asyncio
+    async def test_different_event_after_import_raises_transfer_error(self):
+        from types import SimpleNamespace
+
+        from sagaz.core.storage.core import TransferError
+
+        target = SimpleNamespace(
+            get_by_id=AsyncMock(
+                return_value={
+                    "event_id": "event-1",
+                    "saga_id": "saga-1",
+                    "event_type": "Created",
+                    "payload": {"value": 2},
+                }
+            )
+        )
+
+        record = {
+            "event_id": "event-1",
+            "saga_id": "saga-1",
+            "event_type": "Created",
+            "payload": {"value": 1},
+        }
+
+        with pytest.raises(TransferError, match="differs after import"):
+            await self._service(target)._validate_record(record)

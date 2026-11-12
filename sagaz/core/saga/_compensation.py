@@ -4,7 +4,11 @@ import asyncio
 import logging
 from collections.abc import Callable
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from sagaz.core.context import SagaContext
+    from sagaz.core.saga._step import SagaStep
 
 from sagaz.core.exceptions import SagaCompensationError
 from sagaz.core.types import SagaStepStatus
@@ -14,6 +18,12 @@ logger = logging.getLogger(__name__)
 
 class _SagaCompensationMixin:
     """Mixin adding compensation (rollback) capabilities to the Saga class."""
+
+    # Attributes provided by the concrete Saga host.
+    completed_steps: list["SagaStep"]
+    compensation_errors: list[Exception]
+    retry_backoff_base: float
+    context: "SagaContext"
 
     async def _compensate_all(self) -> None:
         """

@@ -124,6 +124,10 @@ def _validate_and_filter_domain(by_domain: dict, filter_domain: str | None) -> d
 
 def _display_demos_table(by_domain: dict, meta_index: dict) -> None:
     """Display demonstrations using rich table format."""
+    if console is None or TableClass is None:
+        _display_demos_plain(by_domain, meta_index)
+        return
+
     table = TableClass(
         title="Sagaz Demonstrations",
         show_header=True,
@@ -169,16 +173,16 @@ def list_demos(filter_domain: str | None = None) -> None:
         click.echo("No demonstrations found.")
         return
 
-    by_domain = _validate_and_filter_domain(by_domain, filter_domain)
-    if by_domain is None:
+    filtered_by_domain = _validate_and_filter_domain(by_domain, filter_domain)
+    if filtered_by_domain is None:
         return
 
     meta_index = _domain_meta_index()
 
     if console and TableClass:
-        _display_demos_table(by_domain, meta_index)
+        _display_demos_table(filtered_by_domain, meta_index)
     else:
-        _display_demos_plain(by_domain, meta_index)
+        _display_demos_plain(filtered_by_domain, meta_index)
 
 
 def run_demo(name: str) -> None:
@@ -241,7 +245,8 @@ def _show_domain_menu(ordered_domains: list, by_domain: dict, meta_index: dict) 
         clear_screen=False,
         skip_empty_entries=True,
     )
-    return domain_menu.show()
+    selection = domain_menu.show()
+    return selection if isinstance(selection, int) else None
 
 
 def _show_demo_menu(demo_names: list, demos_in_domain: dict) -> int | None:
@@ -262,7 +267,8 @@ def _show_demo_menu(demo_names: list, demos_in_domain: dict) -> int | None:
         clear_screen=False,
         skip_empty_entries=True,
     )
-    return demo_menu.show()
+    selection = demo_menu.show()
+    return selection if isinstance(selection, int) else None
 
 
 def _handle_domain_and_demo_selection(

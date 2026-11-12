@@ -2,24 +2,40 @@
 UI and display logic for replay and time-travel commands.
 """
 
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import click
 
-try:
-    from rich.console import Console
-    from rich.json import JSON
-    from rich.panel import Panel
-    from rich.table import Table
+if TYPE_CHECKING:
+    from rich.console import Console as RichConsole
+    from rich.json import JSON as RichJSON  # noqa: N811
+    from rich.panel import Panel as RichPanel
+    from rich.table import Table as RichTable
 
-    _console = Console()
+_console: RichConsole | None
+JSON: type[RichJSON] | None
+Panel: type[RichPanel] | None
+Table: type[RichTable] | None
+
+try:
+    from rich.console import Console as _Console
+    from rich.json import JSON as _JSON
+    from rich.panel import Panel as _Panel
+    from rich.table import Table as _Table
+
+    _console = _Console()
+    JSON = _JSON
+    Panel = _Panel
+    Table = _Table
     _HAS_RICH = True
 except ImportError:
     _console = None
-    _HAS_RICH = False
     JSON = None
     Panel = None
     Table = None
+    _HAS_RICH = False
 
 # For backward compatibility with modules that import it
 HAS_RICH = _HAS_RICH
@@ -51,6 +67,9 @@ def display_replay_config(
 
 def _display_replay_config_rich(con, saga_id, from_step, storage, context_override, dry_run):
     """Internal Rich display for replay config."""
+    if Panel is None:
+        return
+
     con.print(
         Panel(
             f"[bold]Saga Replay[/bold]\n\n"
@@ -139,6 +158,9 @@ def show_checkpoints(
 
 def _show_checkpoints_rich(con, checkpoints):
     """Internal Rich display for checkpoints."""
+    if Table is None:
+        return
+
     table = Table(title="Available Checkpoints")
     table.add_column("Step", style="cyan")
     table.add_column("Created At", style="green")
@@ -180,6 +202,9 @@ def show_replay_result(
 
 def _show_replay_result_rich(con, result):
     """Internal Rich display for replay result."""
+    if Panel is None:
+        return
+
     con.print(
         Panel(
             f"Status: {result.replay_status.value}\n"
@@ -235,7 +260,13 @@ def display_full_state(
 
 def _display_state_table(state, console=None):
     """Display state as table (Rich)."""
+    if Table is None:
+        return
+
     con = console or _console
+    if con is None:
+        return
+
     table = Table(title=f"Saga State at {state.timestamp}")
     table.add_column("Field", style="cyan")
     table.add_column("Value", style="green")
@@ -247,7 +278,7 @@ def _display_state_table(state, console=None):
     table.add_row("Completed Steps", ", ".join(state.completed_steps) or "None")
     con.print(table)
 
-    if state.context:
+    if state.context and JSON is not None:
         con.print("\n[bold]Context:[/bold]")
         con.print(JSON.from_data(state.context))
 
@@ -284,6 +315,9 @@ def display_changes(
 
 def _display_changes_rich(con, changes, saga_id):
     """Internal Rich display for state changes."""
+    if Table is None:
+        return
+
     table = Table(title=f"State Changes for {saga_id}")
     table.add_column("#", style="dim")
     table.add_column("Timestamp", style="cyan")

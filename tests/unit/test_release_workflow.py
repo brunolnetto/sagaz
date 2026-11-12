@@ -4,12 +4,7 @@ from pathlib import Path
 
 import yaml
 
-WORKFLOW_PATH = (
-    Path(__file__).resolve().parents[2]
-    / ".github"
-    / "workflows"
-    / "release.yml"
-)
+WORKFLOW_PATH = Path(__file__).resolve().parents[2] / ".github" / "workflows" / "release.yml"
 SOURCE_SHA = "${{ needs.resolve-version.outputs.source_sha }}"
 
 
@@ -21,11 +16,7 @@ def _workflow() -> dict:
 
 
 def _checkout_step(job: dict) -> dict:
-    matches = [
-        step
-        for step in job["steps"]
-        if step.get("uses") == "actions/checkout@v7"
-    ]
+    matches = [step for step in job["steps"] if step.get("uses") == "actions/checkout@v7"]
     assert len(matches) == 1
     return matches[0]
 
@@ -47,32 +38,20 @@ def test_release_stages_use_one_pinned_source_commit() -> None:
         jobs["resolve-version"]["outputs"]["source_sha"]
         == "${{ steps.version.outputs.source_sha }}"
     )
-    assert (
-        _checkout_step(jobs["resolve-version"])["with"]["ref"]
-        == "${{ github.sha }}"
-    )
+    assert _checkout_step(jobs["resolve-version"])["with"]["ref"] == "${{ github.sha }}"
     for name in ("test", "publish", "tag-and-release"):
         assert _checkout_step(jobs[name])["with"]["ref"] == SOURCE_SHA
-
-
 
 
 def test_dry_run_builds_the_requested_version_before_upload() -> None:
     jobs = _workflow()["jobs"]
     publish_steps = jobs["publish"]["steps"]
     bump = next(
-        step
-        for step in publish_steps
-        if step.get("name") == "Set target version in pyproject.toml"
+        step for step in publish_steps if step.get("name") == "Set target version in pyproject.toml"
     )
     assert "if" not in bump
-    assert bump["env"]["VERSION"] == (
-        "${{ needs.resolve-version.outputs.version }}"
-    )
-    assert (
-        jobs["tag-and-release"]["if"]
-        == "needs.resolve-version.outputs.dry_run == 'false'"
-    )
+    assert bump["env"]["VERSION"] == ("${{ needs.resolve-version.outputs.version }}")
+    assert jobs["tag-and-release"]["if"] == "needs.resolve-version.outputs.dry_run == 'false'"
 
 
 def test_release_notes_fallback_uses_an_existing_comparison_target() -> None:

@@ -17,6 +17,8 @@ Usage:
     >>> await worker.process_batch()  # Process one batch
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import os
@@ -26,6 +28,10 @@ import time
 import uuid
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import prometheus_client
 
 from sagaz.core.outbox.brokers.base import BrokerError, MessageBroker
 from sagaz.core.outbox.error_classifier import classify_error, create_error_fingerprint
@@ -39,6 +45,19 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+OUTBOX_BATCH_PROCESSED: prometheus_client.Counter | None
+OUTBOX_PUBLISHED_EVENTS: prometheus_client.Counter | None
+OUTBOX_FAILED_EVENTS: prometheus_client.Counter | None
+OUTBOX_DEAD_LETTER_EVENTS: prometheus_client.Counter | None
+OUTBOX_REPLAY_LOOP_DETECTED: prometheus_client.Counter | None
+OUTBOX_RETRY_ATTEMPTS: prometheus_client.Counter | None
+OUTBOX_PENDING_EVENTS: prometheus_client.Gauge | None
+OUTBOX_PROCESSING_EVENTS: prometheus_client.Gauge | None
+OUTBOX_BATCH_SIZE: prometheus_client.Gauge | None
+OUTBOX_EVENTS_BY_STATE: prometheus_client.Gauge | None
+OUTBOX_DLQ_DEPTH: prometheus_client.Gauge | None
+OUTBOX_PUBLISH_DURATION: prometheus_client.Histogram | None
 
 # ============================================================================
 # Prometheus Metrics (optional - gracefully degrade if not installed)
@@ -247,7 +266,7 @@ class OutboxWorker:
         """Process one iteration of the loop. Returns True if loop should break."""
         try:
             # Update pending events gauge
-            if PROMETHEUS_AVAILABLE:
+            if PROMETHEUS_AVAILABLE and OUTBOX_PENDING_EVENTS is not None:
                 try:
                     pending_count = await self.storage.get_pending_count()
                     OUTBOX_PENDING_EVENTS.set(pending_count)
@@ -286,6 +305,40 @@ class OutboxWorker:
         # Store reference to prevent garbage collection
         self._shutdown_task = asyncio.create_task(self.stop())
 
+    def _record_batch_started(self, batch_size: int) -> None:
+        """Record metrics for a newly claimed batch."""
+        if (
+            PROMETHEUS_AVAILABLE
+            and OUTBOX_BATCH_SIZE is not None
+            and OUTBOX_PROCESSING_EVENTS is not None
+        ):
+            OUTBOX_BATCH_SIZE.labels(worker_id=self.worker_id).set(batch_size)
+            OUTBOX_PROCESSING_EVENTS.labels(worker_id=self.worker_id).set(batch_size)
+
+    def _count_batch_results(
+        self,
+        events: list[OutboxEvent],
+        results: list[None | BaseException],
+    ) -> int:
+        """Log failed events and return the number of successful events."""
+        processed = 0
+        for event, result in zip(events, results, strict=False):
+            if isinstance(result, Exception):
+                logger.error(f"Failed to process event {event.event_id}: {result}")
+            else:
+                processed += 1
+        return processed
+
+    def _record_batch_completed(self) -> None:
+        """Record completion metrics and clear the in-flight gauge."""
+        if (
+            PROMETHEUS_AVAILABLE
+            and OUTBOX_BATCH_PROCESSED is not None
+            and OUTBOX_PROCESSING_EVENTS is not None
+        ):
+            OUTBOX_BATCH_PROCESSED.labels(worker_id=self.worker_id).inc()
+            OUTBOX_PROCESSING_EVENTS.labels(worker_id=self.worker_id).set(0)
+
     async def process_batch(self) -> int:
         """
         Process a single batch of events.
@@ -293,40 +346,22 @@ class OutboxWorker:
         Returns:
             Number of events processed
         """
-        # Claim batch of events
         events = await self.storage.claim_batch(
             worker_id=self.worker_id,
             batch_size=self.config.batch_size,
         )
-
         if not events:
             return 0
 
         batch_size = len(events)
         logger.debug(f"Worker {self.worker_id} claimed {batch_size} events")
+        self._record_batch_started(batch_size)
 
-        # Record Prometheus metrics
-        if PROMETHEUS_AVAILABLE:
-            OUTBOX_BATCH_SIZE.labels(worker_id=self.worker_id).set(batch_size)
-            OUTBOX_PROCESSING_EVENTS.labels(worker_id=self.worker_id).set(batch_size)
-
-        # Process events in parallel
         tasks = [self._process_event(event) for event in events]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Count successes and failures
-        processed = 0
-        for event, result in zip(events, results, strict=False):
-            if isinstance(result, Exception):
-                logger.error(f"Failed to process event {event.event_id}: {result}")
-            else:
-                processed += 1
-
-        # Record batch completion
-        if PROMETHEUS_AVAILABLE:
-            OUTBOX_BATCH_PROCESSED.labels(worker_id=self.worker_id).inc()
-            OUTBOX_PROCESSING_EVENTS.labels(worker_id=self.worker_id).set(0)
-
+        processed = self._count_batch_results(events, results)
+        self._record_batch_completed()
         return processed
 
     async def _process_event(self, event: OutboxEvent) -> None:
@@ -352,7 +387,11 @@ class OutboxWorker:
             self._events_processed += 1
 
             # Record Prometheus metrics
-            if PROMETHEUS_AVAILABLE:
+            if (
+                PROMETHEUS_AVAILABLE
+                and OUTBOX_PUBLISHED_EVENTS is not None
+                and OUTBOX_PUBLISH_DURATION is not None
+            ):
                 duration = time.time() - start_time
                 OUTBOX_PUBLISHED_EVENTS.labels(
                     worker_id=self.worker_id, event_type=event_type
@@ -407,7 +446,11 @@ class OutboxWorker:
         self._events_failed += 1
 
         # Record Prometheus metrics
-        if PROMETHEUS_AVAILABLE:
+        if (
+            PROMETHEUS_AVAILABLE
+            and OUTBOX_FAILED_EVENTS is not None
+            and OUTBOX_RETRY_ATTEMPTS is not None
+        ):
             OUTBOX_FAILED_EVENTS.labels(worker_id=self.worker_id, event_type=event_type).inc()
             OUTBOX_RETRY_ATTEMPTS.labels(worker_id=self.worker_id).inc()
 
@@ -445,7 +488,11 @@ class OutboxWorker:
         self._events_dead_lettered += 1
 
         # Record Prometheus metrics
-        if PROMETHEUS_AVAILABLE:
+        if (
+            PROMETHEUS_AVAILABLE
+            and OUTBOX_DEAD_LETTER_EVENTS is not None
+            and OUTBOX_DLQ_DEPTH is not None
+        ):
             event_type = event.event_type or "unknown"
             error_type_label = event.error_type or "unknown"
             OUTBOX_DEAD_LETTER_EVENTS.labels(

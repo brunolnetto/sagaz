@@ -28,6 +28,8 @@ import logging
 import tempfile
 from pathlib import Path
 
+from sagaz.core.types import SagaResult
+
 logging.basicConfig(level=logging.WARNING, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("sagaz.demo.sqlite_storage")
 
@@ -37,7 +39,7 @@ logger = logging.getLogger("sagaz.demo.sqlite_storage")
 # ---------------------------------------------------------------------------
 
 
-async def _run_order(order_id: str, fail: bool = False) -> tuple[str, object]:
+async def _run_order(order_id: str, fail: bool = False) -> tuple[str, SagaResult]:
     """Execute an order saga and return (saga_id, result)."""
     from sagaz.core.saga import Saga, SagaContext
     from sagaz.core.types import SagaStatus

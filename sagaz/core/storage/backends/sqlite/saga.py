@@ -114,6 +114,7 @@ class SQLiteSagaStorage(SagaStorage):
                 steps TEXT NOT NULL,
                 context TEXT NOT NULL,
                 metadata TEXT,
+                configuration TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
@@ -122,6 +123,26 @@ class SQLiteSagaStorage(SagaStorage):
             CREATE INDEX IF NOT EXISTS idx_sagas_name ON sagas(saga_name);
             CREATE INDEX IF NOT EXISTS idx_sagas_updated_at ON sagas(updated_at);
         """)
+        # CREATE TABLE IF NOT EXISTS does not upgrade existing databases.
+        cursor = await conn.execute("PRAGMA table_info(sagas)")
+        columns = {row["name"] for row in await cursor.fetchall()}
+        if "configuration" not in columns:
+            await conn.execute("ALTER TABLE sagas ADD COLUMN configuration TEXT")
+
+        # Backfill legacy rows without relying on SQLite JSON extensions.
+        cursor = await conn.execute(
+            """
+            SELECT saga_id, status FROM sagas
+            WHERE configuration IS NULL
+               OR configuration = ''
+               OR configuration = '[]'
+            """
+        )
+        for row in await cursor.fetchall():
+            await conn.execute(
+                "UPDATE sagas SET configuration = ? WHERE saga_id = ?",
+                (serialize([row["status"]]), row["saga_id"]),
+            )
         await conn.commit()
 
     async def __aenter__(self):
@@ -148,6 +169,7 @@ class SQLiteSagaStorage(SagaStorage):
         steps: list[dict[str, Any]],
         context: dict[str, Any],
         metadata: dict[str, Any] | None = None,
+        configuration: list[str] | None = None,
     ) -> None:
         """Save or update saga state."""
         conn = await self._get_connection()
@@ -157,14 +179,18 @@ class SQLiteSagaStorage(SagaStorage):
 
         await conn.execute(
             """
-            INSERT INTO sagas (saga_id, saga_name, status, steps, context, metadata, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO sagas (
+                saga_id, saga_name, status, steps, context, metadata,
+                configuration, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(saga_id) DO UPDATE SET
                 saga_name = excluded.saga_name,
                 status = excluded.status,
                 steps = excluded.steps,
                 context = excluded.context,
                 metadata = excluded.metadata,
+                configuration = excluded.configuration,
                 updated_at = excluded.updated_at
             """,
             (
@@ -174,6 +200,7 @@ class SQLiteSagaStorage(SagaStorage):
                 serialize(steps),
                 serialize(context),
                 serialize(metadata) if metadata else None,
+                serialize(configuration or [status_str]),
                 now,
                 now,
             ),
@@ -201,6 +228,11 @@ class SQLiteSagaStorage(SagaStorage):
             "saga_id": row["saga_id"],
             "saga_name": row["saga_name"],
             "status": row["status"],
+            "configuration": (
+                deserialize(row["configuration"]) or [row["status"]]
+                if row["configuration"]
+                else [row["status"]]
+            ),
             "steps": deserialize(row["steps"]),
             "context": deserialize(row["context"]),
             "metadata": deserialize(row["metadata"]) if row["metadata"] else None,
@@ -387,4 +419,5 @@ class SQLiteSagaStorage(SagaStorage):
             steps=record.get("steps", []),
             context=record.get("context", {}),
             metadata=record.get("metadata"),
+            configuration=record.get("configuration") or [record["status"]],
         )

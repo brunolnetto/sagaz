@@ -358,8 +358,41 @@ def _show_no_examples_message(domain: str | None) -> None:
         click.echo("No examples found. Run this command from the sagaz repository root.")
 
 
+def _example_display_parts(name: str) -> tuple[str, str]:
+    """Extract the subdomain and display name from an example identifier."""
+    parts = name.split("/")
+    if len(parts) >= 3:
+        return parts[1], parts[2]
+    if len(parts) >= 2:
+        return parts[0], parts[-1]
+    return "", name
+
+
+def _add_examples_table_rows(
+    table,
+    by_domain: dict[str, dict[str, Path]],
+) -> None:
+    """Add sorted example rows, grouping each domain under its first row."""
+    for domain_name, examples in by_domain.items():
+        first = True
+        for name, path in sorted(examples.items()):
+            subdomain, example_name = _example_display_parts(name)
+            description = get_example_description(path)
+            table.add_row(
+                domain_name if first else "",
+                subdomain,
+                example_name,
+                description,
+            )
+            first = False
+
+
 def _display_examples_table(by_domain: dict[str, dict[str, Path]]) -> None:
     """Display examples grouped by domain in a rich table."""
+    if TableClass is None:
+        _display_examples_plain(by_domain)
+        return
+
     table = TableClass(
         title="Sagaz Examples",
         show_header=True,
@@ -371,16 +404,7 @@ def _display_examples_table(by_domain: dict[str, dict[str, Path]]) -> None:
     table.add_column("Name", style="cyan", no_wrap=True, min_width=20)
     table.add_column("Description", no_wrap=True, overflow="ellipsis")
 
-    for domain_name, examples in by_domain.items():
-        first = True
-        for name, path in sorted(examples.items()):
-            desc = get_example_description(path)
-            # name is domain_folder/subdomain/example — extract subdomain and example
-            parts = name.split("/")
-            subdomain = parts[1] if len(parts) >= 3 else (parts[0] if len(parts) >= 2 else "")
-            example_name = parts[2] if len(parts) >= 3 else (parts[-1] if "/" in name else name)
-            table.add_row(domain_name if first else "", subdomain, example_name, desc)
-            first = False
+    _add_examples_table_rows(table, by_domain)
 
     if console:
         console.print(table)

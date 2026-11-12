@@ -1,12 +1,19 @@
 """Saga snapshot/replay and status mixin for the imperative Saga class."""
 
+from __future__ import annotations
+
 import logging
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 if TYPE_CHECKING:
-    from sagaz.core.replay import SagaSnapshot, SnapshotStrategy
+    from asyncio import Lock
+
+    from sagaz.core.execution.state_machine import SagaStateMachine
+    from sagaz.core.replay import ReplayConfig, SagaSnapshot, SnapshotStrategy
+    from sagaz.core.saga._step import SagaStep
+    from sagaz.core.storage.interfaces.snapshot import SnapshotStorage
 
 from statemachine.exceptions import TransitionNotAllowed
 
@@ -20,6 +27,31 @@ logger = logging.getLogger(__name__)
 class _SagaSnapshotMixin:
     """Mixin adding status reporting and snapshot/replay support to the Saga class."""
 
+    # Attributes provided by the concrete Saga host.
+    name: str
+    version: str
+    saga_id: str
+    status: SagaStatus
+    steps: list[SagaStep]
+    completed_steps: list[SagaStep]
+    context: SagaContext
+    started_at: datetime | None
+    completed_at: datetime | None
+    error: Exception | None
+    compensation_errors: list[Exception]
+    replay_config: ReplayConfig | None
+    snapshot_storage: SnapshotStorage | None
+    _state_machine: SagaStateMachine
+    _executing: bool
+    _execution_lock: Lock
+
+    if TYPE_CHECKING:
+
+        async def _execute_step_with_retry(self, step: SagaStep) -> None: ...
+        async def _handle_execution_failure(
+            self, error: Exception, start_time: datetime
+        ) -> SagaResult: ...
+
     # =========================================================================
     # Status Reporting
     # =========================================================================
@@ -29,6 +61,12 @@ class _SagaSnapshotMixin:
         """Get current state name"""
         return self._state_machine.current_state.name  # type: ignore[union-attr, no-any-return]
 
+    @property
+    def state_configuration(self) -> list[str]:
+        """Return active state values in a serializable representation."""
+        values = [str(value) for value in self._state_machine.configuration_values]
+        return values or [self.status.value]
+
     def get_status(self) -> dict[str, Any]:
         """Get detailed saga status"""
         return {
@@ -37,6 +75,7 @@ class _SagaSnapshotMixin:
             "version": self.version,
             "status": self.status.value,
             "current_state": self.current_state,
+            "configuration": self.state_configuration,
             "total_steps": len(self.steps),
             "completed_steps": len(self.completed_steps),
             "steps": [self._get_step_status(step) for step in self.steps],
@@ -66,7 +105,7 @@ class _SagaSnapshotMixin:
     # Replay & Snapshot Support
     # =========================================================================
 
-    def _should_capture_snapshot(self, strategy: "SnapshotStrategy", before: bool) -> bool:
+    def _should_capture_snapshot(self, strategy: SnapshotStrategy, before: bool) -> bool:
         """Check if snapshot should be captured based on strategy."""
         from sagaz.core.replay import SnapshotStrategy
 
@@ -109,6 +148,7 @@ class _SagaSnapshotMixin:
                 context=self.context.data.copy(),
                 completed_steps=[s.name for s in self.completed_steps],
                 retention_until=self.replay_config.get_retention_until(),
+                configuration=self.state_configuration,
             )
             await self.snapshot_storage.save_snapshot(snapshot)
             logger.debug(
@@ -120,7 +160,7 @@ class _SagaSnapshotMixin:
 
     async def execute_from_snapshot(
         self,
-        snapshot: "SagaSnapshot",
+        snapshot: SagaSnapshot,
         context_override: dict[str, Any] | None = None,
     ) -> SagaResult:
         """
