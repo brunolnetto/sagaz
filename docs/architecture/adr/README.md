@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-**Last Updated**: 2026-04-11
+**Last Updated**: 2026-11-11
 
 This directory contains Architecture Decision Records (ADRs) documenting significant technical decisions for Sagaz.
 
@@ -30,6 +30,7 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-032](adr-032-cli-command-organization.md) | CLI Command Organization | v1.3.0 | 2026-01 |
 | [ADR-036](adr-036-lifecycle-hooks-observers.md) | Lifecycle Hooks & Observers | v1.3.0 | 2026-04 |
 | [ADR-037](adr-037-compliance-data-governance.md) | Compliance & Data Governance | v2.1.0 | 2026-04 |
+| [ADR-040](adr-040-statechart-saga-lifecycle.md) | StateChart Saga Lifecycle (Phase 1) | v1.7.0 | 2026-11 |
 
 ---
 

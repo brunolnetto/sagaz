@@ -7,21 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+- Record ADR-040 for the accepted flat StateChart Saga lifecycle migration and its Phase 2 boundary.
+
+### Tests
+- Add explicit guard and atomic-configuration regressions; verify that external self-transitions execute exit/entry callbacks and that internal self-transitions honor `enable_self_transition_entries` (no callbacks when disabled; entry callback only when enabled).
+- Verify PostgreSQL JSONB configuration round-trips through a real Testcontainers database.
+
+### Validation
+- StateChart and storage unit regressions: 904 passed, 17 deselected.
+- Validation runs emitted a `PytestUnhandledThreadExceptionWarning` from an `aiosqlite` worker attempting to notify an already-closed asyncio event loop during teardown. It appeared in `tests/unit/core/storage/test_postgresql_outbox_coverage.py::TestClose::test_close_no_pool` in one run and `tests/unit/core/storage/test_manager_missing_paths.py::TestManagerAdditionalMissingPaths::test_initialize_sqlite_unified_without_scheme` in another; no pytest assertion failed.
+- PostgreSQL Testcontainers integration suite: 8 passed, 30 deselected.
+
+## [1.7.0] - 2026-11-11
+
 ### Added
 - Expose the active StateChart configuration in imperative Saga status and snapshots.
 - Preserve serializable Saga configuration across Memory, Redis, SQLite, and PostgreSQL storage and transfer paths.
 
 ### Changed
 - Migrate Saga and Saga-step lifecycle machines to `python-statemachine.StateChart` while preserving the flat execution contract and legacy transition/error behavior.
-- Raise the minimum supported `python-statemachine` version to 3.0.0.
+- Raise the minimum supported `python-statemachine` version to 3.2.0.
 
 ### Compatibility
 - Keep `current_state` as the existing State-object accessor.
 - Backfill legacy SQLite/PostgreSQL rows and historical snapshots without configuration using the scalar status representation.
 
 ### Validation
-- Local Phase 1 regression suite: 989 passed; focused StateChart/snapshot suite: 98 passed.
-- Full release CI and packaging checks remain release gates.
+- Combined release-candidate unit regression: 3,171 passed, 29 skipped; 120 deselected.
+- Integration regression: 109 passed; 3,211 deselected.
+- Ruff formatting/lint, strict Radon complexity, Commitlint (Node 24), and all four workflow YAML checks passed locally.
+- The v1.7.0 wheel and source distribution are built and checked in the manual publication preparation.
+- GitHub Actions, CodeQL, and hosted security scans could not run because the account is locked due to a billing issue; they are not claimed as passed.
 
 
 ## [1.6.0] - 2026-11-10

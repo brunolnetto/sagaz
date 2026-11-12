@@ -546,6 +546,32 @@ class TestPostgreSQLStorageIntegration:
             assert state["steps"][0]["name"] == "step1"
 
     @pytest.mark.asyncio
+    async def test_statechart_configuration_roundtrip(self, isolated_postgres_url):
+        """Round-trip the complete StateChart configuration through PostgreSQL JSONB."""
+        from sagaz.core.storage.postgresql import PostgreSQLSagaStorage
+
+        # Storage treats configuration as an opaque list. Multiple values ensure
+        # JSONB preserves the array rather than coercing it to a scalar.
+        configuration = ["executing", "region.payment"]
+
+        async with PostgreSQLSagaStorage(isolated_postgres_url) as storage:
+            await storage.save_saga_state(
+                saga_id="statechart-config-roundtrip",
+                saga_name="StateChartConfigurationRoundtrip",
+                status=SagaStatus.EXECUTING,
+                steps=[],
+                context={"purpose": "configuration-roundtrip"},
+                configuration=configuration,
+            )
+
+            restored = await storage.load_saga_state("statechart-config-roundtrip")
+
+        assert restored is not None
+        assert restored["status"] == SagaStatus.EXECUTING.value
+        assert restored["configuration"] == configuration
+        assert restored["context"] == {"purpose": "configuration-roundtrip"}
+
+    @pytest.mark.asyncio
     async def test_legacy_schema_upgrade_preserves_existing_sagas(self, postgres_container):
         """Upgrade an old schema without losing existing Saga records."""
         from uuid import uuid4
