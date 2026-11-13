@@ -9,6 +9,7 @@ import inspect
 import uuid
 from typing import TYPE_CHECKING, Any
 
+from sagaz.core.decorators._step_ledger import StepLedger
 from sagaz.core.logger import get_logger
 from sagaz.core.types import SagaStatus
 
@@ -28,6 +29,7 @@ class ExecutionEngine:
             saga: The Saga instance to execute
         """
         self.saga = saga
+        self._ledger = StepLedger([])
 
     async def run(
         self, initial_context: dict[str, Any], saga_id: str | None = None
@@ -56,7 +58,7 @@ class ExecutionEngine:
                     self.saga._saga_id,
                     name,
                     SagaStatus.EXECUTING,
-                    [],  # TODO: Track steps
+                    self._ledger.snapshot(),
                     self.saga._context,
                 )
             except Exception as e:
@@ -75,7 +77,11 @@ class ExecutionEngine:
             if storage:
                 try:
                     await storage.save_saga_state(
-                        self.saga._saga_id, name, SagaStatus.COMPLETED, [], self.saga._context
+                        self.saga._saga_id,
+                        name,
+                        SagaStatus.COMPLETED,
+                        self._ledger.snapshot(),
+                        self.saga._context,
                     )
                 except Exception as e:
                     logger.warning(f"Failed to persist saga completion: {e}")
@@ -91,7 +97,11 @@ class ExecutionEngine:
             if storage:
                 try:
                     await storage.save_saga_state(
-                        self.saga._saga_id, name, SagaStatus.ROLLED_BACK, [], self.saga._context
+                        self.saga._saga_id,
+                        name,
+                        SagaStatus.ROLLED_BACK,
+                        self._ledger.snapshot(),
+                        self.saga._context,
                     )
                 except Exception as e_storage:
                     logger.warning(f"Failed to persist saga failure: {e_storage}")
@@ -104,6 +114,7 @@ class ExecutionEngine:
         self.saga._context = initial_context.copy()
         self.saga._context["saga_id"] = self.saga._saga_id
         self.saga._compensation_graph.reset_execution()
+        self._ledger = StepLedger([step.step_id for step in self.saga._steps])
 
     def _register_compensations(self) -> None:
         """Register all compensations in the graph.
@@ -168,11 +179,17 @@ class ExecutionEngine:
         # Call on_enter hook
         await self._call_hook(step.on_enter, self.saga._context, step.step_id)
 
+        self._ledger.started(step.step_id)
         try:
             # Apply timeout
-            result = await asyncio.wait_for(
-                step.forward_fn(self.saga._context), timeout=step.timeout_seconds
-            )
+            try:
+                result = await asyncio.wait_for(
+                    step.forward_fn(self.saga._context), timeout=step.timeout_seconds
+                )
+            except BaseException as error:
+                self._ledger.finished(step.step_id, error)
+                raise
+            self._ledger.finished(step.step_id)
 
             # Merge result into context
             if result and isinstance(result, dict):
@@ -293,6 +310,7 @@ class ExecutionEngine:
                 node.compensation_fn(self.saga._context), timeout=node.timeout_seconds
             )
             self.saga._context[f"__{step_id}_compensated"] = True
+            self._ledger.compensated(step_id)
 
             # Notify listeners: compensation complete
             await self._notify_listeners(

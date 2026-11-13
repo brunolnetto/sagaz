@@ -80,8 +80,12 @@ class PostgreSQLSagaStorage(SagaStorage):
         executed_at TIMESTAMP WITH TIME ZONE,
         compensated_at TIMESTAMP WITH TIME ZONE,
         retry_count INTEGER DEFAULT 0,
+        duration_ms DOUBLE PRECISION,
         UNIQUE(saga_id, step_name)
     );
+
+    -- Idempotent upgrade: step latency for analytics (sagaz[analytics]).
+    ALTER TABLE saga_steps ADD COLUMN IF NOT EXISTS duration_ms DOUBLE PRECISION;
 
     CREATE INDEX IF NOT EXISTS idx_sagas_status ON sagas(status);
     CREATE INDEX IF NOT EXISTS idx_sagas_name ON sagas(saga_name);
@@ -196,14 +200,16 @@ class PostgreSQLSagaStorage(SagaStorage):
                                 step.get("executed_at"),
                                 step.get("compensated_at"),
                                 step.get("retry_count", 0),
+                                step.get("duration_ms"),
                             ]
                         )
 
                     await conn.executemany(
                         """
                         INSERT INTO saga_steps
-                        (saga_id, step_name, status, result, error, executed_at, compensated_at, retry_count)
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                        (saga_id, step_name, status, result, error, executed_at,
+                         compensated_at, retry_count, duration_ms)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                     """,
                         step_data,
                     )
@@ -228,7 +234,8 @@ class PostgreSQLSagaStorage(SagaStorage):
 
             step_rows = await conn.fetch(
                 """
-                SELECT step_name, status, result, error, executed_at, compensated_at, retry_count
+                SELECT step_name, status, result, error, executed_at, compensated_at, retry_count,
+                       duration_ms
                 FROM saga_steps WHERE saga_id = $1 ORDER BY id
             """,
                 saga_id,
@@ -275,6 +282,12 @@ class PostgreSQLSagaStorage(SagaStorage):
             step_data["executed_at"] = step_row["executed_at"].isoformat()
         if step_row["compensated_at"]:
             step_data["compensated_at"] = step_row["compensated_at"].isoformat()
+        try:
+            duration_ms = step_row["duration_ms"]
+        except (KeyError, IndexError):  # rows selected without the column
+            duration_ms = None
+        if duration_ms is not None:
+            step_data["duration_ms"] = duration_ms
 
         return step_data
 
