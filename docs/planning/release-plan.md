@@ -1,7 +1,7 @@
 # Scoped Release Plan — sagaz 2026
 
 > **Last updated**: 2026-11-13
-> **Current version**: 1.7.2
+> **Current version**: 1.8.0
 > **Strategy**: Minimum-disruption, scoped releases. Each wave ships only additive/isolated features. Core-invasive changes are deferred to later waves.
 
 ---
@@ -107,9 +107,9 @@ Wave 6  ─── v2.1.0 ─────── Streaming & historical analytics 
 
 ## Wave 2 — v1.8.0 "Analytics & Chaos"
 
-**Status**: 🟡 Closing — #382 and #383 pending review (2026-11-13). An acceptance-criteria audit after the first merges found #73 incomplete (it had been closed prematurely and was reopened) and several deviations from issue wording.
+**Status**: 📦 Release prepared (2026-11-13) — `chore/release-1-8-0` → `develop`, then promotion `develop` → `main` and tag `v1.8.0`. An acceptance-criteria audit after the first merges found #73 incomplete (it had been closed prematurely and was reopened) and several deviations from issue wording.
 **Risk**: Low — new `sagaz[analytics]` and `sagaz[visualization]` / `sagaz[monitor]` optional extras; chaos is opt-in
-**Merge order**: #79 → #74 → #374 → #377 / #378 / #379 (merged) → #382 → #383 (pending)
+**Merge order**: #79 → #74 → #374 → #377 / #378 / #379 (merged) → #382 → #383 (merged)
 
 | PR | Feature | Issue | Merged into `develop` |
 |----|---------|-------|-----------------------|
@@ -119,8 +119,8 @@ Wave 6  ─── v2.1.0 ─────── Streaming & historical analytics 
 | #377 | Demo: `reliability/chaos_patterns` (real ChaosMonkey experiments) | #251 | ✅ squash `6c25baf` |
 | #378 | Demo: `observability/otel_tracing` + `TracingSagaListener` fix | #248 | ✅ squash `e326c34` |
 | #379 | Demo: `performance/optimization_guide` | #252 | ✅ squash `901082b` |
-| #382 | Completes #73: `SagaAnalyticsPipeline(storage).run()`, unknown-status gate, exact p95 test, `/api/v1/analytics/*`; declarative sagas now persist step outcomes and `duration_ms` | #73 | ⏳ pending review |
-| #383 | Spec conformance: #58 API paths, #113 SSE test + guide paths, `sagaz demo <domain> <name>`, #251 test location (stacked on #382) | #58, #113, #248, #251, #252 | ⏳ pending review |
+| #382 | Completes #73: `SagaAnalyticsPipeline(storage).run()`, unknown-status gate, exact p95 test, `/api/v1/analytics/*`; declarative sagas now persist step outcomes and `duration_ms` | #73 | ✅ squash `dab9e2b` |
+| #383 | Spec conformance: #58 API paths, #113 SSE test + guide paths, `sagaz demo <domain> <name>`, #251 test location (stacked on #382) | #58, #113, #248, #251, #252 | ✅ squash `6048bac` |
 
 **Superseded / closed without merge (2026-11-13)**:
 - #71 — superseded by #374 (same visualization work, current history, targets `develop`).
@@ -143,9 +143,9 @@ Wave 6  ─── v2.1.0 ─────── Streaming & historical analytics 
 **Decisions**:
 - #58 "Mermaid inlined": kept the SHA-384-verified lazy cache served by the monitor (no browser CDN, no build step, small wheel). Recorded in ADR-035 and on #58.
 
-**Remaining before tagging v1.8.0**:
-- Review and merge #382, then #383.
-- Bump version and changelog, then promote `develop` → `main`.
+**Release steps**:
+- `chore/release-1-8-0`: version 1.8.0 in `pyproject.toml` / `uv.lock` and the changelog entry, merged into `develop`.
+- Promotion PR `develop` → `main`, then tag `v1.8.0` on `main`.
 - Re-run the full CI matrix once GitHub Actions is available again (billing lock not being resolved for now — release relies on local validation).
 
 ---
@@ -306,7 +306,7 @@ fix/#104           ────────────────────�
 | v1.5.0  | 0    | Governance & Lightweight Ops | Released |
 | v1.6.0  | 1    | Storage Extensions | Released |
 | v1.7.0  | 1b   | StateChart Migration Phase 1 | Released |
-| v1.8.0  | 2    | Analytics & Chaos | Closing — #382, #383 pending |
+| v1.8.0  | 2    | Analytics & Chaos | Release prepared |
 | v1.9.0  | 3    | CLI v2 + CDC + Tenancy | Planned |
 | v1.10.0 | 4    | Event-Driven Choreography | Planned |
 | v2.0.0  | 5    | Core Extensions | Blocked |

@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-11-13
+
+Wave 2 — "Analytics & Chaos".
+
+### Added
+- `sagaz.testing.ChaosMonkey` (ADR-017): seeded fault injection for saga steps — random failures, timeouts and latency, optionally limited to `target_steps` (#79).
+- `sagaz[analytics]` extra (ADR-036): Bronze → Silver → Gold DuckDB pipeline built on sqldim. `SagaAnalyticsPipeline(storage).run()` reads sagas and steps from any saga storage (read-only); Gold queries cover saga summary, per-step p50/p95/p99 latency and error rate, compensations and lifecycle milestones (#74, #382).
+- `sagaz[visualization]` / `sagaz[monitor]` extras (ADR-035): `sagaz monitor` serves a dashboard with run list and detail, runtime-state diagrams, per-run and global SSE streams, metrics summary and step explorer; REST API under `/api/v1` and the `/api/sagas`, `/api/metrics/summary` paths (#374, #383).
+- Monitor analytics reports at `/api/v1/analytics/{summary,step-latency,compensations,lifecycle}`, enabled with `sagaz monitor --storage-url` or `SAGAZ_STORAGE_URL` (#382).
+- Mermaid is served by the monitor from a SHA-384-verified local cache; browsers never contact a CDN (#374).
+- Demonstrations `reliability/chaos_patterns`, `observability/otel_tracing` and `performance/optimization_guide`, previously placeholders (#377, #378, #379).
+- `sagaz demo <domain> <name>` and `sagaz demo <domain>` (#383).
+
+### Changed
+- Declarative (`@action`) sagas persist each step's status, error, timestamps and `duration_ms` with the saga state, instead of an empty step list. PostgreSQL `saga_steps` gains a nullable `duration_ms` column, added automatically to existing databases (#382).
+- Analytics quality gates reject unknown saga statuses and step outcomes; unknown durations are stored as `NULL` rather than `0` (#382).
+
+### Fixed
+- `TracingSagaListener` emitted no spans: it called the tracer's context managers without entering them. It now emits a saga span with step and compensation child spans, with ERROR status on failures (#378).
+- Outbox DLQ semantics now match across backends: the in-memory backend ignored the `event` argument on `DEAD_LETTER`, and Redis skipped retry counting without an error message and stored an empty `dead_letter_at` (#374).
+- `ChaosMonkey` reports latency injections that exceed the step timeout (#79).
+
+### Tests
+- Outbox DLQ contract suite run against memory, SQLite, Redis and PostgreSQL; ChaosMonkey end-to-end tests through real saga execution; SSE smoke test against a live Uvicorn server.
+- Coverage now traces code run in threads (`asyncio.to_thread`), which was previously reported as uncovered.
+- Test containers no longer leak: the Ryuk reaper is enabled, xdist workers are bounded (`WORKERS`, default 4), Docker is probed with an SDK ping, and `make clean-containers` removes leftovers.
+
+### Validation
+- GitHub Actions was unavailable (account billing lock); every gate was reproduced locally on the release tree.
+- Ruff lint and format, mypy (344 source files), radon strict gate (no C-grade functions), bandit (no new findings) and `uv lock --check` passed.
+- Unit suite without containers: 3,497 passed, 62 skipped, 98.8% coverage.
+- PostgreSQL and Redis Testcontainers suites (outbox DLQ contract, saga storage, storage-to-analytics) passed. Known environment issue: PostgreSQL container tests segfault inside asyncpg's connect under `pytest --cov`; they pass without coverage.
+
 ## [1.7.2] - 2026-11-12
 
 ### Changed
