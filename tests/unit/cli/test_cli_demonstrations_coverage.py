@@ -337,3 +337,57 @@ def test_display_table_falls_back_to_plain_without_rich(monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "hello" in out
     assert "Run: sagaz demo run <name>" in out
+
+
+class TestDomainAddressedDemos:
+    """``sagaz demo <domain> <name>`` as specified by the demo issues (#248, #251, #252)."""
+
+    @pytest.mark.parametrize(
+        ("domain", "name"),
+        [
+            ("observability", "otel_tracing"),
+            ("reliability", "chaos_patterns"),
+            ("performance", "optimization_guide"),
+        ],
+    )
+    def test_runs_the_named_demo_of_the_domain(self, domain, name):
+        from sagaz.cli.demonstrations import demo_cli
+
+        with patch("sagaz.cli.demonstrations.run_demo") as run:
+            result = CliRunner().invoke(demo_cli, [domain, name])
+
+        assert result.exit_code == 0, result.output
+        run.assert_called_once_with(name)
+
+    def test_domain_without_name_lists_that_domain(self):
+        from sagaz.cli.demonstrations import demo_cli
+
+        with patch("sagaz.cli.demonstrations.list_demos") as list_demos:
+            result = CliRunner().invoke(demo_cli, ["reliability"])
+
+        assert result.exit_code == 0, result.output
+        list_demos.assert_called_once_with(filter_domain="reliability")
+
+    def test_demo_from_another_domain_is_a_usage_error(self):
+        from sagaz.cli.demonstrations import demo_cli
+
+        result = CliRunner().invoke(demo_cli, ["reliability", "otel_tracing"])
+
+        assert result.exit_code == 2
+        assert "No demonstration 'otel_tracing' in domain 'reliability'" in result.output
+
+    def test_unknown_word_is_still_an_unknown_command(self):
+        from sagaz.cli.demonstrations import demo_cli
+
+        result = CliRunner().invoke(demo_cli, ["nonsense"])
+
+        assert result.exit_code == 2
+        assert "No such command" in result.output
+
+    def test_builtin_subcommands_take_precedence(self):
+        from sagaz.cli.demonstrations import demo_cli
+
+        with patch("sagaz.cli.demonstrations.run_demo") as run:
+            CliRunner().invoke(demo_cli, ["run", "basic_saga"])
+
+        run.assert_called_once_with("basic_saga")

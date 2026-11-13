@@ -42,7 +42,33 @@ from sagaz.demonstrations import (
 # ============================================================================
 
 
-@click.group(name="demo", invoke_without_command=True)
+class _DemoGroup(click.Group):
+    """``demo`` group that also accepts ``sagaz demo <domain> [<name>]``."""
+
+    def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command | None:
+        command = super().get_command(ctx, cmd_name)
+        if command is None and cmd_name in discover_demos_by_domain():
+            return _domain_command(cmd_name)
+        return command
+
+
+def _domain_command(domain: str) -> click.Command:
+    @click.command(name=domain, help=f"List or run demonstrations of the '{domain}' domain.")
+    @click.argument("name", required=False)
+    def run_in_domain(name: str | None) -> None:
+        if name is None:
+            list_demos(filter_domain=domain)
+            return
+        demos = discover_demos_by_domain()[domain]
+        if name not in demos:
+            msg = f"No demonstration '{name}' in domain '{domain}'. Available: {', '.join(demos)}"
+            raise click.UsageError(msg)
+        run_demo(name)
+
+    return run_in_domain
+
+
+@click.group(name="demo", cls=_DemoGroup, invoke_without_command=True)
 @click.pass_context
 def demo_cli(ctx):
     """
@@ -62,6 +88,8 @@ def demo_cli(ctx):
         list              List all demonstrations grouped by domain
         list --domain N   List only demonstrations in domain N (1-6)
         run <name>        Run a specific demonstration by name
+        <domain> <name>   Run a demonstration addressed by its domain folder
+        <domain>          List the demonstrations of one domain folder
 
     \b
     Examples:
@@ -70,6 +98,7 @@ def demo_cli(ctx):
         sagaz demo list --domain core_patterns
         sagaz demo run basic_saga
         sagaz demo run context_migration
+        sagaz demo observability otel_tracing
     """
     if ctx.invoked_subcommand is None:
         interactive_cmd()
