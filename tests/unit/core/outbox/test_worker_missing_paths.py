@@ -165,21 +165,21 @@ class TestProcessBatchPrometheusEnabled:
         worker = OutboxWorker(storage=storage, broker=broker, config=config)
 
         # Ensure PROMETHEUS_AVAILABLE is True (likely already is in test env)
-        import sagaz.core.outbox.worker as worker_mod
+        import sagaz.core.outbox._worker_metrics as metrics_mod
 
         mock_metric = MagicMock()
         mock_metric.labels.return_value = MagicMock()
 
         with (
-            patch.object(worker_mod, "PROMETHEUS_AVAILABLE", True),
-            patch.object(worker_mod, "OUTBOX_BATCH_SIZE", mock_metric),
-            patch.object(worker_mod, "OUTBOX_BATCH_PROCESSED", mock_metric),
-            patch.object(worker_mod, "OUTBOX_PUBLISHED_EVENTS", mock_metric),
-            patch.object(worker_mod, "OUTBOX_FAILED_EVENTS", mock_metric),
-            patch.object(worker_mod, "OUTBOX_RETRY_ATTEMPTS", mock_metric),
-            patch.object(worker_mod, "OUTBOX_PROCESSING_EVENTS", mock_metric),
-            patch.object(worker_mod, "OUTBOX_PUBLISH_DURATION", mock_metric),
-            patch.object(worker_mod, "OUTBOX_DEAD_LETTER_EVENTS", mock_metric),
+            patch.object(metrics_mod, "PROMETHEUS_AVAILABLE", True),
+            patch.object(metrics_mod, "OUTBOX_BATCH_SIZE", mock_metric),
+            patch.object(metrics_mod, "OUTBOX_BATCH_PROCESSED", mock_metric),
+            patch.object(metrics_mod, "OUTBOX_PUBLISHED_EVENTS", mock_metric),
+            patch.object(metrics_mod, "OUTBOX_FAILED_EVENTS", mock_metric),
+            patch.object(metrics_mod, "OUTBOX_RETRY_ATTEMPTS", mock_metric),
+            patch.object(metrics_mod, "OUTBOX_PROCESSING_EVENTS", mock_metric),
+            patch.object(metrics_mod, "OUTBOX_PUBLISH_DURATION", mock_metric),
+            patch.object(metrics_mod, "OUTBOX_DEAD_LETTER_EVENTS", mock_metric),
         ):
             processed = await worker.process_batch()
 
@@ -255,8 +255,8 @@ class TestWorkerPrometheusBranches:
 
         worker = OutboxWorker(storage, broker, worker_id="test-pcount-err")
         with (
-            patch("sagaz.core.outbox.worker.PROMETHEUS_AVAILABLE", True),
-            patch("sagaz.core.outbox.worker.OUTBOX_PENDING_EVENTS") as mock_gauge,
+            patch("sagaz.core.outbox._worker_metrics.PROMETHEUS_AVAILABLE", True),
+            patch("sagaz.core.outbox._worker_metrics.OUTBOX_PENDING_EVENTS") as mock_gauge,
         ):
             mock_gauge.set = MagicMock()
             result = await worker._process_iteration()
@@ -274,7 +274,7 @@ class TestWorkerPrometheusBranches:
         storage.claim_batch = AsyncMock(return_value=[])
 
         worker = OutboxWorker(storage, broker, worker_id="test-noprom")
-        with patch("sagaz.core.outbox.worker.PROMETHEUS_AVAILABLE", False):
+        with patch("sagaz.core.outbox._worker_metrics.PROMETHEUS_AVAILABLE", False):
             result = await worker._process_iteration()
         assert result is False
 
@@ -291,7 +291,7 @@ class TestWorkerPrometheusBranches:
 
         worker = OutboxWorker(storage, broker, worker_id="test-exc")
         with (
-            patch("sagaz.core.outbox.worker.PROMETHEUS_AVAILABLE", False),
+            patch("sagaz.core.outbox._worker_metrics.PROMETHEUS_AVAILABLE", False),
             patch("asyncio.sleep", new_callable=AsyncMock),
         ):
             result = await worker._process_iteration()
@@ -318,7 +318,7 @@ class TestWorkerPrometheusBranches:
         worker = OutboxWorker(storage, broker, worker_id="test-fail-log")
         worker._process_event = fail_event
 
-        with patch("sagaz.core.outbox.worker.PROMETHEUS_AVAILABLE", False):
+        with patch("sagaz.core.outbox._worker_metrics.PROMETHEUS_AVAILABLE", False):
             count = await worker.process_batch()
         assert count == 0  # no successes
 
@@ -338,7 +338,7 @@ class TestWorkerPrometheusBranches:
         broker.publish_event = AsyncMock()
 
         worker = OutboxWorker(storage, broker, worker_id="test-noprom-batch")
-        with patch("sagaz.core.outbox.worker.PROMETHEUS_AVAILABLE", False):
+        with patch("sagaz.core.outbox._worker_metrics.PROMETHEUS_AVAILABLE", False):
             count = await worker.process_batch()
         assert count == 1
 
@@ -362,7 +362,7 @@ class TestWorkerPrometheusBranches:
         event = OutboxEvent(saga_id="saga-3", event_type="t", payload={})
 
         worker = OutboxWorker(storage, broker, on_event_published=on_pub, worker_id="test-cb")
-        with patch("sagaz.core.outbox.worker.PROMETHEUS_AVAILABLE", False):
+        with patch("sagaz.core.outbox._worker_metrics.PROMETHEUS_AVAILABLE", False):
             await worker._process_event(event)
         assert event in published_events
 
@@ -389,7 +389,7 @@ class TestWorkerPrometheusBranches:
             storage, broker, config=config, on_event_failed=on_fail, worker_id="test-fail-cb"
         )
         err = Exception("broker error")
-        with patch("sagaz.core.outbox.worker.PROMETHEUS_AVAILABLE", False):
+        with patch("sagaz.core.outbox._worker_metrics.PROMETHEUS_AVAILABLE", False):
             await worker._handle_publish_failure(event, err)
         assert any(ev is event for ev, _ in failed_events)
 
@@ -407,7 +407,7 @@ class TestWorkerPrometheusBranches:
         event = OutboxEvent(saga_id="saga-5", event_type="t", payload={})
 
         worker = OutboxWorker(storage, broker, worker_id="test-deadletter")
-        with patch("sagaz.core.outbox.worker.PROMETHEUS_AVAILABLE", False):
+        with patch("sagaz.core.outbox._worker_metrics.PROMETHEUS_AVAILABLE", False):
             await worker._move_to_dead_letter(event)
         storage.update_status.assert_called_once()
 
@@ -423,11 +423,15 @@ class TestOutboxWorkerPromethusFallback:
 
         _CANONICAL = "sagaz.core.outbox.worker"
         _ALIAS = "sagaz.core.outbox.worker"
+        # The metrics (and the failure mixin built on them) live in helper
+        # modules re-exported by the worker; they must be re-imported too.
+        _HELPERS = ("sagaz.core.outbox._worker_metrics", "sagaz.core.outbox._worker_failures")
 
         @contextmanager
         def _without_prometheus_for_worker():
             orig_worker = sys.modules.get(_ALIAS)
             orig_canonical = sys.modules.get(_CANONICAL)
+            orig_helpers = {name: sys.modules.get(name) for name in _HELPERS}
             orig_prometheus = {k: v for k, v in sys.modules.items() if "prometheus_client" in k}
             for key in list(sys.modules.keys()):
                 if "prometheus_client" in key:
@@ -437,6 +441,8 @@ class TestOutboxWorkerPromethusFallback:
             # try/except ImportError block.
             sys.modules.pop(_ALIAS, None)
             sys.modules.pop(_CANONICAL, None)
+            for name in _HELPERS:
+                sys.modules.pop(name, None)
             try:
                 mod = importlib.import_module(_CANONICAL)
                 yield mod
@@ -447,6 +453,14 @@ class TestOutboxWorkerPromethusFallback:
                     sys.modules[key] = val
                 sys.modules.pop(_ALIAS, None)
                 sys.modules.pop(_CANONICAL, None)
+                for name, orig in orig_helpers.items():
+                    sys.modules.pop(name, None)
+                    if orig is not None:
+                        sys.modules[name] = orig
+                        # Re-importing rebinds the package attribute, which
+                        # string patch targets resolve through; restore it.
+                        package, _, attr = name.rpartition(".")
+                        setattr(sys.modules[package], attr, orig)
                 if orig_worker is not None:
                     sys.modules[_ALIAS] = orig_worker
                 if orig_canonical is not None:

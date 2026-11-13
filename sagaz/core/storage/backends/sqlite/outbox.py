@@ -32,20 +32,33 @@ except ImportError:
     aiosqlite = None  # type: ignore[assignment]
 
 from sagaz.core.exceptions import MissingDependencyError
-from sagaz.core.outbox.types import OutboxEvent, OutboxStatus, ReplayLoopError
+from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
+from sagaz.core.storage.backends.sqlite._outbox_dlq import SQLiteOutboxDeadLetterMixin
+from sagaz.core.storage.backends.sqlite._outbox_rows import SQLiteOutboxRowMappingMixin
+from sagaz.core.storage.backends.sqlite._outbox_schema import SQLiteOutboxSchemaMixin
+from sagaz.core.storage.backends.sqlite._outbox_status_queries import (
+    SQLiteOutboxStatusQueryMixin,
+)
+from sagaz.core.storage.backends.sqlite._outbox_transfer import SQLiteOutboxTransferMixin
 from sagaz.core.storage.core import (
     HealthCheckResult,
     HealthStatus,
     StorageStatistics,
-    deserialize,
     serialize,
 )
-from sagaz.core.storage.interfaces.outbox import OutboxStorage, OutboxStorageError
+from sagaz.core.storage.interfaces.outbox import OutboxStorage
 
 logger = logging.getLogger(__name__)
 
 
-class SQLiteOutboxStorage(OutboxStorage):
+class SQLiteOutboxStorage(
+    SQLiteOutboxSchemaMixin,
+    SQLiteOutboxStatusQueryMixin,
+    SQLiteOutboxDeadLetterMixin,
+    SQLiteOutboxTransferMixin,
+    SQLiteOutboxRowMappingMixin,
+    OutboxStorage,
+):
     """
     SQLite-based outbox storage.
 
@@ -95,91 +108,6 @@ class SQLiteOutboxStorage(OutboxStorage):
             self._initialized = True
 
         return self._conn
-
-    async def _init_schema(self) -> None:
-        """Initialize database schema."""
-        conn = self._conn
-        if conn is None:
-            msg = "Connection not initialized"
-            raise RuntimeError(msg)
-        await conn.executescript("""
-            CREATE TABLE IF NOT EXISTS outbox_events (
-                event_id TEXT PRIMARY KEY,
-                saga_id TEXT NOT NULL,
-                event_type TEXT NOT NULL,
-                payload TEXT NOT NULL,
-                status TEXT NOT NULL DEFAULT 'pending',
-                created_at TEXT NOT NULL,
-                claimed_at TEXT,
-                sent_at TEXT,
-                worker_id TEXT,
-                retry_count INTEGER DEFAULT 0,
-                last_error TEXT,
-                aggregate_type TEXT,
-                aggregate_id TEXT,
-                headers TEXT,
-                routing_key TEXT,
-                partition_key TEXT,
-                dead_letter_at TEXT,
-                dead_letter_reason TEXT,
-                error_type TEXT,
-                error_classification TEXT,
-                error_fingerprint TEXT,
-                replay_count INTEGER DEFAULT 0
-            );
-
-            CREATE INDEX IF NOT EXISTS idx_outbox_status ON outbox_events(status);
-            CREATE INDEX IF NOT EXISTS idx_outbox_saga_id ON outbox_events(saga_id);
-        """)
-        await self._ensure_optional_columns(conn)
-        await conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_outbox_claimed_at ON outbox_events(claimed_at)"
-        )
-        assert conn is not None
-        await conn.commit()
-
-    async def _ensure_optional_columns(self, conn: aiosqlite.Connection) -> None:
-        """Add newer optional columns when the table already exists."""
-        cursor = await conn.execute("PRAGMA table_info(outbox_events)")
-        rows = await cursor.fetchall()
-        existing_columns = {row["name"] for row in rows}
-
-        optional_columns = (
-            ("dead_letter_at", "TEXT"),
-            ("dead_letter_reason", "TEXT"),
-            ("error_type", "TEXT"),
-            ("error_classification", "TEXT"),
-            ("error_fingerprint", "TEXT"),
-            ("replay_count", "INTEGER DEFAULT 0"),
-            ("aggregate_type", "TEXT"),
-            ("aggregate_id", "TEXT"),
-            ("headers", "TEXT"),
-            ("routing_key", "TEXT"),
-            ("partition_key", "TEXT"),
-            ("claimed_at", "TEXT"),
-            ("sent_at", "TEXT"),
-            ("worker_id", "TEXT"),
-            ("retry_count", "INTEGER DEFAULT 0"),
-            ("last_error", "TEXT"),
-        )
-
-        for column_name, column_type in optional_columns:
-            if column_name not in existing_columns:
-                await conn.execute(
-                    f"ALTER TABLE outbox_events ADD COLUMN {column_name} {column_type}"
-                )
-
-        # Legacy rows predate optional metadata columns. Normalize them before
-        # export so they remain valid when imported into stricter backends.
-        await conn.execute(
-            """
-            UPDATE outbox_events
-            SET aggregate_type = COALESCE(aggregate_type, 'saga'),
-                aggregate_id = COALESCE(aggregate_id, saga_id),
-                headers = COALESCE(headers, '{}'),
-                retry_count = COALESCE(retry_count, 0)
-            """
-        )
 
     async def __aenter__(self):
         """Async context manager entry."""
@@ -256,37 +184,6 @@ class SQLiteOutboxStorage(OutboxStorage):
 
         return self._row_to_event(row)
 
-    def _row_to_event(self, row: aiosqlite.Row) -> OutboxEvent:
-        """Convert database row to OutboxEvent."""
-        return OutboxEvent(
-            event_id=str(row["event_id"]),
-            saga_id=row["saga_id"],
-            event_type=row["event_type"],
-            payload=deserialize(row["payload"]),
-            status=OutboxStatus(row["status"]),
-            created_at=datetime.fromisoformat(row["created_at"])
-            if row["created_at"]
-            else datetime.now(UTC),
-            claimed_at=datetime.fromisoformat(row["claimed_at"]) if row["claimed_at"] else None,
-            sent_at=datetime.fromisoformat(row["sent_at"]) if row["sent_at"] else None,
-            worker_id=row["worker_id"],
-            retry_count=row["retry_count"] or 0,
-            last_error=row["last_error"],
-            aggregate_type=row["aggregate_type"],
-            aggregate_id=row["aggregate_id"],
-            headers=deserialize(row["headers"]) if row["headers"] else {},
-            routing_key=row["routing_key"],
-            partition_key=row["partition_key"],
-            dead_letter_at=datetime.fromisoformat(row["dead_letter_at"])
-            if row["dead_letter_at"]
-            else None,
-            dead_letter_reason=row["dead_letter_reason"],
-            error_type=row["error_type"],
-            error_classification=row["error_classification"],
-            error_fingerprint=row["error_fingerprint"],
-            replay_count=row["replay_count"] or 0,
-        )
-
     async def update_status(
         self,
         event_id: str,
@@ -307,124 +204,6 @@ class SQLiteOutboxStorage(OutboxStorage):
             msg = f"Event {event_id} not found"
             raise KeyError(msg)
         return updated
-
-    def _build_update_status_query(
-        self,
-        event_id: str,
-        status: OutboxStatus,
-        error_message: str | None,
-        event: OutboxEvent | None,
-        now: str,
-    ) -> tuple[str, tuple]:
-        if status == OutboxStatus.FAILED:
-            return self._failed_status_query(event_id, status, error_message, event)
-        if status == OutboxStatus.DEAD_LETTER:
-            return self._dead_letter_status_query(event_id, status, error_message, event, now)
-        if status == OutboxStatus.PENDING:
-            return self._pending_status_query(event_id, status, event)
-        return self._default_status_query(event_id, status, error_message, now)
-
-    def _failed_status_query(
-        self,
-        event_id: str,
-        status: OutboxStatus,
-        error_message: str | None,
-        event: OutboxEvent | None,
-    ) -> tuple[str, tuple]:
-        return (
-            """
-                UPDATE outbox_events
-                SET status = ?,
-                    retry_count = retry_count + 1,
-                    last_error = ?,
-                    error_type = ?,
-                    error_classification = ?,
-                    error_fingerprint = ?
-                WHERE event_id = ?
-            """,
-            (
-                status.value,
-                error_message,
-                event.error_type if event else None,
-                event.error_classification if event else None,
-                event.error_fingerprint if event else None,
-                event_id,
-            ),
-        )
-
-    def _dead_letter_status_query(
-        self,
-        event_id: str,
-        status: OutboxStatus,
-        error_message: str | None,
-        event: OutboxEvent | None,
-        now: str,
-    ) -> tuple[str, tuple]:
-        return (
-            """
-                UPDATE outbox_events
-                SET status = ?,
-                    dead_letter_at = COALESCE(?, ?),
-                    dead_letter_reason = COALESCE(?, last_error, dead_letter_reason, 'max_retries_exceeded'),
-                    error_type = COALESCE(?, error_type),
-                    error_classification = COALESCE(?, error_classification),
-                    error_fingerprint = COALESCE(?, error_fingerprint)
-                WHERE event_id = ?
-            """,
-            (
-                status.value,
-                event.dead_letter_at.isoformat() if event and event.dead_letter_at else None,
-                now,
-                event.dead_letter_reason if event else error_message,
-                event.error_type if event else None,
-                event.error_classification if event else None,
-                event.error_fingerprint if event else None,
-                event_id,
-            ),
-        )
-
-    def _pending_status_query(
-        self,
-        event_id: str,
-        status: OutboxStatus,
-        event: OutboxEvent | None,
-    ) -> tuple[str, tuple]:
-        return (
-            """
-                UPDATE outbox_events
-                SET status = ?,
-                    worker_id = NULL,
-                    claimed_at = NULL,
-                    dead_letter_at = NULL,
-                    dead_letter_reason = NULL,
-                    retry_count = COALESCE(?, retry_count),
-                    replay_count = COALESCE(?, replay_count)
-                WHERE event_id = ?
-            """,
-            (
-                status.value,
-                event.retry_count if event else None,
-                event.replay_count if event else None,
-                event_id,
-            ),
-        )
-
-    def _default_status_query(
-        self,
-        event_id: str,
-        status: OutboxStatus,
-        error_message: str | None,
-        now: str,
-    ) -> tuple[str, tuple]:
-        sent_at = now if status == OutboxStatus.SENT else None
-        return (
-            """
-                UPDATE outbox_events
-                SET status = ?, last_error = ?, sent_at = COALESCE(?, sent_at)
-                WHERE event_id = ?
-            """,
-            (status.value, error_message, sent_at, event_id),
-        )
 
     async def claim_batch(
         self,
@@ -535,23 +314,6 @@ class SQLiteOutboxStorage(OutboxStorage):
 
         return row[0] if row else 0
 
-    async def get_dead_letter_events(self, limit: int = 100) -> list[OutboxEvent]:
-        """Get events in dead letter status."""
-        conn = await self._get_connection()
-
-        cursor = await conn.execute(
-            """
-            SELECT * FROM outbox_events
-            WHERE status = 'dead_letter'
-            ORDER BY created_at DESC
-            LIMIT ?
-            """,
-            (limit,),
-        )
-        rows = await cursor.fetchall()
-
-        return [self._row_to_event(row) for row in rows]
-
     async def health_check(self) -> HealthCheckResult:
         """Check storage health."""
         import time
@@ -605,82 +367,3 @@ class SQLiteOutboxStorage(OutboxStorage):
             total_records=int(row["total"]) if row["total"] else 0,
             pending_records=int(row["pending"]) if row["pending"] else 0,
         )
-
-    async def count(self) -> int:
-        """Count total events."""
-        conn = await self._get_connection()
-        cursor = await conn.execute("SELECT COUNT(*) FROM outbox_events")
-        row = await cursor.fetchone()
-        return row[0] if row else 0
-
-    async def export_all(self):
-        """Export all records for transfer."""
-        conn = await self._get_connection()
-        cursor = await conn.execute("SELECT * FROM outbox_events ORDER BY event_id")
-
-        async for row in cursor:
-            event = self._row_to_event(row)
-            yield event.to_dict()
-
-    async def import_record(self, record: dict[str, Any]) -> None:
-        """Import an event without overwriting existing destination state."""
-        event = OutboxEvent.from_dict(record)
-        existing = await self.get_by_id(event.event_id)
-
-        if existing is not None:
-            if existing != event:
-                msg = f"Outbox event {event.event_id} already exists with different state"
-                raise OutboxStorageError(msg)
-            return
-
-        await self.insert(event)
-
-    async def requeue_dead_letter_event(self, event_id: str, force: bool = False) -> OutboxEvent:
-        """Move a DLQ event back to PENDING for replay."""
-        event = await self.get_by_id(event_id)
-        if event is None:
-            msg = f"Event {event_id} not found"
-            raise KeyError(msg)
-
-        max_replays = 3
-        if not force and event.replay_count >= max_replays:
-            raise ReplayLoopError(
-                event_id=event_id,
-                replay_count=event.replay_count,
-                max_replays=max_replays,
-            )
-
-        event.replay_count += 1
-        event.retry_count = 0
-        event.worker_id = None
-        event.claimed_at = None
-        event.dead_letter_at = None
-        event.dead_letter_reason = None
-        updated = await self.update_status(event_id, OutboxStatus.PENDING, event=event)
-        if updated is None:
-            msg = f"Event {event_id} not found"
-            raise KeyError(msg)
-        return updated
-
-    async def purge_dead_letter_events(
-        self,
-        older_than: timedelta | None = None,
-    ) -> int:
-        """Permanently remove DLQ events."""
-        conn = await self._get_connection()
-
-        if older_than is None:
-            cursor = await conn.execute("DELETE FROM outbox_events WHERE status = 'dead_letter'")
-        else:
-            cutoff = (datetime.now(UTC) - older_than).isoformat()
-            cursor = await conn.execute(
-                """
-                DELETE FROM outbox_events
-                WHERE status = 'dead_letter'
-                AND dead_letter_at IS NOT NULL
-                AND dead_letter_at < ?
-                """,
-                (cutoff,),
-            )
-        await conn.commit()
-        return cursor.rowcount
