@@ -415,6 +415,7 @@ omit = [
     "sagaz/cli/main.py",  # CLI entry point - thin wrapper
     # Optional integrations requiring external frameworks
     "sagaz/integrations/django.py",
+    "sagaz/integrations/_django_webhooks.py",
     # Optional trigger sources requiring external services
     "sagaz/triggers/sources/broker.py",
     "sagaz/triggers/sources/cron.py",
