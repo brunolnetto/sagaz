@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-11-13
+
+### Fixed
+- The 1.8.0 wheel shipped none of the deployment templates (Docker Compose, Kubernetes, monitoring): `package-data` still pointed at `resources/`, which had moved to `deployment/resources/`, and the CLI read templates from the old location. `sagaz setup` printed `ERROR copying ...` and then reported a successful setup. Templates are now packaged and read from `sagaz/deployment/resources`.
+- `sagaz setup` stops with a clear error when a required template is missing, instead of reporting success.
+- Add the `py.typed` marker that the package declared but never contained, so type checkers use sagaz's annotations (PEP 561).
+- `sagaz version` printed the hard-coded legacy version `1.0.3`; it now reports the installed version, like `sagaz --version`.
+
+### Known issues
+- Local PostgreSQL HA and the Kubernetes mode of `sagaz setup` reference templates that do not exist; both now fail with an explicit error. Tracked for v1.9.0.
+
 ## [1.8.0] - 2026-11-13
 
 Wave 2 — "Analytics & Chaos".
