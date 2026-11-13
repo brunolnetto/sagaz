@@ -127,14 +127,14 @@ Wave 6  ─── v2.1.0 ─────── Streaming & historical analytics 
 **CI status (2026-11-13)**:
 - #79: all CI checks failing — branch must be rebased and CI fixed before merge.
 - #74: all CI checks failing — branch must be rebased and CI fixed before merge.
-- #71: lint/sec/CodeQL passing; unit test checks not yet triggered in CI — 95 local visualization tests pass (99% coverage of `sagaz/visualization/` with thread tracing; full unit suite 3267 passed).
+- #71: CI unavailable; gates reproduced locally (ruff, format, mypy, radon strict, bandit, commitlint, unit matrix 3.11/3.12/3.13 with `--cov-fail-under=95`).
 - #254, #258: all CI checks passing — ready for review and merge.
 - #257: all CI checks passing — merge after #79 lands.
 
 **Gap watch**:
 - #79: add real `Saga` E2E integration test through `ChaosMonkey` → compensation fires (see issue #111)
 - #81: versioning deferred to Wave 3 (depends on schema validation closure — see issue #112)
-- #71: issue #58/#113 acceptance criteria implemented locally (run list, run detail, per-run SSE, runtime diagram, metrics summary, 5-view HTML, `sagaz[monitor]` alias, `docs/monitoring/visualization-ui.md` incl. CORS/auth policy). Open: (a) Mermaid is loaded from a pinned CDN rather than inlined; (b) `.coveragerc` uses `concurrency = multiprocessing` without `thread`, so TestClient-handled code is under-reported repo-wide; (c) push and confirm CI.
+- #71: issue #58/#113 acceptance criteria implemented (run list, run detail, per-run SSE, runtime diagram, metrics summary, 5-view HTML, `sagaz[monitor]` alias, `docs/monitoring/visualization-ui.md` incl. CORS/auth policy). Mermaid is fetched lazily by the monitor, SHA-384 verified and cached on disk (not bundled, no browser CDN). Branch pushed as `feature/visualization-ui-clean`; PR #71 head is still `feature/visualization-ui` and must be retargeted. Open: `.coveragerc` uses `concurrency = multiprocessing` without `thread`, so TestClient-handled code is under-reported repo-wide.
 
 ---
 

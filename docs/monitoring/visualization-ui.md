@@ -67,9 +67,31 @@ The runtime diagram colours each step by state:
 - indigo: compensated
 - blue: running
 
-The page is one HTML file with vanilla JS and no build step. Mermaid loads from
-`cdn.jsdelivr.net` (version pinned). If that CDN can't be reached, the page shows
-the diagram source as text and everything else keeps working.
+The page is one HTML file with vanilla JS and no build step.
+
+### Mermaid asset
+
+Mermaid (about 2.5 MB) is not shipped in the wheel. Browsers load it from the
+monitor itself at `/static/mermaid.min.js`, never from a CDN:
+
+1. On the first request, the monitor downloads the pinned build
+   (`mermaid@11.4.1` from jsDelivr) over HTTPS.
+2. It checks the file against a pinned SHA-384 digest and rejects anything else.
+3. It caches the file on disk and in memory, then serves it with
+   `Cache-Control: immutable`.
+
+The cache directory is `$SAGAZ_CACHE_DIR`, else `$XDG_CACHE_HOME/sagaz`, else
+`~/.cache/sagaz`. A cached file that fails the digest check is deleted and
+downloaded again.
+
+In **air-gapped** environments, copy the verified file into the cache directory
+ahead of time. The file name and digest are in `sagaz.visualization.assets.MERMAID`
+(`MERMAID.filename`, `MERMAID.sha384`). If the asset can't be fetched, the
+endpoint returns `503`; the page then shows the diagram source as text, and the
+other views keep working.
+
+Diagrams are never rendered by an external service such as mermaid.ink or kroki,
+so Saga and step names never leave your infrastructure.
 
 ## HTTP API
 
@@ -86,6 +108,8 @@ All routes are under `/api/v1`.
 | `GET` | `/sagas` | Saga classes registered with `create_app(registered_sagas=...)` |
 | `GET` | `/diagram?saga=module:Class` | Static definition diagram from the class's `to_mermaid()` |
 | `POST` | `/events` | Event ingestion. Requires a bearer token |
+
+The monitor also serves `GET /static/mermaid.min.js`; see [Mermaid asset](#mermaid-asset).
 
 SSE streams send a keep-alive ping every 15 s. Each subscriber has a bounded
 queue of 100 events, and at most 100 subscribers can connect at once. If a slow
