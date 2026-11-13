@@ -1,46 +1,5 @@
 {
   "cc": {},
-  "lines": {
-    "sagaz/analytics/pipeline.py": 546,
-    "sagaz/cli/_init_handlers.py": 776,
-    "sagaz/cli/app.py": 829,
-    "sagaz/cli/dry_run.py": 618,
-    "sagaz/cli/examples.py": 810,
-    "sagaz/cli/replay.py": 483,
-    "sagaz/core/decorators/__init__.py": 439,
-    "sagaz/core/execution/graph/_core.py": 590,
-    "sagaz/core/execution/pivot.py": 472,
-    "sagaz/core/outbox/worker.py": 653,
-    "sagaz/core/saga/__init__.py": 590,
-    "sagaz/core/storage/backends/filesystem_snapshot.py": 445,
-    "sagaz/core/storage/backends/postgresql/outbox.py": 822,
-    "sagaz/core/storage/backends/postgresql/saga.py": 568,
-    "sagaz/core/storage/backends/postgresql/snapshot.py": 448,
-    "sagaz/core/storage/backends/redis/outbox.py": 867,
-    "sagaz/core/storage/backends/redis/saga.py": 501,
-    "sagaz/core/storage/backends/s3/snapshot.py": 480,
-    "sagaz/core/storage/backends/sqlite/outbox.py": 686,
-    "sagaz/core/storage/backends/sqlite/saga.py": 423,
-    "sagaz/core/storage/manager.py": 606,
-    "sagaz/core/storage/transfer/service.py": 515,
-    "sagaz/dry_run.py": 626,
-    "sagaz/examples/business/commerce/property_closing/main.py": 481,
-    "sagaz/examples/digital_media/media/live_streaming/main.py": 439,
-    "sagaz/examples/healthcare/healthcare/lab_processing/main.py": 456,
-    "sagaz/examples/infrastructure/operations/production/main.py": 409,
-    "sagaz/examples/technology/ai/ai_content_pipeline/main.py": 406,
-    "sagaz/examples/technology/ai/training/main.py": 402,
-    "sagaz/examples/technology/data/data_migration/main.py": 450,
-    "sagaz/examples/technology/telecom/number_porting/main.py": 441,
-    "sagaz/integrations/django.py": 443,
-    "sagaz/observability/monitoring/tracing.py": 416,
-    "sagaz/observability/visualization/mermaid.py": 640,
-    "sagaz/visualization/server.py": 435
-  },
-  "mi": {
-    "sagaz/cli/dry_run.py": 17.4,
-    "sagaz/cli/examples.py": 16.9,
-    "sagaz/core/storage/backends/redis/outbox.py": 15.41,
-    "sagaz/observability/visualization/mermaid.py": 18.03
-  }
+  "lines": {},
+  "mi": {}
 }

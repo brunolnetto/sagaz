@@ -199,7 +199,7 @@ quality-gate: ## Structural gate: CC <= 10, modules <= 400 lines, MI >= 20 (UPDA
 ifeq ($(UPDATE),yes)
 	$(PYTHON) scripts/quality_gate.py --update-baseline
 else
-	$(PYTHON) scripts/quality_gate.py
+	$(PYTHON) scripts/quality_gate.py --strict-baseline
 endif
 
 security: ## Run security checks with bandit

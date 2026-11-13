@@ -97,6 +97,8 @@ def test_empty_modules_are_skipped_for_mi(repo):
     assert _run(repo) == 0
 
 
-def test_repository_does_not_regress_against_its_baseline():
-    """The real package may only shrink its violations (no new or worse ones)."""
-    assert gate.main([]) == 0
+def test_repository_meets_every_limit():
+    """Since 1.8.2 the baseline is empty: every module must be within the limits."""
+    assert gate.main(["--strict-baseline"]) == 0
+    baseline = json.loads((SCRIPT.parents[1] / ".quality-gate-baseline.json").read_text())
+    assert all(not entries for entries in baseline.values())
