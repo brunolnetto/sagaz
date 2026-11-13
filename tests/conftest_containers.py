@@ -8,6 +8,7 @@ Environment variable ``SAGAZ_NO_CONTAINERS=1`` has the same effect.
 
 Parallel mode: set ``SAGAZ_PARALLEL_CONTAINERS=1`` or pass ``--parallel-containers``
 to pre-start all containers simultaneously at session start (faster for full runs).
+It is ignored inside xdist workers, which start containers lazily.
 """
 
 import os
@@ -17,23 +18,13 @@ import time
 
 import pytest
 
-# Disable Ryuk (the testcontainers reaper) to avoid 409 name conflicts on restart.
-os.environ.setdefault("TESTCONTAINERS_RYUK_DISABLED", "true")
+# Ryuk (the testcontainers reaper) stays enabled: it removes this session's
+# containers even when pytest or an xdist worker is killed or crashes. Without it,
+# every aborted run leaked Postgres/Redis/Kafka/LocalStack containers until the
+# machine ran out of memory. Opt out with TESTCONTAINERS_RYUK_DISABLED=true.
 
 # Per-container startup timeout in seconds.
 _CONTAINER_TIMEOUT = 120
-
-
-def _cleanup_stale_containers() -> None:
-    """Remove any stopped test containers left over from previous runs."""
-    try:
-        subprocess.run(
-            ["docker", "container", "prune", "-f"],
-            capture_output=True,
-            timeout=30,
-        )
-    except Exception:
-        pass  # Best-effort; don't block test startup
 
 
 class ContainerManager:
@@ -229,8 +220,6 @@ def pytest_configure(config):
         _no_containers = True
         return
 
-    _cleanup_stale_containers()
-
     try:
         import testcontainers  # noqa: F401
 
@@ -245,7 +234,11 @@ def pytest_sessionstart(session):
         session.config.getoption("--parallel-containers", default=False)
         or os.environ.get("SAGAZ_PARALLEL_CONTAINERS", "") == "1"
     )
-    if parallel and _manager is not None:
+    # Under xdist every worker has its own manager; pre-starting all five
+    # containers in each worker multiplies them by the worker count. Workers
+    # start only the containers their tests actually request.
+    is_xdist_worker = "PYTEST_XDIST_WORKER" in os.environ
+    if parallel and _manager is not None and not is_xdist_worker:
         _manager.start_all_parallel()
 
 
