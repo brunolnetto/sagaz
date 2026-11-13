@@ -4109,8 +4109,10 @@ dev = [
     { name = "radon" },
     { name = "redis" },
     { name = "ruff" },
+    { name = "sse-starlette" },
     { name = "testcontainers", extra = ["localstack", "rabbitmq", "redis"] },
     { name = "types-pyyaml" },
+    { name = "uvicorn" },
 ]
 django = [
     { name = "asgiref" },
@@ -4212,8 +4214,10 @@ dev = [
     { name = "radon", specifier = ">=6.0.1" },
     { name = "redis", specifier = ">=6.0.0" },
     { name = "ruff", specifier = ">=0.1.6" },
+    { name = "sse-starlette", specifier = ">=1.0.0" },
     { name = "testcontainers", extras = ["kafka", "postgres", "rabbitmq", "redis", "localstack"], specifier = ">=4.13.3" },
     { name = "types-pyyaml", specifier = ">=6.0.0" },
+    { name = "uvicorn", specifier = ">=0.23.0" },
 ]
 django = [
     { name = "asgiref", specifier = ">=3.8.0" },

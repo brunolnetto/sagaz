@@ -115,6 +115,9 @@ dev = [
     # Framework integrations (for testing)
     "flask>=3.0.0",
     "fastapi>=0.100.0",
+    # Visualization dashboard (sagaz[visualization])
+    "uvicorn>=0.23.0",
+    "sse-starlette>=1.0.0",
     # All optional backends for integration testing
     "asyncpg>=0.30.0",
     "redis>=6.0.0",
