@@ -91,7 +91,7 @@ class TestDiscoverProjectSagas:
 
     def test_discover_sagas_empty_directory(self):
         """Test discovery in empty directory."""
-        with patch("sagaz.cli.dry_run._discover_sagas_in_paths", return_value=[]):
+        with patch("sagaz.cli._dry_run_discovery._discover_sagas_in_paths", return_value=[]):
             result = _discover_project_sagas()
             assert isinstance(result, list)
 
