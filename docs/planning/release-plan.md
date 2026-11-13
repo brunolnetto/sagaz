@@ -107,9 +107,9 @@ Wave 6  ─── v2.1.0 ─────── Streaming & historical analytics 
 
 ## Wave 2 — v1.8.0 "Analytics & Chaos"
 
-**Status**: ✅ Feature-complete on `develop` (2026-11-13) — pending release to `main`
+**Status**: 🟡 Closing — #382 and #383 pending review (2026-11-13). An acceptance-criteria audit after the first merges found #73 incomplete (it had been closed prematurely and was reopened) and several deviations from issue wording.
 **Risk**: Low — new `sagaz[analytics]` and `sagaz[visualization]` / `sagaz[monitor]` optional extras; chaos is opt-in
-**Merge order (as executed)**: #79 → #74 → #374 → #377 / #378 / #379
+**Merge order**: #79 → #74 → #374 → #377 / #378 / #379 (merged) → #382 → #383 (pending)
 
 | PR | Feature | Issue | Merged into `develop` |
 |----|---------|-------|-----------------------|
@@ -119,6 +119,8 @@ Wave 6  ─── v2.1.0 ─────── Streaming & historical analytics 
 | #377 | Demo: `reliability/chaos_patterns` (real ChaosMonkey experiments) | #251 | ✅ squash `6c25baf` |
 | #378 | Demo: `observability/otel_tracing` + `TracingSagaListener` fix | #248 | ✅ squash `e326c34` |
 | #379 | Demo: `performance/optimization_guide` | #252 | ✅ squash `901082b` |
+| #382 | Completes #73: `SagaAnalyticsPipeline(storage).run()`, unknown-status gate, exact p95 test, `/api/v1/analytics/*`; declarative sagas now persist step outcomes and `duration_ms` | #73 | ⏳ pending review |
+| #383 | Spec conformance: #58 API paths, #113 SSE test + guide paths, `sagaz demo <domain> <name>`, #251 test location (stacked on #382) | #58, #113, #248, #251, #252 | ⏳ pending review |
 
 **Superseded / closed without merge (2026-11-13)**:
 - #71 — superseded by #374 (same visualization work, current history, targets `develop`).
@@ -128,6 +130,7 @@ Wave 6  ─── v2.1.0 ─────── Streaming & historical analytics 
 **Defects found and fixed while closing the wave**:
 - `TracingSagaListener` emitted **no spans** (it called `@contextmanager` tracer methods without entering them); fixed in #378.
 - ChaosMonkey did not report latency injections that exceeded the step timeout (counter incremented after the cancelled sleep); fixed in #79.
+- Declarative sagas persisted an empty step list (`TODO: Track steps`), so analytics over the saga database had no step facts; fixed in #382 (PostgreSQL gains `saga_steps.duration_ms`).
 - Outbox DLQ semantics diverged across backends (memory ignored the event on `DEAD_LETTER`; Redis skipped retry counting and stored an empty `dead_letter_at`); fixed in #374 with a 4-backend DLQ contract suite.
 - `.coveragerc` did not trace threads, under-reporting code run via `asyncio.to_thread`; fixed in #374.
 - Test containers leaked (Ryuk disabled) and exhausted the dev host; fixed in #374 (Ryuk on, bounded xdist workers, `make clean-containers`).
@@ -137,7 +140,11 @@ Wave 6  ─── v2.1.0 ─────── Streaming & historical analytics 
 - Unit suite without containers: **3453 passed**, 98.8% coverage; container-backed DLQ contract passing on Redis and PostgreSQL.
 - Known environment issue (not a regression): PostgreSQL container tests segfault in asyncpg's connect when run under `pytest --cov`; they pass without coverage.
 
+**Decisions**:
+- #58 "Mermaid inlined": kept the SHA-384-verified lazy cache served by the monitor (no browser CDN, no build step, small wheel). Recorded in ADR-035 and on #58.
+
 **Remaining before tagging v1.8.0**:
+- Review and merge #382, then #383.
 - Bump version and changelog, then promote `develop` → `main`.
 - Re-run the full CI matrix once GitHub Actions is available again (billing lock not being resolved for now — release relies on local validation).
 
@@ -299,7 +306,7 @@ fix/#104           ────────────────────�
 | v1.5.0  | 0    | Governance & Lightweight Ops | Released |
 | v1.6.0  | 1    | Storage Extensions | Released |
 | v1.7.0  | 1b   | StateChart Migration Phase 1 | Released |
-| v1.8.0  | 2    | Analytics & Chaos | Feature-complete on `develop` |
+| v1.8.0  | 2    | Analytics & Chaos | Closing — #382, #383 pending |
 | v1.9.0  | 3    | CLI v2 + CDC + Tenancy | Planned |
 | v1.10.0 | 4    | Event-Driven Choreography | Planned |
 | v2.0.0  | 5    | Core Extensions | Blocked |
