@@ -172,6 +172,11 @@ class ContainerManager:
 
 _manager: ContainerManager | None = None
 _no_containers: bool = False
+_skip_reason: str = "--no-containers"
+
+# ``docker info`` routinely takes 1-2s on WSL/Docker Desktop and more under load;
+# a tight timeout silently skipped every container test.
+_DOCKER_CHECK_TIMEOUT = float(os.environ.get("SAGAZ_DOCKER_CHECK_TIMEOUT", "10"))
 
 
 def pytest_addoption(parser):
@@ -190,12 +195,12 @@ def pytest_addoption(parser):
 
 
 def _is_docker_available() -> bool:
-    """Return True if Docker daemon is reachable within 3 seconds."""
+    """Return True if the Docker daemon answers within ``_DOCKER_CHECK_TIMEOUT``."""
     try:
         result = subprocess.run(
             ["docker", "info"],
             capture_output=True,
-            timeout=3,
+            timeout=_DOCKER_CHECK_TIMEOUT,
         )
         return result.returncode == 0
     except Exception:
@@ -204,7 +209,7 @@ def _is_docker_available() -> bool:
 
 def pytest_configure(config):
     """Set up the container manager (no containers started yet)."""
-    global _manager, _no_containers
+    global _manager, _no_containers, _skip_reason
 
     _no_containers = (
         config.getoption("--no-containers", default=False)
@@ -218,6 +223,7 @@ def pytest_configure(config):
     if not _is_docker_available():
         print("\n⏭️  Docker not available — container-dependent tests will skip\n")
         _no_containers = True
+        _skip_reason = "Docker not available"
         return
 
     try:
@@ -252,5 +258,5 @@ def pytest_unconfigure(config):
 def container_manager():
     """Provide access to the container manager."""
     if _no_containers:
-        pytest.skip("--no-containers")
+        pytest.skip(_skip_reason)
     return _manager

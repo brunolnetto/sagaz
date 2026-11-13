@@ -345,7 +345,10 @@ class RedisOutboxStorage(OutboxStorage):
         elif error_message:
             reason = error_message
         return {
-            "dead_letter_at": self._optional_datetime(event.dead_letter_at) if event else now,
+            # Same as COALESCE(dead_letter_at, NOW()) in the SQL backends.
+            "dead_letter_at": (
+                event.dead_letter_at.isoformat() if event and event.dead_letter_at else now
+            ),
             "dead_letter_reason": reason,
             **self._error_metadata_updates(event),
         }
