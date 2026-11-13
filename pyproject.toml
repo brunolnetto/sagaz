@@ -423,3 +423,14 @@ omit = [
 [tool.coverage.html]
 directory = "htmlcov"
 
+
+# ============================================================================
+# Structural quality gate (scripts/quality_gate.py, radon-based)
+# ============================================================================
+
+[tool.sagaz.quality-gate]
+root = "sagaz"
+max-cc = 10
+max-lines = 400
+min-mi = 20
+baseline = ".quality-gate-baseline.json"
