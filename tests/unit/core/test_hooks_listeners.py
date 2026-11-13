@@ -516,50 +516,128 @@ class TestMetricsSagaListener:
 
 
 class TestTracingSagaListener:
-    """Test TracingSagaListener class."""
+    """TracingSagaListener emits real OpenTelemetry spans (in-memory exporter)."""
+
+    @pytest.fixture
+    def traced(self):
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+        from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
+            InMemorySpanExporter,
+        )
+
+        from sagaz.core.listeners import TracingSagaListener
+        from sagaz.observability.monitoring.tracing import SagaTracer
+
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        tracer = SagaTracer("order-service")
+        tracer.tracer = provider.get_tracer("test")
+        return TracingSagaListener(tracer=tracer), exporter
+
+    @staticmethod
+    def _spans(exporter):
+        return {span.name: span for span in exporter.get_finished_spans()}
 
     @pytest.mark.asyncio
-    async def test_on_saga_start_starts_trace(self):
-        """Test saga start begins tracing."""
-        from sagaz.core.listeners import TracingSagaListener
-
-        mock_tracer = MagicMock()
-        listener = TracingSagaListener(tracer=mock_tracer)
-
-        ctx = {"_steps": [1, 2, 3]}
+    async def test_successful_run_emits_saga_and_step_spans(self, traced):
+        listener, exporter = traced
+        ctx = {"_steps": [1, 2]}
         await listener.on_saga_start("OrderSaga", "saga-123", ctx)
-
-        mock_tracer.start_saga_trace.assert_called_once_with("saga-123", "OrderSaga", 3)
-
-    @pytest.mark.asyncio
-    async def test_on_step_enter_starts_step_trace(self):
-        """Test step enter starts step trace."""
-        from sagaz.core.listeners import TracingSagaListener
-
-        mock_tracer = MagicMock()
-        listener = TracingSagaListener(tracer=mock_tracer)
-
-        ctx = {"saga_id": "saga-123"}
         await listener.on_step_enter("OrderSaga", "create_order", ctx)
+        await listener.on_step_success("OrderSaga", "create_order", ctx, {"id": 1})
+        await listener.on_saga_complete("OrderSaga", "saga-123", ctx)
 
-        mock_tracer.start_step_trace.assert_called_once_with(
-            "saga-123", "OrderSaga", "create_order", step_type="action"
-        )
+        spans = self._spans(exporter)
+        saga = spans["saga.execute.OrderSaga"]
+        step = spans["saga.step.action.create_order"]
+        assert saga.attributes["saga.id"] == "saga-123"
+        assert saga.attributes["saga.total_steps"] == 2
+        assert saga.attributes["saga.service"] == "order-service"
+        assert saga.attributes["saga.status"] == "completed"
+        assert step.parent.span_id == saga.context.span_id
+        assert step.attributes["saga.step.type"] == "action"
+        assert step.status.status_code.name == "OK"
 
     @pytest.mark.asyncio
-    async def test_on_compensation_start_starts_compensation_trace(self):
-        """Test compensation start starts compensation trace."""
+    async def test_failure_and_compensation_are_traced(self, traced):
+        listener, exporter = traced
+        ctx: dict = {}
+        error = RuntimeError("card declined")
+        await listener.on_saga_start("OrderSaga", "saga-9", ctx)
+        await listener.on_step_enter("OrderSaga", "charge", ctx)
+        await listener.on_step_failure("OrderSaga", "charge", ctx, error)
+        await listener.on_compensation_start("OrderSaga", "reserve", ctx)
+        await listener.on_compensation_complete("OrderSaga", "reserve", ctx)
+        await listener.on_saga_failed("OrderSaga", "saga-9", ctx, error)
+
+        spans = self._spans(exporter)
+        saga = spans["saga.execute.OrderSaga"]
+        failed = spans["saga.step.action.charge"]
+        undo = spans["saga.step.compensation.reserve"]
+        assert failed.status.status_code.name == "ERROR"
+        assert failed.events[0].name == "exception"
+        assert undo.attributes["saga.step.type"] == "compensation"
+        assert undo.parent.span_id == saga.context.span_id
+        assert saga.status.status_code.name == "ERROR"
+        assert saga.attributes["saga.status"] == "rolled_back"
+
+    @pytest.mark.asyncio
+    async def test_dangling_step_spans_are_closed_with_the_saga(self, traced):
+        listener, exporter = traced
+        ctx: dict = {}
+        await listener.on_saga_start("OrderSaga", "s", ctx)
+        await listener.on_step_enter("OrderSaga", "never_reports", ctx)
+        await listener.on_saga_failed("OrderSaga", "s", ctx, RuntimeError("x"))
+
+        assert "saga.step.action.never_reports" in self._spans(exporter)
+        assert listener._steps == {}
+        assert listener._runs == {}
+
+    @pytest.mark.asyncio
+    async def test_concurrent_runs_are_kept_apart(self, traced):
+        listener, exporter = traced
+        a: dict = {}
+        b: dict = {}
+        await listener.on_saga_start("OrderSaga", "run-a", a)
+        await listener.on_saga_start("OrderSaga", "run-b", b)
+        await listener.on_step_enter("OrderSaga", "step", a)
+        await listener.on_step_enter("OrderSaga", "step", b)
+        await listener.on_step_success("OrderSaga", "step", b, None)
+        await listener.on_step_success("OrderSaga", "step", a, None)
+        await listener.on_saga_complete("OrderSaga", "run-a", a)
+        await listener.on_saga_complete("OrderSaga", "run-b", b)
+
+        steps = [s for s in exporter.get_finished_spans() if s.name == "saga.step.action.step"]
+        assert sorted(s.attributes["saga.id"] for s in steps) == ["run-a", "run-b"]
+
+    @pytest.mark.asyncio
+    async def test_hooks_without_a_started_run_are_ignored(self, traced):
+        listener, exporter = traced
+        ctx: dict = {}
+        await listener.on_step_enter("OrderSaga", "orphan", ctx)
+        await listener.on_step_success("OrderSaga", "orphan", ctx, None)
+        await listener.on_saga_complete("OrderSaga", "missing", ctx)
+        assert exporter.get_finished_spans() == ()
+
+    @pytest.mark.asyncio
+    async def test_noop_without_opentelemetry(self):
         from sagaz.core.listeners import TracingSagaListener
 
-        mock_tracer = MagicMock()
-        listener = TracingSagaListener(tracer=mock_tracer)
+        tracer = MagicMock(spec=[])  # no ``tracer`` attribute -> tracing unavailable
+        listener = TracingSagaListener(tracer=tracer)
+        ctx: dict = {}
+        await listener.on_saga_start("OrderSaga", "s", ctx)
+        await listener.on_step_enter("OrderSaga", "a", ctx)
+        await listener.on_saga_complete("OrderSaga", "s", ctx)
+        assert listener._runs == {}
 
-        ctx = {"saga_id": "saga-123"}
-        await listener.on_compensation_start("OrderSaga", "revert_order", ctx)
+    def test_defaults_to_the_module_tracer(self):
+        from sagaz.core.listeners import TracingSagaListener
+        from sagaz.observability.monitoring.tracing import saga_tracer
 
-        mock_tracer.start_step_trace.assert_called_once_with(
-            "saga-123", "OrderSaga", "revert_order", step_type="compensation"
-        )
+        assert TracingSagaListener().tracer is saga_tracer
 
 
 class TestOutboxSagaListener:
