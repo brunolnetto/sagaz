@@ -135,6 +135,13 @@ class TestChaosMonkeyLatencyInjection:
             await cm.intercept_step("step", _noop_action, {})
         assert cm.injections[FaultType.LATENCY] == 1
 
+    async def test_latency_cut_short_by_timeout_is_still_counted(self):
+        """The delay that blows a step's timeout is the one the report must show."""
+        cm = ChaosMonkey(latency_range=(500, 500), seed=0)
+        with pytest.raises(TimeoutError):
+            await asyncio.wait_for(cm.intercept_step("step", _noop_action, {}), timeout=0.01)
+        assert cm.injections[FaultType.LATENCY] == 1
+
     async def test_no_latency_when_range_is_none(self):
         with patch("sagaz.testing.chaos.asyncio.sleep", new_callable=AsyncMock) as sleep_mock:
             cm = ChaosMonkey(latency_range=None, failure_rate=0.0, seed=0)

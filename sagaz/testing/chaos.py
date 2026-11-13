@@ -152,8 +152,10 @@ class ChaosMonkey:
         # 1 - Latency injection (runs before every targeted step)
         if self.latency_range is not None:
             delay_ms = self.random.uniform(self.latency_range[0], self.latency_range[1])
-            await asyncio.sleep(delay_ms / 1000)
+            # Count before sleeping: if the delay exceeds the step timeout the
+            # sleep is cancelled, and that is exactly the injection to report.
             self.injections[FaultType.LATENCY] += 1
+            await asyncio.sleep(delay_ms / 1000)
 
         # 2 - Timeout injection (takes precedence over random failure)
         if self.random.random() < self.timeout_probability:
