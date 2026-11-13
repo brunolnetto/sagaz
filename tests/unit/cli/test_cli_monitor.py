@@ -12,6 +12,7 @@ from sagaz.cli.app import cli, monitor_cmd
 
 def test_monitor_defaults_to_web_dashboard(monkeypatch):
     monkeypatch.delenv("SAGAZ_VISUALIZATION_TOKEN", raising=False)
+    monkeypatch.delenv("SAGAZ_STORAGE_URL", raising=False)
     runner = CliRunner()
 
     with (
@@ -32,10 +33,12 @@ def test_monitor_defaults_to_web_dashboard(monkeypatch):
         host="127.0.0.1",
         port=7070,
         event_token=token,
+        analytics_storage_url=None,
     )
 
 
 def test_monitor_uses_existing_token_and_custom_port(monkeypatch):
+    monkeypatch.delenv("SAGAZ_STORAGE_URL", raising=False)
     monkeypatch.setenv("SAGAZ_VISUALIZATION_TOKEN", "existing-worker-token")
 
     with (
@@ -57,6 +60,7 @@ def test_monitor_uses_existing_token_and_custom_port(monkeypatch):
         host="0.0.0.0",
         port=8123,
         event_token="existing-worker-token",
+        analytics_storage_url=None,
     )
 
 
@@ -184,3 +188,23 @@ def test_monitor_wildcard_binding_prints_advertise_host_note(monkeypatch):
 
     assert result.exit_code == 0, result.output
     assert "--advertise-host" in result.output
+
+
+def test_monitor_passes_storage_url_for_analytics(monkeypatch):
+    monkeypatch.delenv("SAGAZ_STORAGE_URL", raising=False)
+    with patch("sagaz.visualization.server.run_server") as run_server:
+        result = CliRunner().invoke(
+            monitor_cmd, ["--no-browser", "--storage-url", "sqlite:///sagas.db"]
+        )
+
+    assert result.exit_code == 0, result.output
+    assert run_server.call_args.kwargs["analytics_storage_url"] == "sqlite:///sagas.db"
+
+
+def test_monitor_reads_storage_url_from_environment(monkeypatch):
+    monkeypatch.setenv("SAGAZ_STORAGE_URL", "postgresql://u@db/sagas")
+    with patch("sagaz.visualization.server.run_server") as run_server:
+        result = CliRunner().invoke(monitor_cmd, ["--no-browser"])
+
+    assert result.exit_code == 0, result.output
+    assert run_server.call_args.kwargs["analytics_storage_url"] == "postgresql://u@db/sagas"

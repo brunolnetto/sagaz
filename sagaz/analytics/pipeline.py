@@ -9,7 +9,13 @@ It is intentionally **decoupled** from sagaz core: it is never imported
 outside ``sagaz/analytics/`` and is only activated via the ``sagaz[analytics]``
 optional extra.
 
-Usage::
+Usage — straight from saga storage (the OLTP side is read-only)::
+
+    pipeline = SagaAnalyticsPipeline(storage)      # saga storage or StorageManager
+    stats = await pipeline.run()                   # Bronze → Silver → Gold
+    latency_rows = pipeline.query(SagaQueries.STEP_LATENCY)
+
+Or from records you already have::
 
     from sagaz.analytics import SagaAnalyticsPipeline, SagaQueries
 
@@ -48,7 +54,17 @@ except ImportError as exc:  # pragma: no cover
     msg = "sqldim and narwhals are required for sagaz analytics. Install with: pip install sagaz[analytics]"
     raise ImportError(msg) from exc
 
+from sagaz.analytics.sources import bronze_records_from_storage
+from sagaz.core.types import SagaStatus, SagaStepStatus
+
 logger = logging.getLogger(__name__)
+
+#: Saga statuses accepted by the Silver quality gate (lower-cased ``SagaStatus`` values).
+SAGA_STATUSES: frozenset[str] = frozenset(status.value for status in SagaStatus)
+
+#: Step outcomes accepted by the Silver quality gate. ``success`` is accepted as
+#: an alias of ``completed`` for records produced outside sagaz.
+STEP_OUTCOMES: frozenset[str] = frozenset(status.value for status in SagaStepStatus) | {"success"}
 
 # ---------------------------------------------------------------------------
 # Bronze transform pipelines
@@ -179,10 +195,12 @@ class SagaAnalyticsPipeline:
 
     """
 
-    def __init__(self, duckdb_path: str = ":memory:") -> None:
+    def __init__(self, storage: Any | None = None, *, duckdb_path: str = ":memory:") -> None:
+        self._storage = storage
         self._conn = duckdb.connect(duckdb_path)
         self._bronze = SagaBronzeProcessor(self._conn)
         self._initialised = False
+        self._next_fact_id = 0
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -234,7 +252,7 @@ class SagaAnalyticsPipeline:
                 saga_id      TEXT REFERENCES dim_saga(saga_id),
                 step_key     TEXT REFERENCES dim_step(step_key),
                 attempt      INTEGER DEFAULT 1,
-                duration_ms  DOUBLE DEFAULT 0.0,
+                duration_ms  DOUBLE,
                 outcome      TEXT NOT NULL,
                 executed_at  TIMESTAMP
             )
@@ -340,7 +358,7 @@ class SagaAnalyticsPipeline:
         clean_steps: list[dict[str, Any]],
     ) -> None:
         """Insert validated step records into ``dim_step`` and ``fact_execution``."""
-        for idx, rec in enumerate(clean_steps):
+        for rec in clean_steps:
             err = self._validate_step_record(rec)
             if err:
                 stats.quality_errors.append(err)
@@ -363,15 +381,17 @@ class SagaAnalyticsPipeline:
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
-                    idx,
+                    self._next_fact_id,
                     rec["saga_id"],
                     step_key,
                     int(rec.get("attempt") or 1),
-                    float(rec.get("duration_ms") or 0.0),
+                    # Unknown duration stays NULL so it cannot drag percentiles to 0.
+                    None if rec.get("duration_ms") is None else float(rec["duration_ms"]),
                     rec["outcome"],
                     rec.get("executed_at"),
                 ],
             )
+            self._next_fact_id += 1
             stats.facts_loaded += 1
 
     def _load_lifecycle_records(
@@ -401,6 +421,31 @@ class SagaAnalyticsPipeline:
                     lifecycle_rec["compensation_count"],
                 ],
             )
+
+    # ------------------------------------------------------------------
+    # Storage → Gold
+    # ------------------------------------------------------------------
+
+    async def run(self) -> PipelineStats:
+        """Rebuild Silver and Gold from the saga storage given to the constructor.
+
+        Reads every saga (with its steps) from ``storage.export_all()`` — the
+        OLTP side is never written — and replaces previously loaded data, so
+        calling ``run()`` again refreshes the analytics with the latest state.
+        """
+        if self._storage is None:
+            msg = "run() needs a saga storage: SagaAnalyticsPipeline(storage)"
+            raise ValueError(msg)
+        sagas, steps = await bronze_records_from_storage(self._storage)
+        self._reset()
+        return self.load_from_records(sagas, steps)
+
+    def _reset(self) -> None:
+        """Drop previously loaded Silver rows (children before parents)."""
+        self._ensure_schema()
+        for table in ("fact_execution", "fact_saga_lifecycle", "dim_step", "dim_saga"):
+            self._conn.execute(f"DELETE FROM {table}")  # nosec B608 - fixed table names
+        self._next_fact_id = 0
 
     # ------------------------------------------------------------------
     # Gold: query
@@ -434,6 +479,8 @@ class SagaAnalyticsPipeline:
         for key in ("saga_id", "saga_name", "status"):
             if not rec.get(key):
                 return f"Saga record missing required field '{key}': {rec!r}"
+        if rec["status"] not in SAGA_STATUSES:
+            return f"Saga record has unknown status {rec['status']!r}: {rec!r}"
         return None
 
     @staticmethod
@@ -441,6 +488,8 @@ class SagaAnalyticsPipeline:
         for key in ("saga_id", "step_name", "outcome"):
             if not rec.get(key):
                 return f"Step record missing required field '{key}': {rec!r}"
+        if rec["outcome"] not in STEP_OUTCOMES:
+            return f"Step record has unknown outcome {rec['outcome']!r}: {rec!r}"
         duration = rec.get("duration_ms", 0)
         if isinstance(duration, (int, float)) and duration < 0:
             return f"Step record has negative duration_ms={duration}: {rec!r}"

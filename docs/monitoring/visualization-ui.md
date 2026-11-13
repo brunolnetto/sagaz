@@ -116,6 +116,32 @@ queue of 100 events, and at most 100 subscribers can connect at once. If a slow
 client falls behind, the oldest queued events are dropped and the client gets an
 `event: gap` message with `{"dropped": N}`.
 
+### Analytics reports (`sagaz[analytics]`)
+
+The live views above are built from events. For history across every run in
+the saga database, start the monitor with the storage those sagas persist to:
+
+```bash
+pip install "sagaz[monitor,analytics]"
+sagaz monitor --storage-url postgresql://user:pass@db/sagas   # or env SAGAZ_STORAGE_URL
+```
+
+Each request rebuilds the Bronze → Silver → Gold pipeline from that storage
+(read-only) and returns one Gold query:
+
+| Method | Path | Gold query |
+|--------|------|------------|
+| `GET` | `/analytics` | `{reports, configured}` |
+| `GET` | `/analytics/summary` | Per-Saga totals, completed / compensated counts, compensation rate |
+| `GET` | `/analytics/step-latency` | Per-step executions, p50 / p95 / p99 latency, error rate |
+| `GET` | `/analytics/compensations` | Compensation count and average duration per step |
+| `GET` | `/analytics/lifecycle` | Per-run milestones (created, started, ended) and step/compensation counts |
+
+Responses are `{report, rows, sagas_loaded, quality_errors}`. Without
+`--storage-url` the reports answer `503`; without the `sagaz[analytics]` extra
+they answer `501`. Step latency comes from the `duration_ms` that declarative
+(`@action`) sagas now persist per step.
+
 ### Event schema
 
 `POST /api/v1/events` accepts only these fields; any other field is rejected
