@@ -1,4 +1,4 @@
-.PHONY: help test coverage lint complexity format check clean install dev docs
+.PHONY: help test coverage lint complexity format check clean clean-containers install dev docs
 
 # Default target
 .DEFAULT_GOAL := help
@@ -22,6 +22,8 @@ FORMAT ?= terminal
 MODE ?=
 MISSING ?= no
 PARALLEL ?= yes
+# xdist workers; each worker may start its own test containers, so keep it bounded
+WORKERS ?= 4
 
 help: ## Show this help message
 	@echo "$(CYAN)Sagaz Development Makefile$(RESET)"
@@ -36,7 +38,7 @@ help: ## Show this help message
 	@echo "  MODE=<mode>       For complexity: summary|full|json|mi|raw (default: summary)"
 	@echo "  PARALLEL=<yes|no> For test/coverage: enable parallel execution (default: yes)"
 	@echo ""
-	@echo "$(CYAN)Note:$(RESET) Tests run in parallel by default (pytest -n auto)"
+	@echo "$(CYAN)Note:$(RESET) Tests run in parallel by default (pytest -n $(WORKERS); override with WORKERS=N)"
 	@echo ""
 	@echo "$(YELLOW)Examples:$(RESET)"
 	@echo "  make test                    # Run fast tests (parallel)"
@@ -55,13 +57,13 @@ test: ## Run tests (TYPE=fast|all|integration|performance|watch, PARALLEL=yes|no
 	@echo "$(GREEN)Running tests (TYPE=$(TYPE), PARALLEL=$(PARALLEL))...$(RESET)"
 ifeq ($(TYPE),all)
 ifeq ($(PARALLEL),yes)
-	$(PYTEST) -n auto -v -m "" --parallel-containers
+	$(PYTEST) -n $(WORKERS) -v -m "" --parallel-containers
 else
 	$(PYTEST) -v -m "" --parallel-containers
 endif
 else ifeq ($(TYPE),integration)
 ifeq ($(PARALLEL),yes)
-	$(PYTEST) -n auto -v -m integration --parallel-containers
+	$(PYTEST) -n $(WORKERS) -v -m integration --parallel-containers
 else
 	$(PYTEST) -v -m integration --parallel-containers
 endif
@@ -76,7 +78,7 @@ else ifeq ($(TYPE),watch)
 	fi
 else
 ifeq ($(PARALLEL),yes)
-	$(PYTEST) -n auto -v
+	$(PYTEST) -n $(WORKERS) -v
 else
 	$(PYTEST) -v
 endif
@@ -89,7 +91,7 @@ endif
 coverage: ## Run tests with coverage (FORMAT=terminal|html|xml, MISSING=yes, PARALLEL=yes|no)
 	@echo "$(GREEN)Running tests with coverage (FORMAT=$(FORMAT), PARALLEL=$(PARALLEL))...$(RESET)"
 ifeq ($(PARALLEL),yes)
-	$(eval PYTEST_OPTS := -n auto)
+	$(eval PYTEST_OPTS := -n $(WORKERS))
 else
 	$(eval PYTEST_OPTS := )
 endif
@@ -249,6 +251,11 @@ dev: ## Setup complete development environment
 # ============================================================================
 # Cleanup
 # ============================================================================
+
+clean-containers: ## Remove leftover testcontainers containers (only those labeled by testcontainers)
+	@echo "$(YELLOW)Removing leftover test containers...$(RESET)"
+	@ids=$$(docker ps -aq --filter label=org.testcontainers.lang=python); \
+	if [ -n "$$ids" ]; then docker rm -f $$ids; else echo "No test containers found."; fi
 
 clean: ## Clean generated files (MODE=all for everything including venv)
 	@echo "$(YELLOW)Cleaning generated files...$(RESET)"

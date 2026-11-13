@@ -464,3 +464,47 @@ class TestStorageChecksumCanonicalCompatibility:
         datetime_checksum = await _storage_checksum(datetime_storage)
 
         assert string_checksum == datetime_checksum
+
+
+class TestVerifyWithoutExportAll:
+    """Backends lacking export_all() fall back to plain record counts."""
+
+    @staticmethod
+    def _count_only_manager(saga_total: int, event_count: int, *, broken: bool = False):
+        manager = _mock_manager(saga_total, event_count)
+        del manager.saga.export_all
+        del manager.outbox.export_all
+        if broken:
+            manager.saga.get_statistics = AsyncMock(side_effect=RuntimeError("down"))
+            manager.outbox.count = AsyncMock(side_effect=RuntimeError("down"))
+        return manager
+
+    @pytest.mark.asyncio
+    async def test_counts_are_compared_without_checksums(self):
+        source = self._count_only_manager(4, 2)
+        dest = self._count_only_manager(4, 2)
+
+        vr = await SagaStorageMigrator(source, dest).verify()
+
+        assert (vr.source_sagas, vr.dest_sagas) == (4, 4)
+        assert (vr.source_events, vr.dest_events) == (2, 2)
+        assert vr.source_saga_checksum == vr.dest_event_checksum == ""
+        assert vr.ok is True
+
+    @pytest.mark.asyncio
+    async def test_count_failures_are_reported_as_minus_one(self):
+        source = self._count_only_manager(4, 2, broken=True)
+        dest = self._count_only_manager(4, 2, broken=True)
+
+        vr = await SagaStorageMigrator(source, dest).verify()
+
+        assert vr.source_sagas == vr.dest_sagas == -1
+        assert vr.source_events == vr.dest_events == -1
+
+
+@pytest.mark.asyncio
+async def test_storage_checksum_requires_export_all():
+    from sagaz.core.storage.migration import _storage_checksum
+
+    with pytest.raises(TypeError, match="does not support export_all"):
+        await _storage_checksum(object())

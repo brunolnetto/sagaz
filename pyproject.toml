@@ -1,6 +1,6 @@
 [project]
 name = "sagaz"
-version = "1.7.2"
+version = "1.8.0"
 description = "Production-ready Saga pattern with DAG support"
 readme = "README.md"
 dependencies = [
@@ -54,6 +54,17 @@ tracing = [
 prometheus = [
     "prometheus-client>=0.23.1",
 ]
+analytics = [
+    "duckdb>=1.0.0",
+    "sqldim>=0.1.1,<0.2",
+    "narwhals>=1.0.0",
+]
+visualization = [
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.23.0",
+    "sse-starlette>=1.0.0",
+]
+monitor = ["sagaz[visualization]"]
 aws = [
     "aioboto3>=12.0.0",
     "zstandard>=0.22.0",  # For S3 snapshot compression
@@ -104,6 +115,9 @@ dev = [
     # Framework integrations (for testing)
     "flask>=3.0.0",
     "fastapi>=0.100.0",
+    # Visualization dashboard (sagaz[visualization])
+    "uvicorn>=0.23.0",
+    "sse-starlette>=1.0.0",
     # All optional backends for integration testing
     "asyncpg>=0.30.0",
     "redis>=6.0.0",
@@ -152,7 +166,7 @@ build-backend = "setuptools.build_meta"
 packages = {find = {where = ["."], include = ["sagaz*"]}}
 
 [tool.setuptools.package-data]
-sagaz = ["py.typed", "resources/**/*", "resources/**/.*"]
+sagaz = ["py.typed", "resources/**/*", "resources/**/.*", "visualization/static/*"]
 
 # ============================================================================
 # Tool Configurations

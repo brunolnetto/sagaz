@@ -64,9 +64,11 @@ Implement a **Saga Visualization UI** as a lightweight web dashboard served by t
 
 ### Design Principles
 
-1. **Zero dependencies for basic use**: Dashboard is served by `sagaz monitor` using a self-contained HTML file with embedded JS (Mermaid + vanilla JS). No Node.js build step required.
+1. **Zero dependencies for basic use**: Dashboard is served by `sagaz monitor` as a single HTML file with vanilla JS. No Node.js build step required. Mermaid is served by the monitor itself (see *Mermaid delivery* below), never from a browser-side CDN.
 2. **API-first**: All data exposed via a REST/SSE API so third-party dashboards (Grafana, custom) can consume it.
 3. **Progressive enhancement**: Static Mermaid always works; live updates via Server-Sent Events (SSE) are additive.
+
+**Mermaid delivery (decided 2026-11-13).** The original design inlined `mermaid.min.js` (~2.5 MB) into `index.html`. Instead, the monitor downloads the pinned build once on first use, verifies its SHA-384 digest, caches it on disk (`$SAGAZ_CACHE_DIR`, else `$XDG_CACHE_HOME/sagaz`, else `~/.cache/sagaz`) and serves it at `/static/mermaid.min.js` with immutable caching. Browsers never contact a CDN and the wheel stays small for users who never start the monitor; air-gapped deployments pre-populate the cache directory. Trade-off accepted: the first diagram render needs one outbound HTTPS fetch from the monitor host.
 4. **Read-only UI**: The dashboard displays and explores state; mutations go through the CLI or application code.
 
 ---
@@ -118,7 +120,7 @@ The dashboard is a single `index.html` delivered from `sagaz/visualization/stati
 
 ```
 sagaz/visualization/static/
-├── index.html          # Self-contained SPA (mermaid.min.js inlined)
+├── index.html          # Single-file SPA; loads /static/mermaid.min.js from the monitor
 ├── dashboard.js        # Vanilla JS: fetch API, SSE subscription, render
 └── style.css           # Minimal CSS; dark/light mode via CSS variables
 ```

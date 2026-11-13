@@ -887,7 +887,7 @@ class TestCliReplayBranches:
 
     def test_time_travel_empty_context_skips_context_output(self):
         """416->exit: if state.context: False → no context section in _display_state_table."""
-        from sagaz.cli.replay import _display_state_table
+        from sagaz.cli.replay_ui import _display_state_table
 
         mock_state = MagicMock()
         mock_state.saga_id = "550e8400-e29b-41d4-a716-446655440000"
@@ -902,10 +902,8 @@ class TestCliReplayBranches:
         mock_console = MagicMock()
         mock_table = MagicMock()
         # Table() needs to return something that can accept add_column/add_row
-        with patch("sagaz.cli.replay.HAS_RICH", True):
-            with patch("sagaz.cli.replay.console", mock_console):
-                with patch("sagaz.cli.replay.Table", return_value=mock_table):
-                    _display_state_table(mock_state)
+        with patch("sagaz.cli.replay_ui.Table", return_value=mock_table):
+            _display_state_table(mock_state, console=mock_console)
         # Line 416: if state.context: → False (empty dict) → JSON line NOT called
         assert mock_console.print.call_count == 1  # Only table printed, not context
 
@@ -915,24 +913,29 @@ class TestCliReplayBranches:
 
 
 class TestReplayRichImportError:
-    """Cover lines 24-26 in cli/replay.py (except ImportError for rich)."""
+    """Rich ImportError fallback lives in cli/replay_ui.py and is re-exported by cli/replay.py."""
 
     def test_replay_module_no_rich_fallback(self):
         """24-26: ImportError when rich not installed → HAS_RICH=False, console=None."""
         import importlib
         import sys
 
-        orig_replay = sys.modules.get("sagaz.cli.replay")
+        mod_names = ("sagaz.cli.replay_ui", "sagaz.cli.replay")
+        orig_mods = {name: sys.modules.get(name) for name in mod_names}
         rich_keys = [k for k in sys.modules if k == "rich" or k.startswith("rich.")]
         orig_rich = {k: sys.modules[k] for k in rich_keys}
 
         for key in rich_keys:
             sys.modules.pop(key)
         sys.modules["rich"] = None  # type: ignore[assignment]
-        sys.modules.pop("sagaz.cli.replay", None)
+        for name in mod_names:
+            sys.modules.pop(name, None)
 
         try:
+            ui = importlib.import_module("sagaz.cli.replay_ui")
             mod = importlib.import_module("sagaz.cli.replay")
+            assert ui.HAS_RICH is False
+            assert ui.Table is None
             assert mod.HAS_RICH is False
             assert mod.console is None
         finally:
@@ -940,6 +943,7 @@ class TestReplayRichImportError:
                 del sys.modules["rich"]
             for key, val in orig_rich.items():
                 sys.modules[key] = val
-            sys.modules.pop("sagaz.cli.replay", None)
-            if orig_replay is not None:
-                sys.modules["sagaz.cli.replay"] = orig_replay
+            for name, original in orig_mods.items():
+                sys.modules.pop(name, None)
+                if original is not None:
+                    sys.modules[name] = original
