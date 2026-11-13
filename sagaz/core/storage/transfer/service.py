@@ -28,7 +28,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any
+from typing import Any, cast
 
 from sagaz.core.storage.core import TransferError
 
@@ -388,10 +388,10 @@ class TransferService:
             return self.target.get_by_id if hasattr(self.target, "get_by_id") else None
 
         if hasattr(self.target, "load_saga_state"):
-            return self.target.load_saga_state
+            return cast("Callable[[str], Awaitable[Any]]", self.target.load_saga_state)
 
         if hasattr(self.target, "get_by_id"):
-            return self.target.get_by_id
+            return cast("Callable[[str], Awaitable[Any]]", self.target.get_by_id)
 
         return None
 
