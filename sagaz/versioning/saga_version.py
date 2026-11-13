@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any
 
 from sagaz.versioning.version import Version
 
@@ -17,7 +18,9 @@ class SagaVersion:
         saga_name:     Logical saga identifier (e.g. ``"order-processing"``).
         version:       Semantic version of this saga.
         step_names:    Ordered list of step names defined by this version.
-        schema:        Mapping of context field names to type descriptors.
+        schema:        Context schema: a mapping of field names to type
+                       descriptors (see :mod:`sagaz.versioning.validation`)
+                       or a Pydantic model class.
         deprecated_at: UTC timestamp when this version was deprecated, or
                        ``None`` if still active.
     """
@@ -25,7 +28,7 @@ class SagaVersion:
     saga_name: str
     version: Version
     step_names: list[str] = field(default_factory=list)
-    schema: dict[str, str] = field(default_factory=dict)
+    schema: Any = field(default_factory=dict)
     deprecated_at: datetime | None = None
 
     @property

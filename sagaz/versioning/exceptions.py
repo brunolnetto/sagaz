@@ -36,3 +36,16 @@ class MigrationPathNotFoundError(SagaVersionError):
         self.to_version = to_version
         msg = f"No migration path for '{saga_name}': v{from_version} -> v{to_version}"
         super().__init__(msg)
+
+
+class SagaVersionSchemaError(SagaVersionError):
+    """Raised when a saga context does not match the schema of its version."""
+
+    def __init__(self, saga_name: str, version: str, violations: list[str]) -> None:
+        self.saga_name = saga_name
+        self.version = version
+        self.violations = list(violations)
+        details = "; ".join(self.violations)
+        super().__init__(
+            f"Context for saga '{saga_name}' v{version} violates its schema: {details}"
+        )

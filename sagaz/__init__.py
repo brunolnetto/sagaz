@@ -152,10 +152,12 @@ from sagaz.versioning import (
     MigrationEngine,
     MigrationPathNotFoundError,
     SagaVersion,
+    SagaVersionedMixin,
     SagaVersionError,
     SagaVersionNotFoundError,
     SagaVersionRegistry,
     SagaVersionResolver,
+    SagaVersionSchemaError,
     VersionAlreadyRegisteredError,
 )
 from sagaz.versioning.version import Version
@@ -230,6 +232,8 @@ __all__ = [
     "SagaVersionNotFoundError",
     "SagaVersionRegistry",
     "SagaVersionResolver",
+    "SagaVersionSchemaError",
+    "SagaVersionedMixin",
     "SagaZones",
     "SimulationResult",
     "StepZone",
