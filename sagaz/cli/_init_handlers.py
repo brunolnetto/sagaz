@@ -13,6 +13,7 @@ Contains helper functions for initialising each supported deployment mode:
 import importlib.resources as pkg_resources
 import shutil
 from pathlib import Path
+from typing import Any
 
 import click
 
@@ -22,6 +23,15 @@ try:
     console: Console | None = Console()
 except ImportError:
     console = None
+
+
+def _resources() -> Any:
+    """Deployment templates shipped in the wheel under ``sagaz/deployment/resources``.
+
+    ``sagaz/deployment`` is not a Python package, so the templates are addressed
+    from the ``sagaz`` package root (see ``[tool.setuptools.package-data]``).
+    """
+    return pkg_resources.files("sagaz").joinpath("deployment", "resources")
 
 
 def _init_local(
@@ -729,7 +739,7 @@ class ExampleSaga(Saga):
 def _copy_dir_resource(resource_dir: str, target_dir: str) -> None:
     """Recursively copy a directory from the package resources."""
     try:
-        traversable_dir = pkg_resources.files("sagaz.resources").joinpath(resource_dir)
+        traversable_dir = _resources().joinpath(resource_dir)
         # Check if directory exists (Traversable may not have exists())
         try:
             list(traversable_dir.iterdir())  # Will raise if doesn't exist
@@ -756,12 +766,11 @@ def _copy_dir_resource(resource_dir: str, target_dir: str) -> None:
 def _copy_resource(resource_path: str, target_path: str):
     """Copy a resource file from the package to the target path."""
     try:
-        content = (
-            pkg_resources.files("sagaz.resources")
-            .joinpath(resource_path)
-            .read_text(encoding="utf-8")
-        )
-        Path(target_path).write_text(content, encoding="utf-8")
-        click.echo(f"  CREATE {target_path}")
-    except Exception as e:
-        click.echo(f"  ERROR copying {resource_path}: {e}")
+        content = _resources().joinpath(resource_path).read_text(encoding="utf-8")
+    except (FileNotFoundError, OSError) as e:
+        # A required template is missing from the installation: stop instead of
+        # reporting a successful setup with files silently absent.
+        msg = f"Template '{resource_path}' is not available in this sagaz installation: {e}"
+        raise click.ClickException(msg) from e
+    Path(target_path).write_text(content, encoding="utf-8")
+    click.echo(f"  CREATE {target_path}")
