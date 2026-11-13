@@ -166,7 +166,12 @@ build-backend = "setuptools.build_meta"
 packages = {find = {where = ["."], include = ["sagaz*"]}}
 
 [tool.setuptools.package-data]
-sagaz = ["py.typed", "resources/**/*", "resources/**/.*", "visualization/static/*"]
+sagaz = [
+    "py.typed",
+    "deployment/resources/**/*",
+    "deployment/resources/**/.*",
+    "visualization/static/*",
+]
 
 # ============================================================================
 # Tool Configurations
