@@ -18,6 +18,10 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field
 from sse_starlette.sse import EventSourceResponse, ServerSentEvent
 
+from sagaz.visualization.analytics_api import (
+    analytics_storage_lifespan,
+    register_analytics_routes,
+)
 from sagaz.visualization.assets import MERMAID, AssetCache, AssetUnavailableError
 from sagaz.visualization.runs import RunRecord, RunStatus, RunStore, saga_runtime_diagram
 
@@ -191,6 +195,8 @@ def create_app(
     max_sse_subscribers: int = 100,
     max_runs: int = 1000,
     asset_cache: AssetCache | None = None,
+    analytics_storage: Any | None = None,
+    analytics_storage_url: str | None = None,
 ) -> FastAPI:
     """Create the visualization API.
 
@@ -199,7 +205,14 @@ def create_app(
     this server over HTTP; the run store folds them into bounded run records and
     SSE subscribers consume them from this application's hub.
     """
-    app = FastAPI(title="Sagaz Visualization", version="1.0.0")
+    app = FastAPI(
+        title="Sagaz Visualization",
+        version="1.0.0",
+        lifespan=lambda app: analytics_storage_lifespan(app, analytics_storage_url),
+    )
+    # Saga storage the /api/v1/analytics/* reports are built from (read-only):
+    # an object passed in directly, or one opened from a URL at startup.
+    app.state.analytics_storage = analytics_storage
     app.state.event_hub = EventHub(
         queue_size=event_queue_size,
         max_subscribers=max_sse_subscribers,
@@ -210,6 +223,7 @@ def create_app(
     hub: EventHub = app.state.event_hub
     store: RunStore = app.state.run_store
     dashboard_html = _load_dashboard_html()
+    register_analytics_routes(app)
 
     def _subscribe() -> _Subscription:
         subscription = hub.subscribe()
@@ -395,6 +409,7 @@ def run_server(
     registered_sagas: list[str] | None = None,
     *,
     event_token: str | None = None,
+    analytics_storage_url: str | None = None,
 ) -> None:
     """Run the visualization server with Uvicorn."""
     try:
@@ -404,6 +419,10 @@ def run_server(
         raise ImportError(msg) from exc
 
     if app is None:
-        app = create_app(registered_sagas, event_token=event_token)
+        app = create_app(
+            registered_sagas,
+            event_token=event_token,
+            analytics_storage_url=analytics_storage_url,
+        )
 
     uvicorn.run(app, host=host, port=port)

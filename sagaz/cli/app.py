@@ -653,6 +653,17 @@ def _url_host(host: str) -> str:
     help="Start the server without opening a browser.",
 )
 @click.option(
+    "--storage-url",
+    envvar="SAGAZ_STORAGE_URL",
+    default=None,
+    metavar="URL",
+    help=(
+        "Saga storage the /api/v1/analytics/* reports read from (read-only), e.g. "
+        "postgresql://... or sqlite:///sagas.db. Requires sagaz[analytics]. "
+        "Env: SAGAZ_STORAGE_URL."
+    ),
+)
+@click.option(
     "--unsafe-expose",
     is_flag=True,
     help=(
@@ -666,6 +677,7 @@ def monitor_cmd(
     advertise_host: str | None,
     no_browser: bool,
     unsafe_expose: bool,
+    storage_url: str | None = None,
 ) -> None:
     """Start the Saga visualization dashboard or open Grafana."""
     import os
@@ -703,7 +715,7 @@ def monitor_cmd(
         _echo_worker_setup(host, port, advertise_host, token)
 
     _maybe_open_browser(dashboard_url, no_browser)
-    run_server(host=host, port=port, event_token=token)
+    run_server(host=host, port=port, event_token=token, analytics_storage_url=storage_url)
 
 
 def _require_safe_bind(host: str, unsafe_expose: bool) -> None:
