@@ -267,3 +267,37 @@ async def test_per_run_sse_for_unknown_run_has_no_snapshot():
 
     assert name == "message"
     assert data["event_id"] == event["event_id"]
+
+
+# ---------------------------------------------------------------- #58 paths
+
+
+@pytest.mark.parametrize(
+    ("spec_path", "v1_path"),
+    [
+        ("/api/sagas", "/api/v1/runs"),
+        ("/api/sagas?status=failed&limit=1", "/api/v1/runs?status=failed&limit=1"),
+        ("/api/sagas/s1", "/api/v1/runs/s1"),
+        ("/api/sagas/s1/diagram?direction=TB", "/api/v1/runs/s1/diagram?direction=TB"),
+        ("/api/metrics/summary", "/api/v1/metrics/summary"),
+    ],
+)
+def test_issue_58_paths_serve_the_same_data_as_v1(client, spec_path, v1_path):
+    post(client, ev("saga.started", "s1"))
+    post(client, ev("step.started", "s1", step="reserve", at_ms=1))
+    post(client, ev("step.failed", "s1", step="reserve", error="RuntimeError", at_ms=5))
+    post(client, ev("saga.failed", "s1", at_ms=6))
+
+    spec = client.get(spec_path)
+    assert spec.status_code == 200
+    assert spec.json() == client.get(v1_path).json()
+
+
+def test_issue_58_unknown_run_is_404_on_spec_path(client):
+    assert client.get("/api/sagas/missing").status_code == 404
+
+
+def test_issue_58_per_run_sse_path_uses_the_v1_handler():
+    app = create_app(event_token=TOKEN)
+    endpoints = {route.path: route.endpoint for route in app.routes if hasattr(route, "endpoint")}
+    assert endpoints["/api/sagas/{saga_id}/events"] is endpoints["/api/v1/runs/{saga_id}/events"]

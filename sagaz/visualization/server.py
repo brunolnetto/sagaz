@@ -300,7 +300,10 @@ def create_app(
             }
         )
 
+    # Unversioned /api/sagas/... and /api/metrics/... are the paths specified in #58;
+    # they serve the same handlers as the /api/v1 routes.
     @app.get("/api/v1/runs")
+    @app.get("/api/sagas")
     async def list_runs(
         status: RunStatus | None = None,
         saga_name: str | None = Query(default=None, max_length=256),
@@ -316,10 +319,12 @@ def create_app(
         }
 
     @app.get("/api/v1/runs/{saga_id}")
+    @app.get("/api/sagas/{saga_id}")
     async def get_run(saga_id: str) -> dict[str, Any]:
         return _require_run(saga_id).to_dict()
 
     @app.get("/api/v1/runs/{saga_id}/diagram")
+    @app.get("/api/sagas/{saga_id}/diagram")
     async def get_run_diagram(
         saga_id: str,
         direction: Literal["TB", "LR", "BT", "RL"] = "LR",
@@ -333,6 +338,7 @@ def create_app(
         }
 
     @app.get("/api/v1/runs/{saga_id}/events")
+    @app.get("/api/sagas/{saga_id}/events")
     async def run_events(saga_id: str) -> EventSourceResponse:
         subscription = _subscribe()
         run = store.get(saga_id)
@@ -355,6 +361,7 @@ def create_app(
         )
 
     @app.get("/api/v1/metrics/summary")
+    @app.get("/api/metrics/summary")
     async def metrics_summary() -> dict[str, Any]:
         return store.summary()
 
