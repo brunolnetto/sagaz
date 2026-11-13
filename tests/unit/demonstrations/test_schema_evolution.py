@@ -56,6 +56,14 @@ def test_get_schema_version_default():
     assert get_schema_version({"_schema_version": 2}) == 2
 
 
+@pytest.mark.parametrize("bad", [True, "2", 2.0, None])
+def test_get_schema_version_rejects_non_integer(bad):
+    from sagaz.demonstrations.schema_evolution.context_migration.main import get_schema_version
+
+    with pytest.raises(ValueError, match="must be an integer"):
+        get_schema_version({"_schema_version": bad})
+
+
 def test_migrate_v1_to_v2_string_customer():
     from sagaz.demonstrations.schema_evolution.context_migration.main import migrate_v1_to_v2
 

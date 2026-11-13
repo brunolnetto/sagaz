@@ -205,3 +205,15 @@ class TestPurge:
     async def test_purge_with_empty_queue_returns_zero(self, storage):
         await _insert(storage)
         assert await storage.purge_dead_letter_events(older_than=timedelta(days=1)) == 0
+
+
+class TestImportRecord:
+    """Re-importing an identical event is a no-op; a conflicting one is rejected."""
+
+    async def test_identical_reimport_is_idempotent(self, storage):
+        event = await _insert(storage)
+        record = (await storage.get_by_id(event.event_id)).to_dict()
+
+        await storage.import_record(record)
+
+        assert await storage.count() == 1
