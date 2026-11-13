@@ -770,7 +770,13 @@ def _maybe_open_browser(url: str, no_browser: bool, *, announce: bool = True) ->
 @click.command()
 def version_cmd():
     """Show version information."""
-    click.echo("sagaz version 1.0.3")
+    from importlib.metadata import PackageNotFoundError, version
+
+    try:
+        installed = version("sagaz")
+    except PackageNotFoundError:  # running from a source tree without installing
+        installed = "unknown"
+    click.echo(f"sagaz version {installed}")
     click.echo("Python " + sys.version.split()[0])
 
 

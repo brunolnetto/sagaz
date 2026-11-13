@@ -1050,11 +1050,11 @@ class TestCopyDirResource:
         mock_traversable.iterdir.return_value = [mock_file]
 
         with (
-            patch("sagaz.cli._init_handlers.pkg_resources") as mock_pkg,
+            patch("sagaz.cli._init_handlers._resources") as mock_res,
             patch("sagaz.cli._init_handlers.click") as mock_click,
         ):
             mock_click.echo = _noop
-            mock_pkg.files.return_value.joinpath.return_value = mock_traversable
+            mock_res.return_value.joinpath.return_value = mock_traversable
             target = str(tmp_path / "output")
             _copy_dir_resource("some/dir", target)
             assert (tmp_path / "output" / "config.yaml").read_text() == "key: value"
@@ -1072,11 +1072,11 @@ class TestCopyDirResource:
         mock_traversable.iterdir.return_value = [mock_file]
 
         with (
-            patch("sagaz.cli._init_handlers.pkg_resources") as mock_pkg,
+            patch("sagaz.cli._init_handlers._resources") as mock_res,
             patch("sagaz.cli._init_handlers.click") as mock_click,
         ):
             mock_click.echo = _noop
-            mock_pkg.files.return_value.joinpath.return_value = mock_traversable
+            mock_res.return_value.joinpath.return_value = mock_traversable
             target = str(tmp_path / "output")
             _copy_dir_resource("some/dir", target)
             assert (tmp_path / "output" / "data.bin").read_bytes() == b"\x00\x01\x02"
@@ -1099,8 +1099,8 @@ class TestCopyDirResource:
         mock_files = MagicMock()
         mock_files.joinpath.side_effect = [mock_top, mock_empty]
 
-        with patch.object(m, "pkg_resources") as mock_pkg, patch("sagaz.cli._init_handlers.click"):
-            mock_pkg.files.return_value = mock_files
+        with patch.object(m, "_resources") as mock_res, patch("sagaz.cli._init_handlers.click"):
+            mock_res.return_value = mock_files
             m._copy_dir_resource("root/dir", str(tmp_path / "out"))
             # joinpath called twice: once for root/dir, once for root/dir/subdir
             assert mock_files.joinpath.call_count == 2
@@ -1108,18 +1108,18 @@ class TestCopyDirResource:
     def test_not_found_returns_silently(self):
         from sagaz.cli._init_handlers import _copy_dir_resource
 
-        with patch("sagaz.cli._init_handlers.pkg_resources") as mock_pkg:
+        with patch("sagaz.cli._init_handlers._resources") as mock_res:
             mock_traversable = MagicMock()
             mock_traversable.iterdir.side_effect = FileNotFoundError("no dir")
-            mock_pkg.files.return_value.joinpath.return_value = mock_traversable
+            mock_res.return_value.joinpath.return_value = mock_traversable
             # Should not raise
             _copy_dir_resource("nonexistent/dir", "/tmp/output")
 
     def test_exception_swallowed(self):
         from sagaz.cli._init_handlers import _copy_dir_resource
 
-        with patch("sagaz.cli._init_handlers.pkg_resources") as mock_pkg:
-            mock_pkg.files.side_effect = Exception("unexpected")
+        with patch("sagaz.cli._init_handlers._resources") as mock_res:
+            mock_res.side_effect = Exception("unexpected")
             # Should not raise
             _copy_dir_resource("some/dir", "/tmp/output")
 
@@ -1134,27 +1134,26 @@ class TestCopyResource:
         from sagaz.cli._init_handlers import _copy_resource
 
         with (
-            patch("sagaz.cli._init_handlers.pkg_resources") as mock_pkg,
+            patch("sagaz.cli._init_handlers._resources") as mock_res,
             patch("sagaz.cli._init_handlers.click") as mock_click,
         ):
             mock_click.echo = _noop
-            mock_pkg.files.return_value.joinpath.return_value.read_text.return_value = "content"
+            mock_res.return_value.joinpath.return_value.read_text.return_value = "content"
             _copy_resource("some/file.yaml", str(tmp_path / "out.yaml"))
             assert (tmp_path / "out.yaml").read_text() == "content"
 
-    def test_error_echoes_message(self):
+    def test_missing_template_raises_click_exception(self, tmp_path):
+        import click
+
         from sagaz.cli._init_handlers import _copy_resource
 
-        with (
-            patch("sagaz.cli._init_handlers.pkg_resources") as mock_pkg,
-            patch("sagaz.cli._init_handlers.click") as mock_click,
-        ):
-            mock_click.echo = MagicMock()
-            mock_pkg.files.side_effect = Exception("pkg error")
-            _copy_resource("bad/path.yaml", "/tmp/out.yaml")
-            mock_click.echo.assert_called_once()
-            msg = mock_click.echo.call_args[0][0]
-            assert "ERROR" in msg
+        with patch("sagaz.cli._init_handlers._resources") as mock_res:
+            mock_res.return_value.joinpath.return_value.read_text.side_effect = FileNotFoundError(
+                "gone"
+            )
+            with pytest.raises(click.ClickException, match="bad/path.yaml"):
+                _copy_resource("bad/path.yaml", str(tmp_path / "out.yaml"))
+        assert not (tmp_path / "out.yaml").exists()
 
 
 # ---------------------------------------------------------------------------
