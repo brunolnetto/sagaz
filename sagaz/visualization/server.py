@@ -14,11 +14,12 @@ from typing import Any, Literal
 from uuid import UUID
 
 from fastapi import FastAPI, Header, HTTPException, Query
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field
 from sse_starlette.sse import EventSourceResponse, ServerSentEvent
 
-from sagaz.visualization.runs import RunStatus, RunStore, saga_runtime_diagram
+from sagaz.visualization.assets import MERMAID, AssetCache, AssetUnavailableError
+from sagaz.visualization.runs import RunRecord, RunStatus, RunStore, saga_runtime_diagram
 
 EventType = Literal[
     "saga.started",
@@ -189,6 +190,7 @@ def create_app(
     event_queue_size: int = 100,
     max_sse_subscribers: int = 100,
     max_runs: int = 1000,
+    asset_cache: AssetCache | None = None,
 ) -> FastAPI:
     """Create the visualization API.
 
@@ -203,6 +205,7 @@ def create_app(
         max_subscribers=max_sse_subscribers,
     )
     app.state.run_store = RunStore(max_runs=max_runs)
+    app.state.asset_cache = asset_cache or AssetCache()
     sagas = list(registered_sagas or [])
     hub: EventHub = app.state.event_hub
     store: RunStore = app.state.run_store
@@ -217,7 +220,7 @@ def create_app(
             )
         return subscription
 
-    def _require_run(saga_id: str):
+    def _require_run(saga_id: str) -> RunRecord:
         run = store.get(saga_id)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
@@ -226,6 +229,18 @@ def create_app(
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
     async def dashboard() -> str:
         return dashboard_html
+
+    @app.get("/static/mermaid.min.js", include_in_schema=False)
+    async def mermaid_js() -> Response:
+        try:
+            body = await app.state.asset_cache.get(MERMAID)
+        except AssetUnavailableError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        return Response(
+            body,
+            media_type="text/javascript",
+            headers={"Cache-Control": "public, max-age=31536000, immutable"},
+        )
 
     @app.get("/api/v1/sagas")
     async def list_sagas() -> dict[str, list[str]]:
