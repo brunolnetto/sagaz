@@ -101,17 +101,23 @@ class InMemoryOutboxStorage(OutboxStorage):
             stored.retry_count += 1
             stored.last_error = error_message
         elif status == outbox_status_cls.DEAD_LETTER:
-            # Mirrors the COALESCE chain used by the SQL backends.
-            stored.dead_letter_at = (event.dead_letter_at if event else None) or datetime.now(UTC)
-            reason = event.dead_letter_reason if event else error_message
-            stored.dead_letter_reason = (
-                reason or stored.last_error or stored.dead_letter_reason or "max_retries_exceeded"
-            )
+            self._apply_dead_letter(stored, error_message, event)
         elif status == outbox_status_cls.PENDING:
             stored.worker_id = None
             stored.claimed_at = None
 
         return stored
+
+    @staticmethod
+    def _apply_dead_letter(
+        stored: OutboxEvent, error_message: str | None, event: OutboxEvent | None
+    ) -> None:
+        """Mirror the COALESCE chain the SQL backends use for dead-lettering."""
+        stored.dead_letter_at = (event.dead_letter_at if event else None) or datetime.now(UTC)
+        reason = event.dead_letter_reason if event else error_message
+        stored.dead_letter_reason = (
+            reason or stored.last_error or stored.dead_letter_reason or "max_retries_exceeded"
+        )
 
     async def get_by_id(self, event_id: str) -> OutboxEvent | None:
         """Get event by ID."""
