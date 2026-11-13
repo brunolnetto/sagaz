@@ -1,175 +1,394 @@
-"""
-Sagaz Visualization Server.
-
-A lightweight FastAPI application that provides:
-- HTML dashboard with Mermaid diagram support
-- REST API for saga discovery and diagram generation
-- SSE event bus for real-time saga status updates
-"""
+"""FastAPI server for the Sagaz visualization dashboard and live events."""
 
 from __future__ import annotations
 
 import asyncio
+import hmac
 import importlib
-from typing import Any
+import json
+from collections.abc import AsyncIterator, Callable
+from dataclasses import dataclass
+from datetime import datetime
+from importlib import resources
+from typing import Any, Literal
+from uuid import UUID
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Header, HTTPException, Query
+from fastapi.responses import HTMLResponse, JSONResponse
+from pydantic import BaseModel, ConfigDict, Field
+from sse_starlette.sse import EventSourceResponse, ServerSentEvent
 
-# ---------------------------------------------------------------------------
-# SSE event queues — populated by publish_event(), consumed by SSE endpoint
-# ---------------------------------------------------------------------------
-_EVENT_QUEUES: list[asyncio.Queue] = []
+from sagaz.visualization.runs import RunStatus, RunStore, saga_runtime_diagram
 
-# ---------------------------------------------------------------------------
-# Dashboard HTML template
-# ---------------------------------------------------------------------------
-
-_DASHBOARD_HTML = """\
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Sagaz — Visualization Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
-  <style>
-    body { font-family: sans-serif; margin: 2rem; background: #0d1117; color: #e6edf3; }
-    h1 { color: #58a6ff; }
-    #diagram { background: #161b22; padding: 1rem; border-radius: 8px; }
-  </style>
-</head>
-<body>
-  <h1>Sagaz — Saga Visualization Dashboard</h1>
-  <p>Select a saga from the API to view its execution graph.</p>
-  <div id="diagram" class="mermaid">
-    flowchart TB
-      A[No saga selected] --> B[Use /api/v1/diagram?saga=module:Class]
-  </div>
-  <script>mermaid.initialize({ startOnLoad: true, theme: "dark" });</script>
-</body>
-</html>
-"""
+EventType = Literal[
+    "saga.started",
+    "saga.completed",
+    "saga.failed",
+    "step.started",
+    "step.succeeded",
+    "step.failed",
+    "step.compensation_started",
+    "step.compensated",
+]
 
 
-# ---------------------------------------------------------------------------
-# Helper
-# ---------------------------------------------------------------------------
+class VisualizationEvent(BaseModel):
+    """Allowlisted event schema. Arbitrary Saga context is deliberately rejected."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    event_id: UUID
+    event_type: EventType
+    saga_id: str = Field(min_length=1, max_length=256)
+    saga_name: str = Field(min_length=1, max_length=256)
+    step_name: str | None = Field(default=None, min_length=1, max_length=256)
+    error_type: str | None = Field(default=None, max_length=256)
+    occurred_at: datetime
 
 
-def _discover_saga_cls(class_path: str) -> type:
-    """Resolve ``'module.path:ClassName'`` to the actual class.
+@dataclass(eq=False, slots=True)
+class _Subscription:
+    queue: asyncio.Queue[dict[str, Any]]
+    dropped: int = 0
 
-    Raises
-    ------
-    ValueError
-        If *class_path* does not contain a colon, or the class cannot be
-        found in the resolved module.
-    ModuleNotFoundError
-        If the module portion cannot be imported.
-    """
-    if ":" not in class_path:
-        msg = f"Invalid class path {class_path!r}: expected 'module:ClassName'."
+
+class EventHub:
+    """Bounded, process-local fan-out hub owned by one FastAPI application."""
+
+    def __init__(
+        self,
+        queue_size: int = 100,
+        max_subscribers: int = 100,
+    ) -> None:
+        if queue_size < 1:
+            message = "queue_size must be positive"
+            raise ValueError(message)
+        if max_subscribers < 1:
+            message = "max_subscribers must be positive"
+            raise ValueError(message)
+
+        self.queue_size = queue_size
+        self.max_subscribers = max_subscribers
+        self._subscribers: set[_Subscription] = set()
+
+    @property
+    def subscriber_count(self) -> int:
+        return len(self._subscribers)
+
+    def subscribe(self) -> _Subscription | None:
+        if len(self._subscribers) >= self.max_subscribers:
+            return None
+
+        subscription = _Subscription(asyncio.Queue(maxsize=self.queue_size))
+        self._subscribers.add(subscription)
+        return subscription
+
+    def unsubscribe(self, subscription: _Subscription) -> None:
+        self._subscribers.discard(subscription)
+
+    def publish(self, event: dict[str, Any]) -> int:
+        """Fan out an event, dropping oldest queued messages on overflow."""
+        delivered = 0
+
+        for subscription in tuple(self._subscribers):
+            queue = subscription.queue
+
+            if queue.full():
+                try:
+                    queue.get_nowait()
+                    subscription.dropped += 1
+                except asyncio.QueueEmpty:
+                    pass
+
+            try:
+                queue.put_nowait(event)
+                delivered += 1
+            except asyncio.QueueFull:
+                # Defensive: queue operations are synchronous on this event loop.
+                subscription.dropped += 1
+
+        return delivered
+
+
+def _load_dashboard_html() -> str:
+    return (
+        resources.files("sagaz.visualization")
+        .joinpath("static/index.html")
+        .read_text(encoding="utf-8")
+    )
+
+
+def _discover_saga_cls(import_path: str) -> type:
+    """Resolve a Saga class from ``module.path:ClassName``."""
+    if ":" not in import_path:
+        msg = f"Expected 'module:ClassName', got {import_path!r}"
         raise ValueError(msg)
 
-    module_path, class_name = class_path.rsplit(":", 1)
-    module = importlib.import_module(module_path)  # raises ModuleNotFoundError if absent
-
+    module_path, class_name = import_path.rsplit(":", 1)
+    module = importlib.import_module(module_path)
     cls = getattr(module, class_name, None)
-    if cls is None:
-        msg = f"Class {class_name!r} not found in module {module_path!r}."
+
+    if cls is None or not isinstance(cls, type):
+        msg = f"Class {class_name!r} not found in module {module_path!r}"
         raise ValueError(msg)
+
     return cls
 
 
-# ---------------------------------------------------------------------------
-# Event broadcasting
-# ---------------------------------------------------------------------------
+async def _build_saga_instance(cls: type) -> Any:
+    instance = cls()
+    build = getattr(instance, "build", None)
+
+    if build is not None:
+        result = build()
+        if asyncio.iscoroutine(result):
+            await result
+
+    return instance
 
 
-def publish_event(event: dict[str, Any]) -> None:
-    """Broadcast *event* to all active SSE subscriber queues.
-
-    Full queues are silently skipped to avoid blocking callers.
-    """
-    dead: list[asyncio.Queue] = []
-    for q in list(_EVENT_QUEUES):
+def _sse_stream(
+    hub: EventHub,
+    subscription: _Subscription,
+    *,
+    accept: Callable[[dict[str, Any]], bool] | None = None,
+    initial: list[ServerSentEvent] | None = None,
+) -> AsyncIterator[ServerSentEvent]:
+    async def stream() -> AsyncIterator[ServerSentEvent]:
         try:
-            q.put_nowait(event)
-        except asyncio.QueueFull:
-            pass  # consumer is too slow — skip
-        except Exception:
-            dead.append(q)
-    for q in dead:
-        try:
-            _EVENT_QUEUES.remove(q)
-        except ValueError:
-            pass
+            for message in initial or ():
+                yield message
+            while True:
+                event = await subscription.queue.get()
+
+                if subscription.dropped:
+                    dropped = subscription.dropped
+                    subscription.dropped = 0
+                    yield ServerSentEvent(
+                        event="gap",
+                        data=json.dumps({"dropped": dropped}),
+                    )
+
+                if accept is not None and not accept(event):
+                    continue
+
+                yield ServerSentEvent(
+                    id=event["event_id"],
+                    data=json.dumps(event, separators=(",", ":")),
+                )
+        finally:
+            hub.unsubscribe(subscription)
+
+    return stream()
 
 
-# ---------------------------------------------------------------------------
-# Application factory
-# ---------------------------------------------------------------------------
+def create_app(
+    registered_sagas: list[str] | None = None,
+    *,
+    event_token: str | None = None,
+    event_queue_size: int = 100,
+    max_sse_subscribers: int = 100,
+    max_runs: int = 1000,
+) -> FastAPI:
+    """Create the visualization API.
 
-
-def create_app(registered_sagas: list[str] | None = None) -> FastAPI:
-    """Create and return the Sagaz visualization FastAPI application.
-
-    Parameters
-    ----------
-    registered_sagas:
-        Optional list of ``'module:ClassName'`` strings that will be
-        returned by ``GET /api/v1/sagas``.
+    Event ingestion is disabled unless an explicit bearer token is configured.
+    The event hub and run store are process-local: Saga workers send events to
+    this server over HTTP; the run store folds them into bounded run records and
+    SSE subscribers consume them from this application's hub.
     """
-    _sagas: list[str] = list(registered_sagas or [])
-
     app = FastAPI(title="Sagaz Visualization", version="1.0.0")
+    app.state.event_hub = EventHub(
+        queue_size=event_queue_size,
+        max_subscribers=max_sse_subscribers,
+    )
+    app.state.run_store = RunStore(max_runs=max_runs)
+    sagas = list(registered_sagas or [])
+    hub: EventHub = app.state.event_hub
+    store: RunStore = app.state.run_store
+    dashboard_html = _load_dashboard_html()
 
-    @app.get("/", response_class=HTMLResponse)
-    async def dashboard() -> HTMLResponse:
-        """Serve the HTML visualization dashboard."""
-        return HTMLResponse(content=_DASHBOARD_HTML)
+    def _subscribe() -> _Subscription:
+        subscription = hub.subscribe()
+        if subscription is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Maximum number of SSE subscribers reached",
+            )
+        return subscription
+
+    def _require_run(saga_id: str):
+        run = store.get(saga_id)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        return run
+
+    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+    async def dashboard() -> str:
+        return dashboard_html
 
     @app.get("/api/v1/sagas")
     async def list_sagas() -> dict[str, list[str]]:
-        """Return the list of registered saga class paths."""
-        return {"sagas": _sagas}
+        return {"sagas": sagas}
 
     @app.get("/api/v1/diagram")
-    async def get_diagram(saga: str, direction: str = "TB") -> dict[str, str]:
-        """Return the Mermaid diagram string for the given saga class.
-
-        Parameters
-        ----------
-        saga:
-            ``'module:ClassName'`` of the saga to visualize.
-        direction:
-            Mermaid flowchart direction (TB, LR, BT, RL).
-        """
+    async def get_diagram(
+        saga: str,
+        direction: Literal["TB", "LR", "BT", "RL"] = "TB",
+    ) -> JSONResponse:
         try:
             cls = _discover_saga_cls(saga)
-        except (ModuleNotFoundError, ValueError):
-            raise HTTPException(status_code=404, detail=f"Saga {saga!r} not found.")
+        except (ValueError, ImportError) as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
 
-        if not hasattr(cls, "to_mermaid"):
+        try:
+            instance = await _build_saga_instance(cls)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Build failed: {type(exc).__name__}",
+            ) from exc
+
+        if not callable(getattr(instance, "to_mermaid", None)):
             raise HTTPException(
                 status_code=422,
-                detail=f"{saga!r} does not implement to_mermaid().",
+                detail=f"{cls.__name__} has no to_mermaid() method",
             )
 
         try:
-            instance = cls()
-        except TypeError as exc:
+            diagram = instance.to_mermaid(direction=direction)
+        except Exception as exc:
             raise HTTPException(
-                status_code=422,
-                detail=f"Cannot instantiate {saga!r}: {exc}",
+                status_code=500,
+                detail=f"Diagram generation failed: {type(exc).__name__}",
+            ) from exc
+
+        return JSONResponse(
+            {
+                "saga": saga,
+                "direction": direction,
+                "diagram": diagram,
+            }
+        )
+
+    @app.get("/api/v1/runs")
+    async def list_runs(
+        status: RunStatus | None = None,
+        saga_name: str | None = Query(default=None, max_length=256),
+        limit: int = Query(default=50, ge=1, le=500),
+        offset: int = Query(default=0, ge=0),
+    ) -> dict[str, Any]:
+        runs, total = store.list(status=status, saga_name=saga_name, limit=limit, offset=offset)
+        return {
+            "items": [run.summary() for run in runs],
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+        }
+
+    @app.get("/api/v1/runs/{saga_id}")
+    async def get_run(saga_id: str) -> dict[str, Any]:
+        return _require_run(saga_id).to_dict()
+
+    @app.get("/api/v1/runs/{saga_id}/diagram")
+    async def get_run_diagram(
+        saga_id: str,
+        direction: Literal["TB", "LR", "BT", "RL"] = "LR",
+    ) -> dict[str, Any]:
+        run = _require_run(saga_id)
+        return {
+            "saga_id": run.saga_id,
+            "status": run.status,
+            "direction": direction,
+            "diagram": saga_runtime_diagram(run, direction=direction),
+        }
+
+    @app.get("/api/v1/runs/{saga_id}/events")
+    async def run_events(saga_id: str) -> EventSourceResponse:
+        subscription = _subscribe()
+        run = store.get(saga_id)
+        initial = []
+        if run is not None:
+            initial.append(
+                ServerSentEvent(
+                    event="snapshot",
+                    data=json.dumps(run.to_dict(), separators=(",", ":")),
+                )
+            )
+        return EventSourceResponse(
+            _sse_stream(
+                hub,
+                subscription,
+                accept=lambda event: event["saga_id"] == saga_id,
+                initial=initial,
+            ),
+            ping=15,
+        )
+
+    @app.get("/api/v1/metrics/summary")
+    async def metrics_summary() -> dict[str, Any]:
+        return store.summary()
+
+    @app.post("/api/v1/events", status_code=202)
+    async def ingest_event(
+        event: VisualizationEvent,
+        authorization: str | None = Header(default=None),
+    ) -> dict[str, Any]:
+        if event_token is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Event ingestion is disabled; configure an event token",
             )
 
-        try:
-            await instance.build()
-        except Exception:
-            pass  # produce diagram even if build() fails
+        scheme, separator, supplied_token = (authorization or "").partition(" ")
+        if (
+            not separator
+            or scheme.lower() != "bearer"
+            or not hmac.compare_digest(supplied_token, event_token)
+        ):
+            raise HTTPException(status_code=401, detail="Invalid bearer token")
 
-        diagram: str = instance.to_mermaid(direction=direction)
-        return {"saga": saga, "diagram": diagram}
+        event_data = event.model_dump(mode="json")
+        if not store.apply(event_data):
+            return {
+                "accepted": True,
+                "duplicate": True,
+                "event_id": str(event.event_id),
+                "active_subscribers": 0,
+            }
+
+        delivered = hub.publish(event_data)
+
+        return {
+            "accepted": True,
+            "duplicate": False,
+            "event_id": str(event.event_id),
+            "active_subscribers": delivered,
+        }
+
+    @app.get("/api/v1/live")
+    async def live_events() -> EventSourceResponse:
+        return EventSourceResponse(_sse_stream(hub, _subscribe()), ping=15)
 
     return app
+
+
+def run_server(
+    app: FastAPI | None = None,
+    host: str = "127.0.0.1",
+    port: int = 7070,
+    registered_sagas: list[str] | None = None,
+    *,
+    event_token: str | None = None,
+) -> None:
+    """Run the visualization server with Uvicorn."""
+    try:
+        import uvicorn
+    except ImportError as exc:
+        msg = "uvicorn is required; install sagaz[visualization]"
+        raise ImportError(msg) from exc
+
+    if app is None:
+        app = create_app(registered_sagas, event_token=event_token)
+
+    uvicorn.run(app, host=host, port=port)
