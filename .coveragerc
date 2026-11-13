@@ -44,6 +44,7 @@ omit =
     sagaz/cli/dry_run.py
     sagaz/cli/examples.py
     sagaz/integrations/django.py
+    sagaz/integrations/_django_webhooks.py
     sagaz/integrations/flask.py
     sagaz/triggers/sources/broker.py
     sagaz/triggers/sources/cron.py
