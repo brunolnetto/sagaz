@@ -12,7 +12,6 @@ It is ignored inside xdist workers, which start containers lazily.
 """
 
 import os
-import subprocess
 import threading
 import time
 
@@ -174,8 +173,7 @@ _manager: ContainerManager | None = None
 _no_containers: bool = False
 _skip_reason: str = "--no-containers"
 
-# ``docker info`` routinely takes 1-2s on WSL/Docker Desktop and more under load;
-# a tight timeout silently skipped every container test.
+# Seconds to wait for the Docker daemon ping before skipping container tests.
 _DOCKER_CHECK_TIMEOUT = float(os.environ.get("SAGAZ_DOCKER_CHECK_TIMEOUT", "10"))
 
 
@@ -195,14 +193,20 @@ def pytest_addoption(parser):
 
 
 def _is_docker_available() -> bool:
-    """Return True if the Docker daemon answers within ``_DOCKER_CHECK_TIMEOUT``."""
+    """Return True if the Docker daemon answers a ping within ``_DOCKER_CHECK_TIMEOUT``.
+
+    Uses the Docker SDK (the client testcontainers itself uses) instead of the
+    ``docker info`` CLI, which on Docker Desktop/WSL queries plugins and can take
+    10-25s, making container tests skip at random.
+    """
     try:
-        result = subprocess.run(
-            ["docker", "info"],
-            capture_output=True,
-            timeout=_DOCKER_CHECK_TIMEOUT,
-        )
-        return result.returncode == 0
+        import docker
+
+        client = docker.from_env(timeout=int(_DOCKER_CHECK_TIMEOUT))
+        try:
+            return bool(client.ping())
+        finally:
+            client.close()
     except Exception:
         return False
 
