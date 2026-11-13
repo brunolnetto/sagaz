@@ -33,6 +33,8 @@ from typing import TYPE_CHECKING, Any
 
 from sagaz.core.decorators._collection import DecoratorCollectionManager
 from sagaz.core.decorators._execution import ExecutionEngine
+from sagaz.core.decorators._ordering import _DecoratorOrderingMixin
+from sagaz.core.decorators._pivot import _DecoratorPivotMixin
 from sagaz.core.decorators._steps import (
     ForwardRecoveryMetadata,
     OnCompensateHook,
@@ -86,7 +88,7 @@ class SagaStepDefinition:
     """If True, marks this step as a point of no return (irreversible)."""
 
 
-class Saga(_DecoratorVisualizationMixin):
+class Saga(_DecoratorPivotMixin, _DecoratorOrderingMixin, _DecoratorVisualizationMixin):
     """
     Base class for declarative saga definitions.
 
@@ -204,50 +206,6 @@ class Saga(_DecoratorVisualizationMixin):
             if name is not None:
                 self.saga_name = name
 
-    def get_pivot_steps(self) -> list[str]:
-        """Get names of all pivot steps in this saga."""
-        return [step.step_id for step in self._steps if step.pivot]
-
-    def _get_taint_propagator(self):
-        """Create a TaintPropagator for this saga."""
-        from sagaz.core.execution.pivot import TaintPropagator
-
-        step_names = {step.step_id for step in self._steps}
-        dependencies = {step.step_id: set(step.depends_on) for step in self._steps}
-        pivots = {step.step_id for step in self._steps if step.pivot}
-
-        return TaintPropagator(
-            step_names=step_names,
-            dependencies=dependencies,
-            pivots=pivots,
-            completed_pivots=self._completed_pivots,
-        )
-
-    def _propagate_taint_from_pivot(self, pivot_step_id: str) -> set[str]:
-        """
-        Propagate taint when a pivot step completes.
-
-        Args:
-            pivot_step_id: The pivot step that just completed
-
-        Returns:
-            Set of newly tainted step names
-        """
-        propagator = self._get_taint_propagator()
-        newly_tainted = propagator.propagate_taint(pivot_step_id)
-        self._tainted_steps.update(newly_tainted)
-        self._completed_pivots.add(pivot_step_id)
-        self._pivot_reached = True
-
-        if newly_tainted:
-            logger.info(f"Pivot '{pivot_step_id}' completed - tainted ancestors: {newly_tainted}")
-
-        return set(newly_tainted)
-
-    def _is_step_tainted(self, step_id: str) -> bool:
-        """Check if a step is tainted (locked from rollback)."""
-        return step_id in self._tainted_steps
-
     # =========================================================================
     # Imperative API Support - add_step() for programmatic saga building
     # =========================================================================
@@ -331,55 +289,6 @@ class Saga(_DecoratorVisualizationMixin):
     def get_step(self, name: str) -> SagaStepDefinition | None:
         """Get a specific step by name."""
         return self._step_registry.get(name)
-
-    def get_execution_order(self) -> list[list[SagaStepDefinition]]:
-        """
-        Compute step execution order respecting dependencies.
-
-        Returns:
-            List of levels, where steps in each level can run in parallel
-
-        Raises:
-            ValueError: If circular dependencies detected
-        """
-        if not self._steps:
-            return []
-
-        step_map = {s.step_id: s for s in self._steps}
-        in_degree = {s.step_id: len(s.depends_on) for s in self._steps}
-        remaining = set(step_map.keys())
-
-        return self._topological_sort_steps(step_map, in_degree, remaining)
-
-    def _topological_sort_steps(
-        self, step_map: dict[str, SagaStepDefinition], in_degree: dict[str, int], remaining: set
-    ) -> list[list[SagaStepDefinition]]:
-        """Perform topological sort on steps."""
-        levels: list[list[SagaStepDefinition]] = []
-
-        while remaining:
-            current_level = [step_map[sid] for sid in remaining if in_degree[sid] == 0]
-            if not current_level:
-                msg = "Circular dependency detected in saga steps"
-                raise ValueError(msg)
-            levels.append(current_level)
-            self._update_in_degrees(current_level, remaining, step_map, in_degree)
-
-        return levels
-
-    def _update_in_degrees(
-        self,
-        current_level: list[SagaStepDefinition],
-        remaining: set[str],
-        step_map: dict[str, SagaStepDefinition],
-        in_degree: dict[str, int],
-    ) -> None:
-        """Update in-degrees after processing a level."""
-        for step_def in current_level:
-            remaining.remove(step_def.step_id)
-            for other_id in remaining:
-                if step_def.step_id in step_map[other_id].depends_on:
-                    in_degree[other_id] -= 1
 
     async def run(
         self, initial_context: dict[str, Any], saga_id: str | None = None
