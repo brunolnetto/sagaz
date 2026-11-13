@@ -107,34 +107,46 @@ Wave 6  ─── v2.1.0 ─────── Streaming & historical analytics 
 
 ## Wave 2 — v1.8.0 "Analytics & Chaos"
 
-**Target**: After v1.7.0; schedule to be confirmed
-**Risk**: Low — new `sagaz[analytics]` optional extra, chaos is opt-in
-**Merge order**: #79 → #74 → #71 → (#254 ∥ #258) → #257
+**Status**: 🟡 Closing — #382 and #383 pending review (2026-11-13). An acceptance-criteria audit after the first merges found #73 incomplete (it had been closed prematurely and was reopened) and several deviations from issue wording.
+**Risk**: Low — new `sagaz[analytics]` and `sagaz[visualization]` / `sagaz[monitor]` optional extras; chaos is opt-in
+**Merge order**: #79 → #74 → #374 → #377 / #378 / #379 (merged) → #382 → #383 (pending)
 
-| PR | Branch | Feature | Issue | Merge pre-req |
-|----|--------|---------|-------|--------------|
-| #79 | feature/chaos-engineering | ChaosMonkey injection (ADR-017) | #78 | none — rebase against `main` required; CI is fully red |
-| #74 | feature/sqldim-analytics-pipeline | sqldim OLTP analytics pipeline | #73 | none — rebase required; CI is fully red |
-| #71 | feature/visualization-ui-clean | Saga visualization dashboard (ADR-035) | #58 | none — lint/sec/CodeQL ✅; unit tests not yet wired in CI |
-| #254 | feature/otel-tracing-demo | Demo: observability otel_tracing | #248 | #74 merged (sqldim is the referenced feature) |
-| #258 | feature/optimization-guide-demo | Demo: performance optimization_guide | #252 | #71 merged (visualization is the referenced feature) |
-| #257 | feature/chaos-patterns-demo | Demo: reliability chaos_patterns | #251 | #79 merged — explicitly blocked until ChaosMonkey is in `main` |
+| PR | Feature | Issue | Merged into `develop` |
+|----|---------|-------|-----------------------|
+| #79 | ChaosMonkey injection (ADR-017) + real-Saga E2E test | #78, #111 | ✅ squash `b856e4e` |
+| #74 | sqldim Bronze→Silver→Gold analytics pipeline (ADR-036) | #73 | ✅ squash `b17e749` |
+| #374 | Saga visualization monitor (ADR-035) + coverage/test-infra hardening | #58, #113 | ✅ merge `5abb001` |
+| #377 | Demo: `reliability/chaos_patterns` (real ChaosMonkey experiments) | #251 | ✅ squash `6c25baf` |
+| #378 | Demo: `observability/otel_tracing` + `TracingSagaListener` fix | #248 | ✅ squash `e326c34` |
+| #379 | Demo: `performance/optimization_guide` | #252 | ✅ squash `901082b` |
+| #382 | Completes #73: `SagaAnalyticsPipeline(storage).run()`, unknown-status gate, exact p95 test, `/api/v1/analytics/*`; declarative sagas now persist step outcomes and `duration_ms` | #73 | ⏳ pending review |
+| #383 | Spec conformance: #58 API paths, #113 SSE test + guide paths, `sagaz demo <domain> <name>`, #251 test location (stacked on #382) | #58, #113, #248, #251, #252 | ⏳ pending review |
 
-**Scope decision (2026-11-12 → updated 2026-11-13)**:
-- Issue #51 and PR #67 are intentionally excluded from v1.8.0 and have been moved to **v2.1.0 (Wave 6)** (GitHub milestone #18).
-- Demo PRs #254, #257, #258 and their linked issues #248, #251, #252 remain in v1.8.0 as they are demonstration modules for Wave 2 features.
+**Superseded / closed without merge (2026-11-13)**:
+- #71 — superseded by #374 (same visualization work, current history, targets `develop`).
+- #254, #257, #258 — branches were 282 commits behind and only carried lint/bot fixes; the demo modules on `develop` were still placeholders. Re-implemented in #377–#379.
+- Issue #51 and PR #67 remain moved to **v2.1.0 (Wave 6)** (GitHub milestone #18).
 
-**CI status (2026-11-13)**:
-- #79: all CI checks failing — branch must be rebased and CI fixed before merge.
-- #74: all CI checks failing — branch must be rebased and CI fixed before merge.
-- #71: CI unavailable; gates reproduced locally (ruff, format, mypy, radon strict, bandit, commitlint, unit matrix 3.11/3.12/3.13 with `--cov-fail-under=95`).
-- #254, #258: all CI checks passing — ready for review and merge.
-- #257: all CI checks passing — merge after #79 lands.
+**Defects found and fixed while closing the wave**:
+- `TracingSagaListener` emitted **no spans** (it called `@contextmanager` tracer methods without entering them); fixed in #378.
+- ChaosMonkey did not report latency injections that exceeded the step timeout (counter incremented after the cancelled sleep); fixed in #79.
+- Declarative sagas persisted an empty step list (`TODO: Track steps`), so analytics over the saga database had no step facts; fixed in #382 (PostgreSQL gains `saga_steps.duration_ms`).
+- Outbox DLQ semantics diverged across backends (memory ignored the event on `DEAD_LETTER`; Redis skipped retry counting and stored an empty `dead_letter_at`); fixed in #374 with a 4-backend DLQ contract suite.
+- `.coveragerc` did not trace threads, under-reporting code run via `asyncio.to_thread`; fixed in #374.
+- Test containers leaked (Ryuk disabled) and exhausted the dev host; fixed in #374 (Ryuk on, bounded xdist workers, `make clean-containers`).
 
-**Gap watch**:
-- #79: add real `Saga` E2E integration test through `ChaosMonkey` → compensation fires (see issue #111)
-- #81: versioning deferred to Wave 3 (depends on schema validation closure — see issue #112)
-- #71: issue #58/#113 acceptance criteria implemented (run list, run detail, per-run SSE, runtime diagram, metrics summary, 5-view HTML, `sagaz[monitor]` alias, `docs/monitoring/visualization-ui.md` incl. CORS/auth policy). Mermaid is fetched lazily by the monitor, SHA-384 verified and cached on disk (not bundled, no browser CDN). Branch pushed as `feature/visualization-ui-clean`; PR #71 head is still `feature/visualization-ui` and must be retargeted. Open: `.coveragerc` uses `concurrency = multiprocessing` without `thread`, so TestClient-handled code is under-reported repo-wide.
+**Validation (CI unavailable — GitHub account billing lock)**:
+- Gates reproduced locally on the combined `develop` tree: ruff, ruff format, mypy (341 files), radon strict (no C+), bandit (no new findings).
+- Unit suite without containers: **3453 passed**, 98.8% coverage; container-backed DLQ contract passing on Redis and PostgreSQL.
+- Known environment issue (not a regression): PostgreSQL container tests segfault in asyncpg's connect when run under `pytest --cov`; they pass without coverage.
+
+**Decisions**:
+- #58 "Mermaid inlined": kept the SHA-384-verified lazy cache served by the monitor (no browser CDN, no build step, small wheel). Recorded in ADR-035 and on #58.
+
+**Remaining before tagging v1.8.0**:
+- Review and merge #382, then #383.
+- Bump version and changelog, then promote `develop` → `main`.
+- Re-run the full CI matrix once GitHub Actions is available again (billing lock not being resolved for now — release relies on local validation).
 
 ---
 
@@ -230,9 +242,9 @@ Wave 6  ─── v2.1.0 ─────── Streaming & historical analytics 
 |-------|-------------------|---------|
 | #109 | #62 / Wave 1 | Add SQLite unit tests |
 | #110 | #60 / Wave 1 | Add DLQ fill-and-replay integration test |
-| #111 | #79 / Wave 2 | Add E2E chaos test: real Saga + ChaosMonkey → compensation fires |
+| #111 | #79 / Wave 2 | ✅ Closed — E2E chaos test: real Saga + ChaosMonkey → compensation fires (merged with #79) |
 | #112 | #81 / Wave 3 | Add runtime schema validation + persistent registry to saga versioning |
-| #113 | #71 / Wave 2 | Add SSE smoke test; document CORS/auth policy for viz UI |
+| #113 | #374 / Wave 2 | ✅ Closed — SSE smoke test; CORS/auth policy documented in `docs/monitoring/visualization-ui.md` |
 | #114 | #69 / Wave 4 | Add compensating-event integration test for choreographed rollback |
 | #108 | #115 / Wave 4 | ✅ Closed — Redis Streams EventBus adapter (PR #115) |
 
@@ -245,7 +257,7 @@ Wave 6  ─── v2.1.0 ─────── Streaming & historical analytics 
 | `@pytest.mark.parametrize` | All 16 code PRs lack parametrize coverage — global quality follow-up | Post Wave 3 |
 | Durable event store | Event sourcing v2 (PostgreSQL/SQLite backend) | Wave 5 follow-up |
 | Broker adapters for #66, #69 | Kafka/RabbitMQ integration beyond in-memory | Post Wave 4 |
-| Auth/CORS policy | FastAPI viz server (#71) | Wave 2 / pre-release |
+| Auth/CORS policy | FastAPI viz server (#374) — documented in `docs/monitoring/visualization-ui.md` | Wave 2 ✅ |
 
 ---
 
@@ -259,12 +271,12 @@ Wave 6  ─── v2.1.0 ─────── Streaming & historical analytics 
 #60 (dlq)          ──────────────────────────────────────────► Wave 1
 #63 (storage-tx)   after #62 ──────────────────────────────► Wave 1
 
-#79 (chaos)        ──────────────────────────────────────────► Wave 2
-#74 (sqldim)       ──────────────────────────────────────────► Wave 2
-#71 (viz)          ──────────────────────────────────────────► Wave 2
-#254 (otel demo)   after #74 ──────────────────────────────► Wave 2
-#258 (perf demo)   after #71 ──────────────────────────────► Wave 2
-#257 (chaos demo)  after #79 ──────────────────────────────► Wave 2
+#79 (chaos)        ──────────────────────────────────────────► Wave 2 ✅
+#74 (sqldim)       ──────────────────────────────────────────► Wave 2 ✅
+#374 (viz)         ──────────────────────────────────────────► Wave 2 ✅
+#378 (otel demo)   after #74 ──────────────────────────────► Wave 2 ✅
+#379 (perf demo)   after #374 ─────────────────────────────► Wave 2 ✅
+#377 (chaos demo)  after #79 ──────────────────────────────► Wave 2 ✅
 
 #64 (cli-local)    ──────────────────────────────────────────► Wave 3
 #81 (versioning)   needs #109 closed ──────────────────────► Wave 3
@@ -294,7 +306,7 @@ fix/#104           ────────────────────�
 | v1.5.0  | 0    | Governance & Lightweight Ops | Released |
 | v1.6.0  | 1    | Storage Extensions | Released |
 | v1.7.0  | 1b   | StateChart Migration Phase 1 | Released |
-| v1.8.0  | 2    | Analytics & Chaos | In progress |
+| v1.8.0  | 2    | Analytics & Chaos | Closing — #382, #383 pending |
 | v1.9.0  | 3    | CLI v2 + CDC + Tenancy | Planned |
 | v1.10.0 | 4    | Event-Driven Choreography | Planned |
 | v2.0.0  | 5    | Core Extensions | Blocked |
