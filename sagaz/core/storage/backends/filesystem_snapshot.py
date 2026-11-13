@@ -29,19 +29,24 @@ Example:
 import asyncio
 import gzip
 import json
-import shutil
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 from uuid import UUID
 
 import aiofiles  # type: ignore[import-untyped]
 
-from sagaz.core.replay import ReplayResult, SagaSnapshot
+from sagaz.core.replay import SagaSnapshot
+from sagaz.core.storage.backends._filesystem_snapshot_maintenance import (
+    _FilesystemSnapshotMaintenanceMixin,
+)
+from sagaz.core.storage.backends._filesystem_snapshot_replay import _FilesystemReplayLogMixin
 from sagaz.core.storage.interfaces.snapshot import SnapshotStorage
 
 
-class FilesystemSnapshotStorage(SnapshotStorage):
+class FilesystemSnapshotStorage(
+    _FilesystemReplayLogMixin, _FilesystemSnapshotMaintenanceMixin, SnapshotStorage
+):
     """
     Filesystem-based snapshot storage for local development.
 
@@ -312,71 +317,6 @@ class FilesystemSnapshotStorage(SnapshotStorage):
             # Save index
             await self._write_json(index_path, index_data)
 
-    async def delete_expired_snapshots(self) -> int:
-        """Delete expired snapshots based on retention_until"""
-        now = datetime.now(UTC)
-        deleted_count = 0
-
-        # Scan all saga directories
-        for saga_dir in self.snapshots_dir.iterdir():
-            if not saga_dir.is_dir():
-                continue
-
-            for snapshot_file in saga_dir.iterdir():
-                if not snapshot_file.is_file():
-                    continue
-
-                try:
-                    snapshot_data = await self._read_json(snapshot_file)
-                    retention_until = snapshot_data.get("retention_until")
-
-                    if retention_until:
-                        retention_dt = datetime.fromisoformat(retention_until)
-                        if retention_dt < now:
-                            # Expired - delete
-                            snapshot_id = UUID(snapshot_data["snapshot_id"])
-                            if await self.delete_snapshot(snapshot_id):
-                                deleted_count += 1
-                except Exception:
-                    # Skip corrupted files
-                    continue
-
-        return deleted_count
-
-    async def save_replay_log(self, replay_result: ReplayResult) -> None:
-        """Save replay log"""
-        replay_path = self._get_replay_path(replay_result.replay_id)
-        await self._write_json(replay_path, replay_result.to_dict())
-
-    async def get_replay_log(self, replay_id: UUID) -> dict[str, Any] | None:
-        """Get replay log entry"""
-        replay_path = self._get_replay_path(replay_id)
-        if not replay_path.exists():
-            return None
-
-        return await self._read_json(replay_path)
-
-    async def list_replays(self, original_saga_id: UUID, limit: int = 100) -> list[dict[str, Any]]:
-        """List replays for original saga"""
-        replays = []
-
-        # Scan all replay files
-        for replay_file in self.replays_dir.iterdir():
-            if not replay_file.is_file():
-                continue
-
-            try:
-                replay_data = await self._read_json(replay_file)
-                if UUID(replay_data["original_saga_id"]) == original_saga_id:
-                    replays.append(replay_data)
-            except Exception:
-                continue
-
-        # Sort by created_at DESC
-        replays.sort(key=lambda r: r.get("created_at", ""), reverse=True)
-
-        return replays[:limit]
-
     async def close(self) -> None:
         """Close storage (no-op for filesystem)"""
 
@@ -387,59 +327,3 @@ class FilesystemSnapshotStorage(SnapshotStorage):
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit"""
         await self.close()
-
-    def get_storage_info(self) -> dict[str, Any]:
-        """Get storage statistics and info"""
-        total_snapshots = 0
-        total_size = 0
-        saga_count = 0
-
-        # Count snapshots and size
-        for saga_dir in self.snapshots_dir.iterdir():
-            if not saga_dir.is_dir():
-                continue
-
-            saga_count += 1
-            for snapshot_file in saga_dir.iterdir():
-                if snapshot_file.is_file():
-                    total_snapshots += 1
-                    total_size += snapshot_file.stat().st_size
-
-        # Count replays
-        replay_count = len(list(self.replays_dir.iterdir()))
-
-        return {
-            "storage_type": "filesystem",
-            "base_path": str(self.base_path.absolute()),
-            "compression_enabled": self.enable_compression,
-            "total_sagas": saga_count,
-            "total_snapshots": total_snapshots,
-            "total_replays": replay_count,
-            "total_size_bytes": total_size,
-            "total_size_mb": round(total_size / (1024 * 1024), 2),
-        }
-
-    async def cleanup_saga(self, saga_id: UUID) -> int:
-        """
-        Delete all snapshots for a saga.
-
-        Useful for development cleanup.
-
-        Returns:
-            Number of snapshots deleted
-        """
-        saga_dir = self.snapshots_dir / str(saga_id)
-        if not saga_dir.exists():
-            return 0
-
-        deleted = len(list(saga_dir.iterdir()))
-
-        # Delete saga directory
-        shutil.rmtree(saga_dir)
-
-        # Delete index
-        index_path = self._get_index_path(saga_id)
-        if index_path.exists():
-            index_path.unlink()
-
-        return deleted
