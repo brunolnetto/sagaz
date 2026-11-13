@@ -55,6 +55,33 @@ def suppress_otel_warnings():
     # Don't restore levels - keep suppressed during session teardown
 
 
+@pytest.fixture(autouse=True)
+def reset_sse_starlette_shutdown_state():
+    """
+    Reset sse-starlette's process-global shutdown flag between tests.
+
+    sse-starlette latches ``AppStatus.should_exit`` once any uvicorn server it
+    can see (via the SIGTERM handler) begins shutting down, and never resets it.
+    Tests that start and stop in-process uvicorn servers would otherwise make
+    every later SSE stream in the worker close immediately
+    (``httpx.RemoteProtocolError: incomplete chunked read``).
+    """
+    try:
+        from sse_starlette import sse
+    except ImportError:
+        yield
+        return
+
+    def _reset() -> None:
+        sse.AppStatus.should_exit = False
+        if hasattr(sse, "_thread_state"):
+            sse._thread_state.__dict__.pop("shutdown_state", None)
+
+    _reset()
+    yield
+    _reset()
+
+
 # ============================================
 # KUBERNETES MANIFEST FIXTURES (CACHED)
 # ============================================

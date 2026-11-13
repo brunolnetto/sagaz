@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sagaz Monitor</title>
+  <script src="/static/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg: #0d1117; --panel: #161b22; --border: #30363d; --fg: #e6edf3;
+      --muted: #8b949e; --accent: #58a6ff;
+      --ok: #16a34a; --bad: #dc2626; --warn: #f59e0b; --comp: #4f46e5; --run: #0ea5e9;
+    }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; margin: 0; background: var(--bg); color: var(--fg); }
+    header { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem;
+             padding: .75rem 1.5rem; border-bottom: 1px solid var(--border); }
+    header h1 { font-size: 1.1rem; margin: 0; color: var(--accent); }
+    nav { display: flex; flex-wrap: wrap; gap: .25rem; }
+    nav a { color: var(--muted); text-decoration: none; padding: .35rem .7rem; border-radius: 6px; }
+    nav a.active, nav a:hover { color: var(--fg); background: var(--panel); }
+    #conn { margin-left: auto; font-size: .8rem; color: var(--muted); }
+    main { padding: 1.25rem 1.5rem; max-width: 1200px; margin: 0 auto; }
+    section[hidden] { display: none; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: .75rem; }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: .9rem; }
+    .card .label { color: var(--muted); font-size: .8rem; }
+    .card .value { font-size: 1.6rem; font-variant-numeric: tabular-nums; margin-top: .25rem; }
+    .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+             padding: 1rem; margin-top: 1rem; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    th, td { text-align: left; padding: .45rem .5rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    th { color: var(--muted); font-weight: 500; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    tr.clickable { cursor: pointer; }
+    tr.clickable:hover { background: #1f2630; }
+    .badge { display: inline-block; padding: .1rem .5rem; border-radius: 999px; font-size: .75rem; color: #fff; }
+    .s-completed { background: var(--ok); } .s-failed { background: var(--bad); }
+    .s-compensating { background: var(--warn); color: #111827; } .s-compensated { background: var(--comp); }
+    .s-running { background: var(--run); }
+    .toolbar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+    select, input, button { background: var(--bg); color: var(--fg); border: 1px solid var(--border);
+                            border-radius: 6px; padding: .35rem .6rem; font: inherit; }
+    button { cursor: pointer; }
+    .muted { color: var(--muted); }
+    .event-line { font: .82rem ui-monospace, monospace; padding: .2rem 0; border-bottom: 1px solid var(--border); }
+    .event-line.gap { color: var(--warn); }
+    pre.src { white-space: pre-wrap; font-size: .8rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Sagaz Monitor</h1>
+    <nav id="nav">
+      <a href="#/dashboard" data-view="dashboard">Dashboard</a>
+      <a href="#/runs" data-view="runs">Runs</a>
+      <a href="#/live" data-view="live">Live</a>
+      <a href="#/steps" data-view="steps">Steps</a>
+    </nav>
+    <span id="conn">connecting…</span>
+  </header>
+  <main>
+    <section id="view-dashboard">
+      <div class="cards" id="summary-cards"></div>
+      <div class="panel">
+        <strong>By saga</strong>
+        <table id="by-saga"><thead><tr><th>Saga</th><th>Running</th><th>Compensating</th>
+          <th>Completed</th><th>Failed</th></tr></thead><tbody></tbody></table>
+      </div>
+    </section>
+
+    <section id="view-runs" hidden>
+      <div class="toolbar">
+        <label>Status
+          <select id="filter-status">
+            <option value="">any</option><option>running</option><option>compensating</option>
+            <option>completed</option><option>failed</option>
+          </select>
+        </label>
+        <label>Saga <input id="filter-saga" placeholder="saga name"></label>
+        <button id="prev-page">‹ Prev</button>
+        <span id="page-info" class="muted"></span>
+        <button id="next-page">Next ›</button>
+      </div>
+      <div class="panel">
+        <table id="runs-table"><thead><tr><th>Saga</th><th>ID</th><th>Status</th><th>Current step</th>
+          <th>Started</th><th class="num">Duration (ms)</th></tr></thead><tbody></tbody></table>
+      </div>
+    </section>
+
+    <section id="view-detail" hidden>
+      <div class="toolbar"><a href="#/runs" style="color:var(--accent)">‹ All runs</a>
+        <strong id="detail-title"></strong> <span id="detail-status"></span></div>
+      <div class="panel"><div id="detail-diagram"></div></div>
+      <div class="panel">
+        <strong>Timeline</strong>
+        <table id="detail-steps"><thead><tr><th>Step</th><th>Status</th><th>Started</th>
+          <th class="num">Duration (ms)</th><th class="num">Compensation (ms)</th><th>Error</th></tr></thead>
+          <tbody></tbody></table>
+      </div>
+    </section>
+
+    <section id="view-live" hidden>
+      <div class="panel"><strong>Live events</strong> <span class="muted">(newest first, last 200)</span>
+        <div id="event-log"></div></div>
+    </section>
+
+    <section id="view-steps" hidden>
+      <div class="panel">
+        <table id="steps-table"><thead><tr><th>Saga</th><th>Step</th><th class="num">Executions</th>
+          <th class="num">Failures</th><th class="num">Compensations</th><th class="num">Avg (ms)</th></tr></thead>
+          <tbody></tbody></table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+  "use strict";
+  const PAGE_SIZE = 25;
+  const state = { view: "dashboard", runId: null, offset: 0, total: 0 };
+  const hasMermaid = typeof window.mermaid !== "undefined";
+  if (hasMermaid) mermaid.initialize({ startOnLoad: false, theme: "dark", securityLevel: "strict" });
+
+  const $ = (sel) => document.querySelector(sel);
+  function el(tag, text, cls) {
+    const node = document.createElement(tag);
+    if (text !== undefined && text !== null) node.textContent = String(text);
+    if (cls) node.className = cls;
+    return node;
+  }
+  function badge(status) { return el("span", status, "badge s-" + status); }
+  function fmtTime(iso) { return iso ? new Date(iso).toLocaleTimeString() : "—"; }
+  function fmtNum(v) { return v === null || v === undefined ? "—" : Number(v).toLocaleString(); }
+  function row(cells) {
+    const tr = document.createElement("tr");
+    for (const c of cells) {
+      const td = document.createElement("td");
+      if (c && typeof c === "object" && c.node) { td.appendChild(c.node); }
+      else if (c && typeof c === "object" && "num" in c) { td.textContent = fmtNum(c.num); td.className = "num"; }
+      else { td.textContent = c === null || c === undefined ? "—" : String(c); }
+      tr.appendChild(td);
+    }
+    return tr;
+  }
+  async function getJSON(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(url + " → HTTP " + res.status);
+    return res.json();
+  }
+
+  // ---------------------------------------------------------------- views
+  async function loadDashboard() {
+    const s = await getJSON("/api/v1/metrics/summary");
+    const cards = $("#summary-cards");
+    cards.replaceChildren();
+    const items = [
+      ["Total runs", fmtNum(s.total_runs)],
+      ["Running", fmtNum(s.by_status.running + s.by_status.compensating)],
+      ["Completed", fmtNum(s.by_status.completed)],
+      ["Failed", fmtNum(s.by_status.failed)],
+      ["Success rate", s.success_rate === null ? "—" : (s.success_rate * 100).toFixed(1) + "%"],
+      ["p95 duration", s.duration_ms.p95 === null ? "—" : fmtNum(s.duration_ms.p95) + " ms"],
+    ];
+    for (const [label, value] of items) {
+      const card = el("div", null, "card");
+      card.append(el("div", label, "label"), el("div", value, "value"));
+      cards.appendChild(card);
+    }
+    const body = $("#by-saga tbody");
+    body.replaceChildren();
+    for (const [name, c] of Object.entries(s.by_saga)) {
+      body.appendChild(row([name, {num: c.running}, {num: c.compensating}, {num: c.completed}, {num: c.failed}]));
+    }
+    if (!body.childElementCount) body.appendChild(row(["No runs yet", "", "", "", ""]));
+  }
+
+  async function loadRuns() {
+    const params = new URLSearchParams({ limit: PAGE_SIZE, offset: state.offset });
+    const status = $("#filter-status").value;
+    const saga = $("#filter-saga").value.trim();
+    if (status) params.set("status", status);
+    if (saga) params.set("saga_name", saga);
+    const data = await getJSON("/api/v1/runs?" + params);
+    state.total = data.total;
+    const body = $("#runs-table tbody");
+    body.replaceChildren();
+    for (const r of data.items) {
+      const tr = row([r.saga_name, r.saga_id, {node: badge(r.status)}, r.current_step,
+                      fmtTime(r.started_at), {num: r.duration_ms}]);
+      tr.className = "clickable";
+      tr.addEventListener("click", () => { location.hash = "#/runs/" + encodeURIComponent(r.saga_id); });
+      body.appendChild(tr);
+    }
+    if (!data.items.length) body.appendChild(row(["No matching runs", "", "", "", "", ""]));
+    const end = Math.min(state.offset + PAGE_SIZE, data.total);
+    $("#page-info").textContent = data.total ? `${state.offset + 1}–${end} of ${data.total}` : "0 of 0";
+    $("#prev-page").disabled = state.offset === 0;
+    $("#next-page").disabled = end >= data.total;
+  }
+
+  let diagramSeq = 0;
+  async function renderDiagram(container, source) {
+    container.replaceChildren();
+    if (!hasMermaid) { container.appendChild(el("pre", source, "src")); return; }
+    try {
+      const { svg } = await mermaid.render("diagram-" + (++diagramSeq), source);
+      container.innerHTML = svg;  // generated by mermaid with securityLevel=strict
+    } catch (err) {
+      container.appendChild(el("pre", source, "src"));
+    }
+  }
+
+  async function loadDetail() {
+    const id = encodeURIComponent(state.runId);
+    let run;
+    try { run = await getJSON("/api/v1/runs/" + id); }
+    catch (err) { $("#detail-title").textContent = "Run not found: " + state.runId; return; }
+    $("#detail-title").textContent = run.saga_name + " / " + run.saga_id;
+    $("#detail-status").replaceChildren(badge(run.status));
+    const diagram = await getJSON("/api/v1/runs/" + id + "/diagram");
+    await renderDiagram($("#detail-diagram"), diagram.diagram);
+    const body = $("#detail-steps tbody");
+    body.replaceChildren();
+    for (const s of run.steps) {
+      body.appendChild(row([s.name, {node: badge(s.status)}, fmtTime(s.started_at),
+                            {num: s.duration_ms}, {num: s.compensation_duration_ms}, s.error_type]));
+    }
+  }
+
+  async function loadSteps() {
+    const s = await getJSON("/api/v1/metrics/summary");
+    const body = $("#steps-table tbody");
+    body.replaceChildren();
+    const steps = s.steps.slice().sort((a, b) => b.failures - a.failures || b.executions - a.executions);
+    for (const st of steps) {
+      body.appendChild(row([st.saga_name, st.step_name, {num: st.executions}, {num: st.failures},
+                            {num: st.compensations}, {num: st.avg_duration_ms}]));
+    }
+    if (!steps.length) body.appendChild(row(["No steps observed yet", "", "", "", "", ""]));
+  }
+
+  // --------------------------------------------------------------- router
+  const loaders = { dashboard: loadDashboard, runs: loadRuns, detail: loadDetail, live: async () => {}, steps: loadSteps };
+  function route() {
+    const parts = location.hash.replace(/^#\/?/, "").split("/");
+    if (parts[0] === "runs" && parts[1]) { state.view = "detail"; state.runId = decodeURIComponent(parts.slice(1).join("/")); }
+    else { state.view = loaders[parts[0]] ? parts[0] : "dashboard"; }
+    for (const section of document.querySelectorAll("main > section")) {
+      section.hidden = section.id !== "view-" + state.view;
+    }
+    const navView = state.view === "detail" ? "runs" : state.view;
+    for (const a of document.querySelectorAll("#nav a")) a.classList.toggle("active", a.dataset.view === navView);
+    refresh();
+  }
+  let refreshing = false;
+  async function refresh() {
+    if (refreshing) return;
+    refreshing = true;
+    try { await loaders[state.view](); } catch (err) { console.error(err); }
+    finally { refreshing = false; }
+  }
+  let refreshTimer = null;
+  function scheduleRefresh() {
+    if (refreshTimer) return;
+    refreshTimer = setTimeout(() => { refreshTimer = null; refresh(); }, 500);
+  }
+
+  $("#filter-status").addEventListener("change", () => { state.offset = 0; refresh(); });
+  $("#filter-saga").addEventListener("input", () => { state.offset = 0; scheduleRefresh(); });
+  $("#prev-page").addEventListener("click", () => { state.offset = Math.max(0, state.offset - PAGE_SIZE); refresh(); });
+  $("#next-page").addEventListener("click", () => { state.offset += PAGE_SIZE; refresh(); });
+  window.addEventListener("hashchange", route);
+
+  // ------------------------------------------------------------------ SSE
+  const log = $("#event-log");
+  function logLine(text, cls) {
+    log.prepend(el("div", text, "event-line" + (cls ? " " + cls : "")));
+    while (log.childElementCount > 200) log.removeChild(log.lastChild);
+  }
+  const source = new EventSource("/api/v1/live");
+  source.onopen = () => { $("#conn").textContent = "● live"; };
+  source.onerror = () => { $("#conn").textContent = "○ reconnecting…"; };
+  source.onmessage = (message) => {
+    const e = JSON.parse(message.data);
+    logLine(`${e.occurred_at} ${e.event_type} ${e.saga_name}/${e.saga_id}` +
+            (e.step_name ? ` step=${e.step_name}` : "") + (e.error_type ? ` error=${e.error_type}` : ""));
+    if (state.view !== "live" && (state.view !== "detail" || e.saga_id === state.runId)) scheduleRefresh();
+  };
+  source.addEventListener("gap", (message) => {
+    const gap = JSON.parse(message.data);
+    logLine(`WARNING: ${gap.dropped} event(s) were dropped`, "gap");
+    scheduleRefresh();
+  });
+
+  route();
+  </script>
+</body>
+</html>

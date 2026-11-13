@@ -325,10 +325,10 @@ class RedisOutboxStorage(OutboxStorage):
         error_message: str | None,
         event: OutboxEvent | None,
     ) -> dict[str, str]:
-        updates: dict[str, str] = {}
+        # Like the SQL backends, every FAILED transition counts as a retry.
+        current = await self.get_by_id(event_id)
+        updates = {"retry_count": str((current.retry_count if current else 0) + 1)}
         if error_message:
-            current = await self.get_by_id(event_id)
-            updates["retry_count"] = str((current.retry_count if current else 0) + 1)
             updates["last_error"] = error_message
         updates.update(self._error_metadata_updates(event))
         return updates
@@ -345,7 +345,10 @@ class RedisOutboxStorage(OutboxStorage):
         elif error_message:
             reason = error_message
         return {
-            "dead_letter_at": self._optional_datetime(event.dead_letter_at) if event else now,
+            # Same as COALESCE(dead_letter_at, NOW()) in the SQL backends.
+            "dead_letter_at": (
+                event.dead_letter_at.isoformat() if event and event.dead_letter_at else now
+            ),
             "dead_letter_reason": reason,
             **self._error_metadata_updates(event),
         }

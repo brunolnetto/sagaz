@@ -11,17 +11,18 @@ from uuid import UUID
 
 import click
 
-try:
-    from rich.console import Console
-    from rich.json import JSON
-    from rich.panel import Panel
-    from rich.table import Table
+from sagaz.cli import replay_ui
+from sagaz.cli.replay_ui import HAS_RICH, console
 
-    console = Console()
-    HAS_RICH = True
-except ImportError:
-    console = None  # type: ignore[assignment]
-    HAS_RICH = False
+
+def _ui_kwargs() -> dict[str, Any]:
+    """Output dependencies for replay_ui, resolved at call time so tests can patch them."""
+    return {
+        "rich_available": bool(HAS_RICH and console),
+        "echo_func": click.echo,
+        "console": console,
+    }
+
 
 if TYPE_CHECKING:
     from sagaz.core.replay.saga_replay import ReplayResult, SagaReplay
@@ -67,49 +68,24 @@ def _display_replay_config(
     dry_run: bool,
 ):
     """Display replay configuration."""
-    if HAS_RICH and console:
-        console.print(
-            Panel(
-                f"[bold]Saga Replay[/bold]\n\n"
-                f"Saga ID: {saga_id}\n"
-                f"From Step: {from_step}\n"
-                f"Storage: {storage}\n"
-                f"Overrides: {len(context_override)}\n"
-                f"Dry Run: {dry_run}",
-                title="Replay Configuration",
-                border_style="blue",
-            )
-        )
-    else:
-        click.echo(f"Replaying saga {saga_id} from step {from_step}...")
+    replay_ui.display_replay_config(
+        saga_id, from_step, storage, context_override, dry_run, **_ui_kwargs()
+    )
 
 
 def _display_success():
     """Display success message."""
-    if HAS_RICH and console:
-        console.print("[green]✓ Replay completed successfully[/green]")
-    else:
-        click.echo("✓ Replay completed successfully")
+    replay_ui.display_success(**_ui_kwargs())
 
 
 def _display_failure():
     """Display failure message."""
-    if HAS_RICH and console:
-        console.print("[red]✗ Replay failed[/red]")
-    else:
-        click.echo("✗ Replay failed", err=True)
+    replay_ui.display_failure(**_ui_kwargs())
 
 
 def _handle_exception(e: Exception, verbose: bool):
     """Handle and display exception."""
-    if HAS_RICH and console:
-        console.print(f"[red]Error: {e}[/red]")
-    else:
-        click.echo(f"Error: {e}", err=True)
-    if verbose:
-        import traceback
-
-        traceback.print_exc()
+    replay_ui.handle_exception(e, verbose, **_ui_kwargs())
 
 
 @replay.command("run")
@@ -212,42 +188,12 @@ async def _show_checkpoints(replay: "SagaReplay", verbose: bool):
         return
 
     checkpoints = await replay.list_available_checkpoints()
-    if HAS_RICH and console:
-        table = Table(title="Available Checkpoints")
-        table.add_column("Step", style="cyan")
-        table.add_column("Created At", style="green")
-        for cp in checkpoints:
-            table.add_row(cp["step_name"], cp["created_at"])
-        console.print(table)
-    else:
-        click.echo("\nAvailable checkpoints:")
-        for cp in checkpoints:
-            click.echo(f"  - {cp['step_name']} at {cp['created_at']}")
+    replay_ui.show_checkpoints(checkpoints, verbose, **_ui_kwargs())
 
 
 def _show_replay_result(result: "ReplayResult", verbose: bool, dry_run: bool):
     """Display replay result."""
-    if not (verbose or dry_run):
-        return
-
-    if HAS_RICH and console:
-        console.print(
-            Panel(
-                f"Status: {result.replay_status.value}\n"
-                f"Original Saga ID: {result.original_saga_id}\n"
-                f"New Saga ID: {result.new_saga_id}\n"
-                f"Checkpoint: {result.checkpoint_step}\n"
-                f"Error: {result.error_message or 'None'}",
-                title="Replay Result",
-                border_style="green" if result.replay_status.value == "success" else "red",
-            )
-        )
-    else:
-        click.echo(f"\nReplay status: {result.replay_status.value}")
-        click.echo(f"Original saga ID: {result.original_saga_id}")
-        click.echo(f"New saga ID: {result.new_saga_id}")
-        if result.error_message:
-            click.echo(f"Error: {result.error_message}")
+    replay_ui.show_replay_result(result, verbose, dry_run, **_ui_kwargs())
 
 
 async def _execute_replay(
@@ -369,64 +315,18 @@ def time_travel_command(
         return 0 if result else 1
 
     except Exception as e:
-        if HAS_RICH and console:
-            console.print(f"[red]Error: {e}[/red]")
-        else:
-            click.echo(f"Error: {e}", err=True)
+        _handle_exception(e, verbose=False)
         return 1
 
 
 def _display_key_value(key: str, value: Any, output_format: str):
     """Display a key-value pair."""
-    if output_format == "json":
-        import json
-
-        click.echo(json.dumps({key: value}, indent=2))
-    else:
-        click.echo(f"{key}: {value}")
+    replay_ui.display_key_value(key, value, output_format, echo_func=click.echo)
 
 
 def _display_full_state(state: "HistoricalState", output_format: str):
     """Display full saga state."""
-    if output_format == "json":
-        import json
-
-        click.echo(json.dumps(state.to_dict(), indent=2))
-    elif output_format == "table" and HAS_RICH and console:
-        _display_state_table(state)
-    else:
-        _display_state_text(state)
-
-
-def _display_state_table(state: "HistoricalState"):
-    """Display state as table (Rich)."""
-    table = Table(title=f"Saga State at {state.timestamp}")
-    table.add_column("Field", style="cyan")
-    table.add_column("Value", style="green")
-    table.add_row("Saga ID", str(state.saga_id))
-    table.add_row("Saga Name", state.saga_name)
-    table.add_row("Status", state.status)
-    table.add_row("Current Step", state.current_step or "N/A")
-    table.add_row("Step Index", str(state.step_index))
-    table.add_row("Completed Steps", ", ".join(state.completed_steps) or "None")
-    console.print(table)
-
-    if state.context:
-        console.print("\n[bold]Context:[/bold]")
-        console.print(JSON.from_data(state.context))
-
-
-def _display_state_text(state: "HistoricalState"):
-    """Display state as text."""
-    click.echo(f"Saga ID: {state.saga_id}")
-    click.echo(f"Saga Name: {state.saga_name}")
-    click.echo(f"Status: {state.status}")
-    click.echo(f"Current Step: {state.current_step}")
-    click.echo(f"Step Index: {state.step_index}")
-    click.echo(f"Completed Steps: {', '.join(state.completed_steps) or 'None'}")
-    click.echo("\nContext:")
-    for k, v in state.context.items():
-        click.echo(f"  {k}: {v}")
+    replay_ui.display_full_state(state, output_format, **_ui_kwargs())
 
 
 async def _execute_time_travel(
@@ -547,10 +447,7 @@ def list_changes_command(
         return 0
 
     except Exception as e:
-        if HAS_RICH and console:
-            console.print(f"[red]Error: {e}[/red]")
-        else:
-            click.echo(f"Error: {e}", err=True)
+        _handle_exception(e, verbose=False)
         return 1
 
 
@@ -583,31 +480,4 @@ async def _execute_list_changes(
         click.echo("No state changes found")
         return
 
-    # Display changes
-    if HAS_RICH and console:
-        table = Table(title=f"State Changes for {saga_id}")
-        table.add_column("#", style="dim")
-        table.add_column("Timestamp", style="cyan")
-        table.add_column("Step", style="green")
-        table.add_column("Status", style="yellow")
-        table.add_column("Completed", style="blue")
-
-        for i, change in enumerate(changes, 1):
-            table.add_row(
-                str(i),
-                change.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
-                change.current_step or "N/A",
-                change.status,
-                str(len(change.completed_steps)),
-            )
-
-        console.print(table)
-        console.print(f"\n[dim]Total: {len(changes)} changes[/dim]")
-    else:
-        click.echo(f"State changes for {saga_id}:")
-        for i, change in enumerate(changes, 1):
-            click.echo(
-                f"{i}. {change.timestamp} - Step: {change.current_step}, "
-                f"Status: {change.status}, Completed: {len(change.completed_steps)}"
-            )
-        click.echo(f"\nTotal: {len(changes)} changes")
+    replay_ui.display_changes(changes, saga_id, **_ui_kwargs())

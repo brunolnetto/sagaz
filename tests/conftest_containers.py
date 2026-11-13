@@ -8,32 +8,22 @@ Environment variable ``SAGAZ_NO_CONTAINERS=1`` has the same effect.
 
 Parallel mode: set ``SAGAZ_PARALLEL_CONTAINERS=1`` or pass ``--parallel-containers``
 to pre-start all containers simultaneously at session start (faster for full runs).
+It is ignored inside xdist workers, which start containers lazily.
 """
 
 import os
-import subprocess
 import threading
 import time
 
 import pytest
 
-# Disable Ryuk (the testcontainers reaper) to avoid 409 name conflicts on restart.
-os.environ.setdefault("TESTCONTAINERS_RYUK_DISABLED", "true")
+# Ryuk (the testcontainers reaper) stays enabled: it removes this session's
+# containers even when pytest or an xdist worker is killed or crashes. Without it,
+# every aborted run leaked Postgres/Redis/Kafka/LocalStack containers until the
+# machine ran out of memory. Opt out with TESTCONTAINERS_RYUK_DISABLED=true.
 
 # Per-container startup timeout in seconds.
 _CONTAINER_TIMEOUT = 120
-
-
-def _cleanup_stale_containers() -> None:
-    """Remove any stopped test containers left over from previous runs."""
-    try:
-        subprocess.run(
-            ["docker", "container", "prune", "-f"],
-            capture_output=True,
-            timeout=30,
-        )
-    except Exception:
-        pass  # Best-effort; don't block test startup
 
 
 class ContainerManager:
@@ -181,6 +171,10 @@ class ContainerManager:
 
 _manager: ContainerManager | None = None
 _no_containers: bool = False
+_skip_reason: str = "--no-containers"
+
+# Seconds to wait for the Docker daemon ping before skipping container tests.
+_DOCKER_CHECK_TIMEOUT = float(os.environ.get("SAGAZ_DOCKER_CHECK_TIMEOUT", "10"))
 
 
 def pytest_addoption(parser):
@@ -199,21 +193,27 @@ def pytest_addoption(parser):
 
 
 def _is_docker_available() -> bool:
-    """Return True if Docker daemon is reachable within 3 seconds."""
+    """Return True if the Docker daemon answers a ping within ``_DOCKER_CHECK_TIMEOUT``.
+
+    Uses the Docker SDK (the client testcontainers itself uses) instead of the
+    ``docker info`` CLI, which on Docker Desktop/WSL queries plugins and can take
+    10-25s, making container tests skip at random.
+    """
     try:
-        result = subprocess.run(
-            ["docker", "info"],
-            capture_output=True,
-            timeout=3,
-        )
-        return result.returncode == 0
+        import docker
+
+        client = docker.from_env(timeout=int(_DOCKER_CHECK_TIMEOUT))
+        try:
+            return bool(client.ping())
+        finally:
+            client.close()
     except Exception:
         return False
 
 
 def pytest_configure(config):
     """Set up the container manager (no containers started yet)."""
-    global _manager, _no_containers
+    global _manager, _no_containers, _skip_reason
 
     _no_containers = (
         config.getoption("--no-containers", default=False)
@@ -227,9 +227,8 @@ def pytest_configure(config):
     if not _is_docker_available():
         print("\n⏭️  Docker not available — container-dependent tests will skip\n")
         _no_containers = True
+        _skip_reason = "Docker not available"
         return
-
-    _cleanup_stale_containers()
 
     try:
         import testcontainers  # noqa: F401
@@ -245,7 +244,11 @@ def pytest_sessionstart(session):
         session.config.getoption("--parallel-containers", default=False)
         or os.environ.get("SAGAZ_PARALLEL_CONTAINERS", "") == "1"
     )
-    if parallel and _manager is not None:
+    # Under xdist every worker has its own manager; pre-starting all five
+    # containers in each worker multiplies them by the worker count. Workers
+    # start only the containers their tests actually request.
+    is_xdist_worker = "PYTEST_XDIST_WORKER" in os.environ
+    if parallel and _manager is not None and not is_xdist_worker:
         _manager.start_all_parallel()
 
 
@@ -259,5 +262,5 @@ def pytest_unconfigure(config):
 def container_manager():
     """Provide access to the container manager."""
     if _no_containers:
-        pytest.skip("--no-containers")
+        pytest.skip(_skip_reason)
     return _manager

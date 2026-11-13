@@ -1012,3 +1012,51 @@ class TestPostgresqlSagaBranch:
 
 # ==========================================================================
 # storage/backends/postgresql/snapshot.py  – 218, 343, 422->exit
+
+
+class TestPostgresqlSagaLoadEdges:
+    """load_saga_state: missing saga and configuration stored as JSON text."""
+
+    @staticmethod
+    def _storage_with(conn):
+        from sagaz.core.storage.backends.postgresql.saga import PostgreSQLSagaStorage
+
+        acquire = MagicMock()
+        acquire.__aenter__ = AsyncMock(return_value=conn)
+        acquire.__aexit__ = AsyncMock(return_value=None)
+        pool = MagicMock()
+        pool.acquire = MagicMock(return_value=acquire)
+
+        storage = PostgreSQLSagaStorage.__new__(PostgreSQLSagaStorage)
+        storage._pool = pool
+        return storage
+
+    async def test_missing_saga_returns_none_without_loading_steps(self):
+        conn = AsyncMock()
+        conn.fetchrow = AsyncMock(return_value=None)
+
+        assert await self._storage_with(conn).load_saga_state("nope") is None
+        conn.fetch.assert_not_awaited()
+
+    async def test_configuration_json_text_is_decoded(self):
+        now = datetime.now(UTC)
+        row = {
+            "saga_id": "s1",
+            "saga_name": "Order",
+            "status": "completed",
+            "configuration": '["pending", "completed"]',
+            "context": '{"a": 1}',
+            "metadata": None,
+            "created_at": now,
+            "updated_at": now,
+        }
+        conn = AsyncMock()
+        conn.fetchrow = AsyncMock(return_value=row)
+        conn.fetch = AsyncMock(return_value=[])
+
+        loaded = await self._storage_with(conn).load_saga_state("s1")
+
+        assert loaded["configuration"] == ["pending", "completed"]
+        assert loaded["context"] == {"a": 1}
+        assert loaded["metadata"] == {}
+        assert loaded["steps"] == []

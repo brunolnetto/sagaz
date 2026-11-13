@@ -297,3 +297,43 @@ class TestExecuteDemo:
         with patch("subprocess.run", return_value=mock_result):
             _execute_demo(Path("/path/to/demo/main.py"))
         # No output expected for successful completion
+
+
+class TestExecuteDemoEnvironment:
+    """_execute_demo puts the repo root on PYTHONPATH and reports exit codes."""
+
+    @staticmethod
+    def _run(monkeypatch, pythonpath, returncode=0):
+        from sagaz.cli import demonstrations
+
+        if pythonpath is None:
+            monkeypatch.delenv("PYTHONPATH", raising=False)
+        else:
+            monkeypatch.setenv("PYTHONPATH", pythonpath)
+        run = MagicMock(return_value=MagicMock(returncode=returncode))
+        monkeypatch.setattr(demonstrations.subprocess, "run", run)
+        demonstrations._execute_demo(Path("demo/main.py"))
+        return run.call_args.kwargs["env"]["PYTHONPATH"]
+
+    def test_existing_pythonpath_is_preserved_after_cwd(self, monkeypatch):
+        import os
+
+        assert self._run(monkeypatch, "/extra") == f"{Path.cwd()}{os.pathsep}/extra"
+
+    def test_pythonpath_defaults_to_cwd(self, monkeypatch):
+        assert self._run(monkeypatch, None) == str(Path.cwd())
+
+    def test_nonzero_exit_is_reported(self, monkeypatch, capsys):
+        self._run(monkeypatch, None, returncode=3)
+        assert "exited with code 3" in capsys.readouterr().out
+
+
+def test_display_table_falls_back_to_plain_without_rich(monkeypatch, capsys):
+    from sagaz.cli import demonstrations
+
+    monkeypatch.setattr(demonstrations, "console", None)
+    monkeypatch.setattr(demonstrations, "get_demo_description", lambda path: "desc")
+    demonstrations._display_demos_table({"core": {"hello": Path("x")}}, {})
+    out = capsys.readouterr().out
+    assert "hello" in out
+    assert "Run: sagaz demo run <name>" in out

@@ -1,7 +1,7 @@
 [run]
 source = sagaz
 branch = True
-concurrency = multiprocessing
+concurrency = multiprocessing, thread
 parallel = True
 
 [report]

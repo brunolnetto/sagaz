@@ -1,6 +1,6 @@
 # Scoped Release Plan — sagaz 2026
 
-> **Last updated**: 2026-11-12
+> **Last updated**: 2026-11-13
 > **Current version**: 1.7.2
 > **Strategy**: Minimum-disruption, scoped releases. Each wave ships only additive/isolated features. Core-invasive changes are deferred to later waves.
 
@@ -29,7 +29,7 @@ Wave 2  ─── v1.8.0 ──────── Analytics & chaos             
 Wave 3  ─── v1.9.0 ──────── CLI v2 + CDC + tenancy         (service/infra expansion)
 Wave 4  ─── v1.10.0 ─────── Event-driven choreography      (new execution model)
 Wave 5  ─── v2.0.0 ──────── Core extensions                (saga.add_step wired — blocked)
-Wave 6  ─── TBD   ────────── Streaming & historical analytics (Fluss + Iceberg; post-core stabilization)
+Wave 6  ─── v2.1.0 ─────── Streaming & historical analytics (Fluss + Iceberg; post-core stabilization)
 ```
 
 ---
@@ -109,22 +109,32 @@ Wave 6  ─── TBD   ────────── Streaming & historical an
 
 **Target**: After v1.7.0; schedule to be confirmed
 **Risk**: Low — new `sagaz[analytics]` optional extra, chaos is opt-in
-**Merge order**: #79 → #74 → #71
+**Merge order**: #79 → #74 → #71 → (#254 ∥ #258) → #257
 
 | PR | Branch | Feature | Issue | Merge pre-req |
 |----|--------|---------|-------|--------------|
-| #79 | feature/chaos-engineering | ChaosMonkey injection (ADR-017) | #78 | none |
-| #74 | feature/sqldim-analytics-pipeline | sqldim OLTP analytics pipeline | #73 | none |
-| #71 | feature/visualization-ui | Saga visualization dashboard (ADR-035) | #58 | none |
+| #79 | feature/chaos-engineering | ChaosMonkey injection (ADR-017) | #78 | none — rebase against `main` required; CI is fully red |
+| #74 | feature/sqldim-analytics-pipeline | sqldim OLTP analytics pipeline | #73 | none — rebase required; CI is fully red |
+| #71 | feature/visualization-ui-clean | Saga visualization dashboard (ADR-035) | #58 | none — lint/sec/CodeQL ✅; unit tests not yet wired in CI |
+| #254 | feature/otel-tracing-demo | Demo: observability otel_tracing | #248 | #74 merged (sqldim is the referenced feature) |
+| #258 | feature/optimization-guide-demo | Demo: performance optimization_guide | #252 | #71 merged (visualization is the referenced feature) |
+| #257 | feature/chaos-patterns-demo | Demo: reliability chaos_patterns | #251 | #79 merged — explicitly blocked until ChaosMonkey is in `main` |
 
-**Scope decision (2026-11-12)**:
-- Issue #51 and PR #67 are intentionally excluded from v1.8.0. Issue #51 remains open and is reserved for a dedicated Wave 6 after Wave 5 core extensions have shipped and stabilized.
-- Wave 6's release version is **TBD**. Do not assign one until the conflicting version maps below are reconciled.
+**Scope decision (2026-11-12 → updated 2026-11-13)**:
+- Issue #51 and PR #67 are intentionally excluded from v1.8.0 and have been moved to **v2.1.0 (Wave 6)** (GitHub milestone #18).
+- Demo PRs #254, #257, #258 and their linked issues #248, #251, #252 remain in v1.8.0 as they are demonstration modules for Wave 2 features.
+
+**CI status (2026-11-13)**:
+- #79: all CI checks failing — branch must be rebased and CI fixed before merge.
+- #74: all CI checks failing — branch must be rebased and CI fixed before merge.
+- #71: CI unavailable; gates reproduced locally (ruff, format, mypy, radon strict, bandit, commitlint, unit matrix 3.11/3.12/3.13 with `--cov-fail-under=95`).
+- #254, #258: all CI checks passing — ready for review and merge.
+- #257: all CI checks passing — merge after #79 lands.
 
 **Gap watch**:
 - #79: add real `Saga` E2E integration test through `ChaosMonkey` → compensation fires (see issue #111)
 - #81: versioning deferred to Wave 3 (depends on schema validation closure — see issue #112)
-- #71: add SSE endpoint smoke test; document CORS/auth policy (see issue #113)
+- #71: issue #58/#113 acceptance criteria implemented (run list, run detail, per-run SSE, runtime diagram, metrics summary, 5-view HTML, `sagaz[monitor]` alias, `docs/monitoring/visualization-ui.md` incl. CORS/auth policy). Mermaid is fetched lazily by the monitor, SHA-384 verified and cached on disk (not bundled, no browser CDN). Branch pushed as `feature/visualization-ui-clean`; PR #71 head is still `feature/visualization-ui` and must be retargeted. Open: `.coveragerc` uses `concurrency = multiprocessing` without `thread`, so TestClient-handled code is under-reported repo-wide.
 
 ---
 
@@ -182,11 +192,13 @@ Wave 6  ─── TBD   ────────── Streaming & historical an
 
 ---
 
-## Wave 6 — TBD "Streaming & Historical Analytics"
+## Wave 6 — v2.1.0 "Streaming & Historical Analytics"
 
+**GitHub milestone**: [#18](https://github.com/brunolnetto/sagaz/milestone/18)
 **Target**: After Wave 5 (v2.0.0) has shipped and the core extensions have stabilized; no calendar date committed
 **Risk**: High — streaming delivery, failure recovery, and historical table tiering require end-to-end reliability evidence
-**Reserved scope**: Issue #51 — Fluss streaming analytics + Apache Iceberg historical tiering (ADR-013)
+**Scope**: Issue #51 — Fluss streaming analytics + Apache Iceberg historical tiering (ADR-013)
+**Merge order**: #67
 
 | PR | Branch | Feature | Issue | Entry condition |
 |----|--------|---------|-------|-----------------|
@@ -250,6 +262,9 @@ Wave 6  ─── TBD   ────────── Streaming & historical an
 #79 (chaos)        ──────────────────────────────────────────► Wave 2
 #74 (sqldim)       ──────────────────────────────────────────► Wave 2
 #71 (viz)          ──────────────────────────────────────────► Wave 2
+#254 (otel demo)   after #74 ──────────────────────────────► Wave 2
+#258 (perf demo)   after #71 ──────────────────────────────► Wave 2
+#257 (chaos demo)  after #79 ──────────────────────────────► Wave 2
 
 #64 (cli-local)    ──────────────────────────────────────────► Wave 3
 #81 (versioning)   needs #109 closed ──────────────────────► Wave 3
@@ -265,23 +280,25 @@ fix/#102           ────────────────────�
 fix/#104           ──────────────────────────────────────────► Wave 5
 #72 (multi-region) after fix/#104 ──────────────────────────► Wave 5
 
-#51 (Fluss + Iceberg) ── after Wave 5 stabilization ────────► Wave 6
+#67/#51 (Fluss+Iceberg) ─ after Wave 5 stabilization ───────► Wave 6 (v2.1.0)
 ```
 
 ---
 
-## Version Map (target — pending reconciliation)
+## Version Map
 
-> **Do not use this table to assign Wave 6 yet.** It conflicts with the Wave Map above: the Wave Map assigns v1.8.0/v1.9.0/v1.10.0/v2.0.0 to Waves 2–5, while this table assigns v2.0.0/v2.1.0/v2.2.0/v2.3.0. Reconcile these mappings before setting a version for Wave 6.
+> **Reconciled 2026-11-13.** The authoritative mapping is the Wave Map above. The stale alternative table (which assigned v2.0.0–v2.3.0 to Waves 2–5) has been removed. Wave 6 is now assigned **v2.1.0** — it follows Wave 5 (v2.0.0) and is registered as GitHub milestone #18.
 
-| Version | Wave | Quarter | Notes |
-|---------|------|---------|-------|
-| v1.5.0  | 0    | Q2 2026 | Governance & ops |
-| v1.6.0  | 1    | Q2 2026 | Storage extensions |
-| v2.0.0  | 2    | Q2/Q3 2026 | Analytics & chaos |
-| v2.1.0  | 3    | Q3 2026 | CLI + CDC + tenancy |
-| v2.2.0  | 4    | Q3 2026 | Choreography + Redis Streams |
-| v2.3.0  | 5    | Q4 2026 | Core extensions |
+| Version | Wave | Title | Status |
+|---------|------|-------|--------|
+| v1.5.0  | 0    | Governance & Lightweight Ops | Released |
+| v1.6.0  | 1    | Storage Extensions | Released |
+| v1.7.0  | 1b   | StateChart Migration Phase 1 | Released |
+| v1.8.0  | 2    | Analytics & Chaos | In progress |
+| v1.9.0  | 3    | CLI v2 + CDC + Tenancy | Planned |
+| v1.10.0 | 4    | Event-Driven Choreography | Planned |
+| v2.0.0  | 5    | Core Extensions | Blocked |
+| v2.1.0  | 6    | Streaming & Historical Analytics | Deferred (post-Wave 5) |
 
 ---
 
