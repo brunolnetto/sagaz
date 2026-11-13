@@ -150,13 +150,15 @@ class SagaBronzeProcessor:
         if not records:
             return []
 
+        # tmp_name and schema are module constants (never user input); record
+        # values are bound through ``?`` placeholders below.
         cols_ddl = ", ".join(f'"{k}" {v}' for k, v in schema.items())
-        self._conn.execute(f"CREATE OR REPLACE TEMP TABLE {tmp_name} ({cols_ddl})")
+        self._conn.execute(f"CREATE OR REPLACE TEMP TABLE {tmp_name} ({cols_ddl})")  # nosec B608
 
         keys = list(schema.keys())
         placeholders = ", ".join("?" for _ in keys)
         self._conn.executemany(
-            f"INSERT INTO {tmp_name} VALUES ({placeholders})",
+            f"INSERT INTO {tmp_name} VALUES ({placeholders})",  # nosec B608
             [tuple(r.get(k) for k in keys) for r in records],
         )
 

@@ -24,8 +24,11 @@ from datetime import datetime
 
 from sqldim import AccumulatingFact, DimensionModel, Field, TransactionFact
 
+# ``table=True`` is consumed by the SQLModel-style metaclass, which mypy cannot see;
+# each model declaration therefore carries ``type: ignore[call-arg]``.
 
-class DimSaga(DimensionModel, table=True):
+
+class DimSaga(DimensionModel, table=True):  # type: ignore[call-arg]  # sqldim/SQLModel metaclass kwarg
     """One row per saga lifecycle — SCD Type 1 (last-write-wins).
 
     ``__natural_key__`` tells sqldim loaders which column uniquely identifies
@@ -44,7 +47,7 @@ class DimSaga(DimensionModel, table=True):
     updated_at: datetime | None = Field(default=None)
 
 
-class DimStep(DimensionModel, table=True):
+class DimStep(DimensionModel, table=True):  # type: ignore[call-arg]  # sqldim/SQLModel metaclass kwarg
     """One row per unique (saga_name, step_name) combination — SCD Type 1."""
 
     __natural_key__ = ["step_key"]
@@ -56,7 +59,7 @@ class DimStep(DimensionModel, table=True):
     action: str | None = Field(default=None)
 
 
-class FactExecution(TransactionFact, table=True):
+class FactExecution(TransactionFact, table=True):  # type: ignore[call-arg]  # sqldim/SQLModel metaclass kwarg
     """Step-grain transaction fact — one row per step execution attempt.
 
     ``TransactionFact`` signals that each row is an immutable, point-in-time
@@ -75,7 +78,7 @@ class FactExecution(TransactionFact, table=True):
     executed_at: datetime | None = Field(default=None)
 
 
-class FactSagaLifecycle(AccumulatingFact, table=True):
+class FactSagaLifecycle(AccumulatingFact, table=True):  # type: ignore[call-arg]  # sqldim/SQLModel metaclass kwarg
     """Accumulating snapshot — one row per saga, updated at each milestone.
 
     ``AccumulatingFact`` (Kimball accumulating snapshot grain) models processes
