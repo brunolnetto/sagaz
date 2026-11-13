@@ -3,41 +3,23 @@
 from __future__ import annotations
 
 import re
-from functools import total_ordering
+from dataclasses import dataclass
 
 _SEMVER_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 
 
-@total_ordering
+@dataclass(frozen=True, order=True, slots=True)
 class Version:
     """
     Semantic version value object.
 
-    Supports parsing, comparison, and minor-version compatibility checks.
+    Immutable, hashable and ordered by ``(major, minor, patch)``. Supports
+    parsing and minor-version compatibility checks.
     """
 
-    __slots__ = ("_major", "_minor", "_patch")
-
-    def __init__(self, major: int, minor: int, patch: int) -> None:
-        object.__setattr__(self, "_major", major)
-        object.__setattr__(self, "_minor", minor)
-        object.__setattr__(self, "_patch", patch)
-
-    def __setattr__(self, _name: str, _value: object) -> None:
-        msg = "Version instances are immutable"
-        raise AttributeError(msg)
-
-    @property
-    def major(self) -> int:
-        return self._major
-
-    @property
-    def minor(self) -> int:
-        return self._minor
-
-    @property
-    def patch(self) -> int:
-        return self._patch
+    major: int
+    minor: int
+    patch: int
 
     # ── construction ──
 
@@ -57,19 +39,6 @@ class Version:
 
     def __repr__(self) -> str:
         return f"Version({self!s})"
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Version):
-            return NotImplemented
-        return (self._major, self._minor, self._patch) == (other._major, other._minor, other._patch)
-
-    def __lt__(self, other: object) -> bool:
-        if not isinstance(other, Version):
-            return NotImplemented
-        return (self._major, self._minor, self._patch) < (other._major, other._minor, other._patch)
-
-    def __hash__(self) -> int:
-        return hash((self._major, self._minor, self._patch))
 
     # ── compatibility ──
 

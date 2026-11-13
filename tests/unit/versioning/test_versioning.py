@@ -13,6 +13,7 @@ Coverage targets:
 
 from __future__ import annotations
 
+import dataclasses
 from datetime import UTC, datetime, timezone
 
 import pytest
@@ -107,8 +108,18 @@ class TestVersion:
 
     def test_immutability_prevents_attribute_set(self):
         v = Version.parse("1.2.3")
-        with pytest.raises(AttributeError, match="immutable"):
+        with pytest.raises(dataclasses.FrozenInstanceError):  # an AttributeError
             v.major = 9
+        assert v == Version(1, 2, 3)
+
+    def test_versions_are_hashable_and_ordered(self):
+        assert {Version(1, 0, 0), Version.parse("1.0.0")} == {Version(1, 0, 0)}
+        assert sorted([Version(2, 0, 0), Version(1, 10, 0), Version(1, 2, 3)]) == [
+            Version(1, 2, 3),
+            Version(1, 10, 0),
+            Version(2, 0, 0),
+        ]
+        assert Version(1, 0, 0) != "1.0.0"
 
     def test_is_compatible_older_patch_not_compatible(self):
         """1.1.0 is older than 1.1.5 → NOT compatible."""
