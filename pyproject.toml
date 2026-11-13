@@ -411,7 +411,6 @@ omit = [
     # CLI tools - interactive wrappers, not core library logic
     "sagaz/cli.py",
     "sagaz/cli_app.py",
-    "sagaz/cli/app.py",  # Interactive CLI commands - tested via manual/integration testing
     "sagaz/cli/main.py",  # CLI entry point - thin wrapper
     # Optional integrations requiring external frameworks
     "sagaz/integrations/django.py",
