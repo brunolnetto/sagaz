@@ -325,10 +325,10 @@ class RedisOutboxStorage(OutboxStorage):
         error_message: str | None,
         event: OutboxEvent | None,
     ) -> dict[str, str]:
-        updates: dict[str, str] = {}
+        # Like the SQL backends, every FAILED transition counts as a retry.
+        current = await self.get_by_id(event_id)
+        updates = {"retry_count": str((current.retry_count if current else 0) + 1)}
         if error_message:
-            current = await self.get_by_id(event_id)
-            updates["retry_count"] = str((current.retry_count if current else 0) + 1)
             updates["last_error"] = error_message
         updates.update(self._error_metadata_updates(event))
         return updates
