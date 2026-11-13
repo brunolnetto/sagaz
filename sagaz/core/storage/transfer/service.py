@@ -30,6 +30,7 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, cast
 
+from sagaz.core.storage.canonical import canonical_value
 from sagaz.core.storage.core import TransferError
 
 logger = logging.getLogger(__name__)
@@ -450,34 +451,8 @@ class TransferService:
 
             record = OutboxEvent.from_dict(record).to_dict()
 
-        timestamp_fields = {"created_at", "claimed_at", "sent_at", "dead_letter_at"}
-
-        def _normalize(value: Any, field_name: str | None = None) -> Any:
-            if isinstance(value, datetime):
-                normalized = value
-                if normalized.tzinfo is not None:
-                    normalized = normalized.astimezone(UTC)
-                return normalized.isoformat()
-            if isinstance(value, Enum):
-                return value.value
-            if field_name in timestamp_fields and isinstance(value, str):
-                try:
-                    parsed = datetime.fromisoformat(value)
-                except ValueError:
-                    return value
-                if parsed.tzinfo is not None:
-                    parsed = parsed.astimezone(UTC)
-                return parsed.isoformat()
-            if isinstance(value, dict):
-                return {key: _normalize(item, str(key)) for key, item in value.items()}
-            if isinstance(value, (list, tuple)):
-                return [_normalize(item) for item in value]
-            if hasattr(value, "to_dict"):
-                return _normalize(value.to_dict())
-            return value
-
         return json.dumps(
-            _normalize(record),
+            canonical_value(record),
             sort_keys=True,
             separators=(",", ":"),
             ensure_ascii=False,

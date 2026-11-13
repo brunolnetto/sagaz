@@ -10,10 +10,12 @@ import click
 import pytest
 
 import sagaz.cli.dlq as dlq_mod
-from sagaz.core.storage.backends.memory.outbox import InMemoryOutboxStorage
-from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
-from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
-from sagaz.core.storage.backends.sqlite.outbox import SQLiteOutboxStorage
+
+
+def _kind(storage) -> str:
+    # Compare by name: other suites reload backend modules, changing class identity.
+    return type(storage).__name__
+
 
 URL_VARS = ("SAGAZ_OUTBOX_URL", "OUTBOX_URL", "SAGAZ_STORAGE_URL", "DATABASE_URL")
 
@@ -29,16 +31,16 @@ class TestGetStorage:
     def test_memory_fallback(self, monkeypatch, url):
         if url:
             monkeypatch.setenv("SAGAZ_OUTBOX_URL", url)
-        assert isinstance(dlq_mod._get_storage(), InMemoryOutboxStorage)
+        assert _kind(dlq_mod._get_storage()) == "InMemoryOutboxStorage"
 
     def test_redis(self, monkeypatch):
         monkeypatch.setenv("OUTBOX_URL", "redis://localhost:6379/0")
-        assert isinstance(dlq_mod._get_storage(), RedisOutboxStorage)
+        assert _kind(dlq_mod._get_storage()) == "RedisOutboxStorage"
 
     @pytest.mark.parametrize("scheme", ["postgresql", "postgres"])
     def test_postgres(self, monkeypatch, scheme):
         monkeypatch.setenv("DATABASE_URL", f"{scheme}://user@localhost/db")
-        assert isinstance(dlq_mod._get_storage(), PostgreSQLOutboxStorage)
+        assert _kind(dlq_mod._get_storage()) == "PostgreSQLOutboxStorage"
 
     @pytest.mark.parametrize(
         ("url", "path"),
@@ -47,7 +49,7 @@ class TestGetStorage:
     def test_sqlite(self, monkeypatch, url, path):
         monkeypatch.setenv("SAGAZ_STORAGE_URL", url)
         storage = dlq_mod._get_storage()
-        assert isinstance(storage, SQLiteOutboxStorage)
+        assert _kind(storage) == "SQLiteOutboxStorage"
         assert storage.db_path == path
 
     def test_unsupported_scheme(self, monkeypatch):
@@ -58,7 +60,7 @@ class TestGetStorage:
     def test_env_precedence(self, monkeypatch):
         monkeypatch.setenv("DATABASE_URL", "postgresql://user@localhost/db")
         monkeypatch.setenv("SAGAZ_OUTBOX_URL", "redis://localhost")
-        assert isinstance(dlq_mod._get_storage(), RedisOutboxStorage)
+        assert _kind(dlq_mod._get_storage()) == "RedisOutboxStorage"
 
 
 class TestLifecycle:

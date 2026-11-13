@@ -1127,3 +1127,16 @@ class TestTransferRecordValidation:
 
         with pytest.raises(TransferError, match="differs after import"):
             await self._service(target)._validate_record(record)
+
+
+def test_canonical_record_accepts_objects_with_to_dict():
+    from types import SimpleNamespace
+
+    from sagaz.core.storage.transfer.service import TransferService
+
+    as_dict = {"saga_id": "saga-1", "created_at": "2026-01-01T03:00:00+03:00"}
+    as_object = SimpleNamespace(to_dict=lambda: dict(as_dict, created_at="2026-01-01T00:00:00Z"))
+
+    assert TransferService._canonical_record(as_object) == TransferService._canonical_record(
+        as_dict
+    )
