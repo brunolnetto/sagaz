@@ -7,6 +7,7 @@ from collections.abc import Callable, Sequence
 
 from benchmarks.tenancy.backends import BackendOptions, BackendSession, open_backend
 from benchmarks.tenancy.report import BackendResult
+from benchmarks.tenancy.statements import statements_per_saga
 from benchmarks.tenancy.stats import RunResult, paired_overhead, schedule, summarize
 from benchmarks.tenancy.workload import COMPARISONS, Mode, Plan, run_once
 
@@ -35,6 +36,10 @@ async def measure(
     if len(by_name) != len(modes):
         msg = "mode names must be unique"
         raise ValueError(msg)
+    if session.counts_statements:
+        session.info["statements_per_saga"] = await statements_per_saga(
+            session.storage, session.prepare, modes
+        )
     try:
         for mode in modes:
             for i in range(warmup):

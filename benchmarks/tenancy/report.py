@@ -11,6 +11,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
+from benchmarks.tenancy.machinery import MachineryCost
 from benchmarks.tenancy.stats import ModeSummary, Overhead, RunResult
 
 
@@ -28,6 +29,7 @@ class Report:
     config: dict[str, Any]
     environment: dict[str, Any]
     backends: list[BackendResult] = field(default_factory=list)
+    machinery: MachineryCost | None = None
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), indent=2, sort_keys=True)
@@ -116,8 +118,33 @@ def comparisons_table(results: list[BackendResult]) -> str:
     return "\n".join(lines)
 
 
+def machinery_lines(report: Report) -> str:
+    """The tenancy wrapper's cost per saga, and its share of each backend's saga time.
+
+    A backend's time per saga is ``1 / throughput`` of its baseline: the wall
+    time the whole run spends per saga, with all workers in flight.
+    """
+    cost = report.machinery
+    if cost is None:
+        return "Tenancy machinery: not measured"
+    lines = [
+        f"Tenancy machinery per saga: {cost.context_us:.1f} µs with a TenantContext, "
+        f"{cost.registry_us:.1f} µs with a registry id (best of runs, "
+        f"{cost.iterations:,} iterations)"
+    ]
+    for result in report.backends:
+        baseline = next((s for s in result.summaries if s.mode == "baseline"), None)
+        if baseline is not None:
+            per_saga_us = 1e6 / baseline.throughput
+            lines.append(
+                f"- {result.backend}: {per_saga_us:,.0f} µs per saga in the baseline, "
+                f"machinery share {cost.context_us / per_saga_us * 100:.2f}%"
+            )
+    return "\n".join(lines)
+
+
 def render(report: Report) -> str:
-    """The full Markdown report: configuration, environment and both tables."""
+    """The full Markdown report: configuration, environment, tables and machinery cost."""
     config = ", ".join(f"{key}={value}" for key, value in report.config.items())
     environment = ", ".join(f"{key}={value}" for key, value in report.environment.items())
     backend_info = "\n".join(
@@ -132,5 +159,6 @@ def render(report: Report) -> str:
             backend_info,
             results_table(report.backends),
             comparisons_table(report.backends),
+            machinery_lines(report),
         ]
     )

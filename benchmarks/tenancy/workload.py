@@ -177,7 +177,7 @@ class RunFailedError(RuntimeError):
     """A run had failed sagas or unpersisted state, so its timing is meaningless."""
 
 
-def _tenant_args(plan: Plan, mode: Mode) -> tuple[list[Any], TenantRegistry | None]:
+def tenant_args(plan: Plan, mode: Mode) -> tuple[list[Any], TenantRegistry | None]:
     """The ``tenant_context`` argument of each tenant, and the registry if any."""
     if not mode.tenancy:
         return [None] * plan.tenants, None
@@ -197,7 +197,7 @@ def _tenant_args(plan: Plan, mode: Mode) -> tuple[list[Any], TenantRegistry | No
 
 async def run_once(storage: Any, plan: Plan, mode: Mode, round_: int, label: str) -> RunResult:
     """Run every saga of ``plan`` in ``mode`` and time it; raise if any saga failed."""
-    tenant_args, registry = _tenant_args(plan, mode)
+    tenants, registry = tenant_args(plan, mode)
     config = SagaConfig(
         storage=storage, metrics=False, logging=False, tracing=False, tenant_registry=registry
     )
@@ -218,7 +218,7 @@ async def run_once(storage: Any, plan: Plan, mode: Mode, round_: int, label: str
     workers = [
         worker(tenant, index, slot)
         for slot in range(plan.sagas_per_tenant)
-        for index, tenant in enumerate(tenant_args)
+        for index, tenant in enumerate(tenants)
     ]
     with watch_persistence() as failures:
         started = time.perf_counter()

@@ -8,6 +8,7 @@ import sys
 from collections.abc import Sequence
 
 from benchmarks.tenancy.backends import BACKENDS, BackendOptions
+from benchmarks.tenancy.machinery import measure_machinery
 from benchmarks.tenancy.report import Report, environment_info, render
 from benchmarks.tenancy.runner import run_benchmark
 from benchmarks.tenancy.workload import POSTGRES_ABLATIONS, STANDARD_MODES, Plan
@@ -58,6 +59,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="also run with RLS off and without set_config, to attribute PostgreSQL costs",
     )
     add("--redis-url")
+    add(
+        "--machinery-iterations",
+        type=int,
+        default=50_000,
+        help="time the tenancy wrapper of Saga.run alone this many times (0: skip)",
+    )
     add("--json", dest="json_path", help="also write the results to this JSON file")
     return parser
 
@@ -94,6 +101,8 @@ async def _run(args: argparse.Namespace) -> Report:
         POSTGRES_ABLATIONS if args.postgres_ablations else (),
         progress=lambda message: print(message, file=sys.stderr),  # noqa: T201
     )
+    if args.machinery_iterations:
+        report.machinery = await measure_machinery(args.machinery_iterations)
     report.environment["loadavg_end"] = environment_info()["loadavg"]
     return report
 

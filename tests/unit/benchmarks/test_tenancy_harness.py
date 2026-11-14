@@ -12,7 +12,8 @@ import logging
 
 import pytest
 
-from benchmarks.tenancy import backends, cli, report, runner, stats, workload
+from benchmarks.tenancy import backends, cli, report, runner, statements, stats, workload
+from benchmarks.tenancy.machinery import MachineryCost, measure_machinery
 from benchmarks.tenancy.stats import RunResult
 from benchmarks.tenancy.workload import BASELINE, MULTI, MULTI_REGISTRY, Mode, Plan
 from sagaz.core.storage.memory import InMemorySagaStorage
@@ -143,17 +144,17 @@ def test_modes():
 
 class TestTenantArgs:
     def test_baseline_runs_without_tenants(self):
-        args, registry = workload._tenant_args(Plan(3, 2), BASELINE)
+        args, registry = workload.tenant_args(Plan(3, 2), BASELINE)
         assert (args, registry) == ([None, None, None], None)
 
     def test_multi_gets_contexts_with_quota_equal_to_the_load(self):
-        args, registry = workload._tenant_args(Plan(3, 2), MULTI)
+        args, registry = workload.tenant_args(Plan(3, 2), MULTI)
         assert registry is None
         assert [a.tenant_id for a in args] == ["tenant-0", "tenant-1", "tenant-2"]
         assert all(a.quotas.max_concurrent_sagas == 2 for a in args)
 
     def test_registry_mode_passes_ids_resolved_by_the_registry(self):
-        args, registry = workload._tenant_args(Plan(2, 4), MULTI_REGISTRY)
+        args, registry = workload.tenant_args(Plan(2, 4), MULTI_REGISTRY)
         assert args == ["tenant-0", "tenant-1"]
         assert registry.get("tenant-1").quotas.max_concurrent_sagas == 4
 
@@ -186,7 +187,7 @@ async def test_run_once_with_step_sleep():
 
 async def test_run_once_fails_when_a_saga_fails(monkeypatch):
     suspended = [TenantContext("t-0", active=False), TenantContext("t-1", active=False)]
-    monkeypatch.setattr(workload, "_tenant_args", lambda plan, mode: (suspended, None))
+    monkeypatch.setattr(workload, "tenant_args", lambda plan, mode: (suspended, None))
     with pytest.raises(workload.RunFailedError, match="2 failed workers"):
         await workload.run_once(InMemorySagaStorage(), Plan(2, 1), MULTI, 0, "f")
 
@@ -324,6 +325,63 @@ def test_comparisons_table_and_render():
     assert text.startswith("Configuration: tenants=2")
     assert "Environment: cpus=8" in text
     assert "- memory: version=1" in text
+    assert text.endswith("Tenancy machinery: not measured")
+
+
+def test_machinery_share_of_each_backend():
+    full = report.Report(
+        config={},
+        environment={},
+        backends=[_backend_result()],
+        machinery=MachineryCost(context_us=100.0, registry_us=120.0, iterations=1000),
+    )
+    text = report.machinery_lines(full)
+    assert "100.0 µs with a TenantContext, 120.0 µs with a registry id" in text
+    # baseline: 100 sagas in 1 s = 10,000 µs per saga
+    assert "- memory: 10,000 µs per saga in the baseline, machinery share 1.00%" in text
+
+
+async def test_measure_machinery():
+    cost = await measure_machinery(iterations=200, repeats=2)
+    assert cost.iterations == 200
+    assert 0 < cost.context_us < 10_000
+    assert 0 < cost.registry_us < 10_000
+
+
+async def test_count_statements_wraps_and_restores_asyncpg(monkeypatch):
+    from asyncpg.connection import Connection
+
+    async def fake(self, *args, **kwargs):
+        return "ok"
+
+    for name in statements.METHODS:
+        monkeypatch.setattr(Connection, name, fake)
+    with statements.count_statements() as counts:
+        assert await Connection.execute(None, "SELECT 1") == "ok"
+        await Connection.fetch(None, "SELECT 1")
+        await Connection.fetch(None, "SELECT 2")
+    assert counts == {"execute": 1, "fetch": 2}
+    assert Connection.execute is fake
+
+
+async def test_statements_per_saga_without_asyncpg_traffic():
+    prepared = []
+
+    async def prepare(mode):
+        prepared.append(mode.name)
+
+    counts = await statements.statements_per_saga(
+        InMemorySagaStorage(), prepare, [BASELINE, MULTI_REGISTRY], sagas=3
+    )
+    assert counts == {"baseline": 0, "multi-registry": 0}
+    assert prepared == ["baseline", "multi-registry"]
+
+
+async def test_measure_records_statement_counts_when_supported():
+    async with backends.open_backend("memory", backends.BackendOptions()) as session:
+        session.counts_statements = True
+        result = await runner.measure(session, Plan(1, 1), [BASELINE], rounds=1, warmup=0)
+    assert result.info["statements_per_saga"] == {"baseline": 0}
 
 
 def test_overhead_cell_without_value():
@@ -374,10 +432,12 @@ def test_parser_rejects_unknown_backends(value):
 def test_main_prints_tables_and_writes_json(tmp_path, capsys):
     path = tmp_path / "result.json"
     argv = ["--backends", "memory", "--tenants", "2", "--sagas-per-tenant", "2"]
-    argv += ["--rounds", "2", "--warmup", "0", "--json", str(path)]
+    argv += ["--rounds", "2", "--warmup", "0", "--machinery-iterations", "100"]
+    argv += ["--json", str(path)]
     assert cli.main(argv) == 0
     out = capsys.readouterr()
     assert "| memory | multi-registry |" in out.out
+    assert "machinery share" in out.out
     assert "memory round 2/2" in out.err
     data = json.loads(path.read_text())
     assert data["config"]["sagas_per_run"] == 4

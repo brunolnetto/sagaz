@@ -40,6 +40,8 @@ class BackendSession:
     prepare: Callable[[Mode], Awaitable[None]] = _no_preparation
     info: dict[str, Any] = field(default_factory=dict)
     supports_ablations: bool = False
+    #: Count the statements each saga sends (asyncpg backends only).
+    counts_statements: bool = False
 
 
 @dataclass(frozen=True)
@@ -214,7 +216,9 @@ async def _postgres_session(url: str, options: BackendOptions) -> AsyncIterator[
             "synchronous_commit": synchronous_commit,
         }
         try:
-            yield BackendSession("postgres", storage, prepare, info, supports_ablations=True)
+            yield BackendSession(
+                "postgres", storage, prepare, info, supports_ablations=True, counts_statements=True
+            )
         finally:
             _tenancy.apply_scope = original_apply_scope
             await prepare(Mode("restore", tenancy=False))
