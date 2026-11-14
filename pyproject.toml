@@ -69,6 +69,9 @@ aws = [
     "aioboto3>=12.0.0",
     "zstandard>=0.22.0",  # For S3 snapshot compression
 ]
+encryption = [
+    "cryptography>=42.0.0",
+]
 compression = [
     "zstandard>=0.22.0",  # For snapshot compression
 ]

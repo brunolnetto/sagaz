@@ -167,7 +167,7 @@ def rabbitmq_container(container_manager):
 
 @pytest.fixture(scope="session")
 def localstack_container(container_manager):
-    """LocalStack S3 container (started lazily on first use)."""
+    """LocalStack container with S3 and KMS (started lazily on first use)."""
     if not container_manager:
         pytest.skip("testcontainers not available")
     container_manager.ensure_localstack()
