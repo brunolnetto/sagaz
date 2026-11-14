@@ -13,6 +13,7 @@ from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
 from sagaz.core.storage._outbox_tenancy import resolve_event_tenant
 from sagaz.core.storage.backends.redis._outbox_claiming import RedisOutboxClaimingMixin
 from sagaz.core.storage.backends.redis._outbox_dlq import RedisOutboxDeadLetterMixin
+from sagaz.core.storage.backends.redis._outbox_pending import RedisOutboxPendingCountMixin
 from sagaz.core.storage.backends.redis._outbox_serialization import (
     RedisOutboxSerializationMixin,
 )
@@ -30,6 +31,7 @@ class RedisOutboxStorage(
     RedisOutboxStatusUpdatesMixin,
     RedisOutboxClaimingMixin,
     RedisOutboxDeadLetterMixin,
+    RedisOutboxPendingCountMixin,
     RedisOutboxTransferMixin,
     RedisOutboxSerializationMixin,
     OutboxStorage,
@@ -232,8 +234,12 @@ class RedisOutboxStorage(
 
         await self._redis.hset(meta_key, mapping=updates)
 
-        # If sent or dead letter, remove from processing set
+        # The delivery is finished: ack it so the consumer group's pending list
+        # only holds in-flight claims, then drop it from the processing hash.
         if status in (OutboxStatus.SENT, OutboxStatus.FAILED, OutboxStatus.DEAD_LETTER):
+            message_id = await self._redis.hget(self._scoped_processing_key(), event_id)
+            if message_id:
+                await self._redis.xack(self._scoped_stream_key(), self._consumer_group, message_id)
             await self._redis.hdel(self._scoped_processing_key(), event_id)
 
         # Get updated event

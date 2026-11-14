@@ -1,12 +1,13 @@
 """
-Pending counts, health check and statistics for ``RedisOutboxStorage``.
+Health check and statistics for ``RedisOutboxStorage`` (the pending count is
+in ``_outbox_pending``).
 
 Counts cover the current tenant, or every tenant in the system scope (ADR-020).
 """
 
 import time
 
-from sagaz.core.storage.backends.redis._outbox_tenancy import RedisOutboxTenancyMixin
+from sagaz.core.storage.backends.redis._outbox_pending import RedisOutboxPendingCountMixin
 from sagaz.core.storage.core import (
     HealthCheckResult,
     HealthStatus,
@@ -14,16 +15,8 @@ from sagaz.core.storage.core import (
 )
 
 
-class RedisOutboxStatisticsMixin(RedisOutboxTenancyMixin):
-    """``get_pending_count``, ``health_check`` and ``get_statistics``."""
-
-    async def get_pending_count(self) -> int:
-        """Get count of pending events of the current tenant(s)."""
-        if not self._initialized:
-            await self.initialize()
-        assert self._redis is not None
-
-        return sum(await self._per_tenant(lambda: self._xlen(self._scoped_stream_key())))
+class RedisOutboxStatisticsMixin(RedisOutboxPendingCountMixin):
+    """``health_check`` and ``get_statistics``."""
 
     async def _xlen(self, key: str) -> int:
         try:

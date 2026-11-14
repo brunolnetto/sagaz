@@ -281,10 +281,11 @@ class SQLiteOutboxStorage(
             f"""
             SELECT * FROM outbox_events
             WHERE status = 'claimed'
-            AND claimed_at < datetime('now', ?)
+            AND julianday(claimed_at) < julianday(?)
             AND {TENANT_FILTER}
+            ORDER BY claimed_at
             """,
-            (f"-{int(claimed_older_than_seconds)} seconds", *tenant_params()),
+            (self._stuck_cutoff(claimed_older_than_seconds), *tenant_params()),
         )
         rows = await cursor.fetchall()
 
@@ -303,14 +304,29 @@ class SQLiteOutboxStorage(
             SET status = 'pending', worker_id = NULL, claimed_at = NULL,
                 retry_count = retry_count + 1
             WHERE status = 'claimed'
-            AND claimed_at < datetime('now', ?)
+            AND julianday(claimed_at) < julianday(?)
             AND {TENANT_FILTER}
             """,
-            (f"-{int(claimed_older_than_seconds)} seconds", *tenant_params()),
+            (self._stuck_cutoff(claimed_older_than_seconds), *tenant_params()),
         )
         await conn.commit()
 
         return cursor.rowcount
+
+    @staticmethod
+    def _stuck_cutoff(claimed_older_than_seconds: float) -> str:
+        """Claim time before which a claimed event counts as stuck.
+
+        ``claimed_at`` is stored as a Python ISO-8601 string
+        (``2026-01-01T07:00:00.123456+00:00``), which does not compare as text
+        with SQLite's ``datetime('now')`` (``2026-01-01 07:00:00``): the ``T``
+        sorts after the space, so same-day claims never matched. Both sides
+        are compared through ``julianday()``, which parses either form,
+        applies the UTC offset and keeps sub-second precision; a naive value
+        is read as UTC, the zone every claim is written in.
+        """
+        cutoff = datetime.now(UTC) - timedelta(seconds=claimed_older_than_seconds)
+        return cutoff.isoformat()
 
     async def get_pending_count(self) -> int:
         """Get count of pending events."""

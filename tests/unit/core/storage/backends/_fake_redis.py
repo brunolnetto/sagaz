@@ -1,7 +1,8 @@
 """A minimal in-process stand-in for ``redis.asyncio.Redis``.
 
 Implements only the commands ``RedisOutboxStorage`` uses (hashes, sets, scan,
-streams with consumer groups, pipelines and WATCH), returning ``bytes`` like a
+streams with consumer groups, XPENDING with IDLE, XINFO GROUPS with lag,
+pipelines and WATCH), returning ``bytes`` like a
 client created without ``decode_responses``. It lets the outbox contract tests
 run against the Redis backend without a container.
 """
@@ -17,6 +18,21 @@ def _b(value: Any) -> bytes:
     if isinstance(value, bytes):
         return value
     return str(value).encode()
+
+
+def _id_key(message_id: Any) -> tuple[int, int]:
+    ms, _, seq = _b(message_id).decode().partition("-")
+    return int(ms), int(seq or 0)
+
+
+def _after(message_id: bytes, start: Any) -> bool:
+    """Whether ``message_id`` is inside a range starting at ``start`` ("-", id or "(id")."""
+    start = start.decode() if isinstance(start, bytes) else str(start)
+    if start == "-":
+        return True
+    if start.startswith("("):
+        return _id_key(message_id) > _id_key(start[1:])
+    return _id_key(message_id) >= _id_key(start)
 
 
 class _Group:
@@ -82,6 +98,9 @@ class FakeRedis:
         for k, v in items.items():
             target[_b(k)] = _b(v)
         return len(items)
+
+    async def hget(self, key: Any, field: Any) -> bytes | None:
+        return self.hashes.get(_b(key), {}).get(_b(field))
 
     async def hgetall(self, key: Any) -> dict[bytes, bytes]:
         return dict(self.hashes.get(_b(key), {}))
@@ -155,20 +174,53 @@ class FakeRedis:
         pending = stream.groups[group].pending
         return sum(1 for i in ids if pending.pop(_b(i), None) is not None)
 
-    async def xpending_range(self, key, groupname, min="-", max="+", count=100):
+    async def xpending_range(self, key, groupname, min="-", max="+", count=100, idle=None):
         stream = self.streams.get(_b(key))
         if stream is None or groupname not in stream.groups:
             return []
         now = time.time()
-        return [
+        entries = [
             {
                 "message_id": message_id,
                 "consumer": consumer,
                 "time_since_delivered": int((now - since) * 1000),
                 "times_delivered": 1,
             }
-            for message_id, (consumer, since) in list(stream.groups[groupname].pending.items())
-        ][:count]
+            for message_id, (consumer, since) in sorted(
+                stream.groups[groupname].pending.items(), key=lambda item: _id_key(item[0])
+            )
+            if _after(message_id, min)
+        ]
+        if idle is not None:
+            entries = [e for e in entries if e["time_since_delivered"] >= idle]
+        return entries[:count]
+
+    async def xrange(self, key, min="-", max="+", count=None):
+        stream = self.streams.get(_b(key))
+        if stream is None:
+            return []
+        entries = [entry for entry in stream.entries if _after(entry[0], min)]
+        return entries[:count] if count else entries
+
+    async def xinfo_groups(self, key: Any) -> list[dict[str, Any]]:
+        from redis.exceptions import ResponseError
+
+        stream = self.streams.get(_b(key))
+        if stream is None:
+            msg = "ERR no such key"
+            raise ResponseError(msg)
+        groups = []
+        for name, group in stream.groups.items():
+            delivered = stream.entries[: group.next_index]
+            groups.append(
+                {
+                    "name": _b(name),
+                    "pending": len(group.pending),
+                    "last-delivered-id": delivered[-1][0] if delivered else b"0-0",
+                    "lag": len(stream.entries) - group.next_index,
+                }
+            )
+        return groups
 
     async def xclaim(self, key, groupname, consumername, min_idle_time, message_ids):
         pending = self.streams[_b(key)].groups[groupname].pending

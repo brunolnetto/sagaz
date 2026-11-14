@@ -293,34 +293,6 @@ async def test_get_stuck_events_lazy_initialize():
 
 
 @pytest.mark.asyncio
-async def test_get_stuck_events_with_stuck():
-    """Lines 444-452: get_stuck_events finds events over threshold."""
-    storage = RedisOutboxStorage("redis://localhost")
-    storage._initialized = True
-    storage._redis = AsyncMock()
-
-    stuck_event = OutboxEvent(
-        event_id="stuck-1",
-        saga_id="s-1",
-        event_type="t",
-        payload={},
-        status=OutboxStatus.CLAIMED,
-        created_at=datetime.now(UTC),
-    )
-
-    storage._redis.xpending_range = AsyncMock(
-        return_value=[
-            {"message_id": b"stuck-1", "time_since_delivered": 9999999},
-        ]
-    )
-    storage.get_by_id = AsyncMock(return_value=stuck_event)
-
-    result = await storage.get_stuck_events(claimed_older_than_seconds=1.0)
-    assert len(result) == 1
-    assert result[0].event_id == "stuck-1"
-
-
-@pytest.mark.asyncio
 async def test_release_stuck_events_lazy_initialize():
     """Line 462: release_stuck_events() calls initialize() when not initialized."""
     storage, mock_redis = _make_initialized_storage()
@@ -332,44 +304,10 @@ async def test_release_stuck_events_lazy_initialize():
 
 
 @pytest.mark.asyncio
-async def test_release_stuck_events_releases():
-    """Lines 482-501: release_stuck_events with stuck entries."""
-    storage = RedisOutboxStorage("redis://localhost")
-    storage._initialized = True
-    storage._redis = AsyncMock()
-    storage._redis.xpending_range = AsyncMock(
-        return_value=[
-            {"message_id": b"msg-stuck", "time_since_delivered": 999999999},
-        ]
-    )
-    storage._redis.xclaim = AsyncMock()
-
-    count = await storage.release_stuck_events(claimed_older_than_seconds=1.0)
-    assert count == 1
-
-
-@pytest.mark.asyncio
-async def test_release_stuck_events_claim_failure():
-    """Lines 495-496: xclaim failure is logged and continues."""
-    storage = RedisOutboxStorage("redis://localhost")
-    storage._initialized = True
-    storage._redis = AsyncMock()
-    storage._redis.xpending_range = AsyncMock(
-        return_value=[
-            {"message_id": b"msg-stuck", "time_since_delivered": 999999999},
-        ]
-    )
-    storage._redis.xclaim = AsyncMock(side_effect=Exception("xclaim failed"))
-
-    count = await storage.release_stuck_events(claimed_older_than_seconds=1.0)
-    assert count == 0
-
-
-@pytest.mark.asyncio
 async def test_get_pending_count_lazy_initialize():
     """Line 510: get_pending_count() calls initialize() when not initialized."""
     storage, mock_redis = _make_initialized_storage()
-    mock_redis.xlen = AsyncMock(return_value=5)
+    mock_redis.xinfo_groups = AsyncMock(return_value=[{"name": "sagaz-workers", "lag": 5}])
 
     result = await storage.get_pending_count()
     assert result == 5
@@ -391,7 +329,7 @@ async def test_get_dead_letter_events_lazy_initialize():
 async def test_get_statistics_lazy_initialize():
     """Line 582: get_statistics() calls initialize() when not initialized."""
     storage, mock_redis = _make_initialized_storage()
-    mock_redis.xlen = AsyncMock(return_value=3)
+    mock_redis.xinfo_groups = AsyncMock(return_value=[{"name": "sagaz-workers", "lag": 3}])
 
     result = await storage.get_statistics()
     assert result.pending_records == 3
@@ -600,14 +538,6 @@ class TestRedisOutboxMissingBranches:
         }
         await storage.get_events_by_saga("my-saga")
 
-    async def test_find_stuck_events_below_threshold(self, storage, mock_redis):
-        """451->442: idle_time <= threshold_ms → skip entry."""
-        mock_redis.xpending_range.return_value = [
-            {"message_id": b"msg-1", "time_since_delivered": 100},  # Below threshold
-        ]
-        events = await storage.get_stuck_events(claimed_older_than_seconds=300.0)
-        assert events == []
-
     async def test_find_stuck_events_event_not_found(self, storage, mock_redis):
         """444->442: event is None even though idle_time > threshold."""
         mock_redis.xpending_range.return_value = [
@@ -616,14 +546,6 @@ class TestRedisOutboxMissingBranches:
         mock_redis.hgetall.return_value = {}  # get_by_id returns None
         events = await storage.get_stuck_events(claimed_older_than_seconds=1.0)
         assert events == []
-
-    async def test_release_stuck_events_below_threshold(self, storage, mock_redis):
-        """482->480: entries below threshold → loop continues without xclaim."""
-        mock_redis.xpending_range.return_value = [
-            {"message_id": b"msg-1", "time_since_delivered": 50},  # Below threshold
-        ]
-        released = await storage.release_stuck_events(claimed_older_than_seconds=300.0)
-        assert released == 0
 
     async def test_dead_letter_event_not_found(self, storage, mock_redis):
         """535->528: event is None in get_dead_letter_events."""
