@@ -66,7 +66,8 @@ def environment_info() -> dict[str, Any]:
     """Machine, interpreter and sagaz commit the benchmark ran on."""
     uname = platform.uname()
     return {
-        "uname": " ".join([uname.system, uname.node, uname.release, uname.version, uname.machine]),
+        # The node (host) name is left out: results are committed to the repo.
+        "uname": " ".join([uname.system, uname.release, uname.version, uname.machine]),
         "cpus": os.cpu_count(),
         "memory_mb": _total_memory_mb(),
         "python": sys.version.split()[0],

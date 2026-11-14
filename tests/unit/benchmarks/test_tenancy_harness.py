@@ -442,3 +442,11 @@ def test_main_prints_tables_and_writes_json(tmp_path, capsys):
     data = json.loads(path.read_text())
     assert data["config"]["sagas_per_run"] == 4
     assert "loadavg_end" in data["environment"]
+
+
+def test_environment_info_omits_the_host_name():
+    import platform
+
+    from benchmarks.tenancy.report import environment_info
+
+    assert platform.node() not in environment_info()["uname"].split()
