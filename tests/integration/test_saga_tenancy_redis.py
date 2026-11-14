@@ -51,6 +51,9 @@ class TestRedisSagaTenancy:
     async def test_scoped_cleanup(self, storage):
         await scenarios.scoped_cleanup(storage)
 
+    async def test_reserved_records_survive_cleanup(self, storage):
+        await scenarios.reserved_records_survive_cleanup(storage)
+
     async def test_import_preserves_tenant(self, storage, target):
         await scenarios.import_preserves_tenant(storage, target)
 

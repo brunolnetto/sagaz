@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
+from sagaz.core.storage._reserved import is_reserved_saga_name
 from sagaz.core.storage.backends.redis._saga_tenancy import _RedisSagaTenancyMixin
 from sagaz.core.tenant import is_system_scope
 from sagaz.core.types import SagaStatus
@@ -108,7 +109,7 @@ class _RedisSagaMaintenanceMixin(_RedisSagaTenancyMixin):
     async def _should_delete_saga(self, saga_id: str, older_than: datetime) -> bool:
         """Check if a saga should be deleted based on age."""
         saga_data = await self.load_saga_state(saga_id)
-        if not saga_data:
+        if not saga_data or is_reserved_saga_name(saga_data.get("saga_name")):
             return False
         return self._is_saga_older_than(saga_data, older_than)
 

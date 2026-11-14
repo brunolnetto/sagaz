@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
+from sagaz.core.storage._reserved import RESERVED_SAGA_LIKE
 from sagaz.core.storage.backends.postgresql._saga_query import tenant_condition
 from sagaz.core.storage.backends.postgresql._tenancy import acquire_scoped
 from sagaz.core.types import SagaStatus
@@ -62,14 +63,15 @@ class _PostgreSQLSagaMaintenanceMixin:
             statuses = [SagaStatus.COMPLETED, SagaStatus.ROLLED_BACK]
 
         pool = await self._get_pool()
-        params: list[Any] = [[s.value for s in statuses], older_than]
+        params: list[Any] = [[s.value for s in statuses], older_than, RESERVED_SAGA_LIKE]
         condition = tenant_condition("tenant_id", params)
 
         async with acquire_scoped(pool) as conn:
             result = await conn.execute(
                 f"""
                 DELETE FROM sagas
-                WHERE status = ANY($1) AND updated_at < $2 AND {condition}
+                WHERE status = ANY($1) AND updated_at < $2
+                  AND saga_name NOT LIKE $3 ESCAPE '\\' AND {condition}
             """,
                 *params,
             )

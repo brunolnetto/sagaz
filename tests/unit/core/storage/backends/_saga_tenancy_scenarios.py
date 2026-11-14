@@ -146,3 +146,23 @@ async def transfer_in_system_scope(source: Any, target: Any) -> None:
     assert (await target.load_saga_state(SAGA_ID))["saga_name"] == "DefaultSaga"
     with tenant_scope("acme"):
         assert (await target.load_saga_state(SAGA_ID))["saga_name"] == "AcmeSaga"
+
+
+async def reserved_records_survive_cleanup(storage: Any) -> None:
+    """Cleanup never deletes sagaz's own records (tenant registry, ``__sagaz_*``)."""
+    from sagaz.core.tenant import TenantContext, TenantRegistry
+
+    registry = TenantRegistry(storage)
+    registry.register(TenantContext("acme", plan="premium"))
+    await registry.save()
+    await save(storage)  # an ordinary completed saga, which cleanup should remove
+
+    every_status = list(SagaStatus)
+    future = datetime.now(UTC) + timedelta(days=1)
+    with system_scope():
+        deleted = await storage.cleanup_completed_sagas(future, every_status)
+    assert deleted == 1
+    assert await storage.cleanup_completed_sagas(future) == 0
+
+    reloaded = await TenantRegistry.from_storage(storage)
+    assert reloaded.get("acme").plan == "premium"

@@ -10,6 +10,7 @@ from collections.abc import Iterator
 from datetime import UTC, datetime
 from typing import Any
 
+from sagaz.core.storage._reserved import is_reserved_saga_name
 from sagaz.core.storage._tenancy import TENANT_FIELD, scoped_tenant, write_tenant
 from sagaz.core.storage._tenant_records import record_tenant_scope
 from sagaz.core.storage.base import SagaStorage, SagaStorageError
@@ -242,7 +243,8 @@ class InMemorySagaStorage(SagaStorage):
         return [
             saga_id
             for saga_id, saga_data in partition.items()
-            if self._should_cleanup(saga_data, status_values, older_than)
+            if not is_reserved_saga_name(saga_data.get("saga_name"))
+            and self._should_cleanup(saga_data, status_values, older_than)
         ]
 
     def _should_cleanup(

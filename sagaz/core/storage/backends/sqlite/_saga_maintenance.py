@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from sagaz.core.storage._reserved import RESERVED_SAGA_LIKE
 from sagaz.core.storage.backends.sqlite._saga_schema import tenant_filter
 from sagaz.core.types import SagaStatus
 
@@ -75,9 +76,10 @@ class _SQLiteSagaMaintenanceMixin:
             f"""
             DELETE FROM sagas
             WHERE status IN ({placeholders})
-            AND updated_at < ?{clause}
+            AND updated_at < ?
+            AND saga_name NOT LIKE ? ESCAPE '\\'{clause}
             """,
-            (*status_values, older_than.isoformat(), *params),
+            (*status_values, older_than.isoformat(), RESERVED_SAGA_LIKE, *params),
         )
         await conn.commit()
 
