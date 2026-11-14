@@ -4,6 +4,7 @@ import json
 from collections.abc import Awaitable, Callable
 from typing import Any, cast
 
+from sagaz.core.storage._tenant_records import record_tenant_scope
 from sagaz.core.storage.canonical import canonical_value
 from sagaz.core.storage.core import TransferError
 
@@ -39,7 +40,10 @@ class _TransferValidationMixin:
         if lookup is None:
             return
 
-        loaded = await lookup(record_id)
+        # Look the record up in its own tenant: in the system scope a lookup by id
+        # could otherwise match another tenant's record with the same id (ADR-020).
+        with record_tenant_scope(record):
+            loaded = await lookup(record_id)
 
         if loaded is None:
             raise TransferError(
