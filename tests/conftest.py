@@ -299,3 +299,41 @@ async def isolated_postgres_url(postgres_container):
             await admin.execute(f'DROP DATABASE IF EXISTS "{database_name}"')
         finally:
             await admin.close()
+
+
+@pytest.fixture
+async def app_role_url(isolated_postgres_url):
+    """DSN of a fresh NOSUPERUSER NOBYPASSRLS role that may create tables in the test database.
+
+    Tables it creates are owned by it, so FORCE row-level security applies to it (ADR-020).
+    """
+    from urllib.parse import urlsplit, urlunsplit
+    from uuid import uuid4
+
+    asyncpg = pytest.importorskip("asyncpg")
+
+    role = f"sagaz_app_{uuid4().hex[:8]}"
+    password = uuid4().hex
+    admin = await asyncpg.connect(isolated_postgres_url)
+    try:
+        await admin.execute(
+            f"CREATE ROLE {role} LOGIN PASSWORD '{password}' NOSUPERUSER NOBYPASSRLS"
+        )
+        await admin.execute(f"GRANT ALL ON SCHEMA public TO {role}")
+    finally:
+        await admin.close()
+
+    parts = urlsplit(isolated_postgres_url)
+    netloc = f"{role}:{password}@{parts.hostname}:{parts.port}"
+    try:
+        yield urlunsplit(parts._replace(netloc=netloc))
+    finally:
+        admin = await asyncpg.connect(isolated_postgres_url)
+        try:
+            await admin.execute(
+                "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = $1", role
+            )
+            await admin.execute(f"DROP OWNED BY {role}")
+            await admin.execute(f"DROP ROLE {role}")
+        finally:
+            await admin.close()

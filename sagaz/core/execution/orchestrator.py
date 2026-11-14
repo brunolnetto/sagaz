@@ -3,6 +3,7 @@ import logging
 from typing import Any
 
 from sagaz.core.saga import Saga, SagaResult
+from sagaz.core.tenant import TenantContext, TenantRegistry, resolve_tenant, tenant_execution
 from sagaz.core.types import SagaStatus
 
 # ============================================
@@ -16,24 +17,40 @@ class SagaOrchestrator:
     Thread-safe with proper async support
     """
 
-    def __init__(self, logger: logging.Logger | None = None, verbose: bool = False):
+    def __init__(
+        self,
+        logger: logging.Logger | None = None,
+        verbose: bool = False,
+        *,
+        tenant_id: TenantContext | str | None = None,
+        tenant_registry: TenantRegistry | None = None,
+    ):
         """Create an empty orchestrator.
 
         Args:
             logger: Optional pre-configured logger; defaults to module logger.
             verbose: Emit INFO log on every saga completion when ``True``.
+            tenant_id: Run every saga as this tenant (ADR-020): storage is
+                scoped to it and its quotas apply. A tenant id is resolved
+                through ``tenant_registry`` when one is given.
+            tenant_registry: Registry used to resolve tenant ids.
         """
         self.sagas: dict[str, Saga] = {}
         self._lock = asyncio.Lock()
         self.logger = logger or logging.getLogger(__name__)
         self.verbose = verbose
+        self.tenant = resolve_tenant(tenant_id, tenant_registry) if tenant_id is not None else None
 
     async def execute_saga(self, saga: Saga) -> SagaResult:
         """Execute a saga and track it"""
         async with self._lock:
             self.sagas[saga.saga_id] = saga
 
-        result = await saga.execute()
+        if self.tenant is None:
+            result = await saga.execute()
+        else:
+            async with tenant_execution(self.tenant):
+                result = await saga.execute()
 
         if self.verbose:
             self.logger.info(

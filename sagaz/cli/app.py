@@ -56,6 +56,7 @@ from sagaz.cli.migrate import migrate_cmd
 from sagaz.cli.project import check as check_cmd
 from sagaz.cli.project import list_sagas
 from sagaz.cli.replay import replay
+from sagaz.cli.tenant import tenant_cli
 from sagaz.cli.visualize import visualize_cmd
 
 try:
@@ -214,6 +215,7 @@ cli.add_command(dlq_cli, name="dlq")
 # State Modification (Highest Risk)
 cli.add_command(migrate_cmd, name="migrate")
 cli.add_command(replay, name="replay")
+cli.add_command(tenant_cli, name="tenant")
 
 if __name__ == "__main__":
     cli()

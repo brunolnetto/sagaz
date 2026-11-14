@@ -26,6 +26,8 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
+from sagaz.core.tenant._context import DEFAULT_TENANT
+
 
 class OutboxStatus(Enum):
     """
@@ -76,6 +78,9 @@ class OutboxEvent:
         retry_count: Number of publish attempts
         last_error: Last error message on failure
         worker_id: ID of worker that claimed this event
+        tenant_id: Tenant that owns the event (ADR-020). Storage sets it from
+            the current tenant scope on insert; see
+            :func:`sagaz.core.storage._outbox_tenancy.resolve_event_tenant`.
 
     Example:
         >>> event = OutboxEvent(
@@ -114,6 +119,8 @@ class OutboxEvent:
     error_fingerprint: str | None = None
     # Phase 2: replay tracking
     replay_count: int = 0
+    # ADR-020: owning tenant ("default" when no tenant is used)
+    tenant_id: str = DEFAULT_TENANT
 
     def __post_init__(self):
         """Set aggregate_id to saga_id if not specified."""
@@ -145,6 +152,7 @@ class OutboxEvent:
             "error_classification": self.error_classification,
             "error_fingerprint": self.error_fingerprint,
             "replay_count": self.replay_count,
+            "tenant_id": self.tenant_id,
         }
 
     @classmethod
@@ -173,6 +181,7 @@ class OutboxEvent:
             error_classification=data.get("error_classification"),
             error_fingerprint=data.get("error_fingerprint"),
             replay_count=data.get("replay_count", 0),
+            tenant_id=data.get("tenant_id") or DEFAULT_TENANT,
         )
 
     @staticmethod

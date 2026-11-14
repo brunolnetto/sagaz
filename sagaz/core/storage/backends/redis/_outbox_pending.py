@@ -6,17 +6,21 @@ consumer group yet: ``insert`` and DLQ requeue append an entry, and
 ``claim_batch`` (XREADGROUP) delivers it and marks the event CLAIMED. The
 count is therefore the group's *lag*, not the stream length, which also
 includes delivered entries until MAXLEN trims them.
+
+Each tenant has its own stream (ADR-020): the count covers the current tenant,
+or the sum over every known tenant in the system scope.
 """
 
 from typing import Any
 
-from sagaz.core.storage.backends.redis._outbox_base import RedisOutboxMixinBase, logger
+from sagaz.core.storage.backends.redis._outbox_base import logger
+from sagaz.core.storage.backends.redis._outbox_tenancy import RedisOutboxTenancyMixin
 
 # Entries fetched per XRANGE call when the lag has to be counted by hand.
 _UNDELIVERED_PAGE_SIZE = 1000
 
 
-class RedisOutboxPendingCountMixin(RedisOutboxMixinBase):
+class RedisOutboxPendingCountMixin(RedisOutboxTenancyMixin):
     """``get_pending_count`` from the consumer group's undelivered entries."""
 
     @staticmethod
@@ -25,7 +29,7 @@ class RedisOutboxPendingCountMixin(RedisOutboxMixinBase):
 
     async def _consumer_group_info(self) -> dict[str, Any] | None:
         assert self._redis is not None
-        groups: list[dict[str, Any]] = await self._redis.xinfo_groups(self._stream_key)
+        groups: list[dict[str, Any]] = await self._redis.xinfo_groups(self._scoped_stream_key())
         for group in groups:
             if self._text(group.get("name", "")) == self._consumer_group:
                 return group
@@ -38,7 +42,7 @@ class RedisOutboxPendingCountMixin(RedisOutboxMixinBase):
         start = f"({last_delivered_id}"
         while True:
             page = await self._redis.xrange(
-                self._stream_key, min=start, max="+", count=_UNDELIVERED_PAGE_SIZE
+                self._scoped_stream_key(), min=start, max="+", count=_UNDELIVERED_PAGE_SIZE
             )
             total += len(page)
             if len(page) < _UNDELIVERED_PAGE_SIZE:
@@ -46,10 +50,13 @@ class RedisOutboxPendingCountMixin(RedisOutboxMixinBase):
             start = f"({self._text(page[-1][0])}"
 
     async def get_pending_count(self) -> int:
-        """Count events waiting to be claimed (status PENDING)."""
+        """Count events of the current tenant(s) waiting to be claimed (PENDING)."""
         if not self._initialized:
             await self.initialize()
+        return sum(await self._per_tenant(self._pending_in_scope))
 
+    async def _pending_in_scope(self) -> int:
+        """Undelivered entries of the current tenant's stream."""
         try:
             group = await self._consumer_group_info()
             if group is None:

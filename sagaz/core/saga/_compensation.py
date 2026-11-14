@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from sagaz.core.saga._step import SagaStep
 
 from sagaz.core.exceptions import SagaCompensationError
+from sagaz.core.tenant import capped_retries, capped_timeout
 from sagaz.core.types import SagaStepStatus
 
 logger = logging.getLogger(__name__)
@@ -63,7 +64,9 @@ class _SagaCompensationMixin:
     async def _compensate_step_with_retry(self, step) -> None:
         """Compensate a step with retry logic"""
         last_error: SagaCompensationError | None = None
-        max_comp_retries = 3
+        # Three attempts by default; a tenant's max_retries quota may lower the
+        # retries after the first attempt (ADR-020).
+        max_comp_retries = capped_retries(2) + 1
 
         for attempt in range(max_comp_retries):
             try:
@@ -88,6 +91,7 @@ class _SagaCompensationMixin:
 
     async def _compensate_step(self, step) -> None:
         """Compensate a single step with timeout"""
+        timeout = capped_timeout(step.compensation_timeout)
         try:
             step.status = SagaStepStatus.COMPENSATING
             logger.info(f"Compensating step: {step.name}")
@@ -98,7 +102,7 @@ class _SagaCompensationMixin:
             # Pass the step result to compensation for context
             await asyncio.wait_for(
                 self._invoke(step.compensation, step.result, self.context),
-                timeout=step.compensation_timeout,
+                timeout=timeout,
             )
 
             step.status = SagaStepStatus.COMPENSATED
@@ -107,7 +111,7 @@ class _SagaCompensationMixin:
 
         except TimeoutError as exc:
             step.status = SagaStepStatus.FAILED
-            msg = f"Compensation for '{step.name}' timed out after {step.compensation_timeout}s"
+            msg = f"Compensation for '{step.name}' timed out after {timeout}s"
             raise SagaCompensationError(msg) from exc
 
         except Exception as e:
