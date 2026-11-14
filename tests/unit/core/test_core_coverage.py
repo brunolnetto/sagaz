@@ -254,7 +254,7 @@ class TestGetEnvLoadEnv:
 
     def test_get_env_returns_instance(self):
         """Line 350: global EnvManager is created and returned."""
-        from sagaz.core import env as env_module
+        from sagaz.core.env import _manager as env_module
 
         # Reset the global instance
         env_module._global_env = None
@@ -271,7 +271,7 @@ class TestGetEnvLoadEnv:
 
     def test_load_env_with_project_root(self, tmp_path):
         """Lines 352-353: load_env with project_root sets the path."""
-        from sagaz.core import env as env_module
+        from sagaz.core.env import _manager as env_module
 
         env_module._global_env = None  # Reset
 
@@ -285,7 +285,7 @@ class TestGetEnvLoadEnv:
 
     def test_load_env_no_project_root(self):
         """Line 353: load_env without project_root calls env.load()."""
-        from sagaz.core import env as env_module
+        from sagaz.core.env import _manager as env_module
 
         env_module._global_env = None  # Reset
 
@@ -302,10 +302,12 @@ class TestEnvDotenvFallback:
         """Simulate dotenv not available by inspecting fallback behavior."""
         import importlib
 
-        # Save current state
+        import sagaz.core.env as env_pkg
+
+        # Save current state (the dotenv fallback lives in sagaz.core.env._manager)
         original_dotenv = sys.modules.get("dotenv")
         original_dotenv_main = sys.modules.get("dotenv.main")
-        original_module = sys.modules.get("sagaz.core.env")
+        original_manager = sys.modules["sagaz.core.env._manager"]
 
         # Remove dotenv from sys.modules to simulate it being unavailable
         for key in list(sys.modules.keys()):
@@ -313,15 +315,14 @@ class TestEnvDotenvFallback:
                 sys.modules.pop(key)
 
         # Remove our module for re-import
-        sys.modules.pop("sagaz.core.env", None)
+        sys.modules.pop("sagaz.core.env._manager", None)
 
         # Prevent dotenv from being importable
         sys.modules["dotenv"] = None  # Blocks import
 
         try:
-            import sagaz.core.env as env_mod
-
-            importlib.reload(env_mod)
+            env_mod = importlib.import_module("sagaz.core.env._manager")
+            assert env_mod is not original_manager
             # load_dotenv should be None because of the except ImportError block
             assert env_mod.load_dotenv is None
 
@@ -336,12 +337,9 @@ class TestEnvDotenvFallback:
                 sys.modules["dotenv"] = original_dotenv
             if original_dotenv_main is not None:
                 sys.modules["dotenv.main"] = original_dotenv_main
-            # Restore original module
-            sys.modules.pop("sagaz.core.env", None)
-            if original_module is not None:
-                sys.modules["sagaz.core.env"] = original_module
-            # Reload to get the real version back
-            importlib.reload(sys.modules["sagaz.core.env"])
+            # Restore the original module (and the package attribute the import rebound)
+            sys.modules["sagaz.core.env._manager"] = original_manager
+            env_pkg._manager = original_manager
 
 
 # =============================================================================
