@@ -3,6 +3,9 @@
 ``console`` and ``RICH_AVAILABLE`` are re-exported by ``sagaz.cli.dry_run``.
 """
 
+# Postponed annotations: ``-> Table`` must not be evaluated when rich is missing.
+from __future__ import annotations
+
 try:
     from rich.console import Console
     from rich.panel import Panel
