@@ -231,6 +231,7 @@ class RedisOutboxStorage(
             raise OutboxStorageError(msg)
         now = datetime.now(UTC).isoformat()
         updates = await self._build_status_updates(event_id, status, error_message, event, now)
+        previous = await self._redis.hget(meta_key, "status")
 
         await self._redis.hset(meta_key, mapping=updates)
 
@@ -247,6 +248,9 @@ class RedisOutboxStorage(
         if not event:
             msg = f"Event not found: {event_id}"
             raise OutboxStorageError(msg)
+
+        if status == OutboxStatus.PENDING and self._decode_status(previous) != status:
+            await self._enqueue_for_delivery(event)
 
         return event
 

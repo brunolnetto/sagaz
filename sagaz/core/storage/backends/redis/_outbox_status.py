@@ -85,3 +85,28 @@ class RedisOutboxStatusUpdatesMixin(RedisOutboxSerializationMixin):
             ),
             "error_fingerprint": self._optional_text(event.error_fingerprint if event else None),
         }
+
+    @staticmethod
+    def _decode_status(value: bytes | str | None) -> OutboxStatus | None:
+        """The ``OutboxStatus`` stored in a metadata hash field, if any."""
+        if value is None:
+            return None
+        text = value.decode() if isinstance(value, bytes) else value
+        try:
+            return OutboxStatus(text)
+        except ValueError:
+            return None
+
+    async def _enqueue_for_delivery(self, event: OutboxEvent) -> None:
+        """Append a stream entry so a consumer group delivers ``event`` (again).
+
+        ``claim_batch`` only reads entries not yet delivered to the group, so an
+        event that returns to PENDING (retry after a failed publish, DLQ
+        requeue) needs a fresh entry in its tenant's stream (#401).
+        """
+        assert self._redis is not None
+        await self._redis.xadd(
+            self._scoped_stream_key(),
+            {"event_id": event.event_id, "saga_id": event.saga_id, "event_type": event.event_type},
+            maxlen=self._max_stream_length,
+        )
