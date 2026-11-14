@@ -123,7 +123,7 @@ class ContainerManager:
             from testcontainers.localstack import LocalStackContainer
 
             c = LocalStackContainer("localstack/localstack:3.0")
-            c.with_services("s3")
+            c.with_services("s3", "kms")
             c.start(timeout=180)
             return c
 
