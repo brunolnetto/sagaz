@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
-from contextvars import ContextVar
+from contextvars import ContextVar, Token
 
 from sagaz.core.tenant._context import (
     DEFAULT_TENANT,
@@ -48,15 +48,27 @@ def tenant_scope(tenant: str | TenantContext) -> Iterator[str]:
     Usable with ``with`` in sync and async code. Scopes nest, and the previous
     tenant is restored on exit, even on error.
     """
+    tokens = _enter_tenant(tenant)
+    try:
+        yield _current_tenant.get()
+    finally:
+        _exit_tenant(tokens)
+
+
+_ScopeTokens = tuple[Token[str], Token[TenantContext | None]]
+
+
+def _enter_tenant(tenant: str | TenantContext) -> _ScopeTokens:
+    """Make ``tenant`` current; undo with :func:`_exit_tenant` (the body of :func:`tenant_scope`)."""
     context = tenant if isinstance(tenant, TenantContext) else None
     tenant_id = validate_tenant_id(context.tenant_id if context else tenant)
-    tenant_token = _current_tenant.set(tenant_id)
-    context_token = _current_context.set(context)
-    try:
-        yield tenant_id
-    finally:
-        _current_context.reset(context_token)
-        _current_tenant.reset(tenant_token)
+    return _current_tenant.set(tenant_id), _current_context.set(context)
+
+
+def _exit_tenant(tokens: _ScopeTokens) -> None:
+    tenant_token, context_token = tokens
+    _current_context.reset(context_token)
+    _current_tenant.reset(tenant_token)
 
 
 @contextmanager

@@ -25,22 +25,32 @@ class QuotaEnforcer:
         """Sagas of ``tenant_id`` currently admitted in this process."""
         return self._running[tenant_id]
 
-    @asynccontextmanager
-    async def admit(self, tenant: TenantContext) -> AsyncIterator[None]:
-        """Hold a concurrency slot for ``tenant`` while one saga runs."""
+    def acquire(self, tenant: TenantContext) -> None:
+        """Take a concurrency slot for ``tenant``; pair with :meth:`release`."""
         if not tenant.active:
             raise TenantSuspendedError(tenant.tenant_id)
         limit = tenant.quotas.max_concurrent_sagas
         current = self._running[tenant.tenant_id]
         if limit is not None and current >= limit:
             raise QuotaExceededError(tenant.tenant_id, "max_concurrent_sagas", limit, current + 1)
-        self._running[tenant.tenant_id] += 1
+        self._running[tenant.tenant_id] = current + 1
+
+    def release(self, tenant_id: str) -> None:
+        """Give back a slot taken by :meth:`acquire`."""
+        remaining = self._running[tenant_id] - 1
+        if remaining > 0:
+            self._running[tenant_id] = remaining
+        else:
+            del self._running[tenant_id]
+
+    @asynccontextmanager
+    async def admit(self, tenant: TenantContext) -> AsyncIterator[None]:
+        """Hold a concurrency slot for ``tenant`` while one saga runs."""
+        self.acquire(tenant)
         try:
             yield
         finally:
-            self._running[tenant.tenant_id] -= 1
-            if not self._running[tenant.tenant_id]:
-                del self._running[tenant.tenant_id]
+            self.release(tenant.tenant_id)
 
 
 def capped_timeout(seconds: float) -> float:
