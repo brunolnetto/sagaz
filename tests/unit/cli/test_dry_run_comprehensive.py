@@ -185,7 +185,7 @@ class TestDiscoverProjectSagas:
         sagas_dir = tmp_path / "sagas"
         sagas_dir.mkdir()
 
-        with patch("sagaz.cli.dry_run._discover_sagas_in_paths") as mock_discover:
+        with patch("sagaz.cli._dry_run_discovery._discover_sagas_in_paths") as mock_discover:
             mock_discover.return_value = []
             _discover_project_sagas()
             mock_discover.assert_called_once_with(["sagas/"])

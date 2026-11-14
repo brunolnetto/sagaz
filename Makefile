@@ -1,4 +1,4 @@
-.PHONY: help test coverage lint complexity format check clean clean-containers install dev docs
+.PHONY: help test coverage lint complexity quality-gate format check clean clean-containers install dev docs
 
 # Default target
 .DEFAULT_GOAL := help
@@ -194,6 +194,13 @@ endif
 # ============================================================================
 # Security
 # ============================================================================
+
+quality-gate: ## Structural gate: CC <= 10, modules <= 400 lines, MI >= 20 (UPDATE=yes to rebaseline)
+ifeq ($(UPDATE),yes)
+	$(PYTHON) scripts/quality_gate.py --update-baseline
+else
+	$(PYTHON) scripts/quality_gate.py --strict-baseline
+endif
 
 security: ## Run security checks with bandit
 	@echo "$(GREEN)Running security checks...$(RESET)"

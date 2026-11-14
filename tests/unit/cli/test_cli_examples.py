@@ -50,7 +50,7 @@ class TestGetCategories:
         result = get_categories()
         assert result == sorted(result)
 
-    @patch("sagaz.cli.examples.get_examples_dir")
+    @patch("sagaz.cli._examples_discovery.get_examples_dir")
     def test_empty_when_dir_not_exists(self, mock_dir):
         """Test returns empty list when examples dir doesn't exist."""
         mock_path = MagicMock()
@@ -129,7 +129,7 @@ class TestDiscoverExamples:
                 for name in filtered:
                     assert name.startswith(category)
 
-    @patch("sagaz.cli.examples.get_examples_dir")
+    @patch("sagaz.cli._examples_discovery.get_examples_dir")
     def test_empty_when_dir_not_exists(self, mock_dir):
         """Test returns empty dict when examples dir doesn't exist."""
         mock_path = MagicMock()
@@ -139,7 +139,7 @@ class TestDiscoverExamples:
         result = discover_examples()
         assert result == {}
 
-    @patch("sagaz.cli.examples.get_examples_dir")
+    @patch("sagaz.cli._examples_discovery.get_examples_dir")
     def test_category_not_found(self, mock_dir):
         """Test returns empty dict when category dir doesn't exist."""
         mock_examples = MagicMock()

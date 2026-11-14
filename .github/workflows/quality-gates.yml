@@ -224,6 +224,12 @@ jobs:
           fi
           echo "No C-grade violations found."
 
+      - name: Structural quality gate (CC, module size, maintainability)
+        # Fails on any violation not in the baseline, on baselined ones that get
+        # worse, and on stale baseline entries. The baseline is empty since 1.8.2:
+        # every module is within the limits.
+        run: uv run python scripts/quality_gate.py --strict-baseline
+
       - name: Check maintainability index
         run: |
           echo "### Maintainability Index ###"
