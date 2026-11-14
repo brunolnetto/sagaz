@@ -22,175 +22,24 @@ Usage:
 """
 
 import asyncio
-import json
 import logging
-from collections.abc import AsyncIterator, Awaitable, Callable
-from dataclasses import dataclass, field
+from collections.abc import AsyncIterator, Callable
 from datetime import UTC, datetime
-from enum import Enum
-from typing import Any, cast
+from typing import Any
 
-from sagaz.core.storage.canonical import canonical_value
 from sagaz.core.storage.core import TransferError
+from sagaz.core.storage.transfer._models import (
+    TransferConfig,
+    TransferErrorPolicy,
+    TransferProgress,
+    TransferResult,
+)
+from sagaz.core.storage.transfer._validation import _TransferValidationMixin
 
 logger = logging.getLogger(__name__)
 
 
-class TransferErrorPolicy(Enum):
-    """Policy for handling transfer errors."""
-
-    ABORT = "abort"  # Stop transfer on first error
-    SKIP = "skip"  # Skip failed records, continue
-    RETRY = "retry"  # Retry failed records
-
-
-@dataclass
-class TransferConfig:
-    """
-    Configuration for data transfer.
-
-    Attributes:
-        batch_size: Number of records to transfer per batch
-        validate: Whether to validate records after transfer
-        on_error: Error handling policy
-        max_retries: Maximum retries for failed records
-        retry_delay_seconds: Delay between retries
-        progress_callback: Optional callback for progress updates
-    """
-
-    batch_size: int = 100
-    validate: bool = True
-    on_error: TransferErrorPolicy = TransferErrorPolicy.SKIP
-    max_retries: int = 3
-    retry_delay_seconds: float = 1.0
-    progress_callback: Callable[[int, int, int], None] | None = None
-
-    def __post_init__(self):
-        if isinstance(self.on_error, str):
-            self.on_error = TransferErrorPolicy(self.on_error)
-
-
-@dataclass
-class TransferProgress:
-    """
-    Progress information for an ongoing transfer.
-
-    Attributes:
-        total: Total records to transfer
-        transferred: Successfully transferred
-        failed: Failed to transfer
-        skipped: Skipped records
-        current_batch: Current batch number
-        started_at: Transfer start time
-        estimated_remaining_seconds: Estimated time remaining
-    """
-
-    total: int = 0
-    transferred: int = 0
-    failed: int = 0
-    skipped: int = 0
-    current_batch: int = 0
-    started_at: datetime = field(default_factory=lambda: datetime.now(UTC))
-
-    @property
-    def is_complete(self) -> bool:
-        """Check if transfer is complete."""
-        return self.transferred + self.failed + self.skipped >= self.total
-
-    @property
-    def success_rate(self) -> float:
-        """Success rate as percentage."""
-        if self.total == 0:
-            return 100.0
-        return (self.transferred / self.total) * 100
-
-    @property
-    def elapsed_seconds(self) -> float:
-        """Elapsed time in seconds."""
-        return (datetime.now(UTC) - self.started_at).total_seconds()
-
-    @property
-    def records_per_second(self) -> float:
-        """Transfer rate in records per second."""
-        elapsed = self.elapsed_seconds
-        if elapsed == 0:
-            return 0.0
-        return self.transferred / elapsed
-
-    @property
-    def estimated_remaining_seconds(self) -> float:
-        """Estimated remaining time in seconds."""
-        rate = self.records_per_second
-        if rate == 0:
-            return 0.0
-        remaining = self.total - self.transferred - self.failed - self.skipped
-        return remaining / rate
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary."""
-        return {
-            "total": self.total,
-            "transferred": self.transferred,
-            "failed": self.failed,
-            "skipped": self.skipped,
-            "current_batch": self.current_batch,
-            "success_rate": round(self.success_rate, 2),
-            "elapsed_seconds": round(self.elapsed_seconds, 2),
-            "records_per_second": round(self.records_per_second, 2),
-            "estimated_remaining_seconds": round(self.estimated_remaining_seconds, 2),
-            "is_complete": self.is_complete,
-        }
-
-
-@dataclass
-class TransferResult:
-    """
-    Result of a completed transfer operation.
-
-    Attributes:
-        transferred: Number of records successfully transferred
-        failed: Number of records that failed
-        skipped: Number of records skipped
-        errors: List of error messages
-        duration_seconds: Total transfer duration
-        source: Source backend name
-        target: Target backend name
-    """
-
-    transferred: int = 0
-    failed: int = 0
-    skipped: int = 0
-    errors: list[str] = field(default_factory=list)
-    duration_seconds: float = 0.0
-    source: str = ""
-    target: str = ""
-
-    @property
-    def total_processed(self) -> int:
-        """Total records processed."""
-        return self.transferred + self.failed + self.skipped
-
-    @property
-    def success(self) -> bool:
-        """A transfer is successful only when no records failed or were skipped."""
-        return self.failed == 0 and self.skipped == 0
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary."""
-        return {
-            "transferred": self.transferred,
-            "failed": self.failed,
-            "skipped": self.skipped,
-            "total_processed": self.total_processed,
-            "success": self.success,
-            "duration_seconds": round(self.duration_seconds, 2),
-            "source": self.source,
-            "target": self.target,
-            "errors": self.errors[:10],  # First 10 errors only
-        }
-
-
-class TransferService:
+class TransferService(_TransferValidationMixin):
     """
     Service for transferring data between storage backends.
 
@@ -379,84 +228,6 @@ class TransferService:
         # Validate if configured
         if self.config.validate:
             await self._validate_record(record)
-
-    def _get_validation_lookup(
-        self,
-        record: dict[str, Any],
-    ) -> Callable[[str], Awaitable[Any]] | None:
-        """Select the target lookup method according to record type."""
-        if "event_id" in record:
-            return self.target.get_by_id if hasattr(self.target, "get_by_id") else None
-
-        if hasattr(self.target, "load_saga_state"):
-            return cast("Callable[[str], Awaitable[Any]]", self.target.load_saga_state)
-
-        if hasattr(self.target, "get_by_id"):
-            return cast("Callable[[str], Awaitable[Any]]", self.target.get_by_id)
-
-        return None
-
-    async def _validate_record(self, record: dict[str, Any]) -> None:
-        """Validate a transferred record exists and matches in target storage."""
-        record_id = record.get("event_id") or record.get("saga_id") or record.get("id")
-        if not record_id:
-            return
-
-        lookup = self._get_validation_lookup(record)
-        if lookup is None:
-            return
-
-        loaded = await lookup(record_id)
-
-        if loaded is None:
-            raise TransferError(
-                message=f"Validation failed: record {record_id} not found in target",
-                target=self.target.__class__.__name__,
-            )
-
-        if "event_id" in record:
-            self._validate_event_record(record, loaded, record_id)
-
-    def _validate_event_record(
-        self,
-        expected_record: dict[str, Any],
-        actual_record: Any,
-        record_id: str,
-    ) -> None:
-        """Ensure an imported outbox event matches its source representation."""
-        expected = self._canonical_record(expected_record)
-        actual = self._canonical_record(actual_record)
-
-        if expected != actual:
-            raise TransferError(
-                message=f"Validation failed: event {record_id} differs after import",
-                target=self.target.__class__.__name__,
-            )
-
-    @staticmethod
-    def _canonical_record(record: Any) -> str:
-        """Serialize records with normalized timestamps for cross-backend comparison."""
-        if hasattr(record, "to_dict"):
-            record = record.to_dict()
-
-        # Fill optional OutboxEvent fields with their canonical defaults so older
-        # callers that export a minimal record remain comparable after import.
-        if isinstance(record, dict) and {
-            "event_id",
-            "saga_id",
-            "event_type",
-            "payload",
-        }.issubset(record):
-            from sagaz.core.outbox.types import OutboxEvent
-
-            record = OutboxEvent.from_dict(record).to_dict()
-
-        return json.dumps(
-            canonical_value(record),
-            sort_keys=True,
-            separators=(",", ":"),
-            ensure_ascii=False,
-        )
 
     async def _retry_transfer(self, record: dict[str, Any]) -> bool:
         """Retry transfer with configured retries."""

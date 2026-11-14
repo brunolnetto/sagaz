@@ -9,10 +9,15 @@ Requires: pip install asyncpg
 
 import asyncio
 import json
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
 from sagaz.core.exceptions import MissingDependencyError
+from sagaz.core.storage.backends.postgresql._saga_maintenance import (
+    _PostgreSQLSagaMaintenanceMixin,
+)
+from sagaz.core.storage.backends.postgresql._saga_rows import _PostgreSQLSagaRowMixin
+from sagaz.core.storage.backends.postgresql._saga_schema import SAGA_TABLES_SQL
 from sagaz.core.storage.base import (
     SagaStorage,
     SagaStorageConnectionError,
@@ -29,7 +34,7 @@ except ImportError:
     asyncpg = None
 
 
-class PostgreSQLSagaStorage(SagaStorage):
+class PostgreSQLSagaStorage(_PostgreSQLSagaRowMixin, _PostgreSQLSagaMaintenanceMixin, SagaStorage):
     """
     PostgreSQL implementation of saga storage
 
@@ -48,51 +53,7 @@ class PostgreSQLSagaStorage(SagaStorage):
     """
 
     # SQL schema for saga tables
-    CREATE_TABLES_SQL = """
-    CREATE TABLE IF NOT EXISTS sagas (
-        saga_id VARCHAR(255) PRIMARY KEY,
-        saga_name VARCHAR(255) NOT NULL,
-        status VARCHAR(50) NOT NULL,
-        context JSONB,
-        metadata JSONB,
-        configuration JSONB NOT NULL DEFAULT '[]'::jsonb,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-    );
-
-    -- Idempotent upgrade for databases created before StateChart configuration.
-    ALTER TABLE sagas ADD COLUMN IF NOT EXISTS configuration JSONB;
-    UPDATE sagas
-    SET configuration = jsonb_build_array(status)
-    WHERE configuration IS NULL OR configuration = '[]'::jsonb;
-    ALTER TABLE sagas
-        ALTER COLUMN configuration SET DEFAULT '[]'::jsonb;
-    ALTER TABLE sagas
-        ALTER COLUMN configuration SET NOT NULL;
-
-    CREATE TABLE IF NOT EXISTS saga_steps (
-        id SERIAL PRIMARY KEY,
-        saga_id VARCHAR(255) REFERENCES sagas(saga_id) ON DELETE CASCADE,
-        step_name VARCHAR(255) NOT NULL,
-        status VARCHAR(50) NOT NULL,
-        result JSONB,
-        error TEXT,
-        executed_at TIMESTAMP WITH TIME ZONE,
-        compensated_at TIMESTAMP WITH TIME ZONE,
-        retry_count INTEGER DEFAULT 0,
-        duration_ms DOUBLE PRECISION,
-        UNIQUE(saga_id, step_name)
-    );
-
-    -- Idempotent upgrade: step latency for analytics (sagaz[analytics]).
-    ALTER TABLE saga_steps ADD COLUMN IF NOT EXISTS duration_ms DOUBLE PRECISION;
-
-    CREATE INDEX IF NOT EXISTS idx_sagas_status ON sagas(status);
-    CREATE INDEX IF NOT EXISTS idx_sagas_name ON sagas(saga_name);
-    CREATE INDEX IF NOT EXISTS idx_sagas_created_at ON sagas(created_at);
-    CREATE INDEX IF NOT EXISTS idx_saga_steps_saga_id ON saga_steps(saga_id);
-    CREATE INDEX IF NOT EXISTS idx_saga_steps_status ON saga_steps(status);
-    """
+    CREATE_TABLES_SQL = SAGA_TABLES_SQL
 
     def __init__(
         self, connection_string: str, pool_min_size: int = 5, pool_max_size: int = 20, **pool_kwargs
@@ -243,61 +204,6 @@ class PostgreSQLSagaStorage(SagaStorage):
 
             return self._build_saga_dict(saga_row, step_rows)
 
-    def _build_saga_dict(self, saga_row, step_rows) -> dict[str, Any]:
-        """Build saga dict from database rows."""
-        try:
-            raw_configuration = saga_row["configuration"]
-        except (KeyError, IndexError):
-            raw_configuration = None
-
-        if isinstance(raw_configuration, str):
-            raw_configuration = json.loads(raw_configuration)
-        configuration = raw_configuration or [saga_row["status"]]
-
-        return {
-            "saga_id": saga_row["saga_id"],
-            "saga_name": saga_row["saga_name"],
-            "status": saga_row["status"],
-            "configuration": configuration,
-            "context": json.loads(saga_row["context"]) if saga_row["context"] else {},
-            "metadata": json.loads(saga_row["metadata"]) if saga_row["metadata"] else {},
-            "steps": [self._parse_step_row(row) for row in step_rows],
-            "created_at": saga_row["created_at"].isoformat(),
-            "updated_at": saga_row["updated_at"].isoformat(),
-        }
-
-    def _parse_step_row(self, step_row) -> dict[str, Any]:
-        """Parse a step database row into a dict."""
-        step_data = {
-            "name": step_row["step_name"],
-            "status": step_row["status"],
-            "error": step_row["error"],
-            "retry_count": step_row["retry_count"],
-        }
-
-        if step_row["result"]:
-            step_data["result"] = self._parse_json_safe(step_row["result"])
-
-        if step_row["executed_at"]:
-            step_data["executed_at"] = step_row["executed_at"].isoformat()
-        if step_row["compensated_at"]:
-            step_data["compensated_at"] = step_row["compensated_at"].isoformat()
-        try:
-            duration_ms = step_row["duration_ms"]
-        except (KeyError, IndexError):  # rows selected without the column
-            duration_ms = None
-        if duration_ms is not None:
-            step_data["duration_ms"] = duration_ms
-
-        return step_data
-
-    def _parse_json_safe(self, value: str) -> Any:
-        """Parse JSON, returning raw value on failure."""
-        try:
-            return json.loads(value)
-        except json.JSONDecodeError:
-            return value
-
     async def delete_saga_state(self, saga_id: str) -> bool:
         """Delete saga state from PostgreSQL"""
 
@@ -424,100 +330,6 @@ class PostgreSQLSagaStorage(SagaStorage):
                 saga_id,
             )
 
-    async def get_saga_statistics(self) -> dict[str, Any]:
-        """Get storage statistics"""
-
-        pool = await self._get_pool()
-
-        async with pool.acquire() as conn:
-            # Count by status
-            status_rows = await conn.fetch("""
-                SELECT status, COUNT(*) as count
-                FROM sagas
-                GROUP BY status
-            """)
-
-            status_counts = {row["status"]: row["count"] for row in status_rows}
-            total_sagas = sum(status_counts.values())
-
-            # Get database size
-            db_size_row = await conn.fetchrow("SELECT pg_database_size(current_database()) as size")
-            db_size = db_size_row["size"] if db_size_row else 0
-
-            return {
-                "total_sagas": total_sagas,
-                "by_status": status_counts,
-                "database_size_bytes": db_size,
-                "database_size_human": self._format_bytes(db_size),
-            }
-
-    async def cleanup_completed_sagas(
-        self, older_than: datetime, statuses: list[SagaStatus] | None = None
-    ) -> int:
-        """Clean up old completed sagas"""
-
-        if statuses is None:
-            statuses = [SagaStatus.COMPLETED, SagaStatus.ROLLED_BACK]
-
-        pool = await self._get_pool()
-        status_values = [s.value for s in statuses]
-
-        async with pool.acquire() as conn:
-            result = await conn.execute(
-                """
-                DELETE FROM sagas
-                WHERE status = ANY($1) AND updated_at < $2
-            """,
-                status_values,
-                older_than,
-            )
-
-            return int(result.split()[-1])  # Extract affected row count
-
-    async def health_check(self) -> dict[str, Any]:
-        """Check storage health"""
-
-        try:
-            pool = await self._get_pool()
-
-            async with pool.acquire() as conn:
-                # Test basic query
-                result = await conn.fetchval("SELECT 1")
-                if result != 1:
-                    msg = "Basic query failed"
-                    raise RuntimeError(msg)
-
-                # Get PostgreSQL version
-                version = await conn.fetchval("SELECT version()")
-
-                # Get connection stats
-                pool_size = pool.get_size()
-
-                return {
-                    "status": "healthy",
-                    "storage_type": "postgresql",
-                    "postgresql_version": version.split()[1] if version else "unknown",
-                    "pool_size": pool_size,
-                    "timestamp": datetime.now(UTC).isoformat(),
-                }
-
-        except Exception as e:
-            return {
-                "status": "unhealthy",
-                "storage_type": "postgresql",
-                "error": str(e),
-                "timestamp": datetime.now(UTC).isoformat(),
-            }
-
-    def _format_bytes(self, num_bytes: int) -> str:
-        """Format bytes in human readable format"""
-        size: float = float(num_bytes)
-        for unit in ["B", "KB", "MB", "GB", "TB"]:
-            if size < 1024.0:
-                return f"{size:.1f}{unit}"
-            size = size / 1024.0
-        return f"{size:.1f}PB"
-
     async def __aenter__(self):
         """Async context manager entry"""
         await self._get_pool()
@@ -527,12 +339,6 @@ class PostgreSQLSagaStorage(SagaStorage):
         """Async context manager exit"""
         if self._pool:
             await self._pool.close()
-
-    async def count(self) -> int:
-        """Count total sagas."""
-        pool = await self._get_pool()
-        async with pool.acquire() as conn:
-            return int(await conn.fetchval("SELECT COUNT(*) FROM sagas"))
 
     async def export_all(self):
         """Export all records for transfer.

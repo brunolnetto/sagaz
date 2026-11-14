@@ -73,7 +73,10 @@ from sagaz.core.exceptions import (
 from sagaz.core.execution.state_machine import SagaStateMachine
 from sagaz.core.saga._compensation import _SagaCompensationMixin
 from sagaz.core.saga._dag import DAGExecutor
+from sagaz.core.saga._dag_delegation import _SagaDAGDelegationMixin
+from sagaz.core.saga._execution import _SagaExecutionMixin
 from sagaz.core.saga._executor import _StepExecutor
+from sagaz.core.saga._lifecycle import _SagaLifecycleMixin
 from sagaz.core.saga._snapshot import _SagaSnapshotMixin
 from sagaz.core.saga._step import SagaStep
 from sagaz.core.saga._step_execution import StepExecutor
@@ -84,7 +87,15 @@ from sagaz.core.types import ParallelFailureStrategy, SagaResult, SagaStatus, Sa
 logger = logging.getLogger(__name__)
 
 
-class Saga(_SagaVisualizationMixin, _SagaCompensationMixin, _SagaSnapshotMixin, ABC):
+class Saga(
+    _SagaLifecycleMixin,
+    _SagaDAGDelegationMixin,
+    _SagaExecutionMixin,
+    _SagaVisualizationMixin,
+    _SagaCompensationMixin,
+    _SagaSnapshotMixin,
+    ABC,
+):
     """
     Production-ready base class for saga implementations with state machine
 
@@ -134,49 +145,6 @@ class Saga(_SagaVisualizationMixin, _SagaCompensationMixin, _SagaSnapshotMixin, 
         # Executor instances
         self._dag_executor = DAGExecutor(self)
         self._step_executor = StepExecutor(self)
-
-    async def _on_enter_executing(self) -> None:
-        """Callback: entering EXECUTING state"""
-        self.status = SagaStatus.EXECUTING
-        self.started_at = datetime.now()
-        self.completed_steps = []
-        logger.info(f"Saga {self.name} [{self.saga_id}] entering EXECUTING state")
-
-    async def _on_enter_compensating(self) -> None:
-        """Callback: entering COMPENSATING state"""
-        self.status = SagaStatus.COMPENSATING
-        logger.warning(
-            f"Saga {self.name} [{self.saga_id}] entering COMPENSATING state - "
-            f"rolling back {len(self.completed_steps)} steps"
-        )
-
-    async def _on_enter_completed(self) -> None:
-        """Callback: entering COMPLETED state"""
-        self.status = SagaStatus.COMPLETED
-        self.completed_at = datetime.now()
-        execution_time = (
-            (self.completed_at - self.started_at).total_seconds() if self.started_at else 0
-        )
-        logger.info(
-            f"Saga {self.name} [{self.saga_id}] COMPLETED successfully in {execution_time:.2f}s"
-        )
-
-    async def _on_enter_rolled_back(self) -> None:
-        """Callback: entering ROLLED_BACK state"""
-        self.status = SagaStatus.ROLLED_BACK
-        self.completed_at = datetime.now()
-        execution_time = (
-            (self.completed_at - self.started_at).total_seconds() if self.started_at else 0
-        )
-        logger.info(f"Saga {self.name} [{self.saga_id}] ROLLED_BACK after {execution_time:.2f}s")
-
-    async def _on_enter_failed(self) -> None:
-        """Callback: entering FAILED state (unrecoverable)"""
-        self.status = SagaStatus.FAILED
-        self.completed_at = datetime.now()
-        logger.error(
-            f"Saga {self.name} [{self.saga_id}] FAILED - unrecoverable error during compensation"
-        )
 
     async def add_step(
         self,
@@ -269,74 +237,6 @@ class Saga(_SagaVisualizationMixin, _SagaCompensationMixin, _SagaSnapshotMixin, 
         self.failure_strategy = strategy
         logger.info(f"Saga {self.name} failure strategy set to {strategy.value}")
 
-    def _validate_connected_graph(self) -> None:
-        """Delegate to DAGExecutor"""
-        self._dag_executor.validate_connected_graph()
-
-    def _build_adjacency_list(self, step_names: set[str]) -> dict[str, set[str]]:
-        """Delegate to DAGExecutor"""
-        return self._dag_executor._build_adjacency_list(step_names)
-
-    def _bfs_reachable(self, adjacency: dict[str, set[str]], step_names: set[str]) -> set[str]:
-        """Delegate to DAGExecutor"""
-        return self._dag_executor._bfs_reachable(adjacency, step_names)
-
-    def _check_connectivity(
-        self, step_names: set[str], visited: set[str], adjacency: dict[str, set[str]]
-    ) -> None:
-        """Delegate to DAGExecutor"""
-        self._dag_executor._check_connectivity(step_names, visited, adjacency)
-
-    def _find_connected_components(
-        self, adjacency: dict[str, set[str]], step_names: set[str]
-    ) -> list[set[str]]:
-        """Delegate to DAGExecutor"""
-        return self._dag_executor._find_connected_components(adjacency, step_names)
-
-    def _build_execution_batches(self) -> list[set[str]]:
-        """Delegate to DAGExecutor"""
-        return self._dag_executor.build_execution_batches()
-
-    def _build_dag_batches(self) -> list[set[str]]:
-        """Delegate to DAGExecutor"""
-        return self._dag_executor._build_dag_batches()
-
-    def _find_ready_steps(self, remaining: set[str], executed: set[str]) -> set[str]:
-        """Delegate to DAGExecutor"""
-        return self._dag_executor._find_ready_steps(remaining, executed)
-
-    def _format_dependency_error(self, remaining: set[str], executed: set[str]) -> str:
-        """Delegate to DAGExecutor"""
-        return self._dag_executor._format_dependency_error(remaining, executed)
-
-    async def _execute_dag(self) -> SagaResult:
-        """Delegate to DAGExecutor"""
-        return await self._dag_executor.execute_dag()
-
-    def _get_parallel_strategy(self):
-        """Delegate to DAGExecutor"""
-        return self._dag_executor._get_parallel_strategy()
-
-    async def _execute_batch(
-        self, batch_idx: int, batch: set, step_map: dict, strategy
-    ) -> Exception | None:
-        """Delegate to DAGExecutor"""
-        return await self._dag_executor._execute_batch(batch_idx, batch, step_map, strategy)
-
-    def _mark_batch_completed(self, batch: set, step_map: dict):
-        """Delegate to DAGExecutor"""
-        self._dag_executor._mark_batch_completed(batch, step_map)
-
-    def _mark_completed_executors(self, executors: list):
-        """Delegate to DAGExecutor"""
-        self._dag_executor._mark_completed_executors(executors)
-
-    def _build_dag_result(
-        self, start_time, success: bool, status: SagaStatus, error: Exception | None = None
-    ) -> SagaResult:
-        """Delegate to DAGExecutor"""
-        return self._dag_executor._build_dag_result(start_time, success, status, error)
-
     async def execute(self) -> SagaResult:
         """
         Execute the saga with full error handling and compensation
@@ -370,186 +270,6 @@ class Saga(_SagaVisualizationMixin, _SagaCompensationMixin, _SagaSnapshotMixin, 
 
             finally:
                 self._executing = False
-
-    async def _execute_inner(self, start_time) -> SagaResult:
-        """Inner execution logic."""
-        # Handle empty saga
-        if not self.steps:
-            return self._empty_saga_result(start_time)
-
-        # Build execution plan
-        plan_error = self._build_plan()
-        if plan_error:
-            return self._planning_failure_result(plan_error, start_time)
-
-        # Start state machine
-        try:
-            await self._state_machine.start()
-        except TransitionNotAllowed as e:
-            msg = f"Cannot start saga: {e}"
-            raise SagaExecutionError(msg) from e
-
-        # Execute based on mode
-        if self._has_dependencies:
-            return await self._execute_dag_mode(start_time)
-        return await self._execute_sequential_mode(start_time)
-
-    def _empty_saga_result(self, start_time) -> SagaResult:
-        """Result for saga with no steps."""
-        logger.info(f"Saga {self.name} has no steps - completing immediately")
-        return SagaResult(
-            success=True,
-            saga_name=self.name,
-            status=SagaStatus.COMPLETED,
-            completed_steps=0,
-            total_steps=0,
-            execution_time=(datetime.now() - start_time).total_seconds(),
-            context=self.context,
-        )
-
-    def _build_plan(self) -> Exception | None:
-        """Build execution batches. Returns error if failed."""
-        try:
-            self.execution_batches = self._build_execution_batches()
-            logger.info(f"Saga {self.name} execution plan: {len(self.execution_batches)} batches")
-            return None
-        except ValueError as ve:
-            self.error = ve
-            logger.error(f"Saga {self.name} failed during planning: {ve}")
-            return ve
-
-    def _planning_failure_result(self, error, start_time) -> SagaResult:
-        """Result for planning failure."""
-        return SagaResult(
-            success=False,
-            saga_name=self.name,
-            status=SagaStatus.FAILED,
-            completed_steps=0,
-            total_steps=len(self.steps),
-            error=error,
-            execution_time=(datetime.now() - start_time).total_seconds(),
-        )
-
-    async def _execute_dag_mode(self, start_time) -> SagaResult:
-        """Execute in DAG/parallel mode."""
-        logger.info(f"Executing saga {self.name} in DAG mode")
-        result = await self._execute_dag()
-
-        if result.success:
-            await self._state_machine.succeed()
-        else:
-            await self._finalize_dag_failure()
-
-        return result
-
-    async def _finalize_dag_failure(self):
-        """Finalize state machine after DAG failure."""
-        try:
-            await self._state_machine.fail()
-            await self._state_machine.finish_compensation()
-        except TransitionNotAllowed:
-            await self._state_machine.fail_unrecoverable()
-
-    async def _execute_sequential_mode(self, start_time) -> SagaResult:
-        """Execute in sequential mode."""
-        logger.info(f"Executing saga {self.name} in sequential mode")
-
-        for i, step in enumerate(self.steps):
-            if step.idempotency_key in self._executed_step_keys:
-                logger.info(f"Skipping step '{step.name}' - already executed (idempotent)")
-                continue
-
-            # Capture snapshot before step execution
-            await self._capture_snapshot(step.name, i, before=True)
-
-            await self._execute_step_with_retry(step)
-            self.completed_steps.append(step)
-            self._executed_step_keys.add(step.idempotency_key)
-
-            # Capture snapshot after step execution
-            await self._capture_snapshot(step.name, i, before=False)
-
-        await self._state_machine.succeed()
-
-        # Capture completion snapshot if configured
-        if self.replay_config and self.replay_config.enable_snapshots:
-            await self._capture_snapshot("__completed__", len(self.steps), before=False)
-
-        return SagaResult(
-            success=True,
-            saga_name=self.name,
-            status=SagaStatus.COMPLETED,
-            completed_steps=len(self.completed_steps),
-            total_steps=len(self.steps),
-            execution_time=(datetime.now() - start_time).total_seconds(),
-            context=self.context,
-        )
-
-    async def _handle_execution_failure(self, error: Exception, start_time) -> SagaResult:
-        """Handle execution failure with compensation."""
-        self.error = error
-        logger.error(f"Saga {self.name} failed: {error}", exc_info=True)
-
-        try:
-            await self._state_machine.fail()
-        except TransitionNotAllowed:
-            return self._no_compensation_result(error, start_time)
-
-        return await self._attempt_compensation(error, start_time)
-
-    def _no_compensation_result(self, error, start_time) -> SagaResult:
-        """Result when no compensation needed."""
-        self.status = SagaStatus.ROLLED_BACK
-        return SagaResult(
-            success=False,
-            saga_name=self.name,
-            status=SagaStatus.ROLLED_BACK,
-            completed_steps=0,
-            total_steps=len(self.steps),
-            error=error,
-            execution_time=(datetime.now() - start_time).total_seconds(),
-            context=self.context,
-        )
-
-    async def _attempt_compensation(self, error, start_time) -> SagaResult:
-        """Attempt to compensate and return result."""
-        try:
-            await self._compensate_all()
-            await self._state_machine.finish_compensation()
-
-            return SagaResult(
-                success=False,
-                saga_name=self.name,
-                status=SagaStatus.ROLLED_BACK,
-                completed_steps=len(self.completed_steps),
-                total_steps=len(self.steps),
-                error=error,
-                execution_time=(datetime.now() - start_time).total_seconds(),
-                context=self.context,
-                compensation_errors=self.compensation_errors,
-            )
-
-        except SagaCompensationError:
-            await self._state_machine.compensation_failed()
-
-            return SagaResult(
-                success=False,
-                saga_name=self.name,
-                status=SagaStatus.FAILED,
-                completed_steps=len(self.completed_steps),
-                total_steps=len(self.steps),
-                error=error,
-                execution_time=(datetime.now() - start_time).total_seconds(),
-                compensation_errors=self.compensation_errors,
-            )
-
-    async def _execute_step_with_retry(self, step: "SagaStep") -> None:
-        """Delegate to StepExecutor"""
-        await self._step_executor.execute_step_with_retry(step)
-
-    async def _execute_step(self, step: "SagaStep") -> None:
-        """Delegate to StepExecutor"""
-        await self._step_executor.execute_step(step)
 
     # =========================================================================
     # API Protection - Prevent mixing declarative and imperative approaches

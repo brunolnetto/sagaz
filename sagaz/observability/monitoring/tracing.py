@@ -23,11 +23,9 @@ Quick Start:
     ...     print("Install opentelemetry for distributed tracing")
 """
 
-import functools
-from collections.abc import Callable
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import Any, ParamSpec, TypeVar
+from typing import Any
 
 try:
     from opentelemetry import context, trace
@@ -45,8 +43,11 @@ except ImportError:
 
 from sagaz.core.types import SagaStatus, SagaStepStatus
 
-P = ParamSpec("P")
-T = TypeVar("T")
+# The decorators live in their own module; re-exported here for backwards compatibility.
+from sagaz.observability.monitoring._tracing_decorators import (
+    trace_saga_action,
+    trace_saga_compensation,
+)
 
 # Context variable for current trace context
 trace_context: ContextVar[dict[str, Any]] = ContextVar("trace_context", default={})
@@ -288,76 +289,16 @@ class SagaTracer:
         return span
 
 
-def trace_saga_action(tracer: SagaTracer):
-    """
-    Decorator to automatically trace saga actions
-
-    Usage:
-        @trace_saga_action(saga_tracer)
-        async def my_action(ctx: SagaContext) -> Any:
-            # Action implementation
-            pass
-    """
-
-    def decorator(func: Callable[P, T]) -> Callable[P, T]:
-        @functools.wraps(func)
-        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-            # Extract saga context from arguments
-            saga_context = None
-            for arg in args:
-                if hasattr(arg, "saga_id"):
-                    saga_context = arg
-                    break
-
-            if not saga_context:
-                # No saga context found, execute without tracing
-                return await func(*args, **kwargs)  # type: ignore[no-any-return, misc]
-
-            step_name = getattr(saga_context, "step_name", func.__name__)
-            saga_id = getattr(saga_context, "saga_id", "unknown")
-            saga_name = getattr(saga_context, "saga_name", "unknown")
-
-            with tracer.start_step_trace(saga_id, saga_name, step_name, "action"):
-                return await func(*args, **kwargs)  # type: ignore[no-any-return, misc]
-
-        return wrapper  # type: ignore[return-value]
-
-    return decorator
-
-
-def trace_saga_compensation(tracer: SagaTracer):
-    """
-    Decorator to automatically trace saga compensations
-
-    Usage:
-        @trace_saga_compensation(saga_tracer)
-        async def my_compensation(result: Any, ctx: SagaContext) -> None:
-            # Compensation implementation
-            pass
-    """
-
-    def decorator(func: Callable[P, T]) -> Callable[P, T]:
-        @functools.wraps(func)
-        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-            # Extract saga context from arguments (usually second arg)
-            saga_context = None
-            if len(args) >= 2 and hasattr(args[1], "saga_id"):
-                saga_context = args[1]
-
-            if not saga_context:
-                return await func(*args, **kwargs)  # type: ignore[no-any-return, misc]
-
-            step_name = getattr(saga_context, "step_name", func.__name__)
-            saga_id = getattr(saga_context, "saga_id", "unknown")
-            saga_name = getattr(saga_context, "saga_name", "unknown")
-
-            with tracer.start_step_trace(saga_id, saga_name, step_name, "compensation"):
-                return await func(*args, **kwargs)  # type: ignore[no-any-return, misc]
-
-        return wrapper  # type: ignore[return-value]
-
-    return decorator
-
+__all__ = [
+    "TRACING_AVAILABLE",
+    "SagaTracer",
+    "is_tracing_available",
+    "saga_tracer",
+    "setup_tracing",
+    "trace_context",
+    "trace_saga_action",
+    "trace_saga_compensation",
+]
 
 # Default tracer instance
 saga_tracer = SagaTracer()

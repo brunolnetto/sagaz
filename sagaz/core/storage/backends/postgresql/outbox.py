@@ -21,7 +21,21 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Optional, cast
 
 from sagaz.core.exceptions import MissingDependencyError
-from sagaz.core.outbox.types import OutboxEvent, OutboxStatus, ReplayLoopError
+from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
+from sagaz.core.storage.backends.postgresql._outbox_dlq import PostgreSQLOutboxDeadLetterMixin
+from sagaz.core.storage.backends.postgresql._outbox_maintenance import (
+    PostgreSQLOutboxMaintenanceMixin,
+)
+from sagaz.core.storage.backends.postgresql._outbox_rows import (
+    PostgreSQLOutboxRowMappingMixin,
+)
+from sagaz.core.storage.backends.postgresql._outbox_schema import OUTBOX_SCHEMA
+from sagaz.core.storage.backends.postgresql._outbox_status_queries import (
+    PostgreSQLOutboxStatusQueryMixin,
+)
+from sagaz.core.storage.backends.postgresql._outbox_transfer import (
+    PostgreSQLOutboxTransferMixin,
+)
 from sagaz.core.storage.interfaces.outbox import OutboxStorage, OutboxStorageError
 
 # Check for asyncpg availability
@@ -34,87 +48,14 @@ except ImportError:
     asyncpg = cast(Any, None)
 
 
-# SQL for creating the outbox schema
-OUTBOX_SCHEMA = """
--- Outbox table for pending messages
-CREATE TABLE IF NOT EXISTS saga_outbox (
-    event_id        UUID PRIMARY KEY,
-    saga_id         VARCHAR(255) NOT NULL,
-    aggregate_type  VARCHAR(255) NOT NULL DEFAULT 'saga',
-    aggregate_id    VARCHAR(255) NOT NULL,
-    event_type      VARCHAR(255) NOT NULL,
-    payload         JSONB NOT NULL,
-    headers         JSONB NOT NULL DEFAULT '{}',
-    status          VARCHAR(50) NOT NULL DEFAULT 'pending',
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    claimed_at      TIMESTAMPTZ,
-    sent_at         TIMESTAMPTZ,
-    retry_count     INTEGER NOT NULL DEFAULT 0,
-    last_error      TEXT,
-    worker_id       VARCHAR(255),
-    dead_letter_at  TIMESTAMPTZ,
-    dead_letter_reason TEXT,
-    error_type      VARCHAR(255),
-    error_classification VARCHAR(255),
-    error_fingerprint VARCHAR(255),
-    replay_count    INTEGER NOT NULL DEFAULT 0,
-    routing_key     VARCHAR(255),
-    partition_key   VARCHAR(255),
-
-    -- Indexes for common queries
-    CONSTRAINT valid_status CHECK (
-        status IN ('pending', 'claimed', 'sent', 'failed', 'dead_letter')
-    )
-);
-
--- Index for claiming pending events efficiently
-CREATE INDEX IF NOT EXISTS idx_outbox_pending
-    ON saga_outbox (created_at)
-    WHERE status = 'pending';
-
--- Index for finding stuck events
-CREATE INDEX IF NOT EXISTS idx_outbox_claimed_at
-    ON saga_outbox (claimed_at)
-    WHERE status = 'claimed';
-
--- Index for looking up events by saga
-CREATE INDEX IF NOT EXISTS idx_outbox_saga_id
-    ON saga_outbox (saga_id);
-
--- Archive table for sent events (optional partitioning)
-CREATE TABLE IF NOT EXISTS saga_outbox_archive (
-    LIKE saga_outbox INCLUDING ALL
-);
-
--- Consumer inbox table for idempotent processing
-CREATE TABLE IF NOT EXISTS consumer_inbox (
-    event_id            UUID PRIMARY KEY,
-    consumer_name       VARCHAR(255) NOT NULL,
-    source_topic        VARCHAR(255) NOT NULL,
-    event_type          VARCHAR(255) NOT NULL,
-    payload             JSONB NOT NULL,
-    consumed_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    processing_duration_ms INTEGER
-);
-
--- Index for cleanup queries
-CREATE INDEX IF NOT EXISTS idx_consumer_inbox_cleanup
-    ON consumer_inbox (consumer_name, consumed_at);
-
-ALTER TABLE saga_outbox ADD COLUMN IF NOT EXISTS dead_letter_at TIMESTAMPTZ;
-ALTER TABLE saga_outbox ADD COLUMN IF NOT EXISTS dead_letter_reason TEXT;
-ALTER TABLE saga_outbox ADD COLUMN IF NOT EXISTS error_type VARCHAR(255);
-ALTER TABLE saga_outbox ADD COLUMN IF NOT EXISTS error_classification VARCHAR(255);
-ALTER TABLE saga_outbox ADD COLUMN IF NOT EXISTS error_fingerprint VARCHAR(255);
-ALTER TABLE saga_outbox ADD COLUMN IF NOT EXISTS replay_count INTEGER NOT NULL DEFAULT 0;
-ALTER TABLE saga_outbox ADD COLUMN IF NOT EXISTS routing_key VARCHAR(255);
-ALTER TABLE saga_outbox ADD COLUMN IF NOT EXISTS partition_key VARCHAR(255);
-ALTER TABLE saga_outbox_archive ADD COLUMN IF NOT EXISTS routing_key VARCHAR(255);
-ALTER TABLE saga_outbox_archive ADD COLUMN IF NOT EXISTS partition_key VARCHAR(255);
-"""
-
-
-class PostgreSQLOutboxStorage(OutboxStorage):
+class PostgreSQLOutboxStorage(
+    PostgreSQLOutboxStatusQueryMixin,
+    PostgreSQLOutboxMaintenanceMixin,
+    PostgreSQLOutboxDeadLetterMixin,
+    PostgreSQLOutboxTransferMixin,
+    PostgreSQLOutboxRowMappingMixin,
+    OutboxStorage,
+):
     """
     PostgreSQL implementation of outbox storage.
 
@@ -306,126 +247,6 @@ class PostgreSQLOutboxStorage(OutboxStorage):
         async with conn.acquire() as c:
             return await _update(c)  # type: ignore[no-any-return]
 
-    def _build_update_status_query(
-        self,
-        event_id: str,
-        status: OutboxStatus,
-        error_message: str | None,
-        event: OutboxEvent | None,
-    ) -> tuple[str, tuple[Any, ...]]:
-        if status == OutboxStatus.SENT:
-            return self._sent_status_query(event_id, status)
-        if status == OutboxStatus.FAILED:
-            return self._failed_status_query(event_id, status, error_message, event)
-        if status == OutboxStatus.DEAD_LETTER:
-            return self._dead_letter_status_query(event_id, status, error_message, event)
-        if status == OutboxStatus.PENDING:
-            return self._pending_status_query(event_id, status, event)
-        return self._generic_status_query(event_id, status)
-
-    def _sent_status_query(
-        self, event_id: str, status: OutboxStatus
-    ) -> tuple[str, tuple[Any, ...]]:
-        return (
-            """
-                UPDATE saga_outbox
-                SET status = $2, sent_at = NOW()
-                WHERE event_id = $1
-                RETURNING *
-            """,
-            (event_id, status.value),
-        )
-
-    def _failed_status_query(
-        self,
-        event_id: str,
-        status: OutboxStatus,
-        error_message: str | None,
-        event: OutboxEvent | None,
-    ) -> tuple[str, tuple[Any, ...]]:
-        return (
-            """
-                UPDATE saga_outbox
-                SET status = $2,
-                retry_count = retry_count + 1,
-                last_error = $3,
-                error_type = $4,
-                error_classification = $5,
-                error_fingerprint = $6
-                WHERE event_id = $1
-                RETURNING *
-            """,
-            (
-                event_id,
-                status.value,
-                error_message,
-                event.error_type if event else None,
-                event.error_classification if event else None,
-                event.error_fingerprint if event else None,
-            ),
-        )
-
-    def _dead_letter_status_query(
-        self,
-        event_id: str,
-        status: OutboxStatus,
-        error_message: str | None,
-        event: OutboxEvent | None,
-    ) -> tuple[str, tuple[Any, ...]]:
-        return (
-            """
-                UPDATE saga_outbox
-                SET status = $2,
-                    dead_letter_at = COALESCE($3, NOW()),
-                    dead_letter_reason = COALESCE($4, last_error, dead_letter_reason, 'max_retries_exceeded'),
-                    error_type = COALESCE($5, error_type),
-                    error_classification = COALESCE($6, error_classification),
-                    error_fingerprint = COALESCE($7, error_fingerprint)
-                WHERE event_id = $1
-                RETURNING *
-            """,
-            (
-                event_id,
-                status.value,
-                event.dead_letter_at if event else None,
-                event.dead_letter_reason if event else error_message,
-                event.error_type if event else None,
-                event.error_classification if event else None,
-                event.error_fingerprint if event else None,
-            ),
-        )
-
-    def _pending_status_query(
-        self, event_id: str, status: OutboxStatus, event: OutboxEvent | None
-    ) -> tuple[str, tuple[Any, ...]]:
-        return (
-            """
-                UPDATE saga_outbox
-                SET status = $2,
-                worker_id = NULL,
-                claimed_at = NULL,
-                dead_letter_at = NULL,
-                dead_letter_reason = NULL,
-                replay_count = COALESCE($3, replay_count)
-                WHERE event_id = $1
-                RETURNING *
-            """,
-            (event_id, status.value, event.replay_count if event else None),
-        )
-
-    def _generic_status_query(
-        self, event_id: str, status: OutboxStatus
-    ) -> tuple[str, tuple[Any, ...]]:
-        return (
-            """
-                UPDATE saga_outbox
-                SET status = $2
-                WHERE event_id = $1
-                RETURNING *
-            """,
-            (event_id, status.value),
-        )
-
     async def get_by_id(self, event_id: str) -> OutboxEvent | None:
         """Get an event by ID from active or archived storage."""
         if not self._pool:
@@ -456,53 +277,6 @@ class PostgreSQLOutboxStorage(OutboxStorage):
             rows = await conn.fetch(query, saga_id)
             return [self._row_to_event(row) for row in rows]
 
-    async def get_stuck_events(
-        self,
-        claimed_older_than_seconds: float = 300.0,
-    ) -> list[OutboxEvent]:
-        """Get events that appear to be stuck."""
-        if not self._pool:
-            msg = "Storage not initialized"
-            raise OutboxStorageError(msg)
-
-        cutoff = datetime.now(UTC) - timedelta(seconds=claimed_older_than_seconds)
-
-        query = """
-            SELECT * FROM saga_outbox
-            WHERE status = 'claimed'
-            AND claimed_at < $1
-            ORDER BY claimed_at
-        """
-
-        async with self._pool.acquire() as conn:
-            rows = await conn.fetch(query, cutoff)
-            return [self._row_to_event(row) for row in rows]
-
-    async def release_stuck_events(
-        self,
-        claimed_older_than_seconds: float = 300.0,
-    ) -> int:
-        """Release stuck events back to PENDING status."""
-        if not self._pool:
-            msg = "Storage not initialized"
-            raise OutboxStorageError(msg)
-
-        cutoff = datetime.now(UTC) - timedelta(seconds=claimed_older_than_seconds)
-
-        query = """
-            UPDATE saga_outbox
-            SET status = 'pending',
-                worker_id = NULL,
-                claimed_at = NULL
-            WHERE status = 'claimed'
-            AND claimed_at < $1
-        """
-
-        async with self._pool.acquire() as conn:
-            result = await conn.execute(query, cutoff)
-            # Parse "UPDATE N" to get count
-            return int(result.split()[-1])
-
     async def get_pending_count(self) -> int:
         """Get count of pending events."""
         if not self._pool:
@@ -513,97 +287,6 @@ class PostgreSQLOutboxStorage(OutboxStorage):
 
         async with self._pool.acquire() as conn:
             return await conn.fetchval(query)  # type: ignore[no-any-return]
-
-    async def get_dead_letter_events(
-        self,
-        limit: int = 100,
-    ) -> list[OutboxEvent]:
-        """Get events in dead letter queue."""
-        if not self._pool:
-            msg = "Storage not initialized"
-            raise OutboxStorageError(msg)
-
-        query = """
-            SELECT * FROM saga_outbox
-            WHERE status = 'dead_letter'
-            ORDER BY created_at DESC
-            LIMIT $1
-        """
-
-        async with self._pool.acquire() as conn:
-            rows = await conn.fetch(query, limit)
-            return [self._row_to_event(row) for row in rows]
-
-    async def archive_sent_events(
-        self,
-        older_than_days: int = 7,
-    ) -> int:
-        """Move old sent events to archive table."""
-        if not self._pool:
-            msg = "Storage not initialized"
-            raise OutboxStorageError(msg)
-
-        cutoff = datetime.now(UTC) - timedelta(days=older_than_days)
-
-        async with self._pool.acquire() as conn, conn.transaction():
-            # Copy to archive
-            insert_query = """
-                    INSERT INTO saga_outbox_archive
-                    SELECT * FROM saga_outbox
-                    WHERE status = 'sent' AND sent_at < $1
-                """
-            await conn.execute(insert_query, cutoff)
-
-            # Delete from main table
-            delete_query = """
-                    DELETE FROM saga_outbox
-                    WHERE status = 'sent' AND sent_at < $1
-                """
-            result = await conn.execute(delete_query, cutoff)
-            return int(result.split()[-1])
-
-    def _row_to_event(self, row: "asyncpg.Record") -> OutboxEvent:
-        """Convert database row to OutboxEvent."""
-
-        def _row_value(key: str, default=None):
-            if hasattr(row, "__contains__") and key in row:
-                return row[key]
-            if hasattr(row, "get"):
-                return row.get(key, default)
-            return default
-
-        payload = row["payload"]
-        if isinstance(payload, str):
-            payload = json.loads(payload)
-
-        headers = row["headers"]
-        if isinstance(headers, str):
-            headers = json.loads(headers)
-
-        return OutboxEvent(
-            event_id=str(row["event_id"]),
-            saga_id=row["saga_id"],
-            aggregate_type=row["aggregate_type"],
-            aggregate_id=row["aggregate_id"],
-            event_type=row["event_type"],
-            payload=payload,
-            headers=headers,
-            status=OutboxStatus(row["status"]),
-            created_at=row["created_at"],
-            claimed_at=row["claimed_at"],
-            sent_at=row["sent_at"],
-            retry_count=row["retry_count"],
-            last_error=row["last_error"],
-            worker_id=row["worker_id"],
-            dead_letter_at=_row_value("dead_letter_at"),
-            dead_letter_reason=_row_value("dead_letter_reason"),
-            error_type=_row_value("error_type"),
-            error_classification=_row_value("error_classification"),
-            error_fingerprint=_row_value("error_fingerprint"),
-            replay_count=_row_value("replay_count", 0) or 0,
-            routing_key=_row_value("routing_key"),
-            partition_key=_row_value("partition_key"),
-        )
 
     # Consumer Inbox Methods
 
@@ -687,136 +370,4 @@ class PostgreSQLOutboxStorage(OutboxStorage):
                 older_than_days,
             )
             # Parse "DELETE N" to get count
-            return int(result.split()[-1]) if result.startswith("DELETE") else 0
-
-    async def count(self) -> int:
-        """Count total events."""
-        if not self._pool:
-            # If not initialized, maybe zero? Or raise error?
-            # Assuming initialized for now as it's required for other ops
-            msg = "Storage not initialized"
-            raise OutboxStorageError(msg)
-
-        async with self._pool.acquire() as conn:
-            count = await conn.fetchval(
-                """
-                SELECT
-                    (SELECT COUNT(*) FROM saga_outbox)
-                    + (SELECT COUNT(*) FROM saga_outbox_archive)
-                """
-            )
-            return int(count)
-
-    async def export_all(self):
-        """Export active and archived outbox records for transfer."""
-        if not self._pool:
-            msg = "Storage not initialized"
-            raise OutboxStorageError(msg)
-
-        async with self._pool.acquire() as conn:
-            async with conn.transaction():
-                try:
-                    cursor = conn.cursor(
-                        """
-                        SELECT * FROM saga_outbox
-                        UNION ALL
-                        SELECT * FROM saga_outbox_archive
-                        ORDER BY event_id
-                        """
-                    )
-                    async for row in cursor:
-                        event = self._row_to_event(row)
-                        yield event.to_dict()
-                except Exception:  # pylint: disable=try-except-raise
-                    # Transaction rollback is automatic with context manager
-                    raise
-
-    async def import_record(self, record: dict[str, Any]) -> None:
-        """Import without overwriting existing active or archived state."""
-        event = OutboxEvent.from_dict(record)
-
-        if not self._pool:
-            msg = "Storage not initialized"
-            raise OutboxStorageError(msg)
-
-        async with self._pool.acquire() as conn:
-            async with conn.transaction():
-                # Serialize concurrent migration imports for the same event.
-                await conn.fetchval(
-                    "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
-                    event.event_id,
-                )
-
-                row = await conn.fetchrow(
-                    """
-                    SELECT * FROM saga_outbox
-                    WHERE event_id = $1
-                    FOR UPDATE
-                    """,
-                    event.event_id,
-                )
-
-                if row is None:
-                    row = await conn.fetchrow(
-                        """
-                        SELECT * FROM saga_outbox_archive
-                        WHERE event_id = $1
-                        FOR UPDATE
-                        """,
-                        event.event_id,
-                    )
-
-                if row is not None:
-                    existing = self._row_to_event(row)
-                    if existing != event:
-                        msg = f"Outbox event {event.event_id} already exists with different state"
-                        raise OutboxStorageError(msg)
-                    return
-
-                # insert() now uses a plain INSERT, never an upsert.
-                await self.insert(event, connection=conn)
-
-    async def requeue_dead_letter_event(self, event_id: str, force: bool = False) -> OutboxEvent:
-        """Move a dead-letter event back to PENDING for replay."""
-        event = await self.get_by_id(event_id)
-        if event is None:
-            msg = f"Event {event_id} not found"
-            raise KeyError(msg)
-
-        max_replays = 3
-        if not force and event.replay_count >= max_replays:
-            raise ReplayLoopError(
-                event_id=event_id,
-                replay_count=event.replay_count,
-                max_replays=max_replays,
-            )
-
-        event.replay_count += 1
-        event.retry_count = 0
-        event.dead_letter_at = None
-        event.dead_letter_reason = None
-        event.worker_id = None
-        event.claimed_at = None
-        return await self.update_status(event_id, OutboxStatus.PENDING, event=event)
-
-    async def purge_dead_letter_events(self, older_than: timedelta | None = None) -> int:
-        """Permanently remove dead-letter events."""
-        if not self._pool:
-            msg = "Storage not initialized"
-            raise OutboxStorageError(msg)
-
-        async with self._pool.acquire() as conn:
-            if older_than is None:
-                result = await conn.execute("DELETE FROM saga_outbox WHERE status = 'dead_letter'")
-            else:
-                cutoff = datetime.now(UTC) - older_than
-                result = await conn.execute(
-                    """
-                    DELETE FROM saga_outbox
-                    WHERE status = 'dead_letter'
-                    AND dead_letter_at IS NOT NULL
-                    AND dead_letter_at < $1
-                    """,
-                    cutoff,
-                )
             return int(result.split()[-1]) if result.startswith("DELETE") else 0
