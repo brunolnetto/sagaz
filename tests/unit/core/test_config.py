@@ -287,9 +287,9 @@ class TestGlobalConfiguration:
     def test_get_config_default(self):
         """Test get_config returns default config."""
         # Reset global config
-        import sagaz.core.config
+        import sagaz.core.config._config
 
-        sagaz.core.config._global_config = None
+        sagaz.core.config._config._global_config = None
 
         config = get_config()
         assert isinstance(config, SagaConfig)

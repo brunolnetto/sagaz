@@ -278,7 +278,7 @@ class TestEnvTemplateGeneration:
             env = EnvManager(project_root=tmpdir, auto_load=False)
 
             # Mock load_dotenv as None
-            import sagaz.core.env as env_module
+            import sagaz.core.env._manager as env_module
 
             original_load_dotenv = env_module.load_dotenv
             env_module.load_dotenv = None

@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.3] - 2026-11-13
+
+Follow-ups from the independent verification of 1.8.2. No behaviour changes.
+
+### Changed
+- Logic that lived in 11 package `__init__.py` files moved to private modules, so the `*/__init__.py` coverage omission no longer hides it. The packages are `core/config`, `core/context`, `core/decorators`, `core/saga`, `core/replay`, `core/compliance`, `core/env`, `core/exceptions`, `core/listeners`, `core/outbox/brokers` and `demonstrations`. Each `__init__.py` now only re-exports. All public names remain importable, and logger names are unchanged.
+- `config`, `replay` and `demonstrations` define an explicit `__all__`, so `from ... import *` no longer exports their standard-library imports.
+- The `config` and `env` singletons live in their private modules. Assigning the private `_global_config`/`_global_env` attribute through the package no longer replaces them. Use `configure()`, or patch the private module.
+- Split the three modules that sat at the 400-line limit: `core/storage/interfaces/outbox.py` (optional defaults now in a mixin), and the `feature_store` and `langgraph_support_agent` examples.
+
+### CI
+- The structural gate now runs `codebase-stats` 0.1.0, configured in `[tool.codebase-stats.gates]` with CC ≤ 10, ≤ 400 lines and MI ≥ 20, instead of `scripts/quality_gate.py`. The script and its baseline are removed. `make quality-gate` and CI publish the summary.
+- `.gitignore` no longer ignores `sagaz/core/env/`, which had kept it out of lint.
+
+### Tests
+- 720 statements that were previously unmeasured are now covered at 100%. 42 new tests cover the lazy broker wrappers, demonstration discovery and the package re-export contract.
+- `test_structural_gate.py` runs the gate on the package and checks that it rejects an oversized module.
+
+### Validation
+- GitHub Actions unavailable (account billing lock); every gate was reproduced locally.
+- Ruff, mypy (444 source files), the `codebase-stats` gate (0 violations, largest module 387 lines) and radon passed.
+- Unit suite: 3,594 passed, 62 skipped, 98.94% coverage.
+- Redis/PostgreSQL Testcontainers: 200 passed. One RabbitMQ test was skipped because the container did not start within 120 s on a loaded host.
+
 ## [1.8.2] - 2026-11-13
 
 Structural quality release: no behaviour changes. Addresses every finding of the codebase-stats report (39 violations: 35 modules over 400 lines and 4 with a maintainability index below 20).

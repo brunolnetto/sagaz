@@ -195,12 +195,8 @@ endif
 # Security
 # ============================================================================
 
-quality-gate: ## Structural gate: CC <= 10, modules <= 400 lines, MI >= 20 (UPDATE=yes to rebaseline)
-ifeq ($(UPDATE),yes)
-	$(PYTHON) scripts/quality_gate.py --update-baseline
-else
-	$(PYTHON) scripts/quality_gate.py --strict-baseline
-endif
+quality-gate: ## Structural gate (codebase-stats): CC <= 10, modules <= 400 lines, MI >= 20
+	codebase-stats --root sagaz --format summary
 
 security: ## Run security checks with bandit
 	@echo "$(GREEN)Running security checks...$(RESET)"

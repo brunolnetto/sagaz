@@ -1,6 +1,6 @@
 [project]
 name = "sagaz"
-version = "1.8.2"
+version = "1.8.3"
 description = "Production-ready Saga pattern with DAG support"
 readme = "README.md"
 dependencies = [
@@ -126,7 +126,7 @@ dev = [
     "prometheus-client>=0.23.1",
     "httpx>=0.28.1",
     "pytest-json-report>=1.5.0",
-    "codebase-stats>=0.0.3",
+    "codebase-stats==0.1.0",
 ]
 django = [
     "django>=5.2.10",
@@ -435,13 +435,11 @@ omit = [
 directory = "htmlcov"
 
 
-# ============================================================================
-# Structural quality gate (scripts/quality_gate.py, radon-based)
-# ============================================================================
 
-[tool.sagaz.quality-gate]
-root = "sagaz"
+# Structural quality gate: `make quality-gate` and the quality-gates CI workflow.
+# Every module under sagaz/ must stay within these limits (no baseline: zero
+# violations since 1.8.2).
+[tool.codebase-stats.gates]
 max-cc = 10
 max-lines = 400
 min-mi = 20
-baseline = ".quality-gate-baseline.json"

@@ -753,16 +753,14 @@ wheels = [
 
 [[package]]
 name = "codebase-stats"
-version = "0.0.3"
+version = "0.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pytest-cov" },
-    { name = "pytest-json-report" },
     { name = "radon" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a5/b0/37b1f45b2242b5a5329d490b6eb4d063799666293f9f9b4f0cabd6902aa9/codebase_stats-0.0.3.tar.gz", hash = "sha256:a9f392ce2b8547abbf339f857932942c37d99e9cc2eb4770c42bbf22bd3b2a7f", size = 60554, upload-time = "2026-04-11T18:06:14.837Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/52/f4/bbd7740014624d769169b9e51a6d35903067b9aee1c434c0a85a8d99c850/codebase_stats-0.1.0.tar.gz", hash = "sha256:fb145cc8b12a25ca5cd48b00f27eddb8acf24bd6f3618989916d52f60626e9cd", size = 152097, upload-time = "2026-11-13T20:58:38.136Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/7d/5d/8a0cbf52a7e73df2e0ae0ea69186f7a187424e1e49450bbe6a2c544c489e/codebase_stats-0.0.3-py3-none-any.whl", hash = "sha256:57724a05e19e945cc3aea354ea231e7de7b8e8c47f075860e6ee36da72eb9ed6", size = 36857, upload-time = "2026-04-11T18:06:13.475Z" },
+    { url = "https://files.pythonhosted.org/packages/73/97/278f283fcb0945cd25ea7d87c3ab612c322deb26256057c997d6e08a1a9f/codebase_stats-0.1.0-py3-none-any.whl", hash = "sha256:d0ab24f9812ce8489393550342a7d90a41a830466d1ca959be13eddb457ec22b", size = 85459, upload-time = "2026-11-13T20:58:35.479Z" },
 ]
 
 [[package]]
@@ -3994,7 +3992,7 @@ wheels = [
 
 [[package]]
 name = "sagaz"
-version = "1.8.2"
+version = "1.8.3"
 source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
@@ -4185,7 +4183,7 @@ dev = [
     { name = "asgiref", specifier = ">=3.8.0" },
     { name = "asyncpg", specifier = ">=0.30.0" },
     { name = "bandit", extras = ["toml"], specifier = ">=1.7.5" },
-    { name = "codebase-stats", specifier = ">=0.0.3" },
+    { name = "codebase-stats", specifier = "==0.1.0" },
     { name = "django", specifier = ">=5.2.10" },
     { name = "fastapi", specifier = ">=0.100.0" },
     { name = "flask", specifier = ">=3.0.0" },
