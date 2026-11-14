@@ -47,9 +47,7 @@ def substitute(text: str) -> str:
 
     # Also handle simple $VAR syntax
     text = re.sub(pattern, replace, text)
-    return re.sub(
-        r"\$([A-Z_][A-Z0-9_]*)", lambda m: os.environ.get(m.group(1), m.group(0)), text
-    )
+    return re.sub(r"\$([A-Z_][A-Z0-9_]*)", lambda m: os.environ.get(m.group(1), m.group(0)), text)
 
 
 def substitute_dict(data: dict[str, Any]) -> dict[str, Any]:
