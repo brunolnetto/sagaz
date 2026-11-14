@@ -189,3 +189,28 @@ class TestOrchestrator:
 
         assert orchestrator.tenant is None
         assert SEEN == ["default"]
+
+
+async def test_retry_quota_caps_imperative_compensation_attempts():
+    attempts = {"n": 0}
+
+    async def reserve(ctx):
+        return {"reserved": True}
+
+    async def release(result, ctx):
+        attempts["n"] += 1
+        msg = "still down"
+        raise RuntimeError(msg)
+
+    async def charge(ctx):
+        msg = "declined"
+        raise RuntimeError(msg)
+
+    saga = ImperativeSaga("compensating", retry_backoff_base=0.001)
+    await saga.add_step("reserve", reserve, release, max_retries=0)
+    await saga.add_step("charge", charge, max_retries=0)
+    tenant = TenantContext("acme", quotas=TenantQuotas(max_retries=0))
+
+    await SagaOrchestrator(tenant_id=tenant).execute_saga(saga)
+
+    assert attempts["n"] == 1  # 3 attempts by default, 1 with max_retries=0
