@@ -180,6 +180,7 @@ class SagaConfig:
             default_timeout=self.default_timeout,
             default_max_retries=self.default_max_retries,
             failure_strategy=self.failure_strategy,
+            tenant_registry=self.tenant_registry,
         )
 
     def with_broker(self, broker: BaseBroker, outbox_storage=None) -> SagaConfig:
@@ -194,6 +195,7 @@ class SagaConfig:
             default_timeout=self.default_timeout,
             default_max_retries=self.default_max_retries,
             failure_strategy=self.failure_strategy,
+            tenant_registry=self.tenant_registry,
         )
 
     @classmethod

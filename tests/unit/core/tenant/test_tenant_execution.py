@@ -214,3 +214,13 @@ async def test_retry_quota_caps_imperative_compensation_attempts():
     await SagaOrchestrator(tenant_id=tenant).execute_saga(saga)
 
     assert attempts["n"] == 1  # 3 attempts by default, 1 with max_retries=0
+
+
+def test_config_copies_keep_the_tenant_registry():
+    from sagaz.core.outbox.brokers.memory import InMemoryBroker
+    from sagaz.core.storage.backends.memory.saga import InMemorySagaStorage
+
+    registry = TenantRegistry()
+    config = SagaConfig(tenant_registry=registry)
+    assert config.with_storage(InMemorySagaStorage()).tenant_registry is registry
+    assert config.with_broker(InMemoryBroker()).tenant_registry is registry
