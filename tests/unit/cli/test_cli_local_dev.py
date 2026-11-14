@@ -159,34 +159,83 @@ class TestInitDirectoryGuard:
 
 
 class TestBenchmark:
-    @pytest.mark.parametrize(
-        ("profile", "marker"),
-        [
-            ("local", ["-m", "performance and not slow"]),
-            ("production", ["-m", "performance"]),
-            ("stress", ["-m", "stress"]),
-            ("full", []),
-        ],
-    )
-    def test_profiles_select_markers(self, runner, run, profile, marker):
-        runner.invoke(app.cli, ["benchmark", "--profile", profile])
-        command = run.call_args.args[0]
-        assert command[:3] == ["python", "-m", "pytest"]
-        assert command[6:] == marker
+    """``sagaz benchmark`` runs in-process against the installed library."""
 
-    def test_quick_runs_an_inline_saga_loop(self, runner, run):
-        runner.invoke(app.cli, ["benchmark", "--quick"])
-        command = run.call_args.args[0]
-        assert command[:2] == ["python", "-c"]
-        assert "benchmark-quick" in command[2]
+    def test_quick_reports_a_table(self, runner):
+        result = runner.invoke(app.cli, ["benchmark", "--quick"])
+        assert result.exit_code == 0, result.output
+        assert "quick" in result.output
+        assert "memory" in result.output
 
-    def test_output_is_saved_on_success(self, runner, tmp_path, monkeypatch):
-        monkeypatch.setattr(
-            subprocess,
-            "run",
-            MagicMock(return_value=SimpleNamespace(returncode=0, stdout=b"42 sagas/sec")),
-        )
+    def test_output_is_written_as_json(self, runner, tmp_path):
         out = tmp_path / "bench.json"
         result = runner.invoke(app.cli, ["benchmark", "--quick", "--output", str(out)])
-        assert out.read_text() == "42 sagas/sec"
+        assert result.exit_code == 0, result.output
+        report = json.loads(out.read_text())
+        (row,) = report["results"]
+        assert (row["profile"], row["sagas"], row["failed"]) == ("quick", 20, 0)
+        assert row["throughput"] > 0
+        assert row["p50_ms"] <= row["p95_ms"] <= row["p99_ms"]
         assert f"Results saved to {out}" in result.output
+
+    def test_storage_url_benchmarks_that_backend_and_cleans_up(self, runner, tmp_path):
+        import asyncio
+
+        from sagaz.core.storage import create_storage_manager
+
+        url = f"sqlite://{tmp_path / 'bench.db'}"
+        result = runner.invoke(app.cli, ["benchmark", "--quick", "--storage-url", url])
+        assert result.exit_code == 0, result.output
+        assert "sqlite" in result.output
+
+        async def remaining():
+            async with create_storage_manager(url=url) as manager:
+                return await manager.saga.count()
+
+        assert asyncio.run(remaining()) == 0
+
+    def test_failures_set_a_non_zero_exit_code(self, runner, monkeypatch):
+        from sagaz.cli import _benchmark
+
+        async def boom(self, ctx):
+            msg = "declined"
+            raise RuntimeError(msg)
+
+        monkeypatch.setattr(_benchmark.BenchmarkSaga, "charge", boom)
+        monkeypatch.setattr(
+            _benchmark,
+            "PROFILES",
+            {**_benchmark.PROFILES, "quick": _benchmark.Profile("quick", 3, 1)},
+        )
+        result = runner.invoke(app.cli, ["benchmark", "--quick"])
+        assert result.exit_code == 1
+        assert "3 saga(s) failed" in result.output
+
+    @pytest.mark.parametrize(
+        ("profile", "quick", "expected"),
+        [
+            ("local", False, ["local"]),
+            ("stress", False, ["stress"]),
+            ("full", False, ["local", "production", "stress"]),
+            ("stress", True, ["quick"]),
+        ],
+    )
+    def test_profile_selection(self, profile, quick, expected):
+        from sagaz.cli._benchmark import profiles_for
+
+        assert [p.name for p in profiles_for(profile, quick)] == expected
+
+    def test_plain_output_without_rich(self, runner, monkeypatch):
+        from sagaz.cli import _benchmark_cmd
+
+        monkeypatch.setattr(_benchmark_cmd, "console", None)
+        result = runner.invoke(app.cli, ["benchmark", "--quick"])
+        assert result.output.splitlines()[0].startswith("profile  storage  sagas")
+
+    def test_percentile_edges(self):
+        from sagaz.cli._benchmark import percentile, summary
+
+        assert percentile([], 99) == 0.0
+        assert percentile([1.0, 2.0, 3.0, 4.0], 50) == 2.0
+        assert percentile([1.0, 2.0], 99) == 2.0
+        assert summary([]) == {"results": [], "median_throughput": 0}

@@ -41,11 +41,17 @@ def test_console_is_none_without_rich(name):
     assert module.console is None
 
 
-@pytest.mark.parametrize("name", ["sagaz.cli._benchmark_cmd", "sagaz.cli._project_cmds"])
+@pytest.mark.parametrize("name", ["sagaz.cli._project_cmds"])
 def test_panel_is_none_without_rich(name):
     module = _fresh_copy(name, _NO_RICH)
 
     assert module.Panel is None
+
+
+def test_benchmark_table_is_none_without_rich():
+    module = _fresh_copy("sagaz.cli._benchmark_cmd", _NO_RICH)
+
+    assert module.Table is None
 
 
 def test_examples_menu_without_simple_term_menu():
