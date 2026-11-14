@@ -8,7 +8,7 @@ Missing lines: 32-33, 141-142, 163->exit, 170, 172-173, 209-210, 220-221,
 
 import importlib
 import sys
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -779,3 +779,64 @@ class TestConsumerInboxMethods:
 
         count = await storage.cleanup_inbox("order-svc", older_than_days=30)
         assert count == 0
+
+
+# ==========================================================================
+# Dead-letter queue with the tenant filter (ADR-020)
+# ==========================================================================
+
+
+class TestDeadLetterQueueTenantFilter:
+    async def test_listing_binds_the_scope_tenant(self):
+        from sagaz.core.tenant import tenant_scope
+
+        storage = _uninitialized_storage()
+        mock_conn = AsyncMock()
+        mock_conn.fetch = AsyncMock(return_value=[_make_mock_row(status="dead_letter")])
+        storage._pool = _make_pool_with_conn(mock_conn)
+
+        with tenant_scope("acme"):
+            events = await storage.get_dead_letter_events(limit=5)
+
+        assert [e.status for e in events] == [OutboxStatus.DEAD_LETTER]
+        query, limit, tenant = mock_conn.fetch.await_args.args
+        assert "tenant_id = $2" in query
+        assert (limit, tenant) == (5, "acme")
+
+    @pytest.mark.parametrize("older_than", [None, timedelta(days=1)])
+    async def test_purge_binds_the_scope_tenant(self, older_than):
+        from sagaz.core.tenant import system_scope
+
+        storage = _uninitialized_storage()
+        mock_conn = AsyncMock()
+        mock_conn.execute = AsyncMock(return_value="DELETE 2")
+        storage._pool = _make_pool_with_conn(mock_conn)
+
+        with system_scope():
+            assert await storage.purge_dead_letter_events(older_than) == 2
+        args = mock_conn.execute.await_args.args
+        assert "tenant_id" in args[0]
+        assert args[-1] is None  # the system scope matches every tenant
+
+    async def test_requeue_resets_the_event(self):
+        storage = _uninitialized_storage()
+        event = OutboxEvent(saga_id="s", event_type="E", payload={}, replay_count=1)
+        storage.get_by_id = AsyncMock(return_value=event)
+        storage.update_status = AsyncMock(return_value=event)
+
+        assert await storage.requeue_dead_letter_event(event.event_id) is event
+        assert event.replay_count == 2
+        storage.update_status.assert_awaited_once()
+
+    async def test_requeue_guards(self):
+        from sagaz.core.outbox.types import ReplayLoopError
+
+        storage = _uninitialized_storage()
+        storage.get_by_id = AsyncMock(return_value=None)
+        with pytest.raises(KeyError):
+            await storage.requeue_dead_letter_event("missing")
+        storage.get_by_id = AsyncMock(
+            return_value=OutboxEvent(saga_id="s", event_type="E", payload={}, replay_count=3)
+        )
+        with pytest.raises(ReplayLoopError):
+            await storage.requeue_dead_letter_event("looping")
