@@ -18,13 +18,17 @@ class RedisOutboxDeadLetterMixin(RedisOutboxSerializationMixin):
     """List, replay and purge dead-letter events."""
 
     async def get_dead_letter_events(self, limit: int = 100) -> list[OutboxEvent]:
-        """Get events in dead letter queue."""
+        """Get dead-letter events of the current tenant(s)."""
         if not self._initialized:
             await self.initialize()
         assert self._redis is not None
 
-        events = []
-        pattern = f"{self._prefix}:meta:*"
+        per_tenant = await self._per_tenant(lambda: self._dead_letter_events_scoped(limit))
+        return [event for events in per_tenant for event in events][:limit]
+
+    async def _dead_letter_events_scoped(self, limit: int) -> list[OutboxEvent]:
+        events: list[OutboxEvent] = []
+        pattern = self._meta_pattern()
         cursor = 0
         try:
             while True:
@@ -45,9 +49,16 @@ class RedisOutboxDeadLetterMixin(RedisOutboxSerializationMixin):
         return events
 
     async def requeue_dead_letter_event(self, event_id: str, force: bool = False) -> OutboxEvent:
-        """Move a DLQ event back to PENDING."""
+        """Move a DLQ event of the current tenant back to PENDING."""
         if not self._initialized:
             await self.initialize()
+        async with self._event_tenant_scope(event_id) as tenant:
+            if tenant is None:
+                msg = f"Event {event_id} not found"
+                raise KeyError(msg)
+            return await self._requeue_scoped(event_id, force)
+
+    async def _requeue_scoped(self, event_id: str, force: bool) -> OutboxEvent:
         event = await self.get_by_id(event_id)
         if event is None:
             msg = f"Event {event_id} not found"
@@ -71,21 +82,24 @@ class RedisOutboxDeadLetterMixin(RedisOutboxSerializationMixin):
 
         assert self._redis is not None
         await self._redis.xadd(
-            self._stream_key,
+            self._scoped_stream_key(),
             {"event_id": event.event_id, "saga_id": event.saga_id, "event_type": event.event_type},
             maxlen=self._max_stream_length,
         )
         return await self.update_status(event_id, OutboxStatus.PENDING, event=event)
 
     async def purge_dead_letter_events(self, older_than: timedelta | None = None) -> int:
-        """Permanently remove DLQ events."""
+        """Permanently remove dead-letter events of the current tenant(s)."""
         if not self._initialized:
             await self.initialize()
         assert self._redis is not None
 
+        return sum(await self._per_tenant(lambda: self._purge_scoped(older_than)))
+
+    async def _purge_scoped(self, older_than: timedelta | None) -> int:
         now = datetime.now(UTC)
         purged = 0
-        pattern = f"{self._prefix}:meta:*"
+        pattern = self._meta_pattern()
         cursor = 0
 
         while True:

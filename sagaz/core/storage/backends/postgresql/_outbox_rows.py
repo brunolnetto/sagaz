@@ -7,6 +7,7 @@ import json
 from typing import TYPE_CHECKING
 
 from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
+from sagaz.core.tenant import DEFAULT_TENANT
 
 if TYPE_CHECKING:
     import asyncpg
@@ -56,4 +57,5 @@ class PostgreSQLOutboxRowMappingMixin:
             replay_count=_row_value("replay_count", 0) or 0,
             routing_key=_row_value("routing_key"),
             partition_key=_row_value("partition_key"),
+            tenant_id=_row_value("tenant_id") or DEFAULT_TENANT,
         )

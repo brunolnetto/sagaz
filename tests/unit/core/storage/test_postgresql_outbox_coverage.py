@@ -170,33 +170,40 @@ class TestClose:
 
 
 # ==========================================================================
-# Lines 170, 172-173: _get_connection() paths
+# scoped_connection(): caller connection vs pool (ADR-020 tenant scope)
 # ==========================================================================
 
 
-class TestGetConnection:
-    """Lines 170, 172-173: _get_connection branches."""
+class TestScopedConnection:
+    """scoped_connection sets app.tenant_id on whichever connection it yields."""
 
-    def test_get_connection_returns_provided_connection(self):
-        """Line 170: _get_connection returns the passed-in connection directly."""
-        storage = _uninitialized_storage()
+    async def test_scopes_and_yields_provided_connection(self):
+        from sagaz.core.storage.backends.postgresql._outbox_tenancy import scoped_connection
+
         mock_conn = MagicMock()
-        result = storage._get_connection(mock_conn)
-        assert result is mock_conn
+        mock_conn.execute = AsyncMock()
+        async with scoped_connection(None, mock_conn) as conn:
+            assert conn is mock_conn
+        mock_conn.execute.assert_awaited_once()
+        assert "app.tenant_id" in mock_conn.execute.await_args.args[0]
 
-    def test_get_connection_raises_when_pool_not_initialized(self):
-        """Lines 172-173: OutboxStorageError when no pool and no connection."""
-        storage = _uninitialized_storage()
-        # _pool is None and no connection provided
+    async def test_raises_when_pool_not_initialized(self):
+        from sagaz.core.storage.backends.postgresql._outbox_tenancy import scoped_connection
+
         with pytest.raises(OutboxStorageError, match="not initialized"):
-            storage._get_connection(None)
+            async with scoped_connection(None):
+                pass  # pragma: no cover
 
-    def test_get_connection_returns_pool_when_initialized(self):
-        """Line 174: _get_connection returns pool when no connection given."""
-        storage = _uninitialized_storage()
-        storage._pool = MagicMock()
-        result = storage._get_connection(None)
-        assert result is storage._pool
+    async def test_acquires_from_pool_with_tenant_setting(self):
+        from sagaz.core.storage.backends.postgresql._outbox_tenancy import scoped_connection
+        from sagaz.core.tenant import tenant_scope
+
+        mock_conn = AsyncMock()
+        pool = _make_pool_with_conn(mock_conn)
+        with tenant_scope("acme"):
+            async with scoped_connection(pool) as conn:
+                assert conn is mock_conn
+        assert mock_conn.execute.await_args.args[1] == "acme"
 
 
 # ==========================================================================
@@ -284,6 +291,7 @@ class TestUpdateStatus:
         storage = _uninitialized_storage()
         mock_row = _make_mock_row(status="failed")
         mock_conn = MagicMock()
+        mock_conn.execute = AsyncMock()
         mock_conn.fetchrow = AsyncMock(return_value=mock_row)
 
         result = await storage.update_status(
@@ -299,6 +307,7 @@ class TestUpdateStatus:
         storage = _uninitialized_storage()
         mock_row = _make_mock_row(status="pending")
         mock_conn = MagicMock()
+        mock_conn.execute = AsyncMock()
         mock_conn.fetchrow = AsyncMock(return_value=mock_row)
 
         result = await storage.update_status(
@@ -313,6 +322,7 @@ class TestUpdateStatus:
         storage = _uninitialized_storage()
         mock_row = _make_mock_row(status="dead_letter")
         mock_conn = MagicMock()
+        mock_conn.execute = AsyncMock()
         mock_conn.fetchrow = AsyncMock(return_value=mock_row)
 
         result = await storage.update_status(
@@ -326,6 +336,7 @@ class TestUpdateStatus:
         """Lines 298-299: OutboxStorageError when fetchrow returns None."""
         storage = _uninitialized_storage()
         mock_conn = MagicMock()
+        mock_conn.execute = AsyncMock()
         mock_conn.fetchrow = AsyncMock(return_value=None)
 
         with pytest.raises(OutboxStorageError, match="not found"):
@@ -532,7 +543,8 @@ class TestArchiveSentEvents:
         storage = _uninitialized_storage()
         mock_conn = AsyncMock()
         # First execute → INSERT (no meaningful return), second → DELETE N
-        mock_conn.execute = AsyncMock(side_effect=["INSERT 5", "DELETE 5"])
+        # set_config (tenant scope), then INSERT, then DELETE N
+        mock_conn.execute = AsyncMock(side_effect=["SELECT 1", "INSERT 5", "DELETE 5"])
         mock_conn.transaction = MagicMock(return_value=_make_transaction_ctx())
         storage._pool = _make_pool_with_conn(mock_conn)
 
@@ -701,7 +713,13 @@ class TestConsumerInboxMethods:
         storage = _uninitialized_storage()
         mock_conn = AsyncMock()
         # Simulate UniqueViolationError for duplicate
-        mock_conn.execute = AsyncMock(side_effect=asyncpg.UniqueViolationError("duplicate"))
+
+        async def _execute(query, *args):
+            if "INSERT INTO consumer_inbox" in query:
+                msg = "duplicate"
+                raise asyncpg.UniqueViolationError(msg)
+
+        mock_conn.execute = AsyncMock(side_effect=_execute)
 
         result = await storage.check_and_insert_inbox(
             event_id="evt-dup",
@@ -738,7 +756,9 @@ class TestConsumerInboxMethods:
         storage._pool = _make_pool_with_conn(mock_conn)
 
         await storage.update_inbox_duration("evt-001", duration_ms=42)
-        mock_conn.execute.assert_awaited_once()
+        # set_config for the tenant scope, then the UPDATE
+        assert mock_conn.execute.await_count == 2
+        assert "UPDATE consumer_inbox" in mock_conn.execute.await_args.args[0]
 
     async def test_cleanup_inbox_success(self):
         """cleanup_inbox returns count from DELETE result."""

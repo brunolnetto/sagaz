@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 from sagaz.core.outbox.types import OutboxEvent, OutboxStatus, ReplayLoopError
 from sagaz.core.storage.backends.sqlite._outbox_base import SQLiteOutboxMixinBase
 from sagaz.core.storage.backends.sqlite._outbox_rows import SQLiteOutboxRowMappingMixin
+from sagaz.core.storage.backends.sqlite._outbox_tenancy import TENANT_FILTER, tenant_params
 
 
 class SQLiteOutboxDeadLetterMixin(SQLiteOutboxRowMappingMixin, SQLiteOutboxMixinBase):
@@ -19,13 +20,13 @@ class SQLiteOutboxDeadLetterMixin(SQLiteOutboxRowMappingMixin, SQLiteOutboxMixin
         conn = await self._get_connection()
 
         cursor = await conn.execute(
-            """
+            f"""
             SELECT * FROM outbox_events
-            WHERE status = 'dead_letter'
+            WHERE status = 'dead_letter' AND {TENANT_FILTER}
             ORDER BY created_at DESC
             LIMIT ?
             """,
-            (limit,),
+            (*tenant_params(), limit),
         )
         rows = await cursor.fetchall()
 
@@ -66,17 +67,21 @@ class SQLiteOutboxDeadLetterMixin(SQLiteOutboxRowMappingMixin, SQLiteOutboxMixin
         conn = await self._get_connection()
 
         if older_than is None:
-            cursor = await conn.execute("DELETE FROM outbox_events WHERE status = 'dead_letter'")
+            cursor = await conn.execute(
+                f"DELETE FROM outbox_events WHERE status = 'dead_letter' AND {TENANT_FILTER}",
+                tenant_params(),
+            )
         else:
             cutoff = (datetime.now(UTC) - older_than).isoformat()
             cursor = await conn.execute(
-                """
+                f"""
                 DELETE FROM outbox_events
                 WHERE status = 'dead_letter'
                 AND dead_letter_at IS NOT NULL
                 AND dead_letter_at < ?
+                AND {TENANT_FILTER}
                 """,
-                (cutoff,),
+                (cutoff, *tenant_params()),
             )
         await conn.commit()
         return cursor.rowcount

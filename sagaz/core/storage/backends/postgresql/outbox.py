@@ -18,11 +18,13 @@ Usage:
 
 import json
 from datetime import UTC, datetime, timedelta
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
+from sagaz.core.storage._outbox_tenancy import resolve_event_tenant
 from sagaz.core.storage.backends.postgresql._outbox_dlq import PostgreSQLOutboxDeadLetterMixin
+from sagaz.core.storage.backends.postgresql._outbox_inbox import PostgreSQLOutboxInboxMixin
 from sagaz.core.storage.backends.postgresql._outbox_maintenance import (
     PostgreSQLOutboxMaintenanceMixin,
 )
@@ -32,6 +34,11 @@ from sagaz.core.storage.backends.postgresql._outbox_rows import (
 from sagaz.core.storage.backends.postgresql._outbox_schema import OUTBOX_SCHEMA
 from sagaz.core.storage.backends.postgresql._outbox_status_queries import (
     PostgreSQLOutboxStatusQueryMixin,
+)
+from sagaz.core.storage.backends.postgresql._outbox_tenancy import (
+    scoped_connection,
+    tenant_param,
+    tenant_predicate,
 )
 from sagaz.core.storage.backends.postgresql._outbox_transfer import (
     PostgreSQLOutboxTransferMixin,
@@ -49,6 +56,7 @@ except ImportError:
 
 
 class PostgreSQLOutboxStorage(
+    PostgreSQLOutboxInboxMixin,
     PostgreSQLOutboxStatusQueryMixin,
     PostgreSQLOutboxMaintenanceMixin,
     PostgreSQLOutboxDeadLetterMixin,
@@ -64,6 +72,8 @@ class PostgreSQLOutboxStorage(
         - FOR UPDATE SKIP LOCKED for concurrent claim safety
         - Automatic schema creation
         - Connection pooling via asyncpg
+        - Tenant isolation (ADR-020): a ``tenant_id`` column with row-level
+          security, plus explicit tenant filters outside the system scope
 
     Usage:
         >>> storage = PostgreSQLOutboxStorage(
@@ -114,7 +124,7 @@ class PostgreSQLOutboxStorage(
             max_size=self.pool_max_size,
         )
 
-        # Create schema
+        # Create schema (including the tenant column and RLS policies)
         async with self._pool.acquire() as conn:
             await conn.execute(OUTBOX_SCHEMA)
 
@@ -124,22 +134,13 @@ class PostgreSQLOutboxStorage(
             await self._pool.close()
             self._pool = None
 
-    def _get_connection(self, connection: Any | None = None):
-        """Get a connection - either provided or from pool."""
-        if connection:
-            return connection
-        if not self._pool:
-            msg = "Storage not initialized. Call initialize() first."
-            raise OutboxStorageError(msg)
-        return self._pool
-
     async def insert(
         self,
         event: OutboxEvent,
         connection: Any | None = None,
     ) -> OutboxEvent:
-        """Insert a new outbox event."""
-        conn = self._get_connection(connection)
+        """Insert a new outbox event, owned by the tenant resolved for it."""
+        tenant_id = resolve_event_tenant(event)
 
         query = """
             INSERT INTO saga_outbox (
@@ -147,15 +148,15 @@ class PostgreSQLOutboxStorage(
                 event_type, payload, headers, status, created_at,
                 claimed_at, sent_at, retry_count, last_error, worker_id,
                 dead_letter_at, dead_letter_reason, error_type, error_classification,
-                error_fingerprint, replay_count, routing_key, partition_key
+                error_fingerprint, replay_count, routing_key, partition_key, tenant_id
             ) VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
-                $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22
+                $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23
             )
         """
 
-        async def _insert(c):
-            await c.execute(
+        async with scoped_connection(self._pool, connection) as conn:
+            await conn.execute(
                 query,
                 event.event_id,
                 event.saga_id,
@@ -179,13 +180,9 @@ class PostgreSQLOutboxStorage(
                 event.replay_count,
                 event.routing_key,
                 event.partition_key,
+                tenant_id,
             )
-            return event
-
-        if hasattr(conn, "execute"):
-            return await _insert(conn)  # type: ignore[no-any-return]
-        async with conn.acquire() as c:
-            return await _insert(c)  # type: ignore[no-any-return]
+        return event
 
     async def claim_batch(
         self,
@@ -193,20 +190,17 @@ class PostgreSQLOutboxStorage(
         batch_size: int = 100,
         older_than_seconds: float = 0.0,
     ) -> list[OutboxEvent]:
-        """Claim a batch of pending events for processing."""
-        if not self._pool:
-            msg = "Storage not initialized"
-            raise OutboxStorageError(msg)
-
+        """Claim a batch of pending events (of every tenant in the system scope)."""
         cutoff = datetime.now(UTC) - timedelta(seconds=older_than_seconds)
 
         # Use FOR UPDATE SKIP LOCKED for concurrency safety
-        query = """
+        query = f"""
             WITH claimed AS (
                 SELECT event_id
                 FROM saga_outbox
                 WHERE status = 'pending'
                   AND created_at <= $1
+                  AND {tenant_predicate(4)}
                 ORDER BY created_at
                 LIMIT $2
                 FOR UPDATE SKIP LOCKED
@@ -219,8 +213,8 @@ class PostgreSQLOutboxStorage(
             RETURNING *
         """
 
-        async with self._pool.acquire() as conn:
-            rows = await conn.fetch(query, cutoff, batch_size, worker_id)
+        async with scoped_connection(self._pool) as conn:
+            rows = await conn.fetch(query, cutoff, batch_size, worker_id, tenant_param())
             return [self._row_to_event(row) for row in rows]
 
     async def update_status(
@@ -231,143 +225,49 @@ class PostgreSQLOutboxStorage(
         connection: Any | None = None,
         event: OutboxEvent | None = None,
     ) -> OutboxEvent:
-        """Update the status of an event."""
-        conn = self._get_connection(connection)
+        """Update the status of an event of the current tenant."""
         query, params = self._build_update_status_query(event_id, status, error_message, event)
+        query = query.replace(
+            "WHERE event_id = $1",
+            f"WHERE event_id = $1 AND {tenant_predicate(len(params) + 1)}",
+        )
 
-        async def _update(c):
-            row = await c.fetchrow(query, *params)
-            if not row:
-                msg = f"Event {event_id} not found"
-                raise OutboxStorageError(msg)
-            return self._row_to_event(row)
-
-        if hasattr(conn, "fetchrow"):
-            return await _update(conn)  # type: ignore[no-any-return]
-        async with conn.acquire() as c:
-            return await _update(c)  # type: ignore[no-any-return]
+        async with scoped_connection(self._pool, connection) as conn:
+            row = await conn.fetchrow(query, *params, tenant_param())
+        if not row:
+            msg = f"Event {event_id} not found"
+            raise OutboxStorageError(msg)
+        return self._row_to_event(row)
 
     async def get_by_id(self, event_id: str) -> OutboxEvent | None:
-        """Get an event by ID from active or archived storage."""
-        if not self._pool:
-            msg = "Storage not initialized"
-            raise OutboxStorageError(msg)
-
-        async with self._pool.acquire() as conn:
-            row = await conn.fetchrow(
-                "SELECT * FROM saga_outbox WHERE event_id = $1",
-                event_id,
-            )
-            if row is None:
+        """Get an event of the current tenant by ID from active or archived storage."""
+        async with scoped_connection(self._pool) as conn:
+            for table in ("saga_outbox", "saga_outbox_archive"):
                 row = await conn.fetchrow(
-                    "SELECT * FROM saga_outbox_archive WHERE event_id = $1",
+                    f"SELECT * FROM {table} WHERE event_id = $1 AND {tenant_predicate(2)}",
                     event_id,
+                    tenant_param(),
                 )
-            return self._row_to_event(row) if row else None
+                if row is not None:
+                    return self._row_to_event(row)
+            return None
 
     async def get_events_by_saga(self, saga_id: str) -> list[OutboxEvent]:
-        """Get all events for a saga."""
-        if not self._pool:
-            msg = "Storage not initialized"
-            raise OutboxStorageError(msg)
+        """Get all events of the current tenant for a saga."""
+        query = (
+            f"SELECT * FROM saga_outbox WHERE saga_id = $1 AND {tenant_predicate(2)} "
+            "ORDER BY created_at"
+        )
 
-        query = "SELECT * FROM saga_outbox WHERE saga_id = $1 ORDER BY created_at"
-
-        async with self._pool.acquire() as conn:
-            rows = await conn.fetch(query, saga_id)
+        async with scoped_connection(self._pool) as conn:
+            rows = await conn.fetch(query, saga_id, tenant_param())
             return [self._row_to_event(row) for row in rows]
 
     async def get_pending_count(self) -> int:
-        """Get count of pending events."""
-        if not self._pool:
-            msg = "Storage not initialized"
-            raise OutboxStorageError(msg)
+        """Get count of pending events of the current tenant."""
+        query = (
+            f"SELECT COUNT(*) FROM saga_outbox WHERE status = 'pending' AND {tenant_predicate(1)}"
+        )
 
-        query = "SELECT COUNT(*) FROM saga_outbox WHERE status = 'pending'"
-
-        async with self._pool.acquire() as conn:
-            return await conn.fetchval(query)  # type: ignore[no-any-return]
-
-    # Consumer Inbox Methods
-
-    async def check_and_insert_inbox(
-        self,
-        event_id: str,
-        consumer_name: str,
-        source_topic: str,
-        event_type: str,
-        payload: dict,
-        connection: Optional["asyncpg.Connection"] = None,
-    ) -> bool:
-        """
-        Check if event was already processed and insert if not.
-
-        Args:
-            event_id: Event identifier
-            consumer_name: Consumer service name
-            source_topic: Source topic/queue
-            event_type: Event type
-            payload: Event payload
-            connection: Optional connection for transactions
-
-        Returns:
-            True if duplicate (already processed), False if new
-        """
-
-        async def _execute(conn):
-            try:
-                await conn.execute(
-                    """
-                    INSERT INTO consumer_inbox (
-                        event_id, consumer_name, source_topic,
-                        event_type, payload, consumed_at
-                    )
-                    VALUES ($1, $2, $3, $4, $5, NOW())
-                    """,
-                    event_id,
-                    consumer_name,
-                    source_topic,
-                    event_type,
-                    json.dumps(payload),
-                )
-                return False  # Not a duplicate
-            except asyncpg.UniqueViolationError:
-                return True  # Duplicate
-
-        if connection:
-            return await _execute(connection)  # type: ignore[no-any-return]
-        async with self._pool.acquire() as conn, conn.transaction():  # type: ignore[union-attr]
-            return await _execute(conn)  # type: ignore[no-any-return]
-
-    async def update_inbox_duration(self, event_id: str, duration_ms: int) -> None:
-        """Update processing duration for an event."""
-        async with self._pool.acquire() as conn:  # type: ignore[union-attr]
-            await conn.execute(
-                """
-                UPDATE consumer_inbox
-                SET processing_duration_ms = $1
-                WHERE event_id = $2
-                """,
-                duration_ms,
-                event_id,
-            )
-
-    async def cleanup_inbox(self, consumer_name: str, older_than_days: int) -> int:
-        """
-        Delete old inbox entries.
-
-        Returns:
-            Number of entries deleted
-        """
-        async with self._pool.acquire() as conn:  # type: ignore[union-attr]
-            result = await conn.execute(
-                """
-                DELETE FROM consumer_inbox
-                WHERE consumer_name = $1
-                AND consumed_at < NOW() - make_interval(days => $2)
-                """,
-                consumer_name,
-                older_than_days,
-            )
-            # Parse "DELETE N" to get count
-            return int(result.split()[-1]) if result.startswith("DELETE") else 0
+        async with scoped_connection(self._pool) as conn:
+            return await conn.fetchval(query, tenant_param())  # type: ignore[no-any-return]
