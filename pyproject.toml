@@ -1,6 +1,6 @@
 [project]
 name = "sagaz"
-version = "1.8.0"
+version = "1.8.3"
 description = "Production-ready Saga pattern with DAG support"
 readme = "README.md"
 dependencies = [
@@ -126,7 +126,7 @@ dev = [
     "prometheus-client>=0.23.1",
     "httpx>=0.28.1",
     "pytest-json-report>=1.5.0",
-    "codebase-stats>=0.0.3",
+    "codebase-stats==0.1.0",
 ]
 django = [
     "django>=5.2.10",
@@ -166,7 +166,12 @@ build-backend = "setuptools.build_meta"
 packages = {find = {where = ["."], include = ["sagaz*"]}}
 
 [tool.setuptools.package-data]
-sagaz = ["py.typed", "resources/**/*", "resources/**/.*", "visualization/static/*"]
+sagaz = [
+    "py.typed",
+    "deployment/resources/**/*",
+    "deployment/resources/**/.*",
+    "visualization/static/*",
+]
 
 # ============================================================================
 # Tool Configurations
@@ -408,8 +413,19 @@ omit = [
     "sagaz/cli_app.py",
     "sagaz/cli/app.py",  # Interactive CLI commands - tested via manual/integration testing
     "sagaz/cli/main.py",  # CLI entry point - thin wrapper
+    # Split out of the omitted cli/app.py, cli/examples.py and cli/dry_run.py (1.8.2)
+    "sagaz/cli/_project_cmds.py",
+    "sagaz/cli/_dev_cmds.py",
+    "sagaz/cli/_benchmark_cmd.py",
+    "sagaz/cli/_monitor_cmd.py",
+    "sagaz/cli/_examples_discovery.py",
+    "sagaz/cli/_examples_menu.py",
+    "sagaz/cli/_examples_runner.py",
+    "sagaz/cli/_dry_run_display.py",
+    "sagaz/cli/_dry_run_discovery.py",
     # Optional integrations requiring external frameworks
     "sagaz/integrations/django.py",
+    "sagaz/integrations/_django_webhooks.py",
     # Optional trigger sources requiring external services
     "sagaz/triggers/sources/broker.py",
     "sagaz/triggers/sources/cron.py",
@@ -418,3 +434,12 @@ omit = [
 [tool.coverage.html]
 directory = "htmlcov"
 
+
+
+# Structural quality gate: `make quality-gate` and the quality-gates CI workflow.
+# Every module under sagaz/ must stay within these limits (no baseline: zero
+# violations since 1.8.2).
+[tool.codebase-stats.gates]
+max-cc = 10
+max-lines = 400
+min-mi = 20

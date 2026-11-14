@@ -7,23 +7,35 @@ for reliable event delivery with consumer groups.
 
 import logging
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 
-from sagaz.core.outbox.types import OutboxEvent, OutboxStatus, ReplayLoopError
+from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
+from sagaz.core.storage.backends.redis._outbox_claiming import RedisOutboxClaimingMixin
+from sagaz.core.storage.backends.redis._outbox_dlq import RedisOutboxDeadLetterMixin
+from sagaz.core.storage.backends.redis._outbox_serialization import (
+    RedisOutboxSerializationMixin,
+)
+from sagaz.core.storage.backends.redis._outbox_status import RedisOutboxStatusUpdatesMixin
+from sagaz.core.storage.backends.redis._outbox_transfer import RedisOutboxTransferMixin
 from sagaz.core.storage.core import (
     HealthCheckResult,
     HealthStatus,
     StorageStatistics,
-    deserialize,
-    serialize,
 )
 from sagaz.core.storage.interfaces import OutboxStorage, OutboxStorageError
 
 logger = logging.getLogger(__name__)
 
 
-class RedisOutboxStorage(OutboxStorage):
+class RedisOutboxStorage(
+    RedisOutboxStatusUpdatesMixin,
+    RedisOutboxClaimingMixin,
+    RedisOutboxDeadLetterMixin,
+    RedisOutboxTransferMixin,
+    RedisOutboxSerializationMixin,
+    OutboxStorage,
+):
     """
     Redis-based outbox storage using Redis Streams.
 
@@ -125,93 +137,6 @@ class RedisOutboxStorage(OutboxStorage):
             self._redis = None
         self._initialized = False
 
-    def _meta_key(self, event_id: str) -> str:
-        """Get metadata key for an event."""
-        return f"{self._prefix}:meta:{event_id}"
-
-    @staticmethod
-    def _optional_text(value: str | None) -> str:
-        return value or ""
-
-    @staticmethod
-    def _optional_datetime(value: datetime | None) -> str:
-        if value is None:
-            return ""
-        return value.isoformat()
-
-    @staticmethod
-    def _decode_hash(data: dict[bytes | str, bytes | str]) -> dict[str, str]:
-        return {
-            (k.decode() if isinstance(k, bytes) else k): (v.decode() if isinstance(v, bytes) else v)
-            for k, v in data.items()
-        }
-
-    @staticmethod
-    def _parse_datetime(value: str) -> datetime | None:
-        if not value:
-            return None
-        return datetime.fromisoformat(value)
-
-    @staticmethod
-    def _none_if_empty(value: str) -> str | None:
-        return value or None
-
-    def _serialize_event(self, event: OutboxEvent) -> dict[str, str]:
-        """Serialize event for Redis storage."""
-        return {
-            "event_id": event.event_id,
-            "saga_id": event.saga_id,
-            "aggregate_type": event.aggregate_type or "saga",
-            "aggregate_id": self._optional_text(event.aggregate_id),
-            "event_type": event.event_type,
-            "payload": serialize(event.payload),
-            "headers": serialize(event.headers),
-            "status": event.status.value,
-            "retry_count": str(event.retry_count),
-            "created_at": self._optional_datetime(event.created_at),
-            "claimed_at": self._optional_datetime(event.claimed_at),
-            "sent_at": self._optional_datetime(event.sent_at),
-            "last_error": self._optional_text(event.last_error),
-            "worker_id": self._optional_text(event.worker_id),
-            "routing_key": self._optional_text(event.routing_key),
-            "partition_key": self._optional_text(event.partition_key),
-            "dead_letter_at": self._optional_datetime(event.dead_letter_at),
-            "dead_letter_reason": self._optional_text(event.dead_letter_reason),
-            "error_type": self._optional_text(event.error_type),
-            "error_classification": self._optional_text(event.error_classification),
-            "error_fingerprint": self._optional_text(event.error_fingerprint),
-            "replay_count": str(event.replay_count),
-        }
-
-    def _deserialize_event(self, data: dict[bytes | str, bytes | str]) -> OutboxEvent:
-        """Deserialize event from Redis storage."""
-        decoded = self._decode_hash(data)
-
-        return OutboxEvent(
-            event_id=decoded.get("event_id", ""),
-            saga_id=decoded.get("saga_id", ""),
-            aggregate_type=decoded.get("aggregate_type", "saga"),
-            aggregate_id=self._none_if_empty(decoded.get("aggregate_id", "")),
-            event_type=decoded.get("event_type", ""),
-            payload=deserialize(decoded.get("payload", "{}")),
-            headers=deserialize(decoded.get("headers", "{}")),
-            status=OutboxStatus(decoded.get("status", "pending")),
-            retry_count=int(decoded.get("retry_count", 0)),
-            created_at=self._parse_datetime(decoded.get("created_at", "")) or datetime.now(UTC),
-            claimed_at=self._parse_datetime(decoded.get("claimed_at", "")),
-            sent_at=self._parse_datetime(decoded.get("sent_at", "")),
-            last_error=self._none_if_empty(decoded.get("last_error", "")),
-            worker_id=self._none_if_empty(decoded.get("worker_id", "")),
-            routing_key=self._none_if_empty(decoded.get("routing_key", "")),
-            partition_key=self._none_if_empty(decoded.get("partition_key", "")),
-            dead_letter_at=self._parse_datetime(decoded.get("dead_letter_at", "")),
-            dead_letter_reason=self._none_if_empty(decoded.get("dead_letter_reason", "")),
-            error_type=self._none_if_empty(decoded.get("error_type", "")),
-            error_classification=self._none_if_empty(decoded.get("error_classification", "")),
-            error_fingerprint=self._none_if_empty(decoded.get("error_fingerprint", "")),
-            replay_count=int(decoded.get("replay_count", 0)),
-        )
-
     # ==========================================================================
     # Core Operations
     # ==========================================================================
@@ -297,78 +222,6 @@ class RedisOutboxStorage(OutboxStorage):
 
         return event
 
-    async def _build_status_updates(
-        self,
-        event_id: str,
-        status: OutboxStatus,
-        error_message: str | None,
-        event: OutboxEvent | None,
-        now: str,
-    ) -> dict[str, str]:
-        updates = {"status": status.value}
-        if status == OutboxStatus.SENT:
-            updates["sent_at"] = now
-            return updates
-        if status == OutboxStatus.FAILED:
-            updates.update(await self._failed_updates(event_id, error_message, event))
-            return updates
-        if status == OutboxStatus.DEAD_LETTER:
-            updates.update(self._dead_letter_updates(now, error_message, event))
-            return updates
-        if status == OutboxStatus.PENDING and event:
-            updates.update(self._pending_replay_updates(event))
-        return updates
-
-    async def _failed_updates(
-        self,
-        event_id: str,
-        error_message: str | None,
-        event: OutboxEvent | None,
-    ) -> dict[str, str]:
-        # Like the SQL backends, every FAILED transition counts as a retry.
-        current = await self.get_by_id(event_id)
-        updates = {"retry_count": str((current.retry_count if current else 0) + 1)}
-        if error_message:
-            updates["last_error"] = error_message
-        updates.update(self._error_metadata_updates(event))
-        return updates
-
-    def _dead_letter_updates(
-        self,
-        now: str,
-        error_message: str | None,
-        event: OutboxEvent | None,
-    ) -> dict[str, str]:
-        reason = ""
-        if event and event.dead_letter_reason:
-            reason = event.dead_letter_reason
-        elif error_message:
-            reason = error_message
-        return {
-            # Same as COALESCE(dead_letter_at, NOW()) in the SQL backends.
-            "dead_letter_at": (
-                event.dead_letter_at.isoformat() if event and event.dead_letter_at else now
-            ),
-            "dead_letter_reason": reason,
-            **self._error_metadata_updates(event),
-        }
-
-    def _pending_replay_updates(self, event: OutboxEvent) -> dict[str, str]:
-        return {
-            "replay_count": str(event.replay_count),
-            "dead_letter_at": "",
-            "dead_letter_reason": "",
-        }
-
-    def _error_metadata_updates(self, event: OutboxEvent | None) -> dict[str, str]:
-        return {
-            "error_type": self._optional_text(event.error_type if event else None),
-            "error_classification": self._optional_text(
-                event.error_classification if event else None
-            ),
-            "error_fingerprint": self._optional_text(event.error_fingerprint if event else None),
-        }
-
     # ==========================================================================
     # Batch Operations
     # ==========================================================================
@@ -398,83 +251,6 @@ class RedisOutboxStorage(OutboxStorage):
             logger.debug(f"Worker {worker_id} claimed {len(events)} events")
 
         return events
-
-    async def _read_from_stream(self, worker_id: str, batch_size: int):
-        """Read messages from consumer group stream."""
-        assert self._redis is not None
-        try:
-            return await self._redis.xreadgroup(
-                groupname=self._consumer_group,
-                consumername=worker_id,
-                streams={self._stream_key: ">"},
-                count=batch_size,
-                block=1000,
-            )
-        except Exception as e:
-            logger.warning(f"Error reading from stream: {e}")
-            return None
-
-    async def _process_claimed_messages(self, response: list, worker_id: str) -> list[OutboxEvent]:
-        """Process messages from stream response."""
-        events = []
-        now = datetime.now(UTC)
-
-        for _stream_name, messages in response:
-            for message_id, message_data in messages:
-                event = await self._claim_single_message(message_id, message_data, worker_id, now)
-                if event:
-                    events.append(event)
-
-        return events
-
-    async def _claim_single_message(
-        self, message_id, message_data: dict, worker_id: str, now: datetime
-    ) -> OutboxEvent | None:
-        """Claim and update a single message. Returns event or None."""
-        event_id = self._extract_event_id(message_data)
-        if not event_id:
-            return None
-
-        event = await self.get_by_id(event_id)
-        if not event:
-            # Acknowledge orphaned message
-            assert self._redis is not None
-            await self._redis.xack(self._stream_key, self._consumer_group, message_id)
-            return None
-
-        # Update claim metadata
-        await self._update_claim_metadata(event_id, message_id, worker_id, now)
-
-        event.status = OutboxStatus.CLAIMED
-        event.claimed_at = now
-        event.worker_id = worker_id
-        return event
-
-    def _extract_event_id(self, message_data: dict) -> str:
-        """Extract event_id from message data (handles bytes/str)."""
-        raw = message_data.get(b"event_id") or message_data.get("event_id", "")
-        if isinstance(raw, bytes):
-            return raw.decode()
-        return raw or ""
-
-    async def _update_claim_metadata(
-        self, event_id: str, message_id, worker_id: str, now: datetime
-    ) -> None:
-        """Update Redis with claim information."""
-        assert self._redis is not None
-        meta_key = self._meta_key(event_id)
-        await self._redis.hset(
-            meta_key,
-            mapping={
-                "status": OutboxStatus.CLAIMED.value,
-                "claimed_at": now.isoformat(),
-                "worker_id": worker_id,
-            },
-        )
-
-        msg_id_str = message_id.decode() if isinstance(message_id, bytes) else message_id
-        assert self._redis is not None
-        await self._redis.hset(self._processing_key, event_id, msg_id_str)
 
     async def get_events_by_saga(self, saga_id: str) -> list[OutboxEvent]:
         """Get all events for a saga (requires scanning)."""
@@ -507,96 +283,6 @@ class RedisOutboxStorage(OutboxStorage):
         return events
 
     # ==========================================================================
-    # Stuck Event Recovery
-    # ==========================================================================
-
-    async def get_stuck_events(
-        self,
-        claimed_older_than_seconds: float = 300.0,
-    ) -> list[OutboxEvent]:
-        """Get events that appear to be stuck."""
-        if not self._initialized:
-            await self.initialize()
-        assert self._redis is not None
-
-        # Check pending entries in consumer group
-        try:
-            pending = await self._redis.xpending_range(
-                self._stream_key,
-                self._consumer_group,
-                min="-",
-                max="+",
-                count=1000,
-            )
-        except Exception as e:
-            logger.warning(f"Error getting pending entries: {e}")
-            return []
-
-        stuck = []
-        threshold_ms = claimed_older_than_seconds * 1000
-
-        for entry in pending:
-            idle_time = entry.get("time_since_delivered", 0)
-            if idle_time > threshold_ms:
-                event_id = (
-                    entry.get("message_id", b"").decode()
-                    if isinstance(entry.get("message_id"), bytes)
-                    else entry.get("message_id", "")
-                )
-                event = await self.get_by_id(event_id)
-                if event:
-                    stuck.append(event)
-
-        return stuck
-
-    async def release_stuck_events(
-        self,
-        claimed_older_than_seconds: float = 300.0,
-    ) -> int:
-        """Release stuck events back to pending."""
-        if not self._initialized:
-            await self.initialize()
-        assert self._redis is not None
-
-        # Get pending entries
-        try:
-            pending = await self._redis.xpending_range(
-                self._stream_key,
-                self._consumer_group,
-                min="-",
-                max="+",
-                count=1000,
-            )
-        except Exception:
-            return 0
-
-        released = 0
-        threshold_ms = int(claimed_older_than_seconds * 1000)
-
-        for entry in pending:
-            idle_time = entry.get("time_since_delivered", 0)
-            if idle_time > threshold_ms:
-                message_id = entry.get("message_id")
-
-                # Claim the message for ourselves and re-add to stream
-                try:
-                    await self._redis.xclaim(
-                        self._stream_key,
-                        self._consumer_group,
-                        "recovery-worker",
-                        min_idle_time=threshold_ms,
-                        message_ids=[message_id],
-                    )
-                    released += 1
-                except Exception as e:
-                    logger.warning(f"Failed to release stuck event: {e}")
-
-        if released:
-            logger.info(f"Released {released} stuck events")
-
-        return released
-
-    # ==========================================================================
     # Statistics
     # ==========================================================================
 
@@ -610,33 +296,6 @@ class RedisOutboxStorage(OutboxStorage):
             return int(await self._redis.xlen(self._stream_key))
         except Exception:
             return 0
-
-    async def get_dead_letter_events(self, limit: int = 100) -> list[OutboxEvent]:
-        """Get events in dead letter queue."""
-        if not self._initialized:
-            await self.initialize()
-        assert self._redis is not None
-
-        events = []
-        pattern = f"{self._prefix}:meta:*"
-        cursor = 0
-        try:
-            while True:
-                cursor, keys = await self._redis.scan(cursor, match=pattern, count=100)
-                for key in keys:
-                    data = await self._redis.hgetall(key)
-                    if not data:
-                        continue
-                    event = self._deserialize_event(data)
-                    if event.status == OutboxStatus.DEAD_LETTER:
-                        events.append(event)
-                        if len(events) >= limit:
-                            return events
-                if cursor == 0:
-                    break
-        except Exception as e:
-            logger.warning(f"Error reading DLQ: {e}")
-        return events
 
     async def health_check(self) -> HealthCheckResult:
         """Check Redis connection health."""
@@ -692,168 +351,6 @@ class RedisOutboxStorage(OutboxStorage):
             pending_records=pending,
             failed_records=dlq_len,
         )
-
-    async def count(self) -> int:
-        """Count all retained outbox event metadata records."""
-        if not self._initialized:
-            await self.initialize()
-        assert self._redis is not None
-
-        total = 0
-        cursor = 0
-        pattern = f"{self._prefix}:meta:*"
-        while True:
-            cursor, keys = await self._redis.scan(cursor, match=pattern, count=500)
-            total += len(keys)
-            if cursor == 0:
-                break
-        return total
-
-    async def export_all(self):
-        """Export all events."""
-        if not self._initialized:
-            await self.initialize()
-        assert self._redis is not None
-
-        pattern = f"{self._prefix}:meta:*"
-        cursor = 0
-        while True:
-            cursor, keys = await self._redis.scan(cursor, match=pattern, count=100)
-            for key in keys:
-                data = await self._redis.hgetall(key)
-                if data:
-                    yield self._deserialize_event(data).to_dict()
-            if cursor == 0:
-                break
-
-    async def import_record(self, record: dict[str, Any]) -> None:
-        """Import an event atomically without overwriting destination state."""
-        from redis.exceptions import WatchError
-
-        event = OutboxEvent.from_dict(record)
-
-        if not self._initialized:
-            await self.initialize()
-
-        assert self._redis is not None
-        meta_key = self._meta_key(event.event_id)
-        event_data = self._serialize_event(event)
-
-        while True:
-            async with self._redis.pipeline(transaction=True) as pipe:
-                try:
-                    # WATCH detects changes made by workers or other importers
-                    # between reading metadata and committing the import.
-                    await pipe.watch(meta_key)
-                    existing_data = await pipe.hgetall(meta_key)
-
-                    if existing_data:
-                        existing = self._deserialize_event(existing_data)
-                        if existing != event:
-                            msg = (
-                                f"Outbox event {event.event_id} already exists with different state"
-                            )
-                            raise OutboxStorageError(msg)
-
-                        await pipe.unwatch()
-                        return
-
-                    pipe.multi()
-                    pipe.hset(meta_key, mapping=event_data)
-                    pipe.expire(meta_key, self._event_ttl_seconds)
-
-                    if event.status in (
-                        OutboxStatus.PENDING,
-                        OutboxStatus.CLAIMED,
-                    ):
-                        pipe.xadd(
-                            self._stream_key,
-                            {
-                                "event_id": event.event_id,
-                                "saga_id": event.saga_id,
-                                "event_type": event.event_type,
-                            },
-                            maxlen=self._max_stream_length,
-                        )
-
-                    await pipe.execute()
-                    return
-
-                except WatchError:
-                    # Metadata changed concurrently. Re-read and compare
-                    # instead of applying a potentially stale snapshot.
-                    continue
-
-    async def requeue_dead_letter_event(self, event_id: str, force: bool = False) -> OutboxEvent:
-        """Move a DLQ event back to PENDING."""
-        if not self._initialized:
-            await self.initialize()
-        event = await self.get_by_id(event_id)
-        if event is None:
-            msg = f"Event {event_id} not found"
-            raise KeyError(msg)
-
-        max_replays = 3
-        if not force and event.replay_count >= max_replays:
-            raise ReplayLoopError(
-                event_id=event_id,
-                replay_count=event.replay_count,
-                max_replays=max_replays,
-            )
-
-        event.replay_count += 1
-        event.status = OutboxStatus.PENDING
-        event.retry_count = 0
-        event.worker_id = None
-        event.claimed_at = None
-        event.dead_letter_at = None
-        event.dead_letter_reason = None
-
-        assert self._redis is not None
-        await self._redis.xadd(
-            self._stream_key,
-            {"event_id": event.event_id, "saga_id": event.saga_id, "event_type": event.event_type},
-            maxlen=self._max_stream_length,
-        )
-        return await self.update_status(event_id, OutboxStatus.PENDING, event=event)
-
-    async def purge_dead_letter_events(self, older_than: timedelta | None = None) -> int:
-        """Permanently remove DLQ events."""
-        if not self._initialized:
-            await self.initialize()
-        assert self._redis is not None
-
-        now = datetime.now(UTC)
-        purged = 0
-        pattern = f"{self._prefix}:meta:*"
-        cursor = 0
-
-        while True:
-            cursor, keys = await self._redis.scan(cursor, match=pattern, count=100)
-            for key in keys:
-                data = await self._redis.hgetall(key)
-                if not data:
-                    continue
-                event = self._deserialize_event(data)
-                if self._should_purge_dead_letter(event, older_than, now):
-                    await self._redis.delete(key)
-                    purged += 1
-            if cursor == 0:
-                break
-
-        return purged
-
-    @staticmethod
-    def _should_purge_dead_letter(
-        event: OutboxEvent, older_than: timedelta | None, now: datetime
-    ) -> bool:
-        if event.status != OutboxStatus.DEAD_LETTER:
-            return False
-        if older_than is None:
-            return True
-        if event.dead_letter_at is None:
-            return False
-        return (now - event.dead_letter_at) >= older_than
 
     # ==========================================================================
     # Context Manager
