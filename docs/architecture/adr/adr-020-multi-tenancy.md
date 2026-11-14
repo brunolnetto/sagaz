@@ -590,6 +590,12 @@ Per-tenant encryption of saga context and step results (AES-256-GCM, pluggable k
 provider: environment first, then Vault/KMS), and a scaled-down performance benchmark
 with documented local numbers.
 
+The benchmark is done: [Multi-tenancy overhead](../../benchmarks/tenancy-overhead.md).
+Multi-tenant sagas send the same storage operations as single-tenant ones and add a
+few microseconds of client work (well under 1% of a saga); on PostgreSQL the
+per-connection `set_config` (2 of 13 statements per saga) is the measurable cost of
+tenancy support, and row-level security is not measurable.
+
 ## Implementation Phases (original proposal)
 
 ### Phase 1: Tenant Context (v2.1.0)

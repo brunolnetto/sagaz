@@ -139,7 +139,15 @@ The outbox worker always runs in the system scope. Each event carries its `tenan
 and the worker passes it along with the published message. Tenant-facing outbox reads,
 such as DLQ listing and requeue, stay restricted to the current tenant.
 
+## Performance
+
+Running sagas as many tenants instead of one costs little: see the
+[multi-tenancy overhead benchmark](../benchmarks/tenancy-overhead.md) for measured
+numbers on every backend, what PostgreSQL row-level security and the per-connection
+`set_config` cost, and how to run the full 1000 tenants × 10 concurrent sagas
+configuration yourself.
+
 ## Not yet included
 
-Per-tenant encryption of saga context (AES-256-GCM with tenant keys) and the large-scale
-performance benchmark are planned as the second phase of #54.
+Per-tenant encryption of saga context (AES-256-GCM with tenant keys) is planned as the
+second phase of #54.

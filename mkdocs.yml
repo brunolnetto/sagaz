@@ -66,6 +66,7 @@ nav:
     - Configuration: guides/configuration.md
     - Kubernetes Deployment: guides/kubernetes.md
     - Benchmarking: guides/benchmarking.md
+    - Multi-tenancy Overhead: benchmarks/tenancy-overhead.md
     - Saga Replay: guides/saga-replay.md
     - Replay Storage Backends: guides/replay-storage-backends.md
     - HA PostgreSQL Quick Reference: guides/ha-postgres-quickref.md
