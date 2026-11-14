@@ -3,11 +3,17 @@
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
+from sagaz.core.storage.backends.postgresql._saga_query import tenant_condition
+from sagaz.core.storage.backends.postgresql._tenancy import acquire_scoped
 from sagaz.core.types import SagaStatus
 
 
 class _PostgreSQLSagaMaintenanceMixin:
-    """Read-only statistics, retention cleanup and health probing."""
+    """Read-only statistics, retention cleanup and health probing.
+
+    Statistics, counts and cleanup cover the current tenant (every tenant in
+    the system scope).
+    """
 
     if TYPE_CHECKING:
 
@@ -20,13 +26,18 @@ class _PostgreSQLSagaMaintenanceMixin:
 
         pool = await self._get_pool()
 
-        async with pool.acquire() as conn:
+        async with acquire_scoped(pool) as conn:
             # Count by status
-            status_rows = await conn.fetch("""
+            params: list[Any] = []
+            condition = tenant_condition("tenant_id", params)
+            status_rows = await conn.fetch(
+                f"""
                 SELECT status, COUNT(*) as count
-                FROM sagas
+                FROM sagas WHERE {condition}
                 GROUP BY status
-            """)
+            """,
+                *params,
+            )
 
             status_counts = {row["status"]: row["count"] for row in status_rows}
             total_sagas = sum(status_counts.values())
@@ -51,16 +62,16 @@ class _PostgreSQLSagaMaintenanceMixin:
             statuses = [SagaStatus.COMPLETED, SagaStatus.ROLLED_BACK]
 
         pool = await self._get_pool()
-        status_values = [s.value for s in statuses]
+        params: list[Any] = [[s.value for s in statuses], older_than]
+        condition = tenant_condition("tenant_id", params)
 
-        async with pool.acquire() as conn:
+        async with acquire_scoped(pool) as conn:
             result = await conn.execute(
-                """
+                f"""
                 DELETE FROM sagas
-                WHERE status = ANY($1) AND updated_at < $2
+                WHERE status = ANY($1) AND updated_at < $2 AND {condition}
             """,
-                status_values,
-                older_than,
+                *params,
             )
 
             return int(result.split()[-1])  # Extract affected row count
@@ -71,7 +82,7 @@ class _PostgreSQLSagaMaintenanceMixin:
         try:
             pool = await self._get_pool()
 
-            async with pool.acquire() as conn:
+            async with acquire_scoped(pool) as conn:
                 # Test basic query
                 result = await conn.fetchval("SELECT 1")
                 if result != 1:
@@ -103,5 +114,9 @@ class _PostgreSQLSagaMaintenanceMixin:
     async def count(self) -> int:
         """Count total sagas."""
         pool = await self._get_pool()
-        async with pool.acquire() as conn:
-            return int(await conn.fetchval("SELECT COUNT(*) FROM sagas"))
+        async with acquire_scoped(pool) as conn:
+            params: list[Any] = []
+            condition = tenant_condition("tenant_id", params)
+            return int(
+                await conn.fetchval(f"SELECT COUNT(*) FROM sagas WHERE {condition}", *params)
+            )
