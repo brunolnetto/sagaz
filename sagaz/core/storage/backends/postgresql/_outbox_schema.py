@@ -1,10 +1,15 @@
 """
 DDL for the PostgreSQL outbox tables (``saga_outbox``, its archive and the
 consumer inbox), applied idempotently by ``PostgreSQLOutboxStorage.initialize``.
+
+The tenant column and row-level security (ADR-020) are added last, so existing
+rows are migrated to the default tenant.
 """
 
+from sagaz.core.storage.backends.postgresql._outbox_tenancy import OUTBOX_TENANCY_SCHEMA
+
 # SQL for creating the outbox schema
-OUTBOX_SCHEMA = """
+_BASE_SCHEMA = """
 -- Outbox table for pending messages
 CREATE TABLE IF NOT EXISTS saga_outbox (
     event_id        UUID PRIMARY KEY,
@@ -81,3 +86,5 @@ ALTER TABLE saga_outbox ADD COLUMN IF NOT EXISTS partition_key VARCHAR(255);
 ALTER TABLE saga_outbox_archive ADD COLUMN IF NOT EXISTS routing_key VARCHAR(255);
 ALTER TABLE saga_outbox_archive ADD COLUMN IF NOT EXISTS partition_key VARCHAR(255);
 """
+
+OUTBOX_SCHEMA = _BASE_SCHEMA + OUTBOX_TENANCY_SCHEMA

@@ -6,29 +6,27 @@ for reliable event delivery with consumer groups.
 """
 
 import logging
-import time
 from datetime import UTC, datetime
 from typing import Any
 
 from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
+from sagaz.core.storage._outbox_tenancy import resolve_event_tenant
 from sagaz.core.storage.backends.redis._outbox_claiming import RedisOutboxClaimingMixin
 from sagaz.core.storage.backends.redis._outbox_dlq import RedisOutboxDeadLetterMixin
 from sagaz.core.storage.backends.redis._outbox_serialization import (
     RedisOutboxSerializationMixin,
 )
+from sagaz.core.storage.backends.redis._outbox_stats import RedisOutboxStatisticsMixin
 from sagaz.core.storage.backends.redis._outbox_status import RedisOutboxStatusUpdatesMixin
 from sagaz.core.storage.backends.redis._outbox_transfer import RedisOutboxTransferMixin
-from sagaz.core.storage.core import (
-    HealthCheckResult,
-    HealthStatus,
-    StorageStatistics,
-)
 from sagaz.core.storage.interfaces import OutboxStorage, OutboxStorageError
+from sagaz.core.tenant import DEFAULT_TENANT, tenant_scope
 
 logger = logging.getLogger(__name__)
 
 
 class RedisOutboxStorage(
+    RedisOutboxStatisticsMixin,
     RedisOutboxStatusUpdatesMixin,
     RedisOutboxClaimingMixin,
     RedisOutboxDeadLetterMixin,
@@ -44,11 +42,16 @@ class RedisOutboxStorage(
     - XREADGROUP for claiming batches (consumer groups)
     - XACK for acknowledging processed events
 
-    Schema:
-        {prefix}:events       - Main stream of pending events
-        {prefix}:processing   - Hash of events being processed
-        {prefix}:dlq          - Stream of dead-letter events
-        {prefix}:meta:{id}    - Hash with full event metadata
+    Schema (per tenant, under ``{tp}`` = ``{prefix}`` for the default tenant
+    and ``sagaz:{tenant_id}:{prefix}`` otherwise, see ADR-020):
+        {tp}:events           - Main stream of pending events
+        {tp}:processing       - Hash of events being processed
+        {tp}:dlq              - Stream of dead-letter events
+        {tp}:meta:{id}        - Hash with full event metadata
+        {prefix}:tenants      - Set of non-default tenants with outbox data
+
+    In the system scope (the outbox worker) ``claim_batch`` reads every
+    tenant's stream and the other operations span every tenant.
 
     Usage:
         >>> storage = RedisOutboxStorage("redis://localhost:6379")
@@ -94,7 +97,8 @@ class RedisOutboxStorage(
         self._redis: Any = None
         self._initialized = False
 
-        # Key names
+        # Key names of the default tenant (see _outbox_tenancy for the others)
+        self._ready_groups: set[str] = set()
         self._stream_key = f"{prefix}:events"
         self._dlq_key = f"{prefix}:dlq"
         self._processing_key = f"{prefix}:processing"
@@ -113,19 +117,9 @@ class RedisOutboxStorage(
         self._redis = redis.from_url(self._redis_url, **self._redis_kwargs)
         assert self._redis is not None
 
-        # Create consumer group if it doesn't exist
-        try:
-            await self._redis.xgroup_create(
-                self._stream_key,
-                self._consumer_group,
-                id="0",
-                mkstream=True,
-            )
-            logger.info(f"Created consumer group '{self._consumer_group}'")
-        except redis.ResponseError as e:
-            if "BUSYGROUP" not in str(e):
-                raise
-            # Group already exists, that's fine
+        # Create the default tenant's consumer group if it doesn't exist
+        self._ready_groups.clear()
+        await self._ensure_group(self._stream_key)
 
         self._initialized = True
         logger.info(f"Redis outbox storage initialized: {self._prefix}")
@@ -146,10 +140,20 @@ class RedisOutboxStorage(
         event: OutboxEvent,
         connection: Any | None = None,
     ) -> OutboxEvent:
-        """Insert event into Redis stream."""
+        """Insert event into its tenant's Redis stream."""
         if not self._initialized:
             await self.initialize()
         assert self._redis is not None
+
+        tenant_id = resolve_event_tenant(event)
+        with tenant_scope(tenant_id):
+            await self._insert_scoped(event)
+        logger.debug(f"Inserted outbox event: {event.event_id}")
+        return event
+
+    async def _insert_scoped(self, event: OutboxEvent) -> None:
+        stream_key = self._scoped_stream_key()
+        await self._ensure_group(stream_key)
 
         # Store full metadata in hash
         meta_key = self._meta_key(event.event_id)
@@ -167,24 +171,25 @@ class RedisOutboxStorage(
                 "event_type": event.event_type,
             }
             pipe.xadd(
-                self._stream_key,
+                stream_key,
                 stream_data,
                 maxlen=self._max_stream_length,
             )
+            if event.tenant_id != DEFAULT_TENANT:
+                pipe.sadd(self._tenants_key, event.tenant_id)
 
             await pipe.execute()
 
-        logger.debug(f"Inserted outbox event: {event.event_id}")
-        return event
-
     async def get_by_id(self, event_id: str) -> OutboxEvent | None:
-        """Get event by ID from metadata hash."""
+        """Get an event of the current tenant (any tenant in the system scope)."""
         if not self._initialized:
             await self.initialize()
         assert self._redis is not None
 
-        meta_key = self._meta_key(event_id)
-        data = await self._redis.hgetall(meta_key)
+        async with self._event_tenant_scope(event_id) as tenant:
+            if tenant is None:
+                return None
+            data = await self._redis.hgetall(self._meta_key(event_id))
 
         if not data:
             return None
@@ -199,12 +204,29 @@ class RedisOutboxStorage(
         connection: Any | None = None,
         event: OutboxEvent | None = None,
     ) -> OutboxEvent:
-        """Update event status."""
+        """Update the status of an event of the current tenant."""
         if not self._initialized:
             await self.initialize()
         assert self._redis is not None
 
+        async with self._event_tenant_scope(event_id, event.tenant_id if event else None) as t:
+            if t is None:
+                msg = f"Event not found: {event_id}"
+                raise OutboxStorageError(msg)
+            return await self._update_status_scoped(event_id, status, error_message, event)
+
+    async def _update_status_scoped(
+        self,
+        event_id: str,
+        status: OutboxStatus,
+        error_message: str | None,
+        event: OutboxEvent | None,
+    ) -> OutboxEvent:
         meta_key = self._meta_key(event_id)
+        if not await self._redis.exists(meta_key):
+            # Never create a partial hash for an unknown (or other tenant's) event.
+            msg = f"Event not found: {event_id}"
+            raise OutboxStorageError(msg)
         now = datetime.now(UTC).isoformat()
         updates = await self._build_status_updates(event_id, status, error_message, event, now)
 
@@ -212,7 +234,7 @@ class RedisOutboxStorage(
 
         # If sent or dead letter, remove from processing set
         if status in (OutboxStatus.SENT, OutboxStatus.FAILED, OutboxStatus.DEAD_LETTER):
-            await self._redis.hdel(self._processing_key, event_id)
+            await self._redis.hdel(self._scoped_processing_key(), event_id)
 
         # Get updated event
         event = await self.get_by_id(event_id)
@@ -235,17 +257,22 @@ class RedisOutboxStorage(
         """
         Claim a batch of pending events using XREADGROUP.
 
-        Uses Redis consumer groups for reliable claiming.
+        Uses Redis consumer groups for reliable claiming. In the system scope
+        every tenant's stream is read in one call (up to ``batch_size`` events
+        per stream).
         """
         if not self._initialized:
             await self.initialize()
         assert self._redis is not None
 
-        response = await self._read_from_stream(worker_id, batch_size)
+        streams = {
+            self._scoped_stream_key(tenant): tenant for tenant in await self._scope_tenants()
+        }
+        response = await self._read_from_stream(worker_id, batch_size, streams)
         if not response:
             return []
 
-        events = await self._process_claimed_messages(response, worker_id)
+        events = await self._process_claimed_messages(response, worker_id, streams)
 
         if events:
             logger.debug(f"Worker {worker_id} claimed {len(events)} events")
@@ -253,15 +280,19 @@ class RedisOutboxStorage(
         return events
 
     async def get_events_by_saga(self, saga_id: str) -> list[OutboxEvent]:
-        """Get all events for a saga (requires scanning)."""
+        """Get all events of the current tenant(s) for a saga (requires scanning)."""
         if not self._initialized:
             await self.initialize()
         assert self._redis is not None
 
+        per_tenant = await self._per_tenant(lambda: self._events_by_saga_scoped(saga_id))
+        return [event for events in per_tenant for event in events]
+
+    async def _events_by_saga_scoped(self, saga_id: str) -> list[OutboxEvent]:
         # This is expensive - scan all metadata keys
         events = []
         cursor = 0
-        pattern = f"{self._prefix}:meta:*"
+        pattern = self._meta_pattern()
 
         while True:
             cursor, keys = await self._redis.scan(cursor, match=pattern, count=100)
@@ -281,76 +312,6 @@ class RedisOutboxStorage(
                 break
 
         return events
-
-    # ==========================================================================
-    # Statistics
-    # ==========================================================================
-
-    async def get_pending_count(self) -> int:
-        """Get count of pending events."""
-        if not self._initialized:
-            await self.initialize()
-        assert self._redis is not None
-
-        try:
-            return int(await self._redis.xlen(self._stream_key))
-        except Exception:
-            return 0
-
-    async def health_check(self) -> HealthCheckResult:
-        """Check Redis connection health."""
-        if not self._initialized:
-            try:
-                await self.initialize()
-            except Exception as e:
-                return HealthCheckResult(
-                    status=HealthStatus.UNHEALTHY,
-                    latency_ms=0,
-                    message=f"Failed to initialize: {e}",
-                )
-
-        start = time.perf_counter()
-
-        try:
-            assert self._redis is not None
-            await self._redis.ping()
-            stream_len = await self._redis.xlen(self._stream_key)
-            elapsed_ms = (time.perf_counter() - start) * 1000
-
-            return HealthCheckResult(
-                status=HealthStatus.HEALTHY,
-                latency_ms=elapsed_ms,
-                message="OK",
-                details={
-                    "stream_length": stream_len,
-                    "consumer_group": self._consumer_group,
-                },
-            )
-        except Exception as e:
-            elapsed_ms = (time.perf_counter() - start) * 1000
-            return HealthCheckResult(
-                status=HealthStatus.UNHEALTHY,
-                latency_ms=elapsed_ms,
-                message=f"Redis error: {e}",
-            )
-
-    async def get_statistics(self) -> StorageStatistics:
-        """Get storage statistics."""
-        if not self._initialized:
-            await self.initialize()
-        assert self._redis is not None
-
-        pending = await self.get_pending_count()
-
-        try:
-            dlq_len = await self._redis.xlen(self._dlq_key)
-        except Exception:
-            dlq_len = 0
-
-        return StorageStatistics(
-            pending_records=pending,
-            failed_records=dlq_len,
-        )
 
     # ==========================================================================
     # Context Manager

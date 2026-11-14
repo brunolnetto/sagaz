@@ -47,7 +47,8 @@ class SQLiteOutboxSchemaMixin(SQLiteOutboxMixinBase):
                 error_type TEXT,
                 error_classification TEXT,
                 error_fingerprint TEXT,
-                replay_count INTEGER DEFAULT 0
+                replay_count INTEGER DEFAULT 0,
+                tenant_id TEXT NOT NULL DEFAULT 'default'
             );
 
             CREATE INDEX IF NOT EXISTS idx_outbox_status ON outbox_events(status);
@@ -56,6 +57,9 @@ class SQLiteOutboxSchemaMixin(SQLiteOutboxMixinBase):
         await self._ensure_optional_columns(conn)
         await conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_outbox_claimed_at ON outbox_events(claimed_at)"
+        )
+        await conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_outbox_tenant_id ON outbox_events(tenant_id, status)"
         )
         assert conn is not None
         await conn.commit()
@@ -83,6 +87,8 @@ class SQLiteOutboxSchemaMixin(SQLiteOutboxMixinBase):
             ("worker_id", "TEXT"),
             ("retry_count", "INTEGER DEFAULT 0"),
             ("last_error", "TEXT"),
+            # ADR-020: rows written before multi-tenancy belong to 'default'.
+            ("tenant_id", "TEXT NOT NULL DEFAULT 'default'"),
         )
 
         for column_name, column_type in optional_columns:

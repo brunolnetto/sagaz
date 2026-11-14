@@ -109,7 +109,7 @@ class OptimisticPublisher:
                         topic=self._resolve_topic(event),
                         key=event.partition_key,
                         value=event.payload,
-                        headers=event.headers,
+                        headers={**event.headers, "tenant_id": event.tenant_id},
                     ),
                     timeout=self.timeout_seconds,
                 )

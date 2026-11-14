@@ -33,12 +33,14 @@ except ImportError:
 
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
+from sagaz.core.storage._outbox_tenancy import resolve_event_tenant
 from sagaz.core.storage.backends.sqlite._outbox_dlq import SQLiteOutboxDeadLetterMixin
 from sagaz.core.storage.backends.sqlite._outbox_rows import SQLiteOutboxRowMappingMixin
 from sagaz.core.storage.backends.sqlite._outbox_schema import SQLiteOutboxSchemaMixin
 from sagaz.core.storage.backends.sqlite._outbox_status_queries import (
     SQLiteOutboxStatusQueryMixin,
 )
+from sagaz.core.storage.backends.sqlite._outbox_tenancy import TENANT_FILTER, tenant_params
 from sagaz.core.storage.backends.sqlite._outbox_transfer import SQLiteOutboxTransferMixin
 from sagaz.core.storage.core import (
     HealthCheckResult,
@@ -62,7 +64,9 @@ class SQLiteOutboxStorage(
     """
     SQLite-based outbox storage.
 
-    Provides lightweight, embedded storage for outbox events.
+    Provides lightweight, embedded storage for outbox events. Rows carry a
+    ``tenant_id`` (ADR-020); outside the system scope every query is
+    restricted to the current tenant.
 
     Attributes:
         db_path: Path to SQLite database file (or ":memory:" for in-memory)
@@ -129,6 +133,7 @@ class SQLiteOutboxStorage(
         """Insert an outbox event."""
         conn = await self._get_connection()
         now = datetime.now(UTC).isoformat()
+        tenant_id = resolve_event_tenant(event)
 
         await conn.execute(
             """
@@ -137,8 +142,8 @@ class SQLiteOutboxStorage(
                 claimed_at, sent_at, worker_id, retry_count, last_error,
                 aggregate_type, aggregate_id, headers, routing_key, partition_key,
                 dead_letter_at, dead_letter_reason, error_type, error_classification,
-                error_fingerprint, replay_count
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                error_fingerprint, replay_count, tenant_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 event.event_id,
@@ -163,6 +168,7 @@ class SQLiteOutboxStorage(
                 event.error_classification,
                 event.error_fingerprint,
                 event.replay_count,
+                tenant_id,
             ),
         )
         await conn.commit()
@@ -174,8 +180,8 @@ class SQLiteOutboxStorage(
         conn = await self._get_connection()
 
         cursor = await conn.execute(
-            "SELECT * FROM outbox_events WHERE event_id = ?",
-            (event_id,),
+            f"SELECT * FROM outbox_events WHERE event_id = ? AND {TENANT_FILTER}",
+            (event_id, *tenant_params()),
         )
         row = await cursor.fetchone()
 
@@ -196,7 +202,7 @@ class SQLiteOutboxStorage(
         conn = await self._get_connection()
         now = datetime.now(UTC).isoformat()
         query, params = self._build_update_status_query(event_id, status, error_message, event, now)
-        await conn.execute(query, params)
+        await conn.execute(f"{query} AND {TENANT_FILTER}", (*params, *tenant_params()))
         await conn.commit()
 
         updated = await self.get_by_id(event_id)
@@ -217,12 +223,12 @@ class SQLiteOutboxStorage(
 
         # First, select events to claim
         cursor = await conn.execute(
-            """
+            f"""
             SELECT event_id FROM outbox_events
-            WHERE status = 'pending'
+            WHERE status = 'pending' AND {TENANT_FILTER}
             LIMIT ?
             """,
-            (batch_size,),
+            (*tenant_params(), batch_size),
         )
         rows = await cursor.fetchall()
 
@@ -257,8 +263,8 @@ class SQLiteOutboxStorage(
         conn = await self._get_connection()
 
         cursor = await conn.execute(
-            "SELECT * FROM outbox_events WHERE saga_id = ? ORDER BY created_at",
-            (saga_id,),
+            f"SELECT * FROM outbox_events WHERE saga_id = ? AND {TENANT_FILTER} ORDER BY created_at",
+            (saga_id, *tenant_params()),
         )
         rows = await cursor.fetchall()
 
@@ -270,15 +276,15 @@ class SQLiteOutboxStorage(
     ) -> list[OutboxEvent]:
         """Get events stuck in claimed state."""
         conn = await self._get_connection()
-        datetime.now(UTC)
 
         cursor = await conn.execute(
-            """
+            f"""
             SELECT * FROM outbox_events
             WHERE status = 'claimed'
             AND claimed_at < datetime('now', ?)
+            AND {TENANT_FILTER}
             """,
-            (f"-{int(claimed_older_than_seconds)} seconds",),
+            (f"-{int(claimed_older_than_seconds)} seconds", *tenant_params()),
         )
         rows = await cursor.fetchall()
 
@@ -292,14 +298,15 @@ class SQLiteOutboxStorage(
         conn = await self._get_connection()
 
         cursor = await conn.execute(
-            """
+            f"""
             UPDATE outbox_events
             SET status = 'pending', worker_id = NULL, claimed_at = NULL,
                 retry_count = retry_count + 1
             WHERE status = 'claimed'
             AND claimed_at < datetime('now', ?)
+            AND {TENANT_FILTER}
             """,
-            (f"-{int(claimed_older_than_seconds)} seconds",),
+            (f"-{int(claimed_older_than_seconds)} seconds", *tenant_params()),
         )
         await conn.commit()
 
@@ -309,7 +316,10 @@ class SQLiteOutboxStorage(
         """Get count of pending events."""
         conn = await self._get_connection()
 
-        cursor = await conn.execute("SELECT COUNT(*) FROM outbox_events WHERE status = 'pending'")
+        cursor = await conn.execute(
+            f"SELECT COUNT(*) FROM outbox_events WHERE status = 'pending' AND {TENANT_FILTER}",
+            tenant_params(),
+        )
         row = await cursor.fetchone()
 
         return row[0] if row else 0
@@ -350,7 +360,8 @@ class SQLiteOutboxStorage(
         """Get storage statistics."""
         conn = await self._get_connection()
 
-        cursor = await conn.execute("""
+        cursor = await conn.execute(
+            f"""
             SELECT
                 COUNT(*) as total,
                 SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
@@ -358,7 +369,10 @@ class SQLiteOutboxStorage(
                 SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
                 SUM(CASE WHEN status = 'dead_letter' THEN 1 ELSE 0 END) as dead_letter
             FROM outbox_events
-        """)
+            WHERE {TENANT_FILTER}
+            """,
+            tenant_params(),
+        )
         row = await cursor.fetchone()
         if not row:
             return StorageStatistics(total_records=0, pending_records=0)

@@ -8,16 +8,17 @@ Events are stored as flat Redis hashes of strings; these helpers map an
 from datetime import UTC, datetime
 
 from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
-from sagaz.core.storage.backends.redis._outbox_base import RedisOutboxMixinBase
+from sagaz.core.storage.backends.redis._outbox_tenancy import RedisOutboxTenancyMixin
 from sagaz.core.storage.core import deserialize, serialize
+from sagaz.core.tenant import DEFAULT_TENANT
 
 
-class RedisOutboxSerializationMixin(RedisOutboxMixinBase):
+class RedisOutboxSerializationMixin(RedisOutboxTenancyMixin):
     """Key naming and hash (de)serialization for outbox events."""
 
     def _meta_key(self, event_id: str) -> str:
-        """Get metadata key for an event."""
-        return f"{self._prefix}:meta:{event_id}"
+        """Get the metadata key of an event of the current tenant."""
+        return f"{self._tenant_prefix()}:meta:{event_id}"
 
     @staticmethod
     def _optional_text(value: str | None) -> str:
@@ -71,6 +72,7 @@ class RedisOutboxSerializationMixin(RedisOutboxMixinBase):
             "error_classification": self._optional_text(event.error_classification),
             "error_fingerprint": self._optional_text(event.error_fingerprint),
             "replay_count": str(event.replay_count),
+            "tenant_id": event.tenant_id,
         }
 
     def _deserialize_event(self, data: dict[bytes | str, bytes | str]) -> OutboxEvent:
@@ -100,4 +102,5 @@ class RedisOutboxSerializationMixin(RedisOutboxMixinBase):
             error_classification=self._none_if_empty(decoded.get("error_classification", "")),
             error_fingerprint=self._none_if_empty(decoded.get("error_fingerprint", "")),
             replay_count=int(decoded.get("replay_count", 0)),
+            tenant_id=decoded.get("tenant_id") or DEFAULT_TENANT,
         )

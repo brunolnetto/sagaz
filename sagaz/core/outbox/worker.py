@@ -76,6 +76,7 @@ from sagaz.core.outbox.brokers.base import BrokerError, MessageBroker
 from sagaz.core.outbox.state_machine import OutboxStateMachine
 from sagaz.core.outbox.types import OutboxConfig, OutboxEvent, OutboxStatus
 from sagaz.core.storage.interfaces.outbox import OutboxStorage
+from sagaz.core.tenant import system_scope, tenant_scope
 
 
 class OutboxWorker(OutboxWorkerFailureMixin):
@@ -89,6 +90,10 @@ class OutboxWorker(OutboxWorkerFailureMixin):
         - Graceful shutdown on SIGTERM/SIGINT
         - Stuck event recovery
         - Dead letter queue handling
+        - Multi-tenant (ADR-020): claims run in the system scope, so the worker
+          publishes every tenant's events; each event is then published and
+          updated inside its own tenant's scope, and the broker message carries
+          its ``tenant_id``
 
     Usage:
         >>> worker = OutboxWorker(storage, broker, config)
@@ -160,7 +165,8 @@ class OutboxWorker(OutboxWorkerFailureMixin):
         self._setup_signal_handlers()
 
         try:
-            await self._run_processing_loop()
+            with system_scope():
+                await self._run_processing_loop()
         finally:
             self._running = False
             logger.info(f"Outbox worker {self.worker_id} stopped")
@@ -240,10 +246,11 @@ class OutboxWorker(OutboxWorkerFailureMixin):
         Returns:
             Number of events processed
         """
-        events = await self.storage.claim_batch(
-            worker_id=self.worker_id,
-            batch_size=self.config.batch_size,
-        )
+        with system_scope():
+            events = await self.storage.claim_batch(
+                worker_id=self.worker_id,
+                batch_size=self.config.batch_size,
+            )
         if not events:
             return 0
 
@@ -260,11 +267,16 @@ class OutboxWorker(OutboxWorkerFailureMixin):
 
     async def _process_event(self, event: OutboxEvent) -> None:
         """
-        Process a single event.
+        Process a single event inside the scope of the tenant that owns it.
 
         Args:
             event: The event to process
         """
+        with tenant_scope(event.tenant_id):
+            await self._publish_and_record(event)
+
+    async def _publish_and_record(self, event: OutboxEvent) -> None:
+        """Publish ``event`` and record the outcome in storage."""
         start_time = time.time()
         event_type = event.event_type or "unknown"
 
@@ -302,9 +314,10 @@ class OutboxWorker(OutboxWorkerFailureMixin):
         Returns:
             Number of events recovered
         """
-        count = await self.storage.release_stuck_events(
-            claimed_older_than_seconds=self.config.claim_timeout_seconds
-        )
+        with system_scope():
+            count = await self.storage.release_stuck_events(
+                claimed_older_than_seconds=self.config.claim_timeout_seconds
+            )
 
         if count > 0:
             logger.info(f"Recovered {count} stuck events")
