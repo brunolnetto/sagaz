@@ -2,7 +2,7 @@
 
 ## Status
 
-**Accepted** | Date: 2026-01-05 | Phase 1 implemented: 2026-11 (v1.9.0, #54) | Phase 2: encryption implemented, benchmark pending | Priority: Medium
+**Accepted** | Date: 2026-01-05 | Phase 1 implemented: 2026-11 (v1.9.0, #54) | Phase 2 implemented: 2026-11 (encryption, benchmark) | Priority: Medium
 
 > PR #68 was closed without implementing this ADR. What shipped is described in
 > [Implementation (v1.9.0)](#implementation-v190); the other sections are the original
@@ -611,8 +611,12 @@ sagas. Global rate limiting and quota metrics are not implemented.
 
 ### Performance benchmark (phase 2)
 
-Pending: the scaled-down version of "1000 tenants × 10 concurrent sagas, <5% overhead",
-with documented local numbers.
+Criterion: "1000 tenants × 10 concurrent sagas, <5% overhead" (scaled down to 100 × 10 by
+default, with documented local numbers). Result: [Multi-tenancy overhead](../../benchmarks/tenancy-overhead.md).
+Multi-tenant sagas send the same storage operations as single-tenant ones and add a
+few microseconds of client work (well under 1% of a saga); on PostgreSQL the
+per-connection `set_config` (2 of 13 statements per saga) is the measurable cost of
+tenancy support, and row-level security is not measurable.
 
 ## Implementation Phases (original proposal)
 
@@ -813,6 +817,7 @@ audit_log.record(
 | 2025-01-01 | Initial proposal |
 | 2026-11-14 | Phase 1 implemented (#54): ContextVar scope, default and system tenants, storage and outbox isolation with PostgreSQL RLS, registry, quotas, `sagaz tenant` CLI. Status corrected (#68 never implemented it). |
 | 2026-11-14 | Phase 2: per-tenant encryption at rest (AES-256-GCM; env, AWS KMS and Vault Transit key providers). |
+| 2026-11-14 | Phase 2: multi-tenancy overhead benchmark; <5% criterion met on every backend. |
 
 ---
 

@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import AbstractAsyncContextManager
 from typing import Any
 
 from sagaz.core.tenant._context import TenantContext
 from sagaz.core.tenant._errors import CrossTenantAccessError
 from sagaz.core.tenant._quotas import quota_enforcer
-from sagaz.core.tenant._scope import tenant_scope
+from sagaz.core.tenant._scope import _enter_tenant, _exit_tenant
 
 
 def resolve_tenant(tenant: TenantContext | str, registry: Any | None = None) -> TenantContext:
@@ -26,12 +25,36 @@ def resolve_tenant(tenant: TenantContext | str, registry: Any | None = None) -> 
     return TenantContext(tenant)
 
 
-@asynccontextmanager
-async def tenant_execution(tenant: TenantContext) -> AsyncIterator[TenantContext]:
+class _TenantExecution:
+    """``async with``: a quota slot and the tenant scope, around one saga run.
+
+    A plain class rather than nested generator-based context managers: it runs
+    once per tenant saga, and the generator machinery cost more than the
+    bookkeeping itself (see ``docs/benchmarks/tenancy-overhead.md``).
+    """
+
+    __slots__ = ("_tenant", "_tokens")
+
+    def __init__(self, tenant: TenantContext) -> None:
+        self._tenant = tenant
+
+    async def __aenter__(self) -> TenantContext:
+        quota_enforcer.acquire(self._tenant)
+        try:
+            self._tokens = _enter_tenant(self._tenant)
+        except BaseException:
+            quota_enforcer.release(self._tenant.tenant_id)
+            raise
+        return self._tenant
+
+    async def __aexit__(self, *exc_info: object) -> None:
+        _exit_tenant(self._tokens)
+        quota_enforcer.release(self._tenant.tenant_id)
+
+
+def tenant_execution(tenant: TenantContext) -> AbstractAsyncContextManager[TenantContext]:
     """Admit one saga of ``tenant`` against its quotas and run it in its scope."""
-    async with quota_enforcer.admit(tenant):
-        with tenant_scope(tenant):
-            yield tenant
+    return _TenantExecution(tenant)
 
 
 def ensure_tenant_context_matches(context: dict[str, Any], tenant_id: str) -> None:

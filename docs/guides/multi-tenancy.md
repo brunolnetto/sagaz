@@ -192,5 +192,8 @@ the target needs the same keys; importing plaintext records through an
 
 ## Performance
 
-Measured overhead of multi-tenancy against single-tenant use: see the tenancy benchmark
-(added with #54 phase 2).
+Running sagas as many tenants instead of one costs little: see the
+[multi-tenancy overhead benchmark](../benchmarks/tenancy-overhead.md) for measured
+numbers on every backend, what PostgreSQL row-level security and the per-connection
+`set_config` cost, and how to run the full 1000 tenants × 10 concurrent sagas
+configuration yourself.

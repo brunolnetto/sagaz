@@ -12,14 +12,17 @@ from sagaz.core.execution.orchestrator import SagaOrchestrator
 from sagaz.core.saga import Saga as ImperativeSaga
 from sagaz.core.tenant import (
     CrossTenantAccessError,
+    QuotaEnforcer,
     QuotaExceededError,
     TenantContext,
     TenantNotFoundError,
     TenantQuotas,
     TenantRegistry,
     TenantSuspendedError,
+    current_tenant_context,
     current_tenant_id,
     quota_enforcer,
+    tenant_execution,
 )
 from sagaz.core.types import SagaStatus
 
@@ -224,3 +227,47 @@ def test_config_copies_keep_the_tenant_registry():
     config = SagaConfig(tenant_registry=registry)
     assert config.with_storage(InMemorySagaStorage()).tenant_registry is registry
     assert config.with_broker(InMemoryBroker()).tenant_registry is registry
+
+
+class TestTenantExecution:
+    async def test_holds_a_slot_and_the_scope_then_releases_both(self):
+        tenant = TenantContext("acme-exec", quotas=TenantQuotas(max_concurrent_sagas=1))
+        async with tenant_execution(tenant) as entered:
+            assert entered is tenant
+            assert (current_tenant_id(), current_tenant_context()) == ("acme-exec", tenant)
+            assert quota_enforcer.running("acme-exec") == 1
+        assert (current_tenant_id(), current_tenant_context()) == ("default", None)
+        assert quota_enforcer.running("acme-exec") == 0
+
+    async def test_releases_both_after_an_error(self):
+        tenant = TenantContext("acme-err", quotas=TenantQuotas(max_concurrent_sagas=1))
+        with pytest.raises(RuntimeError):
+            async with tenant_execution(tenant):
+                raise RuntimeError
+        assert current_tenant_id() == "default"
+        assert quota_enforcer.running("acme-err") == 0
+
+    async def test_slot_is_released_when_entering_the_scope_fails(self, monkeypatch):
+        from sagaz.core.tenant import _execution
+
+        def broken(tenant):
+            raise RuntimeError
+
+        monkeypatch.setattr(_execution, "_enter_tenant", broken)
+        with pytest.raises(RuntimeError):
+            async with tenant_execution(TenantContext("acme-broken")):
+                pass
+        assert quota_enforcer.running("acme-broken") == 0
+
+    def test_acquire_and_release_pair_up(self):
+        enforcer = QuotaEnforcer()
+        tenant = TenantContext("acme", quotas=TenantQuotas(max_concurrent_sagas=2))
+        enforcer.acquire(tenant)
+        enforcer.acquire(tenant)
+        with pytest.raises(QuotaExceededError):
+            enforcer.acquire(tenant)
+        enforcer.release("acme")
+        assert enforcer.running("acme") == 1
+        enforcer.release("acme")
+        assert enforcer.running("acme") == 0
+        assert "acme" not in enforcer._running
