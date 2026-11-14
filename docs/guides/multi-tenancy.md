@@ -139,7 +139,58 @@ The outbox worker always runs in the system scope. Each event carries its `tenan
 and the worker passes it along with the published message. Tenant-facing outbox reads,
 such as DLQ listing and requeue, stay restricted to the current tenant.
 
-## Not yet included
+## Encryption at rest
 
-Per-tenant encryption of saga context (AES-256-GCM with tenant keys) and the large-scale
-performance benchmark are planned as the second phase of #54.
+Wrap the saga storage to encrypt each tenant's saga context and step results with that
+tenant's own key (AES-256-GCM). Install the extra with `pip install 'sagaz[encryption]'`
+(and `sagaz[aws]` for KMS).
+
+```python
+from sagaz.core.tenant.encryption import EncryptedSagaStorage, EnvKeyProvider
+
+storage = EncryptedSagaStorage(PostgreSQLSagaStorage(url), EnvKeyProvider())
+configure(SagaConfig(storage=storage, tenant_registry=registry))
+```
+
+Everything else stays the same: sagas run as before, and `load_saga_state` returns
+plaintext.
+
+**What is encrypted:** the saga `context` and every step `result`. **Stays in plaintext**,
+because listing, statistics and cleanup need it: saga ids and names, statuses, step
+names, step errors and timestamps, plus sagaz's own `__sagaz_*` records (the tenant
+registry, so `sagaz tenant` works without keys). Outbox payloads are not encrypted,
+since brokers and consumers read them; leave secrets out of event payloads.
+
+### Key providers
+
+| Provider | Keys | Notes |
+|---|---|---|
+| `EnvKeyProvider()` | `SAGAZ_TENANT_KEY_<TENANT>` per tenant, or one `SAGAZ_TENANT_MASTER_KEY` from which each tenant's key is derived (HKDF-SHA256) | Base64 32-byte keys. `<TENANT>` is the id upper-cased, with every character outside `A-Z0-9` replaced by `_` (`acme-eu` → `SAGAZ_TENANT_KEY_ACME_EU`) |
+| `AwsKmsKeyProvider("alias/sagaz-{tenant_id}")` | One KMS key per tenant; data keys from `GenerateDataKey` | The encryption context `{"sagaz:tenant": <tenant>}` makes KMS refuse to unwrap a tenant's data key for another tenant |
+| `VaultTransitKeyProvider(url, token)` | One Transit key per tenant (`sagaz-<tenant>`), data keys from `transit/datakey` | Defaults to `VAULT_ADDR` / `VAULT_TOKEN`. Create the keys yourself: `vault write -f transit/keys/sagaz-acme` |
+
+Generate a key with `python -c "import os,base64;print(base64.b64encode(os.urandom(32)).decode())"`.
+
+**Rotation (environment keys).** List several keys as `new-id:<key>,old-id:<key>`: the
+first one encrypts, and all of them decrypt. Records are re-encrypted with the new key
+the next time they are saved. With KMS or Vault, rotate the tenant's key in the service;
+the stored wrapped data keys keep working.
+
+**Failure is closed.** A tenant without a key cannot write: `TenantKeyError` is raised
+and nothing is stored in plaintext. Each ciphertext is bound to its tenant, saga and
+field, so one copied into another tenant's row raises `TenantDecryptionError` instead of
+decrypting.
+
+**Caching.** KMS and Vault data keys are reused for 5 minutes or 100,000 encryptions
+(`data_key_ttl`, `max_key_uses`), and unwrapped keys are cached, so the key service is
+called once per data key rather than once per record.
+
+**Existing data.** Records written before encryption was enabled stay readable and are
+encrypted the next time they are saved. `sagaz migrate` copies ciphertext as it is, so
+the target needs the same keys; importing plaintext records through an
+`EncryptedSagaStorage` encrypts them.
+
+## Performance
+
+Measured overhead of multi-tenancy against single-tenant use: see the tenancy benchmark
+(added with #54 phase 2).

@@ -60,3 +60,23 @@ class CrossTenantAccessError(TenantError):
         )
         self.record_tenant = record_tenant
         self.current_tenant = current_tenant
+
+
+class TenantKeyError(TenantError):
+    """Raised when a tenant's encryption key cannot be obtained (fail closed)."""
+
+    def __init__(self, tenant_id: str, reason: str) -> None:
+        super().__init__(f"No usable encryption key for tenant '{tenant_id}': {reason}")
+        self.tenant_id = tenant_id
+
+
+class TenantDecryptionError(TenantError):
+    """Raised when encrypted tenant data cannot be decrypted or fails authentication.
+
+    This also covers ciphertext copied to another tenant, saga or field: the
+    authenticated data binds it to where it was written.
+    """
+
+    def __init__(self, tenant_id: str, reason: str) -> None:
+        super().__init__(f"Cannot decrypt data of tenant '{tenant_id}': {reason}")
+        self.tenant_id = tenant_id
