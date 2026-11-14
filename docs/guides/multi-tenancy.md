@@ -127,6 +127,14 @@ with system_scope():
         ...
 ```
 
+`sagaz migrate run` and `sagaz migrate status` run in the system scope and move every
+tenant's records into the same tenant on the target. When you call `TransferService`
+or `SagaStorageMigrator` from your own code, they follow your scope: without
+`system_scope()` they move only the current tenant (the `default` tenant if none is set).
+
+sagaz keeps its own records (the tenant registry) in saga storage under names
+starting with `__sagaz_`. `cleanup_completed_sagas` never deletes them.
+
 The outbox worker always runs in the system scope. Each event carries its `tenant_id`,
 and the worker passes it along with the published message. Tenant-facing outbox reads,
 such as DLQ listing and requeue, stay restricted to the current tenant.
