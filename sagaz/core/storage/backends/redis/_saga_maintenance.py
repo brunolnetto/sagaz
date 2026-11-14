@@ -3,17 +3,18 @@
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
+from sagaz.core.storage.backends.redis._saga_tenancy import _RedisSagaTenancyMixin
+from sagaz.core.tenant import is_system_scope
 from sagaz.core.types import SagaStatus
 
 
-class _RedisSagaMaintenanceMixin:
-    """Status counters, retention cleanup and health probing."""
+class _RedisSagaMaintenanceMixin(_RedisSagaTenancyMixin):
+    """Status counters, retention cleanup and health probing.
 
-    key_prefix: str
+    In the system scope, statistics, counts and cleanup cover every tenant.
+    """
 
     if TYPE_CHECKING:
-
-        async def _get_redis(self) -> Any: ...
 
         def _index_key(self, index_type: str) -> str: ...
 
@@ -23,6 +24,8 @@ class _RedisSagaMaintenanceMixin:
 
     async def get_saga_statistics(self) -> dict[str, Any]:
         """Get storage statistics"""
+        if is_system_scope():
+            return self._merge_statistics(await self._for_each_tenant(self.get_saga_statistics))
 
         redis_client = await self._get_redis()
 
@@ -45,10 +48,27 @@ class _RedisSagaMaintenanceMixin:
             "redis_memory_human": memory_info.get("used_memory_human", "0B"),
         }
 
+    @staticmethod
+    def _merge_statistics(per_tenant: list[tuple[str, dict[str, Any]]]) -> dict[str, Any]:
+        """Add up the per-tenant statistics (Redis memory figures are server-wide)."""
+        merged = dict(per_tenant[0][1])
+        by_status = {status.value: 0 for status in SagaStatus}
+        for _, stats in per_tenant:
+            for status, count in stats["by_status"].items():
+                by_status[status] += count
+        merged["by_status"] = by_status
+        merged["total_sagas"] = sum(by_status.values())
+        return merged
+
     async def cleanup_completed_sagas(
         self, older_than: datetime, statuses: list[SagaStatus] | None = None
     ) -> int:
         """Clean up old completed sagas"""
+        if is_system_scope():
+            results = await self._for_each_tenant(
+                self.cleanup_completed_sagas, older_than, statuses
+            )
+            return sum(deleted for _, deleted in results)
         if statuses is None:
             statuses = [SagaStatus.COMPLETED, SagaStatus.ROLLED_BACK]
 
@@ -138,6 +158,8 @@ class _RedisSagaMaintenanceMixin:
 
     async def count(self) -> int:
         """Count total sagas."""
+        if is_system_scope():
+            return sum(count for _, count in await self._for_each_tenant(self.count))
         redis_client = await self._get_redis()
         # This is expensive in Redis, better use a counter key or scan
         # For simplicity in this tool, using scan loop or keys

@@ -3,6 +3,9 @@
 import json
 from typing import Any
 
+from sagaz.core.storage._tenancy import TENANT_FIELD
+from sagaz.core.tenant import DEFAULT_TENANT
+
 
 class _PostgreSQLSagaRowMixin:
     """Converts asyncpg saga/step rows into the storage dict format."""
@@ -28,7 +31,16 @@ class _PostgreSQLSagaRowMixin:
             "steps": [self._parse_step_row(row) for row in step_rows],
             "created_at": saga_row["created_at"].isoformat(),
             "updated_at": saga_row["updated_at"].isoformat(),
+            TENANT_FIELD: self._row_tenant(saga_row),
         }
+
+    @staticmethod
+    def _row_tenant(saga_row) -> str:
+        """The tenant of a saga row (rows selected without the column are the default's)."""
+        try:
+            return saga_row["tenant_id"] or DEFAULT_TENANT  # type: ignore[no-any-return]
+        except (KeyError, IndexError):
+            return DEFAULT_TENANT
 
     def _parse_step_row(self, step_row) -> dict[str, Any]:
         """Parse a step database row into a dict."""

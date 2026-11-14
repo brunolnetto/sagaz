@@ -13,11 +13,18 @@ from datetime import datetime
 from typing import Any
 
 from sagaz.core.exceptions import MissingDependencyError
+from sagaz.core.storage._tenancy import write_tenant
+from sagaz.core.storage._tenant_records import record_tenant_scope
 from sagaz.core.storage.backends.postgresql._saga_maintenance import (
     _PostgreSQLSagaMaintenanceMixin,
 )
+from sagaz.core.storage.backends.postgresql._saga_query import (
+    _PostgreSQLSagaQueryMixin,
+    tenant_condition,
+)
 from sagaz.core.storage.backends.postgresql._saga_rows import _PostgreSQLSagaRowMixin
 from sagaz.core.storage.backends.postgresql._saga_schema import SAGA_TABLES_SQL
+from sagaz.core.storage.backends.postgresql._tenancy import acquire_scoped
 from sagaz.core.storage.base import (
     SagaStorage,
     SagaStorageConnectionError,
@@ -34,12 +41,23 @@ except ImportError:
     asyncpg = None
 
 
-class PostgreSQLSagaStorage(_PostgreSQLSagaRowMixin, _PostgreSQLSagaMaintenanceMixin, SagaStorage):
+class PostgreSQLSagaStorage(
+    _PostgreSQLSagaRowMixin,
+    _PostgreSQLSagaQueryMixin,
+    _PostgreSQLSagaMaintenanceMixin,
+    SagaStorage,
+):
     """
     PostgreSQL implementation of saga storage
 
     Uses PostgreSQL for ACID-compliant saga state storage with
     full SQL querying capabilities and referential integrity.
+
+    Tenant isolation (ADR-020): rows carry ``tenant_id`` and sagas are keyed by
+    ``(tenant_id, saga_id)``. Every connection is acquired with
+    ``app.tenant_id`` set to the current scope, which row-level security
+    enforces, and every query also filters by tenant explicitly. In the system
+    scope, operations by saga id act on every tenant's saga with that id.
 
     Example:
         >>> async with PostgreSQLSagaStorage("postgresql://user:pass@localhost/db") as storage:
@@ -92,7 +110,7 @@ class PostgreSQLSagaStorage(_PostgreSQLSagaRowMixin, _PostgreSQLSagaMaintenanceM
                     **self.pool_kwargs,
                 )
 
-                # Initialize database schema
+                # Initialize (and upgrade) the database schema
                 async with self._pool.acquire() as conn:  # type: ignore[attr-defined]
                     await conn.execute(self.CREATE_TABLES_SQL)
 
@@ -115,18 +133,19 @@ class PostgreSQLSagaStorage(_PostgreSQLSagaRowMixin, _PostgreSQLSagaMaintenanceM
         """Save saga state to PostgreSQL"""
 
         pool = await self._get_pool()
+        tenant_id = write_tenant()
 
-        async with pool.acquire() as conn:
+        async with acquire_scoped(pool) as conn:
             async with conn.transaction():
                 # Upsert saga record
                 await conn.execute(
                     """
                     INSERT INTO sagas (
                         saga_id, saga_name, status, context, metadata,
-                        configuration, updated_at
+                        configuration, tenant_id, updated_at
                     )
-                    VALUES ($1, $2, $3, $4, $5, $6, NOW())
-                    ON CONFLICT (saga_id)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+                    ON CONFLICT (tenant_id, saga_id)
                     DO UPDATE SET
                         saga_name = EXCLUDED.saga_name,
                         status = EXCLUDED.status,
@@ -141,53 +160,59 @@ class PostgreSQLSagaStorage(_PostgreSQLSagaRowMixin, _PostgreSQLSagaMaintenanceM
                     json.dumps(context),
                     json.dumps(metadata or {}),
                     json.dumps(configuration or [status.value]),
+                    tenant_id,
                 )
 
                 # Delete existing steps and insert new ones
-                await conn.execute("DELETE FROM saga_steps WHERE saga_id = $1", saga_id)
+                await conn.execute(
+                    "DELETE FROM saga_steps WHERE saga_id = $1 AND tenant_id = $2",
+                    saga_id,
+                    tenant_id,
+                )
 
                 if steps:
-                    step_data = []
-                    for step in steps:
-                        step_data.append(
-                            [
-                                saga_id,
-                                step["name"],
-                                step.get("status", SagaStepStatus.PENDING.value),
-                                json.dumps(step.get("result"))
-                                if step.get("result") is not None
-                                else None,
-                                step.get("error"),
-                                step.get("executed_at"),
-                                step.get("compensated_at"),
-                                step.get("retry_count", 0),
-                                step.get("duration_ms"),
-                            ]
-                        )
-
                     await conn.executemany(
                         """
                         INSERT INTO saga_steps
                         (saga_id, step_name, status, result, error, executed_at,
-                         compensated_at, retry_count, duration_ms)
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                         compensated_at, retry_count, duration_ms, tenant_id)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                     """,
-                        step_data,
+                        [self._step_params(saga_id, step, tenant_id) for step in steps],
                     )
+
+    @staticmethod
+    def _step_params(saga_id: str, step: dict[str, Any], tenant_id: str) -> list[Any]:
+        """Parameters of the ``saga_steps`` insert for one step."""
+        return [
+            saga_id,
+            step["name"],
+            step.get("status", SagaStepStatus.PENDING.value),
+            json.dumps(step.get("result")) if step.get("result") is not None else None,
+            step.get("error"),
+            step.get("executed_at"),
+            step.get("compensated_at"),
+            step.get("retry_count", 0),
+            step.get("duration_ms"),
+            tenant_id,
+        ]
 
     async def load_saga_state(self, saga_id: str) -> dict[str, Any] | None:
         """Load saga state from PostgreSQL"""
 
         pool = await self._get_pool()
+        params: list[Any] = [saga_id]
+        condition = tenant_condition("tenant_id", params)
 
-        async with pool.acquire() as conn:
+        async with acquire_scoped(pool) as conn:
             saga_row = await conn.fetchrow(
-                """
+                f"""
                 SELECT saga_id, saga_name, status, context, metadata,
-                       configuration, created_at, updated_at
-                FROM sagas WHERE saga_id = $1
+                       configuration, created_at, updated_at, tenant_id
+                FROM sagas WHERE saga_id = $1 AND {condition}
+                ORDER BY tenant_id LIMIT 1
             """,
-                saga_id,
+                *params,
             )
 
             if not saga_row:
@@ -197,9 +222,10 @@ class PostgreSQLSagaStorage(_PostgreSQLSagaRowMixin, _PostgreSQLSagaMaintenanceM
                 """
                 SELECT step_name, status, result, error, executed_at, compensated_at, retry_count,
                        duration_ms
-                FROM saga_steps WHERE saga_id = $1 ORDER BY id
+                FROM saga_steps WHERE saga_id = $1 AND tenant_id = $2 ORDER BY id
             """,
                 saga_id,
+                self._row_tenant(saga_row),
             )
 
             return self._build_saga_dict(saga_row, step_rows)
@@ -208,84 +234,15 @@ class PostgreSQLSagaStorage(_PostgreSQLSagaRowMixin, _PostgreSQLSagaMaintenanceM
         """Delete saga state from PostgreSQL"""
 
         pool = await self._get_pool()
+        params: list[Any] = [saga_id]
+        condition = tenant_condition("tenant_id", params)
 
-        async with pool.acquire() as conn:
+        async with acquire_scoped(pool) as conn:
             # Cascade delete will handle steps
-            result = await conn.execute("DELETE FROM sagas WHERE saga_id = $1", saga_id)
-            return result.split()[-1] == "1"  # type: ignore[no-any-return]  # Extract affected row count
-
-    async def list_sagas(
-        self,
-        status: SagaStatus | None = None,
-        saga_name: str | None = None,
-        limit: int = 100,
-        offset: int = 0,
-    ) -> list[dict[str, Any]]:
-        """List sagas with filtering"""
-
-        pool = await self._get_pool()
-
-        # Build dynamic query
-        conditions: list[str] = []
-        params: list[Any] = []
-        param_count = 0
-
-        if status:
-            param_count += 1
-            conditions.append(f"s.status = ${param_count}")
-            params.append(status.value)
-
-        if saga_name:
-            param_count += 1
-            conditions.append(f"s.saga_name ILIKE ${param_count}")
-            params.append(f"%{saga_name}%")
-
-        where_clause = " AND ".join(conditions) if conditions else "TRUE"
-
-        # Add limit and offset
-        param_count += 1
-        params.append(limit)
-        limit_param = f"${param_count}"
-
-        param_count += 1
-        params.append(offset)
-        offset_param = f"${param_count}"
-
-        query = f"""
-            SELECT
-                s.saga_id,
-                s.saga_name,
-                s.status,
-                s.created_at,
-                s.updated_at,
-                COUNT(ss.id) as step_count,
-                COUNT(CASE WHEN ss.status = 'completed' THEN 1 END) as completed_steps
-            FROM sagas s
-            LEFT JOIN saga_steps ss ON s.saga_id = ss.saga_id
-            WHERE {where_clause}
-            GROUP BY s.saga_id, s.saga_name, s.status, s.created_at, s.updated_at
-            ORDER BY s.created_at DESC
-            LIMIT {limit_param} OFFSET {offset_param}
-        """
-
-        async with pool.acquire() as conn:
-            rows = await conn.fetch(query, *params)
-
-            results = []
-            for row in rows:
-                results.append(
-                    {
-                        "saga_id": row["saga_id"],
-                        "saga_name": row["saga_name"],
-                        "status": row["status"],
-                        "created_at": row["created_at"].isoformat(),
-                        "updated_at": row["updated_at"].isoformat(),
-                        "step_count": row["step_count"],
-                        "completed_steps": row["completed_steps"],
-                    }
-                )
-
-            return results
+            result = await conn.execute(
+                f"DELETE FROM sagas WHERE saga_id = $1 AND {condition}", *params
+            )
+            return int(result.split()[-1]) > 0  # Extract affected row count
 
     async def update_step_state(
         self,
@@ -299,23 +256,19 @@ class PostgreSQLSagaStorage(_PostgreSQLSagaRowMixin, _PostgreSQLSagaMaintenanceM
         """Update individual step state"""
 
         pool = await self._get_pool()
+        result_json = json.dumps(result) if result is not None else None
+        params: list[Any] = [saga_id, step_name, status.value, result_json, error, executed_at]
+        condition = tenant_condition("tenant_id", params)
 
-        async with pool.acquire() as conn, conn.transaction():
-            # Update step
-            result_json = json.dumps(result) if result is not None else None
-
+        async with acquire_scoped(pool) as conn, conn.transaction():
+            # Update step(s) and their sagas' timestamps
             update_result = await conn.execute(
-                """
+                f"""
                     UPDATE saga_steps
                     SET status = $3, result = $4, error = $5, executed_at = $6
-                    WHERE saga_id = $1 AND step_name = $2
+                    WHERE saga_id = $1 AND step_name = $2 AND {condition}
                 """,
-                saga_id,
-                step_name,
-                status.value,
-                result_json,
-                error,
-                executed_at,
+                *params,
             )
 
             if update_result.split()[-1] == "0":  # No rows affected
@@ -323,11 +276,13 @@ class PostgreSQLSagaStorage(_PostgreSQLSagaRowMixin, _PostgreSQLSagaMaintenanceM
                 raise SagaStorageError(msg)
 
             # Update saga timestamp
+            saga_params: list[Any] = [saga_id]
+            saga_condition = tenant_condition("tenant_id", saga_params)
             await conn.execute(
-                """
-                    UPDATE sagas SET updated_at = NOW() WHERE saga_id = $1
+                f"""
+                    UPDATE sagas SET updated_at = NOW() WHERE saga_id = $1 AND {saga_condition}
                 """,
-                saga_id,
+                *saga_params,
             )
 
     async def __aenter__(self):
@@ -340,35 +295,15 @@ class PostgreSQLSagaStorage(_PostgreSQLSagaRowMixin, _PostgreSQLSagaMaintenanceM
         if self._pool:
             await self._pool.close()
 
-    async def export_all(self):
-        """Export all records for transfer.
-
-        Note: Using cursor for efficient streaming of large datasets.
-        """
-        pool = await self._get_pool()
-
-        async with pool.acquire() as conn:
-            async with conn.transaction():
-                # Stream sagas
-                cursor = conn.cursor("SELECT * FROM sagas ORDER BY saga_id")
-
-                async for row in cursor:
-                    # Fetch steps for this saga (not super efficient but avoids giant joins)
-                    # For better performance we could do a large join or stream steps separately
-                    step_rows = await conn.fetch(
-                        "SELECT * FROM saga_steps WHERE saga_id = $1 ORDER BY id", row["saga_id"]
-                    )
-
-                    yield self._build_saga_dict(row, step_rows)
-
     async def import_record(self, record: dict[str, Any]) -> None:
-        """Import a single record from transfer."""
-        await self.save_saga_state(
-            saga_id=record["saga_id"],
-            saga_name=record["saga_name"],
-            status=SagaStatus(record["status"]),
-            steps=record.get("steps", []),
-            context=record.get("context", {}),
-            metadata=record.get("metadata"),
-            configuration=record.get("configuration") or [record["status"]],
-        )
+        """Import a single record from transfer, into the record's own tenant."""
+        with record_tenant_scope(record):
+            await self.save_saga_state(
+                saga_id=record["saga_id"],
+                saga_name=record["saga_name"],
+                status=SagaStatus(record["status"]),
+                steps=record.get("steps", []),
+                context=record.get("context", {}),
+                metadata=record.get("metadata"),
+                configuration=record.get("configuration") or [record["status"]],
+            )

@@ -211,8 +211,13 @@ class TestPostgreSQLSagaStorageMocked:
 
             # Verify execute was called for saga upsert
             assert conn.execute.called
-            upsert_args = conn.execute.await_args_list[0].args
+            upsert_args = next(
+                call.args
+                for call in conn.execute.await_args_list
+                if "INSERT INTO sagas" in call.args[0]
+            )
             assert json.loads(upsert_args[6]) == ["executing"]
+            assert upsert_args[7] == "default"  # tenant_id of unscoped code
 
     def test_schema_contains_idempotent_configuration_upgrade(self):
         from sagaz.core.storage.postgresql import PostgreSQLSagaStorage

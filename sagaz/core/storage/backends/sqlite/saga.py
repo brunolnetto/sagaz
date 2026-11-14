@@ -9,6 +9,8 @@ Features:
 - ACID compliant transactions
 - No external dependencies (SQLite is built into Python)
 - Async support via aiosqlite
+- Tenant isolation (ADR-020): sagas are keyed by ``(tenant_id, saga_id)`` and
+  every query is limited to the current tenant, except in the system scope
 
 Usage:
     >>> from sagaz.core.storage.backends.sqlite import SQLiteSagaStorage
@@ -38,7 +40,10 @@ except ImportError:
     aiosqlite = None  # type: ignore[assignment]
 
 from sagaz.core.exceptions import MissingDependencyError
+from sagaz.core.storage._tenancy import TENANT_FIELD, write_tenant
+from sagaz.core.storage._tenant_records import record_tenant_scope
 from sagaz.core.storage.backends.sqlite._saga_maintenance import _SQLiteSagaMaintenanceMixin
+from sagaz.core.storage.backends.sqlite._saga_schema import init_saga_schema, tenant_filter
 from sagaz.core.storage.base import SagaStorage
 from sagaz.core.storage.core import (
     deserialize,
@@ -54,6 +59,9 @@ class SQLiteSagaStorage(_SQLiteSagaMaintenanceMixin, SagaStorage):
     SQLite-based saga storage.
 
     Provides lightweight, embedded storage with ACID compliance.
+
+    Sagas belong to the tenant of the scope that saved them (ADR-020); in the
+    system scope, operations by saga id act on every tenant's saga with that id.
 
     Attributes:
         db_path: Path to SQLite database file (or ":memory:" for in-memory)
@@ -102,49 +110,12 @@ class SQLiteSagaStorage(_SQLiteSagaMaintenanceMixin, SagaStorage):
         return self._conn
 
     async def _init_schema(self) -> None:
-        """Initialize database schema."""
+        """Initialize (and upgrade) the database schema."""
         conn = self._conn
         if conn is None:
             msg = "Connection not initialized"
             raise RuntimeError(msg)
-        await conn.executescript("""
-            CREATE TABLE IF NOT EXISTS sagas (
-                saga_id TEXT PRIMARY KEY,
-                saga_name TEXT NOT NULL,
-                status TEXT NOT NULL,
-                steps TEXT NOT NULL,
-                context TEXT NOT NULL,
-                metadata TEXT,
-                configuration TEXT,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL
-            );
-
-            CREATE INDEX IF NOT EXISTS idx_sagas_status ON sagas(status);
-            CREATE INDEX IF NOT EXISTS idx_sagas_name ON sagas(saga_name);
-            CREATE INDEX IF NOT EXISTS idx_sagas_updated_at ON sagas(updated_at);
-        """)
-        # CREATE TABLE IF NOT EXISTS does not upgrade existing databases.
-        cursor = await conn.execute("PRAGMA table_info(sagas)")
-        columns = {row["name"] for row in await cursor.fetchall()}
-        if "configuration" not in columns:
-            await conn.execute("ALTER TABLE sagas ADD COLUMN configuration TEXT")
-
-        # Backfill legacy rows without relying on SQLite JSON extensions.
-        cursor = await conn.execute(
-            """
-            SELECT saga_id, status FROM sagas
-            WHERE configuration IS NULL
-               OR configuration = ''
-               OR configuration = '[]'
-            """
-        )
-        for row in await cursor.fetchall():
-            await conn.execute(
-                "UPDATE sagas SET configuration = ? WHERE saga_id = ?",
-                (serialize([row["status"]]), row["saga_id"]),
-            )
-        await conn.commit()
+        await init_saga_schema(conn)
 
     async def __aenter__(self):
         """Async context manager entry."""
@@ -181,11 +152,11 @@ class SQLiteSagaStorage(_SQLiteSagaMaintenanceMixin, SagaStorage):
         await conn.execute(
             """
             INSERT INTO sagas (
-                saga_id, saga_name, status, steps, context, metadata,
+                tenant_id, saga_id, saga_name, status, steps, context, metadata,
                 configuration, created_at, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(saga_id) DO UPDATE SET
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(tenant_id, saga_id) DO UPDATE SET
                 saga_name = excluded.saga_name,
                 status = excluded.status,
                 steps = excluded.steps,
@@ -195,6 +166,7 @@ class SQLiteSagaStorage(_SQLiteSagaMaintenanceMixin, SagaStorage):
                 updated_at = excluded.updated_at
             """,
             (
+                write_tenant(),
                 saga_id,
                 saga_name,
                 status_str,
@@ -208,20 +180,20 @@ class SQLiteSagaStorage(_SQLiteSagaMaintenanceMixin, SagaStorage):
         )
         await conn.commit()
 
+    async def _load_matching(self, saga_id: str) -> list[dict[str, Any]]:
+        """Visible sagas with ``saga_id`` (one per tenant in the system scope)."""
+        conn = await self._get_connection()
+        clause, params = tenant_filter()
+        cursor = await conn.execute(
+            f"SELECT * FROM sagas WHERE saga_id = ?{clause} ORDER BY tenant_id",
+            (saga_id, *params),
+        )
+        return [self._row_to_dict(row) for row in await cursor.fetchall()]
+
     async def load_saga_state(self, saga_id: str) -> dict[str, Any] | None:
         """Load saga state by ID."""
-        conn = await self._get_connection()
-
-        cursor = await conn.execute(
-            "SELECT * FROM sagas WHERE saga_id = ?",
-            (saga_id,),
-        )
-        row = await cursor.fetchone()
-
-        if row is None:
-            return None
-
-        return self._row_to_dict(row)
+        matches = await self._load_matching(saga_id)
+        return matches[0] if matches else None
 
     def _row_to_dict(self, row: aiosqlite.Row) -> dict[str, Any]:
         """Convert database row to dictionary."""
@@ -239,15 +211,17 @@ class SQLiteSagaStorage(_SQLiteSagaMaintenanceMixin, SagaStorage):
             "metadata": deserialize(row["metadata"]) if row["metadata"] else None,
             "created_at": row["created_at"],
             "updated_at": row["updated_at"],
+            TENANT_FIELD: row["tenant_id"],
         }
 
     async def delete_saga_state(self, saga_id: str) -> bool:
         """Delete saga state by ID."""
         conn = await self._get_connection()
+        clause, params = tenant_filter()
 
         cursor = await conn.execute(
-            "DELETE FROM sagas WHERE saga_id = ?",
-            (saga_id,),
+            f"DELETE FROM sagas WHERE saga_id = ?{clause}",
+            (saga_id, *params),
         )
         await conn.commit()
 
@@ -263,8 +237,8 @@ class SQLiteSagaStorage(_SQLiteSagaMaintenanceMixin, SagaStorage):
         """List sagas with optional filtering."""
         conn = await self._get_connection()
 
-        query = "SELECT * FROM sagas WHERE 1=1"
-        params: list[Any] = []
+        clause, params = tenant_filter()
+        query = f"SELECT * FROM sagas WHERE 1=1{clause}"
 
         if status:
             query += " AND status = ?"
@@ -292,14 +266,32 @@ class SQLiteSagaStorage(_SQLiteSagaMaintenanceMixin, SagaStorage):
         executed_at: datetime | None = None,
     ) -> None:
         """Update a single step's state within a saga."""
-        saga = await self.load_saga_state(saga_id)
-        if saga is None:
-            return
-
-        steps = saga.get("steps", [])
         status_str = status.value if isinstance(status, SagaStepStatus) else status
+        for saga in await self._load_matching(saga_id):
+            steps = saga.get("steps", [])
+            self._apply_step_update(steps, step_name, status_str, result, error, executed_at)
 
-        # Find and update the step
+            # Save the updated saga back into its own tenant
+            with record_tenant_scope(saga):
+                await self.save_saga_state(
+                    saga_id=saga_id,
+                    saga_name=saga["saga_name"],
+                    status=SagaStatus(saga["status"]),
+                    steps=steps,
+                    context=saga["context"],
+                    metadata=saga.get("metadata"),
+                )
+
+    @staticmethod
+    def _apply_step_update(
+        steps: list[dict[str, Any]],
+        step_name: str,
+        status_str: str,
+        result: Any | None,
+        error: str | None,
+        executed_at: datetime | None,
+    ) -> None:
+        """Find ``step_name`` in ``steps`` and apply the update to it."""
         for step in steps:
             if step.get("name") == step_name:
                 step["status"] = status_str
@@ -311,32 +303,26 @@ class SQLiteSagaStorage(_SQLiteSagaMaintenanceMixin, SagaStorage):
                     step["executed_at"] = executed_at.isoformat()
                 break
 
-        # Save updated saga
-        await self.save_saga_state(
-            saga_id=saga_id,
-            saga_name=saga["saga_name"],
-            status=SagaStatus(saga["status"]),
-            steps=steps,
-            context=saga["context"],
-            metadata=saga.get("metadata"),
-        )
-
     async def export_all(self):
-        """Export all records for transfer."""
+        """Export all records of the current scope, each with its ``tenant_id``."""
         conn = await self._get_connection()
-        cursor = await conn.execute("SELECT * FROM sagas ORDER BY saga_id")
+        clause, params = tenant_filter()
+        cursor = await conn.execute(
+            f"SELECT * FROM sagas WHERE 1=1{clause} ORDER BY saga_id, tenant_id", params
+        )
 
         async for row in cursor:
             yield self._row_to_dict(row)
 
     async def import_record(self, record: dict[str, Any]) -> None:
-        """Import a single record from transfer."""
-        await self.save_saga_state(
-            saga_id=record["saga_id"],
-            saga_name=record["saga_name"],
-            status=SagaStatus(record["status"]),
-            steps=record.get("steps", []),
-            context=record.get("context", {}),
-            metadata=record.get("metadata"),
-            configuration=record.get("configuration") or [record["status"]],
-        )
+        """Import a single record from transfer, into the record's own tenant."""
+        with record_tenant_scope(record):
+            await self.save_saga_state(
+                saga_id=record["saga_id"],
+                saga_name=record["saga_name"],
+                status=SagaStatus(record["status"]),
+                steps=record.get("steps", []),
+                context=record.get("context", {}),
+                metadata=record.get("metadata"),
+                configuration=record.get("configuration") or [record["status"]],
+            )
