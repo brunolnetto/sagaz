@@ -210,8 +210,12 @@ class RedisOutboxStorage(
 
         await self._redis.hset(meta_key, mapping=updates)
 
-        # If sent or dead letter, remove from processing set
+        # The delivery is finished: ack it so the consumer group's pending list
+        # only holds in-flight claims, then drop it from the processing hash.
         if status in (OutboxStatus.SENT, OutboxStatus.FAILED, OutboxStatus.DEAD_LETTER):
+            message_id = await self._redis.hget(self._processing_key, event_id)
+            if message_id:
+                await self._redis.xack(self._stream_key, self._consumer_group, message_id)
             await self._redis.hdel(self._processing_key, event_id)
 
         # Get updated event

@@ -505,7 +505,8 @@ class TestRedisOutboxStorageCoverage:
                 {"time_since_delivered": 400000, "message_id": b"msg-1"},
             ]
         )
-        mock_redis.xclaim = AsyncMock()
+        # Nothing in the processing hash maps msg-1 to an event: nothing released.
+        mock_redis.hgetall = AsyncMock(return_value={})
 
         with patch("redis.asyncio.from_url", return_value=mock_redis):
             storage = RedisOutboxStorage()
@@ -513,7 +514,7 @@ class TestRedisOutboxStorageCoverage:
 
             released = await storage.release_stuck_events(claimed_older_than_seconds=300)
 
-            assert released >= 0
+            assert released == 0
 
     @pytest.mark.asyncio
     async def test_redis_outbox_release_stuck_events_error(self, mock_redis):
