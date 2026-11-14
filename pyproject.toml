@@ -411,13 +411,8 @@ omit = [
     # CLI tools - interactive wrappers, not core library logic
     "sagaz/cli.py",
     "sagaz/cli_app.py",
-    "sagaz/cli/app.py",  # Interactive CLI commands - tested via manual/integration testing
     "sagaz/cli/main.py",  # CLI entry point - thin wrapper
-    # Split out of the omitted cli/app.py, cli/examples.py and cli/dry_run.py (1.8.2)
-    "sagaz/cli/_project_cmds.py",
-    "sagaz/cli/_dev_cmds.py",
-    "sagaz/cli/_benchmark_cmd.py",
-    "sagaz/cli/_monitor_cmd.py",
+    # Split out of the omitted cli/examples.py and cli/dry_run.py (1.8.2)
     "sagaz/cli/_examples_discovery.py",
     "sagaz/cli/_examples_menu.py",
     "sagaz/cli/_examples_runner.py",

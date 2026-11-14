@@ -39,14 +39,9 @@ omit =
     sagaz/examples/*
     sagaz/cli.py
     sagaz/cli_app.py
-    sagaz/cli/app.py
     sagaz/cli/main.py
     sagaz/cli/dry_run.py
     sagaz/cli/examples.py
-    sagaz/cli/_project_cmds.py
-    sagaz/cli/_dev_cmds.py
-    sagaz/cli/_benchmark_cmd.py
-    sagaz/cli/_monitor_cmd.py
     sagaz/cli/_examples_discovery.py
     sagaz/cli/_examples_menu.py
     sagaz/cli/_examples_runner.py
