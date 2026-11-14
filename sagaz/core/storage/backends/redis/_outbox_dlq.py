@@ -80,12 +80,7 @@ class RedisOutboxDeadLetterMixin(RedisOutboxSerializationMixin):
         event.dead_letter_at = None
         event.dead_letter_reason = None
 
-        assert self._redis is not None
-        await self._redis.xadd(
-            self._scoped_stream_key(),
-            {"event_id": event.event_id, "saga_id": event.saga_id, "event_type": event.event_type},
-            maxlen=self._max_stream_length,
-        )
+        # Moving DEAD_LETTER -> PENDING re-adds the event to its stream.
         return await self.update_status(event_id, OutboxStatus.PENDING, event=event)
 
     async def purge_dead_letter_events(self, older_than: timedelta | None = None) -> int:
