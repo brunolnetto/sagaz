@@ -2,7 +2,7 @@
 
 ## Status
 
-**Accepted** | Date: 2026-01-05 | Phase 1 implemented: 2026-11 (v1.9.0, #54) | Phase 2 (encryption, benchmark): planned | Priority: Medium
+**Accepted** | Date: 2026-01-05 | Phase 1 implemented: 2026-11 (v1.9.0, #54) | Phase 2: encryption implemented, benchmark pending | Priority: Medium
 
 > PR #68 was closed without implementing this ADR. What shipped is described in
 > [Implementation (v1.9.0)](#implementation-v190); the other sections are the original
@@ -584,10 +584,34 @@ sagas. Global rate limiting and quota metrics are not implemented.
   one compensating) and checks state, outbox events, raw SQL and published messages.
   It fails when both isolation layers are disabled.
 
-### Phase 2 (planned)
+### Encryption at rest (phase 2)
 
-Per-tenant encryption of saga context and step results (AES-256-GCM, pluggable key
-provider: environment first, then Vault/KMS), and a scaled-down performance benchmark
+- `EncryptedSagaStorage` wraps any saga storage and encrypts the saga `context` and each
+  step `result` with AES-256-GCM, using a key belonging to the record's tenant. Nothing
+  else changed: no backend schema changes, and saga code is unchanged.
+- **Envelope.** A value is stored as `{"__sagaz_encrypted__": {v, alg, key, edk?, nonce,
+  ct}}`: a 96-bit random nonce, the key reference and, for KMS/Vault, the wrapped data
+  key. The authenticated data is `(tenant, saga_id, field)`, so a ciphertext moved to
+  another tenant, saga or field does not decrypt.
+- **Key providers** (pluggable `KeyProvider` protocol):
+  - environment keys per tenant, or a master key with an HKDF-SHA256 key derived per
+    tenant; several key ids enable rotation;
+  - AWS KMS `GenerateDataKey` with the encryption context `sagaz:tenant`;
+  - Vault Transit `datakey`, with one Transit key per tenant.
+
+  Remote data keys are cached (TTL and use count), and unwrapped keys are kept in an
+  LRU cache.
+- **Fail closed.** A tenant without a key cannot write. Plaintext records written
+  before encryption stay readable and are encrypted on their next save.
+- **Not encrypted:** ids, names, statuses, step errors, timestamps, `__sagaz_*` records
+  and outbox payloads (read by brokers and consumers).
+- **Verified:** unit tests (100% of the encryption package), plus real AWS KMS on
+  LocalStack, a dev-mode Vault and PostgreSQL. KMS and Vault themselves refuse
+  cross-tenant unwrapping, and the PostgreSQL rows contain no plaintext.
+
+### Performance benchmark (phase 2)
+
+Pending: the scaled-down version of "1000 tenants × 10 concurrent sagas, <5% overhead",
 with documented local numbers.
 
 ## Implementation Phases (original proposal)
@@ -788,6 +812,7 @@ audit_log.record(
 |------|--------|
 | 2025-01-01 | Initial proposal |
 | 2026-11-14 | Phase 1 implemented (#54): ContextVar scope, default and system tenants, storage and outbox isolation with PostgreSQL RLS, registry, quotas, `sagaz tenant` CLI. Status corrected (#68 never implemented it). |
+| 2026-11-14 | Phase 2: per-tenant encryption at rest (AES-256-GCM; env, AWS KMS and Vault Transit key providers). |
 
 ---
 
