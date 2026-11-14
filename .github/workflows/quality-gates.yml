@@ -224,11 +224,11 @@ jobs:
           fi
           echo "No C-grade violations found."
 
-      - name: Structural quality gate (CC, module size, maintainability)
-        # Fails on any violation not in the baseline, on baselined ones that get
-        # worse, and on stale baseline entries. The baseline is empty since 1.8.2:
-        # every module is within the limits.
-        run: uv run python scripts/quality_gate.py --strict-baseline
+      - name: Structural quality gate (codebase-stats)
+        # Limits live in [tool.codebase-stats.gates] (pyproject.toml): CC <= 10 per
+        # function, <= 400 lines and maintainability index >= 20 per module.
+        # Exits 1 with "GATE FAILED" on any violation; the summary goes to the job page.
+        run: uv run codebase-stats --root sagaz --format summary-md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Check maintainability index
         run: |
