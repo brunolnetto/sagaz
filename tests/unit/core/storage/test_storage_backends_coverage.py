@@ -344,7 +344,7 @@ class TestRedisOutboxStorageCoverage:
         """Test get_pending_count() method."""
         from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
 
-        mock_redis.xlen = AsyncMock(return_value=42)
+        mock_redis.xinfo_groups = AsyncMock(return_value=[{"name": b"sagaz-workers", "lag": 42}])
 
         with patch("redis.asyncio.from_url", return_value=mock_redis):
             storage = RedisOutboxStorage()
@@ -420,7 +420,7 @@ class TestRedisOutboxStorageCoverage:
         """Test get_statistics() method."""
         from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
 
-        mock_redis.xlen = AsyncMock(return_value=5)
+        mock_redis.xinfo_groups = AsyncMock(return_value=[{"name": b"sagaz-workers", "lag": 5}])
 
         with patch("redis.asyncio.from_url", return_value=mock_redis):
             storage = RedisOutboxStorage()

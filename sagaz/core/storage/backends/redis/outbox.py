@@ -13,6 +13,7 @@ from typing import Any
 from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
 from sagaz.core.storage.backends.redis._outbox_claiming import RedisOutboxClaimingMixin
 from sagaz.core.storage.backends.redis._outbox_dlq import RedisOutboxDeadLetterMixin
+from sagaz.core.storage.backends.redis._outbox_pending import RedisOutboxPendingCountMixin
 from sagaz.core.storage.backends.redis._outbox_serialization import (
     RedisOutboxSerializationMixin,
 )
@@ -32,6 +33,7 @@ class RedisOutboxStorage(
     RedisOutboxStatusUpdatesMixin,
     RedisOutboxClaimingMixin,
     RedisOutboxDeadLetterMixin,
+    RedisOutboxPendingCountMixin,
     RedisOutboxTransferMixin,
     RedisOutboxSerializationMixin,
     OutboxStorage,
@@ -285,17 +287,6 @@ class RedisOutboxStorage(
     # ==========================================================================
     # Statistics
     # ==========================================================================
-
-    async def get_pending_count(self) -> int:
-        """Get count of pending events."""
-        if not self._initialized:
-            await self.initialize()
-        assert self._redis is not None
-
-        try:
-            return int(await self._redis.xlen(self._stream_key))
-        except Exception:
-            return 0
 
     async def health_check(self) -> HealthCheckResult:
         """Check Redis connection health."""

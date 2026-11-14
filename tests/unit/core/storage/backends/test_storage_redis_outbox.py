@@ -262,8 +262,14 @@ class TestRedisOutboxStorageUnit:
 
     @pytest.mark.asyncio
     async def test_get_pending_count(self, storage, mock_redis):
-        """Test getting pending event count."""
-        mock_redis.xlen.return_value = 42
+        """Pending count is the consumer group's lag, not the stream length."""
+        mock_redis.xlen.return_value = 100
+        mock_redis.xinfo_groups = AsyncMock(
+            return_value=[
+                {"name": b"other-workers", "lag": 7},
+                {"name": b"test-workers", "lag": 42, "last-delivered-id": b"5-0"},
+            ]
+        )
 
         count = await storage.get_pending_count()
 
@@ -295,7 +301,8 @@ class TestRedisOutboxStorageUnit:
     @pytest.mark.asyncio
     async def test_get_statistics(self, storage, mock_redis):
         """Test getting storage statistics."""
-        mock_redis.xlen.side_effect = [25, 3]  # pending, dlq
+        mock_redis.xinfo_groups = AsyncMock(return_value=[{"name": b"test-workers", "lag": 25}])
+        mock_redis.xlen.return_value = 3  # dlq
 
         stats = await storage.get_statistics()
 

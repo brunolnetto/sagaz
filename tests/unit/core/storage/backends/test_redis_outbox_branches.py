@@ -369,7 +369,7 @@ async def test_release_stuck_events_claim_failure():
 async def test_get_pending_count_lazy_initialize():
     """Line 510: get_pending_count() calls initialize() when not initialized."""
     storage, mock_redis = _make_initialized_storage()
-    mock_redis.xlen = AsyncMock(return_value=5)
+    mock_redis.xinfo_groups = AsyncMock(return_value=[{"name": "sagaz-workers", "lag": 5}])
 
     result = await storage.get_pending_count()
     assert result == 5
@@ -391,7 +391,7 @@ async def test_get_dead_letter_events_lazy_initialize():
 async def test_get_statistics_lazy_initialize():
     """Line 582: get_statistics() calls initialize() when not initialized."""
     storage, mock_redis = _make_initialized_storage()
-    mock_redis.xlen = AsyncMock(return_value=3)
+    mock_redis.xinfo_groups = AsyncMock(return_value=[{"name": "sagaz-workers", "lag": 3}])
 
     result = await storage.get_statistics()
     assert result.pending_records == 3
