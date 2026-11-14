@@ -1,4 +1,4 @@
-.PHONY: help test coverage lint complexity format check clean clean-containers install dev docs
+.PHONY: help test coverage lint complexity quality-gate format check clean clean-containers install dev docs
 
 # Default target
 .DEFAULT_GOAL := help
@@ -194,6 +194,9 @@ endif
 # ============================================================================
 # Security
 # ============================================================================
+
+quality-gate: ## Structural gate (codebase-stats): CC <= 10, modules <= 400 lines, MI >= 20
+	codebase-stats --root sagaz --format summary
 
 security: ## Run security checks with bandit
 	@echo "$(GREEN)Running security checks...$(RESET)"

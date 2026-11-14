@@ -42,7 +42,13 @@ omit =
     sagaz/cli/main.py
     sagaz/cli/dry_run.py
     sagaz/cli/examples.py
+    sagaz/cli/_examples_discovery.py
+    sagaz/cli/_examples_menu.py
+    sagaz/cli/_examples_runner.py
+    sagaz/cli/_dry_run_display.py
+    sagaz/cli/_dry_run_discovery.py
     sagaz/integrations/django.py
+    sagaz/integrations/_django_webhooks.py
     sagaz/integrations/flask.py
     sagaz/triggers/sources/broker.py
     sagaz/triggers/sources/cron.py

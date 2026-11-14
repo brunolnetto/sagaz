@@ -462,7 +462,7 @@ class TestGlobalConfigFunctions:
 
     def test_get_config_creates_default(self):
         """Test get_config creates default config when none exists."""
-        import sagaz.core.config as config_module
+        import sagaz.core.config._config as config_module
 
         # Reset global config
         config_module._global_config = None
@@ -476,7 +476,7 @@ class TestGlobalConfigFunctions:
 
     def test_configure_sets_global_config(self):
         """Test configure sets global config."""
-        import sagaz.core.config as config_module
+        import sagaz.core.config._config as config_module
 
         new_config = SagaConfig()
         configure(new_config)

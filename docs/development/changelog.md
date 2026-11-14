@@ -7,6 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.3] - 2026-11-13
+
+Follow-ups from the independent verification of 1.8.2. No behaviour changes.
+
+### Changed
+- Logic that lived in 11 package `__init__.py` files moved to private modules, so the `*/__init__.py` coverage omission no longer hides it. The packages are `core/config`, `core/context`, `core/decorators`, `core/saga`, `core/replay`, `core/compliance`, `core/env`, `core/exceptions`, `core/listeners`, `core/outbox/brokers` and `demonstrations`. Each `__init__.py` now only re-exports. All public names remain importable, and logger names are unchanged.
+- `config`, `replay` and `demonstrations` define an explicit `__all__`, so `from ... import *` no longer exports their standard-library imports.
+- The `config` and `env` singletons live in their private modules. Assigning the private `_global_config`/`_global_env` attribute through the package no longer replaces them. Use `configure()`, or patch the private module.
+- Split the three modules that sat at the 400-line limit: `core/storage/interfaces/outbox.py` (optional defaults now in a mixin), and the `feature_store` and `langgraph_support_agent` examples.
+
+### CI
+- The structural gate now runs `codebase-stats` 0.1.0, configured in `[tool.codebase-stats.gates]` with CC ≤ 10, ≤ 400 lines and MI ≥ 20, instead of `scripts/quality_gate.py`. The script and its baseline are removed. `make quality-gate` and CI publish the summary.
+- `.gitignore` no longer ignores `sagaz/core/env/`, which had kept it out of lint.
+
+### Tests
+- 720 statements that were previously unmeasured are now covered at 100%. 42 new tests cover the lazy broker wrappers, demonstration discovery and the package re-export contract.
+- `test_structural_gate.py` runs the gate on the package and checks that it rejects an oversized module.
+
+### Validation
+- GitHub Actions unavailable (account billing lock); every gate was reproduced locally.
+- Ruff, mypy (444 source files), the `codebase-stats` gate (0 violations, largest module 387 lines) and radon passed.
+- Unit suite: 3,594 passed, 62 skipped, 98.94% coverage.
+- Redis/PostgreSQL Testcontainers: 200 passed. One RabbitMQ test was skipped because the container did not start within 120 s on a loaded host.
+
+## [1.8.2] - 2026-11-13
+
+Structural quality release: no behaviour changes. Addresses every finding of the codebase-stats report (39 violations: 35 modules over 400 lines and 4 with a maintainability index below 20).
+
+### Changed
+- Split 35 oversized modules into cohesive private sibling modules and mixins: the outbox backends and worker, saga and snapshot storage, the storage manager and transfer service, the imperative and declarative `Saga` classes, the execution graph and pivot types, the CLI (`app`, `examples`, `dry_run`, `replay`, deployment init handlers), the dry-run engine, Mermaid generation, tracing, the visualization server, the analytics pipeline, the Django integration and eight bundled examples. Every module under `sagaz/` is now at most 400 lines with a maintainability index of at least 20, and no function exceeds cyclomatic complexity 10.
+- Public import paths are unchanged; moved names are re-exported from their original modules. Classes that moved now report their new private module in `__module__`.
+- A few private helpers that were only incidentally importable from their old modules now live only in the new private modules.
+
+### Added
+- `scripts/quality_gate.py` (`make quality-gate`): a radon-based gate for CC ≤ 10, ≤ 400 lines and MI ≥ 20 per module, with a baseline file for future ratcheting. It runs in the quality-gates CI workflow with `--strict-baseline`, and the baseline is empty.
+
+### Tests
+- Patch targets were updated where code moved (outbox worker metrics, deployment init handlers, examples discovery, dry-run discovery). No assertion was weakened or removed.
+- New tests cover forwarding methods and import fallbacks that moved out of modules excluded from coverage.
+
+### Validation
+- GitHub Actions unavailable (account billing lock); every gate was reproduced locally on the release tree.
+- Ruff lint and format, mypy (430 source files), the quality gate (0 violations, strict), radon (no C-grade) and `uv lock --check` passed.
+- Unit suite without containers: 3,542 passed, 62 skipped, 98.9% coverage (98.8% before).
+- Redis and PostgreSQL Testcontainers suites, covering the outbox DLQ contract, saga and snapshot storage, transfer round-trip and storage-to-analytics: 208 passed.
+- Behaviour checks:
+  - 480 generated Mermaid diagrams are byte-identical.
+  - The visualization server's routes and OpenAPI schema are unchanged.
+  - The output of 21 CLI invocations is byte-identical.
+  - The eight split examples produce identical seeded output, apart from clock-based IDs.
+
+## [1.8.1] - 2026-11-13
+
+### Fixed
+- The 1.8.0 wheel shipped none of the deployment templates (Docker Compose, Kubernetes, monitoring): `package-data` still pointed at `resources/`, which had moved to `deployment/resources/`, and the CLI read templates from the old location. `sagaz setup` printed `ERROR copying ...` and then reported a successful setup. Templates are now packaged and read from `sagaz/deployment/resources`.
+- `sagaz setup` stops with a clear error when a required template is missing, instead of reporting success.
+- Add the `py.typed` marker that the package declared but never contained, so type checkers use sagaz's annotations (PEP 561).
+- `sagaz version` printed the hard-coded legacy version `1.0.3`; it now reports the installed version, like `sagaz --version`.
+
+### Known issues
+- Local PostgreSQL HA and the Kubernetes mode of `sagaz setup` reference templates that do not exist; both now fail with an explicit error. Tracked for v1.9.0.
+
 ## [1.8.0] - 2026-11-13
 
 Wave 2 — "Analytics & Chaos".

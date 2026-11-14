@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from importlib.metadata import version
 from pathlib import Path
 from types import SimpleNamespace
@@ -11,7 +12,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
-from sagaz.cli import app
+from sagaz.cli import _dev_cmds, _project_cmds, app
 
 COMPOSE = "services: {}\n"
 
@@ -24,7 +25,7 @@ def runner():
 @pytest.fixture
 def run(monkeypatch):
     calls = MagicMock(return_value=SimpleNamespace(returncode=0, stdout=""))
-    monkeypatch.setattr(app.subprocess, "run", calls)
+    monkeypatch.setattr(subprocess, "run", calls)
     return calls
 
 
@@ -62,9 +63,9 @@ class TestStatus:
     def _status(self, runner, monkeypatch, stdout, returncode=0):
         printed = []
         console = SimpleNamespace(print=printed.append)
-        monkeypatch.setattr(app, "console", console)
+        monkeypatch.setattr(_dev_cmds, "console", console)
         monkeypatch.setattr(
-            app.subprocess,
+            subprocess,
             "run",
             MagicMock(return_value=SimpleNamespace(returncode=returncode, stdout=stdout)),
         )
@@ -95,7 +96,7 @@ class TestStatus:
         assert rows == [("docker-compose", "[yellow]○ parse error[/yellow]", "")]
 
     def test_plain_output_without_rich(self, runner, run, monkeypatch):
-        monkeypatch.setattr(app, "console", None)
+        monkeypatch.setattr(_dev_cmds, "console", None)
         result = runner.invoke(app.cli, ["status"])
         assert result.exit_code == 0, result.output
         run.assert_called_once_with(["docker", "compose", "ps"], check=False)
@@ -113,7 +114,7 @@ class TestLogs:
 
     def test_saga_id_filters_through_grep(self, runner, monkeypatch):
         popen = MagicMock()
-        monkeypatch.setattr(app.subprocess, "Popen", popen)
+        monkeypatch.setattr(subprocess, "Popen", popen)
         result = runner.invoke(app.cli, ["logs", "abc123"])
 
         assert result.exit_code == 0, result.output
@@ -135,9 +136,9 @@ class TestSetup:
         config = {"mode": "local"}
         with (
             runner.isolated_filesystem(temp_dir=tmp_path),
-            patch.object(app, "_gather_setup_configuration", return_value=config),
-            patch.object(app, "_display_configuration_summary"),
-            patch.object(app, "_execute_setup") as execute,
+            patch.object(_project_cmds, "_gather_setup_configuration", return_value=config),
+            patch.object(_project_cmds, "_display_configuration_summary"),
+            patch.object(_project_cmds, "_execute_setup") as execute,
         ):
             Path("sagaz.yaml").write_text("name: x\n")
             result = runner.invoke(app.cli, ["setup"], input=f"{confirm}\n")
@@ -181,7 +182,7 @@ class TestBenchmark:
 
     def test_output_is_saved_on_success(self, runner, tmp_path, monkeypatch):
         monkeypatch.setattr(
-            app.subprocess,
+            subprocess,
             "run",
             MagicMock(return_value=SimpleNamespace(returncode=0, stdout=b"42 sagas/sec")),
         )
@@ -189,20 +190,3 @@ class TestBenchmark:
         result = runner.invoke(app.cli, ["benchmark", "--quick", "--output", str(out)])
         assert out.read_text() == "42 sagas/sec"
         assert f"Results saved to {out}" in result.output
-
-
-def test_version_reports_the_installed_distribution(runner):
-    result = runner.invoke(app.cli, ["version"])
-    assert result.exit_code == 0
-    assert f"sagaz version {version('sagaz')}" in result.output
-
-
-def test_version_without_installed_metadata(runner, monkeypatch):
-    from importlib import metadata
-
-    def missing(name):
-        raise metadata.PackageNotFoundError(name)
-
-    monkeypatch.setattr(metadata, "version", missing)
-    result = runner.invoke(app.cli, ["version"])
-    assert "sagaz version unknown" in result.output

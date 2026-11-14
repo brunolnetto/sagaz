@@ -20,146 +20,65 @@ Usage:
 from __future__ import annotations
 
 import asyncio
-import logging
 import os
 import signal
-import sys
 import time
 import uuid
 from collections.abc import Awaitable, Callable
-from datetime import UTC, datetime
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    import prometheus_client
+from sagaz.core.outbox._worker_bootstrap import get_broker as get_broker
+from sagaz.core.outbox._worker_bootstrap import get_storage as get_storage
+from sagaz.core.outbox._worker_failures import OutboxWorkerFailureMixin
+from sagaz.core.outbox._worker_logging import log_level as log_level
+from sagaz.core.outbox._worker_logging import logger
 
+# Metrics live in _worker_metrics; re-exported here for backward compatibility.
+from sagaz.core.outbox._worker_metrics import (
+    OUTBOX_BATCH_PROCESSED as OUTBOX_BATCH_PROCESSED,
+)
+from sagaz.core.outbox._worker_metrics import (
+    OUTBOX_BATCH_SIZE as OUTBOX_BATCH_SIZE,
+)
+from sagaz.core.outbox._worker_metrics import (
+    OUTBOX_DEAD_LETTER_EVENTS as OUTBOX_DEAD_LETTER_EVENTS,
+)
+from sagaz.core.outbox._worker_metrics import (
+    OUTBOX_DLQ_DEPTH as OUTBOX_DLQ_DEPTH,
+)
+from sagaz.core.outbox._worker_metrics import (
+    OUTBOX_EVENTS_BY_STATE as OUTBOX_EVENTS_BY_STATE,
+)
+from sagaz.core.outbox._worker_metrics import (
+    OUTBOX_FAILED_EVENTS as OUTBOX_FAILED_EVENTS,
+)
+from sagaz.core.outbox._worker_metrics import (
+    OUTBOX_PENDING_EVENTS as OUTBOX_PENDING_EVENTS,
+)
+from sagaz.core.outbox._worker_metrics import (
+    OUTBOX_PROCESSING_EVENTS as OUTBOX_PROCESSING_EVENTS,
+)
+from sagaz.core.outbox._worker_metrics import (
+    OUTBOX_PUBLISH_DURATION as OUTBOX_PUBLISH_DURATION,
+)
+from sagaz.core.outbox._worker_metrics import (
+    OUTBOX_PUBLISHED_EVENTS as OUTBOX_PUBLISHED_EVENTS,
+)
+from sagaz.core.outbox._worker_metrics import (
+    OUTBOX_REPLAY_LOOP_DETECTED as OUTBOX_REPLAY_LOOP_DETECTED,
+)
+from sagaz.core.outbox._worker_metrics import (
+    OUTBOX_RETRY_ATTEMPTS as OUTBOX_RETRY_ATTEMPTS,
+)
+from sagaz.core.outbox._worker_metrics import (
+    PROMETHEUS_AVAILABLE as PROMETHEUS_AVAILABLE,
+)
 from sagaz.core.outbox.brokers.base import BrokerError, MessageBroker
-from sagaz.core.outbox.error_classifier import classify_error, create_error_fingerprint
 from sagaz.core.outbox.state_machine import OutboxStateMachine
 from sagaz.core.outbox.types import OutboxConfig, OutboxEvent, OutboxStatus
 from sagaz.core.storage.interfaces.outbox import OutboxStorage
 
-log_level = os.getenv("LOG_LEVEL", "INFO").upper()
-logging.basicConfig(
-    level=getattr(logging, log_level, logging.INFO),
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
 
-OUTBOX_BATCH_PROCESSED: prometheus_client.Counter | None
-OUTBOX_PUBLISHED_EVENTS: prometheus_client.Counter | None
-OUTBOX_FAILED_EVENTS: prometheus_client.Counter | None
-OUTBOX_DEAD_LETTER_EVENTS: prometheus_client.Counter | None
-OUTBOX_REPLAY_LOOP_DETECTED: prometheus_client.Counter | None
-OUTBOX_RETRY_ATTEMPTS: prometheus_client.Counter | None
-OUTBOX_PENDING_EVENTS: prometheus_client.Gauge | None
-OUTBOX_PROCESSING_EVENTS: prometheus_client.Gauge | None
-OUTBOX_BATCH_SIZE: prometheus_client.Gauge | None
-OUTBOX_EVENTS_BY_STATE: prometheus_client.Gauge | None
-OUTBOX_DLQ_DEPTH: prometheus_client.Gauge | None
-OUTBOX_PUBLISH_DURATION: prometheus_client.Histogram | None
-
-# ============================================================================
-# Prometheus Metrics (optional - gracefully degrade if not installed)
-# ============================================================================
-
-try:
-    from prometheus_client import Counter, Gauge, Histogram
-
-    PROMETHEUS_AVAILABLE = True
-
-    # Counters
-    OUTBOX_BATCH_PROCESSED = Counter(
-        "outbox_batch_processed_total",
-        "Total batches processed by outbox worker",
-        ["worker_id"],
-    )
-
-    OUTBOX_PUBLISHED_EVENTS = Counter(
-        "outbox_published_events_total",
-        "Total events successfully published",
-        ["worker_id", "event_type"],
-    )
-
-    OUTBOX_FAILED_EVENTS = Counter(
-        "outbox_failed_events_total",
-        "Total events that failed to publish",
-        ["worker_id", "event_type"],
-    )
-
-    OUTBOX_DEAD_LETTER_EVENTS = Counter(
-        "outbox_dead_letter_events_total",
-        "Total events moved to dead letter queue",
-        ["worker_id", "event_type", "error_type"],
-    )
-
-    OUTBOX_REPLAY_LOOP_DETECTED = Counter(
-        "outbox_replay_loop_detected_total",
-        "Total replay loop guard activations (event blocked from further replay)",
-        ["worker_id"],
-    )
-
-    OUTBOX_RETRY_ATTEMPTS = Counter(
-        "outbox_retry_attempts_total",
-        "Total retry attempts",
-        ["worker_id"],
-    )
-
-    # Gauges
-    OUTBOX_PENDING_EVENTS = Gauge(
-        "outbox_pending_events_total",
-        "Current number of pending events in outbox",
-    )
-
-    OUTBOX_PROCESSING_EVENTS = Gauge(
-        "outbox_processing_events_total",
-        "Current number of events being processed",
-        ["worker_id"],
-    )
-
-    OUTBOX_BATCH_SIZE = Gauge(
-        "outbox_batch_size",
-        "Size of last processed batch",
-        ["worker_id"],
-    )
-
-    OUTBOX_EVENTS_BY_STATE = Gauge(
-        "outbox_events_by_state",
-        "Number of events per state",
-        ["state"],
-    )
-
-    OUTBOX_DLQ_DEPTH = Gauge(
-        "sagaz_dlq_depth",
-        "Current number of events in the dead letter queue",
-    )
-
-    # Histograms
-    OUTBOX_PUBLISH_DURATION = Histogram(
-        "outbox_publish_duration_seconds",
-        "Time to publish an event to the broker",
-        ["worker_id", "event_type"],
-        buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 5.0],
-    )
-
-except ImportError:
-    PROMETHEUS_AVAILABLE = False
-    OUTBOX_BATCH_PROCESSED = None
-    OUTBOX_PUBLISHED_EVENTS = None
-    OUTBOX_FAILED_EVENTS = None
-    OUTBOX_DEAD_LETTER_EVENTS = None
-    OUTBOX_RETRY_ATTEMPTS = None
-    OUTBOX_REPLAY_LOOP_DETECTED = None
-    OUTBOX_PENDING_EVENTS = None
-    OUTBOX_PROCESSING_EVENTS = None
-    OUTBOX_BATCH_SIZE = None
-    OUTBOX_EVENTS_BY_STATE = None
-    OUTBOX_DLQ_DEPTH = None
-    OUTBOX_PUBLISH_DURATION = None
-    logger.debug("prometheus-client not installed, metrics disabled")
-
-
-class OutboxWorker:
+class OutboxWorker(OutboxWorkerFailureMixin):
     """
     Background worker that processes outbox events.
 
@@ -266,12 +185,7 @@ class OutboxWorker:
         """Process one iteration of the loop. Returns True if loop should break."""
         try:
             # Update pending events gauge
-            if PROMETHEUS_AVAILABLE and OUTBOX_PENDING_EVENTS is not None:
-                try:
-                    pending_count = await self.storage.get_pending_count()
-                    OUTBOX_PENDING_EVENTS.set(pending_count)
-                except Exception:
-                    pass  # Ignore errors when getting pending count
+            await self._update_pending_gauge()
 
             processed = await self.process_batch()
             if processed == 0:
@@ -305,16 +219,6 @@ class OutboxWorker:
         # Store reference to prevent garbage collection
         self._shutdown_task = asyncio.create_task(self.stop())
 
-    def _record_batch_started(self, batch_size: int) -> None:
-        """Record metrics for a newly claimed batch."""
-        if (
-            PROMETHEUS_AVAILABLE
-            and OUTBOX_BATCH_SIZE is not None
-            and OUTBOX_PROCESSING_EVENTS is not None
-        ):
-            OUTBOX_BATCH_SIZE.labels(worker_id=self.worker_id).set(batch_size)
-            OUTBOX_PROCESSING_EVENTS.labels(worker_id=self.worker_id).set(batch_size)
-
     def _count_batch_results(
         self,
         events: list[OutboxEvent],
@@ -328,16 +232,6 @@ class OutboxWorker:
             else:
                 processed += 1
         return processed
-
-    def _record_batch_completed(self) -> None:
-        """Record completion metrics and clear the in-flight gauge."""
-        if (
-            PROMETHEUS_AVAILABLE
-            and OUTBOX_BATCH_PROCESSED is not None
-            and OUTBOX_PROCESSING_EVENTS is not None
-        ):
-            OUTBOX_BATCH_PROCESSED.labels(worker_id=self.worker_id).inc()
-            OUTBOX_PROCESSING_EVENTS.labels(worker_id=self.worker_id).set(0)
 
     async def process_batch(self) -> int:
         """
@@ -387,19 +281,7 @@ class OutboxWorker:
             self._events_processed += 1
 
             # Record Prometheus metrics
-            if (
-                PROMETHEUS_AVAILABLE
-                and OUTBOX_PUBLISHED_EVENTS is not None
-                and OUTBOX_PUBLISH_DURATION is not None
-            ):
-                duration = time.time() - start_time
-                OUTBOX_PUBLISHED_EVENTS.labels(
-                    worker_id=self.worker_id, event_type=event_type
-                ).inc()
-                OUTBOX_PUBLISH_DURATION.labels(
-                    worker_id=self.worker_id, event_type=event_type
-                ).observe(duration)
-
+            self._record_published(event_type, start_time)
             if self._on_event_published:
                 await self._on_event_published(event)
 
@@ -409,104 +291,6 @@ class OutboxWorker:
             await self._handle_publish_failure(event, e)
         except Exception as e:
             await self._handle_publish_failure(event, e)
-
-    async def _handle_publish_failure(
-        self,
-        event: OutboxEvent,
-        error: Exception,
-    ) -> None:
-        """
-        Handle a publish failure.
-
-        Args:
-            event: The event that failed
-            error: The exception that occurred
-        """
-        error_message = str(error)
-        event_type = event.event_type or "unknown"
-
-        # Phase 1: classify and fingerprint the error before any storage update
-        event.error_type = type(error).__name__
-        event.error_classification = classify_error(error)
-        event.error_fingerprint = create_error_fingerprint(error_message)
-
-        logger.warning(
-            f"Event {event.event_id} failed to publish: {error_message} "
-            f"(attempt {event.retry_count + 1}/{self.config.max_retries})"
-        )
-
-        # Update to failed status
-        event = await self.storage.update_status(
-            event.event_id,
-            OutboxStatus.FAILED,
-            error_message=error_message,
-            event=event,
-        )
-
-        self._events_failed += 1
-
-        # Record Prometheus metrics
-        if (
-            PROMETHEUS_AVAILABLE
-            and OUTBOX_FAILED_EVENTS is not None
-            and OUTBOX_RETRY_ATTEMPTS is not None
-        ):
-            OUTBOX_FAILED_EVENTS.labels(worker_id=self.worker_id, event_type=event_type).inc()
-            OUTBOX_RETRY_ATTEMPTS.labels(worker_id=self.worker_id).inc()
-
-        if self._on_event_failed:
-            await self._on_event_failed(event, error)
-
-        # Check if should move to dead letter
-        if event.retry_count >= self.config.max_retries:
-            await self._move_to_dead_letter(event)
-        else:
-            # Reset to pending for retry
-            await self.storage.update_status(
-                event.event_id,
-                OutboxStatus.PENDING,
-                event=event,
-            )
-
-    async def _move_to_dead_letter(self, event: OutboxEvent) -> None:
-        """
-        Move an event to the dead letter queue.
-
-        Args:
-            event: The event to move
-        """
-        event.dead_letter_at = datetime.now(UTC)
-        event.dead_letter_reason = event.last_error or "max_retries_exceeded"
-
-        await self.storage.update_status(
-            event.event_id,
-            OutboxStatus.DEAD_LETTER,
-            error_message=event.dead_letter_reason,
-            event=event,
-        )
-
-        self._events_dead_lettered += 1
-
-        # Record Prometheus metrics
-        if (
-            PROMETHEUS_AVAILABLE
-            and OUTBOX_DEAD_LETTER_EVENTS is not None
-            and OUTBOX_DLQ_DEPTH is not None
-        ):
-            event_type = event.event_type or "unknown"
-            error_type_label = event.error_type or "unknown"
-            OUTBOX_DEAD_LETTER_EVENTS.labels(
-                worker_id=self.worker_id,
-                event_type=event_type,
-                error_type=error_type_label,
-            ).inc()
-            OUTBOX_DLQ_DEPTH.inc()
-
-        logger.error(
-            f"Event {event.event_id} moved to dead letter queue "
-            f"after {event.retry_count} attempts. "
-            f"Last error: {event.last_error}"
-        )
 
     async def recover_stuck_events(self) -> int:
         """
@@ -541,68 +325,6 @@ class OutboxWorker:
             "events_failed": self._events_failed,
             "events_dead_lettered": self._events_dead_lettered,
         }
-
-
-def get_storage():
-    """Create storage backend from environment."""
-    database_url = os.getenv("DATABASE_URL")
-
-    if not database_url:
-        logger.error("DATABASE_URL environment variable is required")
-        sys.exit(1)
-
-    from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
-
-    return PostgreSQLOutboxStorage(connection_string=database_url)
-
-
-def _get_broker_url(broker_type: str) -> str:
-    """Get broker URL from environment based on broker type."""
-    if broker_type == "rabbitmq":
-        return os.getenv("RABBITMQ_URL", "") or os.getenv("BROKER_URL", "")
-    return os.getenv("KAFKA_BOOTSTRAP_SERVERS", "") or os.getenv("BROKER_URL", "")
-
-
-def _create_kafka_broker(broker_url: str):
-    """Create Kafka broker instance."""
-    from sagaz.core.outbox.brokers.kafka import KafkaBroker, KafkaBrokerConfig
-
-    config = KafkaBrokerConfig(bootstrap_servers=broker_url)
-    return KafkaBroker(config=config)
-
-
-def _create_rabbitmq_broker(broker_url: str):
-    """Create RabbitMQ broker instance."""
-    from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker, RabbitMQBrokerConfig
-
-    config = RabbitMQBrokerConfig(
-        url=broker_url,
-        exchange_name=os.getenv("RABBITMQ_EXCHANGE", "saga-events"),
-    )
-    return RabbitMQBroker(config=config)
-
-
-_BROKER_FACTORIES = {
-    "kafka": _create_kafka_broker,
-    "rabbitmq": _create_rabbitmq_broker,
-}
-
-
-def get_broker():
-    """Create broker from environment."""
-    broker_type = os.getenv("BROKER_TYPE", "kafka").lower()
-    broker_url = _get_broker_url(broker_type)
-
-    if not broker_url:
-        logger.error(f"No broker URL configured. Set BROKER_URL or {broker_type.upper()}_URL")
-        sys.exit(1)
-
-    factory = _BROKER_FACTORIES.get(broker_type)
-    if not factory:
-        logger.error(f"Unknown broker type: {broker_type}")
-        sys.exit(1)
-
-    return factory(broker_url)
 
 
 async def main():
