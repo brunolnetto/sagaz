@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 
 from sagaz.core.decorators._step_ledger import StepLedger
 from sagaz.core.logger import get_logger
+from sagaz.core.tenant import capped_retries, capped_timeout
 from sagaz.core.types import SagaStatus
 
 if TYPE_CHECKING:
@@ -129,8 +130,8 @@ class ExecutionEngine:
                     step_def.compensation_fn,
                     depends_on=step_def.depends_on,  # Auto-reversed dependencies
                     compensation_type=step_def.compensation_type,
-                    max_retries=step_def.max_retries,
-                    timeout_seconds=step_def.compensation_timeout_seconds,
+                    max_retries=capped_retries(step_def.max_retries),
+                    timeout_seconds=capped_timeout(step_def.compensation_timeout_seconds),
                 )
 
     async def _execute_all_levels(self) -> None:
@@ -180,11 +181,13 @@ class ExecutionEngine:
         await self._call_hook(step.on_enter, self.saga._context, step.step_id)
 
         self._ledger.started(step.step_id)
+        # A tenant quota may lower the step's timeout (ADR-020).
+        timeout = capped_timeout(step.timeout_seconds)
         try:
             # Apply timeout
             try:
                 result = await asyncio.wait_for(
-                    step.forward_fn(self.saga._context), timeout=step.timeout_seconds
+                    step.forward_fn(self.saga._context), timeout=timeout
                 )
             except BaseException as error:
                 self._ledger.finished(step.step_id, error)
@@ -219,7 +222,7 @@ class ExecutionEngine:
             await self._notify_listeners(
                 "on_step_failure", saga_name, step.step_id, self.saga._context, e
             )
-            msg = f"Step '{step.step_id}' timed out after {step.timeout_seconds}s"
+            msg = f"Step '{step.step_id}' timed out after {timeout}s"
             raise TimeoutError(msg) from e
         except Exception as e:
             # Call on_failure hook

@@ -69,6 +69,9 @@ class SagaConfig:
     logging: bool | SagaListener = True
 
     # Saga execution defaults
+    # Multi-tenancy (ADR-020): resolves tenant ids given to Saga.run(tenant_context=...)
+    tenant_registry: Any | None = None  # TenantRegistry, avoiding circular import
+
     default_timeout: float = 60.0
     default_max_retries: int = 3
     failure_strategy: str = "FAIL_FAST_WITH_GRACE"

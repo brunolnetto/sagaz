@@ -14,6 +14,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sagaz.core.exceptions import SagaStepError, SagaTimeoutError
+from sagaz.core.tenant import capped_retries, capped_timeout
 from sagaz.core.types import SagaStepStatus
 
 if TYPE_CHECKING:
@@ -44,7 +45,8 @@ class StepExecutor:
             SagaStepError: If step fails
         """
         last_error: SagaTimeoutError | SagaStepError | None = None
-        total_attempts = step.max_retries + 1  # Initial attempt + retries
+        # Initial attempt + retries; a tenant quota may lower the retries (ADR-020).
+        total_attempts = capped_retries(step.max_retries) + 1
 
         for attempt in range(total_attempts):
             try:
@@ -95,7 +97,8 @@ class StepExecutor:
 
             # Execute with timeout
             step.result = await asyncio.wait_for(
-                self.saga._invoke(step.action, self.saga.context), timeout=step.timeout
+                self.saga._invoke(step.action, self.saga.context),
+                timeout=capped_timeout(step.timeout),
             )
 
             # Store result in context for next steps

@@ -22,6 +22,11 @@ from sagaz.core.tenant._errors import (
     TenantNotFoundError,
     TenantSuspendedError,
 )
+from sagaz.core.tenant._execution import (
+    ensure_tenant_context_matches,
+    resolve_tenant,
+    tenant_execution,
+)
 from sagaz.core.tenant._quotas import QuotaEnforcer, capped_retries, capped_timeout, quota_enforcer
 from sagaz.core.tenant._registry import TENANT_RECORD_SAGA_NAME, TenantRegistry
 from sagaz.core.tenant._scope import (
@@ -52,9 +57,12 @@ __all__ = [
     "current_tenant_context",
     "current_tenant_id",
     "ensure_tenant_access",
+    "ensure_tenant_context_matches",
     "is_system_scope",
     "quota_enforcer",
+    "resolve_tenant",
     "system_scope",
+    "tenant_execution",
     "tenant_scope",
     "validate_tenant_id",
 ]
