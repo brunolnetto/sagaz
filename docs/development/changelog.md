@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.2] - 2026-11-13
+
+Structural quality release: no behaviour changes. Addresses every finding of the codebase-stats report (39 violations: 35 modules over 400 lines and 4 with a maintainability index below 20).
+
+### Changed
+- Split 35 oversized modules into cohesive private sibling modules and mixins: the outbox backends and worker, saga and snapshot storage, the storage manager and transfer service, the imperative and declarative `Saga` classes, the execution graph and pivot types, the CLI (`app`, `examples`, `dry_run`, `replay`, deployment init handlers), the dry-run engine, Mermaid generation, tracing, the visualization server, the analytics pipeline, the Django integration and eight bundled examples. Every module under `sagaz/` is now at most 400 lines with a maintainability index of at least 20, and no function exceeds cyclomatic complexity 10.
+- Public import paths are unchanged; moved names are re-exported from their original modules. Classes that moved now report their new private module in `__module__`.
+- A few private helpers that were only incidentally importable from their old modules now live only in the new private modules.
+
+### Added
+- `scripts/quality_gate.py` (`make quality-gate`): a radon-based gate for CC ≤ 10, ≤ 400 lines and MI ≥ 20 per module, with a baseline file for future ratcheting. It runs in the quality-gates CI workflow with `--strict-baseline`, and the baseline is empty.
+
+### Tests
+- Patch targets were updated where code moved (outbox worker metrics, deployment init handlers, examples discovery, dry-run discovery). No assertion was weakened or removed.
+- New tests cover forwarding methods and import fallbacks that moved out of modules excluded from coverage.
+
+### Validation
+- GitHub Actions unavailable (account billing lock); every gate was reproduced locally on the release tree.
+- Ruff lint and format, mypy (430 source files), the quality gate (0 violations, strict), radon (no C-grade) and `uv lock --check` passed.
+- Unit suite without containers: 3,542 passed, 62 skipped, 98.9% coverage (98.8% before).
+- Redis and PostgreSQL Testcontainers suites, covering the outbox DLQ contract, saga and snapshot storage, transfer round-trip and storage-to-analytics: 208 passed.
+- Behaviour checks:
+  - 480 generated Mermaid diagrams are byte-identical.
+  - The visualization server's routes and OpenAPI schema are unchanged.
+  - The output of 21 CLI invocations is byte-identical.
+  - The eight split examples produce identical seeded output, apart from clock-based IDs.
+
 ## [1.8.1] - 2026-11-13
 
 ### Fixed
