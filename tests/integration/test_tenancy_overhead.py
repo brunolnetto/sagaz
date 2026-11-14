@@ -53,9 +53,12 @@ async def test_overhead_on_postgresql_with_row_level_security(app_role_url):
     options = backends.BackendOptions(postgres_url=app_role_url, postgres_pool_size=10)
     result = await _measure("postgres", options)
     assert result.info["rls_enforced"]
-    # Exact and load-independent: running as a tenant sends no extra statement.
+    # Exact and load-independent. A saga acquires two connections; the default
+    # tenant skips the tenant set_config on connections already known to be at
+    # the default (#405), a tenant sets it on each acquisition. The first use of
+    # a fresh pool connection still sets the default once, hence the range.
     counts = result.info["statements_per_saga"]
-    assert counts["multi"] == counts["baseline"]
+    assert 1 <= counts["multi"] - counts["baseline"] <= 2
     assert _overhead(result) < MAX_OVERHEAD_PCT
 
 

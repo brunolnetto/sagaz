@@ -24,7 +24,7 @@ from sagaz.core.storage.backends.postgresql._saga_query import (
 )
 from sagaz.core.storage.backends.postgresql._saga_rows import _PostgreSQLSagaRowMixin
 from sagaz.core.storage.backends.postgresql._saga_schema import SAGA_TABLES_SQL
-from sagaz.core.storage.backends.postgresql._tenancy import acquire_scoped
+from sagaz.core.storage.backends.postgresql._tenancy import POOL_OPTIONS, acquire_scoped
 from sagaz.core.storage.base import (
     SagaStorage,
     SagaStorageConnectionError,
@@ -107,7 +107,7 @@ class PostgreSQLSagaStorage(
                     self.connection_string,
                     min_size=self.pool_min_size,
                     max_size=self.pool_max_size,
-                    **self.pool_kwargs,
+                    **{**POOL_OPTIONS, **self.pool_kwargs},
                 )
 
                 # Initialize (and upgrade) the database schema
