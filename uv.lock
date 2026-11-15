@@ -4089,6 +4089,7 @@ aws = [
 ]
 cdc = [
     { name = "aiokafka" },
+    { name = "httpx" },
     { name = "psycopg2-binary" },
 ]
 compression = [
@@ -4226,6 +4227,7 @@ requires-dist = [
     { name = "cryptography", marker = "extra == 'encryption'", specifier = ">=42.0.0" },
     { name = "duckdb", marker = "extra == 'analytics'", specifier = ">=1.0.0" },
     { name = "fastapi", marker = "extra == 'visualization'", specifier = ">=0.100.0" },
+    { name = "httpx", marker = "extra == 'cdc'", specifier = ">=0.28.1" },
     { name = "narwhals", marker = "extra == 'analytics'", specifier = ">=1.0.0" },
     { name = "opentelemetry-api", marker = "extra == 'tracing'", specifier = ">=1.39.1" },
     { name = "opentelemetry-exporter-otlp-proto-grpc", marker = "extra == 'tracing'", specifier = ">=1.39.1" },
