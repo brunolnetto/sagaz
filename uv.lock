@@ -4027,6 +4027,9 @@ aws = [
 compression = [
     { name = "zstandard" },
 ]
+encryption = [
+    { name = "cryptography" },
+]
 integration-tests = [
     { name = "aioboto3" },
     { name = "testcontainers", extra = ["rabbitmq", "redis"] },
@@ -4152,6 +4155,7 @@ requires-dist = [
     { name = "asyncpg", marker = "extra == 'postgres'", specifier = ">=0.31.0" },
     { name = "asyncpg", marker = "extra == 'storage'", specifier = ">=0.30.0" },
     { name = "click", specifier = ">=8.1.0" },
+    { name = "cryptography", marker = "extra == 'encryption'", specifier = ">=42.0.0" },
     { name = "duckdb", marker = "extra == 'analytics'", specifier = ">=1.0.0" },
     { name = "fastapi", marker = "extra == 'visualization'", specifier = ">=0.100.0" },
     { name = "narwhals", marker = "extra == 'analytics'", specifier = ">=1.0.0" },
@@ -4176,7 +4180,7 @@ requires-dist = [
     { name = "zstandard", marker = "extra == 'compression'", specifier = ">=0.22.0" },
     { name = "zstandard", marker = "extra == 'integration-tests'", specifier = ">=0.22.0" },
 ]
-provides-extras = ["storage", "integration-tests", "redis", "sqlite", "postgres", "kafka", "rabbitmq", "tracing", "prometheus", "analytics", "visualization", "monitor", "aws", "compression"]
+provides-extras = ["storage", "integration-tests", "redis", "sqlite", "postgres", "kafka", "rabbitmq", "tracing", "prometheus", "analytics", "visualization", "monitor", "aws", "encryption", "compression"]
 
 [package.metadata.requires-dev]
 ai = [
