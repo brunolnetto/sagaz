@@ -95,6 +95,7 @@ nav:
   
   - Integrations:
     - Webhook Status Tracking: integrations/webhook-status-tracking.md
+    - CDC with Debezium: integrations/cdc-debezium.md
   
   - Monitoring:
     - Observability Reference: monitoring/OBSERVABILITY_REFERENCE.md
