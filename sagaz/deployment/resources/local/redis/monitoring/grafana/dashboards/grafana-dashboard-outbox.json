@@ -291,7 +291,11 @@
           {"format": "short", "label": "Count"},
           {"format": "short"}
         ]
-      }
+      },
+    {"type": "row", "title": "CDC (change data capture)", "collapsed": false, "gridPos": {"x": 0, "y": 36, "w": 24, "h": 1}, "panels": []},
+    {"type": "graph", "title": "CDC lag (commit → processed)", "description": "From the commit of an outbox insert to the end of its processing by a CDC-mode worker (sagaz_cdc_lag_seconds).", "gridPos": {"x": 0, "y": 37, "w": 8, "h": 8}, "yaxes": [{"format": "s", "min": 0}, {"format": "short"}], "targets": [{"expr": "histogram_quantile(0.5, sum(rate(sagaz_cdc_lag_seconds_bucket[5m])) by (le, source))", "legendFormat": "p50 {{source}}", "refId": "A"}, {"expr": "histogram_quantile(0.95, sum(rate(sagaz_cdc_lag_seconds_bucket[5m])) by (le, source))", "legendFormat": "p95 {{source}}", "refId": "B"}, {"expr": "histogram_quantile(0.99, sum(rate(sagaz_cdc_lag_seconds_bucket[5m])) by (le, source))", "legendFormat": "p99 {{source}}", "refId": "C"}]},
+    {"type": "graph", "title": "CDC throughput", "description": "Outbox events received from the CDC source and processed per second (sagaz_cdc_events_total).", "gridPos": {"x": 8, "y": 37, "w": 8, "h": 8}, "yaxes": [{"format": "ops", "min": 0}, {"format": "short"}], "targets": [{"expr": "sum(rate(sagaz_cdc_events_total[1m])) by (source)", "legendFormat": "{{source}}", "refId": "A"}]},
+    {"type": "graph", "title": "CDC errors", "description": "Events whose processing raised, and source stream failures (sagaz_cdc_errors_total). Failed publishes are retried by the sweep.", "gridPos": {"x": 16, "y": 37, "w": 8, "h": 8}, "yaxes": [{"format": "ops", "min": 0}, {"format": "short"}], "targets": [{"expr": "sum(rate(sagaz_cdc_errors_total[5m])) by (source, kind)", "legendFormat": "{{source}} {{kind}}", "refId": "A"}]}
     ]
   }
 }
