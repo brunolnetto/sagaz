@@ -117,6 +117,19 @@ class OutboxStorage(_OutboxStorageDefaults, ABC):
         """
         ...
 
+    async def mark_sent_batch(self, event_ids: list[str]) -> int:
+        """Mark published events as SENT; return how many rows were updated.
+
+        The default issues one :meth:`update_status` per event; backends that can
+        update many rows in one statement override it (the CDC worker calls it once
+        per batch). Like the other methods it acts on the current tenant scope.
+        """
+        from sagaz.core.outbox.types import OutboxStatus
+
+        for event_id in event_ids:
+            await self.update_status(event_id, OutboxStatus.SENT)
+        return len(event_ids)
+
     # ==========================================================================
     # Batch Operations
     # ==========================================================================

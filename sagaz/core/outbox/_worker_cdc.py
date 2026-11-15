@@ -18,16 +18,18 @@ which the outbox's at-least-once contract already allows.
 from __future__ import annotations
 
 import asyncio
+import time
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from sagaz.core.outbox._worker_logging import logger
-from sagaz.core.tenant import system_scope
+from sagaz.core.tenant import system_scope, tenant_scope
 
 if TYPE_CHECKING:
     import prometheus_client
 
     from sagaz.core.outbox.types import OutboxConfig, OutboxEvent
+    from sagaz.core.storage.interfaces.outbox import OutboxStorage
     from sagaz.integrations.cdc import CDCChange, CDCSource
 
 CDC_LAG: prometheus_client.Histogram | None
@@ -50,7 +52,7 @@ try:
     )
     CDC_ERRORS = Counter(
         "sagaz_cdc_errors_total",
-        "CDC errors: events whose processing raised, and source stream failures",
+        "CDC errors: events whose processing raised, SENT marking and source stream failures",
         ["source", "kind"],
     )
 except ImportError:  # pragma: no cover - prometheus_client is optional
@@ -72,30 +74,69 @@ class OutboxWorkerCDCMixin:
 
     config: OutboxConfig
     worker_id: str
+    storage: OutboxStorage
+    broker: Any
     _running: bool
     _shutdown_event: asyncio.Event
+    _events_processed: int
+    _on_event_published: Any
 
-    async def _process_event(self, event: OutboxEvent) -> None:  # pragma: no cover - worker
-        raise NotImplementedError
+    if TYPE_CHECKING:  # provided by OutboxWorker and its other mixins
 
-    async def process_batch(self, older_than_seconds: float = 0.0) -> int:  # pragma: no cover
-        raise NotImplementedError
+        async def _handle_publish_failure(self, event: OutboxEvent, error: Exception) -> None: ...
+
+        def _record_published(self, event_type: str, start_time: float) -> None: ...
+
+        async def process_batch(self, older_than_seconds: float = 0.0) -> int: ...
+
+    async def _publish_change(self, event: OutboxEvent) -> bool:
+        """Publish in the event's tenant scope; a failure goes to retry/DLQ handling."""
+        with tenant_scope(event.tenant_id):
+            try:
+                await self.broker.publish_event(event)
+                return True
+            except Exception as error:
+                await self._handle_publish_failure(event, error)
+                return False
+
+    async def _mark_sent(self, sent: list[OutboxEvent], source: str, started: float) -> None:
+        """Mark a batch's published events SENT in one call, then record them."""
+        try:
+            with system_scope():
+                await self.storage.mark_sent_batch([event.event_id for event in sent])
+        except Exception as error:
+            # Published but still PENDING: the sweep republishes them later
+            # (at least once). Keep streaming rather than stop the worker.
+            logger.error(f"CDC worker {self.worker_id} could not mark {len(sent)} sent: {error}")
+            if CDC_ERRORS is not None:
+                CDC_ERRORS.labels(source=source, kind="mark_sent").inc()
+            return
+        for event in sent:
+            self._events_processed += 1
+            self._record_published(event.event_type or "unknown", started)
+            if self._on_event_published:
+                await self._on_event_published(event)
 
     async def process_changes(self, changes: list[CDCChange], source: str = "cdc") -> int:
-        """Publish a batch of captured inserts; return how many were processed without error."""
-        results = await asyncio.gather(
-            *(self._process_event(change.event) for change in changes), return_exceptions=True
+        """Publish a batch of captured inserts; return how many were published.
+
+        Events are published concurrently, each in its tenant's scope; the ones
+        published are marked SENT with a single storage call, and failures take
+        the usual retry/DLQ path (and are swept back later).
+        """
+        started = time.time()
+        outcomes = await asyncio.gather(
+            *(self._publish_change(change.event) for change in changes), return_exceptions=True
         )
+        sent = [change.event for change, ok in zip(changes, outcomes, strict=True) if ok is True]
+        if sent:
+            await self._mark_sent(sent, source, started)
         now = datetime.now(UTC)
-        processed = 0
-        for change, result in zip(changes, results, strict=True):
-            failed = isinstance(result, BaseException)
-            if failed:
-                logger.error(f"CDC event {change.event.event_id} failed: {result}")
-            else:
-                processed += 1
-            _record_change(source, change, now, failed)
-        return processed
+        for change, outcome in zip(changes, outcomes, strict=True):
+            if isinstance(outcome, BaseException):
+                logger.error(f"CDC event {change.event.event_id} failed: {outcome}")
+            _record_change(source, change, now, failed=isinstance(outcome, BaseException))
+        return len(sent)
 
     async def run_cdc(self, source: CDCSource) -> None:
         """Consume ``source`` until :meth:`stop`; sweep stale pending events meanwhile."""

@@ -83,6 +83,62 @@ async def _run_until_drained(worker, source):
     await asyncio.wait_for(task, 5)
 
 
+class TestBatchMarking:
+    async def test_published_events_are_marked_sent_in_one_call(self, broker):
+        storage = InMemoryOutboxStorage()
+        changes = await _inserted(storage, n=3)
+        calls = []
+        original = storage.mark_sent_batch
+
+        async def recording(event_ids):
+            calls.append(list(event_ids))
+            return await original(event_ids)
+
+        storage.mark_sent_batch = recording
+        published = []
+        worker = OutboxWorker(storage, broker, on_event_published=_collect(published))
+
+        assert await worker.process_changes(changes) == 3
+
+        assert calls == [[c.event.event_id for c in changes]]
+        assert len(published) == 3
+        assert worker.get_stats()["events_processed"] == 3
+
+    async def test_marking_failure_is_counted_and_streaming_continues(self, broker, caplog):
+        storage = InMemoryOutboxStorage()
+        changes = await _inserted(storage, n=2)
+
+        async def broken(event_ids):
+            msg = "db down"
+            raise RuntimeError(msg)
+
+        storage.mark_sent_batch = broken
+        worker = OutboxWorker(storage, broker)
+        before = _sample("sagaz_cdc_errors_total", source="unit-m", kind="mark_sent")
+
+        assert await worker.process_changes(changes, "unit-m") == 2  # published nonetheless
+
+        assert _sample("sagaz_cdc_errors_total", source="unit-m", kind="mark_sent") == before + 1
+        assert "could not mark 2 sent: db down" in caplog.text
+        with system_scope():
+            assert await storage.get_pending_count() == 2  # the sweep will republish them
+
+    async def test_default_mark_sent_batch_updates_each_event(self):
+        storage = InMemoryOutboxStorage()
+        changes = await _inserted(storage, n=2)
+        with system_scope():
+            assert await storage.mark_sent_batch([c.event.event_id for c in changes]) == 2
+            assert await storage.get_pending_count() == 0
+            assert await storage.mark_sent_batch([]) == 0
+
+
+def _collect(into):
+    async def callback(event):
+        into.append(event.event_id)
+
+    return callback
+
+
 class TestCDCMode:
     async def test_streamed_events_are_published_marked_sent_and_acked(self, broker):
         storage = InMemoryOutboxStorage()
@@ -174,15 +230,15 @@ class TestCDCMode:
         storage = InMemoryOutboxStorage()
         changes = await _inserted(storage, n=2)
         worker = OutboxWorker(storage, broker)
-        original = worker._process_event
+        original = worker._publish_change
 
         async def boom_on_first(event):
             if event.event_id == changes[0].event.event_id:
                 msg = "unexpected"
                 raise RuntimeError(msg)
-            await original(event)
+            return await original(event)
 
-        worker._process_event = boom_on_first
+        worker._publish_change = boom_on_first
         no_commit_time = CDCChange(changes[1].event, None, 1)
         before = _sample("sagaz_cdc_errors_total", source="unit-c", kind="event")
 
