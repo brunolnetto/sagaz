@@ -32,28 +32,8 @@ READER_PASSWORD = "cdc-reader-pw"
 
 
 @pytest.fixture(scope="module")
-def admin_dsn():
-    dsn = os.environ.get("SAGAZ_CDC_PG_DSN")
-    if dsn:
-        yield dsn
-        return
-    if os.environ.get("SAGAZ_NO_CONTAINERS"):
-        pytest.skip("containers disabled")
-    try:
-        from testcontainers.postgres import PostgresContainer
-    except ImportError:
-        pytest.skip("testcontainers not available")
-    container = PostgresContainer("postgres:16-alpine").with_command(
-        "postgres -c wal_level=logical -c max_replication_slots=4 -c max_wal_senders=4"
-    )
-    try:
-        container.start()
-    except Exception as exc:  # Docker unavailable
-        pytest.skip(f"PostgreSQL container unavailable: {exc}")
-    try:
-        yield container.get_connection_url().replace("postgresql+psycopg2://", "postgresql://")
-    finally:
-        container.stop()
+def admin_dsn(logical_postgres_dsn):
+    return logical_postgres_dsn
 
 
 def _with_credentials(dsn: str, user: str, password: str) -> str:

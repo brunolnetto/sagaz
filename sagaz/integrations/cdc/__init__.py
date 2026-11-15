@@ -9,5 +9,15 @@ they commit.
 
 from sagaz.integrations.cdc._events import event_from_row, parse_timestamp
 from sagaz.integrations.cdc._types import CDCChange, CDCError, CDCSource
+from sagaz.integrations.cdc.debezium import DebeziumKafkaSource
+from sagaz.integrations.cdc.pg_logical import PgLogicalSource
 
-__all__ = ["CDCChange", "CDCError", "CDCSource", "event_from_row", "parse_timestamp"]
+__all__ = [
+    "CDCChange",
+    "CDCError",
+    "CDCSource",
+    "DebeziumKafkaSource",
+    "PgLogicalSource",
+    "event_from_row",
+    "parse_timestamp",
+]

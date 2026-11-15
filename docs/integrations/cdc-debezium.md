@@ -311,11 +311,15 @@ slot, re-create the connector and let the polling worker cover the gap.
 
 ## Running the CDC worker
 
-> **Placeholder:** how to run the outbox worker in CDC mode with
-> `DebeziumKafkaSource` (CLI flags, configuration and deployment) will be
-> documented here.
+Run the outbox worker with `SAGAZ_OUTBOX_MODE=cdc` and `SAGAZ_CDC_SOURCE=debezium`
+(plus `KAFKA_BOOTSTRAP_SERVERS`, `SAGAZ_CDC_TOPIC_PREFIX` and `SAGAZ_CDC_GROUP_ID`),
+or pass `cdc_source=DebeziumKafkaSource(...)` to `OutboxWorker`. The connector's
+`snapshot.mode=no_data` skips rows that already existed, and the worker's sweep
+publishes those (and retries failed publishes). See
+[Change Data Capture for the outbox](cdc.md#running-the-worker-in-cdc-mode).
 
 ## Metrics
 
-> **Placeholder:** the CDC worker's metrics (lag from `committed_at`, batch
-> sizes, skipped and failed records) will be documented here.
+`sagaz_cdc_lag_seconds`, `sagaz_cdc_events_total` and `sagaz_cdc_errors_total`, with
+`source="debezium"`, are described in [CDC metrics](cdc.md#metrics). Debezium's own
+connector metrics (above) complement them.

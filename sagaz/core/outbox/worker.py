@@ -27,7 +27,9 @@ import uuid
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
+from sagaz.core.outbox._worker_bootstrap import cdc_config_from_env as cdc_config_from_env
 from sagaz.core.outbox._worker_bootstrap import get_broker as get_broker
+from sagaz.core.outbox._worker_bootstrap import get_cdc_source as get_cdc_source
 from sagaz.core.outbox._worker_bootstrap import get_storage as get_storage
 from sagaz.core.outbox._worker_cdc import OutboxWorkerCDCMixin
 from sagaz.core.outbox._worker_failures import OutboxWorkerFailureMixin
@@ -350,7 +352,7 @@ class OutboxWorker(OutboxWorkerCDCMixin, OutboxWorkerFailureMixin):
 
 async def main():
     """Main entry point."""
-    logger.info("Startingsagaz Outbox Worker...")
+    logger.info("Starting sagaz outbox worker...")
 
     # Create storage and broker
     storage = get_storage()
@@ -360,15 +362,15 @@ async def main():
         batch_size=int(os.getenv("BATCH_SIZE", "100")),
         poll_interval_seconds=float(os.getenv("POLL_INTERVAL", "1.0")),
         max_retries=int(os.getenv("MAX_RETRIES", "5")),
+        **cdc_config_from_env(),
     )
-
-    # Create worker
 
     worker = OutboxWorker(
         storage=storage,
         broker=broker,
         config=config,
         worker_id=os.getenv("WORKER_ID"),
+        cdc_source=get_cdc_source(),
     )
 
     try:
