@@ -152,31 +152,46 @@ async def per_tenant_counts(storage: Any) -> dict[str, Counter[str]]:
     return counts
 
 
-async def verify(deployment: Deployment) -> list[str]:
-    """Return the violated isolation guarantees (empty when all hold)."""
+async def _visibility_problems(storage: Any) -> list[str]:
     problems: list[str] = []
-    acme = await _visible(deployment.storage, "acme")
-    globex = await _visible(deployment.storage, "globex")
+    acme = await _visible(storage, "acme")
+    globex = await _visible(storage, "globex")
     if not acme or acme["status"] != "completed" or acme["context"]["tenant_id"] != "acme":
         problems.append("acme does not see its own completed order")
     if not globex or globex["status"] != "rolled_back":
         problems.append("globex does not see its own rolled-back order")
-    if await _visible(deployment.storage, None) is not None:
+    if await _visible(storage, None) is not None:
         problems.append("the default tenant can see a tenant's order")
+    return problems
 
-    if deployment.encrypted:
-        raw = await _visible(deployment.plain, "acme")
-        if raw is None or not is_encrypted(raw["context"]) or CARD in json.dumps(raw, default=str):
-            problems.append("acme's order is stored in plaintext")
 
+async def _encryption_problems(deployment: Deployment) -> list[str]:
+    if not deployment.encrypted:
+        return []
+    raw = await _visible(deployment.plain, "acme")
+    if raw is None or not is_encrypted(raw["context"]) or CARD in json.dumps(raw, default=str):
+        return ["acme's order is stored in plaintext"]
+    return []
+
+
+async def _quota_and_count_problems(deployment: Deployment) -> list[str]:
+    problems: list[str] = []
     if len(deployment.refused) != 1 or "max_concurrent_sagas" not in deployment.refused[0]:
         problems.append("globex's concurrency quota did not refuse exactly one saga")
-
     counts = await per_tenant_counts(deployment.plain)
     expected = {"acme": {"completed": 1}, "globex": {"rolled_back": 1, "completed": 2}}
     if {tenant: dict(c) for tenant, c in counts.items()} != expected:
         problems.append(f"unexpected per-tenant counts: {counts}")
     return problems
+
+
+async def verify(deployment: Deployment) -> list[str]:
+    """Return the violated isolation guarantees (empty when all hold)."""
+    return [
+        *await _visibility_problems(deployment.storage),
+        *await _encryption_problems(deployment),
+        *await _quota_and_count_problems(deployment),
+    ]
 
 
 def _report(deployment: Deployment, counts: dict[str, Counter[str]]) -> None:
