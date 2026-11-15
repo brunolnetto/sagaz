@@ -14,7 +14,9 @@ neither show nor rule out a difference that small; the two load-independent meas
 are what establish the < 5% bound. The cost of tenancy *support* on PostgreSQL, paid by
 single-tenant deployments too, is one `set_config` round trip per acquired connection
 (2 of 13 statements per saga, about 16% of saga latency when the database round trip
-dominates); row-level security itself costs nothing measurable.
+dominates); row-level security itself costs nothing measurable. **Since #405, the
+default tenant no longer pays it:** single-tenant sagas send 11 statements, the same
+as with no tenant SQL at all (see [After #405](#after-405-the-default-tenant-skips-set_config)).
 
 ## What is measured
 
@@ -182,15 +184,28 @@ context managers: an `@asynccontextmanager` for the quota slot nested with a
 new interleaved in one process. Inside whole in-memory sagas the difference is below
 what this machine can resolve.
 
-## Suggested improvement (not made here)
+## After #405: the default tenant skips `set_config`
 
-The `set_config` round trip on every connection acquisition is the one measurable cost
-of tenancy support on PostgreSQL, and single-tenant deployments pay it too. It could be
-removed for connections that already carry the current tenant, by replacing asyncpg's
-default pool reset (which runs `RESET ALL` and so clears `app.tenant_id`) with one that
-keeps the setting, and remembering each connection's tenant; or merged into the first
-statement of each operation. Either changes how every PostgreSQL operation acquires its
-connection, so it is left for a separate change with its own isolation tests.
+The improvement suggested by this benchmark was made in #405. Pools sagaz creates now
+reset each released connection to the default tenant within asyncpg's own reset round
+trip, and sagaz remembers which connections are known to be at the default. An
+acquisition for the default tenant on such a connection skips the `set_config`. Any
+other tenant, and any connection sagaz does not know, is still set every time, so
+isolation is unchanged; tests cover a connection released by one tenant being reused by
+the default tenant, as a `NOSUPERUSER NOBYPASSRLS` role.
+
+Statements per saga, measured after the change (local PostgreSQL 16.15, 20 tenants × 5
+sagas, 3 rounds, with ablations):
+
+| Mode | Before #405 | After #405 |
+|---|---:|---:|
+| baseline (default tenant) | 13 | **11** |
+| baseline, RLS off | 13 | **11** |
+| baseline, no tenant SQL | 11 | 11 |
+| multi / multi-registry (other tenants) | 13 | 13 |
+
+Single-tenant deployments now send exactly the statements they would without tenancy
+support. Multi-tenant sagas still set their tenant once per acquisition.
 
 ## Run the full size
 

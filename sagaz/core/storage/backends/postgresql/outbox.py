@@ -43,6 +43,7 @@ from sagaz.core.storage.backends.postgresql._outbox_tenancy import (
 from sagaz.core.storage.backends.postgresql._outbox_transfer import (
     PostgreSQLOutboxTransferMixin,
 )
+from sagaz.core.storage.backends.postgresql._tenancy import POOL_OPTIONS
 from sagaz.core.storage.interfaces.outbox import OutboxStorage, OutboxStorageError
 
 # Check for asyncpg availability
@@ -122,6 +123,7 @@ class PostgreSQLOutboxStorage(
             self.connection_string,
             min_size=self.pool_min_size,
             max_size=self.pool_max_size,
+            **POOL_OPTIONS,
         )
 
         # Create schema (including the tenant column and RLS policies)
