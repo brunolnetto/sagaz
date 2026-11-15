@@ -241,6 +241,19 @@ class PostgreSQLOutboxStorage(
             raise OutboxStorageError(msg)
         return self._row_to_event(row)
 
+    async def mark_sent_batch(self, event_ids: list[str]) -> int:
+        """Mark events SENT with one ``UPDATE`` (current tenant scope)."""
+        if not event_ids:
+            return 0
+        async with scoped_connection(self._pool) as conn:
+            result = await conn.execute(
+                "UPDATE saga_outbox SET status = 'sent', sent_at = NOW() "
+                f"WHERE event_id = ANY($1::uuid[]) AND {tenant_predicate(2)}",
+                list(event_ids),
+                tenant_param(),
+            )
+        return int(result.split()[-1])
+
     async def get_by_id(self, event_id: str) -> OutboxEvent | None:
         """Get an event of the current tenant by ID from active or archived storage."""
         async with scoped_connection(self._pool) as conn:

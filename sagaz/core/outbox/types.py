@@ -221,6 +221,9 @@ class OutboxConfig:
     optimistic_publish: bool = True
     optimistic_timeout_ms: int = 500
     archive_after_days: int = 7
+    # CDC mode (ADR-011): sweep events pending longer than the min age (None disables)
+    cdc_sweep_interval_seconds: float | None = 30.0
+    cdc_sweep_min_age_seconds: float = 30.0
 
     @classmethod
     def from_env(cls) -> "OutboxConfig":

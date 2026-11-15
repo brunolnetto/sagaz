@@ -67,6 +67,7 @@ nav:
     - Kubernetes Deployment: guides/kubernetes.md
     - Benchmarking: guides/benchmarking.md
     - Multi-tenancy Overhead: benchmarks/tenancy-overhead.md
+    - CDC outbox throughput and lag: benchmarks/cdc-outbox.md
     - Saga Replay: guides/saga-replay.md
     - Replay Storage Backends: guides/replay-storage-backends.md
     - HA PostgreSQL Quick Reference: guides/ha-postgres-quickref.md
@@ -95,6 +96,8 @@ nav:
   
   - Integrations:
     - Webhook Status Tracking: integrations/webhook-status-tracking.md
+    - Change Data Capture: integrations/cdc.md
+    - CDC with Debezium: integrations/cdc-debezium.md
   
   - Monitoring:
     - Observability Reference: monitoring/OBSERVABILITY_REFERENCE.md

@@ -267,7 +267,7 @@ Design CDC support as an **optional upgrade path** using Debezium.
 
 ### Status
 
-**Proposed** - See [ADR-011: CDC Support](adr/adr-011-cdc-support.md) for full design.
+**Accepted, implemented in v1.9.0 (#50)** - See [ADR-011: CDC Support](adr/adr-011-cdc-support.md) for full design.
 
 ---
 
