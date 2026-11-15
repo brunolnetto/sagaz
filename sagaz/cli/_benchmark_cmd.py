@@ -1,18 +1,50 @@
 """``sagaz benchmark`` command."""
 
-import subprocess
+import asyncio
+import json
 from pathlib import Path
 
 import click
 
+from sagaz.cli._benchmark import BenchmarkResult, profiles_for, run_benchmark, summary
+
 try:
     from rich.console import Console
-    from rich.panel import Panel
+    from rich.table import Table
 
     console: Console | None = Console()
 except ImportError:
     console = None
-    Panel = None  # type: ignore[assignment,misc]
+    Table = None  # type: ignore[assignment,misc]
+
+COLUMNS = (
+    "profile",
+    "storage",
+    "sagas",
+    "concurrency",
+    "failed",
+    "throughput",
+    "p50_ms",
+    "p95_ms",
+    "p99_ms",
+)
+
+
+def _show(results: list[BenchmarkResult]) -> None:
+    rows = [[str(getattr(r, c)) for c in COLUMNS] for r in results]
+    if console is not None and Table is not None:
+        table = Table(title="Sagaz benchmark (sagas/s, latency in ms)")
+        for column in COLUMNS:
+            table.add_column(
+                column, justify="left" if column in ("profile", "storage") else "right"
+            )
+        for row in rows:
+            table.add_row(*row)
+        console.print(table)
+        return
+    click.echo("  ".join(COLUMNS))
+    for row in rows:
+        click.echo("  ".join(row))
 
 
 @click.command()
@@ -20,82 +52,52 @@ except ImportError:
     "--profile",
     type=click.Choice(["local", "production", "stress", "full"]),
     default="local",
-    help="Benchmark profile",
+    show_default=True,
+    help="Workload size.",
 )
-@click.option("--output", type=click.Path(), help="Output file for results (JSON)")
-@click.option("--quick", is_flag=True, help="Quick sanity check (minimal iterations)")
-def benchmark_cmd(profile: str, output: str, quick: bool):
+@click.option("--quick", is_flag=True, help="Quick sanity check (20 sagas).")
+@click.option(
+    "--storage-url",
+    envvar="SAGAZ_STORAGE_URL",
+    default=None,
+    metavar="URL",
+    help="Saga storage to benchmark (default: in-memory). Benchmark sagas are deleted afterwards.",
+)
+@click.option("--output", type=click.Path(dir_okay=False), help="Write the results as JSON.")
+@click.pass_context
+def benchmark_cmd(
+    ctx: click.Context, profile: str, quick: bool, storage_url: str | None, output: str | None
+) -> None:
     """
-    Run performance benchmarks.
+    Measure saga throughput and latency with the installed sagaz.
+
+    Runs a three-step saga (reserve -> charge -> notify) many times with bounded
+    concurrency and reports sagas per second and p50/p95/p99 latency.
 
     \b
-    Profiles:
-        local       Fast tests for development (default)
-        production  Comprehensive tests with production config
-        stress      High concurrency and endurance tests
-        full        All benchmark tests
+    Profiles (sagas x concurrency):
+        local        500 x 20 (default)
+        production   5,000 x 100
+        stress       20,000 x 500
+        full         all three
 
     \b
     Examples:
-        sagaz benchmark                  # Quick local tests
-        sagaz benchmark --profile stress # Stress testing
-        sagaz benchmark --output out.json # Save results
+        sagaz benchmark --quick
+        sagaz benchmark --profile production --storage-url postgresql://...
+        sagaz benchmark --profile full --output results.json
     """
-    if console:
-        console.print(
-            Panel.fit(
-                f"[bold blue]Sagaz Performance Benchmark[/bold blue]\n"
-                f"Profile: [cyan]{profile}[/cyan]",
-                border_style="blue",
-            )
-        )
+    results = [
+        asyncio.run(run_benchmark(selected, storage_url))
+        for selected in profiles_for(profile, quick)
+    ]
+    _show(results)
 
-    # Build pytest command
-    cmd = ["python", "-m", "pytest", "tests/test_performance.py", "-v", "--tb=short"]
-
-    if profile == "local":
-        cmd.extend(["-m", "performance and not slow"])
-    elif profile == "production":
-        cmd.extend(["-m", "performance"])
-    elif profile == "stress":
-        cmd.extend(["-m", "stress"])
-    # full = no marker filter
-
-    if quick:
-        # Override to minimal test
-        cmd = [
-            "python",
-            "-c",
-            """
-import asyncio
-from sagaz import Saga, action
-
-class TestSaga(Saga):
-    saga_name = "benchmark-quick"
-
-    @action("step1")
-    async def step1(self, ctx):
-        return {"done": True}
-
-async def main():
-    import time
-    start = time.perf_counter()
-    for _ in range(10):
-        saga = TestSaga()
-        await saga.run({})
-    elapsed = time.perf_counter() - start
-    throughput = 10 / elapsed
-    print(f"Quick benchmark: {throughput:.1f} sagas/sec")
-
-asyncio.run(main())
-""",
-        ]
-
-    # Run benchmark
-    result = subprocess.run(cmd, capture_output=output is not None, check=False)
-
-    if output and result.returncode == 0:
-        Path(output).write_text(result.stdout.decode() if result.stdout else "", encoding="utf-8")
+    if output:
+        Path(output).write_text(json.dumps(summary(results), indent=2), encoding="utf-8")
         click.echo(f"Results saved to {output}")
 
-    return result.returncode
+    failed = sum(r.failed for r in results)
+    if failed:
+        click.echo(f"{failed} saga(s) failed during the benchmark.", err=True)
+        ctx.exit(1)
