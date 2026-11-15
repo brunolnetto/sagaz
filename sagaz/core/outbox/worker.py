@@ -25,9 +25,11 @@ import signal
 import time
 import uuid
 from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING
 
 from sagaz.core.outbox._worker_bootstrap import get_broker as get_broker
 from sagaz.core.outbox._worker_bootstrap import get_storage as get_storage
+from sagaz.core.outbox._worker_cdc import OutboxWorkerCDCMixin
 from sagaz.core.outbox._worker_failures import OutboxWorkerFailureMixin
 from sagaz.core.outbox._worker_logging import log_level as log_level
 from sagaz.core.outbox._worker_logging import logger
@@ -78,8 +80,11 @@ from sagaz.core.outbox.types import OutboxConfig, OutboxEvent, OutboxStatus
 from sagaz.core.storage.interfaces.outbox import OutboxStorage
 from sagaz.core.tenant import system_scope, tenant_scope
 
+if TYPE_CHECKING:
+    from sagaz.integrations.cdc import CDCSource
 
-class OutboxWorker(OutboxWorkerFailureMixin):
+
+class OutboxWorker(OutboxWorkerCDCMixin, OutboxWorkerFailureMixin):
     """
     Background worker that processes outbox events.
 
@@ -97,13 +102,8 @@ class OutboxWorker(OutboxWorkerFailureMixin):
 
     Usage:
         >>> worker = OutboxWorker(storage, broker, config)
-        >>>
-        >>> # Run continuously
-        >>> await worker.start()
-        >>>
-        >>> # Or process manually
-        >>> processed = await worker.process_batch()
-        >>> print(f"Processed {processed} events")
+        >>> await worker.start()  # run continuously (CDC mode with cdc_source=...)
+        >>> processed = await worker.process_batch()  # or process one batch
 
     Lifecycle:
         1. Claim batch of PENDING events (with SKIP LOCKED)
@@ -122,6 +122,7 @@ class OutboxWorker(OutboxWorkerFailureMixin):
         worker_id: str | None = None,
         on_event_published: Callable[[OutboxEvent], Awaitable[None]] | None = None,
         on_event_failed: Callable[[OutboxEvent, Exception], Awaitable[None]] | None = None,
+        cdc_source: CDCSource | None = None,
     ):
         """
         Initialize the outbox worker.
@@ -133,6 +134,8 @@ class OutboxWorker(OutboxWorkerFailureMixin):
             worker_id: Unique ID for this worker (auto-generated if not provided)
             on_event_published: Callback when event is published successfully
             on_event_failed: Callback when event fails to publish
+            cdc_source: Stream new events from this CDC source instead of polling
+                (ADR-011); a slow sweep still handles retries and stale events
         """
         self.storage = storage
         self.broker = broker
@@ -146,6 +149,7 @@ class OutboxWorker(OutboxWorkerFailureMixin):
 
         self._on_event_published = on_event_published
         self._on_event_failed = on_event_failed
+        self.cdc_source = cdc_source
 
         # Metrics
         self._events_processed = 0
@@ -166,7 +170,10 @@ class OutboxWorker(OutboxWorkerFailureMixin):
 
         try:
             with system_scope():
-                await self._run_processing_loop()
+                if self.cdc_source is not None:
+                    await self.run_cdc(self.cdc_source)
+                else:
+                    await self._run_processing_loop()
         finally:
             self._running = False
             logger.info(f"Outbox worker {self.worker_id} stopped")
@@ -239,9 +246,9 @@ class OutboxWorker(OutboxWorkerFailureMixin):
                 processed += 1
         return processed
 
-    async def process_batch(self) -> int:
+    async def process_batch(self, older_than_seconds: float = 0.0) -> int:
         """
-        Process a single batch of events.
+        Process a single batch of events (only those older than ``older_than_seconds``).
 
         Returns:
             Number of events processed
@@ -250,6 +257,7 @@ class OutboxWorker(OutboxWorkerFailureMixin):
             events = await self.storage.claim_batch(
                 worker_id=self.worker_id,
                 batch_size=self.config.batch_size,
+                older_than_seconds=older_than_seconds,
             )
         if not events:
             return 0
