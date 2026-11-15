@@ -105,6 +105,12 @@ SELECT slot_name, active,
 FROM pg_replication_slots;
 ```
 
+## Performance
+
+On a laptop, CDC kept up with ~7,400 events/s with a millisecond lag (p50 8 ms at
+1,000 events/s), where polling saturated at ~1,500 events/s with a lag of seconds. See
+[CDC outbox: throughput and lag](../benchmarks/cdc-outbox.md).
+
 ## Verified
 
 - An end-to-end test runs a declarative saga writing its state and outbox events to
