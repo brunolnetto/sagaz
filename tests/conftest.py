@@ -121,9 +121,28 @@ def k8s_manifests():
 # ============================================
 
 
+class _ExternalPostgres:
+    """Stands in for a PostgreSQL container when ``SAGAZ_TEST_POSTGRES_URL`` is set."""
+
+    def __init__(self, url: str) -> None:
+        self._url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+
+    def get_connection_url(self) -> str:
+        return self._url
+
+
 @pytest.fixture(scope="session")
-def postgres_container(container_manager):
-    """PostgreSQL container (started lazily on first use)."""
+def postgres_container(request):
+    """PostgreSQL container (started lazily on first use).
+
+    Set ``SAGAZ_TEST_POSTGRES_URL`` to a superuser URL of an existing server to
+    run the PostgreSQL tests without Docker (tests create their own databases).
+    """
+    import os
+
+    if url := os.environ.get("SAGAZ_TEST_POSTGRES_URL"):
+        return _ExternalPostgres(url)
+    container_manager = request.getfixturevalue("container_manager")
     if not container_manager:
         pytest.skip("testcontainers not available")
     container_manager.ensure_postgres()
