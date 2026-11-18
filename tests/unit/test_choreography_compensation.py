@@ -18,6 +18,7 @@ from sagaz.choreography import (
     load_status,
     on_event,
 )
+from sagaz.choreography.state import InMemoryParticipantState
 from sagaz.core.tenant import current_tenant_id, tenant_scope
 
 
@@ -128,15 +129,16 @@ class TestHappyPath:
         async with Stack() as stack:
             first = await stack.orders.begin("order.created", {"order_id": "o-1"})
             status = await stack.tracker.status(first.saga_id)
+            assert status.status == "completed"
+            # Completed: a late compensation request has nothing left to undo.
+            await stack.bus.publish(Event(COMPENSATE, saga_id=first.saga_id))
 
-        assert status.status == "completed"
         # The in-process bus delivers nested events depth-first, so the tracker
         # sees them in reverse; the status does not depend on arrival order.
         assert set(status.participants) == {"orders", "inventory", "payments", "shipping"}
         assert {e["event_type"] for e in status.events} >= {"order.created", "order.shipped"}
-        assert stack.inventory._completed == {}
-        assert stack.payments._completed == {}
-        assert first.saga_id in stack.inventory._finished
+        assert stack.inventory.released == []
+        assert stack.payments.refunded == []
 
     async def test_begin_accepts_an_explicit_correlation_and_tenant(self):
         async with Stack() as stack:
@@ -238,22 +240,19 @@ class TestIdempotency:
             await stack.bus.publish(event)  # at-least-once redelivery
         assert stack.inventory.reserved == ["o-4"]
 
-    def test_dedup_memory_is_bounded(self, monkeypatch):
-        from sagaz.choreography._dispatch import Dispatcher
-
-        monkeypatch.setattr(Dispatcher, "max_seen", 2)
-        dispatcher = Dispatcher(EventBus().publish, frozenset())
-        participant = Orders(name="o")
+    async def test_dedup_memory_is_bounded(self):
+        state = InMemoryParticipantState(max_deliveries=2)
         for i in range(3):
-            assert dispatcher._first_delivery(participant, Event("x", event_id=str(i)))
-        assert dispatcher._first_delivery(participant, Event("x", event_id="0"))  # evicted
+            assert await state.first_delivery("o", str(i))
+        assert not await state.first_delivery("o", "2")
+        assert await state.first_delivery("o", "0")  # evicted
 
-    async def test_compensation_memory_is_bounded(self, monkeypatch):
-        monkeypatch.setattr(Inventory, "max_tracked_transactions", 2)
-        inventory = Inventory()
+    async def test_compensation_memory_is_bounded(self):
+        state = InMemoryParticipantState(max_transactions=2)
         for i in range(3):
-            inventory._remember(Event("order.created", saga_id=f"t-{i}"))
-        assert list(inventory._completed) == ["t-1", "t-2"]
+            await state.record_action("inventory", Event("order.created", saga_id=f"t-{i}"))
+        assert await state.finish("inventory", "t-0", compensated=True) == []  # evicted
+        assert len(await state.finish("inventory", "t-2", compensated=True)) == 1
 
 
 class TestEmitting:
@@ -323,21 +322,21 @@ class TestEdges:
             await stack.bus.publish(Event(COMPENSATE))
         assert COMPENSATED not in stack.types()
 
-    def test_an_action_is_remembered_once(self):
+    async def test_an_action_is_remembered_once(self):
         inventory = Inventory()
         event = Event("order.created", saga_id="t-1")
-        inventory._remember(event)
-        inventory._remember(event)  # emit() and the handler's return both record it
-        assert len(inventory._completed["t-1"]) == 1
+        await inventory._remember(event)
+        await inventory._remember(event)  # emit() and the handler's return both record it
+        assert len(await inventory._state.finish("inventory", "t-1", compensated=True)) == 1
 
-    def test_finished_transactions_are_bounded_and_never_remembered_again(self, monkeypatch):
-        monkeypatch.setattr(Inventory, "max_tracked_transactions", 2)
-        inventory = Inventory()
+    async def test_finished_transactions_are_bounded_and_never_remembered_again(self):
+        state = InMemoryParticipantState(max_transactions=2)
         for i in range(3):
-            inventory.forget(f"t-{i}")
-        assert list(inventory._finished) == ["t-1", "t-2"]
-        inventory._remember(Event("order.created", saga_id="t-2"))
-        assert "t-2" not in inventory._completed
+            await state.finish("inventory", f"t-{i}", compensated=False)
+        for i in (0, 2):
+            await state.record_action("inventory", Event("order.created", saga_id=f"t-{i}"))
+        assert await state.finish("inventory", "t-2", compensated=True) == []  # finished
+        assert len(await state.finish("inventory", "t-0", compensated=True)) == 1  # evicted
 
 
 class TestLateEvents:
@@ -394,16 +393,10 @@ class TestLateEvents:
         # Its own report and the one published above; the late business event is not.
         assert auditor.seen == [COMPENSATED, COMPENSATED]
 
-    def test_tombstones_are_bounded(self, monkeypatch):
+    async def test_tombstones_are_bounded(self, monkeypatch):
         monkeypatch.setattr(Inventory, "max_tracked_transactions", 2)
         inventory = Inventory()
-
-        async def compensate_all():
-            for i in range(3):
-                await inventory.compensate_transaction(f"t-{i}")
-
-        import asyncio
-
-        asyncio.run(compensate_all())
-        assert [inventory.was_compensated(f"t-{i}") for i in range(3)] == [False, True, True]
-        assert not inventory.was_compensated(None)
+        for i in range(3):
+            await inventory.compensate_transaction(f"t-{i}")
+        assert [await inventory.was_compensated(f"t-{i}") for i in range(3)] == [False, True, True]
+        assert not await inventory.was_compensated(None)

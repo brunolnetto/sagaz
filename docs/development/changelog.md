@@ -24,6 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `sagaz_event_store_snapshots_total`, plus an "Event store" row in the Grafana
     main dashboard.
   - **Guide:** [Event-sourced sagas](../guides/event-sourcing.md).
+- **Durable choreography participant state** (#448):
+  `ChoreographyEngine(bus, state="postgresql://...")` (or `sqlite://`, or a
+  `ParticipantState`) keeps completed actions, tombstones and handled deliveries
+  across restarts. Replicas of a participant share them, so any replica can
+  compensate what another did. The state is tenant-scoped, with row-level security
+  in PostgreSQL. `prune()` deletes old records. In-memory remains the default.
+  `ChoreographedSaga.forget()` and `was_compensated()` are now coroutines.
 
 ### Fixed
 - **Choreography: late events after compensation** (#446): a participant that has

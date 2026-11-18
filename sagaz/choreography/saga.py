@@ -10,13 +10,13 @@ from __future__ import annotations
 
 import inspect
 import logging
-from collections import OrderedDict
 from collections.abc import Awaitable, Callable
 from contextvars import ContextVar
 from typing import Any
 
 from sagaz.choreography.decorators import get_compensated_event_type, get_event_type
 from sagaz.choreography.events import Event
+from sagaz.choreography.state import InMemoryParticipantState, ParticipantState
 
 logger = logging.getLogger(__name__)
 
@@ -52,14 +52,9 @@ class ChoreographedSaga:
         self._events_handled: list[Event] = []
         self._handlers: dict[str, Any] = {}  # event_type → bound method
         self._compensators: dict[str, Any] = {}  # event_type → bound undo method
-        # correlation_id → events handled successfully that have a compensation
-        self._completed: OrderedDict[str, list[Event]] = OrderedDict()
-        # Transactions already completed or compensated: never remembered again.
-        self._finished: OrderedDict[str, None] = OrderedDict()
-        # Tombstones: transactions this participant compensated. Their business
-        # events are not handled any more, so compensation commutes with a late
-        # forward event (#446).
-        self._compensated: OrderedDict[str, None] = OrderedDict()
+        # Completed actions, finished and compensated transactions, handled
+        # deliveries (#448). In memory unless the engine provides a durable state.
+        self._state: ParticipantState = InMemoryParticipantState(self.max_tracked_transactions)
         self._publish: Callable[[Event], Awaitable[None]] | None = None
         self._discover_handlers()
 
@@ -114,7 +109,7 @@ class ChoreographedSaga:
         self._events_handled.append(event)
         logger.debug("%s handling %r (saga_id=%s)", self.name, event.event_type, self.saga_id)
         await handler(event)
-        self._remember(event)
+        await self._remember(event)
 
     # ------------------------------------------------------------------
     # Emitting and compensation
@@ -123,39 +118,22 @@ class ChoreographedSaga:
     #: Transactions whose completed actions are remembered for compensation.
     max_tracked_transactions = 10_000
 
-    def _remember(self, event: Event) -> None:
+    async def _remember(self, event: Event) -> None:
         """Record *event*'s action as completed, so it can be compensated later.
 
         Called when the handler emits its result (the local action is done) and
         when it returns; on an in-process bus the rest of the transaction runs
-        inside ``emit``, so waiting for the return would be too late.
+        inside ``emit``, so waiting for the return would be too late. Actions of
+        a transaction that already finished are not recorded.
         """
-        correlation = event.saga_id
-        if not correlation or event.event_type not in self._compensators:
-            return
-        if correlation in self._finished:
-            return
-        done = self._completed.setdefault(correlation, [])
-        if any(e.event_id == event.event_id for e in done):
-            return
-        done.append(event)
-        self._completed.move_to_end(correlation)
-        while len(self._completed) > self.max_tracked_transactions:
-            self._completed.popitem(last=False)
+        if event.saga_id and event.event_type in self._compensators:
+            await self._state.record_action(self.name, event)
 
-    def _finish(self, correlation_id: str) -> None:
-        self._completed.pop(correlation_id, None)
-        self._bounded_add(self._finished, correlation_id)
-
-    def _bounded_add(self, ids: OrderedDict[str, None], correlation_id: str) -> None:
-        ids[correlation_id] = None
-        ids.move_to_end(correlation_id)
-        while len(ids) > self.max_tracked_transactions:
-            ids.popitem(last=False)
-
-    def was_compensated(self, correlation_id: str | None) -> bool:
-        """True if this participant compensated *correlation_id* (and still remembers it)."""
-        return correlation_id is not None and correlation_id in self._compensated
+    async def was_compensated(self, correlation_id: str | None) -> bool:
+        """True if this participant compensated *correlation_id* (a tombstone, #446)."""
+        if correlation_id is None:
+            return False
+        return await self._state.was_compensated(self.name, correlation_id)
 
     async def emit(self, event_type: str, data: dict[str, Any] | None = None) -> Event:
         """Publish a follow-on event in the transaction of the event being handled.
@@ -169,7 +147,7 @@ class ChoreographedSaga:
             raise RuntimeError(msg)
         event = Event(event_type, dict(data or {}), source=self.name)
         if (cause := current_cause.get()) is not None:
-            self._remember(cause)  # announcing the result: the local action is done
+            await self._remember(cause)  # announcing the result: the local action is done
             event = event.caused_by(cause)
         await self._publish(event)
         return event
@@ -212,9 +190,7 @@ class ChoreographedSaga:
         """
         undone: list[str] = []
         failed: list[str] = []
-        done = self._completed.pop(correlation_id, [])
-        self._finish(correlation_id)
-        self._bounded_add(self._compensated, correlation_id)
+        done = await self._state.finish(self.name, correlation_id, compensated=True)
         for original in reversed(done):
             try:
                 await self._compensators[original.event_type](original)
@@ -224,9 +200,9 @@ class ChoreographedSaga:
                 failed.append(original.event_type)
         return undone, failed
 
-    def forget(self, correlation_id: str) -> None:
-        """Drop what is remembered for a finished transaction."""
-        self._finish(correlation_id)
+    async def forget(self, correlation_id: str) -> None:
+        """Drop what is remembered for a transaction that completed."""
+        await self._state.finish(self.name, correlation_id, compensated=False)
 
     # ------------------------------------------------------------------
     # Introspection helpers
