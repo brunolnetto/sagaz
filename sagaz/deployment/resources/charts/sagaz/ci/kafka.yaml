@@ -1,0 +1,17 @@
+# Polling mode, Kafka broker, fixed replicas, metrics enabled (lint/template variant).
+replicaCount: 3
+database:
+  url: postgresql://sagaz:example@postgresql:5432/sagaz
+broker:
+  type: kafka
+  url: kafka-0.kafka:9092,kafka-1.kafka:9092
+podDisruptionBudget:
+  minAvailable: 2
+  maxUnavailable: null
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+extraEnv:
+  - name: OTEL_SERVICE_NAME
+    value: sagaz-outbox-worker
