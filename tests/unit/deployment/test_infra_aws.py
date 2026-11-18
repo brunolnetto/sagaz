@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 import sagaz
+from tests.unit.deployment._terraform_pins import pinned_major
 
 PACKAGE_DIR = Path(sagaz.__file__).parent
 MODULE_DIR = PACKAGE_DIR / "deployment" / "resources" / "infra" / "aws"
@@ -104,7 +105,7 @@ def test_module_ships_in_package():
 def test_versions_pin_providers():
     text = (MODULE_DIR / "versions.tf").read_text()
     assert re.search(r'required_version\s*=\s*">=\s*1\.6"', text)
-    assert re.search(r'source\s*=\s*"hashicorp/aws"\s*\n\s*version\s*=\s*"~>\s*5\.', text)
+    pinned_major(MODULE_DIR, "aws")  # any major, as long as versions.tf and the lock agree
     assert 'source  = "hashicorp/random"' in text
 
 
