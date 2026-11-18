@@ -9,7 +9,7 @@
 # (kafka | rabbitmq | redis) with KAFKA_BOOTSTRAP_SERVERS / RABBITMQ_URL /
 # REDIS_URL, and SAGAZ_OUTBOX_MODE=cdc for change data capture.
 
-FROM python:3.14-slim
+FROM python:3.15-slim
 
 WORKDIR /app
 
