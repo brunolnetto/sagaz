@@ -315,3 +315,26 @@ class TestEventSerialization:
             None,
             None,
         )
+
+
+class TestEdges:
+    async def test_compensate_without_a_transaction_is_ignored(self):
+        async with Stack() as stack:
+            await stack.bus.publish(Event(COMPENSATE))
+        assert COMPENSATED not in stack.types()
+
+    def test_an_action_is_remembered_once(self):
+        inventory = Inventory()
+        event = Event("order.created", saga_id="t-1")
+        inventory._remember(event)
+        inventory._remember(event)  # emit() and the handler's return both record it
+        assert len(inventory._completed["t-1"]) == 1
+
+    def test_finished_transactions_are_bounded_and_never_remembered_again(self, monkeypatch):
+        monkeypatch.setattr(Inventory, "max_tracked_transactions", 2)
+        inventory = Inventory()
+        for i in range(3):
+            inventory.forget(f"t-{i}")
+        assert list(inventory._finished) == ["t-1", "t-2"]
+        inventory._remember(Event("order.created", saga_id="t-2"))
+        assert "t-2" not in inventory._completed
