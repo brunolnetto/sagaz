@@ -39,7 +39,7 @@ does not start the Prometheus HTTP server). A Cloud Run **service** must listen 
 become ready, even with `min_instance_count >= 1` and `cpu_idle = false`.
 
 Cloud Run **worker pools** (`google_cloud_run_v2_worker_pool`, GA since April 2026
-and available in the `hashicorp/google` 6.x provider without `google-beta`) are made
+and available in the `hashicorp/google` provider (6.x and later) without `google-beta`) are made
 for pull-based background work: no endpoint, no port requirement, no startup
 probe on `$PORT`, always-allocated CPU, and a fixed instance count
 (`scaling_mode = "MANUAL"`, `manual_instance_count = var.worker_count`). Health is
