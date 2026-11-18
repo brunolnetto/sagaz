@@ -17,6 +17,7 @@ from pathlib import Path
 import pytest
 
 import sagaz
+from tests.unit.deployment._terraform_pins import pinned_major
 
 PACKAGE_ROOT = Path(sagaz.__file__).parent
 RESOURCES = PACKAGE_ROOT / "deployment" / "resources"
@@ -129,11 +130,9 @@ class TestLayout:
     def test_provider_pins(self):
         versions = (MODULE / "versions.tf").read_text()
         assert 'required_version = ">= 1.6"' in versions
-        assert re.search(r'source\s*=\s*"hashicorp/google"\s*\n\s*version\s*=\s*"~> 6\.', versions)
         assert "hashicorp/random" in versions
-        lock = (MODULE / ".terraform.lock.hcl").read_text()
-        assert 'provider "registry.terraform.io/hashicorp/google"' in lock
-        assert 'version     = "6.' in lock
+        pinned_major(MODULE, "google")  # any major, as long as versions.tf and the lock agree
+        pinned_major(MODULE, "random")
 
 
 class TestContract:
