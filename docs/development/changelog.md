@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-11-18
+
+Wave 4: event-driven saga choreography (#56, ADR-029). Opt-in: orchestrated
+`Saga`s are unchanged.
+
+### Added
+- **Saga choreography** (`sagaz.choreography`, #441, from the #69 branch):
+  - Participants (`ChoreographedSaga`) react to events with `@on_event` handlers and
+    publish their own: `begin()` starts a transaction, `emit()` continues it.
+  - `ChoreographyEngine` routes events from the bus to them. Buses: in-memory,
+    Redis Streams, Kafka and RabbitMQ (`create_event_bus`).
+- **Compensation without a coordinator:**
+  - When a handler raises, the engine publishes `choreography.compensate`.
+  - Every participant undoes, newest first, the `@compensate` actions it completed in
+    that transaction, and reports `choreography.compensated`.
+- **Event metadata:** events carry the correlation id, `tenant_id`, `causation_id`
+  and `source`. Handlers run in the event's tenant scope (ADR-020).
+- **At-most-once processing per participant:** deduplication by `event_id`, on top of
+  the buses' at-least-once delivery.
+- **`ChoreographyTracker`:** each transaction's status, derived from its events
+  (executing, completed, compensating, compensated, failed), kept in memory or in saga
+  storage per tenant.
+- **CLI:** `sagaz choreography status <correlation-id>` (`--tenant`, `--events`,
+  `--json`).
+- **Metrics:** `sagaz_choreography_events_total`,
+  `sagaz_choreography_handler_seconds` and `sagaz_choreography_compensations_total`.
+- **Guide:** [Saga choreography](../patterns/choreography.md), including when to
+  prefer orchestration.
+
+### Validation
+- Unit suite: 4,466 passed, 99% coverage; `sagaz.choreography` and its CLI at 100% of
+  lines.
+- A three-service order saga (each service with its own engine, bus and consumer
+  group) completes, or is compensated after a declined payment:
+  - in the unit suite, on Redis Streams over the in-process fake Redis;
+  - on Kafka and Redis Streams containers in CI's integration job.
+- In-memory dispatch: ~24,800 events/s, p99 0.07 ms per delivery.
+
 ## [1.9.0] - 2026-11-18
 
 Wave 3: multi-tenancy, change data capture for the outbox, cloud deployment,

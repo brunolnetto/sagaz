@@ -90,6 +90,7 @@ nav:
       - Saga State Machine: architecture/diagrams/saga-state-machine.md
   
   - Patterns:
+    - Saga Choreography: patterns/choreography.md
     - Consumer Inbox: patterns/consumer-inbox.md
     - Dead Letter Queue: patterns/dead-letter-queue.md
     - Multi-Sink Fanout: patterns/multi-sink-fanout.md
