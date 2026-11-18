@@ -1,0 +1,185 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "sagaz chart values",
+  "type": "object",
+  "definitions": {
+    "nonNegativeNumber": {"type": "number", "minimum": 0},
+    "stringMap": {"type": "object", "additionalProperties": {"type": "string"}},
+    "intOrPercent": {
+      "oneOf": [
+        {"type": "integer", "minimum": 0},
+        {"type": "string", "pattern": "^[0-9]+%$"}
+      ]
+    },
+    "secretRef": {
+      "type": "object",
+      "properties": {
+        "existingSecret": {"type": "string"},
+        "existingSecretKey": {"type": "string", "minLength": 1}
+      }
+    }
+  },
+  "required": ["image", "replicaCount", "database", "broker", "outbox"],
+  "properties": {
+    "nameOverride": {"type": "string"},
+    "fullnameOverride": {"type": "string"},
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "pullPolicy"],
+      "properties": {
+        "repository": {"type": "string", "minLength": 1},
+        "tag": {"type": ["string", "number"]},
+        "pullPolicy": {"type": "string", "enum": ["Always", "IfNotPresent", "Never"]}
+      }
+    },
+    "imagePullSecrets": {"type": "array", "items": {"type": "object"}},
+    "command": {"type": "array", "items": {"type": "string"}},
+    "args": {"type": "array", "items": {"type": "string"}},
+    "replicaCount": {"type": "integer", "minimum": 0},
+    "logLevel": {
+      "type": "string",
+      "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "debug", "info", "warning", "error", "critical"]
+    },
+    "database": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "url": {"type": "string"},
+        "existingSecret": {"type": "string"},
+        "existingSecretKey": {"type": "string", "minLength": 1}
+      }
+    },
+    "broker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {"type": "string", "enum": ["redis", "kafka", "rabbitmq"]},
+        "url": {"type": "string"},
+        "existingSecret": {"type": "string"},
+        "existingSecretKey": {"type": "string", "minLength": 1},
+        "rabbitmq": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {"exchange": {"type": "string", "minLength": 1}}
+        }
+      }
+    },
+    "outbox": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": {"type": "string", "enum": ["polling", "cdc"]},
+        "batchSize": {"type": "integer", "minimum": 1},
+        "pollInterval": {"type": "number", "exclusiveMinimum": 0},
+        "maxRetries": {"type": "integer", "minimum": 0},
+        "cdc": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "source": {"type": "string", "enum": ["pg_logical", "debezium"]},
+            "sweepInterval": {"$ref": "#/definitions/nonNegativeNumber"},
+            "sweepMinAge": {"$ref": "#/definitions/nonNegativeNumber"},
+            "pgLogical": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "slot": {"type": "string", "pattern": "^[a-z0-9_]{1,63}$"},
+                "publication": {"type": "string", "minLength": 1, "maxLength": 63},
+                "dsn": {"type": "string"},
+                "existingSecret": {"type": "string"},
+                "existingSecretKey": {"type": "string", "minLength": 1}
+              }
+            },
+            "debezium": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "bootstrapServers": {"type": "string"},
+                "topicPrefix": {"type": "string", "minLength": 1},
+                "groupId": {"type": "string", "minLength": 1}
+              }
+            }
+          }
+        }
+      }
+    },
+    "extraEnv": {
+      "type": "array",
+      "items": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string"}}}
+    },
+    "extraEnvFrom": {"type": "array", "items": {"type": "object"}},
+    "extraVolumes": {"type": "array", "items": {"type": "object"}},
+    "extraVolumeMounts": {"type": "array", "items": {"type": "object"}},
+    "serviceAccount": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "create": {"type": "boolean"},
+        "name": {"type": "string"},
+        "annotations": {"$ref": "#/definitions/stringMap"},
+        "automountServiceAccountToken": {"type": "boolean"}
+      }
+    },
+    "podAnnotations": {"$ref": "#/definitions/stringMap"},
+    "podLabels": {"$ref": "#/definitions/stringMap"},
+    "podSecurityContext": {"type": "object"},
+    "securityContext": {"type": "object"},
+    "resources": {"type": "object"},
+    "livenessProbe": {"type": "object"},
+    "readinessProbe": {"type": "object"},
+    "terminationGracePeriodSeconds": {"type": "integer", "minimum": 0},
+    "nodeSelector": {"$ref": "#/definitions/stringMap"},
+    "tolerations": {"type": "array", "items": {"type": "object"}},
+    "affinity": {"type": "object"},
+    "topologySpreadConstraints": {"type": "array", "items": {"type": "object"}},
+    "priorityClassName": {"type": "string"},
+    "autoscaling": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "minReplicas": {"type": "integer", "minimum": 1},
+        "maxReplicas": {"type": "integer", "minimum": 1},
+        "targetCPUUtilizationPercentage": {"type": ["integer", "null"], "minimum": 1},
+        "targetMemoryUtilizationPercentage": {"type": ["integer", "null"], "minimum": 1},
+        "behavior": {"type": "object"}
+      }
+    },
+    "podDisruptionBudget": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "minAvailable": {"oneOf": [{"type": "null"}, {"$ref": "#/definitions/intOrPercent"}]},
+        "maxUnavailable": {"oneOf": [{"type": "null"}, {"$ref": "#/definitions/intOrPercent"}]}
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "port": {"type": "integer", "minimum": 1, "maximum": 65535},
+        "path": {"type": "string", "pattern": "^/"},
+        "service": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {"annotations": {"$ref": "#/definitions/stringMap"}}
+        },
+        "serviceMonitor": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {"type": "boolean"},
+            "interval": {"type": "string"},
+            "scrapeTimeout": {"type": "string"},
+            "labels": {"$ref": "#/definitions/stringMap"}
+          }
+        }
+      }
+    }
+  }
+}
