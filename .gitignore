@@ -213,3 +213,9 @@ __marimo__/
 # MkDocs build output
 site/
 node_modules/
+
+# Terraform (sagaz/deployment/resources/infra)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
