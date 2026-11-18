@@ -116,7 +116,8 @@ unexpected errors.
 ## Delivery guarantees
 
 Buses deliver at least once, so the engine drops a second delivery of the same
-`event_id` to the same participant (bounded memory, 100,000 deliveries by default).
+`event_id` to the same participant (in memory, bounded to the last 100,000 deliveries, unless a durable state is
+configured).
 Handlers that call external systems should still be idempotent. The idempotency only
 holds for the lifetime of the process.
 
@@ -132,8 +133,30 @@ Within one transaction, the buses deliver events in the order they were publishe
 There is no ordering between different transactions. Participants still handle a
 `choreography.compensate` that overtakes a business event correctly (see above).
 
-This memory, like deduplication, lives in the process. A participant that restarts
-forgets what it has to compensate (#448).
+## Durable participant state
+
+A participant remembers which of its actions it may have to compensate, the
+transactions it finished or compensated, and the deliveries it already handled. By
+default this lives in the participant's memory, so a participant that restarts forgets
+what to compensate and may handle a redelivered event again. Replicas of a participant
+also do not see each other's actions: the replica that receives
+`choreography.compensate` can only undo its own.
+
+Give the engine a durable state to remove both limits:
+
+```python
+engine = ChoreographyEngine(bus, completion_events={"order.shipped"},
+                            state="postgresql://...")   # or sqlite://<path>, or a ParticipantState
+```
+
+Every replica of a participant (same `name`) shares its state, separated by tenant
+(row-level security in PostgreSQL). In PostgreSQL, recording an action and ending its
+transaction are serialized per transaction, so an action is never recorded after
+compensation started. A delivery is claimed before its handler runs: if the process
+crashes during the handler, the redelivery is skipped. That is at-most-once handling
+per participant, so a handler interrupted by a crash must be retried by your own
+recovery. Finished transactions and handled deliveries accumulate. Delete old ones
+with `await state.prune(timedelta(days=7))`. The in-memory state bounds itself instead.
 
 ## Status of a transaction
 

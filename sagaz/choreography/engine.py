@@ -13,6 +13,7 @@ from collections.abc import Iterable
 from sagaz.choreography._dispatch import Dispatcher
 from sagaz.choreography.events import COMPENSATE, AbstractEventBus, Event, HandlerT
 from sagaz.choreography.saga import ChoreographedSaga
+from sagaz.choreography.state import ParticipantState, create_participant_state
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,12 @@ class ChoreographyEngine:
     completion_events:
         Event types that end a transaction successfully (e.g. ``"order.shipped"``);
         participants then forget what they would have compensated.
+    state:
+        Where registered participants keep their completed actions, tombstones
+        and handled deliveries: a ``ParticipantState`` or a URL
+        (``sqlite://...``, ``postgresql://...``). Default: each participant's
+        own memory, lost on restart. A shared durable state lets replicas of a
+        participant compensate each other's actions (#448).
 
     Each delivery is deduplicated by ``event_id`` and runs in the event's tenant
     scope. If a handler raises, the engine publishes a ``COMPENSATE`` event and
@@ -52,8 +59,15 @@ class ChoreographyEngine:
         await engine.stop()
     """
 
-    def __init__(self, bus: AbstractEventBus, *, completion_events: Iterable[str] = ()) -> None:
+    def __init__(
+        self,
+        bus: AbstractEventBus,
+        *,
+        completion_events: Iterable[str] = (),
+        state: ParticipantState | str | None = None,
+    ) -> None:
         self._bus = bus
+        self._state = create_participant_state(state) if isinstance(state, str) else state
         self._completion_events = frozenset(completion_events)
         self._dispatcher = Dispatcher(bus.publish, self._completion_events)
         self._sagas: dict[str, ChoreographedSaga] = {}
@@ -98,6 +112,8 @@ class ChoreographyEngine:
 
         self._sagas[saga.saga_id] = saga
         saga._publish = self._bus.publish
+        if self._state is not None:
+            saga._state = self._state
 
         for event_type in self._subscriptions(saga):
             # Capture saga via default arg to avoid closure-over-loop-variable.
