@@ -7,6 +7,104 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-11-18
+
+Wave 3: multi-tenancy, change data capture for the outbox, cloud deployment,
+saga versioning and local development. Every change is opt-in: code that sets
+no tenant, polls the outbox and deploys as before behaves as in 1.8.
+
+### Added
+- **Multi-tenancy** (#54, ADR-020): run one deployment for many isolated tenants.
+  - Tenant scope:
+    - `tenant_scope()` and `system_scope()`, based on a `ContextVar`, so no signatures changed.
+    - Code that sets no tenant runs as the `default` tenant.
+    - `Saga.run(..., tenant_context=...)` and `SagaOrchestrator(tenant_id=...)` run a saga as a tenant.
+  - Isolated storage: saga storage and the outbox are isolated per tenant on memory,
+    SQLite, Redis and PostgreSQL. PostgreSQL also enforces it with FORCE row-level
+    security, proven with a non-superuser role and end to end. (#400)
+  - `TenantRegistry`, with per-tenant quotas (concurrent sagas, step duration,
+    retries) and suspension; managed with `sagaz tenant list|create|delete|quota|suspend|activate`. (#400)
+  - Per-tenant encryption at rest: `EncryptedSagaStorage` encrypts the saga context
+    and step results with AES-256-GCM, using a tenant key from the environment
+    (per-tenant or HKDF from a master key), AWS KMS or Vault Transit. New extra
+    `sagaz[encryption]`. (#403)
+  - An overhead benchmark (`python -m benchmarks.tenancy`): the <5% criterion holds
+    on every backend. (#404)
+  - A real isolation demo: `sagaz demo run multi_tenancy`. (#409, #253)
+- **Change data capture for the outbox** (#50, ADR-011, #411):
+  - Sources: `PgLogicalSource` (PostgreSQL logical replication, `pgoutput`) and
+    `DebeziumKafkaSource` (Debezium on Kafka, with a shipped connector config and a
+    `cdc` compose profile).
+  - `OutboxWorker(cdc_source=...)`, or `SAGAZ_OUTBOX_MODE=cdc`, publishes events as
+    they commit. Batches are marked `SENT` with one statement, and a hybrid sweep
+    handles retries and gaps.
+  - Metrics `sagaz_cdc_lag_seconds`, `sagaz_cdc_events_total` and
+    `sagaz_cdc_errors_total`, plus a CDC row on the outbox Grafana dashboards.
+  - New extra `sagaz[cdc]`.
+  - Measured locally: CDC kept up with ~7,400 events/s, with a p50 lag of 8 ms at
+    1,000 events/s; polling saturated at ~1,500/s.
+- **Cloud deployment** (#49, #420):
+  - `sagaz deploy --provider aws|gcp|k8s`, with `--dry-run` and an offline
+    `--cost-estimate`, and `sagaz teardown`.
+  - Terraform modules for AWS (ECS Fargate + RDS + ElastiCache) and GCP (Cloud Run
+    worker pool + Cloud SQL + Memorystore), and a Helm chart for the worker. All
+    ship in the package.
+- **Saga versioning** (ADR-018, #386): runtime schema validation
+  (`SagaVersionedMixin`, `SagaVersionSchemaError`) and a persistent
+  `SagaVersionRegistry`. (#112)
+- **Local development** (#48, #387): `sagaz init --local`, with deployment templates
+  shipped in the package.
+- The outbox worker accepts `BROKER_TYPE=redis` (`REDIS_URL`). (#414)
+- `OutboxStorage.mark_sent_batch()`, overridden with a single `UPDATE` on PostgreSQL.
+  (#411)
+
+### Changed
+- `sagaz benchmark` runs in-process against the installed library (profiles quick,
+  local, production, stress and full; `--storage-url`; `--output` JSON). It used to
+  run a test file that does not ship with the package. CI's benchmark job uses it.
+  (#408)
+- On PostgreSQL, the default tenant no longer sends a `set_config` round trip per
+  acquired connection: single-tenant sagas send 11 statements instead of 13. (#405, #412)
+- `sagaz migrate` runs in the system scope and copies every tenant into its own
+  tenant. (#400)
+- Cleanup never deletes sagaz's own `__sagaz_*` records (tenant and version
+  registries). (#400)
+
+### Fixed
+- The worker `Dockerfile`:
+  - `pip install` failed because `README.md` was not copied;
+  - the package was copied to `./sage/`, and the image ran a module that does not exist.
+  (#414)
+- Redis outbox:
+  - stuck events were never detected or released (#397);
+  - the pending count counted the whole stream (#399);
+  - events returned to `PENDING` after a failed publish were never redelivered
+    (#401, #402).
+- SQLite outbox: stuck-event detection compared timestamps as text and never
+  matched. (#398)
+- Transfer validation could accept another tenant's record with the same id.
+  `SagaConfig.with_storage()` and `with_broker()` dropped `tenant_registry`. (#400)
+- The dry-run display module failed to import without `rich`. (#407)
+- The structural gate test could time out under load. (#396)
+- `uv.lock` was missing the `encryption` extra. (#410)
+- Merge conflict markers in the contributing guide. (#406)
+
+### Dependencies
+- `sqldim` 2.0.1 (analytics), `pytest-asyncio` 1.5.0, and `uv` 0.13.8 in CI.
+  (#380, #376, #375)
+- New optional extras: `encryption` (`cryptography`) and `cdc` (`psycopg2-binary`,
+  `aiokafka`, `httpx`).
+
+### Validation
+- GitHub Actions unavailable (account billing lock); every gate was reproduced locally.
+- Ruff, mypy, the `codebase-stats` gate and `uv lock --check` passed.
+- Unit suite: 4,304 passed, 99% coverage.
+- PostgreSQL integration (tenancy, RLS, CDC, #405) passed against a local
+  PostgreSQL 16. Redis and PostgreSQL Testcontainers suites passed before Docker
+  became unavailable.
+- Not run: the Debezium container test, and `terraform apply` / `helm install`
+  against real accounts or clusters. The modules and the chart were validated offline.
+
 ## [1.8.3] - 2026-11-13
 
 Follow-ups from the independent verification of 1.8.2. No behaviour changes.
