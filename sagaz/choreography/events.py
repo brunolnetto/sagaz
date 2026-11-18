@@ -14,7 +14,7 @@ import logging
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
@@ -22,6 +22,12 @@ from uuid import uuid4
 logger = logging.getLogger(__name__)
 
 HandlerT = Callable[["Event"], Awaitable[None]]
+
+#: Published by the engine when a participant's handler fails; every participant
+#: then undoes what it did in that transaction (``@compensate``).
+COMPENSATE = "choreography.compensate"
+#: Published by each participant once it has run its compensations.
+COMPENSATED = "choreography.compensated"
 
 
 @dataclass(frozen=True)
@@ -38,9 +44,16 @@ class Event:
     event_id:
         Auto-generated UUID if not provided.
     saga_id:
-        Optional correlation ID linking the event to a saga run.
+        Correlation ID of the business transaction the event belongs to
+        (also available as ``correlation_id``).
     created_at:
         Timestamp; defaults to ``datetime.now(UTC)``.
+    tenant_id:
+        Tenant the transaction runs for (ADR-020); ``"default"`` when unused.
+    causation_id:
+        ``event_id`` of the event whose handling produced this one, if any.
+    source:
+        Name of the participant that emitted the event, if known.
     """
 
     event_type: str
@@ -48,15 +61,55 @@ class Event:
     event_id: str = field(default_factory=lambda: str(uuid4()))
     saga_id: str | None = None
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    tenant_id: str = "default"
+    causation_id: str | None = None
+    source: str | None = None
+
+    @property
+    def correlation_id(self) -> str | None:
+        """The business transaction this event belongs to (``saga_id``)."""
+        return self.saga_id
 
     def with_saga(self, saga_id: str) -> Event:
         """Return a new Event with the given saga_id."""
-        return Event(
-            event_type=self.event_type,
-            data=dict(self.data),  # shallow copy — avoids sharing the mutable dict reference
-            event_id=self.event_id,
-            saga_id=saga_id,
-            created_at=self.created_at,
+        return replace(self, data=dict(self.data), saga_id=saga_id)
+
+    def caused_by(self, cause: Event) -> Event:
+        """This event continuing *cause*'s transaction: same correlation and tenant."""
+        return replace(
+            self,
+            saga_id=self.saga_id or cause.saga_id,
+            tenant_id=cause.tenant_id,
+            causation_id=cause.event_id,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """JSON-ready representation used by the distributed buses."""
+        return {
+            "event_type": self.event_type,
+            "data": self.data,
+            "event_id": self.event_id,
+            "saga_id": self.saga_id,
+            "created_at": self.created_at.isoformat(),
+            "tenant_id": self.tenant_id,
+            "causation_id": self.causation_id,
+            "source": self.source,
+        }
+
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any]) -> Event:
+        """Inverse of :meth:`to_dict`; fields added later are optional."""
+        raw_dt = datetime.fromisoformat(payload["created_at"])
+        created_at = raw_dt.astimezone(UTC) if raw_dt.tzinfo else raw_dt.replace(tzinfo=UTC)
+        return cls(
+            event_type=payload["event_type"],
+            data=payload.get("data") or {},
+            event_id=payload["event_id"],
+            saga_id=payload.get("saga_id") or None,
+            created_at=created_at,
+            tenant_id=payload.get("tenant_id") or "default",
+            causation_id=payload.get("causation_id") or None,
+            source=payload.get("source") or None,
         )
 
     def __repr__(self) -> str:

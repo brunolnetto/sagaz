@@ -1,0 +1,317 @@
+"""Choreography: correlation, tenancy, compensation and status tracking (ADR-029, #56)."""
+
+from __future__ import annotations
+
+import pytest
+from prometheus_client import REGISTRY
+
+from sagaz.choreography import (
+    COMPENSATE,
+    COMPENSATED,
+    ChoreographedSaga,
+    ChoreographyEngine,
+    ChoreographyTracker,
+    Event,
+    EventBus,
+    TransactionStatus,
+    compensate,
+    load_status,
+    on_event,
+)
+from sagaz.core.tenant import current_tenant_id, tenant_scope
+
+
+class Orders(ChoreographedSaga):
+    """Starts transactions; nothing to undo."""
+
+
+class Inventory(ChoreographedSaga):
+    def __init__(self, fail_release: bool = False) -> None:
+        super().__init__(name="inventory")
+        self.reserved: list[str] = []
+        self.released: list[str] = []
+        self.tenants: list[str] = []
+        self.fail_release = fail_release
+
+    @on_event("order.created")
+    async def reserve(self, event: Event) -> None:
+        self.tenants.append(current_tenant_id())
+        self.reserved.append(event.data["order_id"])
+        await self.emit("inventory.reserved", dict(event.data))
+
+    @compensate("order.created")
+    async def release(self, event: Event) -> None:
+        if self.fail_release:
+            msg = "warehouse offline"
+            raise RuntimeError(msg)
+        self.released.append(event.data["order_id"])
+
+
+class Payments(ChoreographedSaga):
+    def __init__(self, limit: int = 100) -> None:
+        super().__init__(name="payments")
+        self.limit = limit
+        self.charged: list[str] = []
+        self.refunded: list[str] = []
+
+    @on_event("inventory.reserved")
+    async def charge(self, event: Event) -> None:
+        if event.data.get("amount", 0) > self.limit:
+            msg = "card declined"
+            raise ValueError(msg)
+        self.charged.append(event.data["order_id"])
+        await self.emit("payment.charged", event.data)
+
+    @compensate("inventory.reserved")
+    async def refund(self, event: Event) -> None:
+        self.refunded.append(event.data["order_id"])
+
+
+class Shipping(ChoreographedSaga):
+    def __init__(self) -> None:
+        super().__init__(name="shipping")
+
+    @on_event("payment.charged")
+    async def ship(self, event: Event) -> None:
+        await self.emit("order.shipped", event.data)
+
+
+class Stack:
+    def __init__(self, inventory: Inventory | None = None, storage=None) -> None:
+        self.bus = EventBus()
+        self.engine = ChoreographyEngine(self.bus, completion_events={"order.shipped"})
+        self.tracker = ChoreographyTracker(self.bus, storage, completion_events={"order.shipped"})
+        self.orders = Orders(name="orders")
+        self.inventory = inventory or Inventory()
+        self.payments = Payments()
+        self.shipping = Shipping()
+        for participant in (self.orders, self.inventory, self.payments, self.shipping):
+            self.engine.register(participant)
+
+    async def __aenter__(self) -> Stack:
+        await self.tracker.start()
+        await self.engine.start()
+        return self
+
+    async def __aexit__(self, *exc) -> None:
+        await self.engine.stop()
+        await self.tracker.stop()
+
+    def types(self) -> list[str]:
+        return [e.event_type for e in self.bus.published]
+
+
+def _sample(name, **labels):
+    return REGISTRY.get_sample_value(name, labels) or 0.0
+
+
+class TestHappyPath:
+    async def test_events_carry_correlation_tenant_cause_and_source(self):
+        async with Stack() as stack:
+            with tenant_scope("acme"):
+                first = await stack.orders.begin("order.created", {"order_id": "o-1"})
+
+            assert stack.types() == [
+                "order.created",
+                "inventory.reserved",
+                "payment.charged",
+                "order.shipped",
+            ]
+            events = stack.bus.published
+            assert {e.correlation_id for e in events} == {first.saga_id}
+            assert {e.tenant_id for e in events} == {"acme"}
+            assert [e.source for e in events] == ["orders", "inventory", "payments", "shipping"]
+            assert [e.causation_id for e in events[1:]] == [e.event_id for e in events[:-1]]
+            assert stack.inventory.tenants == ["acme"]  # handlers run in the event's tenant
+
+    async def test_completion_is_tracked_and_compensation_memory_released(self):
+        async with Stack() as stack:
+            first = await stack.orders.begin("order.created", {"order_id": "o-1"})
+            status = await stack.tracker.status(first.saga_id)
+
+        assert status.status == "completed"
+        # The in-process bus delivers nested events depth-first, so the tracker
+        # sees them in reverse; the status does not depend on arrival order.
+        assert set(status.participants) == {"orders", "inventory", "payments", "shipping"}
+        assert {e["event_type"] for e in status.events} >= {"order.created", "order.shipped"}
+        assert stack.inventory._completed == {}
+        assert stack.payments._completed == {}
+        assert first.saga_id in stack.inventory._finished
+
+    async def test_begin_accepts_an_explicit_correlation_and_tenant(self):
+        async with Stack() as stack:
+            event = await stack.orders.begin(
+                "order.created", {"order_id": "o-9"}, correlation_id="ord-9", tenant_id="globex"
+            )
+        assert (event.saga_id, event.tenant_id) == ("ord-9", "globex")
+
+
+class TestCompensation:
+    async def test_a_failing_participant_triggers_compensation_of_the_others(self):
+        async with Stack() as stack:
+            failed_before = _sample(
+                "sagaz_choreography_events_total",
+                participant="payments",
+                event_type="inventory.reserved",
+                outcome="failed",
+            )
+            first = await stack.orders.begin("order.created", {"order_id": "o-2", "amount": 500})
+
+            assert stack.types()[:3] == ["order.created", "inventory.reserved", COMPENSATE]
+            compensate_event = stack.bus.published[2]
+            assert compensate_event.data["participant"] == "payments"
+            assert compensate_event.data["reason"] == "ValueError: card declined"
+            assert compensate_event.saga_id == first.saga_id
+            assert stack.inventory.released == ["o-2"]
+            assert stack.payments.refunded == []  # its own action never completed
+            assert "payment.charged" not in stack.types()
+
+            reports = {
+                e.data["participant"]: e.data
+                for e in stack.bus.published
+                if e.event_type == COMPENSATED
+            }
+            assert reports["inventory"]["undone"] == ["order.created"]
+            assert set(reports) == {"orders", "inventory", "payments", "shipping"}
+
+            status = await stack.tracker.status(first.saga_id)
+            assert status.status == "compensated"
+            assert status.failure["participant"] == "payments"
+            assert (
+                _sample(
+                    "sagaz_choreography_events_total",
+                    participant="payments",
+                    event_type="inventory.reserved",
+                    outcome="failed",
+                )
+                == failed_before + 1
+            )
+
+    async def test_compensation_failures_mark_the_transaction_failed(self):
+        async with Stack(inventory=Inventory(fail_release=True)) as stack:
+            first = await stack.orders.begin("order.created", {"order_id": "o-3", "amount": 500})
+            status = await stack.tracker.status(first.saga_id)
+
+        assert status.status == "failed"
+        assert status.compensated_by["inventory"]["failed"] == ["order.created"]
+
+    async def test_compensation_runs_newest_first(self):
+        class TwoSteps(ChoreographedSaga):
+            def __init__(self) -> None:
+                super().__init__(name="two")
+                self.undone: list[str] = []
+
+            @on_event("a")
+            async def on_a(self, event: Event) -> None: ...
+
+            @on_event("b")
+            async def on_b(self, event: Event) -> None: ...
+
+            @compensate("a")
+            async def undo_a(self, event: Event) -> None:
+                self.undone.append("a")
+
+            @compensate("b")
+            async def undo_b(self, event: Event) -> None:
+                self.undone.append("b")
+
+        bus = EventBus()
+        engine = ChoreographyEngine(bus)
+        participant = TwoSteps()
+        engine.register(participant)
+        for event_type in ("a", "b"):
+            await bus.publish(Event(event_type, saga_id="t-1"))
+        await bus.publish(Event(COMPENSATE, saga_id="t-1"))
+        assert participant.undone == ["b", "a"]
+
+    async def test_failures_without_a_transaction_are_not_compensated(self):
+        async with Stack() as stack:
+            await stack.bus.publish(Event("inventory.reserved", {"order_id": "x", "amount": 999}))
+        assert COMPENSATE not in stack.types()
+
+
+class TestIdempotency:
+    async def test_redelivered_events_are_handled_once(self):
+        async with Stack() as stack:
+            event = Event("order.created", {"order_id": "o-4"}, saga_id="t-4")
+            await stack.bus.publish(event)
+            await stack.bus.publish(event)  # at-least-once redelivery
+        assert stack.inventory.reserved == ["o-4"]
+
+    def test_dedup_memory_is_bounded(self, monkeypatch):
+        from sagaz.choreography._dispatch import Dispatcher
+
+        monkeypatch.setattr(Dispatcher, "max_seen", 2)
+        dispatcher = Dispatcher(EventBus().publish, frozenset())
+        participant = Orders(name="o")
+        for i in range(3):
+            assert dispatcher._first_delivery(participant, Event("x", event_id=str(i)))
+        assert dispatcher._first_delivery(participant, Event("x", event_id="0"))  # evicted
+
+    async def test_compensation_memory_is_bounded(self, monkeypatch):
+        monkeypatch.setattr(Inventory, "max_tracked_transactions", 2)
+        inventory = Inventory()
+        for i in range(3):
+            inventory._remember(Event("order.created", saga_id=f"t-{i}"))
+        assert list(inventory._completed) == ["t-1", "t-2"]
+
+
+class TestEmitting:
+    async def test_participants_must_be_registered_to_publish(self):
+        with pytest.raises(RuntimeError, match="not registered"):
+            await Orders(name="lonely").begin("x")
+        with pytest.raises(RuntimeError, match="not registered"):
+            await Orders(name="lonely").emit("x")
+
+
+class TestTracker:
+    async def test_status_is_persisted_per_tenant(self, tmp_path):
+        from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
+
+        async with SQLiteSagaStorage(str(tmp_path / "c.db")) as storage:
+            async with Stack(storage=storage) as stack:
+                first = await stack.orders.begin(
+                    "order.created", {"order_id": "o-5"}, tenant_id="acme"
+                )
+            with tenant_scope("acme"):
+                status = await load_status(storage, first.saga_id)
+            with tenant_scope("globex"):
+                other = await load_status(storage, first.saga_id)
+            assert await load_status(storage, "nope") is None
+
+        assert status.status == "completed"
+        assert status.tenant_id == "acme"
+        assert other is None
+
+    async def test_status_round_trips_and_ignores_unknown_fields(self):
+        status = TransactionStatus("t-1", status="compensating", participants=["a"])
+        assert TransactionStatus.from_dict({**status.to_dict(), "extra": 1}) == status
+
+    async def test_events_without_correlation_are_ignored(self):
+        tracker = ChoreographyTracker(EventBus())
+        await tracker.observe(Event("x"))
+        assert tracker._memory == {}
+
+
+class TestEventSerialization:
+    def test_to_dict_from_dict_round_trip(self):
+        event = Event(
+            "order.created",
+            {"order_id": "o-1"},
+            saga_id="t-1",
+            tenant_id="acme",
+            causation_id="c-1",
+            source="orders",
+        )
+        assert Event.from_dict(event.to_dict()) == event
+
+    def test_older_payloads_default_the_new_fields(self):
+        payload = Event("x", saga_id="t").to_dict()
+        for key in ("tenant_id", "causation_id", "source"):
+            payload.pop(key)
+        restored = Event.from_dict(payload)
+        assert (restored.tenant_id, restored.causation_id, restored.source) == (
+            "default",
+            None,
+            None,
+        )

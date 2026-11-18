@@ -212,15 +212,7 @@ class RabbitMQEventBus(AbstractEventBus):
         if self._exchange is None:
             msg = "Call start() before publish()"
             raise RuntimeError(msg)
-        payload = json.dumps(
-            {
-                "event_type": event.event_type,
-                "data": event.data,
-                "event_id": event.event_id,
-                "saga_id": event.saga_id,
-                "created_at": event.created_at.isoformat(),
-            }
-        ).encode()
+        payload = json.dumps(event.to_dict()).encode()
         message = Message(
             payload,
             delivery_mode=DeliveryMode.PERSISTENT,
@@ -243,16 +235,7 @@ class RabbitMQEventBus(AbstractEventBus):
         """Deserialise an incoming AMQP message and dispatch to handlers."""
         async with message.process():
             try:
-                payload = json.loads(message.body.decode())
-                raw_dt = datetime.fromisoformat(payload["created_at"])
-                created_at = raw_dt.astimezone(UTC) if raw_dt.tzinfo else raw_dt.replace(tzinfo=UTC)
-                event = Event(
-                    event_type=payload["event_type"],
-                    data=payload["data"],
-                    event_id=payload["event_id"],
-                    saga_id=payload.get("saga_id"),
-                    created_at=created_at,
-                )
+                event = Event.from_dict(json.loads(message.body.decode()))
             except Exception:
                 logger.exception("Failed to deserialise RabbitMQ message")
                 return

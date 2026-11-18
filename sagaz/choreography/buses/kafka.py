@@ -120,29 +120,12 @@ class KafkaEventBusConfig:
 
 def _event_to_value(event: Event) -> bytes:
     """Serialise an ``Event`` to a JSON-encoded bytes value."""
-    return json.dumps(
-        {
-            "event_type": event.event_type,
-            "data": event.data,
-            "event_id": event.event_id,
-            "saga_id": event.saga_id,
-            "created_at": event.created_at.isoformat(),
-        }
-    ).encode()
+    return json.dumps(event.to_dict()).encode()
 
 
 def _value_to_event(value: bytes) -> Event:
     """Deserialise a Kafka message value back to an ``Event``."""
-    payload = json.loads(value.decode())
-    raw_dt = datetime.fromisoformat(payload["created_at"])
-    created_at = raw_dt.astimezone(UTC) if raw_dt.tzinfo else raw_dt.replace(tzinfo=UTC)
-    return Event(
-        event_type=payload["event_type"],
-        data=payload["data"],
-        event_id=payload["event_id"],
-        saga_id=payload.get("saga_id"),
-        created_at=created_at,
-    )
+    return Event.from_dict(json.loads(value.decode()))
 
 
 class KafkaEventBus(AbstractEventBus):

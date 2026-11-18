@@ -8,8 +8,10 @@ bus and tracking active saga instances.
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 
-from sagaz.choreography.events import AbstractEventBus, Event, HandlerT
+from sagaz.choreography._dispatch import Dispatcher
+from sagaz.choreography.events import COMPENSATE, AbstractEventBus, Event, HandlerT
 from sagaz.choreography.saga import ChoreographedSaga
 
 logger = logging.getLogger(__name__)
@@ -24,6 +26,13 @@ class ChoreographyEngine:
     ----------
     bus:
         The ``EventBus`` to subscribe to.
+    completion_events:
+        Event types that end a transaction successfully (e.g. ``"order.shipped"``);
+        participants then forget what they would have compensated.
+
+    Each delivery is deduplicated by ``event_id`` and runs in the event's tenant
+    scope. If a handler raises, the engine publishes a ``COMPENSATE`` event and
+    every participant undoes its ``@compensate`` actions for that transaction.
 
     Example
     -------
@@ -43,8 +52,10 @@ class ChoreographyEngine:
         await engine.stop()
     """
 
-    def __init__(self, bus: AbstractEventBus) -> None:
+    def __init__(self, bus: AbstractEventBus, *, completion_events: Iterable[str] = ()) -> None:
         self._bus = bus
+        self._completion_events = frozenset(completion_events)
+        self._dispatcher = Dispatcher(bus.publish, self._completion_events)
         self._sagas: dict[str, ChoreographedSaga] = {}
         self._running = False
         # Tracks dispatch closures created per saga so they can be properly unsubscribed.
@@ -86,17 +97,29 @@ class ChoreographyEngine:
             self._deregister(self._sagas[saga.saga_id])
 
         self._sagas[saga.saga_id] = saga
+        saga._publish = self._bus.publish
 
-        for event_type in saga._handlers:
+        for event_type in self._subscriptions(saga):
             # Capture saga via default arg to avoid closure-over-loop-variable.
             async def _dispatch(event: Event, _saga: ChoreographedSaga = saga) -> None:
-                await _saga.handle(event)
+                await self._dispatcher.dispatch(_saga, event)
 
             # Store the closure so _deregister() can later call bus.unsubscribe().
             self._closures.setdefault(saga.saga_id, {})[event_type] = _dispatch
             self._bus.subscribe(event_type, _dispatch)
 
         logger.debug("Registered saga %r (%s)", saga.saga_id, saga.name)
+
+    def _subscriptions(self, saga: ChoreographedSaga) -> list[str]:
+        """Event types to route to *saga*: its handlers, compensation, and completion.
+
+        Every participant receives ``COMPENSATE`` (and reports, even with nothing to
+        undo) so a tracker can tell when a failed transaction is fully compensated.
+        """
+        types = [*saga._handlers, COMPENSATE]
+        if saga._compensators:
+            types += sorted(self._completion_events)
+        return list(dict.fromkeys(types))
 
     def _deregister(self, saga: ChoreographedSaga) -> None:
         """Unsubscribe the saga's dispatch closures from the bus."""

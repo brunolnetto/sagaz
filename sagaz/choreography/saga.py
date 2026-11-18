@@ -10,12 +10,18 @@ from __future__ import annotations
 
 import inspect
 import logging
+from collections import OrderedDict
+from collections.abc import Awaitable, Callable
+from contextvars import ContextVar
 from typing import Any
 
-from sagaz.choreography.decorators import get_event_type
+from sagaz.choreography.decorators import get_compensated_event_type, get_event_type
 from sagaz.choreography.events import Event
 
 logger = logging.getLogger(__name__)
+
+#: The event whose handler is running, so ``emit()`` can continue its transaction.
+current_cause: ContextVar[Event | None] = ContextVar("sagaz_choreography_cause", default=None)
 
 
 class ChoreographedSaga:
@@ -45,6 +51,12 @@ class ChoreographedSaga:
         self.name: str = name or type(self).__name__
         self._events_handled: list[Event] = []
         self._handlers: dict[str, Any] = {}  # event_type → bound method
+        self._compensators: dict[str, Any] = {}  # event_type → bound undo method
+        # correlation_id → events handled successfully that have a compensation
+        self._completed: OrderedDict[str, list[Event]] = OrderedDict()
+        # Transactions already completed or compensated: never remembered again.
+        self._finished: OrderedDict[str, None] = OrderedDict()
+        self._publish: Callable[[Event], Awaitable[None]] | None = None
         self._discover_handlers()
 
     # ------------------------------------------------------------------
@@ -57,6 +69,8 @@ class ChoreographedSaga:
         Populates ``self._handlers`` as ``{event_type: bound_method}``.
         """
         for _name, method in inspect.getmembers(self, predicate=inspect.ismethod):
+            if (undone := get_compensated_event_type(method)) is not None:
+                self._compensators[undone] = method
             event_type = get_event_type(method)
             if event_type is not None:
                 if event_type in self._handlers:
@@ -96,6 +110,110 @@ class ChoreographedSaga:
         self._events_handled.append(event)
         logger.debug("%s handling %r (saga_id=%s)", self.name, event.event_type, self.saga_id)
         await handler(event)
+        self._remember(event)
+
+    # ------------------------------------------------------------------
+    # Emitting and compensation
+    # ------------------------------------------------------------------
+
+    #: Transactions whose completed actions are remembered for compensation.
+    max_tracked_transactions = 10_000
+
+    def _remember(self, event: Event) -> None:
+        """Record *event*'s action as completed, so it can be compensated later.
+
+        Called when the handler emits its result (the local action is done) and
+        when it returns; on an in-process bus the rest of the transaction runs
+        inside ``emit``, so waiting for the return would be too late.
+        """
+        correlation = event.saga_id
+        if not correlation or event.event_type not in self._compensators:
+            return
+        if correlation in self._finished:
+            return
+        done = self._completed.setdefault(correlation, [])
+        if any(e.event_id == event.event_id for e in done):
+            return
+        done.append(event)
+        self._completed.move_to_end(correlation)
+        while len(self._completed) > self.max_tracked_transactions:
+            self._completed.popitem(last=False)
+
+    def _finish(self, correlation_id: str) -> None:
+        self._completed.pop(correlation_id, None)
+        self._finished[correlation_id] = None
+        while len(self._finished) > self.max_tracked_transactions:
+            self._finished.popitem(last=False)
+
+    async def emit(self, event_type: str, data: dict[str, Any] | None = None) -> Event:
+        """Publish a follow-on event in the transaction of the event being handled.
+
+        The new event keeps the correlation id and tenant of the event that
+        triggered the running handler, records it as its cause, and names this
+        participant as its source.
+        """
+        if self._publish is None:
+            msg = f"{self.name} is not registered with a ChoreographyEngine"
+            raise RuntimeError(msg)
+        event = Event(event_type, dict(data or {}), source=self.name)
+        if (cause := current_cause.get()) is not None:
+            self._remember(cause)  # announcing the result: the local action is done
+            event = event.caused_by(cause)
+        await self._publish(event)
+        return event
+
+    async def begin(
+        self,
+        event_type: str,
+        data: dict[str, Any] | None = None,
+        *,
+        correlation_id: str | None = None,
+        tenant_id: str | None = None,
+    ) -> Event:
+        """Start a new transaction by publishing its first event.
+
+        The event gets a new correlation id (or *correlation_id*), the given
+        tenant (default: the current tenant scope) and this participant as source.
+        """
+        from uuid import uuid4
+
+        from sagaz.core.tenant import current_tenant_id
+
+        if self._publish is None:
+            msg = f"{self.name} is not registered with a ChoreographyEngine"
+            raise RuntimeError(msg)
+        event = Event(
+            event_type,
+            dict(data or {}),
+            saga_id=correlation_id or str(uuid4()),
+            tenant_id=tenant_id or current_tenant_id(),
+            source=self.name,
+        )
+        await self._publish(event)
+        return event
+
+    async def compensate_transaction(self, correlation_id: str) -> tuple[list[str], list[str]]:
+        """Undo, newest first, what this participant did in *correlation_id*.
+
+        Returns the event types whose actions were undone and those whose
+        compensation raised (logged, and the remaining ones still run).
+        """
+        undone: list[str] = []
+        failed: list[str] = []
+        done = self._completed.pop(correlation_id, [])
+        self._finish(correlation_id)
+        for original in reversed(done):
+            try:
+                await self._compensators[original.event_type](original)
+                undone.append(original.event_type)
+            except Exception:
+                logger.exception("%s failed to compensate %r", self.name, original.event_type)
+                failed.append(original.event_type)
+        return undone, failed
+
+    def forget(self, correlation_id: str) -> None:
+        """Drop what is remembered for a finished transaction."""
+        self._finish(correlation_id)
 
     # ------------------------------------------------------------------
     # Introspection helpers
