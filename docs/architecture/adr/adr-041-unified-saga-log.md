@@ -4,6 +4,10 @@
 
 **Accepted** — 2026-11-18 | Target: v2.1.0 | Milestone: "v2.1.0: Unified Saga Log"
 
+**Implementation:** phase 1 (#464): tables, `SagaLogStore` (PostgreSQL, SQLite,
+memory), participant isolation, and `sagaz migrate unify`. Guide:
+[Unified saga log](../../guides/unified-saga-log.md). Phases 2–4: #465, #466, #467.
+
 Prerequisite of the Fluss/Iceberg analytics (ADR-013, now v2.2.0): the log this ADR
 introduces is what gets streamed and tiered.
 

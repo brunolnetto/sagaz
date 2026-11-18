@@ -111,3 +111,38 @@ def migrate_status(source: str) -> None:
     # Infrastructure command: span every tenant (ADR-020).
     with system_scope():
         asyncio.run(_run())
+
+
+@migrate_cmd.command("unify")
+@click.option("--source", required=True, help="Storage URL holding the old layout.")
+@click.option(
+    "--target",
+    default=None,
+    help="Saga log URL to write to (default: the source database).",
+)
+@click.option("--dry-run", is_flag=True, default=False, help="Count, do not write.")
+def migrate_unify(source: str, target: str | None, dry_run: bool) -> None:
+    """Copy the old storage layout into the unified saga log (ADR-041).
+
+    Reads sagas and steps, the tracker's choreography records, the event store,
+    choreography participant state, consumer inboxes and snapshots. The old
+    tables are not changed, and running it again adds nothing.
+    """
+    from sagaz.core.storage.saga_log import create_saga_log_store
+    from sagaz.core.storage.saga_log.migrate import read_old_tables, unify
+
+    async def _run() -> None:
+        old_tables = await read_old_tables(source)
+        async with (
+            create_storage_manager(url=source) as manager,
+            create_saga_log_store(target or source) as log,
+        ):
+            report = await unify(manager.saga, log, old_tables, dry_run=dry_run)
+        verb = "Would copy" if dry_run else "Copied"
+        click.echo(f"{verb} into the unified saga log ({target or source}):")
+        for kind, count in sorted(report.counts.items()):
+            click.echo(f"  {kind}: {count}")
+        if not report.counts:
+            click.echo("  nothing to migrate")
+
+    asyncio.run(_run())
