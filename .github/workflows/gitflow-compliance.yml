@@ -26,6 +26,7 @@ jobs:
     if: github.event_name == 'push'
     permissions:
       contents: read
+      pull-requests: read  # Find the pull request a squash/rebase merge came from
       issues: write  # Improvement #8: Permission to create issues for violations
     steps:
       - name: Check for direct push to main or develop
@@ -36,6 +37,11 @@ jobs:
             const ref = event.ref;
             const branch = ref.replace('refs/heads/', '');
             const pusher = event.pusher.name;
+            if (!event.head_commit) {
+              // Branch deletions and tag-only pushes carry no head commit.
+              core.info('No head commit in this push; nothing to check.');
+              return;
+            }
             const commitSha = event.head_commit.id;
             const commitMessage = event.head_commit.message || '';
             const timestamp = new Date().toISOString();
@@ -82,6 +88,32 @@ jobs:
               return;
             }
             
+            // Squash and rebase merges of a pull request produce an ordinary commit
+            // (no "Merge pull request" message). Allow the push when GitHub reports
+            // a pull request merged into this branch whose merge commit is this one.
+            if (branch === 'main' || branch === 'develop') {
+              try {
+                const { data: pulls } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  commit_sha: commitSha,
+                });
+                const merged = pulls.find(pr =>
+                  pr.merged_at && pr.base.ref === branch && pr.merge_commit_sha === commitSha
+                );
+                if (merged) {
+                  auditLog.action = 'ALLOWED';
+                  auditLog.reason = 'merged_pull_request';
+                  auditLog.pull_request = merged.number;
+                  core.info(`✅ Merge of pull request #${merged.number} allowed`);
+                  core.info(JSON.stringify(auditLog));
+                  return;
+                }
+              } catch (error) {
+                core.warning(`⚠️ Could not look up pull requests for ${commitSha}: ${error.message}`);
+              }
+            }
+
             // Only protect main and develop from direct pushes
             if (branch === 'main' || branch === 'develop') {
               auditLog.action = 'BLOCKED';
