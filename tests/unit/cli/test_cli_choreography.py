@@ -80,3 +80,23 @@ def test_compensation_failures_are_shown():
         compensated_by={"inventory": {"undone": [], "failed": ["order.created"]}},
     )
     assert "compensation failed for order.created" in "\n".join(_describe(status))
+
+
+def test_stall_after(tmp_path):
+    """An executing transaction with no recent event is reported as stalled (#449)."""
+    from sagaz.choreography import ChoreographyTracker, Event, EventBus
+
+    path = tmp_path / "stalled.db"
+
+    async def record() -> None:
+        async with SQLiteSagaStorage(str(path)) as storage:
+            bus = EventBus()
+            tracker = ChoreographyTracker(bus, storage)
+            await tracker.start()
+            await bus.publish(Event("order.created", saga_id="idle", source="orders"))
+
+    asyncio.run(record())
+    url = f"sqlite://{path}"
+    assert "idle (tenant default): executing" in _status("idle", "--storage-url", url).output
+    result = _status("idle", "--storage-url", url, "--stall-after", "0")
+    assert "idle (tenant default): stalled" in result.output

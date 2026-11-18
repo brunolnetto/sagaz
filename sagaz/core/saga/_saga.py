@@ -10,6 +10,7 @@ from uuid import uuid4
 
 if TYPE_CHECKING:
     from sagaz.core.replay import ReplayConfig
+    from sagaz.core.storage.event_store import SagaEventStore
     from sagaz.core.storage.interfaces.snapshot import SnapshotStorage
 
 from sagaz.core.context import SagaContext
@@ -18,6 +19,7 @@ from sagaz.core.execution.state_machine import SagaStateMachine
 from sagaz.core.saga._compensation import _SagaCompensationMixin
 from sagaz.core.saga._dag import DAGExecutor
 from sagaz.core.saga._dag_delegation import _SagaDAGDelegationMixin
+from sagaz.core.saga._event_sourcing import _SagaEventSourcingMixin
 from sagaz.core.saga._execution import _SagaExecutionMixin
 from sagaz.core.saga._lifecycle import _SagaLifecycleMixin
 from sagaz.core.saga._snapshot import _SagaSnapshotMixin
@@ -36,6 +38,7 @@ class Saga(
     _SagaVisualizationMixin,
     _SagaCompensationMixin,
     _SagaSnapshotMixin,
+    _SagaEventSourcingMixin,
     ABC,
 ):
     """
@@ -56,6 +59,8 @@ class Saga(
         retry_backoff_base: float = 0.01,  # Base timeout for exponential backoff (seconds)
         replay_config: "ReplayConfig | None" = None,
         snapshot_storage: "SnapshotStorage | None" = None,
+        event_store: "SagaEventStore | str | None" = None,
+        snapshot_threshold: int = 50,
     ):
         self.name = name
         self.version = version
@@ -83,6 +88,9 @@ class Saga(
         # Replay support
         self.replay_config = replay_config
         self.snapshot_storage = snapshot_storage
+
+        # Event sourcing (ADR-033, #450): record every state change in event_store
+        self._init_event_sourcing(event_store, snapshot_threshold)
 
         # Executor instances
         self._dag_executor = DAGExecutor(self)

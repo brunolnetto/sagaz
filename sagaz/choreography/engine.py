@@ -10,9 +10,11 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable
 
+from sagaz.choreography._deadlines import DeadlineWatcher
 from sagaz.choreography._dispatch import Dispatcher
 from sagaz.choreography.events import COMPENSATE, AbstractEventBus, Event, HandlerT
 from sagaz.choreography.saga import ChoreographedSaga
+from sagaz.choreography.state import ParticipantState, create_participant_state
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +30,17 @@ class ChoreographyEngine:
         The ``EventBus`` to subscribe to.
     completion_events:
         Event types that end a transaction successfully (e.g. ``"order.shipped"``);
-        participants then forget what they would have compensated.
+        participants then forget what they would have compensated, and the
+        transaction's deadline is cleared.
+    state:
+        Where registered participants keep their completed actions, tombstones
+        and handled deliveries: a ``ParticipantState`` or a URL
+        (``sqlite://...``, ``postgresql://...``). Default: each participant's
+        own memory, lost on restart. A shared durable state lets replicas of a
+        participant compensate each other's actions (#448).
+    deadline_poll_interval / deadline_lease:
+        How often expired deadlines (``begin(..., deadline=...)``) are checked,
+        and for how long a replica's claim on one holds (seconds, #449).
 
     Each delivery is deduplicated by ``event_id`` and runs in the event's tenant
     scope. If a handler raises, the engine publishes a ``COMPENSATE`` event and
@@ -52,14 +64,29 @@ class ChoreographyEngine:
         await engine.stop()
     """
 
-    def __init__(self, bus: AbstractEventBus, *, completion_events: Iterable[str] = ()) -> None:
+    def __init__(
+        self,
+        bus: AbstractEventBus,
+        *,
+        completion_events: Iterable[str] = (),
+        state: ParticipantState | str | None = None,
+        deadline_poll_interval: float = 1.0,
+        deadline_lease: float = 60.0,
+    ) -> None:
         self._bus = bus
+        self._state = create_participant_state(state) if isinstance(state, str) else state
         self._completion_events = frozenset(completion_events)
         self._dispatcher = Dispatcher(bus.publish, self._completion_events)
         self._sagas: dict[str, ChoreographedSaga] = {}
         self._running = False
         # Tracks dispatch closures created per saga so they can be properly unsubscribed.
         self._closures: dict[str, dict[str, HandlerT]] = {}
+        self.deadlines = DeadlineWatcher(
+            bus.publish,
+            lambda: self._sagas.values(),
+            poll_interval=deadline_poll_interval,
+            lease=deadline_lease,
+        )
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -68,10 +95,13 @@ class ChoreographyEngine:
     async def start(self) -> None:
         """Mark the engine as running (enables event dispatch)."""
         self._running = True
+        if self._state is not None:  # deadlines may outlive a restart
+            self.deadlines.start()
         logger.info("ChoreographyEngine started with %d saga(s)", len(self._sagas))
 
     async def stop(self) -> None:
         """Deregister all sagas and shut down the engine."""
+        await self.deadlines.stop()
         for saga in list(self._sagas.values()):
             self._deregister(saga)
         self._sagas.clear()
@@ -98,6 +128,9 @@ class ChoreographyEngine:
 
         self._sagas[saga.saga_id] = saga
         saga._publish = self._bus.publish
+        saga._watch_deadlines = self._watch_deadlines
+        if self._state is not None:
+            saga._state = self._state
 
         for event_type in self._subscriptions(saga):
             # Capture saga via default arg to avoid closure-over-loop-variable.
@@ -110,15 +143,20 @@ class ChoreographyEngine:
 
         logger.debug("Registered saga %r (%s)", saga.saga_id, saga.name)
 
+    def _watch_deadlines(self) -> None:
+        """A participant set a deadline: poll for expiry while the engine runs."""
+        if self._running:
+            self.deadlines.start()
+
     def _subscriptions(self, saga: ChoreographedSaga) -> list[str]:
         """Event types to route to *saga*: its handlers, compensation, and completion.
 
         Every participant receives ``COMPENSATE`` (and reports, even with nothing to
         undo) so a tracker can tell when a failed transaction is fully compensated.
         """
-        types = [*saga._handlers, COMPENSATE]
-        if saga._compensators:
-            types += sorted(self._completion_events)
+        # Completion events also clear the deadline of the participant that began
+        # the transaction, so every participant receives them.
+        types = [*saga._handlers, COMPENSATE, *sorted(self._completion_events)]
         return list(dict.fromkeys(types))
 
     def _deregister(self, saga: ChoreographedSaga) -> None:

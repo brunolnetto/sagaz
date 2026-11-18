@@ -72,6 +72,17 @@ class SagaConfig:
     # Multi-tenancy (ADR-020): resolves tenant ids given to Saga.run(tenant_context=...)
     tenant_registry: Any | None = None  # TenantRegistry, avoiding circular import
 
+    # Event sourcing (ADR-033): defaults for sagas whose Meta does not set them.
+    # "event_sourced" records every state change in event_store (a
+    # SagaEventStore or a URL such as "postgresql://...").
+    storage_strategy: str = "snapshot"
+    event_store: Any | None = None  # SagaEventStore | str, avoiding circular import
+    snapshot_threshold: int = 50
+
+    # Multi-region (ADR-034): runs steps declared with region= on that region's
+    # workers. A MultiRegionCoordinator, or built from the sagaz.yaml regions block.
+    regions: Any | None = None
+
     default_timeout: float = 60.0
     default_max_retries: int = 3
     failure_strategy: str = "FAIL_FAST_WITH_GRACE"
@@ -181,6 +192,10 @@ class SagaConfig:
             default_max_retries=self.default_max_retries,
             failure_strategy=self.failure_strategy,
             tenant_registry=self.tenant_registry,
+            storage_strategy=self.storage_strategy,
+            event_store=self.event_store,
+            snapshot_threshold=self.snapshot_threshold,
+            regions=self.regions,
         )
 
     def with_broker(self, broker: BaseBroker, outbox_storage=None) -> SagaConfig:
@@ -196,6 +211,10 @@ class SagaConfig:
             default_max_retries=self.default_max_retries,
             failure_strategy=self.failure_strategy,
             tenant_registry=self.tenant_registry,
+            storage_strategy=self.storage_strategy,
+            event_store=self.event_store,
+            snapshot_threshold=self.snapshot_threshold,
+            regions=self.regions,
         )
 
     @classmethod
@@ -299,11 +318,17 @@ class SagaConfig:
         # Build components using manager methods
         storage = StorageConfigManager.from_config_dict(storage_data)
         broker = BrokerConfigManager.from_config_dict(broker_data)
+        regions = None
+        if data.get("regions"):
+            from sagaz.core.regions._config import coordinator_from_config
+
+            regions = coordinator_from_config(data["regions"])
 
         # Build Config
         return cls(
             storage=storage,
             broker=broker,
+            regions=regions,
             metrics=obs_data.get("prometheus", {}).get("enabled", True),
             tracing=obs_data.get("tracing", {}).get("enabled", False),
             logging=obs_data.get("logging", {}).get("enabled", True),

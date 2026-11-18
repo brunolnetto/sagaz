@@ -6,10 +6,22 @@ compensations on failure.
 
 import asyncio
 import inspect
+import time
 import uuid
 from typing import TYPE_CHECKING, Any
 
+from sagaz.core.decorators._event_sourcing import _EventSourcingMixin
+from sagaz.core.decorators._regions import _RegionRoutingMixin
 from sagaz.core.decorators._step_ledger import StepLedger
+from sagaz.core.events import (
+    CompensationStarted,
+    SagaCompleted,
+    SagaStarted,
+    StepCompensated,
+    StepCompensationFailed,
+    StepExecuted,
+    json_safe,
+)
 from sagaz.core.logger import get_logger
 from sagaz.core.tenant import capped_retries, capped_timeout
 from sagaz.core.types import SagaStatus
@@ -20,7 +32,7 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-class ExecutionEngine:
+class ExecutionEngine(_EventSourcingMixin, _RegionRoutingMixin):
     """Orchestrates saga execution and compensation."""
 
     def __init__(self, saga: "Saga"):
@@ -31,6 +43,7 @@ class ExecutionEngine:
         """
         self.saga = saga
         self._ledger = StepLedger([])
+        self._init_event_sourcing()
 
     async def run(
         self, initial_context: dict[str, Any], saga_id: str | None = None
@@ -49,7 +62,10 @@ class ExecutionEngine:
         """
         self._initialize_run(initial_context, saga_id)
         name = self._get_saga_name()
+        self._check_regions()
         self._register_compensations()
+        await self._open_recorder(name)
+        await self._record(SagaStarted, initial_context=json_safe(self.saga._context))
 
         # Persist start
         storage = self.saga._config.storage if self.saga._config else None
@@ -73,6 +89,7 @@ class ExecutionEngine:
             await self._notify_listeners(
                 "on_saga_complete", name, self.saga._saga_id, self.saga._context
             )
+            await self._record(SagaCompleted, duration_ms=self._elapsed_ms())
 
             # Persist completion
             if storage:
@@ -89,7 +106,14 @@ class ExecutionEngine:
 
             return self.saga._context
         except Exception as e:
+            await self._record(
+                CompensationStarted,
+                failed_step=self._failed_step or "",
+                error_type=type(e).__name__,
+                error_message=str(e),
+            )
             await self._compensate()
+            await self._record_outcome(e)
             await self._notify_listeners(
                 "on_saga_failed", name, self.saga._saga_id, self.saga._context, e
             )
@@ -183,12 +207,11 @@ class ExecutionEngine:
         self._ledger.started(step.step_id)
         # A tenant quota may lower the step's timeout (ADR-020).
         timeout = capped_timeout(step.timeout_seconds)
+        step_started = time.monotonic()
         try:
             # Apply timeout
             try:
-                result = await asyncio.wait_for(
-                    step.forward_fn(self.saga._context), timeout=timeout
-                )
+                result = await asyncio.wait_for(self._run_step(step), timeout=timeout)
             except BaseException as error:
                 self._ledger.finished(step.step_id, error)
                 raise
@@ -207,6 +230,13 @@ class ExecutionEngine:
                 self.saga._propagate_taint_from_pivot(step.step_id)
                 logger.info(f"Pivot step '{step.step_id}' completed - ancestors are now tainted")
 
+            await self._record(
+                StepExecuted,
+                step_name=step.step_id,
+                step_result=json_safe(result),
+                duration_ms=self._elapsed_ms(step_started),
+            )
+
             # Call on_success hook
             await self._call_hook(step.on_success, self.saga._context, step.step_id, result)
 
@@ -216,6 +246,7 @@ class ExecutionEngine:
             )
 
         except TimeoutError as e:
+            await self._record_step_failure(step.step_id, e, f"timed out after {timeout}s")
             # Call on_failure hook
             await self._call_hook(step.on_failure, self.saga._context, step.step_id, e)
             # Notify listeners: step failure
@@ -225,6 +256,7 @@ class ExecutionEngine:
             msg = f"Step '{step.step_id}' timed out after {timeout}s"
             raise TimeoutError(msg) from e
         except Exception as e:
+            await self._record_step_failure(step.step_id, e)
             # Call on_failure hook
             await self._call_hook(step.on_failure, self.saga._context, step.step_id, e)
             # Notify listeners: step failure
@@ -310,10 +342,12 @@ class ExecutionEngine:
             await self._call_hook(on_compensate, self.saga._context, step_id)
 
             await asyncio.wait_for(
-                node.compensation_fn(self.saga._context), timeout=node.timeout_seconds
+                self._run_compensation(step_id, node.compensation_fn),
+                timeout=node.timeout_seconds,
             )
             self.saga._context[f"__{step_id}_compensated"] = True
             self._ledger.compensated(step_id)
+            await self._record(StepCompensated, step_name=step_id)
 
             # Notify listeners: compensation complete
             await self._notify_listeners(
@@ -322,3 +356,10 @@ class ExecutionEngine:
         except Exception as e:
             # Log but don't fail - we want all compensations to attempt
             self.saga._context[f"__{step_id}_compensation_error"] = str(e)
+            self._compensation_failed = True
+            await self._record(
+                StepCompensationFailed,
+                step_name=step_id,
+                error_type=type(e).__name__,
+                error_message=str(e) or type(e).__name__,
+            )

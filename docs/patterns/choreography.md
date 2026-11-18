@@ -101,6 +101,14 @@ An action counts as completed once its handler emits its result, or returns. Use
 participant also caps what it remembers (`max_tracked_transactions`, 10,000 by
 default).
 
+Once a participant has compensated a transaction, it ignores that transaction's
+business events: they are counted with `outcome="after_compensation"` and logged, but
+their handlers do not run. A late event can come from another partition, a
+redelivery or a slow producer. Without this rule it would perform an action that
+nothing will undo. With it, compensating before or after an event leads to the same
+state: compensation is commutative, as distributed sagas require. Each participant
+remembers its last `max_tracked_transactions` compensated transactions.
+
 You can still model failures as domain events, for example a `payment.failed`
 handled with `@on_event` as in ADR-029. The engine adds the generic path for
 unexpected errors.
@@ -108,12 +116,84 @@ unexpected errors.
 ## Delivery guarantees
 
 Buses deliver at least once, so the engine drops a second delivery of the same
-`event_id` to the same participant (bounded memory, 100,000 deliveries by default).
+`event_id` to the same participant (in memory, bounded to the last 100,000 deliveries, unless a durable state is
+configured).
 Handlers that call external systems should still be idempotent. The idempotency only
 holds for the lifetime of the process.
 
-Kafka keeps ordering per partition. Redis Streams and RabbitMQ keep it per stream or
-queue. Do not rely on ordering across event types.
+Within one transaction, the buses deliver events in the order they were published:
+
+| Bus | Ordering |
+|---|---|
+| Kafka | Per transaction. Events are keyed by correlation id, so a transaction's events share a partition. Events without one are keyed by type. |
+| Redis Streams | Per stream: the whole topic is one ordered stream. |
+| RabbitMQ | Per queue, with a single consumer per queue. |
+| In-memory | Nested and depth-first: an event published by a handler is delivered before the handler returns. |
+
+There is no ordering between different transactions. Participants still handle a
+`choreography.compensate` that overtakes a business event correctly (see above).
+
+## Deadlines
+
+In orchestration, the coordinator times out a step. In choreography, nobody owns time
+unless you give it an owner. Give a deadline to the participant that starts the
+transaction:
+
+```python
+await orders.begin("order.created", data, deadline=30)   # seconds, or a timedelta
+```
+
+If no completion event (`completion_events`) arrives in time, that participant's engine
+publishes `choreography.compensate` with `reason="deadline exceeded"`, and every
+participant undoes its part. A completion or a compensation clears the deadline. Events
+that arrive after the deadline hit the compensation tombstone and are not acted on.
+
+The engine checks deadlines every `deadline_poll_interval` seconds (default 1). With a
+durable state, deadlines survive restarts and replicas share them. A replica claims an
+expired deadline for `deadline_lease` seconds (default 60) before publishing, so one
+replica compensates. If it dies before the compensation is handled, another replica
+publishes again after the lease. A second `choreography.compensate` is harmless:
+participants have nothing left to undo. With the in-memory state, deadlines are lost
+on restart.
+
+The tracker can also report transactions that have stopped moving, without
+compensating them:
+
+```python
+tracker = ChoreographyTracker(bus, storage=saga_storage, stall_after=300)
+```
+
+```bash
+sagaz choreography status <correlation-id> --stall-after 300
+```
+
+An executing transaction with no event for `stall_after` seconds is reported as
+`stalled`. The status is computed when it is read and never stored.
+
+## Durable participant state
+
+A participant remembers which of its actions it may have to compensate, the
+transactions it finished or compensated, and the deliveries it already handled. By
+default this lives in the participant's memory, so a participant that restarts forgets
+what to compensate and may handle a redelivered event again. Replicas of a participant
+also do not see each other's actions: the replica that receives
+`choreography.compensate` can only undo its own.
+
+Give the engine a durable state to remove both limits:
+
+```python
+engine = ChoreographyEngine(bus, completion_events={"order.shipped"},
+                            state="postgresql://...")   # or sqlite://<path>, or a ParticipantState
+```
+
+Every replica of a participant (same `name`) shares its state, separated by tenant
+(row-level security in PostgreSQL). In PostgreSQL, recording an action and ending its
+transaction are serialized per transaction, so an action is never recorded after
+compensation started. A delivery is claimed before its handler runs: if the process
+crashes during the handler, the redelivery is skipped. That is at-most-once handling
+per participant, so a handler interrupted by a crash must be retried by your own
+recovery. Finished transactions and handled deliveries accumulate. Delete old ones
+with `await state.prune(timedelta(days=7))`. The in-memory state bounds itself instead.
 
 ## Status of a transaction
 
@@ -123,6 +203,7 @@ from the events alone:
 | Status | Meaning |
 |---|---|
 | `executing` | Events seen, no failure, no completion event yet |
+| `stalled` | Executing, but no event for `stall_after` (reported only when the tracker has `stall_after`) |
 | `completed` | A completion event was seen |
 | `compensating` | A participant failed; not every participant that emitted events has reported compensation |
 | `compensated` | Every participant that emitted events (other than the failed one) reported compensation |
@@ -148,9 +229,10 @@ sagaz choreography status <correlation-id> --json
 
 | Metric | Labels |
 |---|---|
-| `sagaz_choreography_events_total` | `participant`, `event_type`, `outcome` (`handled`, `failed`, `duplicate`) |
+| `sagaz_choreography_events_total` | `participant`, `event_type`, `outcome` (`handled`, `failed`, `duplicate`, `after_compensation`) |
 | `sagaz_choreography_handler_seconds` | `participant`, `event_type` |
 | `sagaz_choreography_compensations_total` | `participant`, `outcome` (`undone`, `failed`) |
+| `sagaz_choreography_deadlines_expired_total` | `participant` |
 
 ## Performance
 

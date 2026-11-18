@@ -11,7 +11,7 @@ import json
 
 import click
 
-from sagaz.choreography.tracker import TransactionStatus, load_status
+from sagaz.choreography.tracker import TransactionStatus, load_status, stalled_view
 from sagaz.core.tenant import DEFAULT_TENANT, tenant_scope
 
 
@@ -62,11 +62,22 @@ def choreography_cli() -> None:
 )
 @click.option("--json", "as_json", is_flag=True, help="Print the full status as JSON.")
 @click.option("--events", "show_events", is_flag=True, help="List every event seen.")
+@click.option(
+    "--stall-after",
+    type=float,
+    metavar="SECONDS",
+    help="Report an executing transaction with no event for this long as stalled.",
+)
 def status_cmd(
-    correlation_id: str, storage_url: str, tenant: str, as_json: bool, show_events: bool
+    correlation_id: str,
+    storage_url: str,
+    tenant: str,
+    as_json: bool,
+    show_events: bool,
+    stall_after: float | None,
 ) -> None:
     """Show the aggregate status of the transaction CORRELATION_ID."""
-    status = asyncio.run(_load(storage_url, correlation_id, tenant))
+    status = stalled_view(asyncio.run(_load(storage_url, correlation_id, tenant)), stall_after)
     if status is None:
         msg = f"No choreographed transaction '{correlation_id}' for tenant '{tenant}'"
         raise click.ClickException(msg)

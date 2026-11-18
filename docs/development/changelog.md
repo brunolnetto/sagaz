@@ -7,6 +7,90 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-18
+
+Wave 5: core extensions. Sagas can keep their full history as events (#57, ADR-033)
+and run steps in other regions while keeping data in its jurisdiction (#59,
+ADR-034). Choreographed sagas get the guarantees the literature expects from a
+system without a coordinator: per-transaction ordering, compensation that commutes
+with late events, durable participant state and deadlines.
+
+### Breaking changes
+- `ChoreographedSaga.forget()` and `ChoreographedSaga.was_compensated()` are now
+  coroutines (#448). Await them.
+- `Dispatcher.max_seen` is gone. The participant state's `max_deliveries` replaces it
+  (`InMemoryParticipantState(max_deliveries=...)`).
+- A participant that has compensated a transaction no longer acts on that
+  transaction's later business events (#446). They are counted as
+  `outcome="after_compensation"` instead of being handled.
+- Every choreography participant now receives the engine's completion events (#449).
+  Participants without a handler for them only record the transaction as finished.
+- The Kafka choreography bus keys messages by correlation id instead of event type
+  (#447). Transactions in flight during the upgrade may briefly have events on two
+  partitions.
+
+### Added
+- **Event-sourced sagas** (#57, ADR-033): opt in with
+  `Meta.storage_strategy = "event_sourced"` (or `SagaConfig`). Every state change of
+  a run is appended to an event store, numbered per saga and tenant:
+  - **Events:** `SagaStarted`, `StepExecuted`, `StepFailed`, `CompensationStarted`,
+    `StepCompensated`, `StepCompensationFailed`, `SagaCompleted`, `SagaRolledBack`
+    and `SagaFailed`.
+  - **Stores:** PostgreSQL (row-level security per tenant, an advisory lock per
+    stream), SQLite and in-memory, from a URL or an instance.
+  - **State and snapshots:** `SagaSummaryProjection` rebuilds a saga's state from its
+    events. It is snapshotted every `snapshot_threshold` events (default 50), so a
+    load reads the latest snapshot and the events after it.
+  - **CLI:** `sagaz event-log <saga-id>` prints the timeline (`--json`, `--tenant`).
+  - **Metrics:** `sagaz_event_store_events_total` and
+    `sagaz_event_store_snapshots_total`, plus an "Event store" row in the Grafana
+    main dashboard.
+  - **Guide:** [Event-sourced sagas](../guides/event-sourcing.md).
+  - **Lower-level saga (#450):** `sagaz.core.saga.Saga(event_store=...)` records the
+    same events, in sequential and DAG mode, with one `StepFailed` after retries.
+- **Durable choreography participant state** (#448):
+  `ChoreographyEngine(bus, state="postgresql://...")` (or `sqlite://`, or a
+  `ParticipantState`) keeps completed actions, tombstones and handled deliveries
+  across restarts. Replicas of a participant share them, so any replica can
+  compensate what another did. The state is tenant-scoped, with row-level security
+  in PostgreSQL. `prune()` deletes old records. In-memory remains the default.
+  `ChoreographedSaga.forget()` and `was_compensated()` are now coroutines.
+
+- **Deadlines for choreographed transactions** (#449):
+  `begin(..., deadline=30)` makes the starting participant own the transaction's time
+  limit. If no completion event arrives in time, its engine publishes
+  `choreography.compensate` with `reason="deadline exceeded"`. With a durable state,
+  deadlines survive restarts, and a lease lets one replica act. The tracker and
+  `sagaz choreography status --stall-after` report idle transactions as `stalled`.
+  Metric: `sagaz_choreography_deadlines_expired_total`. Every participant now
+  receives completion events.
+
+- **Multi-region sagas with data residency** (#59, ADR-034, revised):
+  - **Declaring regions:** `@action(..., region="eu-west-1")` (or
+    `add_step(region=...)`) runs a step and its compensation on that region's
+    `RegionalWorker`s, over the region's bus (Redis Streams, Kafka, RabbitMQ).
+  - **Coordinator:** `MultiRegionCoordinator` matches replies by request id; the saga
+    keeps one coordinator.
+  - **Failover:** a region is down after 3 s without worker heartbeats. Its steps then
+    fail over only to a healthy region of the same jurisdiction. Otherwise the step
+    fails and the saga compensates.
+  - **Configuration:** a `regions:` block in `sagaz.yaml`.
+  - **CLI:** `sagaz region list` and `sagaz region failover` (`--force` to cross
+    jurisdictions).
+  - **Metrics:** `sagaz_cross_region_latency_seconds` and
+    `sagaz_region_failover_total`.
+  - **Cost:** steps without a region pay about 0.4% per run.
+  - **Guide:** [Multi-region sagas](../guides/multi-region.md).
+
+### Fixed
+- **Choreography: late events after compensation** (#446): a participant that has
+  compensated a transaction no longer acts on that transaction's later business
+  events. Before, a late event performed an action that nothing undid. Such events
+  are counted as `outcome="after_compensation"`.
+- **Choreography over Kafka: per-transaction ordering** (#447): events are keyed by
+  correlation id instead of event type, so a transaction's events share a partition
+  and keep their order.
+
 ## [1.10.0] - 2026-11-18
 
 Wave 4: event-driven saga choreography (#56, ADR-029). Opt-in: orchestrated

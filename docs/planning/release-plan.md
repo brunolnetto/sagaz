@@ -28,7 +28,7 @@ Wave 1b ─── v1.7.0 ──────── StateChart migration, Phase 1 
 Wave 2  ─── v1.8.0 ──────── Analytics & chaos              (new sagaz[analytics] extra)
 Wave 3  ─── v1.9.0 ──────── CLI v2 + CDC + tenancy         (service/infra expansion)
 Wave 4  ─── v1.10.0 ─────── Event-driven choreography      (new execution model)
-Wave 5  ─── v2.0.0 ──────── Core extensions                (saga.add_step wired — blocked)
+Wave 5  ─── v2.0.0 ──────── Core extensions                (event sourcing, multi-region — released)
 Wave 6  ─── v2.1.0 ─────── Streaming & historical analytics (Fluss + Iceberg; post-core stabilization)
 ```
 
@@ -206,18 +206,22 @@ Wave 6  ─── v2.1.0 ─────── Streaming & historical analytics 
 
 ---
 
-## Wave 5 — v2.0.0 "Core Extensions" *(blocked)*
+## Wave 5 — v2.0.0 "Core Extensions"
 
-**Target**: October - December 2026
-**Risk**: High — wires new behaviour into `Saga.__init__` and `Saga.add_step()`
-**Merge order**: fix/event-sourcing-wiring → #70 → fix/region-affinity-wiring → #72
+> **Released 2026-11-18.** The planned wiring issues (#102, #104) had been closed
+> without code, and #70 and #72 were unwired or in-process stubs. Both features were
+> implemented on develop instead, and #70 and #72 were closed as superseded. See the
+> [changelog](../development/changelog.md#200---2026-11-18).
 
-| PR / Branch | Feature | Issue | Merge pre-req |
-|-------------|---------|-------|--------------|
-| fix/event-sourcing-wiring *(planned)* | Wire `enable_event_sourcing=True` into `Saga.__init__` + execution hooks | #102 | none |
-| #70 | feature/event-sourcing | Event sourcing module (ADR-033) | #57 | #102 closed |
-| fix/region-affinity-wiring *(planned)* | Add `region=` to `SagaStep` and `Saga.add_step()` | #104 | none |
-| #72 | feature/multi-region-coordination | Multi-region saga coordination (ADR-034) | #59 | #104 closed |
+| PR | Feature | Issue |
+|----|---------|-------|
+| #445 | Event-sourced saga storage, projections, `sagaz event-log` (ADR-033) | #57 |
+| #454 | Event recording in `sagaz.core.saga.Saga` | #450 |
+| #455 | Event sourcing demonstration | #250 |
+| #456 | Multi-region steps with data residency (ADR-034, revised) | #59 |
+| #451 | Choreography: compensation commutes with late events; Kafka per-transaction order | #446, #447 |
+| #452 | Durable choreography participant state | #448 |
+| #453 | Deadlines for choreographed transactions | #449 |
 
 ---
 
@@ -326,7 +330,7 @@ fix/#104           ────────────────────�
 | v1.8.0  | 2    | Analytics & Chaos | Released (patches through v1.8.3) |
 | v1.9.0  | 3    | CLI v2 + CDC + Tenancy | Released 2026-11-18 |
 | v1.10.0 | 4    | Event-Driven Choreography | Released 2026-11-18 |
-| v2.0.0  | 5    | Core Extensions | Blocked |
+| v2.0.0  | 5    | Core Extensions | Released 2026-11-18 |
 | v2.1.0  | 6    | Streaming & Historical Analytics | Deferred (post-Wave 5) |
 
 ---

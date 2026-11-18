@@ -2,8 +2,10 @@
 Kafka EventBus — distributed choreography transport via Apache Kafka.
 
 Uses aiokafka for async producer/consumer.  Each message is written to a
-single configurable topic; the ``event_type`` is used as the Kafka message
-key so that events of the same type land on the same partition.
+single configurable topic. The message key is the event's correlation id
+(``saga_id``), so every event of one transaction lands on the same partition
+and is consumed in publish order (#447). Events without a correlation id are
+keyed by ``event_type``.
 
 Architecture
 ------------
@@ -116,6 +118,11 @@ class KafkaEventBusConfig:
             sasl_username=os.environ.get("SAGAZ_BUS_KAFKA_SASL_USERNAME"),
             sasl_password=os.environ.get("SAGAZ_BUS_KAFKA_SASL_PASSWORD"),
         )
+
+
+def partition_key(event: Event) -> bytes:
+    """Kafka key of *event*: its correlation id, else its type."""
+    return (event.saga_id or event.event_type).encode()
 
 
 def _event_to_value(event: Event) -> bytes:
@@ -244,9 +251,8 @@ class KafkaEventBus(AbstractEventBus):
         """
         Publish *event* to the Kafka topic.
 
-        The event is JSON-serialised and sent via ``send_and_wait``; the
-        ``event_type`` is used as the Kafka message key for deterministic
-        partition routing.
+        The event is JSON-serialised and sent via ``send_and_wait``, keyed by
+        :func:`partition_key` so that a transaction's events keep their order.
         """
         if self._producer is None:
             msg = "Call start() before publish()"
@@ -255,7 +261,7 @@ class KafkaEventBus(AbstractEventBus):
         await self._producer.send_and_wait(
             self._config.topic,
             value=value,
-            key=event.event_type.encode(),
+            key=partition_key(event),
         )
         self._published.append(event)
         logger.debug("Published %r to Kafka topic %s", event, self._config.topic)
