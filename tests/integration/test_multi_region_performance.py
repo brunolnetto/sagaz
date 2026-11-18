@@ -11,6 +11,7 @@ timings instead would measure the machine, not the code. Run with
 from __future__ import annotations
 
 import asyncio
+import sys
 import time
 
 import pytest
@@ -83,4 +84,14 @@ def test_region_none_overhead_is_under_one_percent():
         f"\nadded per run: {added:.2f} µs (check {check_us:.2f}, "
         f"per step {routed_us - direct_us:.2f}) of {run_us:.1f} µs ({added / run_us:.2%})"
     )
-    assert added / run_us < 0.01
+    # Coverage tracing slows tiny functions far more than a whole run, so under
+    # it (CI's unit job) only a gross regression is caught.
+    assert added / run_us < (0.05 if _traced() else 0.01)
+
+
+def _traced() -> bool:
+    try:
+        import coverage
+    except ImportError:  # pragma: no cover
+        return False
+    return coverage.Coverage.current() is not None or sys.gettrace() is not None
