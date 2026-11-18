@@ -252,6 +252,12 @@ def _terraform_env(tmp_path: Path) -> dict[str, str]:
     env.setdefault("XDG_RUNTIME_DIR", str(tmp_path / "xdg"))
     Path(env["XDG_RUNTIME_DIR"]).mkdir(parents=True, exist_ok=True)
     env["TF_IN_AUTOMATION"] = "1"
+    # `terraform test` uses mocked providers; make sure no real Google credentials
+    # (ADC, gcloud config, inline JSON) could be picked up anyway.
+    env["GOOGLE_APPLICATION_CREDENTIALS"] = os.devnull
+    env["CLOUDSDK_CONFIG"] = str(tmp_path / "gcloud")
+    for name in ("GOOGLE_CREDENTIALS", "GOOGLE_OAUTH_ACCESS_TOKEN", "GOOGLE_CLOUD_KEYFILE_JSON"):
+        env.pop(name, None)
     return env
 
 
