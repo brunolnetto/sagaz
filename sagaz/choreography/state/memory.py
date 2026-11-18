@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from collections import OrderedDict
+from collections.abc import Collection
+from datetime import datetime, timedelta
 
 from sagaz.choreography.events import Event
-from sagaz.choreography.state._base import COMPENSATED, COMPLETED, ParticipantState
+from sagaz.choreography.state._base import COMPENSATED, COMPLETED, Deadline, ParticipantState
 from sagaz.core.storage._tenancy import write_tenant
 
 
@@ -25,6 +27,8 @@ class InMemoryParticipantState(ParticipantState):
         self._actions: OrderedDict[tuple[str, str, str], list[Event]] = OrderedDict()
         self._ended: OrderedDict[tuple[str, str, str], str] = OrderedDict()
         self._seen: OrderedDict[tuple[str, str, str], None] = OrderedDict()
+        # key -> (due_at, claimed_until)
+        self._deadlines: dict[tuple[str, str, str], tuple[datetime, datetime | None]] = {}
 
     @staticmethod
     def _key(participant: str, value: str) -> tuple[str, str, str]:
@@ -44,6 +48,7 @@ class InMemoryParticipantState(ParticipantState):
     ) -> list[Event]:
         key = self._key(participant, correlation_id)
         done = self._actions.pop(key, [])
+        self._deadlines.pop(key, None)
         state = COMPENSATED if compensated or self._ended.get(key) == COMPENSATED else COMPLETED
         _bounded_set(self._ended, key, state, self.max_transactions)
         return done
@@ -57,3 +62,26 @@ class InMemoryParticipantState(ParticipantState):
             return False
         _bounded_set(self._seen, key, None, self.max_deliveries)
         return True
+
+    async def set_deadline(self, participant: str, correlation_id: str, due_at: datetime) -> None:
+        key = self._key(participant, correlation_id)
+        if key not in self._ended:
+            self._deadlines[key] = (due_at, None)
+
+    async def claim_due_deadlines(
+        self, participants: Collection[str], now: datetime, lease: timedelta, limit: int = 100
+    ) -> list[Deadline]:
+        claimed: list[Deadline] = []
+        for key, (due_at, claimed_until) in sorted(
+            self._deadlines.items(), key=lambda item: item[1][0]
+        ):
+            tenant, participant, correlation_id = key
+            if len(claimed) == limit:
+                break
+            if participant not in participants or due_at > now:
+                continue
+            if claimed_until is not None and claimed_until > now:
+                continue
+            self._deadlines[key] = (due_at, now + lease)
+            claimed.append(Deadline(tenant, participant, correlation_id, due_at))
+        return claimed

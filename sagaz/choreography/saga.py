@@ -12,6 +12,7 @@ import inspect
 import logging
 from collections.abc import Awaitable, Callable
 from contextvars import ContextVar
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sagaz.choreography.decorators import get_compensated_event_type, get_event_type
@@ -56,6 +57,8 @@ class ChoreographedSaga:
         # deliveries (#448). In memory unless the engine provides a durable state.
         self._state: ParticipantState = InMemoryParticipantState(self.max_tracked_transactions)
         self._publish: Callable[[Event], Awaitable[None]] | None = None
+        # Set by the engine: makes sure deadlines are watched once one is set.
+        self._watch_deadlines: Callable[[], None] | None = None
         self._discover_handlers()
 
     # ------------------------------------------------------------------
@@ -159,15 +162,20 @@ class ChoreographedSaga:
         *,
         correlation_id: str | None = None,
         tenant_id: str | None = None,
+        deadline: timedelta | float | None = None,
     ) -> Event:
         """Start a new transaction by publishing its first event.
 
         The event gets a new correlation id (or *correlation_id*), the given
         tenant (default: the current tenant scope) and this participant as source.
+
+        With a *deadline* (a ``timedelta`` or seconds), this participant owns
+        the transaction's time limit: if no completion event arrives in time,
+        its engine publishes ``choreography.compensate`` (#449).
         """
         from uuid import uuid4
 
-        from sagaz.core.tenant import current_tenant_id
+        from sagaz.core.tenant import current_tenant_id, tenant_scope
 
         if self._publish is None:
             msg = f"{self.name} is not registered with a ChoreographyEngine"
@@ -179,6 +187,13 @@ class ChoreographedSaga:
             tenant_id=tenant_id or current_tenant_id(),
             source=self.name,
         )
+        if deadline is not None:
+            seconds = deadline.total_seconds() if isinstance(deadline, timedelta) else deadline
+            due_at = datetime.now(UTC) + timedelta(seconds=seconds)
+            with tenant_scope(event.tenant_id):  # set before the transaction can finish
+                await self._state.set_deadline(self.name, event.saga_id or "", due_at)
+            if self._watch_deadlines is not None:
+                self._watch_deadlines()
         await self._publish(event)
         return event
 

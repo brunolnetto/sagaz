@@ -13,7 +13,8 @@ With a saga storage, each transaction is saved as a saga record named
 from __future__ import annotations
 
 import asyncio
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sagaz.choreography.events import COMPENSATE, COMPENSATED, AbstractEventBus, Event
@@ -30,6 +31,8 @@ EXECUTING, COMPLETED, COMPENSATING, COMPENSATED_STATUS, FAILED = (
     "compensated",
     "failed",
 )
+#: Reported (never stored) for an executing transaction with no recent event (#449).
+STALLED = "stalled"
 _SAGA_STATUS = {
     EXECUTING: SagaStatus.EXECUTING,
     COMPLETED: SagaStatus.COMPLETED,
@@ -108,6 +111,10 @@ class ChoreographyTracker:
         Optional saga storage; without it the status is kept in memory.
     completion_events:
         Event types that complete a transaction successfully.
+    stall_after:
+        Report an executing transaction as ``"stalled"`` when its last event is
+        older than this (a ``timedelta`` or seconds). The tracker only reports
+        it; deadlines (``begin(..., deadline=...)``) compensate.
     """
 
     def __init__(
@@ -115,8 +122,10 @@ class ChoreographyTracker:
         bus: AbstractEventBus,
         storage: Any | None = None,
         completion_events: tuple[str, ...] | frozenset[str] = (),
+        stall_after: timedelta | float | None = None,
     ) -> None:
         self._bus = bus
+        self._stall_after = _as_timedelta(stall_after)
         self._storage = storage
         self._completion_events = frozenset(completion_events)
         self._memory: dict[str, TransactionStatus] = {}
@@ -135,7 +144,7 @@ class ChoreographyTracker:
         lock = self._locks.setdefault(event.saga_id, asyncio.Lock())
         async with lock:
             with tenant_scope(event.tenant_id):
-                status = await self.status(event.saga_id) or TransactionStatus(
+                status = await self._stored(event.saga_id) or TransactionStatus(
                     event.saga_id, tenant_id=event.tenant_id
                 )
                 status.apply(event, self._completion_events)
@@ -143,6 +152,13 @@ class ChoreographyTracker:
 
     async def status(self, correlation_id: str) -> TransactionStatus | None:
         """The status of *correlation_id* in the current tenant scope, if known."""
+        if self._storage is None:
+            status = self._memory.get(correlation_id)
+        else:
+            status = await load_status(self._storage, correlation_id)
+        return stalled_view(status, self._stall_after)
+
+    async def _stored(self, correlation_id: str) -> TransactionStatus | None:
         if self._storage is None:
             return self._memory.get(correlation_id)
         return await load_status(self._storage, correlation_id)
@@ -158,6 +174,27 @@ class ChoreographyTracker:
             [],
             status.to_dict(),
         )
+
+
+def _as_timedelta(value: timedelta | float | None) -> timedelta | None:
+    if value is None or isinstance(value, timedelta):
+        return value
+    return timedelta(seconds=value)
+
+
+def stalled_view(
+    status: TransactionStatus | None,
+    stall_after: timedelta | float | None,
+    now: datetime | None = None,
+) -> TransactionStatus | None:
+    """*status*, reported as ``"stalled"`` if it is executing with no event for *stall_after*."""
+    limit = _as_timedelta(stall_after)
+    if status is None or limit is None or status.status != EXECUTING or not status.events:
+        return status
+    last = max(datetime.fromisoformat(e["at"]) for e in status.events)
+    if (now or datetime.now(UTC)) - last <= limit:
+        return status
+    return replace(status, status=STALLED)
 
 
 async def load_status(storage: Any, correlation_id: str) -> TransactionStatus | None:

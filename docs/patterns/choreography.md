@@ -133,6 +133,43 @@ Within one transaction, the buses deliver events in the order they were publishe
 There is no ordering between different transactions. Participants still handle a
 `choreography.compensate` that overtakes a business event correctly (see above).
 
+## Deadlines
+
+In orchestration, the coordinator times out a step. In choreography, nobody owns time
+unless you give it an owner. Give a deadline to the participant that starts the
+transaction:
+
+```python
+await orders.begin("order.created", data, deadline=30)   # seconds, or a timedelta
+```
+
+If no completion event (`completion_events`) arrives in time, that participant's engine
+publishes `choreography.compensate` with `reason="deadline exceeded"`, and every
+participant undoes its part. A completion or a compensation clears the deadline. Events
+that arrive after the deadline hit the compensation tombstone and are not acted on.
+
+The engine checks deadlines every `deadline_poll_interval` seconds (default 1). With a
+durable state, deadlines survive restarts and replicas share them. A replica claims an
+expired deadline for `deadline_lease` seconds (default 60) before publishing, so one
+replica compensates. If it dies before the compensation is handled, another replica
+publishes again after the lease. A second `choreography.compensate` is harmless:
+participants have nothing left to undo. With the in-memory state, deadlines are lost
+on restart.
+
+The tracker can also report transactions that have stopped moving, without
+compensating them:
+
+```python
+tracker = ChoreographyTracker(bus, storage=saga_storage, stall_after=300)
+```
+
+```bash
+sagaz choreography status <correlation-id> --stall-after 300
+```
+
+An executing transaction with no event for `stall_after` seconds is reported as
+`stalled`. The status is computed when it is read and never stored.
+
 ## Durable participant state
 
 A participant remembers which of its actions it may have to compensate, the
@@ -166,6 +203,7 @@ from the events alone:
 | Status | Meaning |
 |---|---|
 | `executing` | Events seen, no failure, no completion event yet |
+| `stalled` | Executing, but no event for `stall_after` (reported only when the tracker has `stall_after`) |
 | `completed` | A completion event was seen |
 | `compensating` | A participant failed; not every participant that emitted events has reported compensation |
 | `compensated` | Every participant that emitted events (other than the failed one) reported compensation |
@@ -194,6 +232,7 @@ sagaz choreography status <correlation-id> --json
 | `sagaz_choreography_events_total` | `participant`, `event_type`, `outcome` (`handled`, `failed`, `duplicate`, `after_compensation`) |
 | `sagaz_choreography_handler_seconds` | `participant`, `event_type` |
 | `sagaz_choreography_compensations_total` | `participant`, `outcome` (`undone`, `failed`) |
+| `sagaz_choreography_deadlines_expired_total` | `participant` |
 
 ## Performance
 

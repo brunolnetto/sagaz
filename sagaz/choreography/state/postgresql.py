@@ -8,11 +8,12 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Collection
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sagaz.choreography.events import Event
-from sagaz.choreography.state._base import COMPENSATED, COMPLETED, ParticipantState
+from sagaz.choreography.state._base import COMPENSATED, COMPLETED, Deadline, ParticipantState
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.storage._tenancy import write_tenant
 from sagaz.core.storage.backends.postgresql._tenancy import (
@@ -46,6 +47,15 @@ CREATE TABLE IF NOT EXISTS choreography_transactions (
     ended_at       TIMESTAMPTZ NOT NULL,
     PRIMARY KEY (tenant_id, participant, correlation_id)
 );
+CREATE TABLE IF NOT EXISTS choreography_deadlines (
+    tenant_id      TEXT        NOT NULL DEFAULT 'default',
+    participant    TEXT        NOT NULL,
+    correlation_id TEXT        NOT NULL,
+    due_at         TIMESTAMPTZ NOT NULL,
+    claimed_until  TIMESTAMPTZ,
+    PRIMARY KEY (tenant_id, participant, correlation_id)
+);
+CREATE INDEX IF NOT EXISTS idx_choreography_deadlines_due ON choreography_deadlines (due_at);
 CREATE TABLE IF NOT EXISTS choreography_deliveries (
     tenant_id   TEXT        NOT NULL DEFAULT 'default',
     participant TEXT        NOT NULL,
@@ -56,6 +66,7 @@ CREATE TABLE IF NOT EXISTS choreography_deliveries (
 {tenant_isolation_sql("choreography_actions")}
 {tenant_isolation_sql("choreography_transactions")}
 {tenant_isolation_sql("choreography_deliveries")}
+{tenant_isolation_sql("choreography_deadlines")}
 """
 
 _SCHEMA_LOCK = "SELECT pg_advisory_xact_lock(hashtext('sagaz.choreography.state.schema'))"
@@ -140,6 +151,13 @@ class PostgreSQLParticipantState(ParticipantState):
                 correlation_id,
             )
             await conn.execute(
+                "DELETE FROM choreography_deadlines"
+                " WHERE tenant_id = $1 AND participant = $2 AND correlation_id = $3",
+                tenant,
+                participant,
+                correlation_id,
+            )
+            await conn.execute(
                 "INSERT INTO choreography_transactions"
                 " (tenant_id, participant, correlation_id, state, ended_at)"
                 " VALUES ($1, $2, $3, $4, $5)"
@@ -180,6 +198,50 @@ class PostgreSQLParticipantState(ParticipantState):
                 datetime.now(UTC),
             )
         return bool(status == "INSERT 0 1")
+
+    async def set_deadline(self, participant: str, correlation_id: str, due_at: datetime) -> None:
+        tenant = write_tenant()
+        pool = await self._get_pool()
+        async with acquire_scoped(pool) as conn, conn.transaction():
+            await conn.execute(_TX_LOCK, tenant, participant, correlation_id)
+            await conn.execute(
+                "INSERT INTO choreography_deadlines"
+                " (tenant_id, participant, correlation_id, due_at)"
+                " SELECT $1, $2, $3, $4 WHERE NOT EXISTS ("
+                "  SELECT 1 FROM choreography_transactions"
+                "  WHERE tenant_id = $1 AND participant = $2 AND correlation_id = $3)"
+                " ON CONFLICT (tenant_id, participant, correlation_id)"
+                " DO UPDATE SET due_at = EXCLUDED.due_at, claimed_until = NULL",
+                tenant,
+                participant,
+                correlation_id,
+                due_at,
+            )
+
+    async def claim_due_deadlines(
+        self, participants: Collection[str], now: datetime, lease: timedelta, limit: int = 100
+    ) -> list[Deadline]:
+        """Claim due deadlines in every tenant (call in ``system_scope()`` under RLS)."""
+        pool = await self._get_pool()
+        async with acquire_scoped(pool) as conn:
+            rows = await conn.fetch(
+                "UPDATE choreography_deadlines d SET claimed_until = $3"
+                " FROM (SELECT tenant_id, participant, correlation_id FROM choreography_deadlines"
+                "  WHERE participant = ANY($1::text[]) AND due_at <= $2"
+                "  AND (claimed_until IS NULL OR claimed_until <= $2)"
+                "  ORDER BY due_at LIMIT $4 FOR UPDATE SKIP LOCKED) due"
+                " WHERE d.tenant_id = due.tenant_id AND d.participant = due.participant"
+                " AND d.correlation_id = due.correlation_id"
+                " RETURNING d.tenant_id, d.participant, d.correlation_id, d.due_at",
+                list(participants),
+                now,
+                now + lease,
+                limit,
+            )
+        return [
+            Deadline(r["tenant_id"], r["participant"], r["correlation_id"], r["due_at"])
+            for r in sorted(rows, key=lambda r: r["due_at"])
+        ]
 
     async def prune(self, older_than: timedelta) -> int:
         cutoff = datetime.now(UTC) - older_than

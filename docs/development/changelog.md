@@ -32,6 +32,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in PostgreSQL. `prune()` deletes old records. In-memory remains the default.
   `ChoreographedSaga.forget()` and `was_compensated()` are now coroutines.
 
+- **Deadlines for choreographed transactions** (#449):
+  `begin(..., deadline=30)` makes the starting participant own the transaction's time
+  limit. If no completion event arrives in time, its engine publishes
+  `choreography.compensate` with `reason="deadline exceeded"`. With a durable state,
+  deadlines survive restarts, and a lease lets one replica act. The tracker and
+  `sagaz choreography status --stall-after` report idle transactions as `stalled`.
+  Metric: `sagaz_choreography_deadlines_expired_total`. Every participant now
+  receives completion events.
+
 ### Fixed
 - **Choreography: late events after compensation** (#446): a participant that has
   compensated a transaction no longer acts on that transaction's later business

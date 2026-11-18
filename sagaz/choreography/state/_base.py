@@ -17,11 +17,23 @@ participant. All operations act in the current tenant scope (ADR-020).
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from datetime import timedelta
+from collections.abc import Collection
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 
 from sagaz.choreography.events import Event
 
 COMPLETED, COMPENSATED = "completed", "compensated"
+
+
+@dataclass(frozen=True)
+class Deadline:
+    """A transaction that *participant* wants completed by *due_at* (#449)."""
+
+    tenant_id: str
+    participant: str
+    correlation_id: str
+    due_at: datetime
 
 
 class ParticipantState(ABC):
@@ -41,8 +53,8 @@ class ParticipantState(ABC):
     ) -> list[Event]:
         """End *participant*'s part of *correlation_id*.
 
-        Returns the recorded actions, oldest first, and forgets them. Once
-        compensated, a transaction stays compensated.
+        Returns the recorded actions, oldest first, and forgets them, together
+        with its deadline. Once compensated, a transaction stays compensated.
         """
 
     @abstractmethod
@@ -52,6 +64,21 @@ class ParticipantState(ABC):
     @abstractmethod
     async def first_delivery(self, participant: str, event_id: str) -> bool:
         """Claim *event_id* for *participant*: True the first time only."""
+
+    @abstractmethod
+    async def set_deadline(self, participant: str, correlation_id: str, due_at: datetime) -> None:
+        """Expect *correlation_id* to finish by *due_at* (ignored if it already ended)."""
+
+    @abstractmethod
+    async def claim_due_deadlines(
+        self, participants: Collection[str], now: datetime, lease: timedelta, limit: int = 100
+    ) -> list[Deadline]:
+        """Claim deadlines of *participants* due at *now*, in every tenant.
+
+        A claimed deadline is not returned again for *lease*, so one replica
+        acts on it. It is deleted when its transaction finishes; if the claimer
+        dies first, the lease expires and another replica claims it.
+        """
 
     async def prune(self, older_than: timedelta) -> int:
         """Delete finished transactions and handled deliveries older than *older_than*.
