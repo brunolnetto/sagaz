@@ -101,6 +101,14 @@ An action counts as completed once its handler emits its result, or returns. Use
 participant also caps what it remembers (`max_tracked_transactions`, 10,000 by
 default).
 
+Once a participant has compensated a transaction, it ignores that transaction's
+business events: they are counted with `outcome="after_compensation"` and logged, but
+their handlers do not run. A late event can come from another partition, a
+redelivery or a slow producer. Without this rule it would perform an action that
+nothing will undo. With it, compensating before or after an event leads to the same
+state: compensation is commutative, as distributed sagas require. Each participant
+remembers its last `max_tracked_transactions` compensated transactions.
+
 You can still model failures as domain events, for example a `payment.failed`
 handled with `@on_event` as in ADR-029. The engine adds the generic path for
 unexpected errors.
@@ -112,8 +120,20 @@ Buses deliver at least once, so the engine drops a second delivery of the same
 Handlers that call external systems should still be idempotent. The idempotency only
 holds for the lifetime of the process.
 
-Kafka keeps ordering per partition. Redis Streams and RabbitMQ keep it per stream or
-queue. Do not rely on ordering across event types.
+Within one transaction, the buses deliver events in the order they were published:
+
+| Bus | Ordering |
+|---|---|
+| Kafka | Per transaction. Events are keyed by correlation id, so a transaction's events share a partition. Events without one are keyed by type. |
+| Redis Streams | Per stream: the whole topic is one ordered stream. |
+| RabbitMQ | Per queue, with a single consumer per queue. |
+| In-memory | Nested and depth-first: an event published by a handler is delivered before the handler returns. |
+
+There is no ordering between different transactions. Participants still handle a
+`choreography.compensate` that overtakes a business event correctly (see above).
+
+This memory, like deduplication, lives in the process. A participant that restarts
+forgets what it has to compensate (#448).
 
 ## Status of a transaction
 
@@ -148,7 +168,7 @@ sagaz choreography status <correlation-id> --json
 
 | Metric | Labels |
 |---|---|
-| `sagaz_choreography_events_total` | `participant`, `event_type`, `outcome` (`handled`, `failed`, `duplicate`) |
+| `sagaz_choreography_events_total` | `participant`, `event_type`, `outcome` (`handled`, `failed`, `duplicate`, `after_compensation`) |
 | `sagaz_choreography_handler_seconds` | `participant`, `event_type` |
 | `sagaz_choreography_compensations_total` | `participant`, `outcome` (`undone`, `failed`) |
 

@@ -56,6 +56,10 @@ class ChoreographedSaga:
         self._completed: OrderedDict[str, list[Event]] = OrderedDict()
         # Transactions already completed or compensated: never remembered again.
         self._finished: OrderedDict[str, None] = OrderedDict()
+        # Tombstones: transactions this participant compensated. Their business
+        # events are not handled any more, so compensation commutes with a late
+        # forward event (#446).
+        self._compensated: OrderedDict[str, None] = OrderedDict()
         self._publish: Callable[[Event], Awaitable[None]] | None = None
         self._discover_handlers()
 
@@ -141,9 +145,17 @@ class ChoreographedSaga:
 
     def _finish(self, correlation_id: str) -> None:
         self._completed.pop(correlation_id, None)
-        self._finished[correlation_id] = None
-        while len(self._finished) > self.max_tracked_transactions:
-            self._finished.popitem(last=False)
+        self._bounded_add(self._finished, correlation_id)
+
+    def _bounded_add(self, ids: OrderedDict[str, None], correlation_id: str) -> None:
+        ids[correlation_id] = None
+        ids.move_to_end(correlation_id)
+        while len(ids) > self.max_tracked_transactions:
+            ids.popitem(last=False)
+
+    def was_compensated(self, correlation_id: str | None) -> bool:
+        """True if this participant compensated *correlation_id* (and still remembers it)."""
+        return correlation_id is not None and correlation_id in self._compensated
 
     async def emit(self, event_type: str, data: dict[str, Any] | None = None) -> Event:
         """Publish a follow-on event in the transaction of the event being handled.
@@ -202,6 +214,7 @@ class ChoreographedSaga:
         failed: list[str] = []
         done = self._completed.pop(correlation_id, [])
         self._finish(correlation_id)
+        self._bounded_add(self._compensated, correlation_id)
         for original in reversed(done):
             try:
                 await self._compensators[original.event_type](original)
