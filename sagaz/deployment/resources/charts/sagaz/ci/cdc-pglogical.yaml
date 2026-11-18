@@ -1,0 +1,15 @@
+# CDC via PostgreSQL logical replication, RabbitMQ broker (lint/template variant).
+replicaCount: 1
+database:
+  url: postgresql://sagaz:example@postgresql:5432/sagaz
+broker:
+  type: rabbitmq
+  url: amqp://guest:example@rabbitmq:5672/
+outbox:
+  mode: cdc
+  cdc:
+    source: pg_logical
+    pgLogical:
+      slot: sagaz_outbox
+      publication: sagaz_outbox_pub
+      dsn: postgresql://replicator:example@postgresql:5432/sagaz

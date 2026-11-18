@@ -1,0 +1,13 @@
+# CDC via Debezium on Kafka, Redis broker (lint/template variant).
+replicaCount: 2
+database:
+  url: postgresql://sagaz:example@postgresql:5432/sagaz
+broker:
+  type: redis
+  url: redis://redis-master:6379/0
+outbox:
+  mode: cdc
+  cdc:
+    source: debezium
+    debezium:
+      bootstrapServers: kafka:9092

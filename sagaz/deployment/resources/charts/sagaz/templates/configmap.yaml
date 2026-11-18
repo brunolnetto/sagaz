@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sagaz.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sagaz.labels" . | nindent 4 }}
+data:
+  LOG_LEVEL: {{ .Values.logLevel | quote }}
+  PYTHONUNBUFFERED: "1"
+  # The root filesystem is read-only: do not try to write .pyc files.
+  PYTHONDONTWRITEBYTECODE: "1"
+  BROKER_TYPE: {{ .Values.broker.type | quote }}
+  {{- if eq .Values.broker.type "rabbitmq" }}
+  RABBITMQ_EXCHANGE: {{ .Values.broker.rabbitmq.exchange | quote }}
+  {{- end }}
+  BATCH_SIZE: {{ .Values.outbox.batchSize | int | quote }}
+  POLL_INTERVAL: {{ .Values.outbox.pollInterval | quote }}
+  MAX_RETRIES: {{ .Values.outbox.maxRetries | int | quote }}
+  SAGAZ_OUTBOX_MODE: {{ .Values.outbox.mode | quote }}
+  {{- if eq .Values.outbox.mode "cdc" }}
+  {{- with .Values.outbox.cdc }}
+  SAGAZ_CDC_SOURCE: {{ .source | quote }}
+  SAGAZ_CDC_SWEEP_INTERVAL: {{ .sweepInterval | quote }}
+  SAGAZ_CDC_SWEEP_MIN_AGE: {{ .sweepMinAge | quote }}
+  {{- if eq .source "pg_logical" }}
+  SAGAZ_CDC_SLOT: {{ .pgLogical.slot | quote }}
+  SAGAZ_CDC_PUBLICATION: {{ .pgLogical.publication | quote }}
+  {{- else }}
+  SAGAZ_CDC_TOPIC_PREFIX: {{ .debezium.topicPrefix | quote }}
+  SAGAZ_CDC_GROUP_ID: {{ .debezium.groupId | quote }}
+  {{- with .debezium.bootstrapServers }}
+  KAFKA_BOOTSTRAP_SERVERS: {{ . | quote }}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+  {{- end }}
