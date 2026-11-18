@@ -65,6 +65,7 @@ nav:
   - Guides:
     - Configuration: guides/configuration.md
     - Kubernetes Deployment: guides/kubernetes.md
+    - Cloud Deployment (sagaz deploy): guides/cloud-deployment.md
     - Benchmarking: guides/benchmarking.md
     - Multi-tenancy Overhead: benchmarks/tenancy-overhead.md
     - CDC outbox throughput and lag: benchmarks/cdc-outbox.md

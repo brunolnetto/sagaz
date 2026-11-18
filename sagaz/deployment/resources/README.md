@@ -255,3 +255,12 @@ type=click.Choice(["redis", "kafka", "rabbitmq", "nats", "postgres"]),
 ---
 
 **Questions?** Open an issue: https://github.com/brunolnetto/sagaz/issues
+
+## Cloud deployment (`sagaz deploy`)
+
+- `infra/aws/`: Terraform module, ECS Fargate + RDS PostgreSQL + ElastiCache Redis
+- `infra/gcp/`: Terraform module, Cloud Run worker pool + Cloud SQL + Memorystore
+- `charts/sagaz/`: Helm chart for the outbox worker
+
+Used by `sagaz deploy --provider aws|gcp|k8s` and `sagaz teardown`. See
+`docs/guides/cloud-deployment.md`.
