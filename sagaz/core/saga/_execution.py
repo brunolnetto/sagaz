@@ -50,6 +50,8 @@ class _SagaExecutionMixin:
 
         async def _compensate_all(self) -> None: ...
 
+        async def _es_finish(self, outcome: str) -> None: ...
+
     async def _execute_inner(self, start_time) -> SagaResult:
         """Inner execution logic."""
         # Handle empty saga
@@ -172,6 +174,7 @@ class _SagaExecutionMixin:
         try:
             await self._state_machine.fail()
         except TransitionNotAllowed:
+            await self._es_finish("rolled_back")  # nothing completed, nothing to undo
             return self._no_compensation_result(error, start_time)
 
         return await self._attempt_compensation(error, start_time)

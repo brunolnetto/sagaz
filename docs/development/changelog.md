@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `sagaz_event_store_snapshots_total`, plus an "Event store" row in the Grafana
     main dashboard.
   - **Guide:** [Event-sourced sagas](../guides/event-sourcing.md).
+  - **Lower-level saga (#450):** `sagaz.core.saga.Saga(event_store=...)` records the
+    same events, in sequential and DAG mode, with one `StepFailed` after retries.
 - **Durable choreography participant state** (#448):
   `ChoreographyEngine(bus, state="postgresql://...")` (or `sqlite://`, or a
   `ParticipantState`) keeps completed actions, tombstones and handled deliveries
