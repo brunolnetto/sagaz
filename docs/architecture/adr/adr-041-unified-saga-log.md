@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed** — 2026-11-18 | Target: v2.1.0 | Milestone: "v2.1.0: Unified Saga Log"
+**Accepted** — 2026-11-18 | Target: v2.1.0 | Milestone: "v2.1.0: Unified Saga Log"
 
 Prerequisite of the Fluss/Iceberg analytics (ADR-013, now v2.2.0): the log this ADR
 introduces is what gets streamed and tiered.
