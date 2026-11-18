@@ -9,8 +9,11 @@ import os
 import httpx
 import pytest
 
-from sagaz.core.tenant import TenantDecryptionError, TenantKeyError
-from sagaz.core.tenant.encryption import (
+# Encryption needs the optional "cryptography" package (sagaz[encryption]).
+pytest.importorskip("cryptography")
+
+from sagaz.core.tenant import TenantDecryptionError, TenantKeyError  # noqa: E402
+from sagaz.core.tenant.encryption import (  # noqa: E402
     ENVELOPE_FIELD,
     AwsKmsKeyProvider,
     CachingKeyProvider,
