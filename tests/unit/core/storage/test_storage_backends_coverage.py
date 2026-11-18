@@ -344,7 +344,7 @@ class TestRedisOutboxStorageCoverage:
         """Test get_pending_count() method."""
         from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
 
-        mock_redis.xlen = AsyncMock(return_value=42)
+        mock_redis.xinfo_groups = AsyncMock(return_value=[{"name": b"sagaz-workers", "lag": 42}])
 
         with patch("redis.asyncio.from_url", return_value=mock_redis):
             storage = RedisOutboxStorage()
@@ -420,7 +420,7 @@ class TestRedisOutboxStorageCoverage:
         """Test get_statistics() method."""
         from sagaz.core.storage.backends.redis.outbox import RedisOutboxStorage
 
-        mock_redis.xlen = AsyncMock(return_value=5)
+        mock_redis.xinfo_groups = AsyncMock(return_value=[{"name": b"sagaz-workers", "lag": 5}])
 
         with patch("redis.asyncio.from_url", return_value=mock_redis):
             storage = RedisOutboxStorage()
@@ -505,7 +505,8 @@ class TestRedisOutboxStorageCoverage:
                 {"time_since_delivered": 400000, "message_id": b"msg-1"},
             ]
         )
-        mock_redis.xclaim = AsyncMock()
+        # Nothing in the processing hash maps msg-1 to an event: nothing released.
+        mock_redis.hgetall = AsyncMock(return_value={})
 
         with patch("redis.asyncio.from_url", return_value=mock_redis):
             storage = RedisOutboxStorage()
@@ -513,7 +514,7 @@ class TestRedisOutboxStorageCoverage:
 
             released = await storage.release_stuck_events(claimed_older_than_seconds=300)
 
-            assert released >= 0
+            assert released == 0
 
     @pytest.mark.asyncio
     async def test_redis_outbox_release_stuck_events_error(self, mock_redis):

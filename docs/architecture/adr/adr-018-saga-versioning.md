@@ -2,7 +2,7 @@
 
 ## Status
 
-**Accepted** | Date: 2025-01-01 | Implemented: 2026-04-08 | Target: v2.0.0 | PR: #81
+**Accepted** | Date: 2025-01-01 | Implemented: 2026-11-13 | Target: v1.9.0 | PR: #81
 
 ## Dependencies
 
@@ -666,11 +666,30 @@ class OrderSaga(Saga):
 
 - @brunolnetto (Maintainer)
 
+## Implementation notes (v1.9.0)
+
+- **Package**: `sagaz.versioning` — `Version` (frozen, ordered), `SagaVersion`,
+  `SagaVersionRegistry`, `MigrationEngine`, `SagaVersionResolver`.
+- **Runtime validation**: `SagaVersionedMixin` (placed before `Saga`) resolves the
+  pinned `saga_version`, or the latest non-deprecated one, from `version_registry`
+  and validates the initial context before any step runs, raising
+  `SagaVersionSchemaError` with every violation. A schema is either a mapping of
+  field → type descriptor (`str`, `int`, `float`, `bool`, `dict`, `list`, `any`;
+  suffix `?` = optional) or a Pydantic model class (duck-typed on
+  `model_validate`, so Pydantic remains optional).
+- **Persistent registry**: `SagaVersionRegistry(storage)` with `await save()` /
+  `await load()` (or `from_storage()`) persists registrations through any
+  `SagaStorage` as records under the reserved saga name `__sagaz_versions__`
+  instead of the dedicated `saga_versions` table sketched above. They therefore
+  travel with `sagaz migrate`; analytics skips them. Model schemas are stored by
+  import path.
+
 ## Changelog
 
 | Date | Change |
 |------|--------|
 | 2025-01-01 | Initial proposal |
+| 2026-11-13 | Implemented: runtime validation and persistent registry (#112) |
 
 ---
 

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
 from sagaz.core.storage.core import deserialize
+from sagaz.core.tenant import DEFAULT_TENANT
 
 if TYPE_CHECKING:
     import aiosqlite
@@ -47,4 +48,5 @@ class SQLiteOutboxRowMappingMixin:
             error_classification=row["error_classification"],
             error_fingerprint=row["error_fingerprint"],
             replay_count=row["replay_count"] or 0,
+            tenant_id=row["tenant_id"] or DEFAULT_TENANT,
         )

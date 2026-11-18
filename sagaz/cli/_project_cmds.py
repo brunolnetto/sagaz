@@ -71,7 +71,12 @@ def _prompt_example_choice() -> str | None:
 
 
 @click.command()
-def init_cmd():
+@click.option(
+    "--local",
+    is_flag=True,
+    help="Also generate docker-compose.yaml for local development (asks for the backends).",
+)
+def init_cmd(local: bool):
     """
     Initialize a new Sagaz project interactively.
 
@@ -79,10 +84,13 @@ def init_cmd():
       - Project name and location
       - Optional example saga scaffold
       - Project structure (sagaz.yaml, profiles.yaml, sagas/, tests/)
+      - With --local: docker-compose.yaml for the chosen storage, broker and
+        observability backends, ready for `sagaz dev`
 
     \b
-    Example:
-        sagaz init  # Interactive wizard
+    Examples:
+        sagaz init           # Project only
+        sagaz init --local   # Project + local Docker Compose environment
     """
     if console:
         console.print(
@@ -284,6 +292,21 @@ docker-compose.override.yaml
         click.echo("\nProject initialized successfully!")
         click.echo(f"  cd {display_path}")
         click.echo("  sagaz validate")
+
+    if local:
+        _setup_local_environment(project_path)
+
+
+def _setup_local_environment(project_path: Path) -> None:
+    """Run the local branch of `sagaz setup` inside the new project directory."""
+    import contextlib
+
+    click.echo("\nLocal development environment (Docker Compose):")
+    config = _gather_setup_configuration(mode="local")
+    _display_configuration_summary(config)
+    with contextlib.chdir(project_path):
+        _execute_setup(config)
+    click.echo(f"\nStart it with: cd {project_path} && sagaz dev")
 
 
 # ============================================================================

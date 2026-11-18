@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from sagaz.core.storage._reserved import RESERVED_SAGA_LIKE
+from sagaz.core.storage.backends.sqlite._saga_schema import tenant_filter
 from sagaz.core.types import SagaStatus
 
 if TYPE_CHECKING:
@@ -25,15 +27,19 @@ class _SQLiteSagaMaintenanceMixin:
         """Get statistics about stored sagas."""
         conn = await self._get_connection()
 
-        cursor = await conn.execute("""
+        clause, params = tenant_filter()
+        cursor = await conn.execute(
+            f"""
             SELECT
                 COUNT(*) as total,
                 SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
                 SUM(CASE WHEN status = 'rolled_back' THEN 1 ELSE 0 END) as rolled_back,
                 SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
                 SUM(CASE WHEN status = 'executing' THEN 1 ELSE 0 END) as executing
-            FROM sagas
-        """)
+            FROM sagas WHERE 1=1{clause}
+        """,
+            params,
+        )
         row = await cursor.fetchone()
         if not row:
             return {
@@ -64,14 +70,16 @@ class _SQLiteSagaMaintenanceMixin:
 
         status_values = [s.value for s in statuses]
         placeholders = ",".join("?" * len(status_values))
+        clause, params = tenant_filter()
 
         cursor = await conn.execute(
             f"""
             DELETE FROM sagas
             WHERE status IN ({placeholders})
             AND updated_at < ?
+            AND saga_name NOT LIKE ? ESCAPE '\\'{clause}
             """,
-            (*status_values, older_than.isoformat()),
+            (*status_values, older_than.isoformat(), RESERVED_SAGA_LIKE, *params),
         )
         await conn.commit()
 
@@ -99,6 +107,7 @@ class _SQLiteSagaMaintenanceMixin:
     async def count(self) -> int:
         """Count total sagas."""
         conn = await self._get_connection()
-        cursor = await conn.execute("SELECT COUNT(*) FROM sagas")
+        clause, params = tenant_filter()
+        cursor = await conn.execute(f"SELECT COUNT(*) FROM sagas WHERE 1=1{clause}", params)
         row = await cursor.fetchone()
         return row[0] if row else 0

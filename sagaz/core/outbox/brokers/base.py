@@ -145,7 +145,9 @@ class BaseBroker(ABC):
         Publish an outbox event to the broker.
 
         This is a convenience method that serializes the event
-        and publishes it with appropriate headers.
+        and publishes it with appropriate headers. The owning tenant
+        (ADR-020) is sent both as the ``tenant_id`` header and in the body;
+        it overrides any ``tenant_id`` in ``event.headers``.
 
         Args:
             event: The outbox event to publish
@@ -162,6 +164,7 @@ class BaseBroker(ABC):
             "aggregate_type": event.aggregate_type,
             "aggregate_id": event.aggregate_id,
             "event_type": event.event_type,
+            "tenant_id": event.tenant_id,
             "payload": event.payload,
             "timestamp": event.created_at.isoformat() if event.created_at else None,
         }
@@ -175,6 +178,7 @@ class BaseBroker(ABC):
             "event_type": event.event_type,
             "content_type": "application/json",
             **event.headers,
+            "tenant_id": event.tenant_id,
         }
 
         await self.publish(

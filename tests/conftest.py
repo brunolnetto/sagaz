@@ -121,9 +121,28 @@ def k8s_manifests():
 # ============================================
 
 
+class _ExternalPostgres:
+    """Stands in for a PostgreSQL container when ``SAGAZ_TEST_POSTGRES_URL`` is set."""
+
+    def __init__(self, url: str) -> None:
+        self._url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+
+    def get_connection_url(self) -> str:
+        return self._url
+
+
 @pytest.fixture(scope="session")
-def postgres_container(container_manager):
-    """PostgreSQL container (started lazily on first use)."""
+def postgres_container(request):
+    """PostgreSQL container (started lazily on first use).
+
+    Set ``SAGAZ_TEST_POSTGRES_URL`` to a superuser URL of an existing server to
+    run the PostgreSQL tests without Docker (tests create their own databases).
+    """
+    import os
+
+    if url := os.environ.get("SAGAZ_TEST_POSTGRES_URL"):
+        return _ExternalPostgres(url)
+    container_manager = request.getfixturevalue("container_manager")
     if not container_manager:
         pytest.skip("testcontainers not available")
     container_manager.ensure_postgres()
@@ -167,7 +186,7 @@ def rabbitmq_container(container_manager):
 
 @pytest.fixture(scope="session")
 def localstack_container(container_manager):
-    """LocalStack S3 container (started lazily on first use)."""
+    """LocalStack container with S3 and KMS (started lazily on first use)."""
     if not container_manager:
         pytest.skip("testcontainers not available")
     container_manager.ensure_localstack()
@@ -299,3 +318,72 @@ async def isolated_postgres_url(postgres_container):
             await admin.execute(f'DROP DATABASE IF EXISTS "{database_name}"')
         finally:
             await admin.close()
+
+
+@pytest.fixture
+async def app_role_url(isolated_postgres_url):
+    """DSN of a fresh NOSUPERUSER NOBYPASSRLS role that may create tables in the test database.
+
+    Tables it creates are owned by it, so FORCE row-level security applies to it (ADR-020).
+    """
+    from urllib.parse import urlsplit, urlunsplit
+    from uuid import uuid4
+
+    asyncpg = pytest.importorskip("asyncpg")
+
+    role = f"sagaz_app_{uuid4().hex[:8]}"
+    password = uuid4().hex
+    admin = await asyncpg.connect(isolated_postgres_url)
+    try:
+        await admin.execute(
+            f"CREATE ROLE {role} LOGIN PASSWORD '{password}' NOSUPERUSER NOBYPASSRLS"
+        )
+        await admin.execute(f"GRANT ALL ON SCHEMA public TO {role}")
+    finally:
+        await admin.close()
+
+    parts = urlsplit(isolated_postgres_url)
+    netloc = f"{role}:{password}@{parts.hostname}:{parts.port}"
+    try:
+        yield urlunsplit(parts._replace(netloc=netloc))
+    finally:
+        admin = await asyncpg.connect(isolated_postgres_url)
+        try:
+            await admin.execute(
+                "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = $1", role
+            )
+            await admin.execute(f"DROP OWNED BY {role}")
+            await admin.execute(f"DROP ROLE {role}")
+        finally:
+            await admin.close()
+
+
+@pytest.fixture(scope="module")
+def logical_postgres_dsn():
+    """Superuser DSN of a PostgreSQL with ``wal_level=logical`` (CDC tests, ADR-011).
+
+    ``SAGAZ_CDC_PG_DSN`` points at an existing server instead of starting a container.
+    """
+    import os
+
+    dsn = os.environ.get("SAGAZ_CDC_PG_DSN")
+    if dsn:
+        yield dsn
+        return
+    if os.environ.get("SAGAZ_NO_CONTAINERS"):
+        pytest.skip("containers disabled")
+    try:
+        from testcontainers.postgres import PostgresContainer
+    except ImportError:
+        pytest.skip("testcontainers not available")
+    container = PostgresContainer("postgres:16-alpine").with_command(
+        "postgres -c wal_level=logical -c max_replication_slots=4 -c max_wal_senders=4"
+    )
+    try:
+        container.start()
+    except Exception as exc:  # Docker unavailable
+        pytest.skip(f"PostgreSQL container unavailable: {exc}")
+    try:
+        yield container.get_connection_url().replace("postgresql+psycopg2://", "postgresql://")
+    finally:
+        container.stop()

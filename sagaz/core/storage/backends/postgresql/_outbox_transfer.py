@@ -12,6 +12,11 @@ from sagaz.core.storage.backends.postgresql._outbox_base import PostgreSQLOutbox
 from sagaz.core.storage.backends.postgresql._outbox_rows import (
     PostgreSQLOutboxRowMappingMixin,
 )
+from sagaz.core.storage.backends.postgresql._outbox_tenancy import (
+    scoped_connection,
+    tenant_param,
+    tenant_predicate,
+)
 from sagaz.core.storage.interfaces.outbox import OutboxStorageError
 
 
@@ -20,38 +25,30 @@ class PostgreSQLOutboxTransferMixin(PostgreSQLOutboxRowMappingMixin, PostgreSQLO
 
     async def count(self) -> int:
         """Count total events."""
-        if not self._pool:
-            # If not initialized, maybe zero? Or raise error?
-            # Assuming initialized for now as it's required for other ops
-            msg = "Storage not initialized"
-            raise OutboxStorageError(msg)
-
-        async with self._pool.acquire() as conn:
+        async with scoped_connection(self._pool) as conn:
             count = await conn.fetchval(
-                """
+                f"""
                 SELECT
-                    (SELECT COUNT(*) FROM saga_outbox)
-                    + (SELECT COUNT(*) FROM saga_outbox_archive)
-                """
+                    (SELECT COUNT(*) FROM saga_outbox WHERE {tenant_predicate(1)})
+                    + (SELECT COUNT(*) FROM saga_outbox_archive WHERE {tenant_predicate(1)})
+                """,
+                tenant_param(),
             )
             return int(count)
 
     async def export_all(self):
         """Export active and archived outbox records for transfer."""
-        if not self._pool:
-            msg = "Storage not initialized"
-            raise OutboxStorageError(msg)
-
-        async with self._pool.acquire() as conn:
+        async with scoped_connection(self._pool) as conn:
             async with conn.transaction():
                 try:
                     cursor = conn.cursor(
-                        """
-                        SELECT * FROM saga_outbox
+                        f"""
+                        SELECT * FROM saga_outbox WHERE {tenant_predicate(1)}
                         UNION ALL
-                        SELECT * FROM saga_outbox_archive
+                        SELECT * FROM saga_outbox_archive WHERE {tenant_predicate(1)}
                         ORDER BY event_id
-                        """
+                        """,
+                        tenant_param(),
                     )
                     async for row in cursor:
                         event = self._row_to_event(row)
@@ -64,11 +61,7 @@ class PostgreSQLOutboxTransferMixin(PostgreSQLOutboxRowMappingMixin, PostgreSQLO
         """Import without overwriting existing active or archived state."""
         event = OutboxEvent.from_dict(record)
 
-        if not self._pool:
-            msg = "Storage not initialized"
-            raise OutboxStorageError(msg)
-
-        async with self._pool.acquire() as conn:
+        async with scoped_connection(self._pool) as conn:
             async with conn.transaction():
                 # Serialize concurrent migration imports for the same event.
                 await conn.fetchval(
@@ -77,22 +70,24 @@ class PostgreSQLOutboxTransferMixin(PostgreSQLOutboxRowMappingMixin, PostgreSQLO
                 )
 
                 row = await conn.fetchrow(
-                    """
+                    f"""
                     SELECT * FROM saga_outbox
-                    WHERE event_id = $1
+                    WHERE event_id = $1 AND {tenant_predicate(2)}
                     FOR UPDATE
                     """,
                     event.event_id,
+                    tenant_param(),
                 )
 
                 if row is None:
                     row = await conn.fetchrow(
-                        """
+                        f"""
                         SELECT * FROM saga_outbox_archive
-                        WHERE event_id = $1
+                        WHERE event_id = $1 AND {tenant_predicate(2)}
                         FOR UPDATE
                         """,
                         event.event_id,
+                        tenant_param(),
                     )
 
                 if row is not None:

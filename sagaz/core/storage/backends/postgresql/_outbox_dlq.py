@@ -9,7 +9,11 @@ from sagaz.core.storage.backends.postgresql._outbox_base import PostgreSQLOutbox
 from sagaz.core.storage.backends.postgresql._outbox_rows import (
     PostgreSQLOutboxRowMappingMixin,
 )
-from sagaz.core.storage.interfaces.outbox import OutboxStorageError
+from sagaz.core.storage.backends.postgresql._outbox_tenancy import (
+    scoped_connection,
+    tenant_param,
+    tenant_predicate,
+)
 
 
 class PostgreSQLOutboxDeadLetterMixin(PostgreSQLOutboxRowMappingMixin, PostgreSQLOutboxMixinBase):
@@ -20,19 +24,15 @@ class PostgreSQLOutboxDeadLetterMixin(PostgreSQLOutboxRowMappingMixin, PostgreSQ
         limit: int = 100,
     ) -> list[OutboxEvent]:
         """Get events in dead letter queue."""
-        if not self._pool:
-            msg = "Storage not initialized"
-            raise OutboxStorageError(msg)
-
-        query = """
+        query = f"""
             SELECT * FROM saga_outbox
-            WHERE status = 'dead_letter'
+            WHERE status = 'dead_letter' AND {tenant_predicate(2)}
             ORDER BY created_at DESC
             LIMIT $1
         """
 
-        async with self._pool.acquire() as conn:
-            rows = await conn.fetch(query, limit)
+        async with scoped_connection(self._pool) as conn:
+            rows = await conn.fetch(query, limit, tenant_param())
             return [self._row_to_event(row) for row in rows]
 
     async def requeue_dead_letter_event(self, event_id: str, force: bool = False) -> OutboxEvent:
@@ -60,22 +60,23 @@ class PostgreSQLOutboxDeadLetterMixin(PostgreSQLOutboxRowMappingMixin, PostgreSQ
 
     async def purge_dead_letter_events(self, older_than: timedelta | None = None) -> int:
         """Permanently remove dead-letter events."""
-        if not self._pool:
-            msg = "Storage not initialized"
-            raise OutboxStorageError(msg)
-
-        async with self._pool.acquire() as conn:
+        async with scoped_connection(self._pool) as conn:
             if older_than is None:
-                result = await conn.execute("DELETE FROM saga_outbox WHERE status = 'dead_letter'")
+                result = await conn.execute(
+                    f"DELETE FROM saga_outbox WHERE status = 'dead_letter' AND {tenant_predicate(1)}",
+                    tenant_param(),
+                )
             else:
                 cutoff = datetime.now(UTC) - older_than
                 result = await conn.execute(
-                    """
+                    f"""
                     DELETE FROM saga_outbox
                     WHERE status = 'dead_letter'
                     AND dead_letter_at IS NOT NULL
                     AND dead_letter_at < $1
+                    AND {tenant_predicate(2)}
                     """,
                     cutoff,
+                    tenant_param(),
                 )
             return int(result.split()[-1]) if result.startswith("DELETE") else 0

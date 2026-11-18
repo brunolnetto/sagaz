@@ -213,3 +213,10 @@ __marimo__/
 # MkDocs build output
 site/
 node_modules/
+
+# Terraform (sagaz deploy infra modules); .terraform.lock.hcl is committed
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfplan

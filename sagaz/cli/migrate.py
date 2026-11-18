@@ -14,6 +14,7 @@ import asyncio
 import click
 
 from sagaz.core.storage import create_storage_manager
+from sagaz.core.tenant import system_scope
 from sagaz.storage.migration import SagaStorageMigrator
 
 
@@ -43,7 +44,10 @@ def migrate_run(
     on_error: str,
     dry_run: bool,
 ) -> None:
-    """Transfer all saga and outbox data from SOURCE to TARGET backend."""
+    """Transfer all saga and outbox data from SOURCE to TARGET backend.
+
+    Every tenant is migrated, each record into its own tenant.
+    """
     if dry_run:
         click.echo(f"[dry-run] Would migrate from {source} to {target}.")
         click.echo(f"[dry-run] batch_size={batch_size}, validate={validate}, on_error={on_error}")
@@ -86,13 +90,15 @@ def migrate_run(
 
                 click.echo("Migration complete.")
 
-    asyncio.run(_run())
+    # Infrastructure command: span every tenant (ADR-020).
+    with system_scope():
+        asyncio.run(_run())
 
 
 @migrate_cmd.command("status")
 @click.option("--source", required=True, help="Source storage backend URL.")
 def migrate_status(source: str) -> None:
-    """Show the current record counts in SOURCE backend."""
+    """Show the current record counts in SOURCE backend, across all tenants."""
 
     async def _run() -> None:
         click.echo(f"Fetching record counts from {source} …")
@@ -102,4 +108,6 @@ def migrate_status(source: str) -> None:
             click.echo(f"  sagas={saga_count}")
             click.echo(f"  outbox_events={event_count}")
 
-    asyncio.run(_run())
+    # Infrastructure command: span every tenant (ADR-020).
+    with system_scope():
+        asyncio.run(_run())

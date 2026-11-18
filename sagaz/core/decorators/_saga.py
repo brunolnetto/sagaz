@@ -19,6 +19,12 @@ from sagaz.core.decorators._steps import (
 from sagaz.core.decorators._visualization import _DecoratorVisualizationMixin
 from sagaz.core.execution.graph import CompensationType, SagaExecutionGraph
 from sagaz.core.logger import get_logger
+from sagaz.core.tenant import (
+    TenantContext,
+    ensure_tenant_context_matches,
+    resolve_tenant,
+    tenant_execution,
+)
 
 logger = get_logger("sagaz.core.decorators")
 
@@ -259,7 +265,11 @@ class Saga(_DecoratorPivotMixin, _DecoratorOrderingMixin, _DecoratorVisualizatio
         return self._step_registry.get(name)
 
     async def run(
-        self, initial_context: dict[str, Any], saga_id: str | None = None
+        self,
+        initial_context: dict[str, Any],
+        saga_id: str | None = None,
+        *,
+        tenant_context: TenantContext | str | None = None,
     ) -> dict[str, Any]:
         """
         Execute this saga.
@@ -267,6 +277,10 @@ class Saga(_DecoratorPivotMixin, _DecoratorOrderingMixin, _DecoratorVisualizatio
         Args:
             initial_context: Initial data for the saga
             saga_id: Optional saga identifier for tracing
+            tenant_context: Run as this tenant (ADR-020). Storage is scoped to
+                it, its quotas apply, and ``ctx["tenant_id"]`` is set. A tenant
+                id is resolved through ``SagaConfig.tenant_registry`` when one
+                is configured.
 
         Returns:
             Final context with all step results merged
@@ -274,8 +288,14 @@ class Saga(_DecoratorPivotMixin, _DecoratorOrderingMixin, _DecoratorVisualizatio
         Raises:
             Exception: If saga fails (compensations will be attempted first)
         """
-        engine = ExecutionEngine(self)
-        return await engine.run(initial_context, saga_id)
+        if tenant_context is None:
+            return await ExecutionEngine(self).run(initial_context, saga_id)
+        registry = getattr(self._config, "tenant_registry", None)
+        tenant = resolve_tenant(tenant_context, registry)
+        ensure_tenant_context_matches(initial_context, tenant.tenant_id)
+        async with tenant_execution(tenant):
+            context = {**initial_context, "tenant_id": tenant.tenant_id}
+            return await ExecutionEngine(self).run(context, saga_id)
 
     # Backward compatibility methods (private methods moved to ExecutionEngine)
     def _initialize_run(self, initial_context: dict[str, Any], saga_id: str | None) -> None:

@@ -17,6 +17,9 @@ class OutboxSagaListener(SagaListener):
 
     Events are published with topic format: {saga_name}.{event_type}
 
+    Events belong to the tenant scope the saga runs in (ADR-020): outbox
+    storage assigns the current tenant on insert.
+
     Example:
         >>> from sagaz.core.outbox import PostgreSQLOutboxStorage
         >>> storage = PostgreSQLOutboxStorage(conn_string)

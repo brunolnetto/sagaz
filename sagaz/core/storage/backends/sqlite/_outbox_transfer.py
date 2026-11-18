@@ -11,6 +11,7 @@ from typing import Any
 from sagaz.core.outbox.types import OutboxEvent
 from sagaz.core.storage.backends.sqlite._outbox_base import SQLiteOutboxMixinBase
 from sagaz.core.storage.backends.sqlite._outbox_rows import SQLiteOutboxRowMappingMixin
+from sagaz.core.storage.backends.sqlite._outbox_tenancy import TENANT_FILTER, tenant_params
 from sagaz.core.storage.interfaces.outbox import OutboxStorageError
 
 
@@ -20,14 +21,18 @@ class SQLiteOutboxTransferMixin(SQLiteOutboxRowMappingMixin, SQLiteOutboxMixinBa
     async def count(self) -> int:
         """Count total events."""
         conn = await self._get_connection()
-        cursor = await conn.execute("SELECT COUNT(*) FROM outbox_events")
+        cursor = await conn.execute(
+            f"SELECT COUNT(*) FROM outbox_events WHERE {TENANT_FILTER}", tenant_params()
+        )
         row = await cursor.fetchone()
         return row[0] if row else 0
 
     async def export_all(self):
         """Export all records for transfer."""
         conn = await self._get_connection()
-        cursor = await conn.execute("SELECT * FROM outbox_events ORDER BY event_id")
+        cursor = await conn.execute(
+            f"SELECT * FROM outbox_events WHERE {TENANT_FILTER} ORDER BY event_id", tenant_params()
+        )
 
         async for row in cursor:
             event = self._row_to_event(row)

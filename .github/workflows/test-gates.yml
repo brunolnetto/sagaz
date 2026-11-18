@@ -38,7 +38,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v10.3.3
         with:
-          version: "0.13.7"
+          version: "0.13.8"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
@@ -101,7 +101,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v10.3.3
         with:
-          version: "0.13.7"
+          version: "0.13.8"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
@@ -154,62 +154,59 @@ jobs:
           uv pip install -e ".[prometheus]"
           uv sync --group dev
 
-      - name: Run performance tests (local config)
+      - name: Run benchmark (local profile)
         id: perf_local
         run: |
           source .venv/bin/activate
-          echo "## Performance Test Results (Local Config)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          pytest tests/test_performance.py -v -s -m "performance and not slow" --tb=short 2>&1 | tee perf_output.txt
-          cat perf_output.txt >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          sagaz benchmark --profile local --output bench-local.json
         continue-on-error: true
 
-      - name: Extract metrics
-        id: metrics
-        run: |
-          THROUGHPUT=$(grep -oP 'Throughput: \K[\d.]+' perf_output.txt | head -1 || echo "N/A")
-          P95=$(grep -oP 'P95.*: \K[\d.]+' perf_output.txt | head -1 || echo "N/A")
-          P99=$(grep -oP 'P99.*: \K[\d.]+' perf_output.txt | head -1 || echo "N/A")
-
-          echo "throughput=$THROUGHPUT" >> $GITHUB_OUTPUT
-          echo "p95=$P95" >> $GITHUB_OUTPUT
-          echo "p99=$P99" >> $GITHUB_OUTPUT
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Key Metrics" >> $GITHUB_STEP_SUMMARY
-          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Throughput | ${THROUGHPUT} sagas/sec |" >> $GITHUB_STEP_SUMMARY
-          echo "| P95 Latency | ${P95} ms |" >> $GITHUB_STEP_SUMMARY
-          echo "| P99 Latency | ${P99} ms |" >> $GITHUB_STEP_SUMMARY
-
-      - name: Run stress tests
+      - name: Run benchmark (stress profile)
         if: github.event_name == 'schedule' || github.event.inputs.config == 'production'
         run: |
           source .venv/bin/activate
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## Stress Test Results" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          pytest tests/test_performance.py -v -s -m stress --tb=short 2>&1 | tee -a $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          sagaz benchmark --profile stress --output bench-stress.json
         continue-on-error: true
 
+      - name: Summarize benchmark
+        if: always()
+        run: |
+          source .venv/bin/activate
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, pathlib
+          print("## Saga benchmark")
+          print("| Profile | Storage | Sagas | Concurrency | Failed | Sagas/s | p50 ms | p95 ms | p99 ms |")
+          print("|---|---|---:|---:|---:|---:|---:|---:|---:|")
+          for name in ("bench-local.json", "bench-stress.json"):
+              path = pathlib.Path(name)
+              if not path.exists():
+                  continue
+              for r in json.loads(path.read_text())["results"]:
+                  print(f"| {r['profile']} | {r['storage']} | {r['sagas']} | {r['concurrency']} | "
+                        f"{r['failed']} | {r['throughput']} | {r['p50_ms']} | {r['p95_ms']} | {r['p99_ms']} |")
+          PY
+
       - name: Upload benchmark results
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: benchmark-results
-          path: perf_output.txt
+          path: bench-*.json
+          if-no-files-found: ignore
           retention-days: 30
 
       - name: Check for regressions
         run: |
-          THROUGHPUT=$(grep -oP 'Throughput: \K[\d.]+' perf_output.txt | head -1)
-          if [ ! -z "$THROUGHPUT" ]; then
-            if (( $(echo "$THROUGHPUT < 30" | bc -l) )); then
-              echo "::error::Performance regression detected! Throughput: $THROUGHPUT sagas/sec (min: 30)"
-              exit 1
-            fi
-          fi
-          echo "Performance check passed"
+          source .venv/bin/activate
+          python - <<'PY'
+          import json, pathlib, sys
+          path = pathlib.Path("bench-local.json")
+          if not path.exists():
+              sys.exit("::error::benchmark produced no results")
+          (result,) = json.loads(path.read_text())["results"]
+          if result["failed"]:
+              sys.exit(f"::error::{result['failed']} saga(s) failed during the benchmark")
+          if result["throughput"] < 30:
+              sys.exit(f"::error::Performance regression: {result['throughput']} sagas/sec (min: 30)")
+          print(f"Performance check passed: {result['throughput']} sagas/sec")
+          PY

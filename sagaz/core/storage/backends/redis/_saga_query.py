@@ -2,13 +2,14 @@
 
 from typing import TYPE_CHECKING, Any
 
+from sagaz.core.storage._tenancy import TENANT_FIELD
+from sagaz.core.storage.backends.redis._saga_tenancy import _decode, _RedisSagaTenancyMixin
+from sagaz.core.tenant import DEFAULT_TENANT
 from sagaz.core.types import SagaStatus, SagaStepStatus
 
 
-class _RedisSagaQueryMixin:
+class _RedisSagaQueryMixin(_RedisSagaTenancyMixin):
     """Resolves saga IDs from the status/name indexes and builds summaries."""
-
-    key_prefix: str
 
     if TYPE_CHECKING:
 
@@ -46,13 +47,14 @@ class _RedisSagaQueryMixin:
         return {s.decode() if isinstance(s, bytes) else s for s in name_ids}
 
     async def _get_all_saga_ids(self, redis_client) -> set:
-        """Get all saga IDs (no filters)."""
-        pattern = f"{self.key_prefix}*"
-        keys = await redis_client.keys(pattern)
+        """Get all saga IDs of the current tenant (no filters)."""
+        prefix = self._tenant_prefix()
+        foreign = self._foreign_tenant_key() if prefix == self.key_prefix else None
+        keys = [_decode(key) for key in await redis_client.keys(f"{prefix}*")]
         return {
-            key.decode().replace(self.key_prefix, "")
+            key[len(prefix) :]
             for key in keys
-            if ":step:" not in key.decode() and ":index:" not in key.decode()
+            if ":step:" not in key and ":index:" not in key and not (foreign and foreign.match(key))
         }
 
     async def _build_saga_summaries(self, saga_id_list: list[str]) -> list[dict[str, Any]]:
@@ -78,4 +80,5 @@ class _RedisSagaQueryMixin:
                 for step in saga_data["steps"]
                 if step.get("status") == SagaStepStatus.COMPLETED.value
             ),
+            TENANT_FIELD: saga_data.get(TENANT_FIELD, DEFAULT_TENANT),
         }

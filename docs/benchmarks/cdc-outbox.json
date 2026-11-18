@@ -1,0 +1,74 @@
+[
+  {
+    "mode": "cdc",
+    "events": 20000,
+    "target_rate": 1000.0,
+    "produced_rate": 1008.8,
+    "published": 20000,
+    "throughput": 1008.6,
+    "lag_p50_ms": 8.33,
+    "lag_p95_ms": 33.21,
+    "lag_p99_ms": 109.59,
+    "lag_max_ms": 194.0
+  },
+  {
+    "mode": "polling",
+    "events": 20000,
+    "target_rate": 1000.0,
+    "produced_rate": 1004.2,
+    "published": 20000,
+    "throughput": 952.2,
+    "lag_p50_ms": 484.24,
+    "lag_p95_ms": 1158.04,
+    "lag_p99_ms": 1502.25,
+    "lag_max_ms": 1585.89
+  },
+  {
+    "mode": "cdc",
+    "events": 20000,
+    "target_rate": 5000.0,
+    "produced_rate": 5005.5,
+    "published": 20000,
+    "throughput": 4990.1,
+    "lag_p50_ms": 13.23,
+    "lag_p95_ms": 56.85,
+    "lag_p99_ms": 142.23,
+    "lag_max_ms": 223.14
+  },
+  {
+    "mode": "polling",
+    "events": 20000,
+    "target_rate": 5000.0,
+    "produced_rate": 5028.7,
+    "published": 20000,
+    "throughput": 1351.0,
+    "lag_p50_ms": 6389.25,
+    "lag_p95_ms": 10331.91,
+    "lag_p99_ms": 10814.39,
+    "lag_max_ms": 10904.96
+  },
+  {
+    "mode": "cdc",
+    "events": 20000,
+    "target_rate": 0.0,
+    "produced_rate": 7536.4,
+    "published": 20000,
+    "throughput": 7444.3,
+    "lag_p50_ms": 33.63,
+    "lag_p95_ms": 62.52,
+    "lag_p99_ms": 74.46,
+    "lag_max_ms": 79.05
+  },
+  {
+    "mode": "polling",
+    "events": 20000,
+    "target_rate": 0.0,
+    "produced_rate": 20809.8,
+    "published": 20000,
+    "throughput": 1476.4,
+    "lag_p50_ms": 6877.68,
+    "lag_p95_ms": 12108.78,
+    "lag_p99_ms": 12616.71,
+    "lag_max_ms": 12638.42
+  }
+]

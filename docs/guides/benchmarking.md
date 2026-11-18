@@ -1,6 +1,6 @@
 # Benchmarking Guide
 
-Measure and optimizesagaz outbox worker performance.
+Measure and optimize sagaz performance: the saga engine (`sagaz benchmark`) and the outbox worker.
 
 ## Overview
 
@@ -12,7 +12,32 @@ This guide covers:
 
 ---
 
-## Quick Benchmark
+## Saga engine: `sagaz benchmark`
+
+Measures saga throughput and latency with the installed sagaz. It works from any
+installation, with no repository checkout or test suite. It runs a three-step saga
+(reserve → charge → notify) many times with bounded concurrency:
+
+```bash
+sagaz benchmark --quick                       # 20 sagas, sanity check
+sagaz benchmark                               # local: 500 sagas, 20 at a time
+sagaz benchmark --profile production          # 5,000 x 100
+sagaz benchmark --profile stress              # 20,000 x 500
+sagaz benchmark --profile full --output results.json
+sagaz benchmark --storage-url postgresql://user:pass@db/sagas   # or SAGAZ_STORAGE_URL
+```
+
+It reports sagas per second and p50/p95/p99 latency per profile. Storage is in-memory
+unless `--storage-url` is given, so you can compare backends. The sagas the benchmark
+creates there are deleted afterwards. The command exits with status 1 if any saga
+failed.
+
+For the multi-tenancy overhead benchmark, see
+[Multi-tenancy overhead](../benchmarks/tenancy-overhead.md).
+
+---
+
+## Outbox worker: quick benchmark (Kubernetes)
 
 ### Prerequisites
 

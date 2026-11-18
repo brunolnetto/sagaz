@@ -1,0 +1,12 @@
+# Patterns to ignore when packaging the chart (helm package).
+.DS_Store
+.git/
+*.swp
+*.bak
+*.tmp
+*.orig
+*~
+.idea/
+.vscode/
+__pycache__/
+ci/

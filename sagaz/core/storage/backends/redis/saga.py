@@ -13,6 +13,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 from sagaz.core.exceptions import MissingDependencyError
+from sagaz.core.storage._tenancy import TENANT_FIELD, write_tenant
+from sagaz.core.storage._tenant_records import record_tenant_scope
 from sagaz.core.storage.backends.redis._saga_maintenance import _RedisSagaMaintenanceMixin
 from sagaz.core.storage.backends.redis._saga_query import _RedisSagaQueryMixin
 from sagaz.core.storage.base import (
@@ -21,6 +23,7 @@ from sagaz.core.storage.base import (
     SagaStorageConnectionError,
     SagaStorageError,
 )
+from sagaz.core.tenant import is_system_scope, tenant_scope
 from sagaz.core.types import SagaStatus, SagaStepStatus
 
 try:
@@ -38,6 +41,11 @@ class RedisSagaStorage(_RedisSagaQueryMixin, _RedisSagaMaintenanceMixin, SagaSto
 
     Uses Redis for persistent, distributed saga state storage.
     Supports automatic cleanup and clustering.
+
+    Tenant isolation (ADR-020): each tenant has its own keyspace (see
+    :mod:`._saga_tenancy`), so tenants may share saga ids. In the system scope,
+    operations run against every tenant; by saga id they act on every tenant's
+    saga with that id, and ``load_saga_state`` returns the first one found.
 
     Example:
         >>> async with RedisSagaStorage("redis://localhost:6379") as storage:
@@ -96,16 +104,16 @@ class RedisSagaStorage(_RedisSagaQueryMixin, _RedisSagaMaintenanceMixin, SagaSto
         return self._redis
 
     def _saga_key(self, saga_id: str) -> str:
-        """Generate Redis key for saga"""
-        return f"{self.key_prefix}{saga_id}"
+        """Generate Redis key for saga (in the current tenant's keyspace)"""
+        return f"{self._tenant_prefix()}{saga_id}"
 
     def _step_key(self, saga_id: str, step_name: str) -> str:
         """Generate Redis key for step"""
-        return f"{self.key_prefix}{saga_id}:step:{step_name}"
+        return f"{self._tenant_prefix()}{saga_id}:step:{step_name}"
 
     def _index_key(self, index_type: str) -> str:
         """Generate Redis key for indexes"""
-        return f"{self.key_prefix}index:{index_type}"
+        return f"{self._tenant_prefix()}index:{index_type}"
 
     async def save_saga_state(
         self,
@@ -122,6 +130,7 @@ class RedisSagaStorage(_RedisSagaQueryMixin, _RedisSagaMaintenanceMixin, SagaSto
         redis_client = await self._get_redis()
 
         saga_data = {
+            TENANT_FIELD: write_tenant(),
             "saga_id": saga_id,
             "saga_name": saga_name,
             "status": status.value,
@@ -156,6 +165,9 @@ class RedisSagaStorage(_RedisSagaQueryMixin, _RedisSagaMaintenanceMixin, SagaSto
 
     async def load_saga_state(self, saga_id: str) -> dict[str, Any] | None:
         """Load saga state from Redis"""
+        if is_system_scope():
+            found = await self._for_each_tenant(self.load_saga_state, saga_id)
+            return next((data for _, data in found if data), None)
 
         redis_client = await self._get_redis()
         saga_key = self._saga_key(saga_id)
@@ -167,13 +179,16 @@ class RedisSagaStorage(_RedisSagaQueryMixin, _RedisSagaMaintenanceMixin, SagaSto
         try:
             saga_data = json.loads(saga_data_json)
             saga_data["configuration"] = saga_data.get("configuration") or [saga_data["status"]]
-            return saga_data  # type: ignore[no-any-return]
+            return self._with_tenant(saga_data)
         except json.JSONDecodeError as e:
             msg = f"Failed to decode saga data for {saga_id}: {e}"
             raise SagaStorageError(msg) from e
 
     async def delete_saga_state(self, saga_id: str) -> bool:
         """Delete saga state from Redis"""
+        if is_system_scope():
+            deleted = await self._for_each_tenant(self.delete_saga_state, saga_id)
+            return any(result for _, result in deleted)
 
         redis_client = await self._get_redis()
 
@@ -207,6 +222,13 @@ class RedisSagaStorage(_RedisSagaQueryMixin, _RedisSagaMaintenanceMixin, SagaSto
         offset: int = 0,
     ) -> list[dict[str, Any]]:
         """List sagas with filtering"""
+        if is_system_scope():
+            per_tenant = await self._for_each_tenant(
+                self.list_sagas, status, saga_name, limit=offset + limit
+            )
+            merged = [summary for _, summaries in per_tenant for summary in summaries]
+            merged.sort(key=lambda x: x["created_at"], reverse=True)
+            return merged[offset : offset + limit]
 
         redis_client = await self._get_redis()
         saga_ids = await self._get_filtered_saga_ids(redis_client, status, saga_name)
@@ -231,6 +253,12 @@ class RedisSagaStorage(_RedisSagaQueryMixin, _RedisSagaMaintenanceMixin, SagaSto
         executed_at: datetime | None = None,
     ) -> None:
         """Update individual step state"""
+        if is_system_scope():
+            await self._update_step_in_every_tenant(
+                saga_id, step_name, status, result, error, executed_at
+            )
+            return
+
         saga_data = await self.load_saga_state(saga_id)
         if not saga_data:
             msg = f"Saga {saga_id} not found"
@@ -242,6 +270,18 @@ class RedisSagaStorage(_RedisSagaQueryMixin, _RedisSagaMaintenanceMixin, SagaSto
 
         saga_data["updated_at"] = datetime.now(UTC).isoformat()
         await self._save_updated_saga(saga_data)
+
+    async def _update_step_in_every_tenant(self, saga_id: str, *update: Any) -> None:
+        """System scope: update the step in every tenant's saga with ``saga_id``."""
+        owners = [
+            t for t, data in await self._for_each_tenant(self.load_saga_state, saga_id) if data
+        ]
+        if not owners:
+            msg = f"Saga {saga_id} not found"
+            raise SagaNotFoundError(msg)
+        for tenant in owners:
+            with tenant_scope(tenant):
+                await self.update_step_state(saga_id, *update)
 
     def _update_step_in_data(
         self,
@@ -289,23 +329,30 @@ class RedisSagaStorage(_RedisSagaQueryMixin, _RedisSagaMaintenanceMixin, SagaSto
         await self.close()
 
     async def export_all(self):
-        """Export all records for transfer."""
+        """Export all records of the current scope, each with its ``tenant_id``."""
         redis_client = await self._get_redis()
-        saga_ids = await self._get_all_saga_ids(redis_client)
+        tenants = await self._all_tenants() if is_system_scope() else [write_tenant()]
 
-        for saga_id in sorted(saga_ids):
-            saga_data = await self.load_saga_state(saga_id)
-            if saga_data:
-                yield saga_data
+        # Scopes are entered around each await only, never across a yield, so
+        # the consumer of this generator keeps its own scope.
+        for tenant in tenants:
+            with tenant_scope(tenant):
+                saga_ids = await self._get_all_saga_ids(redis_client)
+            for saga_id in sorted(saga_ids):
+                with tenant_scope(tenant):
+                    saga_data = await self.load_saga_state(saga_id)
+                if saga_data:
+                    yield saga_data
 
     async def import_record(self, record: dict[str, Any]) -> None:
-        """Import a single record from transfer."""
-        await self.save_saga_state(
-            saga_id=record["saga_id"],
-            saga_name=record["saga_name"],
-            status=SagaStatus(record["status"]),
-            steps=record.get("steps", []),
-            context=record.get("context", {}),
-            metadata=record.get("metadata"),
-            configuration=record.get("configuration") or [record["status"]],
-        )
+        """Import a single record from transfer, into the record's own tenant."""
+        with record_tenant_scope(record):
+            await self.save_saga_state(
+                saga_id=record["saga_id"],
+                saga_name=record["saga_name"],
+                status=SagaStatus(record["status"]),
+                steps=record.get("steps", []),
+                context=record.get("context", {}),
+                metadata=record.get("metadata"),
+                configuration=record.get("configuration") or [record["status"]],
+            )

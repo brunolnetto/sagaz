@@ -69,6 +69,9 @@ class SagaConfig:
     logging: bool | SagaListener = True
 
     # Saga execution defaults
+    # Multi-tenancy (ADR-020): resolves tenant ids given to Saga.run(tenant_context=...)
+    tenant_registry: Any | None = None  # TenantRegistry, avoiding circular import
+
     default_timeout: float = 60.0
     default_max_retries: int = 3
     failure_strategy: str = "FAIL_FAST_WITH_GRACE"
@@ -177,6 +180,7 @@ class SagaConfig:
             default_timeout=self.default_timeout,
             default_max_retries=self.default_max_retries,
             failure_strategy=self.failure_strategy,
+            tenant_registry=self.tenant_registry,
         )
 
     def with_broker(self, broker: BaseBroker, outbox_storage=None) -> SagaConfig:
@@ -191,6 +195,7 @@ class SagaConfig:
             default_timeout=self.default_timeout,
             default_max_retries=self.default_max_retries,
             failure_strategy=self.failure_strategy,
+            tenant_registry=self.tenant_registry,
         )
 
     @classmethod

@@ -52,6 +52,8 @@ class _StorageBackendInitMixin:
             msg = "asyncpg"
             raise MissingDependencyError(msg, "PostgreSQL storage backend") from exc
 
+        from sagaz.core.storage.backends.postgresql._tenancy import POOL_OPTIONS
+
         pool_min = self._kwargs.get("pool_min_size", 5)
         pool_max = self._kwargs.get("pool_max_size", 20)
 
@@ -59,6 +61,7 @@ class _StorageBackendInitMixin:
             self._saga_url,
             min_size=pool_min,
             max_size=pool_max,
+            **POOL_OPTIONS,
         )
 
         from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage

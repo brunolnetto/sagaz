@@ -2,7 +2,12 @@
 
 ## Status
 
-**Accepted** | Date: 2026-01-05 | Implemented: 2026-04-08 | Priority: Medium | Target: v1.4.0 | PR: #68
+**Accepted** | Date: 2026-01-05 | Phase 1 implemented: 2026-11 (v1.9.0, #54) | Phase 2 implemented: 2026-11 (encryption, benchmark) | Priority: Medium
+
+> PR #68 was closed without implementing this ADR. What shipped is described in
+> [Implementation (v1.9.0)](#implementation-v190); the other sections are the original
+> proposal and differ from it in places (no per-tenant databases or schemas, no
+> `saga_instances` table).
 
 ## Dependencies
 
@@ -512,7 +517,108 @@ await saga.run(context, tenant_context=eu_tenant)
 
 **Result:** Automatic data residency compliance.
 
-## Implementation Phases
+## Implementation (v1.9.0)
+
+Phase 1 of #54. User guide: [Multi-tenancy](../../guides/multi-tenancy.md).
+
+### Tenant scope
+
+- The current tenant is a `contextvars.ContextVar` (`sagaz.core.tenant`), so no
+  storage or saga signature changed. `tenant_scope(id)` sets it; code that never sets
+  one runs as the implicit **`default`** tenant.
+- `Saga.run(ctx, tenant_context=...)` and `SagaOrchestrator(tenant_id=...)` run a saga
+  in its tenant's scope, set `ctx["tenant_id"]`, and reject an initial context naming a
+  different tenant. A tenant id is resolved through `SagaConfig.tenant_registry`
+  when one is configured.
+- Tenant ids match `[a-z0-9][a-z0-9._-]{0,62}`, safe in Redis keys and PostgreSQL
+  settings.
+- **System scope** (`system_scope()`, internally the tenant `*`) spans every tenant. It
+  is used by infrastructure only: the outbox worker, `sagaz migrate`, transfers and
+  exports. Records written in it keep their own `tenant_id`.
+
+### Storage isolation
+
+Row-level filtering in a shared schema (option 1 below); no database or schema per
+tenant.
+
+| Backend | Saga storage | Outbox |
+|---|---|---|
+| PostgreSQL | `tenant_id` column, key `(tenant_id, saga_id)`, explicit filters **and** a FORCE row-level-security policy `sagaz_tenant_isolation` on `app.tenant_id`, set on every connection sagaz acquires | Same, on `saga_outbox`, `saga_outbox_archive` and `consumer_inbox` |
+| Redis | Keys of tenant `T` under `sagaz:T:…`; default-tenant keys unchanged | Per-tenant streams and hashes, plus a `{prefix}:tenants` index set used by the worker |
+| SQLite | `tenant_id` column, key `(tenant_id, saga_id)`, filters | `tenant_id` column, filters |
+| In-memory | Partitioned by tenant | Filtered by tenant |
+
+The policy admits a row when `tenant_id = current_setting('app.tenant_id')` (empty
+means `default`) or the setting is `*`. Superusers and `BYPASSRLS` roles bypass it,
+so the application must use an ordinary role; the explicit filters still isolate
+tenants without RLS.
+
+**Migration.** Existing PostgreSQL and SQLite rows become `default` through
+idempotent migrations (the PostgreSQL one runs in one transaction under an advisory
+lock). Redis keys of the default tenant are unchanged, so no data moves.
+
+### Outbox
+
+`OutboxEvent.tenant_id` takes the scope's tenant on insert. The worker claims in the
+system scope, then publishes and updates each event inside its own tenant's scope.
+Brokers receive the tenant as the `tenant_id` header and in the body; the header
+cannot be overridden by `event.headers`. Tenant-facing reads (DLQ listing, requeue)
+stay within the current tenant.
+
+### Registry and quotas
+
+`TenantRegistry` persists tenants (plan, quotas, active flag) in the saga storage
+under the reserved id `__sagaz_tenants__`, managed by `sagaz tenant`. Quotas:
+`max_concurrent_sagas` (per process), `max_step_duration_seconds` and `max_retries`
+(lower step and compensation timeouts and retries). Suspended tenants cannot run
+sagas. Global rate limiting and quota metrics are not implemented.
+
+### Verification
+
+- Shared isolation scenarios run on all four backends (same saga id in two tenants,
+  default-tenant compatibility, system-scope listing, export/import and transfers).
+- PostgreSQL tests as a `NOSUPERUSER NOBYPASSRLS` role show that raw SQL cannot read,
+  update, delete or insert another tenant's rows, and that pre-tenancy databases
+  upgrade in place.
+- An end-to-end test runs one saga id in two tenants concurrently (one completing,
+  one compensating) and checks state, outbox events, raw SQL and published messages.
+  It fails when both isolation layers are disabled.
+
+### Encryption at rest (phase 2)
+
+- `EncryptedSagaStorage` wraps any saga storage and encrypts the saga `context` and each
+  step `result` with AES-256-GCM, using a key belonging to the record's tenant. Nothing
+  else changed: no backend schema changes, and saga code is unchanged.
+- **Envelope.** A value is stored as `{"__sagaz_encrypted__": {v, alg, key, edk?, nonce,
+  ct}}`: a 96-bit random nonce, the key reference and, for KMS/Vault, the wrapped data
+  key. The authenticated data is `(tenant, saga_id, field)`, so a ciphertext moved to
+  another tenant, saga or field does not decrypt.
+- **Key providers** (pluggable `KeyProvider` protocol):
+  - environment keys per tenant, or a master key with an HKDF-SHA256 key derived per
+    tenant; several key ids enable rotation;
+  - AWS KMS `GenerateDataKey` with the encryption context `sagaz:tenant`;
+  - Vault Transit `datakey`, with one Transit key per tenant.
+
+  Remote data keys are cached (TTL and use count), and unwrapped keys are kept in an
+  LRU cache.
+- **Fail closed.** A tenant without a key cannot write. Plaintext records written
+  before encryption stay readable and are encrypted on their next save.
+- **Not encrypted:** ids, names, statuses, step errors, timestamps, `__sagaz_*` records
+  and outbox payloads (read by brokers and consumers).
+- **Verified:** unit tests (100% of the encryption package), plus real AWS KMS on
+  LocalStack, a dev-mode Vault and PostgreSQL. KMS and Vault themselves refuse
+  cross-tenant unwrapping, and the PostgreSQL rows contain no plaintext.
+
+### Performance benchmark (phase 2)
+
+Criterion: "1000 tenants × 10 concurrent sagas, <5% overhead" (scaled down to 100 × 10 by
+default, with documented local numbers). Result: [Multi-tenancy overhead](../../benchmarks/tenancy-overhead.md).
+Multi-tenant sagas send the same storage operations as single-tenant ones and add a
+few microseconds of client work (well under 1% of a saga); on PostgreSQL the
+per-connection `set_config` (2 of 13 statements per saga) is the measurable cost of
+tenancy support, and row-level security is not measurable.
+
+## Implementation Phases (original proposal)
 
 ### Phase 1: Tenant Context (v2.1.0)
 
@@ -709,6 +815,9 @@ audit_log.record(
 | Date | Change |
 |------|--------|
 | 2025-01-01 | Initial proposal |
+| 2026-11-14 | Phase 1 implemented (#54): ContextVar scope, default and system tenants, storage and outbox isolation with PostgreSQL RLS, registry, quotas, `sagaz tenant` CLI. Status corrected (#68 never implemented it). |
+| 2026-11-14 | Phase 2: per-tenant encryption at rest (AES-256-GCM; env, AWS KMS and Vault Transit key providers). |
+| 2026-11-14 | Phase 2: multi-tenancy overhead benchmark; <5% criterion met on every backend. |
 
 ---
 

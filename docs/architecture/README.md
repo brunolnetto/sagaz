@@ -24,7 +24,7 @@ Full decision records with context, rationale, and consequences.
 
 | ADR | Title | Status |
 |-----|-------|--------|
-| [ADR-011](adr/adr-011-cdc-support.md) | CDC (Change Data Capture) Support | Proposed |
+| [ADR-011](adr/adr-011-cdc-support.md) | CDC (Change Data Capture) Support | Accepted (v1.9.0) |
 | [ADR-012](adr/adr-012-synchronous-orchestration-model.md) | Synchronous Orchestration Model | Accepted |
 | [ADR-013](adr/adr-013-fluss-iceberg-analytics.md) | Fluss + Iceberg Analytics | Proposed |
 | [ADR-014](adr/adr-014-schema-registry.md) | Schema Registry Integration | Proposed |

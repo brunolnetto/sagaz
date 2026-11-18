@@ -51,7 +51,7 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 
 | ADR | Title | Target | Description |
 |-----|-------|--------|-------------|
-| [ADR-011](adr-011-cdc-support.md) | CDC Support | v2.1.0 | Change Data Capture with Debezium for 50K+ events/sec |
+| [ADR-011](adr-011-cdc-support.md) | CDC Support | v1.9.0 | Outbox CDC via PostgreSQL logical replication or Debezium (implemented) |
 | [ADR-013](adr-013-fluss-iceberg-analytics.md) | Fluss Analytics | v2.0.0 | Real-time + historical analytics with Iceberg |
 | [ADR-033](adr-033-event-sourcing-integration.md) | Event Sourcing Integration | v2.3.0 | Opt-in event-sourced storage strategy for full audit trail |
 | [ADR-034](adr-034-multi-region-coordination.md) | Multi-Region Coordination | v2.3.0 | Cross-region step routing, data residency, and failover |

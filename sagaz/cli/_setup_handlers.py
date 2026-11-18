@@ -51,11 +51,15 @@ def _display_setup_header():
         click.echo("=== Sagaz Deployment Environment Setup ===\n")
 
 
-def _gather_setup_configuration() -> dict:
-    """Gather configuration from user interactively."""
+def _gather_setup_configuration(mode: str | None = None) -> dict:
+    """Gather configuration from user interactively.
+
+    ``mode`` skips the deployment-mode question (``sagaz init --local`` passes
+    ``"local"``).
+    """
     config: dict[str, Any] = {}
 
-    config["mode"] = _prompt_deployment_mode()
+    config["mode"] = mode or _prompt_deployment_mode()
     config["oltp_storage"], config["with_ha"] = _prompt_oltp_storage(config["mode"])
     config["broker"] = _prompt_message_broker()
     config["outbox_storage"], config["separate_outbox"] = _prompt_outbox_storage()

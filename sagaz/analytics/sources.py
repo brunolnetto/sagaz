@@ -12,6 +12,8 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
+from sagaz.versioning.registry import VERSION_RECORD_SAGA_NAME
+
 
 def _value(raw: Any) -> Any:
     return raw.value if isinstance(raw, Enum) else raw
@@ -58,6 +60,8 @@ async def bronze_records_from_storage(
     saga_records: list[dict[str, Any]] = []
     step_records: list[dict[str, Any]] = []
     async for saga in _saga_source(storage).export_all():
+        if saga.get("saga_name") == VERSION_RECORD_SAGA_NAME:
+            continue  # saga-version registrations, not saga runs
         saga_records.append(
             {
                 "saga_id": saga["saga_id"],

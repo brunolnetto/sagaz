@@ -2,7 +2,11 @@
 
 ## Status
 
-**Proposed** | Date: 2026-01-05 | Priority: Low | Target: Future
+**Accepted** | Date: 2026-01-05 | Implemented: 2026-11 (v1.9.0, #50)
+
+> What shipped is described in [Implementation (v1.9.0)](#implementation-v190). The rest
+> of this ADR is the original proposal: where they differ (status updates, worker
+> configuration, the cloud and Redis/RabbitMQ options), the implementation section wins.
 
 ## Dependencies
 
@@ -84,6 +88,68 @@ Allow both modes:
 | AWS DMS | AWS deployments |
 
 ---
+
+## Implementation (v1.9.0)
+
+Issue #50. Guide: [Change Data Capture](../../integrations/cdc.md). Benchmark:
+[CDC outbox throughput and lag](../../benchmarks/cdc-outbox.md).
+
+### Sources (`sagaz.integrations.cdc`, extra `sagaz[cdc]`)
+
+- **`PgLogicalSource`** reads PostgreSQL logical replication directly (`pgoutput`
+  protocol 1, through psycopg2's replication connection in a thread; psycopg 3 does
+  not implement the replication protocol).
+  - It creates its publication (`publish='insert'`) and slot, and decodes inserts into
+    `saga_outbox` only.
+  - It confirms the slot position only for acknowledged transactions.
+  - Its decoder was verified against bytes captured from PostgreSQL 16.
+- **`DebeziumKafkaSource`** consumes the Debezium connector's topic. It handles JSON
+  envelopes with or without schemas, takes `c` events (and `r` snapshot reads of
+  pending rows), and commits Kafka offsets on acknowledgement.
+  - The connector config ships in the package.
+  - A `cdc` compose profile runs Kafka (KRaft) and Debezium Connect.
+- Both implement one `CDCSource` protocol and map rows with `event_from_row`.
+  Delivery is **at least once**.
+
+### Worker (unified, as proposed)
+
+`OutboxWorker(..., cdc_source=...)`, or `SAGAZ_OUTBOX_MODE=cdc` with `SAGAZ_CDC_SOURCE`
+for the entry point. Captured inserts go through the polled path: tenant scope (each
+event carries its `tenant_id`), publish, and failure handling. Differences from the
+proposal:
+
+- **Status is still updated**, but in one statement per batch
+  (`OutboxStorage.mark_sent_batch`). Per-event updates capped CDC at ~1,000 events/s.
+  Keeping `SENT` lets polling and CDC coexist, keeps pending counts truthful, and keeps
+  the DLQ working.
+- **Hybrid sweep.** A failed publish returns the event to `PENDING` with an `UPDATE`,
+  which the change stream never redelivers. So a slow sweep (default every 30 s, for
+  events pending more than 30 s) handles retries, rows written before the slot or
+  connector existed, and gaps. Switching from polling needs no manual drain.
+- Metrics `sagaz_cdc_lag_seconds` (histogram), `sagaz_cdc_events_total` and
+  `sagaz_cdc_errors_total{kind}`, plus a CDC row on the outbox Grafana dashboards.
+
+### Multi-tenancy (ADR-020)
+
+Logical decoding is not filtered by row-level security. The replication role sees
+every tenant's rows (tested with a `REPLICATION NOBYPASSRLS` role) and must be treated
+as privileged. Debezium's snapshot queries are filtered, so the shipped connector sets
+`app.tenant_id='*'`.
+
+### Measured (laptop, PostgreSQL 16, synchronous commit)
+
+- CDC kept up with ~7,400 events/s, with a p50 lag of 8 ms at 1,000 events/s.
+- Polling saturated at ~1,500 events/s, with a lag of seconds.
+- The 50k events/s target needs several workers (one slot each, or a partitioned
+  Debezium topic) and server-class hardware. A p99 under 10 ms was close (14 ms with a
+  1 ms batching wait) but not met. The end-to-end test publishes a saga's events within
+  200 ms of commit.
+
+### Not implemented
+
+AWS DMS and other cloud-native sources, Debezium Server with Redis or RabbitMQ sinks,
+and a CLI command for CDC. The worker's environment configuration covers the
+deployment path.
 
 ## Implementation Approach
 

@@ -1,0 +1,71 @@
+{
+  "provider": "gcp",
+  "currency": "USD",
+  "region": "us-central1",
+  "priced_at": "2026-11",
+  "source": "Approximate on-demand list prices for us-central1 (Tier 1) from cloud.google.com/sql/pricing (Enterprise edition), cloud.google.com/memorystore/docs/redis/pricing (M1 capacity band) and cloud.google.com/run/pricing (instance-based billing), cross-checked against published third-party price lists",
+  "items": [
+    {
+      "label": "Cloud SQL instance (Enterprise)",
+      "variable": "db_tier",
+      "quantity_variable": null,
+      "multiplier_variable": "db_availability_type",
+      "multipliers": {"ZONAL": 1, "REGIONAL": 2},
+      "prices": {
+        "db-f1-micro": 7.67,
+        "db-g1-small": 25.55,
+        "db-custom-1-3840": 49.31,
+        "db-custom-2-7680": 98.62,
+        "db-custom-4-15360": 197.25,
+        "db-custom-8-30720": 394.49
+      }
+    },
+    {
+      "label": "Cloud SQL storage (SSD, per GB)",
+      "variable": null,
+      "quantity_variable": "db_storage_gb",
+      "multiplier_variable": "db_availability_type",
+      "multipliers": {"ZONAL": 1, "REGIONAL": 2},
+      "prices": {"*": 0.17}
+    },
+    {
+      "label": "Cloud Run worker pool vCPU (always on)",
+      "variable": null,
+      "quantity_variable": "worker_count",
+      "multiplier_variable": null,
+      "per_unit_variable": "worker_cpu",
+      "per_unit_divisor": 1,
+      "prices": {"*": 47.3}
+    },
+    {
+      "label": "Cloud Run worker pool memory (per GiB, always on)",
+      "variable": null,
+      "quantity_variable": "worker_count",
+      "multiplier_variable": null,
+      "per_unit_variable": "worker_memory",
+      "per_unit_divisor": 1,
+      "per_unit_unit": "GiB",
+      "prices": {"*": 5.26}
+    },
+    {
+      "label": "Memorystore for Redis (per GB)",
+      "variable": "redis_tier",
+      "quantity_variable": "redis_memory_size_gb",
+      "multiplier_variable": null,
+      "prices": {"BASIC": 35.77, "STANDARD_HA": 46.72}
+    }
+  ],
+  "fixed": [
+    {"label": "Secret Manager (2 active secret versions)", "monthly": 0.12},
+    {"label": "VPC, Private Service Access and Direct VPC egress", "monthly": 0.0}
+  ],
+  "notes": [
+    "Approximate on-demand list prices, 730 h/month, us-central1; before taxes, sustained/committed-use discounts and the Cloud Run free tier.",
+    "multiplier_variable/multipliers: the item total is multiplied by multipliers[value of that variable] (missing value = 1). REGIONAL (HA) Cloud SQL doubles instance and storage cost.",
+    "per_unit_variable: the item is multiplied by the numeric value of that variable divided by per_unit_divisor. per_unit_unit \"GiB\" means the value is a Kubernetes-style quantity to convert to GiB first: \"512Mi\" = 0.5, \"2Gi\" = 2, a bare number = GiB.",
+    "Cloud Run worker pools are priced with the instance-based (CPU always allocated) vCPU-second and GiB-second rates ($0.000018 and $0.000002); Google advertises worker pools as cheaper, so treat these lines as an upper bound.",
+    "Memorystore uses the M1 (1-4 GB) per-GB rate; larger capacities are billed at lower per-GB rates, so big instances are overestimated.",
+    "Shared-core Cloud SQL tiers (db-f1-micro, db-g1-small) are not covered by the Cloud SQL SLA. Custom tiers are priced at $0.0413 per vCPU-hour and $0.007 per GB-hour of memory.",
+    "Not included: backups and point-in-time-recovery logs, network egress, Cloud Logging above the free allotment, Artifact Registry storage."
+  ]
+}

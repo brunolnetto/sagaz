@@ -30,6 +30,10 @@ def _gate(root: Path) -> subprocess.CompletedProcess[str]:
     )
 
 
+# Scanning the whole package takes ~30s on its own; under a parallel suite on a
+# loaded machine it can exceed the suite-wide --timeout=60, which made this
+# test fail intermittently with no gate violation.
+@pytest.mark.timeout(600)
 def test_package_is_within_the_structural_gate():
     result = _gate(REPO_ROOT / "sagaz")
     assert result.returncode == 0, result.stderr

@@ -50,12 +50,14 @@ from sagaz.cli._setup_handlers import (
     _gather_setup_configuration,
 )
 from sagaz.cli.demonstrations import demo_cli
+from sagaz.cli.deploy import deploy_cmd, teardown_cmd
 from sagaz.cli.dlq import dlq_cli
 from sagaz.cli.dry_run import simulate_cmd, validate_cmd
 from sagaz.cli.migrate import migrate_cmd
 from sagaz.cli.project import check as check_cmd
 from sagaz.cli.project import list_sagas
 from sagaz.cli.replay import replay
+from sagaz.cli.tenant import tenant_cli
 from sagaz.cli.visualize import visualize_cmd
 
 try:
@@ -214,6 +216,9 @@ cli.add_command(dlq_cli, name="dlq")
 # State Modification (Highest Risk)
 cli.add_command(migrate_cmd, name="migrate")
 cli.add_command(replay, name="replay")
+cli.add_command(tenant_cli, name="tenant")
+cli.add_command(deploy_cmd, name="deploy")
+cli.add_command(teardown_cmd, name="teardown")
 
 if __name__ == "__main__":
     cli()

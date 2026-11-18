@@ -145,6 +145,23 @@ from sagaz.testing import (
     FaultType,
 )
 
+# =============================================================================
+# Versioning & Schema Evolution (ADR-018)
+# =============================================================================
+from sagaz.versioning import (
+    MigrationEngine,
+    MigrationPathNotFoundError,
+    SagaVersion,
+    SagaVersionedMixin,
+    SagaVersionError,
+    SagaVersionNotFoundError,
+    SagaVersionRegistry,
+    SagaVersionResolver,
+    SagaVersionSchemaError,
+    VersionAlreadyRegisteredError,
+)
+from sagaz.versioning.version import Version
+
 __all__ = [
     "ChaosDisabled",
     "ChaosMonkey",
@@ -168,6 +185,8 @@ __all__ = [
     "IdempotencyKeyRequiredError",
     "LoggingSagaListener",
     "MetricsSagaListener",
+    "MigrationEngine",
+    "MigrationPathNotFoundError",
     "MissingDependencyError",
     "OutboxSagaListener",
     "ParallelFailureStrategy",
@@ -208,12 +227,21 @@ __all__ = [
     "SagaStepError",
     "SagaStepStatus",
     "SagaTimeoutError",
+    "SagaVersion",
+    "SagaVersionError",
+    "SagaVersionNotFoundError",
+    "SagaVersionRegistry",
+    "SagaVersionResolver",
+    "SagaVersionSchemaError",
+    "SagaVersionedMixin",
     "SagaZones",
     "SimulationResult",
     "StepZone",
     "TaintPropagator",
     "TracingSagaListener",
     "ValidationResult",
+    "Version",
+    "VersionAlreadyRegisteredError",
     "action",
     "compensate",
     "configure",

@@ -7,6 +7,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
+from sagaz.core.storage._outbox_tenancy import event_visible, resolve_event_tenant
 from sagaz.core.storage.interfaces.outbox import OutboxStorage, OutboxStorageError
 
 if TYPE_CHECKING:
@@ -33,6 +34,9 @@ class InMemoryOutboxStorage(OutboxStorage):
 
     Thread-safe for async operations but not for multi-process.
 
+    Events are partitioned by ``tenant_id`` (ADR-020): outside the system scope
+    every read, update and delete only sees the current tenant's events.
+
     Usage:
         >>> storage = InMemoryOutboxStorage()
         >>> event = OutboxEvent(saga_id="123", event_type="Test", payload={})
@@ -51,8 +55,21 @@ class InMemoryOutboxStorage(OutboxStorage):
         connection: Any | None = None,
     ) -> OutboxEvent:
         """Insert event into in-memory storage."""
+        resolve_event_tenant(event)
+        existing = self._events.get(event.event_id)
+        if existing is not None and existing.tenant_id != event.tenant_id:
+            msg = f"Event {event.event_id} already exists"
+            raise OutboxStorageError(msg)
         self._events[event.event_id] = event
         return event
+
+    def _visible_events(self) -> list[OutboxEvent]:
+        """Events of the current tenant (all events in the system scope)."""
+        return [event for event in self._events.values() if event_visible(event)]
+
+    def _visible(self, event_id: str) -> OutboxEvent | None:
+        event = self._events.get(event_id)
+        return event if event is not None and event_visible(event) else None
 
     async def claim_batch(
         self,
@@ -66,7 +83,7 @@ class InMemoryOutboxStorage(OutboxStorage):
         cutoff = now - timedelta(seconds=older_than_seconds)
 
         claimed: list[OutboxEvent] = []
-        for event in list(self._events.values()):
+        for event in self._visible_events():
             if len(claimed) >= batch_size:
                 break
 
@@ -88,7 +105,7 @@ class InMemoryOutboxStorage(OutboxStorage):
     ) -> OutboxEvent:
         """Update event status."""
         outbox_status_cls = _get_outbox_status()
-        stored = self._events.get(event_id)
+        stored = self._visible(event_id)
         if not stored:
             msg = f"Event {event_id} not found"
             raise OutboxStorageError(msg)
@@ -121,11 +138,11 @@ class InMemoryOutboxStorage(OutboxStorage):
 
     async def get_by_id(self, event_id: str) -> OutboxEvent | None:
         """Get event by ID."""
-        return self._events.get(event_id)
+        return self._visible(event_id)
 
     async def get_events_by_saga(self, saga_id: str) -> list[OutboxEvent]:
         """Get all events for a saga."""
-        return [e for e in self._events.values() if e.saga_id == saga_id]
+        return [e for e in self._visible_events() if e.saga_id == saga_id]
 
     async def get_stuck_events(
         self,
@@ -138,7 +155,7 @@ class InMemoryOutboxStorage(OutboxStorage):
 
         return [
             e
-            for e in self._events.values()
+            for e in self._visible_events()
             if e.status == outbox_status_cls.CLAIMED and e.claimed_at and e.claimed_at < cutoff
         ]
 
@@ -160,7 +177,7 @@ class InMemoryOutboxStorage(OutboxStorage):
     async def get_pending_count(self) -> int:
         """Get count of pending events."""
         outbox_status_cls = _get_outbox_status()
-        return sum(1 for e in self._events.values() if e.status == outbox_status_cls.PENDING)
+        return sum(1 for e in self._visible_events() if e.status == outbox_status_cls.PENDING)
 
     async def get_dead_letter_events(
         self,
@@ -169,9 +186,7 @@ class InMemoryOutboxStorage(OutboxStorage):
         """Get dead letter events."""
         outbox_status_cls = _get_outbox_status()
         return [
-            e
-            for e in list(self._events.values())[:limit]
-            if e.status == outbox_status_cls.DEAD_LETTER
+            e for e in self._visible_events()[:limit] if e.status == outbox_status_cls.DEAD_LETTER
         ]
 
     def clear(self) -> None:
@@ -180,12 +195,12 @@ class InMemoryOutboxStorage(OutboxStorage):
 
     async def count(self) -> int:
         """Count total events."""
-        return len(self._events)
+        return len(self._visible_events())
 
     async def export_all(self):
         """Export all records for transfer."""
         # Sort by ID
-        sorted_events = sorted(self._events.values(), key=lambda x: x.event_id)
+        sorted_events = sorted(self._visible_events(), key=lambda x: x.event_id)
         for event in sorted_events:
             yield event.to_dict()
 
@@ -220,7 +235,7 @@ class InMemoryOutboxStorage(OutboxStorage):
 
         max_replays = 3
         outbox_status_cls = _get_outbox_status()
-        event = self._events.get(event_id)
+        event = self._visible(event_id)
         if event is None:
             msg = f"Event {event_id} not found"
             raise KeyError(msg)
@@ -247,7 +262,7 @@ class InMemoryOutboxStorage(OutboxStorage):
         outbox_status_cls = _get_outbox_status()
         now = datetime.now(UTC)
         to_delete: list[str] = []
-        for event in list(self._events.values()):
+        for event in self._visible_events():
             if event.status != outbox_status_cls.DEAD_LETTER:
                 continue
             if older_than is not None:
