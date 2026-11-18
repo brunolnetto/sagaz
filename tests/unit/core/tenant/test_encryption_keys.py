@@ -9,8 +9,11 @@ import os
 import httpx
 import pytest
 
-from sagaz.core.tenant import TenantDecryptionError, TenantKeyError
-from sagaz.core.tenant.encryption import (
+# Encryption needs the optional "cryptography" package (sagaz[encryption]).
+pytest.importorskip("cryptography")
+
+from sagaz.core.tenant import TenantDecryptionError, TenantKeyError  # noqa: E402
+from sagaz.core.tenant.encryption import (  # noqa: E402
     ENVELOPE_FIELD,
     AwsKmsKeyProvider,
     CachingKeyProvider,
@@ -369,6 +372,7 @@ class TestVaultTransitKeyProvider:
 
 
 async def test_kms_provider_creates_an_aioboto3_session_lazily():
+    pytest.importorskip("aioboto3")  # sagaz[aws]; not part of the dev group
     provider = AwsKmsKeyProvider(client_kwargs={"region_name": "us-east-1"})
     assert provider._session is None
     async with provider._client() as kms:  # building the client makes no request

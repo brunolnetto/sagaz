@@ -7,11 +7,14 @@ import json
 
 import pytest
 
-from sagaz import Saga, action
-from sagaz.core.config import SagaConfig
-from sagaz.core.storage.backends.memory.saga import InMemorySagaStorage
-from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
-from sagaz.core.tenant import (
+# Encryption needs the optional "cryptography" package (sagaz[encryption]).
+pytest.importorskip("cryptography")
+
+from sagaz import Saga, action  # noqa: E402
+from sagaz.core.config import SagaConfig  # noqa: E402
+from sagaz.core.storage.backends.memory.saga import InMemorySagaStorage  # noqa: E402
+from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage  # noqa: E402
+from sagaz.core.tenant import (  # noqa: E402
     TenantContext,
     TenantDecryptionError,
     TenantKeyError,
@@ -19,13 +22,13 @@ from sagaz.core.tenant import (
     system_scope,
     tenant_scope,
 )
-from sagaz.core.tenant.encryption import (
+from sagaz.core.tenant.encryption import (  # noqa: E402
     ENVELOPE_FIELD,
     EncryptedSagaStorage,
     EnvKeyProvider,
     is_encrypted,
 )
-from sagaz.core.types import SagaStatus, SagaStepStatus
+from sagaz.core.types import SagaStatus, SagaStepStatus  # noqa: E402
 
 SECRET = "123-45-6789"
 KEYS = {
