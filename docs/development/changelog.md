@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Event-sourced sagas** (#57, ADR-033): opt in with
+  `Meta.storage_strategy = "event_sourced"` (or `SagaConfig`). Every state change of
+  a run is appended to an event store, numbered per saga and tenant:
+  - **Events:** `SagaStarted`, `StepExecuted`, `StepFailed`, `CompensationStarted`,
+    `StepCompensated`, `StepCompensationFailed`, `SagaCompleted`, `SagaRolledBack`
+    and `SagaFailed`.
+  - **Stores:** PostgreSQL (row-level security per tenant, an advisory lock per
+    stream), SQLite and in-memory, from a URL or an instance.
+  - **State and snapshots:** `SagaSummaryProjection` rebuilds a saga's state from its
+    events. It is snapshotted every `snapshot_threshold` events (default 50), so a
+    load reads the latest snapshot and the events after it.
+  - **CLI:** `sagaz event-log <saga-id>` prints the timeline (`--json`, `--tenant`).
+  - **Metrics:** `sagaz_event_store_events_total` and
+    `sagaz_event_store_snapshots_total`, plus an "Event store" row in the Grafana
+    main dashboard.
+  - **Guide:** [Event-sourced sagas](../guides/event-sourcing.md).
+
 ### Fixed
 - **Choreography: late events after compensation** (#446): a participant that has
   compensated a transaction no longer acts on that transaction's later business

@@ -2,14 +2,49 @@
 
 ## Status
 
-**Proposed** | Date: 2026-04-07 | Priority: Medium | Target: v2.3.0
+**Accepted** | Date: 2026-04-07 | Priority: Medium | Implemented: v2.0.0
 
 **Implementation Status:**
-- ⚪ Phase 1: Event Store Infrastructure (Not Started)
-- ⚪ Phase 2: Saga State as Events (Not Started)
-- ⚪ Phase 3: Projection & Read-Model Builder (Not Started)
-- ⚪ Phase 4: Snapshot Strategy (Not Started)
-- ⚪ Phase 5: CLI & Observability (Not Started)
+- ✅ Phase 1: Event Store Infrastructure
+- ✅ Phase 2: Saga State as Events
+- 🟡 Phase 3: Projection & Read-Model Builder (`SagaSummaryProjection`; no `ProjectionRunner`)
+- ✅ Phase 4: Snapshot Strategy
+- ✅ Phase 5: CLI & Observability
+
+## Implementation (v2.0.0)
+
+Guide: [Event-sourced sagas](../../guides/event-sourcing.md). Issue #57.
+
+| Piece | Where |
+|---|---|
+| Events | `sagaz/core/events.py` |
+| Store interface, memory / SQLite / PostgreSQL stores | `sagaz/core/storage/event_store/` |
+| Recording during a run | `SagaEventRecorder` (`event_store/recorder.py`), called by the `sagaz.Saga` engine |
+| Projection, snapshot + tail loading | `sagaz/projections/summary.py` |
+| CLI | `sagaz event-log <saga-id>` |
+| Metrics | `sagaz_event_store_events_total`, `sagaz_event_store_snapshots_total` |
+
+Differences from the proposal below:
+
+- **Paths:** the store lives with the other backends, in
+  `sagaz/core/storage/event_store/`, not in `sagaz/storage/event_store.py`.
+- **Interface:** `append()` returns the event with its `sequence`, which the store
+  assigns per saga and tenant. `save_snapshot()` takes a `SagaSnapshot`, and
+  `load_latest_snapshot()` returns one.
+- **Events:** event fields carry their payloads (`step_name`, `step_result`, ...) instead
+  of a generic `payload` dict. `StepCompensationFailed` was added, so a saga whose
+  compensation fails ends in `SagaFailed` and the failing step is recorded. Every event
+  has `tenant_id`, `sequence`, `event_version` and `metadata`. An unknown event type is
+  read back as `UnrecognizedEvent` instead of failing.
+- **Configuration:** `Meta.event_store` and `Meta.snapshot_threshold` sit next to
+  `Meta.storage_strategy`. `SagaConfig` gives defaults for every saga, including those
+  built with `add_step()`.
+- **Failure handling:** a failed append is logged and counted, and does not fail the
+  saga, like the snapshot storage writes.
+- **Tenancy (ADR-020):** both tables are tenant-scoped with row-level security in
+  PostgreSQL.
+- **Not done:** the asynchronous `ProjectionRunner`, TTL archival to cold storage, and
+  event recording in the lower-level `sagaz.core.saga.Saga`.
 
 ## Dependencies
 
