@@ -21,6 +21,10 @@ ANALYTICS_REPORTS: dict[str, str] = {
     "step-latency": "STEP_LATENCY",
     "compensations": "COMPENSATION_EVENTS",
     "lifecycle": "SAGA_LIFECYCLE_MILESTONES",
+    "choreography": "CHOREOGRAPHY_SUMMARY",
+    "choreography-participants": "CHOREOGRAPHY_PARTICIPANTS",
+    "choreography-hops": "CHOREOGRAPHY_HOP_LATENCY",
+    "choreography-failures": "CHOREOGRAPHY_FAILURES",
 }
 
 NOT_CONFIGURED = (
@@ -61,6 +65,7 @@ async def build_report(storage: Any, report: str) -> dict[str, Any]:
         "report": report,
         "rows": jsonable_encoder(rows),
         "sagas_loaded": stats.sagas_loaded,
+        "choreography_loaded": stats.choreography_loaded,
         "quality_errors": len(stats.quality_errors),
     }
 

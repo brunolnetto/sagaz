@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
+from sagaz.choreography.tracker import RECORD_NAME as CHOREOGRAPHY_RECORD_NAME
 from sagaz.versioning.registry import VERSION_RECORD_SAGA_NAME
 
 
@@ -56,12 +57,25 @@ def _step_record(saga: dict[str, Any], step: dict[str, Any]) -> dict[str, Any]:
 async def bronze_records_from_storage(
     storage: Any,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Read every saga (and its steps) from ``storage`` as Bronze records."""
+    """Read every orchestrated saga (and its steps) from ``storage`` as Bronze records."""
+    sagas, steps, _choreography = await read_storage(storage)
+    return sagas, steps
+
+
+async def read_storage(
+    storage: Any,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """One pass over ``storage``: orchestrated sagas, their steps, and the
+    choreographed transactions a ``ChoreographyTracker`` saved (#459)."""
     saga_records: list[dict[str, Any]] = []
     step_records: list[dict[str, Any]] = []
+    choreography: list[dict[str, Any]] = []
     async for saga in _saga_source(storage).export_all():
         if saga.get("saga_name") == VERSION_RECORD_SAGA_NAME:
             continue  # saga-version registrations, not saga runs
+        if saga.get("saga_name") == CHOREOGRAPHY_RECORD_NAME:
+            choreography.append(saga)  # not a saga of steps
+            continue
         saga_records.append(
             {
                 "saga_id": saga["saga_id"],
@@ -72,4 +86,4 @@ async def bronze_records_from_storage(
             }
         )
         step_records.extend(_step_record(saga, step) for step in saga.get("steps") or [])
-    return saga_records, step_records
+    return saga_records, step_records, choreography

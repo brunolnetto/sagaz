@@ -225,6 +225,29 @@ sagaz choreography status <correlation-id> --events      # every event seen
 sagaz choreography status <correlation-id> --json
 ```
 
+## Analytics
+
+With `sagaz[analytics]`, the analytics pipeline reads the tracker's records from the
+same saga storage and reports on choreographed transactions:
+
+```python
+from sagaz.analytics import SagaAnalyticsPipeline, SagaQueries
+from sagaz.core.tenant import system_scope
+
+with SagaAnalyticsPipeline(saga_storage) as pipeline:
+    with system_scope():                       # every tenant
+        await pipeline.run()
+    pipeline.query(SagaQueries.CHOREOGRAPHY_SUMMARY)       # per flow: outcomes, compensation rate, durations
+    pipeline.query(SagaQueries.CHOREOGRAPHY_PARTICIPANTS)  # failures caused, actions undone, compensation failures
+    pipeline.query(SagaQueries.CHOREOGRAPHY_HOP_LATENCY)   # p50/p95/p99 from cause to effect, per participant
+    pipeline.query(SagaQueries.CHOREOGRAPHY_FAILURES)      # where and why transactions fail
+```
+
+A transaction's **flow** is the type of its first business event, such as
+`order.created`. **Hop latency** is the time from an event to the event a participant
+published in response: handling plus bus delivery. `sagaz monitor --storage-url ...`
+serves the same reports at `/api/v1/analytics/choreography*`.
+
 ## Metrics
 
 | Metric | Labels |

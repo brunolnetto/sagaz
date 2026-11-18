@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Analytics for choreographed sagas** (#459):
+  - **Silver tables:** `SagaAnalyticsPipeline.run()` loads the `ChoreographyTracker`'s
+    records into `fact_choreography_transaction`, `fact_choreography_event` (with hop
+    latency from the causing event) and `fact_choreography_compensation`.
+  - **Gold queries:** `CHOREOGRAPHY_SUMMARY` (per flow), `CHOREOGRAPHY_PARTICIPANTS`,
+    `CHOREOGRAPHY_HOP_LATENCY` and `CHOREOGRAPHY_FAILURES`, also served at
+    `/api/v1/analytics/choreography*` by `sagaz monitor`.
+  - **Tracker:** it records each event's `causation_id`.
+
+### Fixed
+- **Orchestration analytics:** choreographed transactions no longer appear as a
+  phantom saga named `choreography`, with no steps, in the orchestration reports
+  (#459).
+
 ## [2.0.0] - 2026-11-18
 
 Wave 5: core extensions. Sagas can keep their full history as events (#57, ADR-033)

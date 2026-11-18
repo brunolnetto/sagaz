@@ -137,6 +137,24 @@ When `sagaz[analytics,cdc]` is installed, the Bronze layer can be populated via 
 - Swap `PostgreSQLSource` for `sqldim.DebeziumSource` when CDC is enabled
 - Bronze promotion becomes event-driven instead of scheduled
 
+## Choreographed sagas (v2.0.1, #459)
+
+A `ChoreographyTracker` with a saga storage saves each choreographed transaction
+(ADR-029) as a saga record named `choreography`, with no steps. The pipeline routes
+those records out of the orchestration tables, where they used to appear as a phantom
+saga, and into three Silver tables:
+
+| Table | Grain |
+|---|---|
+| `fact_choreography_transaction` | One transaction (accumulating snapshot): flow (its first business event type), status, start/end, duration, participants, failure, compensations |
+| `fact_choreography_event` | One event: participant, type, time, and `hop_ms`, the time from the event that caused it (`causation_id`) |
+| `fact_choreography_compensation` | One participant's compensation report: actions undone and failed |
+
+Gold queries: `SagaQueries.CHOREOGRAPHY_SUMMARY`, `CHOREOGRAPHY_PARTICIPANTS`,
+`CHOREOGRAPHY_HOP_LATENCY` and `CHOREOGRAPHY_FAILURES`, served as
+`/api/v1/analytics/choreography*`. Tracker records written before v2.0.1 lack
+`causation_id`, so they load without hop latency.
+
 ## Scope Notes
 
 - **OLTP database is read-only**: sqldim never writes to the saga PostgreSQL database

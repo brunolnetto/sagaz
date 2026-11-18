@@ -55,7 +55,16 @@ class TestAnalyticsReports:
         with TestClient(create_app(analytics_storage=seeded_storage)) as client:
             body = client.get("/api/v1/analytics").json()
         assert body == {
-            "reports": ["compensations", "lifecycle", "step-latency", "summary"],
+            "reports": [
+                "choreography",
+                "choreography-failures",
+                "choreography-hops",
+                "choreography-participants",
+                "compensations",
+                "lifecycle",
+                "step-latency",
+                "summary",
+            ],
             "configured": True,
         }
 

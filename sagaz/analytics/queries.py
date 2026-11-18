@@ -6,6 +6,8 @@ All queries operate on DuckDB in-memory tables populated by
   - ``dim_saga``       (from DimSaga records)
   - ``dim_step``       (from DimStep records)
   - ``fact_execution`` (from FactExecution records)
+  - ``fact_choreography_transaction``, ``fact_choreography_event`` and
+    ``fact_choreography_compensation`` (choreographed sagas, #459)
 
 Usage::
 
@@ -93,4 +95,90 @@ class SagaQueries:
         FROM fact_saga_lifecycle sl
         JOIN dim_saga ds ON sl.saga_id = ds.saga_id
         ORDER BY sl.created_at DESC NULLS LAST
+    """
+
+    # ------------------------------------------------------------------
+    # Choreographed sagas (#459): from the choreography fact tables
+    # ------------------------------------------------------------------
+
+    CHOREOGRAPHY_SUMMARY = """
+        SELECT
+            flow,
+            COUNT(*)                                                    AS transactions,
+            COUNT(*) FILTER (WHERE status = 'completed')                AS completed,
+            COUNT(*) FILTER (WHERE status = 'compensated')              AS compensated,
+            COUNT(*) FILTER (WHERE status = 'failed')                   AS failed,
+            COUNT(*) FILTER (WHERE status IN ('executing', 'compensating')) AS in_flight,
+            ROUND(100.0 * COUNT(*) FILTER (WHERE status IN ('compensated', 'failed'))
+                / NULLIF(COUNT(*) FILTER (WHERE status IN ('completed', 'compensated', 'failed')), 0),
+                2)                                                      AS compensation_rate_pct,
+            ROUND(PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY duration_ms), 2) AS p50_duration_ms,
+            ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms), 2) AS p95_duration_ms,
+            ROUND(AVG(participant_count), 2)                            AS avg_participants
+        FROM fact_choreography_transaction
+        GROUP BY flow
+        ORDER BY transactions DESC, flow
+    """
+
+    CHOREOGRAPHY_PARTICIPANTS = """
+        WITH emitted AS (
+            SELECT participant,
+                   COUNT(*)                                             AS events_emitted,
+                   COUNT(DISTINCT tenant_id || '/' || correlation_id)   AS transactions
+            FROM fact_choreography_event
+            WHERE kind = 'business' AND participant IS NOT NULL
+            GROUP BY participant
+        ),
+        caused AS (
+            SELECT failed_participant AS participant, COUNT(*) AS failures_caused
+            FROM fact_choreography_transaction
+            WHERE failed_participant IS NOT NULL
+            GROUP BY failed_participant
+        ),
+        undid AS (
+            SELECT participant,
+                   SUM(undone) AS actions_undone,
+                   SUM(failed) AS compensation_failures
+            FROM fact_choreography_compensation
+            GROUP BY participant
+        )
+        SELECT
+            participant,
+            COALESCE(events_emitted, 0)          AS events_emitted,
+            COALESCE(transactions, 0)            AS transactions,
+            COALESCE(failures_caused, 0)         AS failures_caused,
+            COALESCE(actions_undone, 0)          AS actions_undone,
+            COALESCE(compensation_failures, 0)   AS compensation_failures
+        FROM emitted
+        FULL OUTER JOIN caused USING (participant)
+        FULL OUTER JOIN undid USING (participant)
+        ORDER BY failures_caused DESC, compensation_failures DESC, participant
+    """
+
+    CHOREOGRAPHY_HOP_LATENCY = """
+        SELECT
+            participant,
+            event_type,
+            COUNT(*)                                                    AS hops,
+            ROUND(PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY hop_ms), 2) AS p50_ms,
+            ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY hop_ms), 2) AS p95_ms,
+            ROUND(PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY hop_ms), 2) AS p99_ms
+        FROM fact_choreography_event
+        WHERE kind = 'business' AND hop_ms IS NOT NULL
+        GROUP BY participant, event_type
+        ORDER BY p99_ms DESC NULLS LAST, participant, event_type
+    """
+
+    CHOREOGRAPHY_FAILURES = """
+        SELECT
+            flow,
+            failed_participant                              AS participant,
+            failed_event_type,
+            failure_reason                                  AS reason,
+            COUNT(*)                                        AS transactions,
+            COUNT(*) FILTER (WHERE status = 'failed')       AS left_inconsistent
+        FROM fact_choreography_transaction
+        WHERE failed_participant IS NOT NULL
+        GROUP BY flow, failed_participant, failed_event_type, failure_reason
+        ORDER BY transactions DESC, flow, participant
     """
