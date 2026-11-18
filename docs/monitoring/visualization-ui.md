@@ -136,6 +136,10 @@ Each request rebuilds the Bronze → Silver → Gold pipeline from that storage
 | `GET` | `/analytics/step-latency` | Per-step executions, p50 / p95 / p99 latency, error rate |
 | `GET` | `/analytics/compensations` | Compensation count and average duration per step |
 | `GET` | `/analytics/lifecycle` | Per-run milestones (created, started, ended) and step/compensation counts |
+| `GET` | `/analytics/choreography` | Choreographed transactions per flow: outcomes, compensation rate, p50 / p95 duration |
+| `GET` | `/analytics/choreography-participants` | Per participant: events emitted, failures caused, actions undone, compensation failures |
+| `GET` | `/analytics/choreography-hops` | Per participant and event type: p50 / p95 / p99 latency from the causing event |
+| `GET` | `/analytics/choreography-failures` | Failing participant, event and reason, and how many transactions were left inconsistent |
 
 Responses are `{report, rows, sagas_loaded, quality_errors}`. Without
 `--storage-url` the reports answer `503`; without the `sagaz[analytics]` extra
