@@ -1,0 +1,19 @@
+apiVersion: v2
+name: sagaz
+description: Sagaz transactional outbox worker (polling or CDC) for Kubernetes
+type: application
+# Chart version: bump on any change to the chart itself.
+version: 0.1.0
+# The sagaz release whose outbox worker this chart deploys (image.tag default).
+appVersion: "1.9.0"
+kubeVersion: ">=1.23.0-0"
+home: https://github.com/brunolnetto/sagaz
+sources:
+  - https://github.com/brunolnetto/sagaz
+keywords:
+  - saga
+  - outbox
+  - cdc
+  - kafka
+  - rabbitmq
+  - redis

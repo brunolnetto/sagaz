@@ -1,0 +1,96 @@
+{
+  "provider": "aws",
+  "currency": "USD",
+  "region": "us-east-1",
+  "priced_at": "2026-11",
+  "source": "AWS public on-demand list prices for us-east-1 (aws.amazon.com/rds/postgresql/pricing, aws.amazon.com/elasticache/pricing, aws.amazon.com/fargate/pricing, aws.amazon.com/secrets-manager/pricing, aws.amazon.com/vpc/pricing), cross-checked against instances.vantage.sh; approximate, hourly rate x 730 h",
+  "items": [
+    {
+      "label": "RDS PostgreSQL instance",
+      "variable": "db_instance_class",
+      "quantity_variable": null,
+      "multiplier_variable": "db_multi_az",
+      "multiplier": 2,
+      "prices": {
+        "db.t4g.micro": 11.68,
+        "db.t4g.small": 23.36,
+        "db.t4g.medium": 47.45,
+        "db.t4g.large": 94.17,
+        "db.t4g.xlarge": 188.34,
+        "db.m6g.large": 110.96,
+        "db.m7g.large": 122.64,
+        "db.r6g.large": 164.25
+      }
+    },
+    {
+      "label": "RDS storage (gp3, per GB)",
+      "variable": null,
+      "quantity_variable": "db_storage_gb",
+      "multiplier_variable": "db_multi_az",
+      "multiplier": 2,
+      "prices": {
+        "*": 0.115
+      }
+    },
+    {
+      "label": "ElastiCache Redis node",
+      "variable": "redis_node_type",
+      "quantity_variable": null,
+      "prices": {
+        "cache.t4g.micro": 11.68,
+        "cache.t4g.small": 23.36,
+        "cache.t4g.medium": 47.45,
+        "cache.m6g.large": 108.77,
+        "cache.m7g.large": 115.34,
+        "cache.r6g.large": 150.38,
+        "cache.r7g.large": 159.87
+      }
+    },
+    {
+      "label": "ECS Fargate vCPU (Linux/x86)",
+      "variable": null,
+      "quantity_variable": "worker_count",
+      "per_unit_variable": "worker_cpu",
+      "per_unit_divisor": 1024,
+      "prices": {
+        "*": 29.55
+      }
+    },
+    {
+      "label": "ECS Fargate memory (per GB, Linux/x86)",
+      "variable": null,
+      "quantity_variable": "worker_count",
+      "per_unit_variable": "worker_memory",
+      "per_unit_divisor": 1024,
+      "prices": {
+        "*": 3.24
+      }
+    },
+    {
+      "label": "Public IPv4 address per worker task",
+      "variable": null,
+      "quantity_variable": "worker_count",
+      "prices": {
+        "*": 3.65
+      }
+    }
+  ],
+  "fixed": [
+    {
+      "label": "Secrets Manager (2 secrets)",
+      "monthly": 0.8
+    },
+    {
+      "label": "ECS cluster, VPC, subnets, internet gateway, security groups",
+      "monthly": 0.0
+    }
+  ],
+  "notes": [
+    "Approximate on-demand list prices for us-east-1, 730 h/month; other regions are typically 5-25% higher.",
+    "multiplier: factor applied to an item when its multiplier_variable (db_multi_az) is true.",
+    "Excludes data transfer, CloudWatch Logs ingestion/storage ($0.50/GB ingested), Secrets Manager API calls, RDS backup storage beyond the free allowance (100% of provisioned storage), retained final snapshots and gp3 IOPS/throughput above the baseline.",
+    "Fargate prices are for X86_64; worker_cpu_architecture = ARM64 is about 20% cheaper.",
+    "Public IPv4 charge applies while worker_assign_public_ip = true (the default with the module-created VPC). The NAT gateway alternative costs ~$32.85/month per gateway plus $0.045/GB processed.",
+    "Reserved instances / Savings Plans can lower RDS, ElastiCache and Fargate costs substantially."
+  ]
+}

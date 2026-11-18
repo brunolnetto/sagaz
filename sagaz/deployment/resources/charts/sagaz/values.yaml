@@ -1,0 +1,185 @@
+# Default values for the sagaz chart: the transactional outbox worker
+# (`python -m sagaz.core.outbox.worker`). PostgreSQL and the message broker are
+# NOT installed by this chart; point it at managed services or at releases of
+# their own charts (see README.md).
+#
+# Installing requires a database (database.url or database.existingSecret) and a
+# broker (broker.url or broker.existingSecret); rendering fails otherwise.
+
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  # Image built from the repository Dockerfile.
+  repository: sagaz-outbox-worker
+  # Defaults to the chart's appVersion (the sagaz release).
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+# Worker command. The default is the outbox worker entry point.
+command:
+  - python
+  - -m
+  - sagaz.core.outbox.worker
+args: []
+
+# Number of workers. Polling mode scales horizontally (claims use
+# FOR UPDATE SKIP LOCKED). CDC with pg_logical requires exactly 1.
+replicaCount: 1
+
+# Python log level of the worker (LOG_LEVEL).
+logLevel: INFO
+
+database:
+  # PostgreSQL connection string, stored in a Secret created by the chart
+  # (DATABASE_URL). Ignored when existingSecret is set.
+  url: ""
+  # Name of an existing Secret holding the connection string.
+  existingSecret: ""
+  existingSecretKey: database-url
+
+broker:
+  # redis | kafka | rabbitmq
+  type: kafka
+  # Broker URL: redis://..., Kafka bootstrap servers (host:9092,...), or
+  # amqp://... Stored in the chart's Secret and exposed as REDIS_URL,
+  # KAFKA_BOOTSTRAP_SERVERS or RABBITMQ_URL. Ignored when existingSecret is set.
+  url: ""
+  existingSecret: ""
+  existingSecretKey: broker-url
+  rabbitmq:
+    # RABBITMQ_EXCHANGE
+    exchange: saga-events
+
+outbox:
+  # polling | cdc
+  mode: polling
+  # BATCH_SIZE: events claimed per poll.
+  batchSize: 100
+  # POLL_INTERVAL: seconds between polls.
+  pollInterval: 1.0
+  # MAX_RETRIES: publish attempts before an event is dead-lettered.
+  maxRetries: 5
+  cdc:
+    # pg_logical | debezium (see docs/integrations/cdc.md). The image must
+    # include the `cdc` extra (pip install 'sagaz[cdc]').
+    source: pg_logical
+    # SAGAZ_CDC_SWEEP_INTERVAL: seconds between sweeps for events CDC missed; 0 disables.
+    sweepInterval: 30
+    # SAGAZ_CDC_SWEEP_MIN_AGE: minimum age (seconds) of a pending event before the sweep takes it.
+    sweepMinAge: 30
+    pgLogical:
+      # SAGAZ_CDC_SLOT / SAGAZ_CDC_PUBLICATION. A slot has exactly one consumer,
+      # so this mode forces a single replica and the Recreate strategy.
+      slot: sagaz_outbox
+      publication: sagaz_outbox_pub
+      # Optional replication DSN (SAGAZ_CDC_DSN), e.g. for a dedicated
+      # REPLICATION role. Defaults to the database URL when empty.
+      dsn: ""
+      existingSecret: ""
+      existingSecretKey: cdc-dsn
+    debezium:
+      # Kafka the Debezium connector writes to (KAFKA_BOOTSTRAP_SERVERS).
+      # Required unless broker.type is kafka, in which case the broker's Kafka is
+      # used (the worker reads one KAFKA_BOOTSTRAP_SERVERS for both).
+      bootstrapServers: ""
+      # SAGAZ_CDC_TOPIC_PREFIX / SAGAZ_CDC_GROUP_ID
+      topicPrefix: sagaz
+      groupId: sagaz-cdc
+
+# Extra environment variables for the worker container (list of EnvVar).
+extraEnv: []
+#  - name: OTEL_EXPORTER_OTLP_ENDPOINT
+#    value: http://otel-collector.observability:4318
+
+# Extra envFrom sources (list of EnvFromSource).
+extraEnvFrom: []
+
+# Extra volumes / mounts (e.g. TLS material for the broker).
+extraVolumes: []
+extraVolumeMounts: []
+
+serviceAccount:
+  create: true
+  # Generated from the fullname when empty.
+  name: ""
+  annotations: {}
+  automountServiceAccountToken: false
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  # The image's `worker` user (useradd in the Dockerfile). A numeric UID is
+  # required for the kubelet to verify runAsNonRoot.
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  capabilities:
+    drop:
+      - ALL
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    memory: 512Mi
+
+# The worker has no HTTP endpoint, so no probes are set by default. Add exec
+# probes here if you need them.
+livenessProbe: {}
+readinessProbe: {}
+
+# Seconds to let the worker finish its in-flight batch after SIGTERM.
+terminationGracePeriodSeconds: 30
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+topologySpreadConstraints: []
+priorityClassName: ""
+
+# HorizontalPodAutoscaler (polling mode only; rendering fails in CDC mode).
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: null
+  behavior: {}
+
+podDisruptionBudget:
+  enabled: true
+  # Set exactly one of minAvailable / maxUnavailable. maxUnavailable: 1 never
+  # blocks node drains, even with a single replica.
+  minAvailable: null
+  maxUnavailable: 1
+
+# Prometheus scraping. The stock worker entry point does NOT start a metrics
+# HTTP server: enable this only with an image/command that serves metrics
+# (e.g. one that calls
+# sagaz.observability.monitoring.prometheus.start_metrics_server(port)).
+metrics:
+  enabled: false
+  port: 8000
+  path: /metrics
+  service:
+    annotations: {}
+  serviceMonitor:
+    # Requires the Prometheus Operator CRDs.
+    enabled: false
+    interval: 30s
+    scrapeTimeout: 10s
+    labels: {}

@@ -70,7 +70,7 @@ services:
 
   # Kafka: single-node KRaft broker and controller
   kafka:
-    image: apache/kafka:4.2.2
+    image: apache/kafka:4.4.0
     container_name: sagaz-kafka
     profiles: [ "cdc" ]
     environment:

@@ -10,12 +10,16 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 from uuid import uuid4
 
 import pytest
 
-from sagaz.core.tenant import TenantKeyError, tenant_scope
-from sagaz.core.tenant.encryption import (
+# Encryption needs the optional "cryptography" package (sagaz[encryption]).
+pytest.importorskip("cryptography")
+
+from sagaz.core.tenant import TenantKeyError, tenant_scope  # noqa: E402
+from sagaz.core.tenant.encryption import (  # noqa: E402
     AwsKmsKeyProvider,
     EncryptedSagaStorage,
     EnvKeyProvider,
@@ -23,7 +27,7 @@ from sagaz.core.tenant.encryption import (
     VaultTransitKeyProvider,
     associated_data,
 )
-from sagaz.core.types import SagaStatus
+from sagaz.core.types import SagaStatus  # noqa: E402
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
@@ -90,13 +94,16 @@ def vault_url():
     testcontainers = pytest.importorskip("testcontainers.core.container")
     from testcontainers.core.waiting_utils import wait_for_logs
 
-    container = (
-        testcontainers.DockerContainer("hashicorp/vault:1.17")
-        .with_env("VAULT_DEV_ROOT_TOKEN_ID", "root")
-        .with_env("SKIP_SETCAP", "true")
-        .with_exposed_ports(8200)
-    )
+    if os.environ.get("SAGAZ_NO_CONTAINERS"):
+        pytest.skip("containers disabled")
     try:
+        # Building the container already talks to Docker, so it belongs in the try.
+        container = (
+            testcontainers.DockerContainer("hashicorp/vault:1.17")
+            .with_env("VAULT_DEV_ROOT_TOKEN_ID", "root")
+            .with_env("SKIP_SETCAP", "true")
+            .with_exposed_ports(8200)
+        )
         container.start()
     except Exception as exc:  # pragma: no cover - environment dependent
         pytest.skip(f"Vault container unavailable: {exc}")

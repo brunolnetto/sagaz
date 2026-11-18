@@ -152,6 +152,17 @@ Wave 6  ─── v2.1.0 ─────── Streaming & historical analytics 
 
 ## Wave 3 — v1.9.0 "CLI v2 + CDC + Tenancy + Versioning"
 
+> **Released 2026-11-18.** The original PRs below (#81, #64, #65, #68, #66) were closed
+> as superseded and re-implemented from develop. What shipped:
+> - versioning: #386 (issues #80, #112);
+> - local development: #387 (#48);
+> - multi-tenancy: #400, #403, #404, #409, #412 (#54, #253, #405);
+> - CDC: #411 (#50);
+> - cloud deployment: #414, #420 (#49);
+> - fixes #396–#399, #402 (#401), #406–#408 and #410.
+>
+> See the [changelog](../development/changelog.md#190---2026-11-18).
+
 **Target**: June / July 2026
 **Risk**: Medium — CDC requires Docker/Kafka in integration tests; tenancy extends executor layer
 **Merge order**: #81 → #64 → #65 → #68 → #66
@@ -306,8 +317,8 @@ fix/#104           ────────────────────�
 | v1.5.0  | 0    | Governance & Lightweight Ops | Released |
 | v1.6.0  | 1    | Storage Extensions | Released |
 | v1.7.0  | 1b   | StateChart Migration Phase 1 | Released |
-| v1.8.0  | 2    | Analytics & Chaos | Release prepared |
-| v1.9.0  | 3    | CLI v2 + CDC + Tenancy | Planned |
+| v1.8.0  | 2    | Analytics & Chaos | Released (patches through v1.8.3) |
+| v1.9.0  | 3    | CLI v2 + CDC + Tenancy | Released 2026-11-18 |
 | v1.10.0 | 4    | Event-Driven Choreography | Planned |
 | v2.0.0  | 5    | Core Extensions | Blocked |
 | v2.1.0  | 6    | Streaming & Historical Analytics | Deferred (post-Wave 5) |

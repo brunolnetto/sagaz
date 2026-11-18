@@ -24,11 +24,17 @@ def get_storage():
     return PostgreSQLOutboxStorage(connection_string=database_url)
 
 
+_BROKER_URL_VARS = {
+    "kafka": "KAFKA_BOOTSTRAP_SERVERS",
+    "rabbitmq": "RABBITMQ_URL",
+    "redis": "REDIS_URL",
+}
+
+
 def _get_broker_url(broker_type: str) -> str:
-    """Get broker URL from environment based on broker type."""
-    if broker_type == "rabbitmq":
-        return os.getenv("RABBITMQ_URL", "") or os.getenv("BROKER_URL", "")
-    return os.getenv("KAFKA_BOOTSTRAP_SERVERS", "") or os.getenv("BROKER_URL", "")
+    """Get broker URL from environment based on broker type (``BROKER_URL`` as fallback)."""
+    specific = _BROKER_URL_VARS.get(broker_type, "KAFKA_BOOTSTRAP_SERVERS")
+    return os.getenv(specific, "") or os.getenv("BROKER_URL", "")
 
 
 def _create_kafka_broker(broker_url: str):
@@ -50,9 +56,20 @@ def _create_rabbitmq_broker(broker_url: str):
     return RabbitMQBroker(config=config)
 
 
+def _create_redis_broker(broker_url: str):
+    """Create Redis Streams broker instance (``REDIS_STREAM`` overrides the stream name)."""
+    from sagaz.core.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
+
+    config = RedisBrokerConfig(url=broker_url)
+    if stream := os.getenv("REDIS_STREAM"):
+        config.stream_name = stream
+    return RedisBroker(config=config)
+
+
 _BROKER_FACTORIES = {
     "kafka": _create_kafka_broker,
     "rabbitmq": _create_rabbitmq_broker,
+    "redis": _create_redis_broker,
 }
 
 
@@ -62,7 +79,8 @@ def get_broker():
     broker_url = _get_broker_url(broker_type)
 
     if not broker_url:
-        logger.error(f"No broker URL configured. Set BROKER_URL or {broker_type.upper()}_URL")
+        specific = _BROKER_URL_VARS.get(broker_type, "BROKER_URL")
+        logger.error(f"No broker URL configured. Set {specific} or BROKER_URL")
         sys.exit(1)
 
     factory = _BROKER_FACTORIES.get(broker_type)

@@ -1,0 +1,14 @@
+# Polling mode, Redis broker, autoscaling (lint/template variant).
+database:
+  url: postgresql://sagaz:example@postgresql:5432/sagaz
+broker:
+  type: redis
+  url: redis://redis-master:6379/0
+outbox:
+  mode: polling
+  batchSize: 200
+  pollInterval: 0.5
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
