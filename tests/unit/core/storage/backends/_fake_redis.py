@@ -9,6 +9,7 @@ run against the Redis backend without a container.
 
 from __future__ import annotations
 
+import asyncio
 import fnmatch
 import time
 from typing import Any
@@ -125,7 +126,9 @@ class FakeRedis:
     def _stream(self, key: Any) -> _Stream:
         return self.streams.setdefault(_b(key), _Stream())
 
-    async def xadd(self, key: Any, fields: dict, maxlen: int | None = None) -> bytes:
+    async def xadd(
+        self, key: Any, fields: dict, maxlen: int | None = None, approximate: bool = True
+    ) -> bytes:
         stream = self._stream(key)
         stream.seq += 1
         message_id = f"{int(time.time() * 1000)}-{stream.seq}".encode()
@@ -165,6 +168,10 @@ class FakeRedis:
                 group.pending[message_id] = (_b(consumername), time.time())
             if batch:
                 response.append([_b(key), batch])
+        if not response and block:
+            # A real XREADGROUP BLOCK waits for data; yield to the event loop so a
+            # consumer polling in a loop does not starve everything else.
+            await asyncio.sleep(min(block / 1000, 0.01))
         return response
 
     async def xack(self, key: Any, group: str, *ids: Any) -> int:
