@@ -109,6 +109,9 @@ def setup(encryption: bool | None = None) -> Deployment:
     plain = InMemorySagaStorage()
     if not (ENCRYPTION if encryption is None else encryption):
         return Deployment(registry, plain, plain, encrypted=False)
+    if not ENCRYPTION:
+        msg = "encryption needs the cryptography package: pip install 'sagaz[encryption]'"
+        raise ImportError(msg)
     keys = {"SAGAZ_TENANT_KEY_ACME": _key(), "SAGAZ_TENANT_KEY_GLOBEX": _key()}
     backend: Any = plain  # the in-memory backend predates the SagaStorage interface it satisfies
     return Deployment(registry, plain, EncryptedSagaStorage(backend, EnvKeyProvider(keys)))

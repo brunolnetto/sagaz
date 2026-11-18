@@ -10,6 +10,10 @@ from sagaz.core.tenant import tenant_scope
 from sagaz.core.types import SagaStatus
 from sagaz.demonstrations.integrations.multi_tenancy import main as demo
 
+needs_encryption = pytest.mark.skipif(
+    not demo.ENCRYPTION, reason="needs the cryptography package (sagaz[encryption])"
+)
+
 
 async def _executed(encryption: bool = True) -> demo.Deployment:
     deployment = demo.setup(encryption=encryption)
@@ -18,6 +22,7 @@ async def _executed(encryption: bool = True) -> demo.Deployment:
 
 
 class TestMultiTenancyDemo:
+    @needs_encryption
     async def test_runs_fast_and_reports_isolation(self, capsys):
         started = time.perf_counter()
         await demo._run()
@@ -29,6 +34,7 @@ class TestMultiTenancyDemo:
         assert "max_concurrent_sagas" in out
         assert "no data crossed, quotas enforced, data encrypted" in out
 
+    @needs_encryption
     async def test_same_saga_id_two_tenants_are_isolated(self):
         deployment = await _executed()
         assert await demo.verify(deployment) == []
@@ -48,13 +54,14 @@ class TestMultiTenancyDemo:
         assert "data encrypted" not in out
 
     async def test_per_tenant_counts_come_from_one_system_scope_listing(self):
-        deployment = await _executed()
+        deployment = await _executed(encryption=demo.ENCRYPTION)
         counts = await demo.per_tenant_counts(deployment.plain)
         assert {t: dict(c) for t, c in counts.items()} == {
             "acme": {"completed": 1},
             "globex": {"completed": 2, "rolled_back": 1},
         }
 
+    @needs_encryption
     async def test_verify_flags_every_violation(self):
         deployment = demo.setup()  # nothing executed: every expectation fails
         await deployment.plain.save_saga_state(
@@ -71,6 +78,17 @@ class TestMultiTenancyDemo:
             "globex's concurrency quota did not refuse exactly one saga",
             "unexpected per-tenant counts: {'default': Counter({'completed': 1})}",
         ]
+
+    async def test_verify_without_encryption_skips_the_at_rest_check(self):
+        deployment = demo.setup(encryption=False)
+        problems = await demo.verify(deployment)
+        assert "acme's order is stored in plaintext" not in problems
+        assert "acme does not see its own completed order" in problems
+
+    async def test_asking_for_encryption_without_cryptography_explains(self, monkeypatch):
+        monkeypatch.setattr(demo, "ENCRYPTION", False)
+        with pytest.raises(ImportError, match="sagaz\\[encryption\\]"):
+            demo.setup(encryption=True)
 
     async def test_run_fails_loudly_when_verification_fails(self, monkeypatch, capsys):
         async def broken(deployment):
