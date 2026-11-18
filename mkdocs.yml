@@ -70,6 +70,7 @@ nav:
     - Multi-tenancy Overhead: benchmarks/tenancy-overhead.md
     - CDC outbox throughput and lag: benchmarks/cdc-outbox.md
     - Event-Sourced Sagas: guides/event-sourcing.md
+    - Multi-Region Sagas: guides/multi-region.md
     - Saga Replay: guides/saga-replay.md
     - Replay Storage Backends: guides/replay-storage-backends.md
     - HA PostgreSQL Quick Reference: guides/ha-postgres-quickref.md

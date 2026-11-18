@@ -77,6 +77,7 @@ class DecoratorCollectionManager:
             on_failure=meta.on_failure,
             on_exit=meta.on_exit,
             pivot=meta.pivot,
+            region=meta.region,
         )
         self.saga._steps.append(step_def)
         self.saga._step_registry[meta.name] = step_def

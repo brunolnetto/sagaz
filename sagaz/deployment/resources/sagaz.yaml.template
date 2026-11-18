@@ -78,3 +78,14 @@ execution:
   default_max_retries: ${SAGAZ_DEFAULT_MAX_RETRIES:-3}
   failure_strategy: "${SAGAZ_FAILURE_STRATEGY:-FAIL_FAST_WITH_GRACE}"
 
+
+# Multi-region steps (ADR-034). Uncomment to run steps declared with region=
+# on that region's workers. A step only fails over to a healthy region of the
+# same jurisdiction, so its data stays there.
+# regions:
+#   home: us-east-1
+#   stale_after: 3
+#   members:
+#     - {name: us-east-1,    jurisdiction: US, bus: "redis://us-redis:6379"}
+#     - {name: eu-west-1,    jurisdiction: EU, bus: "redis://eu-redis:6379"}
+#     - {name: eu-central-1, jurisdiction: EU, bus: "redis://eu2-redis:6379", priority: 1}

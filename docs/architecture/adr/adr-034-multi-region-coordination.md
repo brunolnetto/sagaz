@@ -2,14 +2,56 @@
 
 ## Status
 
-**Proposed** | Date: 2026-04-07 | Priority: Medium | Target: v2.4.0
+**Accepted (revised)** | Date: 2026-04-07, revised 2026-11-18 | Priority: Medium | Implemented: v2.0.0
 
 **Implementation Status:**
-- ⚪ Phase 1: Region Registry & Routing (Not Started)
-- ⚪ Phase 2: Cross-Region Communication (Not Started)
-- ⚪ Phase 3: Conflict Resolution & Consistency (Not Started)
-- ⚪ Phase 4: Failover & Region Health (Not Started)
-- ⚪ Phase 5: CLI & Observability (Not Started)
+- ✅ Phase 1: Region Registry & Routing
+- ✅ Phase 2: Cross-Region Communication
+- ❌ Phase 3: Conflict Resolution & Consistency (rejected in the revision below)
+- ✅ Phase 4: Failover & Region Health (within a jurisdiction)
+- ✅ Phase 5: CLI & Observability (Grafana panel not done)
+
+## Revision (v2.0.0): data residency first
+
+Guide: [Multi-region sagas](../../guides/multi-region.md). Issue #59.
+
+The proposal below conflicted with itself. Principle 3 says a step's data stays in its
+declared region, but automatic failover "to the nearest healthy region" would send an
+EU step, and its data, to the US. The implementation resolves this in favour of
+residency:
+
+- **Regions have a jurisdiction.** Automatic failover only picks a healthy region of
+  the same jurisdiction, by priority. With no such region, the step fails and the saga
+  compensates. Crossing jurisdictions takes an explicit operator action:
+  `sagaz region failover --force`.
+- **One coordinator per saga, no conflict resolution.** The process that runs a saga
+  owns its state, and regional workers only execute steps and reply. With no concurrent
+  writers there is nothing to reconcile, so OCC, vector clocks and
+  `last_writer_wins` / `first_writer_wins` / `manual` (Phase 3) were dropped. The
+  "Saga Duplication per Region" rejection below already rules out the active-active
+  writers that would need them.
+- **Health from heartbeats, not HTTP probes.** Workers publish heartbeats on their
+  region's bus, which is the transport the steps use. A region is down after
+  `stale_after` seconds (default 3) without one, which gives failover in under 5 s.
+- **No automatic retry elsewhere.** A step in flight when its region dies times out,
+  and the saga compensates. Running it again in a stand-in could perform the action
+  twice.
+- **Transport:** the choreography event buses (Redis Streams, Kafka, RabbitMQ, memory),
+  one per region. Requests and replies are matched by request id. Worker replicas share
+  a consumer group; each coordinator has its own.
+
+| Piece | Where |
+|---|---|
+| `Region`, `RegionRegistry` (health, routing, manual failover) | `sagaz/core/regions/_registry.py` |
+| `MultiRegionCoordinator` | `sagaz/core/regions/coordinator.py` |
+| `RegionalWorker` | `sagaz/core/regions/worker.py` |
+| `region=` on `@action` / `@step` / `add_step()` | `sagaz/core/decorators/` |
+| `regions:` in `sagaz.yaml` | `sagaz/core/regions/_config.py` |
+| `sagaz region list` / `failover` | `sagaz/cli/region.py` |
+| Metrics | `sagaz_cross_region_latency_seconds`, `sagaz_region_failover_total` |
+
+**Not done:** region routing in the lower-level `sagaz.core.saga.Saga` and a Grafana
+panel. The original proposal follows, unchanged, for reference.
 
 ## Dependencies
 
