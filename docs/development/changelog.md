@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-18
+
+Wave 5: core extensions. Sagas can keep their full history as events (#57, ADR-033)
+and run steps in other regions while keeping data in its jurisdiction (#59,
+ADR-034). Choreographed sagas get the guarantees the literature expects from a
+system without a coordinator: per-transaction ordering, compensation that commutes
+with late events, durable participant state and deadlines.
+
+### Breaking changes
+- `ChoreographedSaga.forget()` and `ChoreographedSaga.was_compensated()` are now
+  coroutines (#448). Await them.
+- `Dispatcher.max_seen` is gone. The participant state's `max_deliveries` replaces it
+  (`InMemoryParticipantState(max_deliveries=...)`).
+- A participant that has compensated a transaction no longer acts on that
+  transaction's later business events (#446). They are counted as
+  `outcome="after_compensation"` instead of being handled.
+- Every choreography participant now receives the engine's completion events (#449).
+  Participants without a handler for them only record the transaction as finished.
+- The Kafka choreography bus keys messages by correlation id instead of event type
+  (#447). Transactions in flight during the upgrade may briefly have events on two
+  partitions.
+
 ### Added
 - **Event-sourced sagas** (#57, ADR-033): opt in with
   `Meta.storage_strategy = "event_sourced"` (or `SagaConfig`). Every state change of
