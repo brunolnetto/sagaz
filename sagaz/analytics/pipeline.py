@@ -46,9 +46,10 @@ except ImportError as exc:  # pragma: no cover
     raise ImportError(msg) from exc
 
 from sagaz.analytics._bronze import SagaBronzeProcessor
+from sagaz.analytics._choreography import _ChoreographyLoaderMixin
 from sagaz.analytics._quality import SAGA_STATUSES, STEP_OUTCOMES, PipelineStats
 from sagaz.analytics._silver import _SilverLoaderMixin
-from sagaz.analytics.sources import bronze_records_from_storage
+from sagaz.analytics.sources import read_storage
 
 __all__ = [
     "SAGA_STATUSES",
@@ -61,7 +62,7 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-class SagaAnalyticsPipeline(_SilverLoaderMixin):
+class SagaAnalyticsPipeline(_SilverLoaderMixin, _ChoreographyLoaderMixin):
     """
     Bronze → Silver → Gold analytics pipeline backed by DuckDB.
 
@@ -157,13 +158,18 @@ class SagaAnalyticsPipeline(_SilverLoaderMixin):
         Reads every saga (with its steps) from ``storage.export_all()`` — the
         OLTP side is never written — and replaces previously loaded data, so
         calling ``run()`` again refreshes the analytics with the latest state.
+        Choreographed transactions saved by a ``ChoreographyTracker`` go to the
+        choreography tables instead of the saga tables.
         """
         if self._storage is None:
             msg = "run() needs a saga storage: SagaAnalyticsPipeline(storage)"
             raise ValueError(msg)
-        sagas, steps = await bronze_records_from_storage(self._storage)
+        sagas, steps, choreography = await read_storage(self._storage)
         self._reset()
-        return self.load_from_records(sagas, steps)
+        self._reset_choreography()
+        stats = self.load_from_records(sagas, steps)
+        stats.choreography_loaded = self.load_choreography_records(choreography)
+        return stats
 
     # ------------------------------------------------------------------
     # Gold: query
@@ -184,6 +190,7 @@ class SagaAnalyticsPipeline(_SilverLoaderMixin):
             Each dict maps column name → value.
         """
         self._ensure_schema()
+        self._ensure_choreography_schema()
         rel = self._conn.execute(sql)
         columns = [desc[0] for desc in rel.description]
         return [dict(zip(columns, row, strict=False)) for row in rel.fetchall()]

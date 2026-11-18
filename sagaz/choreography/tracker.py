@@ -70,6 +70,7 @@ class TransactionStatus:
                 "event_id": event.event_id,
                 "source": event.source,
                 "at": event.created_at.isoformat(),
+                "causation_id": event.causation_id,
             }
         )
         self._note_participant(event)

@@ -22,6 +22,7 @@ class PipelineStats:
     sagas_loaded: int = 0
     steps_loaded: int = 0
     facts_loaded: int = 0
+    choreography_loaded: int = 0
     quality_errors: list[str] = field(default_factory=list)
 
     @property
