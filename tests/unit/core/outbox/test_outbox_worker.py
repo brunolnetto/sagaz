@@ -326,6 +326,46 @@ class TestGetBrokerFactory:
             broker = worker.get_broker()
             assert broker is not None
 
+    def test_get_broker_redis(self, monkeypatch):
+        """BROKER_TYPE=redis builds a Redis Streams broker from REDIS_URL."""
+        from sagaz.core.outbox import worker
+        from sagaz.core.outbox.brokers.redis import RedisBroker
+
+        monkeypatch.setenv("BROKER_TYPE", "redis")
+        monkeypatch.setenv("REDIS_URL", "rediss://:secret@cache:6380/0")
+        monkeypatch.delenv("REDIS_STREAM", raising=False)
+
+        broker = worker.get_broker()
+
+        assert isinstance(broker, RedisBroker)
+        assert broker.config.url == "rediss://:secret@cache:6380/0"
+
+    def test_get_broker_redis_stream_and_broker_url_fallback(self, monkeypatch):
+        from sagaz.core.outbox import worker
+
+        monkeypatch.setenv("BROKER_TYPE", "REDIS")
+        monkeypatch.delenv("REDIS_URL", raising=False)
+        monkeypatch.setenv("BROKER_URL", "redis://cache:6379/1")
+        monkeypatch.setenv("REDIS_STREAM", "orders.outbox")
+
+        broker = worker.get_broker()
+
+        assert (broker.config.url, broker.config.stream_name) == (
+            "redis://cache:6379/1",
+            "orders.outbox",
+        )
+
+    def test_get_broker_redis_without_url_names_the_variable(self, monkeypatch, caplog):
+        from sagaz.core.outbox import worker
+
+        monkeypatch.setenv("BROKER_TYPE", "redis")
+        monkeypatch.delenv("REDIS_URL", raising=False)
+        monkeypatch.delenv("BROKER_URL", raising=False)
+
+        with pytest.raises(SystemExit):
+            worker.get_broker()
+        assert "Set REDIS_URL or BROKER_URL" in caplog.text
+
 
 class TestOutboxWorkerStart:
     """Test OutboxWorker.start functionality."""
