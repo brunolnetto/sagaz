@@ -216,10 +216,11 @@ jobs:
   label-dependencies:
     name: Label dependency PRs
     runs-on: ubuntu-latest
-    # Only run for Dependabot or Renovate PRs
+    # Only run for Dependabot or Renovate PRs (never on issue events)
     if: |
-      startsWith(github.head_ref, 'dependabot/') ||
-      startsWith(github.head_ref, 'renovate/')
+      github.event_name == 'pull_request' &&
+      (startsWith(github.head_ref, 'dependabot/') ||
+       startsWith(github.head_ref, 'renovate/'))
     steps:
       - name: Apply "dependencies" label
         uses: actions/github-script@v9
@@ -252,8 +253,10 @@ jobs:
   label-by-branch:
     name: Label PR by branch type
     runs-on: ubuntu-latest
-    # Skip Dependabot/Renovate — handled above
+    # Pull requests only: on issue events there is no head_ref or pull_request
+    # payload. Skip Dependabot/Renovate — handled above.
     if: |
+      github.event_name == 'pull_request' &&
       !startsWith(github.head_ref, 'dependabot/') &&
       !startsWith(github.head_ref, 'renovate/')
     steps:
