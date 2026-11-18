@@ -363,3 +363,21 @@ def test_cost_edge_values():
     assert _number(True) == 1.0
     assert _number("2Gi", "GiB") == 2.0
     assert _number("1.5") == 1.5
+
+
+def test_multipliers_by_value():
+    cost = {
+        "items": [
+            {
+                "label": "Cloud SQL",
+                "variable": "db_tier",
+                "multiplier_variable": "db_availability_type",
+                "multipliers": {"ZONAL": 1, "REGIONAL": 2},
+                "prices": {"db-f1-micro": 7.67},
+            }
+        ]
+    }
+    zonal = estimate(cost, {"db_tier": "db-f1-micro", "db_availability_type": "ZONAL"})
+    regional = estimate(cost, {"db_tier": "db-f1-micro", "db_availability_type": "REGIONAL"})
+    other = estimate(cost, {"db_tier": "db-f1-micro", "db_availability_type": "MULTI"})
+    assert [zonal.total, regional.total, other.total] == [7.67, 15.34, 7.67]

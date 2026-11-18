@@ -84,6 +84,13 @@ def _is_ha(value: Any) -> bool:
     return str(value).strip().lower() in _HA_VALUES
 
 
+def _multiplier(item: dict[str, Any], value: Any) -> float:
+    """Factor for HA settings: a ``multipliers`` map by value, or ``multiplier`` when truthy."""
+    if "multipliers" in item:
+        return float(item["multipliers"].get(str(value), 1))
+    return float(item.get("multiplier", 2)) if _is_ha(value) else 1.0
+
+
 def _line(item: dict[str, Any], values: dict[str, Any]) -> CostLine:
     prices = item["prices"]
     variable = item.get("variable")
@@ -99,8 +106,8 @@ def _line(item: dict[str, Any], values: dict[str, Any]) -> CostLine:
         monthly *= _number(values.get(per_unit, 0), item.get("per_unit_unit")) / float(
             item.get("per_unit_divisor", 1)
         )
-    if (multiplier := item.get("multiplier_variable")) and _is_ha(values.get(multiplier)):
-        monthly *= float(item.get("multiplier", 2))
+    if multiplier := item.get("multiplier_variable"):
+        monthly *= _multiplier(item, values.get(multiplier))
     return CostLine(label, round(monthly, 2))
 
 
