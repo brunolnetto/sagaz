@@ -338,3 +338,72 @@ class TestEdges:
         assert list(inventory._finished) == ["t-1", "t-2"]
         inventory._remember(Event("order.created", saga_id="t-2"))
         assert "t-2" not in inventory._completed
+
+
+class TestLateEvents:
+    """Compensation commutes with business events that arrive after it (#446)."""
+
+    async def test_a_business_event_after_compensation_is_not_acted_on(self):
+        async with Stack() as stack:
+            before = _sample(
+                "sagaz_choreography_events_total",
+                participant="inventory",
+                event_type="order.created",
+                outcome="after_compensation",
+            )
+            # A partition or a slow producer delivers the compensation first.
+            await stack.bus.publish(Event(COMPENSATE, {"participant": "payments"}, saga_id="t-1"))
+            await stack.bus.publish(Event("order.created", {"order_id": "late"}, saga_id="t-1"))
+
+            assert stack.inventory.reserved == []
+            assert "inventory.reserved" not in stack.types()
+            assert (
+                _sample(
+                    "sagaz_choreography_events_total",
+                    participant="inventory",
+                    event_type="order.created",
+                    outcome="after_compensation",
+                )
+                == before + 1
+            )
+            # Other transactions are unaffected.
+            await stack.bus.publish(Event("order.created", {"order_id": "o-2"}, saga_id="t-2"))
+            assert stack.inventory.reserved == ["o-2"]
+
+            # The tracker still records the late event.
+            status = await stack.tracker.status("t-1")
+            assert "order.created" in {e["event_type"] for e in status.events}
+
+    async def test_compensation_reports_still_reach_wildcard_handlers(self):
+        class Auditor(ChoreographedSaga):
+            def __init__(self) -> None:
+                super().__init__(name="auditor")
+                self.seen: list[str] = []
+
+            @on_event("*")
+            async def record(self, event: Event) -> None:
+                self.seen.append(event.event_type)
+
+        bus = EventBus()
+        engine = ChoreographyEngine(bus)
+        auditor = Auditor()
+        engine.register(auditor)
+        await bus.publish(Event(COMPENSATE, saga_id="t-1"))
+        await bus.publish(Event(COMPENSATED, {"participant": "x"}, saga_id="t-1"))
+        await bus.publish(Event("order.created", saga_id="t-1"))
+        # Its own report and the one published above; the late business event is not.
+        assert auditor.seen == [COMPENSATED, COMPENSATED]
+
+    def test_tombstones_are_bounded(self, monkeypatch):
+        monkeypatch.setattr(Inventory, "max_tracked_transactions", 2)
+        inventory = Inventory()
+
+        async def compensate_all():
+            for i in range(3):
+                await inventory.compensate_transaction(f"t-{i}")
+
+        import asyncio
+
+        asyncio.run(compensate_all())
+        assert [inventory.was_compensated(f"t-{i}") for i in range(3)] == [False, True, True]
+        assert not inventory.was_compensated(None)

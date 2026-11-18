@@ -81,10 +81,28 @@ class Dispatcher:
         if event.event_type == COMPENSATE:
             await self._compensate(saga, event)
             return
-        if event.event_type in saga._handlers or "*" in saga._handlers:
+        if saga.handles(event.event_type) and not self._after_compensation(saga, event):
             await self._handle(saga, event)
         if event.event_type in self._completion_events and event.saga_id:
             saga.forget(event.saga_id)
+
+    @staticmethod
+    def _after_compensation(saga: ChoreographedSaga, event: Event) -> bool:
+        """True (and counted) if *saga* already compensated *event*'s transaction.
+
+        Acting on such an event now would leave an effect nothing will undo, so
+        it is not handled: compensation commutes with late events (#446).
+        """
+        if event.event_type == COMPENSATED or not saga.was_compensated(event.saga_id):
+            return False
+        _count(saga.name, event.event_type, "after_compensation")
+        logger.warning(
+            "%s ignores %r: transaction %s was already compensated",
+            saga.name,
+            event.event_type,
+            event.saga_id,
+        )
+        return True
 
     async def _handle(self, saga: ChoreographedSaga, event: Event) -> None:
         token = current_cause.set(event)

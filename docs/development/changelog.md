@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Choreography: late events after compensation** (#446): a participant that has
+  compensated a transaction no longer acts on that transaction's later business
+  events. Before, a late event performed an action that nothing undid. Such events
+  are counted as `outcome="after_compensation"`.
+- **Choreography over Kafka: per-transaction ordering** (#447): events are keyed by
+  correlation id instead of event type, so a transaction's events share a partition
+  and keep their order.
+
 ## [1.10.0] - 2026-11-18
 
 Wave 4: event-driven saga choreography (#56, ADR-029). Opt-in: orchestrated

@@ -16,7 +16,7 @@ from uuid import uuid4
 
 import pytest
 
-from sagaz.choreography import ChoreographyEngine, ChoreographyTracker
+from sagaz.choreography import ChoreographyEngine, ChoreographyTracker, Event
 from tests.unit.test_choreography_compensation import Inventory, Orders, Payments, Shipping
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
@@ -132,3 +132,45 @@ async def test_declined_payment_is_compensated_across_services(make_bus):
     assert status.failure["participant"] == "payments"
     assert deployment.inventory.released == ["o-2"]
     assert deployment.payments.charged == []
+
+
+async def test_kafka_keeps_each_transactions_order_across_partitions(kafka_container):
+    """A transaction's events stay in publish order on a multi-partition topic (#447)."""
+    from aiokafka.admin import AIOKafkaAdminClient, NewTopic
+
+    topic = f"orders.partitioned.{uuid4().hex[:8]}"
+    admin = AIOKafkaAdminClient(bootstrap_servers=kafka_container.get_bootstrap_server())
+    await admin.start()
+    try:
+        await admin.create_topics([NewTopic(topic, num_partitions=6, replication_factor=1)])
+    finally:
+        await admin.close()
+
+    producer, consumer = (
+        _kafka_bus(kafka_container, topic, "p"),
+        _kafka_bus(kafka_container, topic, "c"),
+    )
+    received: list[Event] = []
+
+    async def collect(event: Event) -> None:
+        received.append(event)
+
+    consumer.subscribe("*", collect)
+    steps = ["order.created", "inventory.reserved", "payment.charged", "order.shipped"]
+    transactions = [f"t-{i}" for i in range(8)]
+    await consumer.start()
+    await producer.start()
+    try:
+        for step in steps:  # interleave transactions, one event type at a time
+            for saga_id in transactions:
+                await producer.publish(Event(step, saga_id=saga_id))
+        deadline = asyncio.get_running_loop().time() + 45
+        while len(received) < len(steps) * len(transactions):
+            assert asyncio.get_running_loop().time() < deadline, f"got {len(received)} events"
+            await asyncio.sleep(0.2)
+    finally:
+        await producer.stop()
+        await consumer.stop()
+
+    for saga_id in transactions:
+        assert [e.event_type for e in received if e.saga_id == saga_id] == steps

@@ -251,10 +251,28 @@ async def test_publish_calls_send_and_wait_with_correct_topic_and_key() -> None:
     # First positional arg is the topic
     topic = mock_producer.send_and_wait.call_args.args[0]
     assert topic == "test.topic"
-    assert kwargs["key"] == b"order.created"
+    # Keyed by correlation id: a transaction's events share a partition (#447).
+    assert kwargs["key"] == event.saga_id.encode()
     payload = json.loads(kwargs["value"].decode())
     assert payload["event_type"] == "order.created"
     assert payload["data"]["order_id"] == "ORD-1"
+
+
+def test_partition_key_falls_back_to_the_event_type() -> None:
+    from sagaz.choreography.buses.kafka import partition_key
+
+    assert partition_key(Event("order.created", saga_id="t-1")) == b"t-1"
+    assert partition_key(Event("order.created")) == b"order.created"
+
+
+@pytest.mark.asyncio
+async def test_events_of_one_transaction_share_a_key() -> None:
+    bus = _make_bus()
+    bus._producer = AsyncMock()
+    for event_type in ("order.created", "inventory.reserved", "choreography.compensate"):
+        await bus.publish(Event(event_type, saga_id="t-9"))
+    keys = {c.kwargs["key"] for c in bus._producer.send_and_wait.call_args_list}
+    assert keys == {b"t-9"}
 
 
 @pytest.mark.asyncio
