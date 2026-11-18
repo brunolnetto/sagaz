@@ -184,6 +184,12 @@ Wave 6  ─── v2.1.0 ─────── Streaming & historical analytics 
 
 ## Wave 4 — v1.10.0 "Event-Driven Choreography"
 
+> **Released 2026-11-18.** #115 had been merged into the #69 branch, not into develop.
+> #441 brought #69 onto develop (closing it) and added compensation, transaction
+> tracking, `sagaz choreography status`, correlation and tenant propagation, idempotent
+> delivery, metrics and the guide. Closes #56. See the
+> [changelog](../development/changelog.md#1100---2026-11-18).
+
 **Target**: August / September 2026
 **Risk**: Medium — new execution model but fully isolated from `Saga` class
 **Merge order**: feature/redis-streams-eventbus → #69
@@ -319,7 +325,7 @@ fix/#104           ────────────────────�
 | v1.7.0  | 1b   | StateChart Migration Phase 1 | Released |
 | v1.8.0  | 2    | Analytics & Chaos | Released (patches through v1.8.3) |
 | v1.9.0  | 3    | CLI v2 + CDC + Tenancy | Released 2026-11-18 |
-| v1.10.0 | 4    | Event-Driven Choreography | Planned |
+| v1.10.0 | 4    | Event-Driven Choreography | Released 2026-11-18 |
 | v2.0.0  | 5    | Core Extensions | Blocked |
 | v2.1.0  | 6    | Streaming & Historical Analytics | Deferred (post-Wave 5) |
 
