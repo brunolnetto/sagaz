@@ -2,14 +2,50 @@
 
 ## Status
 
-**In Progress** | Date: 2026-01-10 | Priority: High | Target: v2.2.0
+**Accepted** | Date: 2026-01-10 | Implemented: v1.10.0 (#56, #69) | Priority: High
 
 **Implementation Status:**
-- ⚪ Phase 1: Event Bus Infrastructure (Not Started)
-- ⚪ Phase 2: Choreography Engine (Not Started)
-- ⚪ Phase 3: Event Sourcing Integration (Not Started)
-- ⚪ Phase 4: Distributed Tracing (Not Started)
-- ⚪ Phase 5: Testing & Observability (Not Started)
+- ✅ Phase 1: Event Bus Infrastructure (in-memory, Redis Streams, Kafka, RabbitMQ)
+- ✅ Phase 2: Choreography Engine (routing, idempotency, tenant scope)
+- ✅ Phase 3: Failure handling (engine-published compensation, `@compensate`)
+- ✅ Phase 4: Correlation (correlation, causation, source, tenant on every event)
+- ✅ Phase 5: Testing & Observability (tracker, `sagaz choreography status`, metrics)
+
+> What shipped is described in [Implementation (v1.10.0)](#implementation-v1100); the
+> rest of this ADR is the original proposal.
+
+## Implementation (v1.10.0)
+
+Guide: [Saga choreography](../../patterns/choreography.md).
+
+- **Participants and engine.** `ChoreographedSaga` participants declare `@on_event`
+  handlers and `@compensate` undo methods, and are registered with a
+  `ChoreographyEngine` on any `AbstractEventBus` (in-memory, Redis Streams, Kafka,
+  RabbitMQ).
+  - Participants start a transaction with `begin()` and continue it with `emit()`.
+- **Event metadata.** Events carry the correlation id (`saga_id`), `tenant_id`,
+  `causation_id` and `source`. The buses serialize them through
+  `Event.to_dict()/from_dict()`.
+- **Delivery.** The engine delivers each event at most once per participant (dedup by
+  `event_id`, bounded) and runs handlers in the event's tenant scope.
+- **Failure.** Instead of requiring every service to model negative events, the engine
+  publishes `choreography.compensate` when a handler raises. Each participant undoes,
+  newest first, the actions it completed in that transaction and reports
+  `choreography.compensated`.
+  - An action counts as completed when the handler emits its result or returns.
+  - Domain-level negative events (`payment.failed`) remain possible with `@on_event`.
+- **State tracking.** This is a projection, not engine-side storage: a
+  `ChoreographyTracker` builds each transaction's status from the event stream
+  (executing, completed, compensating, compensated, failed). The status is order
+  independent, kept in memory or in saga storage in the transaction's tenant, and read
+  by `sagaz choreography status`.
+  - A single tracker is the only writer, which avoids concurrent updates from several
+    services.
+- **Metrics.** `sagaz_choreography_events_total`, `_handler_seconds` and
+  `_compensations_total`.
+- **Not implemented.** Event sourcing / saga replay from the event log (Phase 3 of the
+  original plan), OpenTelemetry spans per event, and persistent (cross-restart)
+  deduplication.
 
 ## Dependencies
 
