@@ -29,7 +29,8 @@ Wave 2  ─── v1.8.0 ──────── Analytics & chaos             
 Wave 3  ─── v1.9.0 ──────── CLI v2 + CDC + tenancy         (service/infra expansion)
 Wave 4  ─── v1.10.0 ─────── Event-driven choreography      (new execution model)
 Wave 5  ─── v2.0.0 ──────── Core extensions                (event sourcing, multi-region — released)
-Wave 6  ─── v2.1.0 ─────── Streaming & historical analytics (Fluss + Iceberg; post-core stabilization)
+Wave 6  ─── v2.1.0 ─────── Unified saga log                (ADR-041: one OLTP model for both coordination styles)
+Wave 7  ─── v2.2.0 ─────── Streaming & historical analytics (Fluss + Iceberg; reads the unified log)
 ```
 
 ---
@@ -125,7 +126,7 @@ Wave 6  ─── v2.1.0 ─────── Streaming & historical analytics 
 **Superseded / closed without merge (2026-11-13)**:
 - #71 — superseded by #374 (same visualization work, current history, targets `develop`).
 - #254, #257, #258 — branches were 282 commits behind and only carried lint/bot fixes; the demo modules on `develop` were still placeholders. Re-implemented in #377–#379.
-- Issue #51 and PR #67 remain moved to **v2.1.0 (Wave 6)** (GitHub milestone #18).
+- Issue #51 and PR #67 moved to **v2.2.0 (Wave 7)** (GitHub milestone #18), after the unified saga log (ADR-041).
 
 **Defects found and fixed while closing the wave**:
 - `TracingSagaListener` emitted **no spans** (it called `@contextmanager` tracer methods without entering them); fixed in #378.
@@ -225,7 +226,23 @@ Wave 6  ─── v2.1.0 ─────── Streaming & historical analytics 
 
 ---
 
-## Wave 6 — v2.1.0 "Streaming & Historical Analytics"
+## Wave 6 — v2.1.0 "Unified Saga Log"
+
+**Design**: [ADR-041](../architecture/adr/adr-041-unified-saga-log.md) — milestone "v2.1.0: Unified Saga Log"
+**Risk**: High — new storage layout written by both engines; additive until v3.0.0
+**Why before Fluss**: the analytics stream should read one typed saga log, not three
+models and a JSON blob (the stopgap in v2.0.1, #459).
+
+| Phase | Scope |
+|---|---|
+| 1 | Schema + repositories (PostgreSQL, SQLite, memory), RLS per tenant and participant, `sagaz migrate` |
+| 2 | Orchestrated engines write the log (opt-in `storage_layout = "unified"`); ADR-033 store as a view |
+| 3 | Choreography: atomic log + outbox writes; tracker as projection; participant state on the unified tables |
+| 4 | Analytics reads the unified tables (Silver/Gold of #459 kept) |
+
+---
+
+## Wave 7 — v2.2.0 "Streaming & Historical Analytics"
 
 **GitHub milestone**: [#18](https://github.com/brunolnetto/sagaz/milestone/18)
 **Target**: After Wave 5 (v2.0.0) has shipped and the core extensions have stabilized; no calendar date committed
@@ -313,14 +330,15 @@ fix/#102           ────────────────────�
 fix/#104           ──────────────────────────────────────────► Wave 5
 #72 (multi-region) after fix/#104 ──────────────────────────► Wave 5
 
-#67/#51 (Fluss+Iceberg) ─ after Wave 5 stabilization ───────► Wave 6 (v2.1.0)
+ADR-041 unified saga log ─────────────────────────────────► Wave 6 (v2.1.0)
+#67/#51 (Fluss+Iceberg) ─ after the unified log ───────────► Wave 7 (v2.2.0)
 ```
 
 ---
 
 ## Version Map
 
-> **Reconciled 2026-11-13.** The authoritative mapping is the Wave Map above. The stale alternative table (which assigned v2.0.0–v2.3.0 to Waves 2–5) has been removed. Wave 6 is now assigned **v2.1.0** — it follows Wave 5 (v2.0.0) and is registered as GitHub milestone #18.
+> **Reconciled 2026-11-13.** The authoritative mapping is the Wave Map above. The stale alternative table (which assigned v2.0.0–v2.3.0 to Waves 2–5) has been removed. Wave 6 is now **v2.1.0** (Unified Saga Log, milestone #20, ADR-041); the Fluss + Iceberg work moved to Wave 7, **v2.2.0** (milestone #18), on 2026-11-18.
 
 | Version | Wave | Title | Status |
 |---------|------|-------|--------|
@@ -332,7 +350,8 @@ fix/#104           ────────────────────�
 | v1.10.0 | 4    | Event-Driven Choreography | Released 2026-11-18 |
 | v2.0.0  | 5    | Core Extensions | Released 2026-11-18 |
 | v2.0.1  | 5    | Choreography Analytics (patch) | Released 2026-11-18 |
-| v2.1.0  | 6    | Streaming & Historical Analytics | Deferred (post-Wave 5) |
+| v2.1.0  | 6    | Unified Saga Log | Planned (ADR-041) |
+| v2.2.0  | 7    | Streaming & Historical Analytics | Deferred (after Wave 6) |
 
 ---
 
