@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Collection
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sagaz.choreography.events import Event
-from sagaz.choreography.state._base import COMPENSATED, COMPLETED, ParticipantState
+from sagaz.choreography.state._base import COMPENSATED, COMPLETED, Deadline, ParticipantState
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.storage._tenancy import write_tenant
 
@@ -35,6 +36,14 @@ CREATE TABLE IF NOT EXISTS choreography_transactions (
     correlation_id TEXT NOT NULL,
     state          TEXT NOT NULL,
     ended_at       TEXT NOT NULL,
+    PRIMARY KEY (tenant_id, participant, correlation_id)
+);
+CREATE TABLE IF NOT EXISTS choreography_deadlines (
+    tenant_id      TEXT NOT NULL,
+    participant    TEXT NOT NULL,
+    correlation_id TEXT NOT NULL,
+    due_at         TEXT NOT NULL,
+    claimed_until  TEXT,
     PRIMARY KEY (tenant_id, participant, correlation_id)
 );
 CREATE TABLE IF NOT EXISTS choreography_deliveries (
@@ -105,11 +114,12 @@ class SQLiteParticipantState(ParticipantState):
                 key,
             )
             done = [Event.from_dict(json.loads(body)) for (body,) in await cursor.fetchall()]
-            await conn.execute(
-                "DELETE FROM choreography_actions"
-                " WHERE tenant_id = ? AND participant = ? AND correlation_id = ?",
-                key,
-            )
+            for table in ("choreography_actions", "choreography_deadlines"):
+                await conn.execute(
+                    f"DELETE FROM {table}"
+                    " WHERE tenant_id = ? AND participant = ? AND correlation_id = ?",
+                    key,
+                )
             await conn.execute(
                 "INSERT INTO choreography_transactions"
                 " (tenant_id, participant, correlation_id, state, ended_at)"
@@ -141,6 +151,57 @@ class SQLiteParticipantState(ParticipantState):
             )
             await conn.commit()
         return bool(cursor.rowcount == 1)
+
+    async def set_deadline(self, participant: str, correlation_id: str, due_at: datetime) -> None:
+        conn = await self._connection()
+        tenant = write_tenant()
+        async with self._lock:
+            await conn.execute(
+                "INSERT OR REPLACE INTO choreography_deadlines"
+                " (tenant_id, participant, correlation_id, due_at, claimed_until)"
+                " SELECT ?, ?, ?, ?, NULL WHERE NOT EXISTS (SELECT 1 FROM choreography_transactions"
+                "  WHERE tenant_id = ? AND participant = ? AND correlation_id = ?)",
+                (
+                    tenant,
+                    participant,
+                    correlation_id,
+                    due_at.isoformat(),
+                    tenant,
+                    participant,
+                    correlation_id,
+                ),
+            )
+            await conn.commit()
+
+    async def claim_due_deadlines(
+        self, participants: Collection[str], now: datetime, lease: timedelta, limit: int = 100
+    ) -> list[Deadline]:
+        names = list(participants)
+        if not names:
+            return []
+        conn = await self._connection()
+        marks = ", ".join("?" for _ in names)
+        async with self._lock:
+            cursor = await conn.execute(
+                "SELECT tenant_id, participant, correlation_id, due_at FROM choreography_deadlines"
+                f" WHERE participant IN ({marks}) AND due_at <= ?"
+                " AND (claimed_until IS NULL OR claimed_until <= ?) ORDER BY due_at LIMIT ?",
+                (*names, now.isoformat(), now.isoformat(), limit),
+            )
+            due = [
+                Deadline(tenant, participant, correlation, datetime.fromisoformat(at))
+                for tenant, participant, correlation, at in await cursor.fetchall()
+            ]
+            await conn.executemany(
+                "UPDATE choreography_deadlines SET claimed_until = ?"
+                " WHERE tenant_id = ? AND participant = ? AND correlation_id = ?",
+                [
+                    ((now + lease).isoformat(), d.tenant_id, d.participant, d.correlation_id)
+                    for d in due
+                ],
+            )
+            await conn.commit()
+        return due
 
     async def prune(self, older_than: timedelta) -> int:
         conn = await self._connection()

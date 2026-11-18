@@ -52,7 +52,8 @@ async def state(database_url):
     if pool is not None:
         async with pool.acquire() as conn:
             await conn.execute(
-                "TRUNCATE choreography_actions, choreography_transactions, choreography_deliveries"
+                "TRUNCATE choreography_actions, choreography_transactions,"
+                " choreography_deliveries, choreography_deadlines"
             )
     await pg_state.close()
 
@@ -102,3 +103,30 @@ async def test_row_level_security_isolates_tenants(database_url, state):
     finally:
         await admin.close()
     assert [row["tenant_id"] for row in rows] == ["acme"]
+
+
+async def test_replicas_claim_each_due_deadline_once(database_url, state):
+    """Two pools race for 20 due deadlines in two tenants; each is claimed once (#449)."""
+    from datetime import UTC, datetime, timedelta
+
+    from sagaz.core.tenant import system_scope, tenant_scope
+
+    now = datetime.now(UTC)
+    for i in range(20):
+        with tenant_scope("acme" if i % 2 else "globex"):
+            await state.set_deadline("orders", f"t-dl-{i}", now)
+    other = PostgreSQLParticipantState(database_url)
+    try:
+        with system_scope():
+            batches = await asyncio.gather(
+                *(
+                    replica.claim_due_deadlines({"orders"}, now, timedelta(seconds=60), limit=3)
+                    for _ in range(5)
+                    for replica in (state, other)
+                )
+            )
+    finally:
+        await other.close()
+    claimed = [d.correlation_id for batch in batches for d in batch]
+    assert len(claimed) == len(set(claimed)) == 20
+    assert {d.tenant_id for batch in batches for d in batch} == {"acme", "globex"}

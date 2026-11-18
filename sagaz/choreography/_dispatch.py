@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 CHOREOGRAPHY_EVENTS: prometheus_client.Counter | None
 CHOREOGRAPHY_HANDLER_SECONDS: prometheus_client.Histogram | None
 CHOREOGRAPHY_COMPENSATIONS: prometheus_client.Counter | None
+CHOREOGRAPHY_DEADLINES: prometheus_client.Counter | None
 
 try:
     from prometheus_client import Counter, Histogram
@@ -42,8 +43,14 @@ try:
         "Compensations run by choreography participants, by outcome",
         ["participant", "outcome"],
     )
+    CHOREOGRAPHY_DEADLINES = Counter(
+        "sagaz_choreography_deadlines_expired_total",
+        "Choreographed transactions compensated because their deadline expired",
+        ["participant"],
+    )
 except ImportError:  # pragma: no cover - prometheus_client is optional
     CHOREOGRAPHY_EVENTS = CHOREOGRAPHY_HANDLER_SECONDS = CHOREOGRAPHY_COMPENSATIONS = None
+    CHOREOGRAPHY_DEADLINES = None
 
 
 def _count(participant: str, event_type: str, outcome: str) -> None:
