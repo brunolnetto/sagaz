@@ -19,7 +19,7 @@ Guide: [Event-sourced sagas](../../guides/event-sourcing.md). Issue #57.
 |---|---|
 | Events | `sagaz/core/events.py` |
 | Store interface, memory / SQLite / PostgreSQL stores | `sagaz/core/storage/event_store/` |
-| Recording during a run | `SagaEventRecorder` (`event_store/recorder.py`), called by the `sagaz.Saga` engine |
+| Recording during a run | `SagaEventRecorder` (`event_store/recorder.py`), called by the `sagaz.Saga` engine and by `sagaz.core.saga.Saga` (#450) |
 | Projection, snapshot + tail loading | `sagaz/projections/summary.py` |
 | CLI | `sagaz event-log <saga-id>` |
 | Metrics | `sagaz_event_store_events_total`, `sagaz_event_store_snapshots_total` |
@@ -43,8 +43,11 @@ Differences from the proposal below:
   saga, like the snapshot storage writes.
 - **Tenancy (ADR-020):** both tables are tenant-scoped with row-level security in
   PostgreSQL.
-- **Not done:** the asynchronous `ProjectionRunner`, TTL archival to cold storage, and
-  event recording in the lower-level `sagaz.core.saga.Saga`.
+- **Imperative engine (#450):** `sagaz.core.saga.Saga(event_store=..., snapshot_threshold=...)`
+  records the same events in sequential and DAG mode. It writes one `StepFailed` after
+  retries are exhausted, and the terminal event follows the declarative rule:
+  `SagaFailed` only when a compensation failed.
+- **Not done:** the asynchronous `ProjectionRunner` and TTL archival to cold storage.
 
 ## Dependencies
 

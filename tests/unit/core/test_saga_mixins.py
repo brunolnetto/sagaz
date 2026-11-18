@@ -19,6 +19,7 @@ import pytest
 
 from sagaz.core.exceptions import SagaCompensationError, SagaExecutionError
 from sagaz.core.saga._compensation import _SagaCompensationMixin
+from sagaz.core.saga._event_sourcing import _SagaEventSourcingMixin
 from sagaz.core.saga._snapshot import _SagaSnapshotMixin
 from sagaz.core.saga._step import SagaStep
 from sagaz.core.saga._visualization import _SagaVisualizationMixin
@@ -142,10 +143,11 @@ class TestSagaStep:
 # =============================================================================
 
 
-class _CompensationHost(_SagaCompensationMixin):
-    """Minimal host for _SagaCompensationMixin tests."""
+class _CompensationHost(_SagaCompensationMixin, _SagaEventSourcingMixin):
+    """Minimal host for _SagaCompensationMixin tests (event recording off)."""
 
     def __init__(self, retry_backoff_base: float = 0.0):
+        self._init_event_sourcing(None, 50)
         self.completed_steps: list[SagaStep] = []
         self.compensation_errors: list[Exception] = []
         self.context = MagicMock()

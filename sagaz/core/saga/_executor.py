@@ -5,6 +5,7 @@ extracted from core/saga.py for maintainability. These are internal APIs
 (prefixed with `_`) and should not be used directly by end users.
 """
 
+import time
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -38,6 +39,7 @@ class _StepExecutor:
         self.result = None
         self.error: Exception | None = None
         self.completed = False
+        self.duration_ms = 0.0
 
     async def execute(self) -> Any:
         """Execute the step action and store result or error.
@@ -52,8 +54,10 @@ class _StepExecutor:
         Raises:
             Any exception raised by the step action.
         """
+        started = time.monotonic()
         try:
             result = await self.step.action(self.saga_context)
+            self.duration_ms = (time.monotonic() - started) * 1000
             self.result = result
             self.step.result = result
             # Store result in context for dependent steps

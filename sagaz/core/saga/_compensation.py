@@ -26,11 +26,22 @@ class _SagaCompensationMixin:
     retry_backoff_base: float
     context: "SagaContext"
 
+    if TYPE_CHECKING:
+        # Provided by _SagaEventSourcingMixin on the concrete Saga host.
+        async def _es_compensation_started(self) -> None: ...
+
+        async def _es_step_compensated(self, step_name: str) -> None: ...
+
+        async def _es_step_compensation_failed(
+            self, step_name: str, error: BaseException
+        ) -> None: ...
+
     async def _compensate_all(self) -> None:
         """
         Compensate all completed steps in reverse order
         Continues even if some compensations fail, collecting all errors
         """
+        await self._es_compensation_started()
         compensation_errors = await self._run_compensations()
         if compensation_errors:
             self._raise_compensation_error(compensation_errors)
@@ -49,11 +60,13 @@ class _SagaCompensationMixin:
         """Try to compensate a step, returning error if failed."""
         try:
             await self._compensate_step_with_retry(step)
-            return None
         except SagaCompensationError as e:
+            await self._es_step_compensation_failed(step.name, e)
             self.compensation_errors.append(e)
             logger.error(f"Compensation failed for step '{step.name}': {e}")
             return e
+        await self._es_step_compensated(step.name)
+        return None
 
     def _raise_compensation_error(self, errors: list[SagaCompensationError]) -> None:
         """Raise aggregate compensation error."""

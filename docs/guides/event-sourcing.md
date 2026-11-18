@@ -55,6 +55,15 @@ from sagaz import SagaConfig, configure
 configure(SagaConfig(storage_strategy="event_sourced", event_store="postgresql://..."))
 ```
 
+The lower-level `sagaz.core.saga.Saga` takes the same settings as arguments, in
+sequential and DAG mode:
+
+```python
+from sagaz.core.saga import Saga
+
+saga = Saga(name="order", event_store="postgresql://...", snapshot_threshold=50)
+```
+
 `Meta` settings take precedence over `SagaConfig`. An event-sourced saga without an
 event store fails before it starts, with an error saying so.
 
@@ -159,7 +168,5 @@ panel with the event rate per saga.
 
 ## Limits
 
-- Event sourcing applies to `sagaz.Saga`, both declarative and with `add_step()`. The
-  lower-level `sagaz.core.saga.Saga` does not record events yet.
 - Retention is up to you: the stream grows with every run. Archive or delete old
   streams with SQL if you must.

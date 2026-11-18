@@ -10,6 +10,7 @@ Handles:
 
 import asyncio
 import logging
+import time
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -47,11 +48,15 @@ class StepExecutor:
         last_error: SagaTimeoutError | SagaStepError | None = None
         # Initial attempt + retries; a tenant quota may lower the retries (ADR-020).
         total_attempts = capped_retries(step.max_retries) + 1
+        started = time.monotonic()
 
         for attempt in range(total_attempts):
             try:
                 step.retry_count = attempt
                 await self.execute_step(step)
+                await self.saga._es_step_executed(
+                    step.name, step.result, (time.monotonic() - started) * 1000
+                )
                 return  # Success!
 
             except SagaTimeoutError as e:
@@ -75,6 +80,7 @@ class StepExecutor:
         # All retries exhausted
         step.error = last_error
         assert last_error is not None, "last_error should be set after exhausting retries"
+        await self.saga._es_step_failed(step.name, last_error)
         raise last_error
 
     async def execute_step(self, step: "SagaStep") -> None:

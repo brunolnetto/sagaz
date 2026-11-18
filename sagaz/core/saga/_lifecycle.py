@@ -2,6 +2,7 @@
 
 import logging
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sagaz.core.types import SagaStatus
 
@@ -20,12 +21,19 @@ class _SagaLifecycleMixin:
     completed_at: datetime | None
     completed_steps: list
 
+    if TYPE_CHECKING:
+        # Provided by _SagaEventSourcingMixin on the concrete Saga host.
+        async def _es_open(self) -> None: ...
+
+        async def _es_finish(self, outcome: str) -> None: ...
+
     async def _on_enter_executing(self) -> None:
         """Callback: entering EXECUTING state"""
         self.status = SagaStatus.EXECUTING
         self.started_at = datetime.now()
         self.completed_steps = []
         logger.info(f"Saga {self.name} [{self.saga_id}] entering EXECUTING state")
+        await self._es_open()
 
     async def _on_enter_compensating(self) -> None:
         """Callback: entering COMPENSATING state"""
@@ -45,6 +53,7 @@ class _SagaLifecycleMixin:
         logger.info(
             f"Saga {self.name} [{self.saga_id}] COMPLETED successfully in {execution_time:.2f}s"
         )
+        await self._es_finish("completed")
 
     async def _on_enter_rolled_back(self) -> None:
         """Callback: entering ROLLED_BACK state"""
@@ -54,6 +63,7 @@ class _SagaLifecycleMixin:
             (self.completed_at - self.started_at).total_seconds() if self.started_at else 0
         )
         logger.info(f"Saga {self.name} [{self.saga_id}] ROLLED_BACK after {execution_time:.2f}s")
+        await self._es_finish("rolled_back")
 
     async def _on_enter_failed(self) -> None:
         """Callback: entering FAILED state (unrecoverable)"""
@@ -62,3 +72,4 @@ class _SagaLifecycleMixin:
         logger.error(
             f"Saga {self.name} [{self.saga_id}] FAILED - unrecoverable error during compensation"
         )
+        await self._es_finish("failed")

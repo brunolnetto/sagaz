@@ -207,12 +207,25 @@ class DAGExecutor:
         try:
             await strategy.execute_parallel_steps(batch_executors)
             self._mark_batch_completed(batch, step_map)
+            await self._record_batch(batch_executors)
             return None
 
         except Exception as batch_error:
             logger.error(f"Batch {batch_idx + 1} failed: {batch_error}")
             self._mark_completed_executors(batch_executors)
+            await self._record_batch(batch_executors)
             return batch_error
+
+    async def _record_batch(self, executors: list) -> None:
+        """Record the batch's step outcomes (event sourcing, #450): successes first."""
+        for executor in sorted(executors, key=lambda e: e.name):
+            if executor.completed:
+                await self.saga._es_step_executed(
+                    executor.name, executor.result, executor.duration_ms
+                )
+        for executor in sorted(executors, key=lambda e: e.name):
+            if not executor.completed and executor.error is not None:
+                await self.saga._es_step_failed(executor.name, executor.error)
 
     def _mark_batch_completed(self, batch: set, step_map: dict) -> None:
         """Mark all steps in batch as completed."""
