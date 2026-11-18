@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-11-18
+
+Analytics for choreographed sagas, and a fix to orchestration analytics.
+
 ### Added
 - **Analytics for choreographed sagas** (#459):
   - **Silver tables:** `SagaAnalyticsPipeline.run()` loads the `ChoreographyTracker`'s
