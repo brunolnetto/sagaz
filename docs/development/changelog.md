@@ -43,6 +43,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Metric: `sagaz_choreography_deadlines_expired_total`. Every participant now
   receives completion events.
 
+- **Multi-region sagas with data residency** (#59, ADR-034, revised):
+  - **Declaring regions:** `@action(..., region="eu-west-1")` (or
+    `add_step(region=...)`) runs a step and its compensation on that region's
+    `RegionalWorker`s, over the region's bus (Redis Streams, Kafka, RabbitMQ).
+  - **Coordinator:** `MultiRegionCoordinator` matches replies by request id; the saga
+    keeps one coordinator.
+  - **Failover:** a region is down after 3 s without worker heartbeats. Its steps then
+    fail over only to a healthy region of the same jurisdiction. Otherwise the step
+    fails and the saga compensates.
+  - **Configuration:** a `regions:` block in `sagaz.yaml`.
+  - **CLI:** `sagaz region list` and `sagaz region failover` (`--force` to cross
+    jurisdictions).
+  - **Metrics:** `sagaz_cross_region_latency_seconds` and
+    `sagaz_region_failover_total`.
+  - **Cost:** steps without a region pay about 0.4% per run.
+  - **Guide:** [Multi-region sagas](../guides/multi-region.md).
+
 ### Fixed
 - **Choreography: late events after compensation** (#446): a participant that has
   compensated a transaction no longer acts on that transaction's later business

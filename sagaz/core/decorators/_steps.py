@@ -46,6 +46,8 @@ class StepMetadata:
     # v1.3.0: Pivot support
     pivot: bool = False
     """If True, marks this step as a point of no return (irreversible)."""
+    region: str | None = None
+    """Region whose workers run this step and its compensation (ADR-034); None = local."""
 
 
 @dataclass
@@ -75,6 +77,7 @@ def step(
     on_failure: OnFailureHook | None = None,
     on_exit: OnExitHook | None = None,
     pivot: bool = False,
+    region: str | None = None,
 ) -> Callable[[F], F]:
     """
     Decorator to mark a method as a saga step.
@@ -93,6 +96,8 @@ def step(
         pivot: If True, marks this step as a point of no return (v1.3.0).
                Once completed, ancestor steps become tainted and cannot be
                rolled back. Use for irreversible actions like payment charges.
+        region: Run the step and its compensation on the workers of this region
+               (ADR-034), for data residency or latency. ``None`` runs it locally.
 
     Example:
         >>> class OrderSaga(Saga):
@@ -121,6 +126,7 @@ def step(
             on_failure=on_failure,
             on_exit=on_exit,
             pivot=pivot,
+            region=region,
         )
         return func
 

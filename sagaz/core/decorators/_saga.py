@@ -60,6 +60,9 @@ class SagaStepDefinition:
     # v1.3.0: Pivot support
     pivot: bool = False
     """If True, marks this step as a point of no return (irreversible)."""
+    # v2.0.0: Region affinity (ADR-034)
+    region: str | None = None
+    """Region whose workers run this step and its compensation; None = local."""
 
 
 class Saga(_DecoratorPivotMixin, _DecoratorOrderingMixin, _DecoratorVisualizationMixin):
@@ -194,6 +197,7 @@ class Saga(_DecoratorPivotMixin, _DecoratorOrderingMixin, _DecoratorVisualizatio
         compensation_timeout_seconds: float = 30.0,
         max_retries: int = 3,
         description: str | None = None,
+        region: str | None = None,
     ) -> "Saga":
         """
         Add a step programmatically (imperative mode).
@@ -207,6 +211,8 @@ class Saga(_DecoratorPivotMixin, _DecoratorOrderingMixin, _DecoratorVisualizatio
             compensation_timeout_seconds: Compensation timeout (default: 30s)
             max_retries: Maximum retry attempts (default: 3)
             description: Human-readable description
+            region: Run the step and its compensation on this region's workers
+                (ADR-034). ``None`` (default) runs it locally.
 
         Returns:
             Self for method chaining
@@ -249,6 +255,7 @@ class Saga(_DecoratorPivotMixin, _DecoratorOrderingMixin, _DecoratorVisualizatio
             compensation_timeout_seconds=compensation_timeout_seconds,
             max_retries=max_retries,
             description=description or f"Execute {name}",
+            region=region,
         )
 
         self._steps.append(step_def)

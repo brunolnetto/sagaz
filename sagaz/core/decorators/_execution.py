@@ -11,6 +11,7 @@ import uuid
 from typing import TYPE_CHECKING, Any
 
 from sagaz.core.decorators._event_sourcing import _EventSourcingMixin
+from sagaz.core.decorators._regions import _RegionRoutingMixin
 from sagaz.core.decorators._step_ledger import StepLedger
 from sagaz.core.events import (
     CompensationStarted,
@@ -31,7 +32,7 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-class ExecutionEngine(_EventSourcingMixin):
+class ExecutionEngine(_EventSourcingMixin, _RegionRoutingMixin):
     """Orchestrates saga execution and compensation."""
 
     def __init__(self, saga: "Saga"):
@@ -61,6 +62,7 @@ class ExecutionEngine(_EventSourcingMixin):
         """
         self._initialize_run(initial_context, saga_id)
         name = self._get_saga_name()
+        self._check_regions()
         self._register_compensations()
         await self._open_recorder(name)
         await self._record(SagaStarted, initial_context=json_safe(self.saga._context))
@@ -209,9 +211,7 @@ class ExecutionEngine(_EventSourcingMixin):
         try:
             # Apply timeout
             try:
-                result = await asyncio.wait_for(
-                    step.forward_fn(self.saga._context), timeout=timeout
-                )
+                result = await asyncio.wait_for(self._run_step(step), timeout=timeout)
             except BaseException as error:
                 self._ledger.finished(step.step_id, error)
                 raise
@@ -342,7 +342,8 @@ class ExecutionEngine(_EventSourcingMixin):
             await self._call_hook(on_compensate, self.saga._context, step_id)
 
             await asyncio.wait_for(
-                node.compensation_fn(self.saga._context), timeout=node.timeout_seconds
+                self._run_compensation(step_id, node.compensation_fn),
+                timeout=node.timeout_seconds,
             )
             self.saga._context[f"__{step_id}_compensated"] = True
             self._ledger.compensated(step_id)
