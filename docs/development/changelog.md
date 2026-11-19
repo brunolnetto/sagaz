@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-11-19
+
+The unified saga log (ADR-041): one OLTP model for orchestrated and choreographed
+sagas, shared by every service, with atomic event publication and analytics over
+both coordination styles.
+
 ### Added
 - **Unified saga log, phase 1** (#464, ADR-041): one OLTP model for orchestrated and
   choreographed sagas.
@@ -44,6 +50,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Migration:** `sagaz migrate unify` now carries the tracker's failure and
     compensation reports onto the migrated compensation events, so the Gold reports
     match the old layout's.
+
+### Fixed
+- **SQLite stores** (event store #57, choreography participant state #448): concurrent
+  first use could open a second connection or write during schema creation
+  (`cannot start a transaction within a transaction`). Initialization now runs once,
+  under a lock.
 
 ## [2.0.2] - 2026-11-18
 
