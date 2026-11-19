@@ -261,3 +261,25 @@ async def test_upgrading_adds_the_export_order(store, database_url):
             assert [e.event.event_type for e in await read_all(upgraded)] == ["SagaStarted"]
     finally:
         await upgraded.close()
+
+
+async def test_exporting_to_fluss_resumes_after_an_outage(store):
+    """The PostgreSQL log through the exporter, with Fluss failing mid-batch (#481)."""
+    pytest.importorskip("pyarrow")
+    from sagaz.core.storage.saga_log import SagaLogExporter, SagaLogReader
+    from sagaz.integrations.fluss import FlussSink
+    from tests.unit.test_fluss_export import FakeFluss, fill
+
+    fake = FakeFluss()
+    await fill(store)
+    fake.fail_after = 3
+
+    def exporter():
+        reader = SagaLogReader(store, "fluss", batch_size=2)
+        return SagaLogExporter(reader, FlussSink("fluss:9123", client=fake))
+
+    with pytest.raises(ConnectionError):
+        await exporter().export()
+    fake.fail_after = None
+    assert await exporter().export() == 3
+    assert len(fake.rows) == 5

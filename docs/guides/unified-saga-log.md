@@ -153,6 +153,33 @@ The order never lets a later commit land before the position:
   transaction therefore delays the export until it ends, and its events are
   never skipped.
 
+### To Apache Fluss
+
+`SagaLogExporter` runs that loop in the background. It acknowledges a batch only
+after the sink accepted it, and it backs off while the sink is down. `FlussSink`
+writes to a Fluss primary-key table on `(dt, tenant_id, transaction_id, sequence)`,
+so a repeated batch is an upsert of the same rows. With the datalake enabled,
+Fluss's tiering service moves the table to Iceberg (ADR-013).
+
+```python
+from sagaz.core.storage.saga_log import SagaLogExporter, SagaLogReader
+from sagaz.integrations.fluss import FlussSink
+
+exporter = SagaLogExporter(SagaLogReader(log, "fluss"), FlussSink("fluss:9123"))
+await exporter.start()           # exporter.metrics(): exported, errors, lag_seconds
+```
+
+From the command line:
+
+```bash
+sagaz analytics export --saga-log postgresql://... --to fluss://fluss:9123   # continuous
+sagaz analytics export --saga-log ... --to fluss://... --once                # catch up, exit
+sagaz analytics fluss-ddl                                                    # Flink SQL DDL
+```
+
+Install it with `pip install 'sagaz[fluss]'`. pyfluss 1.0 ships wheels up to
+Python 3.12; on 3.13 it builds from source, which needs a Rust toolchain.
+
 ## Sharing one database between services
 
 The log holds coordination state, not domain data, so the services of an organization

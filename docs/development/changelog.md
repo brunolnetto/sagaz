@@ -18,6 +18,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Upgrade:** `writer_xid` is added to existing PostgreSQL logs on the first
     connection. The `ALTER TABLE` rewrites `saga_log_event`, so on a large log it holds
     an exclusive lock for a while: plan the upgrade.
+- **Fluss export** (#481, ADR-013):
+  - **Exporter:** `SagaLogExporter(reader, sink)` moves the log to an `ExportSink` at
+    least once. It acknowledges only after the sink accepted a batch, backs off while
+    the sink is down, and reports `metrics()` (exported, errors, lag).
+  - **Sink:** `FlussSink` (`sagaz[fluss]`, the official async client) upserts into a
+    Fluss primary-key table on `(dt, tenant_id, transaction_id, sequence)`, so
+    redelivered events are written once. The table is created on first use, with day
+    partitions and tiering to the lake.
+  - **CLI:** `sagaz analytics export --saga-log ... --to fluss://host:port [--once]`,
+    and `sagaz analytics fluss-ddl` to print the table.
 
 ## [2.1.0] - 2026-11-19
 
