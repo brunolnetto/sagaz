@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **PostgreSQL stores no longer block or deadlock running writers on startup** (#469).
+  Every store used to run its whole schema each time it opened a pool. The
+  `ALTER TABLE` / `CREATE POLICY` / `CREATE INDEX` statements took strong locks even
+  when nothing changed, so a process starting while others wrote queued behind them
+  and could deadlock. Each component's DDL is now recorded by hash in
+  `sagaz_schema_version` and runs only when it changed, under an advisory lock. This
+  covers the saga, snapshot and outbox storages, the event store, the choreography
+  participant state and the storage manager.
+
 ## [2.0.1] - 2026-11-18
 
 Analytics for choreographed sagas, and a fix to orchestration analytics.

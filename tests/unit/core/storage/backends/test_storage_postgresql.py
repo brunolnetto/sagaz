@@ -12,6 +12,7 @@ import pytest
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.storage.base import SagaStorageConnectionError, SagaStorageError
 from sagaz.core.types import SagaStatus, SagaStepStatus
+from tests.unit.core.storage.backends._pg_mocks import schema_ready
 
 # Check availability of dependencies
 try:
@@ -938,6 +939,7 @@ class TestPostgresqlOutboxInitialize:
 
         mock_conn = AsyncMock()
         mock_conn.execute = AsyncMock()
+        schema_ready(mock_conn)
 
         mock_pool_ctx = MagicMock()
         mock_pool_ctx.__aenter__ = AsyncMock(return_value=mock_conn)
@@ -952,7 +954,10 @@ class TestPostgresqlOutboxInitialize:
             await storage.initialize()
 
         assert storage._pool is mock_pool
-        mock_conn.execute.assert_called_once()  # Schema created
+        from sagaz.core.storage.backends.postgresql.outbox import OUTBOX_SCHEMA
+
+        executed = [c.args[0] for c in mock_conn.execute.call_args_list]
+        assert OUTBOX_SCHEMA in executed  # schema created (and its version recorded)
 
 
 # ==========================================================================

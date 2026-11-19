@@ -19,6 +19,7 @@ from uuid import UUID
 
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.replay import SagaSnapshot
+from sagaz.core.storage.backends.postgresql._schema_version import apply_schema
 from sagaz.core.storage.backends.postgresql._snapshot_replay import _PostgreSQLReplayLogMixin
 from sagaz.core.storage.backends.postgresql._snapshot_schema import SNAPSHOT_TABLES_SQL
 from sagaz.core.storage.interfaces.snapshot import SnapshotStorage
@@ -90,7 +91,7 @@ class PostgreSQLSnapshotStorage(_PostgreSQLReplayLogMixin, SnapshotStorage):
                 )
                 # Create tables if they don't exist
                 async with self._pool.acquire() as conn:
-                    await conn.execute(self.CREATE_TABLES_SQL)
+                    await apply_schema(conn, "snapshot", self.CREATE_TABLES_SQL)
             except Exception as e:
                 msg = f"Failed to connect to PostgreSQL: {e}"
                 raise ConnectionError(msg) from e
