@@ -7,7 +7,7 @@ Milestone: v2.1.0.
 !!! note "Status"
     - **Phase 1 (#464):** the tables, the store and `sagaz migrate unify`.
     - **Phase 2 (#465):** orchestrated sagas record on the log.
-    - **Phase 3 (#466, next):** choreography writes to it.
+    - **Phase 3 (#466):** choreography writes to it, with atomic publishing.
     - **Phase 4 (#467):** analytics reads it.
 
 ## Tables
@@ -76,6 +76,42 @@ and does not fail the saga.
 
 Recording costs about the same as the ADR-033 event store: 0.93× per event on SQLite,
 where both are dominated by the commit to disk.
+
+## Choreography on the log
+
+Give the engine the log. Participant state then lives on the unified tables, and
+publishing becomes atomic:
+
+```python
+engine = ChoreographyEngine(bus, completion_events={"order.shipped"},
+                            saga_log="postgresql://...")
+tracker = ChoreographyTracker(bus, completion_events={"order.shipped"},
+                              saga_log="postgresql://...")
+```
+
+- **Atomic record-and-publish.** When a handler `emit()`s, one database transaction
+  records the action it completed, appends the new event to the log and queues it
+  in the outbox. `begin()` also inserts the `choreographed` transaction, with its
+  `flow` (the event type) and `initiator`. `engine.relay`, the standard
+  `OutboxWorker` with an `EventBusBroker`, then publishes the outbox on the bus.
+  Before, a crash between "state updated" and "event published" lost one of them.
+- **Delivery:** at least once. A message whose publication fails, for example
+  because the bus is down, is retried on the next relay poll, up to `max_retries`
+  times (100 by default), and then goes to the outbox dead letter. Participants
+  deduplicate by `event_id`. The relay can also run from CDC (ADR-011).
+- **Participant state on the unified tables:**
+    - a completed action is a `saga_activity`, with its triggering event kept for
+      compensation;
+    - the end of a participant's part is its `__transaction__` marker
+      (`compensated` is the tombstone of #446);
+    - deliveries are `saga_delivery` rows and deadlines are `saga_deadline` rows.
+
+  Replicas of a participant share them through the database, so any replica can
+  compensate what another did.
+- **The tracker is a projection.** With `saga_log`, `ChoreographyTracker` derives a
+  transaction's status from its log entries (no JSON record) and keeps the
+  transaction row's `status` in step. `sagaz choreography status <id> --saga-log
+  postgresql://...` reads the same projection.
 
 ## Sharing one database between services
 

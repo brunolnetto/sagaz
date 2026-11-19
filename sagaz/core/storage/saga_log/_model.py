@@ -143,13 +143,34 @@ class StatusChange:
     context: dict[str, Any] | None = None
 
 
+@dataclass(frozen=True)
+class OutboxMessage:
+    """A message to publish once the write commits (transactional outbox).
+
+    The store inserts it into the outbox table of the same database, in the same
+    transaction as the rest of the write; an outbox relay publishes it later.
+    """
+
+    transaction_id: str
+    event_type: str
+    payload: dict[str, Any]
+    log_event_id: str | None = None
+    partition_key: str | None = None
+    aggregate_type: str = "saga"
+
+
 @dataclass
 class LogWrite:
     """Everything one participant writes at one point, applied atomically.
 
     In order: insert the transaction if new, apply the status change, append the
     events (numbered per transaction), upsert the activities, set and clear
-    deadlines.
+    deadlines, and queue the outbox messages.
+
+    With ``guard`` set to a participant, that participant's activities and
+    deadline are dropped when it already ended its part of the transaction (its
+    ``TRANSACTION_MARKER`` activity exists): late actions are not recorded (#446).
+    A marker that says ``compensated`` stays ``compensated``.
     """
 
     transaction: Transaction | None = None
@@ -158,3 +179,28 @@ class LogWrite:
     activities: list[Activity] = field(default_factory=list)
     deadline: Deadline | None = None
     clear_deadlines: list[tuple[str, str]] = field(default_factory=list)  # (transaction, owner)
+    publish: list[OutboxMessage] = field(default_factory=list)
+    guard: str | None = None
+
+    def guarded_transactions(self) -> set[str]:
+        """Transactions whose ``guard`` participant rows this write touches."""
+        if self.guard is None:
+            return set()
+        ids = {a.transaction_id for a in self.activities if a.participant == self.guard}
+        if self.deadline is not None and self.deadline.owner == self.guard:
+            ids.add(self.deadline.transaction_id)
+        return ids
+
+    def drop_guarded(self, ended: set[str]) -> None:
+        """Drop the guard participant's non-marker activities and deadline in *ended*."""
+        self.activities = [
+            a
+            for a in self.activities
+            if not (
+                a.participant == self.guard
+                and a.transaction_id in ended
+                and a.name != TRANSACTION_MARKER
+            )
+        ]
+        if self.deadline is not None and self.deadline.transaction_id in ended:
+            self.deadline = None

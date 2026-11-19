@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
 from collections.abc import Collection
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
@@ -10,11 +11,13 @@ from typing import Any
 
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.storage._tenancy import scoped_tenant, write_tenant
+from sagaz.core.storage.backends.postgresql._outbox_schema import OUTBOX_SCHEMA
 from sagaz.core.storage.backends.postgresql._schema_version import apply_schema
 from sagaz.core.storage.backends.postgresql._tenancy import POOL_OPTIONS, acquire_scoped
 from sagaz.core.storage.saga_log import _codec as codec
 from sagaz.core.storage.saga_log._base import SagaLogStore
 from sagaz.core.storage.saga_log._model import (
+    TRANSACTION_MARKER,
     Activity,
     ConcurrencyError,
     Deadline,
@@ -54,7 +57,20 @@ _UPSERT_ACTIVITY = (
     f"INSERT INTO saga_activity ({', '.join(codec.ACTIVITY_COLUMNS)})"
     f" VALUES ({_cast(codec.ACTIVITY_COLUMNS)})"
     " ON CONFLICT (tenant_id, transaction_id, activity_id) DO UPDATE SET "
-    + ", ".join(f"{c} = EXCLUDED.{c}" for c in codec.ACTIVITY_COLUMNS[3:])
+    + ", ".join(f"{c} = EXCLUDED.{c}" for c in codec.ACTIVITY_COLUMNS[3:] if c != "status")
+    # A participant's marker never goes back from compensated to completed.
+    + ", status = CASE WHEN saga_activity.name = '__transaction__'"
+    " AND saga_activity.status = 'compensated' THEN 'compensated' ELSE EXCLUDED.status END"
+)
+_ENDED = (
+    "SELECT EXISTS (SELECT 1 FROM saga_activity WHERE tenant_id = $1 AND transaction_id = $2"
+    " AND participant = $3 AND name = '__transaction__' AND status IN ('completed', 'compensated'))"
+)
+_GUARD_LOCK = "SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2 || '/' || $3))"
+_INSERT_OUTBOX = (
+    "INSERT INTO saga_outbox (event_id, saga_id, aggregate_type, aggregate_id, event_type,"
+    " payload, headers, tenant_id, partition_key, log_event_id)"
+    " VALUES ($1::uuid, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9, $10)"
 )
 _INSERT_EVENT = (
     f"INSERT INTO saga_log_event ({', '.join(codec.EVENT_COLUMNS)})"
@@ -102,6 +118,7 @@ class PostgreSQLSagaLogStore(SagaLogStore):
         """
         try:
             async with pool.acquire() as conn:
+                await apply_schema(conn, "outbox", OUTBOX_SCHEMA)  # LogWrite.publish
                 await apply_schema(conn, "saga_log", SCHEMA_SQL)
         except asyncpg.exceptions.InsufficientPrivilegeError:
             async with pool.acquire() as conn:
@@ -114,6 +131,7 @@ class PostgreSQLSagaLogStore(SagaLogStore):
         tenant = write_tenant()
         pool = await self._get_pool()
         async with acquire_scoped(pool) as conn, conn.transaction():
+            await self._guard(conn, tenant, batch)
             if batch.transaction is not None:
                 await conn.execute(
                     _INSERT_TRANSACTION, *codec.transaction_values(batch.transaction, tenant)
@@ -142,7 +160,49 @@ class PostgreSQLSagaLogStore(SagaLogStore):
                     transaction_id,
                     owner,
                 )
+            for message in batch.publish:
+                await conn.execute(
+                    _INSERT_OUTBOX,
+                    str(uuid.uuid4()),
+                    message.transaction_id,
+                    message.aggregate_type,
+                    message.transaction_id,
+                    message.event_type,
+                    codec.dumps(message.payload),
+                    codec.dumps({"log_event_id": message.log_event_id}),
+                    tenant,
+                    message.partition_key,
+                    message.log_event_id,
+                )
         return stored
+
+    @staticmethod
+    async def _guard(conn: Any, tenant: str, batch: LogWrite) -> None:
+        """Serialize a participant's writes on a transaction and apply ``batch.guard``.
+
+        Markers are locked too, so an action is never recorded after its
+        participant ended the transaction, whatever process writes it.
+        """
+        keys = {
+            (a.transaction_id, a.participant)
+            for a in batch.activities
+            if a.name == TRANSACTION_MARKER or a.participant == batch.guard
+        }
+        if batch.deadline is not None and batch.deadline.owner == batch.guard:
+            keys.add((batch.deadline.transaction_id, batch.deadline.owner))
+        for transaction_id, participant in sorted(keys):
+            await conn.execute(_GUARD_LOCK, tenant, transaction_id, participant)
+        ended = {
+            t
+            for t in batch.guarded_transactions()
+            if await conn.fetchval(_ENDED, tenant, t, batch.guard)
+        }
+        batch.drop_guarded(ended)
+
+    def outbox_storage(self) -> Any:
+        from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
+
+        return PostgreSQLOutboxStorage(self.connection_string)
 
     async def _apply_status(self, conn: Any, tenant: str, batch: LogWrite) -> None:
         change = batch.status

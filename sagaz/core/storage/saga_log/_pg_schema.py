@@ -190,6 +190,7 @@ def service_role_grants(role: str) -> str:
     GRANT SELECT ON saga_participant TO {role};
     GRANT SELECT ON sagaz_schema_version TO {role};
     GRANT SELECT, INSERT ON saga_log_event TO {role};
+    GRANT INSERT ON saga_outbox TO {role};
     GRANT SELECT, INSERT, UPDATE ON saga_transaction, saga_activity, saga_snapshot TO {role};
     GRANT SELECT, INSERT, UPDATE, DELETE ON saga_delivery, saga_deadline TO {role};
     """

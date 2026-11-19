@@ -93,7 +93,9 @@ class DeadlineWatcher:
                     deadline.participant,
                 )
                 with tenant_scope(deadline.tenant_id):
-                    await self._publish(event)
+                    # Through the owner's state: on the unified saga log the
+                    # compensation request is logged and published atomically.
+                    await state.publish(deadline.participant, event, self._publish)
                 if _dispatch.CHOREOGRAPHY_DEADLINES is not None:
                     _dispatch.CHOREOGRAPHY_DEADLINES.labels(deadline.participant).inc()
                 expired += 1

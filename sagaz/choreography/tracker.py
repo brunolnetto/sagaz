@@ -18,6 +18,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sagaz.choreography.events import COMPENSATE, COMPENSATED, AbstractEventBus, Event
+from sagaz.core.storage.saga_log._model import LogWrite
 from sagaz.core.tenant import tenant_scope
 from sagaz.core.types import SagaStatus
 
@@ -124,8 +125,10 @@ class ChoreographyTracker:
         storage: Any | None = None,
         completion_events: tuple[str, ...] | frozenset[str] = (),
         stall_after: timedelta | float | None = None,
+        saga_log: Any | None = None,
     ) -> None:
         self._bus = bus
+        self._log = saga_log
         self._stall_after = _as_timedelta(stall_after)
         self._storage = storage
         self._completion_events = frozenset(completion_events)
@@ -138,12 +141,39 @@ class ChoreographyTracker:
     async def stop(self) -> None:
         self._bus.unsubscribe("*", self.observe)
 
+    async def _observe_log(self, event: Event) -> None:
+        """Unified log (ADR-041): the status is a projection of the log; keep the
+        transaction row's status in step with it."""
+        from sagaz.core.storage.saga_log import ConcurrencyError, StatusChange
+
+        log = self._log
+        assert log is not None
+        status = await status_from_log(log, event.saga_id or "", self._completion_events)
+        current = await log.get_transaction(event.saga_id or "")
+        if status is None or current is None or current.status == status.status:
+            return
+        ended = status.status in (COMPLETED, COMPENSATED_STATUS, FAILED)
+        change = StatusChange(
+            current.transaction_id,
+            status.status,
+            current.version,
+            ended_at=event.created_at if ended else None,
+        )
+        try:
+            await log.write(LogWrite(status=change))
+        except ConcurrencyError:  # another tracker moved it: it will converge
+            return
+
     async def observe(self, event: Event) -> None:
         """Record *event* in its transaction (events without a correlation id are ignored)."""
         if not event.saga_id:
             return
         lock = self._locks.setdefault(event.saga_id, asyncio.Lock())
         async with lock:
+            if self._log is not None:
+                with tenant_scope(event.tenant_id):
+                    await self._observe_log(event)
+                return
             with tenant_scope(event.tenant_id):
                 status = await self._stored(event.saga_id) or TransactionStatus(
                     event.saga_id, tenant_id=event.tenant_id
@@ -153,6 +183,9 @@ class ChoreographyTracker:
 
     async def status(self, correlation_id: str) -> TransactionStatus | None:
         """The status of *correlation_id* in the current tenant scope, if known."""
+        if self._log is not None:
+            status = await status_from_log(self._log, correlation_id, self._completion_events)
+            return stalled_view(status, self._stall_after)
         if self._storage is None:
             status = self._memory.get(correlation_id)
         else:
@@ -196,6 +229,29 @@ def stalled_view(
     if (now or datetime.now(UTC)) - last <= limit:
         return status
     return replace(status, status=STALLED)
+
+
+async def status_from_log(
+    log: Any, correlation_id: str, completion_events: frozenset[str] | tuple[str, ...] = ()
+) -> TransactionStatus | None:
+    """A transaction's status projected from the unified saga log (ADR-041).
+
+    Folds the transaction's log entries like the tracker folds bus events. If no
+    completion event is configured here, a transaction whose row a tracker
+    already marked ``completed`` is reported as completed.
+    """
+    from sagaz.choreography.state.unified import from_log_event
+
+    entries = await log.events(correlation_id)
+    if not entries:
+        return None
+    status = TransactionStatus(correlation_id, tenant_id=entries[0].tenant_id)
+    for entry in entries:
+        status.apply(from_log_event(entry), frozenset(completion_events))
+    transaction = await log.get_transaction(correlation_id)
+    if transaction is not None and transaction.status == COMPLETED and status.status == EXECUTING:
+        status.status = COMPLETED
+    return status
 
 
 async def load_status(storage: Any, correlation_id: str) -> TransactionStatus | None:
