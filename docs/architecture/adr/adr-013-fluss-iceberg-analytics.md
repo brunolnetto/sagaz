@@ -1,239 +1,223 @@
-# ADR-013: Fluss + Iceberg Analytics Integration
+# ADR-013: Fluss + Iceberg Analytics on the Unified Saga Log
 
 ## Status
 
-**Proposed** | Date: 2026-01-05 | Priority: Low | Target: Future
+**Accepted** | Date: 2026-11-19 | Target: v2.2.0 (Wave 7, milestone #18)
 
-## Input: the unified saga log (v2.1.0)
-
-ADR-041 (v2.1.0) gives this ADR a single, typed stream to ingest:
-`saga_log_event`, append-only and numbered per transaction. It holds the
-lifecycle events of orchestrated sagas and every choreography event, with the
-current state in `saga_transaction` and `saga_activity`. Columns:
-`tenant_id`, `transaction_id`, `sequence`, `event_id`, `event_type`, `kind`
-(`lifecycle` / `business` / `compensate` / `compensated`), `source`,
-`causation_id`, `payload`, `occurred_at` and `event_version`. Stream it by
-`(tenant_id, transaction_id, sequence)`, by CDC on the table or from the
-outbox relay. Tier it to Iceberg partitioned by `tenant_id` and the day of
-`occurred_at`. The embedded DuckDB pipeline (ADR-036) reads the same tables
-(`SagaAnalyticsPipeline(saga_log)`), so Fluss and DuckDB share one model.
+Revised on 2026-11-19 to build on ADR-041. The first version (2024-12-27) fed
+Fluss from an in-process listener. That design predates the unified saga log,
+and its prototype (PR #67) is superseded: see "Revision notes".
 
 ## Dependencies
 
-**Prerequisites**:
-- ADR-021: Context Streaming (streaming data pipelines)
-- ADR-025: Event Triggers (consume analytics events)
-
-**Optional Synergies** (can be used independently):
-- ADR-029: Saga Choreography (analytics can process choreography events)
-
-**Note**: This ADR provides real-time analytics capabilities for saga events. It works with both orchestration (existing) and choreography (ADR-029) patterns. Neither pattern requires analytics - this is an optional observability enhancement.
-
-**Roadmap**: **Phase 5 (Future/Optional)** - Only for real-time analytics use cases
+- **ADR-041, unified saga log (v2.1.0)**: the only input. Everything analytics
+  needs is in `saga_log_event`, for orchestrated and choreographed sagas alike.
+- **ADR-011, CDC**: `PgLogicalSource` streams a table's inserts from the WAL.
+- **ADR-036, embedded analytics**: the DuckDB pipeline reads the same log; its
+  Gold queries are the reference the Flink SQL versions must match.
 
 ## Context
 
-Sagaz provides saga orchestration with compensation support. As organizations scale their saga usage, they need:
+The embedded pipeline (ADR-036) answers analytics questions from one process
+and over a bounded window. Teams running many services need:
 
-1. **Real-time monitoring**: Sub-second visibility into running sagas
-2. **Historical analytics**: Trends, patterns, and SLA compliance over time
-3. **Operational insights**: Step bottlenecks, failure patterns, compensation frequency
+- **Real-time views** across every service writing the log: throughput,
+  compensation rate and latency per flow, within seconds.
+- **History** kept cheaply and queryable by standard engines (Trino, Spark,
+  DuckDB) for months: trends, post-mortems and compliance.
 
-Traditional approaches have limitations:
-
-| Approach | Limitation |
-|----------|------------|
-| Application logs | Hard to query, no aggregations |
-| Metrics only | Limited dimensionality, no drill-down |
-| Data warehouse ETL | High latency (minutes to hours) |
-| Streaming + Batch | Two systems, data duplication |
+ADR-041 gives this a single, typed, append-only, tenant-aware stream. The
+remaining questions are how to move it out of the OLTP database without losing
+events, and where to keep it.
 
 ## Decision
 
-We will integrate **Apache Fluss** as the streaming lakehouse storage layer, with automatic tiering to **Apache Iceberg** for historical analytics.
-
-### Architecture
+Export `saga_log_event` to an **Apache Fluss** primary-key table, and let
+Fluss's own **tiering service** move it to **Apache Iceberg**.
 
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  Sagaz App  │────▶│   Fluss     │────▶│  Iceberg    │
-│             │     │ (Real-time) │     │(Historical) │
-└─────────────┘     └──────┬──────┘     └──────┬──────┘
-                           │                   │
-                           ▼                   ▼
-                    ┌─────────────┐     ┌─────────────┐
-                    │  Flink SQL  │     │Trino/Spark  │
-                    │ (Streaming) │     │  (Batch)    │
-                    └─────────────┘     └─────────────┘
+ services ──▶ saga_log_event ──▶ exporter ──▶ Fluss PK table ──▶ tiering ──▶ Iceberg
+ (OLTP, ADR-041)  (CDC or cursor)  (at least once)  (idempotent)   (Flink job)  (history)
+                                                        │                           │
+                                                        └──── Flink SQL union read ─┘
 ```
 
-### Key Components
+### 1. The source is the log, read durably
 
-1. **FlussAnalyticsListener**: A `SagaListener` that publishes saga lifecycle events to Fluss
-2. **Fluss Table**: Stores saga events with columnar format (Apache Arrow)
-3. **Iceberg Tiering**: Automatic migration of cold data to Iceberg
-4. **Query Layer**: Flink for real-time, Trino/Spark for historical
+There is no in-process listener and no in-memory buffer. An exporter reads
+committed rows of `saga_log_event` and acknowledges its position only after
+the sink has accepted them, so a crash or a Fluss outage delays events and
+never drops them.
 
-### Why Fluss?
+Two readers share one interface:
 
-| Feature | Benefit |
-|---------|---------|
-| Sub-second latency | Real-time dashboards |
-| Columnar storage (Arrow) | Efficient analytics queries |
-| Changelog support | Track state changes |
-| Flink integration | Native streaming support |
-| Lakehouse tiering | Automatic Iceberg migration |
+- **CDC (PostgreSQL)**: `PgLogicalSource(table="saga_log_event")` streams
+  inserts in commit order. It is the low-latency path.
+- **Cursor polling (PostgreSQL and SQLite)**: it needs an order that a poller
+  cannot skip past.
+  - **SQLite** has a single writer, so an `INTEGER PRIMARY KEY` rowid is
+    assigned in commit order.
+  - **PostgreSQL**: a sequence is not commit-ordered, since a transaction that
+    commits later can hold a lower value. Each row therefore records its
+    writing transaction (`xid8 DEFAULT pg_current_xact_id()`), and the poller
+    reads only rows whose transaction is older than every transaction still in
+    flight (`pg_snapshot_xmin(pg_current_snapshot())`). This is the standard
+    technique for ordered outbox polling.
+  - **Cursor table**: the poller's position is kept in a `saga_export_cursor`
+    table, one row per exporter name, in the log's database.
 
-### Why Iceberg?
+### 2. The sink is idempotent, so at least once is enough
 
-| Feature | Benefit |
-|---------|---------|
-| Open table format | Vendor-neutral, widely supported |
-| Schema evolution | Handle schema changes gracefully |
-| Time travel | Query historical snapshots |
-| Partition evolution | Optimize queries over time |
-| ACID transactions | Consistent reads during writes |
+The Fluss table is a primary-key table on `(tenant_id, transaction_id,
+sequence)`, the same key as `saga_log_event`. A redelivered row is an upsert of
+identical values, so the reader's at-least-once delivery becomes an
+exactly-once table. The exporter writes through the official Python client
+(`pyfluss`, RPC to the bootstrap servers), never through a hand-written HTTP
+call.
 
-## Alternatives Considered
+### 3. Iceberg comes from Fluss, not from sagaz
 
-### Alternative 1: Direct Iceberg (No Fluss)
+Fluss tiers tables that have the datalake enabled to Iceberg with its tiering
+service, a Flink job that Fluss coordinates with exactly-once semantics. Sagaz
+ships its configuration (catalog, warehouse, jobs) and no Python Iceberg
+writer. Flink reads the two together: fresh rows from Fluss and history from
+Iceberg, in one query.
 
-Write directly to Iceberg via Flink or Spark Streaming.
+### Table
 
-**Pros**:
-- Simpler architecture
-- Fewer components
-
-**Cons**:
-- Higher latency (seconds to minutes)
-- No sub-second streaming queries
-- Batch-oriented, not real-time
-
-**Decision**: Rejected - need sub-second latency for monitoring.
-
-### Alternative 2: Kafka + ClickHouse
-
-Use Kafka for streaming and ClickHouse for OLAP.
-
-**Pros**:
-- Proven technology stack
-- Very fast analytics
-
-**Cons**:
-- Two separate systems
-- Data duplication
-- More operational overhead
-- ClickHouse is not a lakehouse (vendor lock-in)
-
-**Decision**: Rejected - prefer unified architecture with open formats.
-
-### Alternative 3: Apache Paimon
-
-Use Paimon as the streaming lakehouse.
-
-**Pros**:
-- Similar capabilities to Fluss
-- Strong Flink integration
-
-**Cons**:
-- Less mature for real-time queries
-- Fluss is purpose-built for streaming analytics
-
-**Decision**: Considered - Fluss chosen for sub-second streaming focus.
-
-### Alternative 4: Databricks/Snowflake
-
-Use managed cloud lakehouse.
-
-**Pros**:
-- Fully managed
-- Enterprise support
-
-**Cons**:
-- Vendor lock-in
-- High cost at scale
-- Less control
-
-**Decision**: Rejected - prefer open-source, self-hosted option.
-
-## Consequences
-
-### Positive
-
-1. **Unified data model**: Single source of truth for saga events
-2. **Sub-second monitoring**: Real-time operational dashboards
-3. **Historical analytics**: Trend analysis, capacity planning
-4. **Open formats**: Iceberg is vendor-neutral
-5. **Cost efficient**: Hot/cold tiering optimizes storage costs
-6. **Query flexibility**: Multiple query engines supported
-
-### Negative
-
-1. **Infrastructure complexity**: Requires Fluss cluster deployment
-2. **Learning curve**: Teams need to learn Fluss/Iceberg
-3. **Operational overhead**: More components to monitor
-4. **Flink dependency**: Heavy integration with Flink ecosystem
-
-### Mitigations
-
-| Risk | Mitigation |
-|------|------------|
-| Complexity | Provide Kubernetes/Docker deployment templates |
-| Learning curve | Documentation, examples, Grafana dashboards |
-| Operational overhead | Prometheus metrics, alerting templates |
-| Flink dependency | Fluss can work with other engines too |
-
-## Implementation Plan
-
-### Phase 1: Foundation (v2.1.0)
-- [ ] Create `FlussAnalyticsListener`
-- [ ] Define Fluss table schema
-- [ ] Basic Iceberg tiering configuration
-- [ ] Docker Compose setup for local development
-
-### Phase 2: Dashboards (v2.1.0)
-- [ ] Grafana dashboard templates
-- [ ] Real-time saga monitoring panel
-- [ ] Historical analytics panel
-- [ ] Example Flink SQL queries
-
-### Phase 3: Advanced (v2.2.0)
-- [ ] Trino/Spark query examples
-- [ ] Anomaly detection (ML integration)
-- [ ] SLA compliance reporting
-- [ ] Cost attribution
-
-## Event Schema
+The options are checked against the pinned Fluss version when it is
+implemented.
 
 ```sql
-CREATE TABLE saga_events (
-    event_id        STRING,
-    event_type      STRING,      -- saga_started, step_completed, step_failed, etc.
-    saga_id         STRING,
-    saga_name       STRING,
-    step_name       STRING,
-    duration_ms     BIGINT,
-    total_duration_ms BIGINT,
-    error_type      STRING,
-    error_message   STRING,
-    context_keys    ARRAY<STRING>,
-    timestamp       TIMESTAMP,
-    
-    PRIMARY KEY (event_id) NOT ENFORCED
-) WITH (
-    'bucket.num' = '8',
-    'tiered.storage.enabled' = 'true',
-    'tiered.storage.format' = 'iceberg'
+CREATE TABLE sagaz.saga_log_event (
+    tenant_id       STRING NOT NULL,
+    transaction_id  STRING NOT NULL,
+    sequence        BIGINT NOT NULL,
+    event_id        STRING NOT NULL,
+    event_type      STRING NOT NULL,
+    kind            STRING NOT NULL,   -- lifecycle | business | compensate | compensated
+    coordination    STRING,            -- orchestrated | choreographed (from saga_transaction)
+    flow            STRING,
+    source          STRING,
+    causation_id    STRING,
+    payload         STRING,            -- JSON
+    occurred_at     TIMESTAMP_LTZ(6) NOT NULL,
+    event_version   INT NOT NULL,
+    dt              STRING NOT NULL,   -- day of occurred_at, the partition
+    PRIMARY KEY (dt, tenant_id, transaction_id, sequence) NOT ENFORCED
+) PARTITIONED BY (dt) WITH (
+    'bucket.key' = 'tenant_id,transaction_id',
+    'table.auto-partition.enabled' = 'true',
+    'table.auto-partition.time-unit' = 'day',
+    'table.datalake.enabled' = 'true'
 );
 ```
 
+- **Denormalized columns:** `coordination` and `flow` are copied from the
+  transaction, so the real-time queries need no join.
+- **Partitioning:** the table is partitioned by day, which is also how Iceberg
+  prunes history.
+- **Buckets:** a transaction's events stay in one bucket, in order.
+
+### Queries
+
+The ADR-036 Gold reports, `FLOW_SUMMARY` first, are rewritten in Flink SQL over
+the union read. The same fixture must give the same numbers in DuckDB and in
+Flink.
+
+## Release gates (v2.2.0)
+
+1. **No loss:**
+   - stop Fluss in the middle of a load, then restart it;
+   - the exporter resumes from its cursor;
+   - the Fluss table's count per `(tenant, transaction)` equals the log's.
+2. **Latency:** p99 from `occurred_at` to the row being readable in Fluss is
+   below 1 s with CDC, measured over 1,000 sagas.
+3. **Tiering:** after the tiering interval, an Iceberg query returns the
+   expected historical row count.
+4. **Parity:** the Flink SQL `FLOW_SUMMARY` matches DuckDB's on the same log.
+5. **No blocking I/O on the event loop**, and 90%+ coverage of the exporter
+   and the sink.
+6. **Local environment:**
+   - it runs from the binary distributions of Fluss, Flink and MinIO (JDK 17),
+     with or without Docker;
+   - a monitoring guide and a Grafana dashboard ship with it.
+
+## Alternatives Considered
+
+- **In-process listener (the 2024 design, PR #67):** rejected.
+  - It sees only the orchestrated sagas of the process that runs them.
+  - It loses buffered events on a crash.
+  - It has no tenant or deduplication key.
+- **Writing Iceberg from Python (pyiceberg):** rejected.
+  - It duplicates the tiering Fluss already does with exactly-once semantics.
+  - It produces many small files unless compaction is added.
+- **Direct Iceberg, without Fluss:** rejected. It cannot serve sub-second
+  queries, and commit latency is seconds to minutes.
+- **Kafka + ClickHouse:** rejected.
+  - It means two systems and duplicated data.
+  - ClickHouse is not an open lakehouse format.
+- **Apache Paimon:** considered. It is the same idea, but Fluss focuses on
+  sub-second streaming and tiers to Iceberg too.
+- **The outbox relay as the transport:** rejected for this purpose.
+  - `saga_outbox` carries only what choreography publishes, not the lifecycle
+    events of orchestrated sagas.
+  - Its rows are deleted after delivery.
+
+## Consequences
+
+**Positive:**
+- **One source:** a single, durable, tenant-aware stream covers both
+  coordination styles.
+- **No new delivery code:** at-least-once reading and idempotent writes give
+  exactly-once tables.
+- **Open history:** Iceberg history can be read by any engine.
+
+**Negative:**
+- **Operations:** a Fluss cluster and a Flink cluster are needed for tiering.
+- **Infrastructure:** the Iceberg tiering needs Hadoop and iceberg-aws JARs on
+  Flink.
+- **Schema changes:** the Fluss table schema must evolve with the log, and the
+  tiering job fails while the lake schema diverges.
+
+**Mitigations:**
+- **Optional:** everything is opt-in, and the embedded DuckDB pipeline remains
+  the zero-infrastructure option.
+- **Packaging:** sagaz ships local scripts, Kubernetes manifests and the DDL.
+- **Versioning:** the schema is versioned with `event_version`.
+
+## Implementation Plan (v2.2.0)
+
+1. **Ordered reading of the log:** add `xid8` (PostgreSQL) and a rowid order
+   (SQLite), plus `saga_export_cursor` and a `SagaLogReader` (cursor and CDC).
+2. **Exporter and Fluss sink:** `SagaLogExporter(reader, sink)` acknowledges
+   after the sink. `FlussSink` uses `pyfluss` and is tested with a fake client.
+3. **Tables and tiering:** Fluss DDL, catalog and warehouse configuration, and
+   local scripts for Fluss, Flink and MinIO.
+4. **Queries:** the Gold reports in Flink SQL, the Grafana dashboard and the
+   guide.
+5. **Integration and gates:** the release gates above, run against a real
+   cluster.
+
+## Revision notes
+
+PR #67 is superseded and closed:
+- its `POST /api/v1/rows` call to Fluss does not exist, since Fluss is reached
+  through its clients over RPC;
+- an Iceberg REST catalog stores metadata only and has no endpoint for rows;
+- a failed flush dropped up to half the batch;
+- it did blocking `urllib` calls in coroutines.
+
 ## References
 
-- [Apache Fluss (Incubating)](https://fluss.apache.org/)
+- [Apache Fluss](https://fluss.apache.org/)
+- [Fluss Python client](https://fluss.apache.org/docs/next/apis/python/api-reference/)
+- [Fluss tiering service](https://fluss.apache.org/docs/next/streaming-lakehouse/tiering-service/)
+- [Fluss and Iceberg](https://fluss.apache.org/docs/next/streaming-lakehouse/integrate-data-lakes/iceberg)
 - [Apache Iceberg](https://iceberg.apache.org/)
-- [Fluss Analytics Architecture](../fluss-analytics.md)
 - [ADR-011: CDC Support](adr-011-cdc-support.md)
-- [ADR-012: Synchronous Orchestration Model](adr-012-synchronous-orchestration-model.md)
+- [ADR-036: Embedded analytics pipeline](adr-036-sqldim-analytics-pipeline.md)
+- [ADR-041: Unified saga log](adr-041-unified-saga-log.md)
 
 ## Decision Makers
 
@@ -244,3 +228,4 @@ CREATE TABLE saga_events (
 | Date | Change |
 |------|--------|
 | 2024-12-27 | Initial proposal |
+| 2026-11-19 | Revised on the unified saga log; accepted for v2.2.0 |
