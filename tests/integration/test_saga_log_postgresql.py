@@ -107,7 +107,7 @@ async def service_role(store, database_url):
     await service.close()
     admin = await asyncpg.connect(database_url)
     try:
-        await admin.execute(f"REVOKE ALL ON {TABLES} FROM {role}")
+        await admin.execute(f"REVOKE ALL ON {TABLES}, sagaz_schema_version FROM {role}")
         await admin.execute(f"DROP ROLE {role}")
     finally:
         await admin.close()

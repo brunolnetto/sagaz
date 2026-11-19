@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from sagaz.core.storage.manager import StorageManager, create_storage_manager
+from tests.unit.core.storage.backends._pg_mocks import schema_ready
 
 # Need to handle potential re-imports or module state if modules already loaded
 # But since we are patching sys.modules, subsequent imports should see the mock
@@ -50,6 +51,7 @@ async def test_initialize_unified_postgresql():
     mock_pool = AsyncMock()
     mock_conn = AsyncMock()
     mock_conn.execute = AsyncMock()
+    schema_ready(mock_conn)
 
     # Configure pool.acquire() to return an async context manager
     mock_pool.acquire = MagicMock(

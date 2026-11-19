@@ -13,6 +13,7 @@ import pytest
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.replay import ReplayResult, ReplayStatus, SagaSnapshot
 from sagaz.core.types import SagaStatus
+from tests.unit.core.storage.backends._pg_mocks import schema_ready
 
 # Check asyncpg availability
 try:
@@ -366,6 +367,7 @@ class TestPostgreSQLSnapshotComplete:
         with patch("sagaz.core.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
             mock_pool = AsyncMock()
             mock_conn = AsyncMock()
+            schema_ready(mock_conn)
             mock_asyncpg.create_pool = AsyncMock(return_value=mock_pool)
             mock_pool.acquire = MagicMock(
                 return_value=AsyncMock(
@@ -387,6 +389,7 @@ class TestPostgreSQLSnapshotComplete:
         """Helper to setup common mocks"""
         mock_pool = AsyncMock()
         mock_conn = AsyncMock()
+        schema_ready(mock_conn)
         mock_asyncpg.create_pool = AsyncMock(return_value=mock_pool)
         mock_pool.acquire = MagicMock(
             return_value=AsyncMock(
@@ -428,6 +431,8 @@ class TestPostgresqlSnapshotBranches:
         storage = self._make_storage_with_pool()
 
         mock_conn = AsyncMock()
+
+        schema_ready(mock_conn)
         mock_conn.fetchrow = AsyncMock(return_value=None)
 
         mock_ctx = MagicMock()
@@ -451,6 +456,8 @@ class TestPostgresqlSnapshotBranches:
         storage = self._make_storage_with_pool()
 
         mock_conn = AsyncMock()
+
+        schema_ready(mock_conn)
         mock_conn.fetchrow = AsyncMock(return_value=None)
 
         mock_ctx = MagicMock()

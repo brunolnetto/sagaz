@@ -159,10 +159,6 @@ def _participant_registry_isolation() -> str:
     )
 
 
-#: Bump when SCHEMA_SQL changes: stores skip the DDL (and its exclusive locks)
-#: when the database already carries this version.
-SCHEMA_VERSION = "sagaz-saga-log-v1"
-
 SCHEMA_SQL = (
     TABLES_SQL
     + _participant_registry_isolation()
@@ -178,7 +174,6 @@ SCHEMA_SQL = (
         )
     )
     + "".join(_participant_policies(t, c) for t, c in OWNER_COLUMN.items())
-    + f"COMMENT ON TABLE saga_log_event IS '{SCHEMA_VERSION}';"
 )
 
 
@@ -193,6 +188,7 @@ def service_role_grants(role: str) -> str:
         raise ValueError(msg)
     return f"""
     GRANT SELECT ON saga_participant TO {role};
+    GRANT SELECT ON sagaz_schema_version TO {role};
     GRANT SELECT, INSERT ON saga_log_event TO {role};
     GRANT SELECT, INSERT, UPDATE ON saga_transaction, saga_activity, saga_snapshot TO {role};
     GRANT SELECT, INSERT, UPDATE, DELETE ON saga_delivery, saga_deadline TO {role};

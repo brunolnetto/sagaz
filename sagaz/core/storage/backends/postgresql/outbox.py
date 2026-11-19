@@ -43,6 +43,7 @@ from sagaz.core.storage.backends.postgresql._outbox_tenancy import (
 from sagaz.core.storage.backends.postgresql._outbox_transfer import (
     PostgreSQLOutboxTransferMixin,
 )
+from sagaz.core.storage.backends.postgresql._schema_version import apply_schema
 from sagaz.core.storage.backends.postgresql._tenancy import POOL_OPTIONS
 from sagaz.core.storage.interfaces.outbox import OutboxStorage, OutboxStorageError
 
@@ -128,7 +129,7 @@ class PostgreSQLOutboxStorage(
 
         # Create schema (including the tenant column and RLS policies)
         async with self._pool.acquire() as conn:
-            await conn.execute(OUTBOX_SCHEMA)
+            await apply_schema(conn, "outbox", OUTBOX_SCHEMA)
 
     async def close(self) -> None:
         """Close the connection pool."""

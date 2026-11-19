@@ -10,6 +10,7 @@ from typing import Any
 
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.storage._tenancy import scoped_tenant, write_tenant
+from sagaz.core.storage.backends.postgresql._schema_version import apply_schema
 from sagaz.core.storage.backends.postgresql._tenancy import POOL_OPTIONS, acquire_scoped
 from sagaz.core.storage.saga_log import _codec as codec
 from sagaz.core.storage.saga_log._base import SagaLogStore
@@ -24,15 +25,13 @@ from sagaz.core.storage.saga_log._model import (
     SnapshotKind,
     Transaction,
 )
-from sagaz.core.storage.saga_log._pg_schema import SCHEMA_SQL, SCHEMA_VERSION
+from sagaz.core.storage.saga_log._pg_schema import SCHEMA_SQL
 
 try:
     import asyncpg
 except ImportError:  # pragma: no cover - asyncpg is a core dependency
     asyncpg = None  # type: ignore[assignment]
 
-_SCHEMA_LOCK = "SELECT pg_advisory_xact_lock(hashtext('sagaz.saga_log.schema'))"
-_SCHEMA_VERSION_SQL = "SELECT obj_description(to_regclass('saga_log_event'), 'pg_class')"
 _STREAM_LOCK = "SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))"
 _TENANT = "($1::text IS NULL OR tenant_id = $1)"
 
@@ -102,12 +101,8 @@ class PostgreSQLSagaLogStore(SagaLogStore):
         schema. A service role may not run DDL: it goes on if the schema exists.
         """
         try:
-            async with pool.acquire() as conn, conn.transaction():
-                await conn.execute(_SCHEMA_LOCK)
-                # Re-running the DDL takes exclusive locks that would deadlock
-                # with other processes' writes: only run it when needed.
-                if await conn.fetchval(_SCHEMA_VERSION_SQL) != SCHEMA_VERSION:
-                    await conn.execute(SCHEMA_SQL)
+            async with pool.acquire() as conn:
+                await apply_schema(conn, "saga_log", SCHEMA_SQL)
         except asyncpg.exceptions.InsufficientPrivilegeError:
             async with pool.acquire() as conn:
                 if await conn.fetchval("SELECT to_regclass('saga_log_event')") is None:
