@@ -245,13 +245,28 @@ models and a JSON blob (the stopgap in v2.0.1, #459).
 ## Wave 7 — v2.2.0 "Streaming & Historical Analytics"
 
 **GitHub milestone**: [#18](https://github.com/brunolnetto/sagaz/milestone/18)
-**Target**: After Wave 5 (v2.0.0) has shipped and the core extensions have stabilized; no calendar date committed
-**Risk**: High — streaming delivery, failure recovery, and historical table tiering require end-to-end reliability evidence
-**Scope**: Issue #51 — Fluss streaming analytics + Apache Iceberg historical tiering (ADR-013)
-**Merge order**: #67
+**Design**: [ADR-013](../architecture/adr/adr-013-fluss-iceberg-analytics.md), revised on 2026-11-19 on the unified saga log (ADR-041)
+**Target**: after v2.1.0 (released 2026-11-19); no calendar date committed
+**Risk**: High. Streaming delivery, recovery and tiering need end-to-end evidence against a real cluster
+**Scope**: epic #51. The log is read durably and exported at least once to an idempotent Fluss primary-key table, and Fluss tiers it to Iceberg. PR #67 (in-process listener) is superseded.
 
-| PR | Branch | Feature | Issue | Entry condition |
-|----|--------|---------|-------|-----------------|
+| Order | Issue | Feature | Needs a cluster |
+|-------|-------|---------|-----------------|
+| 1 | #480 | Ordered, durable reading of the saga log (`xid8`/rowid, `saga_export_cursor`, `SagaLogReader`) | No (PostgreSQL) |
+| 2 | #481 | `SagaLogExporter` and `FlussSink` (`pyfluss`) | No (fake client) |
+| 3 | #482 | Fluss table and Iceberg tiering configuration, local setup without Docker | Yes |
+| 4 | #483 | Flink SQL reports, Grafana dashboard, guide | Yes |
+| 5 | #484 | End-to-end release gates | Yes |
+
+**Release gates** (ADR-013):
+- **No loss:** after Fluss is stopped and restarted mid-load, the per-transaction counts equal the log's.
+- **Latency:** p99 below 1 s from `occurred_at` until the row is readable in Fluss, over 1,000 sagas, with CDC.
+- **Tiering:** an Iceberg query returns the expected historical row count.
+- **Parity:** the Flink SQL `FLOW_SUMMARY` matches the DuckDB one.
+- **Quality:** no blocking I/O on the event loop, and 90%+ coverage of the exporter and the sink.
+- **Delivery:** the local environment, the dashboard and the guide ship.
+
+----|--------|---------|-------|-----------------|
 | #67 | feature/fluss-iceberg-analytics | Fluss streaming + Iceberg tiering | #51 | Rebase/rework against current `main`; complete all acceptance gates below |
 
 **Release gates**:

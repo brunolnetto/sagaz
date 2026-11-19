@@ -53,7 +53,7 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | ADR | Title | Target | Description |
 |-----|-------|--------|-------------|
 | [ADR-011](adr-011-cdc-support.md) | CDC Support | v1.9.0 | Outbox CDC via PostgreSQL logical replication or Debezium (implemented) |
-| [ADR-013](adr-013-fluss-iceberg-analytics.md) | Fluss Analytics | v2.2.0 | Real-time + historical analytics with Iceberg (after ADR-041) |
+| [ADR-013](adr-013-fluss-iceberg-analytics.md) | Fluss Analytics | v2.2.0 | Exports the unified saga log to Fluss at least once (idempotent PK table); Fluss tiers it to Iceberg |
 | [ADR-033](adr-033-event-sourcing-integration.md) | Event Sourcing Integration | v2.0.0 | Opt-in event-sourced storage strategy for full audit trail (implemented) |
 | [ADR-034](adr-034-multi-region-coordination.md) | Multi-Region Coordination | v2.0.0 | Cross-region step routing with data residency and same-jurisdiction failover (implemented) |
 | [ADR-035](adr-035-saga-visualization-ui.md) | Saga Visualization UI | v2.0.0 | Browser-based live saga monitoring dashboard |
