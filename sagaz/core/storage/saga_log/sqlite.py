@@ -130,14 +130,21 @@ class SQLiteSagaLogStore(SagaLogStore):
         self.db_path = db_path
         self._conn: Any = None
         self._lock = asyncio.Lock()
+        self._init_lock = asyncio.Lock()
 
     async def _connection(self) -> Any:
+        # Initialized once, and published only when ready: a concurrent caller
+        # must neither open a second connection nor write while the outbox DDL
+        # holds an open transaction.
         if self._conn is None:
-            self._conn = await aiosqlite.connect(self.db_path)
-            self._conn.row_factory = aiosqlite.Row
-            await self._conn.executescript(SCHEMA)
-            await self._conn.commit()
-            await self._init_outbox(self._conn)
+            async with self._init_lock:
+                if self._conn is None:
+                    conn = await aiosqlite.connect(self.db_path)
+                    conn.row_factory = aiosqlite.Row
+                    await conn.executescript(SCHEMA)
+                    await conn.commit()
+                    await self._init_outbox(conn)
+                    self._conn = conn
         return self._conn
 
     @staticmethod
