@@ -332,6 +332,7 @@ fix/#104           ────────────────────�
 | v1.10.0 | 4    | Event-Driven Choreography | Released 2026-11-18 |
 | v2.0.0  | 5    | Core Extensions | Released 2026-11-18 |
 | v2.0.1  | 5    | Choreography Analytics (patch) | Released 2026-11-18 |
+| v2.0.2  | 5    | Schema DDL hotfix (#469) | Released 2026-11-18 |
 | v2.1.0  | 6    | Streaming & Historical Analytics | Deferred (post-Wave 5) |
 
 ---
