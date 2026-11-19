@@ -43,7 +43,8 @@ jobs:
           cache-dependency-glob: "uv.lock"
 
       - name: Install dependencies
-        run: uv sync --group dev
+        # The analytics extra (duckdb, sqldim): without it the analytics tests skip.
+        run: uv sync --group dev --extra analytics
 
       - name: Run unit tests with coverage
         run: |
@@ -106,7 +107,7 @@ jobs:
           cache-dependency-glob: "uv.lock"
 
       - name: Install dependencies (with integration test deps)
-        run: uv sync --group dev --extra integration-tests
+        run: uv sync --group dev --extra integration-tests --extra analytics
 
       - name: Run integration tests
         run: |
