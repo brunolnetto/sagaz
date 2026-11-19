@@ -19,6 +19,7 @@ from click.testing import CliRunner
 from sagaz.cli.app import cli
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.storage.saga_log import (
+    STATUS_CHANGED,
     Coordination,
     EventKind,
     ExportedEvent,
@@ -173,6 +174,7 @@ class TestRows:
         row = fluss_row(ExportedEvent(event, "choreographed", "order.created"))
         assert row["dt"] == "2026-11-20"  # the UTC day
         assert row["occurred_at"] == late.astimezone(UTC)
+        assert row["occurred_at_ms"] == 1795136400000  # 2026-11-20T01:00:00Z
         assert row["payload"] == '{"a": [1], "b": 1}'
         assert (row["kind"], row["coordination"], row["flow"]) == (
             "business",
@@ -402,3 +404,38 @@ class TestCli:
     def test_payloads_are_json(self):
         row = fluss_row(ExportedEvent(LogEvent("t", "e", EventKind.BUSINESS, payload={"at": T0})))
         assert json.loads(row["payload"]) == {"at": str(T0)}
+
+
+class TestFlinkSql:
+    def test_reports_read_the_given_table(self):
+        from sagaz.integrations.flink_sql import REPORTS, report
+
+        for name in REPORTS:
+            sql = report(name, "cat.db.events")
+            assert "cat.db.events" in sql
+            assert "{table}" not in sql
+
+    def test_flow_summary_derives_status_from_lifecycle_events(self):
+        from sagaz.integrations.flink_sql import report
+
+        sql = report("flow-summary")
+        assert "FROM iceberg.sagaz.saga_log_event" in sql
+        for event_type in ("SagaCompleted", "SagaRolledBack", "SagaFailed", STATUS_CHANGED):
+            assert f"'{event_type}'" in sql
+        assert sql.count("ROW_NUMBER()") == 2  # the last status, and the duration ranks
+
+    def test_an_unknown_report(self):
+        from sagaz.integrations.flink_sql import report
+
+        with pytest.raises(ValueError, match="flow-summary"):
+            report("nope")
+
+    def test_the_cli_prints_a_report(self):
+        result = CliRunner().invoke(
+            cli, ["analytics", "flink-sql", "flow-summary", "--table", "a.b.c"]
+        )
+        assert result.exit_code == 0, result.output
+        assert result.output.startswith("WITH events AS (")
+        bad = CliRunner().invoke(cli, ["analytics", "flink-sql", "nope"])
+        assert bad.exit_code != 0
+        assert "Unknown report" in bad.output

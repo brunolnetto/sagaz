@@ -38,6 +38,7 @@ from sagaz.core.storage.saga_log._model import (
     Snapshot,
     SnapshotKind,
     Transaction,
+    status_changed,
 )
 from sagaz.core.tenant import system_scope, tenant_scope
 
@@ -153,7 +154,13 @@ def _choreographed(record: dict[str, Any]) -> LogWrite:
     status = dict(record.get("context") or {})
     tid = status.get("correlation_id") or record["saga_id"]
     events = _tracked_events(tid, status)
-    transaction = _flow_transaction(tid, status.get("status") or "executing", events)
+    state = status.get("status") or "executing"
+    transaction = _flow_transaction(tid, state, events)
+    if events and state != "executing":  # what the tracker records on the log
+        at = events[-1].occurred_at
+        events.append(
+            status_changed(tid, state, "executing", source=transaction.initiator, occurred_at=at)
+        )
     return LogWrite(transaction=transaction, events=events)
 
 

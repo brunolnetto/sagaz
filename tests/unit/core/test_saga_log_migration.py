@@ -133,6 +133,15 @@ def test_unify_copies_every_old_table_once(old_db):
     markers = [a for a in activities["c-bad"] if a.name == "__transaction__"]
     assert {(m.participant, m.status) for m in markers} >= {("inventory", "compensated")}
     assert any(a.status == "completed" and a.triggered_by for a in activities["c-late"])
+    # A finished choreographed transaction gets the tracker's status event (ADR-013).
+    last = events["c-bad"][-1]
+    assert (last.event_type, last.kind, last.source) == (
+        "TransactionStatusChanged",
+        "lifecycle",
+        "orders",
+    )
+    assert last.payload == {"status": "compensated", "previous": "executing"}
+    assert not [e for e in events["c-late"] if e.kind == "lifecycle"]  # still executing
 
     again = migrate(old_db)
     assert again.exit_code == 0, again.output
