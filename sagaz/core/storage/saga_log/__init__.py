@@ -11,6 +11,8 @@ from sagaz.core.storage.saga_log._model import (
     Coordination,
     Deadline,
     EventKind,
+    ExportBatch,
+    ExportedEvent,
     LogEvent,
     LogWrite,
     OutboxMessage,
@@ -20,6 +22,7 @@ from sagaz.core.storage.saga_log._model import (
     StatusChange,
     Transaction,
 )
+from sagaz.core.storage.saga_log.export import SagaLogReader
 from sagaz.core.storage.saga_log.memory import InMemorySagaLogStore
 
 
@@ -47,11 +50,14 @@ __all__ = [
     "Coordination",
     "Deadline",
     "EventKind",
+    "ExportBatch",
+    "ExportedEvent",
     "InMemorySagaLogStore",
     "LogEvent",
     "LogWrite",
     "OutboxMessage",
     "Participant",
+    "SagaLogReader",
     "SagaLogStore",
     "Snapshot",
     "SnapshotKind",

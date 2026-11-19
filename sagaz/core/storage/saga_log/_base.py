@@ -10,6 +10,7 @@ from typing import Any
 from sagaz.core.storage.saga_log._model import (
     Activity,
     Deadline,
+    ExportBatch,
     LogEvent,
     LogWrite,
     Participant,
@@ -93,6 +94,21 @@ class SagaLogStore(ABC):
     async def participants(self) -> list[Participant]: ...
 
     # -- lifecycle -----------------------------------------------------------------
+
+    # -- export (ADR-013) --------------------------------------------------------
+
+    async def read_committed(self, after: str | None = None, limit: int = 500) -> ExportBatch:
+        """Committed events of every tenant after *after*, in an order no later
+        commit can be inserted before (call in ``system_scope()`` under RLS)."""
+        raise NotImplementedError(type(self).__name__)
+
+    async def load_cursor(self, name: str) -> str | None:
+        """The position the exporter *name* acknowledged last."""
+        raise NotImplementedError(type(self).__name__)
+
+    async def save_cursor(self, name: str, position: str) -> None:
+        """Remember *position* as acknowledged by the exporter *name*."""
+        raise NotImplementedError(type(self).__name__)
 
     async def close(self) -> None:
         """Release connections."""

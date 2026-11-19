@@ -40,4 +40,7 @@ CREATE TABLE IF NOT EXISTS saga_deadline (
     due_at TEXT NOT NULL, claimed_until TEXT,
     PRIMARY KEY (tenant_id, transaction_id, owner)
 );
+CREATE TABLE IF NOT EXISTS saga_export_cursor (
+    name TEXT PRIMARY KEY, position TEXT NOT NULL, updated_at TEXT NOT NULL
+);
 """

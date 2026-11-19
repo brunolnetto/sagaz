@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Exporting the saga log** (#480, ADR-013): `SagaLogReader(log, name)` reads committed
+  events of every tenant, with their transaction's coordination and flow, in an order no
+  later commit can land before.
+  - **Cursor:** it resumes from its acknowledged position, stored in
+    `saga_export_cursor`, so delivery is at least once.
+  - **Order:** the rowid in SQLite; in PostgreSQL the writing transaction's id
+    (`writer_xid`), read below the oldest running transaction.
+  - **Upgrade:** `writer_xid` is added to existing PostgreSQL logs on the first
+    connection. The `ALTER TABLE` rewrites `saga_log_event`, so on a large log it holds
+    an exclusive lock for a while: plan the upgrade.
+
 ## [2.1.0] - 2026-11-19
 
 The unified saga log (ADR-041): one OLTP model for orchestrated and choreographed

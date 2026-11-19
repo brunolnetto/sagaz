@@ -204,3 +204,27 @@ class LogWrite:
         ]
         if self.deadline is not None and self.deadline.transaction_id in ended:
             self.deadline = None
+
+
+@dataclass(frozen=True)
+class ExportedEvent:
+    """A committed log event with its transaction's coordination and flow."""
+
+    event: LogEvent
+    coordination: str | None = None
+    flow: str | None = None
+
+
+@dataclass(frozen=True)
+class ExportBatch:
+    """Committed events in log order, and the position to resume after them.
+
+    ``position`` is opaque and backend-specific; it is ``None`` only when the
+    batch is empty and the reader had no position yet.
+    """
+
+    events: list[ExportedEvent]
+    position: str | None
+
+    def __bool__(self) -> bool:
+        return bool(self.events)

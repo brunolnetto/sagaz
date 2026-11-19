@@ -129,6 +129,30 @@ coordination style and flow, with completed, compensated, failed and in-flight c
 the compensation rate and p50/p95 durations. After `sagaz migrate unify`, the reports
 match those of the old layout, apart from timings.
 
+## Exporting the log
+
+An exporter (the Fluss sink of ADR-013, or your own) reads committed events of
+every tenant with a `SagaLogReader`. It resumes after the position it
+acknowledged last, which is stored in `saga_export_cursor` in the log's database:
+
+```python
+reader = SagaLogReader(log, "fluss")
+while batch := await reader.read():
+    await sink.write(batch.events)   # ExportedEvent: event, coordination, flow
+    await reader.acknowledge(batch)  # only after the sink accepted it
+```
+
+Delivery is at least once. A crash between the write and `acknowledge` repeats
+the batch, so the sink must be idempotent, for example by keying rows on
+`(tenant_id, transaction_id, sequence)`.
+
+The order never lets a later commit land before the position:
+- **SQLite:** the rowid, since there is one writer at a time.
+- **PostgreSQL:** the writing transaction's id (`writer_xid`), and only rows of
+  transactions older than every one still running are read. A long-running
+  transaction therefore delays the export until it ends, and its events are
+  never skipped.
+
 ## Sharing one database between services
 
 The log holds coordination state, not domain data, so the services of an organization
