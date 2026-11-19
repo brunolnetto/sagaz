@@ -39,8 +39,12 @@ class _EventSourcingMixin:
         await self._recorder.open()
 
     async def _record(self, event_type: type[SagaEvent], **fields: Any) -> None:
-        if self._recorder is not None:
-            await self._recorder.record(event_type(self.saga._saga_id, **fields))
+        if self._recorder is None:
+            return
+        step = self.saga._step_registry.get(fields.get("step_name", ""))
+        if step is not None and step.region is not None:
+            fields["metadata"] = {"region": step.region}  # where the step ran (ADR-034)
+        await self._recorder.record(event_type(self.saga._saga_id, **fields))
 
     async def _record_outcome(self, error: Exception) -> None:
         if self._compensation_failed:

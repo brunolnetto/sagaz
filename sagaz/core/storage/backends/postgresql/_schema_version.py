@@ -35,9 +35,10 @@ async def _applied_version(conn: Any, component: str) -> str | None:
     # a database) cannot even run CREATE TABLE IF NOT EXISTS.
     if await conn.fetchval("SELECT to_regclass('sagaz_schema_version')") is None:
         return None
-    return await conn.fetchval(
+    version = await conn.fetchval(
         "SELECT version FROM sagaz_schema_version WHERE component = $1", component
     )
+    return None if version is None else str(version)
 
 
 async def apply_schema(conn: Any, component: str, sql: str) -> bool:

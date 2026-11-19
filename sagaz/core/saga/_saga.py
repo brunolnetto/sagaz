@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from sagaz.core.replay import ReplayConfig
     from sagaz.core.storage.event_store import SagaEventStore
     from sagaz.core.storage.interfaces.snapshot import SnapshotStorage
+    from sagaz.core.storage.saga_log import SagaLogStore
 
 from sagaz.core.context import SagaContext
 from sagaz.core.exceptions import SagaExecutionError
@@ -61,6 +62,8 @@ class Saga(
         snapshot_storage: "SnapshotStorage | None" = None,
         event_store: "SagaEventStore | str | None" = None,
         snapshot_threshold: int = 50,
+        saga_log: "SagaLogStore | str | None" = None,
+        participant: str | None = None,
     ):
         self.name = name
         self.version = version
@@ -90,7 +93,8 @@ class Saga(
         self.snapshot_storage = snapshot_storage
 
         # Event sourcing (ADR-033, #450): record every state change in event_store
-        self._init_event_sourcing(event_store, snapshot_threshold)
+        # Unified saga log (ADR-041): saga_log takes precedence over event_store.
+        self._init_event_sourcing(event_store, snapshot_threshold, saga_log, participant)
 
         # Executor instances
         self._dag_executor = DAGExecutor(self)
