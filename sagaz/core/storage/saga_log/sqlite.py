@@ -29,6 +29,7 @@ from sagaz.core.storage.saga_log._model import (
     SnapshotKind,
     Transaction,
 )
+from sagaz.core.storage.saga_log._sqlite_export import SQLiteExportMixin
 from sagaz.core.storage.saga_log._sqlite_schema import SCHEMA
 
 try:
@@ -122,7 +123,7 @@ def _tenant_clause() -> tuple[str, tuple[str, ...]]:
     return ("1 = 1", ()) if tenant is None else ("tenant_id = ?", (tenant,))
 
 
-class SQLiteSagaLogStore(SagaLogStore):
+class SQLiteSagaLogStore(SQLiteExportMixin, SagaLogStore):
     def __init__(self, db_path: str = ":memory:") -> None:
         if aiosqlite is None:  # pragma: no cover
             msg = "aiosqlite"
