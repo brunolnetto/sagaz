@@ -48,8 +48,16 @@ class _SagaEventSourcingMixin:
     _snapshot_threshold: int
 
     def _init_event_sourcing(
-        self, event_store: SagaEventStore | str | None, snapshot_threshold: int
+        self,
+        event_store: SagaEventStore | str | None,
+        snapshot_threshold: int,
+        saga_log: Any = None,
+        participant: str | None = None,
     ) -> None:
+        if saga_log is not None:  # the unified saga log (ADR-041)
+            from sagaz.core.storage.event_store.recorder import _unified_store
+
+            event_store = _unified_store(saga_log, participant)
         if isinstance(event_store, str):
             from sagaz.core.storage.event_store.recorder import _as_store
 
@@ -83,20 +91,27 @@ class _SagaEventSourcingMixin:
     def _es_elapsed_ms(self) -> float:
         return round((time.monotonic() - self._es_started) * 1000, 3)
 
-    async def _es_step_executed(self, step_name: str, result: Any, duration_ms: float) -> None:
+    async def _es_step_executed(
+        self, step_name: str, result: Any, duration_ms: float, attempt: int = 1
+    ) -> None:
         await self._es_record(
             StepExecuted,
             step_name=step_name,
             step_result=json_safe(result),
             duration_ms=round(duration_ms, 3),
+            metadata={"attempt": attempt},
         )
 
-    async def _es_step_failed(self, step_name: str, error: BaseException) -> None:
+    async def _es_step_failed(self, step_name: str, error: BaseException, attempt: int = 1) -> None:
         cause = _root_cause(error)
         failure = (step_name, type(cause).__name__, str(cause) or type(cause).__name__)
         self._es_failure = self._es_failure or failure
         await self._es_record(
-            StepFailed, step_name=step_name, error_type=failure[1], error_message=failure[2]
+            StepFailed,
+            step_name=step_name,
+            error_type=failure[1],
+            error_message=failure[2],
+            metadata={"attempt": attempt},
         )
 
     async def _es_compensation_started(self) -> None:

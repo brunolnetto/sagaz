@@ -20,6 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Migration:** `sagaz migrate unify` copies the existing tables into the log. The
     engines start writing to it in the next phases.
   - **Guide:** [Unified saga log](../guides/unified-saga-log.md).
+- **Unified saga log, phase 2** (#465): orchestrated sagas record on the log with
+  `storage_layout = "unified"` and `saga_log` (`Meta` or `SagaConfig`).
+  `sagaz.core.saga.Saga` takes `saga_log=`.
+  - Each transition writes the event, the step's activity and the transaction's
+    versioned status change in one database transaction.
+  - The ADR-033 event store becomes a view on the log (`SagaLogEventStore`), read by
+    `sagaz event-log --layout unified`.
 
 ### Fixed
 - **PostgreSQL stores no longer block or deadlock running writers on startup** (#469).

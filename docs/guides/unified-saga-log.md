@@ -5,10 +5,10 @@ both write to. Design: [ADR-041](../architecture/adr/adr-041-unified-saga-log.md
 Milestone: v2.1.0.
 
 !!! note "Status"
-    **Phase 1 (#464)** delivers the tables, the store and the migration of existing
-    data. The engines write to the log in phases 2 (orchestration, #465) and 3
-    (choreography, #466), and analytics reads it in phase 4 (#467). Until then, sagas
-    keep using the current tables, which `sagaz migrate unify` copies into the log.
+    - **Phase 1 (#464):** the tables, the store and `sagaz migrate unify`.
+    - **Phase 2 (#465):** orchestrated sagas record on the log.
+    - **Phase 3 (#466, next):** choreography writes to it.
+    - **Phase 4 (#467):** analytics reads it.
 
 ## Tables
 
@@ -43,6 +43,39 @@ A `LogWrite` is applied atomically: insert the transaction (once), change its st
 if it is still at `expected_version` (`ConcurrencyError` otherwise), append the events,
 upsert the activities, then set or clear deadlines. Stores: `postgresql://`
 (reference), `sqlite://<path>` and `memory://`.
+
+## Recording orchestrated sagas
+
+Opt in per saga, or for every saga through `SagaConfig`:
+
+```python
+class OrderSaga(Saga):
+    class Meta:
+        storage_layout = "unified"          # default: "legacy"
+        saga_log = "postgresql://..."       # or a SagaLogStore
+        participant = "orders-service"      # who runs the steps (default: "orchestrator")
+        snapshot_threshold = 50
+
+configure(SagaConfig(storage_layout="unified", saga_log="postgresql://..."))  # all sagas
+legacy = sagaz.core.saga.Saga(name="billing", saga_log="postgresql://...", participant="billing")
+```
+
+Each lifecycle transition is **one** atomic write: the event (`SagaStarted`,
+`StepExecuted`, `StepFailed`, `CompensationStarted`, `StepCompensated`,
+`StepCompensationFailed`, `SagaCompleted`, `SagaRolledBack`, `SagaFailed`), the step's
+activity (status, attempt, region, result, error, duration) and the transaction's status
+change (`executing` → `compensating` → `completed` / `rolled_back` / `failed`, checked
+against its `version`). The current state and the log cannot diverge. When the saga
+ends, its accumulated context (the initial context plus step results) is stored on the
+transaction.
+
+The unified layout includes event sourcing: there is no separate event store. The
+ADR-033 view reads the log, so projections, snapshots and `sagaz event-log --layout
+unified` work as before. As with the event store, a failed write is logged and counted
+and does not fail the saga.
+
+Recording costs about the same as the ADR-033 event store: 0.93× per event on SQLite,
+where both are dominated by the commit to disk.
 
 ## Sharing one database between services
 

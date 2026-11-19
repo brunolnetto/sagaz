@@ -12,11 +12,23 @@ from sagaz.core.events import SagaEvent
 from sagaz.core.tenant import DEFAULT_TENANT, tenant_scope
 
 
-async def _load(url: str, saga_id: str, tenant: str) -> tuple[list[SagaEvent], Any]:
+def _store(url: str, layout: str) -> Any:
+    if layout == "unified":  # ADR-041: the event store is a view on the saga log
+        from sagaz.core.storage.saga_log import create_saga_log_store
+        from sagaz.core.storage.saga_log.event_store import SagaLogEventStore
+
+        return SagaLogEventStore(create_saga_log_store(url))
     from sagaz.core.storage.event_store import create_event_store
+
+    return create_event_store(url)
+
+
+async def _load(
+    url: str, saga_id: str, tenant: str, layout: str = "legacy"
+) -> tuple[list[SagaEvent], Any]:
     from sagaz.projections import load_projection
 
-    async with create_event_store(url) as store:
+    async with _store(url, layout) as store:
         with tenant_scope(tenant):
             return await store.load_stream(saga_id), await load_projection(store, saga_id)
 
@@ -44,9 +56,16 @@ def _details(event: SagaEvent) -> str:
 )
 @click.option("--tenant", default=DEFAULT_TENANT, show_default=True, help="Tenant of the saga.")
 @click.option("--json", "as_json", is_flag=True, help="Print the events and state as JSON.")
-def event_log_cmd(saga_id: str, store_url: str, tenant: str, as_json: bool) -> None:
+@click.option(
+    "--layout",
+    type=click.Choice(["legacy", "unified"]),
+    default="legacy",
+    show_default=True,
+    help="Read the ADR-033 event store (legacy) or the unified saga log (ADR-041).",
+)
+def event_log_cmd(saga_id: str, store_url: str, tenant: str, as_json: bool, layout: str) -> None:
     """Show every recorded event of the event-sourced saga SAGA_ID."""
-    events, state = asyncio.run(_load(store_url, saga_id, tenant))
+    events, state = asyncio.run(_load(store_url, saga_id, tenant, layout))
     if not events:
         msg = f"No events for saga '{saga_id}' (tenant '{tenant}')"
         raise click.ClickException(msg)
