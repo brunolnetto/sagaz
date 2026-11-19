@@ -61,6 +61,7 @@ class TestAnalyticsReports:
                 "choreography-hops",
                 "choreography-participants",
                 "compensations",
+                "flows",
                 "lifecycle",
                 "step-latency",
                 "summary",

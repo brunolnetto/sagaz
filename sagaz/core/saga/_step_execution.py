@@ -55,7 +55,7 @@ class StepExecutor:
                 step.retry_count = attempt
                 await self.execute_step(step)
                 await self.saga._es_step_executed(
-                    step.name, step.result, (time.monotonic() - started) * 1000
+                    step.name, step.result, (time.monotonic() - started) * 1000, attempt + 1
                 )
                 return  # Success!
 
@@ -80,7 +80,7 @@ class StepExecutor:
         # All retries exhausted
         step.error = last_error
         assert last_error is not None, "last_error should be set after exhausting retries"
-        await self.saga._es_step_failed(step.name, last_error)
+        await self.saga._es_step_failed(step.name, last_error, total_attempts)
         raise last_error
 
     async def execute_step(self, step: "SagaStep") -> None:

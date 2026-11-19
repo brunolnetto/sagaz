@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-11-19
+
+The unified saga log (ADR-041): one OLTP model for orchestrated and choreographed
+sagas, shared by every service, with atomic event publication and analytics over
+both coordination styles.
+
+### Added
+- **Unified saga log, phase 1** (#464, ADR-041): one OLTP model for orchestrated and
+  choreographed sagas.
+  - **Tables:** `saga_transaction`, `saga_activity`, `saga_log_event` (append-only,
+    numbered per transaction), `saga_snapshot`, `saga_participant`, `saga_delivery`
+    and `saga_deadline`.
+  - **Store:** `SagaLogStore` for PostgreSQL, SQLite and memory, with atomic
+    `LogWrite`s and versioned status changes.
+  - **Shared database:** in PostgreSQL, row-level security isolates each service's
+    writes by participant, and service roles get an append-only log.
+  - **Migration:** `sagaz migrate unify` copies the existing tables into the log. The
+    engines start writing to it in the next phases.
+  - **Guide:** [Unified saga log](../guides/unified-saga-log.md).
+- **Unified saga log, phase 2** (#465): orchestrated sagas record on the log with
+  `storage_layout = "unified"` and `saga_log` (`Meta` or `SagaConfig`).
+  `sagaz.core.saga.Saga` takes `saga_log=`.
+  - Each transition writes the event, the step's activity and the transaction's
+    versioned status change in one database transaction.
+  - The ADR-033 event store becomes a view on the log (`SagaLogEventStore`), read by
+    `sagaz event-log --layout unified`.
+- **Unified saga log, phase 3** (#466): choreography on the log, with
+  `ChoreographyEngine(bus, saga_log=...)`.
+  - **Atomic publishing:** `emit()` / `begin()` write the action, the event and an
+    outbox message in one database transaction. `engine.relay` (`OutboxWorker` +
+    `EventBusBroker`) publishes them, at least once.
+  - **Participant state** (actions, tombstones, deliveries, deadlines) lives on
+    `saga_activity`, `saga_delivery` and `saga_deadline`, shared by replicas.
+  - **Tracker:** `ChoreographyTracker(saga_log=...)` projects the status from the log
+    and keeps `saga_transaction.status` in step. `sagaz choreography status
+    --saga-log` reads it.
+- **Unified saga log, phase 4** (#467): `SagaAnalyticsPipeline(saga_log)` reads the log
+  for both coordination styles.
+  - **New report:** `SagaQueries.FLOW_SUMMARY` (`/api/v1/analytics/flows`) compares
+    them per flow.
+  - **Migration:** `sagaz migrate unify` now carries the tracker's failure and
+    compensation reports onto the migrated compensation events, so the Gold reports
+    match the old layout's.
+
+### Fixed
+- **SQLite stores** (event store #57, choreography participant state #448): concurrent
+  first use could open a second connection or write during schema creation
+  (`cannot start a transaction within a transaction`). Initialization now runs once,
+  under a lock.
+
 ## [2.0.2] - 2026-11-18
 
 Hotfix: PostgreSQL stores no longer block or deadlock running writers on startup.

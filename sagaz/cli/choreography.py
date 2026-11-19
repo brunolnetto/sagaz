@@ -15,6 +15,17 @@ from sagaz.choreography.tracker import TransactionStatus, load_status, stalled_v
 from sagaz.core.tenant import DEFAULT_TENANT, tenant_scope
 
 
+async def _load_from_log(
+    url: str, correlation_id: str, tenant: str, completion_events: tuple[str, ...]
+) -> TransactionStatus | None:
+    from sagaz.choreography.tracker import status_from_log
+    from sagaz.core.storage.saga_log import create_saga_log_store
+
+    async with create_saga_log_store(url) as log:
+        with tenant_scope(tenant):
+            return await status_from_log(log, correlation_id, completion_events)
+
+
 async def _load(storage_url: str, correlation_id: str, tenant: str) -> TransactionStatus | None:
     from sagaz.core.storage import create_storage_manager
 
@@ -53,9 +64,21 @@ def choreography_cli() -> None:
 @click.option(
     "--storage-url",
     envvar="SAGAZ_STORAGE_URL",
-    required=True,
     metavar="URL",
     help="Saga storage the ChoreographyTracker writes to (env: SAGAZ_STORAGE_URL).",
+)
+@click.option(
+    "--saga-log",
+    "saga_log",
+    envvar="SAGAZ_SAGA_LOG_URL",
+    metavar="URL",
+    help="Read the status from the unified saga log instead (ADR-041).",
+)
+@click.option(
+    "--completion-event",
+    "completion_events",
+    multiple=True,
+    help="With --saga-log: an event type that completes the transaction (repeatable).",
 )
 @click.option(
     "--tenant", default=DEFAULT_TENANT, show_default=True, help="Tenant of the transaction."
@@ -70,14 +93,23 @@ def choreography_cli() -> None:
 )
 def status_cmd(
     correlation_id: str,
-    storage_url: str,
+    storage_url: str | None,
+    saga_log: str | None,
+    completion_events: tuple[str, ...],
     tenant: str,
     as_json: bool,
     show_events: bool,
     stall_after: float | None,
 ) -> None:
     """Show the aggregate status of the transaction CORRELATION_ID."""
-    status = stalled_view(asyncio.run(_load(storage_url, correlation_id, tenant)), stall_after)
+    if saga_log:
+        loaded = asyncio.run(_load_from_log(saga_log, correlation_id, tenant, completion_events))
+    elif storage_url:
+        loaded = asyncio.run(_load(storage_url, correlation_id, tenant))
+    else:
+        msg = "Give --storage-url (tracker records) or --saga-log (unified saga log)"
+        raise click.UsageError(msg)
+    status = stalled_view(loaded, stall_after)
     if status is None:
         msg = f"No choreographed transaction '{correlation_id}' for tenant '{tenant}'"
         raise click.ClickException(msg)

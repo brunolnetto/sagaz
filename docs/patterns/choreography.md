@@ -170,6 +170,14 @@ sagaz choreography status <correlation-id> --stall-after 300
 An executing transaction with no event for `stall_after` seconds is reported as
 `stalled`. The status is computed when it is read and never stored.
 
+## On the unified saga log
+
+`ChoreographyEngine(bus, saga_log="postgresql://...")` keeps participant state on the
+unified saga log (ADR-041). Each published event is then written to the log and to an
+outbox in the same database transaction as the state change, and `engine.relay`
+publishes the outbox. A crash can no longer lose the state change or the event. See
+[Unified saga log](../guides/unified-saga-log.md#choreography-on-the-log).
+
 ## Durable participant state
 
 A participant remembers which of its actions it may have to compensate, the

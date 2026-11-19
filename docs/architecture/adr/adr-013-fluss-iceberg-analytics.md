@@ -4,6 +4,20 @@
 
 **Proposed** | Date: 2026-01-05 | Priority: Low | Target: Future
 
+## Input: the unified saga log (v2.1.0)
+
+ADR-041 (v2.1.0) gives this ADR a single, typed stream to ingest:
+`saga_log_event`, append-only and numbered per transaction. It holds the
+lifecycle events of orchestrated sagas and every choreography event, with the
+current state in `saga_transaction` and `saga_activity`. Columns:
+`tenant_id`, `transaction_id`, `sequence`, `event_id`, `event_type`, `kind`
+(`lifecycle` / `business` / `compensate` / `compensated`), `source`,
+`causation_id`, `payload`, `occurred_at` and `event_version`. Stream it by
+`(tenant_id, transaction_id, sequence)`, by CDC on the table or from the
+outbox relay. Tier it to Iceberg partitioned by `tenant_id` and the day of
+`occurred_at`. The embedded DuckDB pipeline (ADR-036) reads the same tables
+(`SagaAnalyticsPipeline(saga_log)`), so Fluss and DuckDB share one model.
+
 ## Dependencies
 
 **Prerequisites**:

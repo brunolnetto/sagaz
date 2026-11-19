@@ -55,12 +55,18 @@ class SQLiteEventStore(SagaEventStore):
         self.db_path = db_path
         self._conn: Any = None
         self._lock = asyncio.Lock()
+        self._init_lock = asyncio.Lock()
 
     async def _connection(self) -> Any:
+        # Initialized once, and published only when ready: a concurrent caller
+        # must neither open a second connection nor use a half-made schema.
         if self._conn is None:
-            self._conn = await aiosqlite.connect(self.db_path)
-            await self._conn.executescript(SCHEMA)
-            await self._conn.commit()
+            async with self._init_lock:
+                if self._conn is None:
+                    conn = await aiosqlite.connect(self.db_path)
+                    await conn.executescript(SCHEMA)
+                    await conn.commit()
+                    self._conn = conn
         return self._conn
 
     async def append(self, event: SagaEvent) -> SagaEvent:

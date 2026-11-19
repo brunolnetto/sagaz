@@ -182,3 +182,40 @@ class SagaQueries:
         GROUP BY flow, failed_participant, failed_event_type, failure_reason
         ORDER BY transactions DESC, flow, participant
     """
+
+    # ------------------------------------------------------------------
+    # Both coordination styles (ADR-041 phase 4, #467)
+    # ------------------------------------------------------------------
+
+    FLOW_SUMMARY = """
+        WITH flows AS (
+            SELECT 'orchestrated'                                       AS coordination,
+                   ds.saga_name                                         AS flow,
+                   CASE ds.status WHEN 'rolled_back' THEN 'compensated'
+                                  ELSE ds.status END                    AS status,
+                   EXTRACT(EPOCH FROM (
+                       COALESCE(sl.completed_at, sl.rolled_back_at) - ds.created_at
+                   )) * 1000                                            AS duration_ms
+            FROM dim_saga ds
+            LEFT JOIN fact_saga_lifecycle sl ON sl.saga_id = ds.saga_id
+            UNION ALL
+            SELECT 'choreographed', flow, status, duration_ms
+            FROM fact_choreography_transaction
+        )
+        SELECT
+            coordination,
+            flow,
+            COUNT(*)                                                    AS transactions,
+            COUNT(*) FILTER (WHERE status = 'completed')                AS completed,
+            COUNT(*) FILTER (WHERE status = 'compensated')              AS compensated,
+            COUNT(*) FILTER (WHERE status = 'failed')                   AS failed,
+            COUNT(*) FILTER (WHERE status IN ('executing', 'compensating')) AS in_flight,
+            ROUND(100.0 * COUNT(*) FILTER (WHERE status IN ('compensated', 'failed'))
+                / NULLIF(COUNT(*) FILTER (WHERE status IN ('completed', 'compensated', 'failed')), 0),
+                2)                                                      AS compensation_rate_pct,
+            ROUND(PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY duration_ms), 2) AS p50_duration_ms,
+            ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms), 2) AS p95_duration_ms
+        FROM flows
+        GROUP BY coordination, flow
+        ORDER BY transactions DESC, coordination, flow
+    """

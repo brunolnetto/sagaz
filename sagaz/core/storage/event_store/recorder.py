@@ -25,6 +25,8 @@ logger = logging.getLogger(__name__)
 
 #: The default and the opt-in values of ``Meta.storage_strategy``.
 SNAPSHOT, EVENT_SOURCED = "snapshot", "event_sourced"
+#: The default and the opt-in values of ``Meta.storage_layout`` (ADR-041).
+LEGACY, UNIFIED = "legacy", "unified"
 DEFAULT_SNAPSHOT_THRESHOLD = 50
 
 try:
@@ -155,11 +157,14 @@ def _as_store(value: SagaEventStore | str) -> SagaEventStore:
 
 
 def event_sourcing_settings(saga: Any) -> tuple[SagaEventStore, int] | None:
-    """The event store and snapshot threshold of ``saga``, or ``None`` if not event-sourced.
+    """The event store and snapshot threshold of ``saga``, or ``None`` if it records none.
 
-    Read from the saga class's ``Meta`` (``storage_strategy``, ``event_store``,
-    ``snapshot_threshold``), falling back to the saga's ``SagaConfig``.
-    ``event_store`` may be a store or a URL.
+    Read from the saga class's ``Meta``, falling back to the saga's ``SagaConfig``:
+
+    - ``storage_layout = "unified"`` (ADR-041) records on the unified saga log
+      given by ``saga_log`` (a store or a URL), as ``participant``;
+    - otherwise ``storage_strategy = "event_sourced"`` (ADR-033) records on
+      ``event_store`` (a store or a URL).
     """
     meta = getattr(type(saga), "Meta", None)
     config = getattr(saga, "_config", None)
@@ -167,6 +172,14 @@ def event_sourcing_settings(saga: Any) -> tuple[SagaEventStore, int] | None:
     def setting(name: str, default: Any = None) -> Any:
         value = getattr(meta, name, None)
         return value if value is not None else getattr(config, name, default)
+
+    threshold = setting("snapshot_threshold", DEFAULT_SNAPSHOT_THRESHOLD)
+    layout = setting("storage_layout", LEGACY)
+    if layout == UNIFIED:
+        return _unified_store(setting("saga_log"), setting("participant")), int(threshold)
+    if isinstance(layout, str) and layout != LEGACY:
+        msg = f"storage_layout must be {LEGACY!r} or {UNIFIED!r}, got {layout!r}"
+        raise ValueError(msg)
 
     strategy = setting("storage_strategy", SNAPSHOT)
     # Duck-typed configs (or mocks) without the setting keep the default.
@@ -182,4 +195,27 @@ def event_sourcing_settings(saga: Any) -> tuple[SagaEventStore, int] | None:
             "or SagaConfig.event_store (a SagaEventStore or a URL)"
         )
         raise ValueError(msg)
-    return _as_store(store), int(setting("snapshot_threshold", DEFAULT_SNAPSHOT_THRESHOLD))
+    return _as_store(store), int(threshold)
+
+
+_logs_by_url: dict[str, Any] = {}
+
+
+def _unified_store(saga_log: Any, participant: Any) -> SagaEventStore:
+    """An event store over the unified saga log (ADR-041), for one saga run."""
+    from sagaz.core.storage.saga_log import ORCHESTRATOR, create_saga_log_store
+    from sagaz.core.storage.saga_log.event_store import SagaLogEventStore
+
+    if saga_log is None:
+        msg = (
+            "storage_layout='unified' needs a saga log: set Meta.saga_log or "
+            "SagaConfig.saga_log (a SagaLogStore or a URL)"
+        )
+        raise ValueError(msg)
+    if isinstance(saga_log, str):
+        if saga_log not in _logs_by_url:
+            _logs_by_url[saga_log] = create_saga_log_store(saga_log)
+        saga_log = _logs_by_url[saga_log]
+    return SagaLogEventStore(
+        saga_log, participant if isinstance(participant, str) else ORCHESTRATOR
+    )

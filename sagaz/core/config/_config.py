@@ -79,6 +79,12 @@ class SagaConfig:
     event_store: Any | None = None  # SagaEventStore | str, avoiding circular import
     snapshot_threshold: int = 50
 
+    # Unified saga log (ADR-041): "unified" records every saga on saga_log (a
+    # SagaLogStore or a URL), as participant (the service name).
+    storage_layout: str = "legacy"
+    saga_log: Any | None = None  # SagaLogStore | str
+    participant: str | None = None
+
     # Multi-region (ADR-034): runs steps declared with region= on that region's
     # workers. A MultiRegionCoordinator, or built from the sagaz.yaml regions block.
     regions: Any | None = None
@@ -195,6 +201,9 @@ class SagaConfig:
             storage_strategy=self.storage_strategy,
             event_store=self.event_store,
             snapshot_threshold=self.snapshot_threshold,
+            storage_layout=self.storage_layout,
+            saga_log=self.saga_log,
+            participant=self.participant,
             regions=self.regions,
         )
 
@@ -214,6 +223,9 @@ class SagaConfig:
             storage_strategy=self.storage_strategy,
             event_store=self.event_store,
             snapshot_threshold=self.snapshot_threshold,
+            storage_layout=self.storage_layout,
+            saga_log=self.saga_log,
+            participant=self.participant,
             regions=self.regions,
         )
 

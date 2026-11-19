@@ -137,7 +137,8 @@ class Dispatcher:
             "failed_event_id": event.event_id,
             "reason": f"{type(error).__name__}: {error}",
         }
-        await self._publish(Event(COMPENSATE, data, source=saga.name).caused_by(event))
+        report = Event(COMPENSATE, data, source=saga.name).caused_by(event)
+        await saga._state.publish(saga.name, report, self._publish)
 
     async def _compensate(self, saga: ChoreographedSaga, event: Event) -> None:
         if not event.saga_id:
@@ -150,4 +151,5 @@ class Dispatcher:
             if failed:
                 CHOREOGRAPHY_COMPENSATIONS.labels(saga.name, "failed").inc(len(failed))
         data = {"participant": saga.name, "undone": undone, "failed": failed}
-        await self._publish(Event(COMPENSATED, data, source=saga.name).caused_by(event))
+        report = Event(COMPENSATED, data, source=saga.name).caused_by(event)
+        await saga._state.publish(saga.name, report, self._publish)
