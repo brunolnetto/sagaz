@@ -108,6 +108,7 @@ nav:
     - Observability Reference: monitoring/OBSERVABILITY_REFERENCE.md
     - Metrics Compatibility: monitoring/METRICS_COMPATIBILITY.md
     - Visualization UI: monitoring/visualization-ui.md
+    - Fluss and Iceberg Analytics: monitoring/fluss-iceberg-analytics.md
   
   - Reference:
     - Configuration API: reference/configuration.md

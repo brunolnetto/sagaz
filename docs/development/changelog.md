@@ -39,6 +39,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     takes one bucket key.
   - **Freshness:** `freshness=` and `--freshness` set how far behind the lake may be.
 
+- **Saga analytics in Flink SQL** (#483): `sagaz analytics flink-sql flow-summary|throughput`
+  prints reports over the exported log (`sagaz.integrations.flink_sql`).
+  - **Parity:** on the same log, `flow-summary` gives the same counts and rates as the
+    embedded `SagaQueries.FLOW_SUMMARY`.
+  - **New column:** the Fluss table gains `occurred_at_ms`.
+  - **Status events:** the `ChoreographyTracker` records each status change of a
+    choreographed transaction as a `TransactionStatusChanged` lifecycle event, so the
+    log alone tells every transaction's status. `sagaz migrate unify` adds it to
+    finished ones.
+  - **Guide:** [Fluss and Iceberg analytics](../monitoring/fluss-iceberg-analytics.md).
+
 ### Removed
 - `jobs/fluss_to_iceberg.sql`, the hand-written tiering job of the first ADR-013
   design: Fluss's tiering service replaces it.

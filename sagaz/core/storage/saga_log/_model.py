@@ -48,6 +48,12 @@ class ConcurrencyError(RuntimeError):
     """A transaction changed since it was read (``expected_version`` mismatch)."""
 
 
+#: The lifecycle event recording a choreographed transaction's status change
+#: (payload ``{"status": ..., "previous": ...}``): written by the choreography
+#: tracker, so the log alone tells every transaction's status.
+STATUS_CHANGED = "TransactionStatusChanged"
+
+
 @dataclass
 class Transaction:
     """One distributed transaction: an orchestrated saga or a choreographed flow."""
@@ -228,3 +234,24 @@ class ExportBatch:
 
     def __bool__(self) -> bool:
         return bool(self.events)
+
+
+def status_changed(
+    transaction_id: str,
+    status: str,
+    previous: str,
+    *,
+    source: str | None,
+    occurred_at: datetime,
+    causation_id: str | None = None,
+) -> LogEvent:
+    """The :data:`STATUS_CHANGED` lifecycle event of a choreographed transaction."""
+    return LogEvent(
+        transaction_id,
+        STATUS_CHANGED,
+        EventKind.LIFECYCLE,
+        source=source,
+        causation_id=causation_id,
+        payload={"status": status, "previous": previous},
+        occurred_at=occurred_at,
+    )

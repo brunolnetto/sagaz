@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import importlib
 import json
-from datetime import UTC
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from sagaz.core.exceptions import MissingDependencyError
@@ -41,9 +41,11 @@ COLUMNS: tuple[tuple[str, str], ...] = (
     ("causation_id", "string"),
     ("payload", "string"),
     ("occurred_at", "timestamp"),
+    ("occurred_at_ms", "int64"),  # epoch milliseconds: Flink SQL cannot do millisecond math
     ("event_version", "int32"),
     ("dt", "string"),
 )
+_EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 PRIMARY_KEY = ("dt", "tenant_id", "transaction_id", "sequence")
 PARTITION_KEY = "dt"
 # A transaction's events stay in one bucket, in order. Tiering to Iceberg takes
@@ -51,7 +53,7 @@ PARTITION_KEY = "dt"
 BUCKET_KEYS = ("transaction_id",)
 NOT_NULL = frozenset(
     {"tenant_id", "transaction_id", "sequence", "event_id", "event_type", "kind"}
-    | {"occurred_at", "event_version", "dt"}
+    | {"occurred_at", "occurred_at_ms", "event_version", "dt"}
 )
 
 
@@ -87,6 +89,7 @@ def fluss_row(exported: ExportedEvent) -> dict[str, Any]:
         "causation_id": event.causation_id,
         "payload": json.dumps(event.payload, sort_keys=True, default=str),
         "occurred_at": occurred_at,
+        "occurred_at_ms": (occurred_at - _EPOCH) // timedelta(milliseconds=1),  # exact
         "event_version": event.event_version,
         "dt": occurred_at.strftime("%Y-%m-%d"),
     }

@@ -88,3 +88,17 @@ def fluss_ddl_cmd(table: str, no_datalake: bool) -> None:
     from sagaz.integrations.fluss import fluss_ddl
 
     click.echo(fluss_ddl(table, datalake=not no_datalake))
+
+
+@analytics_cli.command("flink-sql")
+@click.argument("report_name", metavar="REPORT")
+@click.option("--table", default="iceberg.sagaz.saga_log_event", show_default=True,
+              help="catalog.database.table to read, in batch mode.")  # fmt: skip
+def flink_sql_cmd(report_name: str, table: str) -> None:
+    """Print a saga analytics report in Flink SQL (flow-summary, throughput)."""
+    from sagaz.integrations.flink_sql import report
+
+    try:
+        click.echo(report(report_name, table), nl=False)
+    except ValueError as exc:
+        raise click.BadParameter(str(exc), param_hint="REPORT") from exc
