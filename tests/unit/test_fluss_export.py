@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import sys
 from datetime import UTC, datetime, timedelta, timezone
 from types import SimpleNamespace
 
@@ -293,18 +294,34 @@ class TestSinkSetup:
         assert fake.config == {"bootstrap.servers": "fluss:9123", "x": "1"}
 
     def test_without_the_client(self, monkeypatch):
-        import builtins
-
-        real_import = builtins.__import__
-
-        def no_fluss(name, *args, **kwargs):
-            if name == "fluss":
-                raise ImportError(name)
-            return real_import(name, *args, **kwargs)
-
-        monkeypatch.setattr(builtins, "__import__", no_fluss)
+        monkeypatch.setitem(sys.modules, "fluss", None)  # importing it fails
         with pytest.raises(MissingDependencyError, match="pyfluss"):
             _ = FlussSink("fluss:9123").client
+
+
+class TestRealClient:
+    """The sink's calls against the real pyfluss module (installed up to Python 3.12)."""
+
+    def test_the_table_descriptor_is_accepted(self):
+        fluss = pytest.importorskip("fluss")
+        from sagaz.integrations.fluss import (
+            BUCKET_KEYS,
+            PARTITION_KEY,
+            PRIMARY_KEY,
+            _arrow_schema,
+            table_properties,
+        )
+
+        schema = fluss.Schema(_arrow_schema(), primary_keys=list(PRIMARY_KEY))
+        fluss.TableDescriptor(
+            schema,
+            partition_keys=[PARTITION_KEY],
+            bucket_keys=list(BUCKET_KEYS),
+            properties=table_properties(),
+        )
+        fluss.TablePath("sagaz", "saga_log_event")
+        fluss.Config({"bootstrap.servers": "localhost:9123"})
+        assert callable(fluss.FlussConnection.create)
 
 
 class TestCli:
