@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Unified saga log, phase 1** (#464, ADR-041): one OLTP model for orchestrated and
+  choreographed sagas.
+  - **Tables:** `saga_transaction`, `saga_activity`, `saga_log_event` (append-only,
+    numbered per transaction), `saga_snapshot`, `saga_participant`, `saga_delivery`
+    and `saga_deadline`.
+  - **Store:** `SagaLogStore` for PostgreSQL, SQLite and memory, with atomic
+    `LogWrite`s and versioned status changes.
+  - **Shared database:** in PostgreSQL, row-level security isolates each service's
+    writes by participant, and service roles get an append-only log.
+  - **Migration:** `sagaz migrate unify` copies the existing tables into the log. The
+    engines start writing to it in the next phases.
+  - **Guide:** [Unified saga log](../guides/unified-saga-log.md).
+
 ## [2.0.1] - 2026-11-18
 
 Analytics for choreographed sagas, and a fix to orchestration analytics.
