@@ -28,6 +28,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     partitions and tiering to the lake.
   - **CLI:** `sagaz analytics export --saga-log ... --to fluss://host:port [--once]`,
     and `sagaz analytics fluss-ddl` to print the table.
+- **Local lakehouse without Docker** (#482): `scripts/lakehouse/lakehouse.sh` installs
+  and runs pinned Fluss 1.0.0, Flink 1.20.5 and Iceberg 1.10.1 from binary
+  distributions (`fetch`, `start`, `tiering`, `sql`, `status`, `stop`, `reset`), with
+  the Iceberg catalog in PostgreSQL and the warehouse on disk.
+  - **Partitions:** `FlussSink` creates each day's partition as events arrive.
+    Fluss's auto-partitioning is off, because its retention would drop a backfill
+    of older events.
+  - **Buckets:** the bucket key is `transaction_id` alone, since tiering to Iceberg
+    takes one bucket key.
+  - **Freshness:** `freshness=` and `--freshness` set how far behind the lake may be.
+
+### Removed
+- `jobs/fluss_to_iceberg.sql`, the hand-written tiering job of the first ADR-013
+  design: Fluss's tiering service replaces it.
 
 ## [2.1.0] - 2026-11-19
 
