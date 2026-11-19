@@ -39,7 +39,7 @@ Fluss's own **tiering service** move it to **Apache Iceberg**.
  services ──▶ saga_log_event ──▶ exporter ──▶ Fluss PK table ──▶ tiering ──▶ Iceberg
  (OLTP, ADR-041)  (CDC or cursor)  (at least once)  (idempotent)   (Flink job)  (history)
                                                         │                           │
-                                                        └──── Flink SQL union read ─┘
+                                               Flink SQL (streaming)       Flink SQL (batch)
 ```
 
 ### 1. The source is the log, read durably
@@ -80,8 +80,9 @@ call.
 Fluss tiers tables that have the datalake enabled to Iceberg with its tiering
 service, a Flink job that Fluss coordinates with exactly-once semantics. Sagaz
 ships its configuration (catalog, warehouse, jobs) and no Python Iceberg
-writer. Flink reads the two together: fresh rows from Fluss and history from
-Iceberg, in one query.
+writer. History is queried from the Iceberg catalog, and fresh rows from the
+Fluss stream. Fluss 1.0 cannot read a primary-key table in batch as a union of
+both with Iceberg (`lake records must instance of sorted view`).
 
 ### Table
 
@@ -106,9 +107,7 @@ CREATE TABLE sagaz.saga_log_event (
     dt              STRING NOT NULL,   -- day of occurred_at, the partition
     PRIMARY KEY (dt, tenant_id, transaction_id, sequence) NOT ENFORCED
 ) PARTITIONED BY (dt) WITH (
-    'bucket.key' = 'tenant_id,transaction_id',
-    'table.auto-partition.enabled' = 'true',
-    'table.auto-partition.time-unit' = 'day',
+    'bucket.key' = 'transaction_id',          -- Iceberg tiering takes one bucket key
     'table.datalake.enabled' = 'true'
 );
 ```
@@ -117,12 +116,17 @@ CREATE TABLE sagaz.saga_log_event (
   transaction, so the real-time queries need no join.
 - **Partitioning:** the table is partitioned by day, which is also how Iceberg
   prunes history.
-- **Buckets:** a transaction's events stay in one bucket, in order.
+  - **Creation:** the sink creates each day's partition as events arrive. Fluss's
+    auto-partitioning is off, because its retention drops old partitions and
+    would drop a backfill of older events before it is tiered.
+- **Buckets:** a transaction's events stay in one bucket, in order. The bucket
+  key is `transaction_id` alone, because tiering to Iceberg takes at most one
+  bucket key.
 
 ### Queries
 
-The ADR-036 Gold reports, `FLOW_SUMMARY` first, are rewritten in Flink SQL over
-the union read. The same fixture must give the same numbers in DuckDB and in
+The ADR-036 Gold reports, `FLOW_SUMMARY` first, are rewritten in Flink SQL:
+in batch over the Iceberg table, and in streaming over the Fluss table. The same fixture must give the same numbers in DuckDB and in
 Flink.
 
 ## Release gates (v2.2.0)

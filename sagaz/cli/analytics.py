@@ -20,13 +20,13 @@ def analytics_cli() -> None:
     """Export the saga log to streaming analytics (Fluss, tiered to Iceberg)."""
 
 
-def _sink(target: str, table: str) -> Any:
+def _sink(target: str, table: str, freshness: str | None = None) -> Any:
     if not target.startswith("fluss://"):
         msg = f"Unsupported target {target!r}: use fluss://host:port"
         raise click.BadParameter(msg, param_hint="--to")
     from sagaz.integrations.fluss import FlussSink
 
-    return FlussSink(target[len("fluss://") :], table)
+    return FlussSink(target[len("fluss://") :], table, freshness=freshness)
 
 
 async def _export(log_url: str, sink: Any, name: str, once: bool, interval: float) -> int:
@@ -58,13 +58,21 @@ async def _export(log_url: str, sink: Any, name: str, once: bool, interval: floa
 @click.option("--name", default="fluss", show_default=True,
               help="Exporter name: its cursor in saga_export_cursor.")  # fmt: skip
 @click.option("--once", is_flag=True, help="Export what is committed now, then exit.")
+@click.option("--freshness", default=None,
+              help="How far behind the lake may be (a created table), e.g. 1min.")  # fmt: skip
 @click.option("--poll-interval", default=0.5, show_default=True, type=float,
               help="Seconds between polls when running continuously.")  # fmt: skip
 def export_cmd(
-    log_url: str, target: str, table: str, name: str, once: bool, poll_interval: float
+    log_url: str,
+    target: str,
+    table: str,
+    name: str,
+    once: bool,
+    freshness: str | None,
+    poll_interval: float,
 ) -> None:
     """Export committed saga log events, at least once, resuming from the cursor."""
-    sink = _sink(target, table)
+    sink = _sink(target, table, freshness)
     try:
         count = asyncio.run(_export(log_url, sink, name, once, poll_interval))
     except KeyboardInterrupt:  # pragma: no cover - interactive

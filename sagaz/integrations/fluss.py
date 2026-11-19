@@ -46,21 +46,27 @@ COLUMNS: tuple[tuple[str, str], ...] = (
 )
 PRIMARY_KEY = ("dt", "tenant_id", "transaction_id", "sequence")
 PARTITION_KEY = "dt"
-BUCKET_KEYS = ("tenant_id", "transaction_id")  # a transaction's events stay in one bucket
+# A transaction's events stay in one bucket, in order. Tiering to Iceberg takes
+# at most one bucket key.
+BUCKET_KEYS = ("transaction_id",)
 NOT_NULL = frozenset(
     {"tenant_id", "transaction_id", "sequence", "event_id", "event_type", "kind"}
     | {"occurred_at", "event_version", "dt"}
 )
 
 
-def table_properties(*, datalake: bool = True) -> dict[str, str]:
-    """Day partitions created as time goes by; tiered to the lake when *datalake*."""
-    properties = {
-        "table.auto-partition.enabled": "true",
-        "table.auto-partition.time-unit": "day",
-    }
+def table_properties(*, datalake: bool = True, freshness: str | None = None) -> dict[str, str]:
+    """Tiered to the lake when *datalake*, at most *freshness* behind (Fluss's default: 3min).
+
+    Day partitions are created by the sink as events arrive, not by Fluss's
+    auto-partitioning: its retention drops old partitions, so a backfill of
+    older events could be dropped before it is tiered.
+    """
+    properties: dict[str, str] = {}
     if datalake:
         properties["table.datalake.enabled"] = "true"
+        if freshness:
+            properties["table.datalake.freshness"] = freshness
     return properties
 
 
@@ -135,6 +141,7 @@ class FlussSink:
         table: ``database.table``; created if missing when *create_table*.
         create_table: Create the database and table on first use.
         datalake: Enable tiering to the lake (Iceberg) on a created table.
+        freshness: How far behind the lake may be, e.g. ``"1min"`` (created table).
         properties: Extra client configuration (``Config`` properties).
         client: The client module; ``fluss`` by default (tests pass a fake).
     """
@@ -146,6 +153,7 @@ class FlussSink:
         *,
         create_table: bool = True,
         datalake: bool = True,
+        freshness: str | None = None,
         properties: dict[str, str] | None = None,
         client: Any = None,
     ) -> None:
@@ -158,10 +166,14 @@ class FlussSink:
         self.table_name = name
         self.create_table = create_table
         self.datalake = datalake
+        self.freshness = freshness
         self.properties = dict(properties or {})
         self._client = client
         self._connection: Any = None
+        self._admin: Any = None
+        self._path: Any = None
         self._writer: Any = None
+        self._partitions: set[str] = set()  # created (or found) in this session
 
     @property
     def client(self) -> Any:
@@ -180,10 +192,12 @@ class FlussSink:
             connection = await fluss.FlussConnection.create(config)
             try:
                 path = fluss.TablePath(self.database, self.table_name)
+                admin = connection.get_admin()
                 if self.create_table:
-                    await self._create(fluss, connection.get_admin(), path)
+                    await self._create(fluss, admin, path)
                 table = await connection.get_table(path)
                 self._writer = table.new_upsert().create_writer()
+                self._admin, self._path = admin, path
             except BaseException:
                 await connection.close()
                 raise
@@ -196,7 +210,7 @@ class FlussSink:
             fluss.Schema(_arrow_schema(), primary_keys=list(PRIMARY_KEY)),
             partition_keys=[PARTITION_KEY],
             bucket_keys=list(BUCKET_KEYS),
-            properties=table_properties(datalake=self.datalake),
+            properties=table_properties(datalake=self.datalake, freshness=self.freshness),
         )
         await admin.create_table(path, descriptor, ignore_if_exists=True)
 
@@ -205,8 +219,14 @@ class FlussSink:
         if not events:
             return
         writer = await self._ensure_writer()
+        rows = [fluss_row(e) for e in events]
         try:
-            handles = [writer.upsert(fluss_row(e)) for e in events]
+            for day in sorted({row[PARTITION_KEY] for row in rows} - self._partitions):
+                await self._admin.create_partition(
+                    self._path, {PARTITION_KEY: day}, ignore_if_exists=True
+                )
+                self._partitions.add(day)
+            handles = [writer.upsert(row) for row in rows]
             await writer.flush()
             for handle in handles:
                 await handle.wait()
@@ -217,5 +237,7 @@ class FlussSink:
 
     async def close(self) -> None:
         connection, self._connection, self._writer = self._connection, None, None
+        self._admin = self._path = None
+        self._partitions.clear()
         if connection is not None:
             await connection.close()

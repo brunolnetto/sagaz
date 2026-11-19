@@ -31,7 +31,7 @@ from sagaz.core.storage.saga_log import (
 )
 from sagaz.core.storage.saga_log.sqlite import SQLiteSagaLogStore
 from sagaz.core.tenant import tenant_scope
-from sagaz.integrations.fluss import FlussSink, fluss_ddl, fluss_row
+from sagaz.integrations.fluss import FlussSink, fluss_ddl, fluss_row, table_properties
 
 pa = pytest.importorskip("pyarrow")
 
@@ -46,6 +46,7 @@ class FakeFluss:
         self.upserts = 0
         self.fail_after: int | None = None  # fail the upsert after this many
         self.created: list = []
+        self.partitions: list = []
         self.connections = 0
         self.closed = 0
         fake = self
@@ -76,6 +77,9 @@ class FakeFluss:
 
             async def create_table(self, path, descriptor, ignore_if_exists=False):
                 fake.created.append(("table", path, descriptor, ignore_if_exists))
+
+            async def create_partition(self, path, spec, ignore_if_exists=False):
+                fake.partitions.append((path, spec, ignore_if_exists))
 
         class Connection:
             def get_admin(self):
@@ -214,13 +218,40 @@ class TestExport:
         assert (path, ignore) == (("sagaz", "saga_log_event"), True)
         assert descriptor.schema.primary_keys == ["dt", "tenant_id", "transaction_id", "sequence"]
         assert descriptor.partition_keys == ["dt"]
-        assert descriptor.bucket_keys == ["tenant_id", "transaction_id"]
-        assert descriptor.properties["table.datalake.enabled"] == "true"
+        assert descriptor.bucket_keys == ["transaction_id"]
+        assert descriptor.properties == {"table.datalake.enabled": "true"}
         schema = descriptor.schema.schema
         assert schema.field("occurred_at").type == pa.timestamp("us", tz="UTC")
         assert not schema.field("dt").nullable
         assert schema.field("flow").nullable
         assert fake.config == {"bootstrap.servers": "fluss:9123"}
+
+    async def test_each_day_partition_is_created_once_per_session(self, log):
+        fake = FakeFluss()
+        await fill(log)
+        job = exporter(log, fake)
+        await job.export()
+        days = [(path, spec["dt"], ignore) for path, spec, ignore in fake.partitions]
+        assert days == [
+            (("sagaz", "saga_log_event"), "2026-11-01", True),
+            (("sagaz", "saga_log_event"), "2026-11-02", True),
+        ]
+        await job.close()  # a new session checks again (ignore_if_exists)
+        with tenant_scope("acme"):
+            await log.write(
+                LogWrite(events=[LogEvent("t-1", "x", EventKind.LIFECYCLE, occurred_at=T0)])
+            )
+        await job.export()
+        assert [spec["dt"] for _, spec, _ in fake.partitions][2:] == ["2026-11-01"]
+
+    async def test_freshness_is_set_on_a_created_table(self, log):
+        fake = FakeFluss()
+        await fill(log)
+        sink = FlussSink("fluss:9123", client=fake, freshness="30s")
+        await SagaLogExporter(SagaLogReader(log, "f"), sink).export()
+        descriptor = fake.created[1][2]
+        assert descriptor.properties["table.datalake.freshness"] == "30s"
+        assert table_properties(datalake=False, freshness="30s") == {}  # no lake, no freshness
 
     async def test_an_outage_loses_nothing(self, log):
         """Fluss fails in the middle of a batch; the exporter resumes and every event lands."""
@@ -341,12 +372,13 @@ class TestCli:
         fake = FakeFluss()
         monkeypatch.setattr("sagaz.integrations.fluss.importlib.import_module", lambda _: fake)
         args = ["analytics", "export", "--saga-log", f"sqlite://{path}", "--to", "fluss://f:9123"]
-        result = CliRunner().invoke(cli, [*args, "--once"])
+        result = CliRunner().invoke(cli, [*args, "--once", "--freshness", "1min"])
         assert result.exit_code == 0, result.output
         assert "Exported 5 events to fluss://f:9123" in result.output
         again = CliRunner().invoke(cli, [*args, "--once"])
         assert "Exported 0 events" in again.output  # resumed from the cursor
         assert len(fake.rows) == 5
+        assert fake.created[1][2].properties["table.datalake.freshness"] == "1min"
 
     def test_export_needs_a_fluss_target(self, tmp_path):
         args = ["analytics", "export", "--saga-log", "memory://", "--to", "kafka://k:9092"]
