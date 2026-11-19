@@ -94,10 +94,14 @@ class ChoreographyRelay:
         self._ready = False
 
     async def _ensure_ready(self) -> None:
-        initialize = getattr(self.outbox, "initialize", None)
-        if not self._ready and callable(initialize):
-            await initialize()
+        if self._ready:
+            return
+        # Marked first: if the relay is cancelled while the outbox connects,
+        # close() still releases what was opened.
         self._ready = True
+        initialize = getattr(self.outbox, "initialize", None)
+        if callable(initialize):
+            await initialize()
 
     async def relay(self) -> int:
         """Publish the pending messages now; return how many were published.
@@ -121,6 +125,7 @@ class ChoreographyRelay:
 
     async def start(self) -> None:
         """Relay in the background, every ``poll_interval`` seconds."""
+        await self._ensure_ready()  # connect here, never inside the cancellable task
         if self._task is None or self._task.done():
             self._task = asyncio.get_running_loop().create_task(self._poll())
 

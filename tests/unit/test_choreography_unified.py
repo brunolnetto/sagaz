@@ -52,6 +52,9 @@ class Service:
     async def __aenter__(self) -> Service:
         await self.tracker.start()
         await self.engine.start()
+        # Deterministic tests: deliver only on settle(), not from the background
+        # poll (covered by TestPieces.test_the_relay_polls_in_the_background).
+        await self.engine.relay.stop()
         return self
 
     async def __aexit__(self, *exc) -> None:
