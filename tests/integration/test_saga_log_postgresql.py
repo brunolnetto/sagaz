@@ -196,3 +196,16 @@ async def test_unify_migrates_a_postgresql_database(store, database_url):
     assert again.exit_code == 0, again.output
     with system_scope():
         assert {tid: len(await store.events(tid)) for tid in transactions} == before
+
+
+async def test_a_new_process_does_not_block_running_writers(store, database_url):
+    """Starting a store on an up-to-date schema runs no DDL (no exclusive locks)."""
+    await store.write(LogWrite(transaction=tx()))
+    pool = await store._get_pool()
+    async with pool.acquire() as conn, conn.transaction():
+        await conn.execute("LOCK TABLE saga_log_event IN ROW EXCLUSIVE MODE")  # a writer
+        newcomer = PostgreSQLSagaLogStore(database_url)
+        try:
+            await asyncio.wait_for(newcomer.participants(), timeout=5)
+        finally:
+            await newcomer.close()

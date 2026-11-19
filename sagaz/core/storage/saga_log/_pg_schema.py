@@ -159,6 +159,10 @@ def _participant_registry_isolation() -> str:
     )
 
 
+#: Bump when SCHEMA_SQL changes: stores skip the DDL (and its exclusive locks)
+#: when the database already carries this version.
+SCHEMA_VERSION = "sagaz-saga-log-v1"
+
 SCHEMA_SQL = (
     TABLES_SQL
     + _participant_registry_isolation()
@@ -174,6 +178,7 @@ SCHEMA_SQL = (
         )
     )
     + "".join(_participant_policies(t, c) for t, c in OWNER_COLUMN.items())
+    + f"COMMENT ON TABLE saga_log_event IS '{SCHEMA_VERSION}';"
 )
 
 
