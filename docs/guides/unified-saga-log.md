@@ -113,6 +113,22 @@ tracker = ChoreographyTracker(bus, completion_events={"order.shipped"},
   transaction row's `status` in step. `sagaz choreography status <id> --saga-log
   postgresql://...` reads the same projection.
 
+## Analytics
+
+`SagaAnalyticsPipeline` reads the log directly (`sagaz[analytics]`):
+
+```python
+async with create_saga_log_store("postgresql://...") as log:
+    with SagaAnalyticsPipeline(log) as pipeline, system_scope():
+        await pipeline.run()
+        pipeline.query(SagaQueries.FLOW_SUMMARY)   # orchestrated and choreographed, per flow
+```
+
+Every existing Gold report works on the log. `FLOW_SUMMARY` adds one row per
+coordination style and flow, with completed, compensated, failed and in-flight counts,
+the compensation rate and p50/p95 durations. After `sagaz migrate unify`, the reports
+match those of the old layout, apart from timings.
+
 ## Sharing one database between services
 
 The log holds coordination state, not domain data, so the services of an organization

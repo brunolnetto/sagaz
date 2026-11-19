@@ -121,19 +121,32 @@ def _kind(event_type: str) -> EventKind:
     return EventKind.BUSINESS
 
 
+def _payload(kind: EventKind, source: Any, status: dict[str, Any]) -> dict[str, Any]:
+    """The tracker kept compensation data beside its events; put it back on them."""
+    if kind == EventKind.COMPENSATE:
+        return dict(status.get("failure") or {})
+    if kind == EventKind.COMPENSATED:
+        return dict((status.get("compensated_by") or {}).get(source) or {})
+    return {}
+
+
 def _tracked_events(tid: str, status: dict[str, Any]) -> list[LogEvent]:
-    return [
-        LogEvent(
-            tid,
-            str(e.get("event_type")),
-            _kind(str(e.get("event_type"))),
-            event_id=str(e.get("event_id")),
-            source=e.get("source"),
-            causation_id=e.get("causation_id"),
-            occurred_at=_when(e.get("at")) or datetime.now(UTC),
+    events = []
+    for e in sorted(status.get("events") or [], key=lambda e: str(e.get("at"))):
+        kind = _kind(str(e.get("event_type")))
+        events.append(
+            LogEvent(
+                tid,
+                str(e.get("event_type")),
+                kind,
+                event_id=str(e.get("event_id")),
+                source=e.get("source"),
+                causation_id=e.get("causation_id"),
+                payload=_payload(kind, e.get("source"), status),
+                occurred_at=_when(e.get("at")) or datetime.now(UTC),
+            )
         )
-        for e in sorted(status.get("events") or [], key=lambda e: str(e.get("at")))
-    ]
+    return events
 
 
 def _choreographed(record: dict[str, Any]) -> LogWrite:

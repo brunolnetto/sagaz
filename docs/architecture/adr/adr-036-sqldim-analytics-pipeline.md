@@ -155,6 +155,22 @@ Gold queries: `SagaQueries.CHOREOGRAPHY_SUMMARY`, `CHOREOGRAPHY_PARTICIPANTS`,
 `/api/v1/analytics/choreography*`. Tracker records written before v2.0.1 lack
 `causation_id`, so they load without hop latency.
 
+## The unified saga log as a source (v2.1.0, #467)
+
+`SagaAnalyticsPipeline(saga_log)` reads a `SagaLogStore` (ADR-041) instead of a saga
+storage:
+
+- orchestrated transactions and their activities become `dim_saga`,
+  `fact_execution` and the lifecycle;
+- choreographed transactions are projected from their log entries into the
+  choreography facts.
+
+A `compensation_failed` activity counts as a `failed` step, as the old layout
+recorded it. `SagaQueries.FLOW_SUMMARY` (`/api/v1/analytics/flows`) reports both
+coordination styles side by side, per flow. On a database converted with
+`sagaz migrate unify`, the Gold reports are identical to the old layout's, apart
+from timings.
+
 ## Scope Notes
 
 - **OLTP database is read-only**: sqldim never writes to the saga PostgreSQL database

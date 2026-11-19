@@ -25,6 +25,7 @@ ANALYTICS_REPORTS: dict[str, str] = {
     "choreography-participants": "CHOREOGRAPHY_PARTICIPANTS",
     "choreography-hops": "CHOREOGRAPHY_HOP_LATENCY",
     "choreography-failures": "CHOREOGRAPHY_FAILURES",
+    "flows": "FLOW_SUMMARY",
 }
 
 NOT_CONFIGURED = (

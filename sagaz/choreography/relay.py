@@ -26,6 +26,10 @@ from sagaz.core.outbox.types import OutboxConfig, OutboxEvent
 from sagaz.core.outbox.worker import OutboxWorker
 
 
+def _single_writer(outbox: Any) -> bool:
+    return type(outbox).__name__ == "SQLiteOutboxStorage"
+
+
 class EventBusBroker(BaseBroker):
     """A message broker that publishes outbox messages on a choreography bus."""
 
@@ -63,7 +67,8 @@ class ChoreographyRelay:
         outbox: The ``OutboxStorage`` the log writes to (``log.outbox_storage()``).
         bus: The choreography bus to publish on.
         poll_interval: Seconds between polls while running in the background.
-        batch_size: Messages claimed per poll.
+        batch_size: Messages claimed per poll (1 for a SQLite outbox, which
+            cannot take concurrent writers).
         max_retries: Failed publications of a message before it goes to the
             outbox dead letter.
     """
@@ -78,6 +83,12 @@ class ChoreographyRelay:
         max_retries: int = 100,
     ) -> None:
         self.outbox = outbox
+        if _single_writer(outbox):
+            # A batch is published concurrently: the handlers' writes (on the
+            # saga log's connection) would interleave with the outbox's status
+            # updates (another connection), and SQLite, with one writer at a
+            # time, answers "database is locked". One message at a time.
+            batch_size = 1
         self.worker = OutboxWorker(
             outbox,
             EventBusBroker(bus),

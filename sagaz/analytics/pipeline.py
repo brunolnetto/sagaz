@@ -49,7 +49,7 @@ from sagaz.analytics._bronze import SagaBronzeProcessor
 from sagaz.analytics._choreography import _ChoreographyLoaderMixin
 from sagaz.analytics._quality import SAGA_STATUSES, STEP_OUTCOMES, PipelineStats
 from sagaz.analytics._silver import _SilverLoaderMixin
-from sagaz.analytics.sources import read_storage
+from sagaz.analytics.sources import read_saga_log, read_storage
 
 __all__ = [
     "SAGA_STATUSES",
@@ -60,6 +60,12 @@ __all__ = [
 ]
 
 logger = logging.getLogger(__name__)
+
+
+def _is_saga_log(source: Any) -> bool:
+    from sagaz.core.storage.saga_log import SagaLogStore
+
+    return isinstance(source, SagaLogStore)
 
 
 class SagaAnalyticsPipeline(_SilverLoaderMixin, _ChoreographyLoaderMixin):
@@ -162,9 +168,12 @@ class SagaAnalyticsPipeline(_SilverLoaderMixin, _ChoreographyLoaderMixin):
         choreography tables instead of the saga tables.
         """
         if self._storage is None:
-            msg = "run() needs a saga storage: SagaAnalyticsPipeline(storage)"
+            msg = "run() needs a saga storage or a saga log: SagaAnalyticsPipeline(source)"
             raise ValueError(msg)
-        sagas, steps, choreography = await read_storage(self._storage)
+        if _is_saga_log(self._storage):  # ADR-041: both coordination styles, typed
+            sagas, steps, choreography = await read_saga_log(self._storage)
+        else:
+            sagas, steps, choreography = await read_storage(self._storage)
         self._reset()
         self._reset_choreography()
         stats = self.load_from_records(sagas, steps)
