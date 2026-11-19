@@ -27,6 +27,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     versioned status change in one database transaction.
   - The ADR-033 event store becomes a view on the log (`SagaLogEventStore`), read by
     `sagaz event-log --layout unified`.
+- **Unified saga log, phase 3** (#466): choreography on the log, with
+  `ChoreographyEngine(bus, saga_log=...)`.
+  - **Atomic publishing:** `emit()` / `begin()` write the action, the event and an
+    outbox message in one database transaction. `engine.relay` (`OutboxWorker` +
+    `EventBusBroker`) publishes them, at least once.
+  - **Participant state** (actions, tombstones, deliveries, deadlines) lives on
+    `saga_activity`, `saga_delivery` and `saga_deadline`, shared by replicas.
+  - **Tracker:** `ChoreographyTracker(saga_log=...)` projects the status from the log
+    and keeps `saga_transaction.status` in step. `sagaz choreography status
+    --saga-log` reads it.
 
 ## [2.0.2] - 2026-11-18
 

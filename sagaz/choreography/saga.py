@@ -149,10 +149,15 @@ class ChoreographedSaga:
             msg = f"{self.name} is not registered with a ChoreographyEngine"
             raise RuntimeError(msg)
         event = Event(event_type, dict(data or {}), source=self.name)
-        if (cause := current_cause.get()) is not None:
-            await self._remember(cause)  # announcing the result: the local action is done
+        cause = current_cause.get()
+        if cause is not None:
             event = event.caused_by(cause)
-        await self._publish(event)
+        # Announcing the result: the local action is done, so it is recorded
+        # (atomically with the event on the unified saga log).
+        remember = (
+            cause is not None and bool(cause.saga_id) and cause.event_type in self._compensators
+        )
+        await self._state.publish(self.name, event, self._publish, cause=cause, remember=remember)
         return event
 
     async def begin(
@@ -194,7 +199,7 @@ class ChoreographedSaga:
                 await self._state.set_deadline(self.name, event.saga_id or "", due_at)
             if self._watch_deadlines is not None:
                 self._watch_deadlines()
-        await self._publish(event)
+        await self._state.publish(self.name, event, self._publish, begin=True)
         return event
 
     async def compensate_transaction(self, correlation_id: str) -> tuple[list[str], list[str]]:

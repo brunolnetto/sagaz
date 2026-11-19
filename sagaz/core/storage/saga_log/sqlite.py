@@ -7,6 +7,7 @@ one writer, so participant isolation does not apply.
 from __future__ import annotations
 
 import asyncio
+import uuid
 from collections.abc import Collection
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
@@ -17,6 +18,7 @@ from sagaz.core.storage._tenancy import scoped_tenant, write_tenant
 from sagaz.core.storage.saga_log import _codec as codec
 from sagaz.core.storage.saga_log._base import SagaLogStore
 from sagaz.core.storage.saga_log._model import (
+    TRANSACTION_MARKER,
     Activity,
     ConcurrencyError,
     Deadline,
@@ -27,53 +29,12 @@ from sagaz.core.storage.saga_log._model import (
     SnapshotKind,
     Transaction,
 )
+from sagaz.core.storage.saga_log._sqlite_schema import SCHEMA
 
 try:
     import aiosqlite
 except ImportError:  # pragma: no cover - aiosqlite is a dev dependency
     aiosqlite = None  # type: ignore[assignment]
-
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS saga_participant (
-    tenant_id TEXT NOT NULL, name TEXT NOT NULL, region TEXT, owner TEXT, db_role TEXT,
-    PRIMARY KEY (tenant_id, name)
-);
-CREATE TABLE IF NOT EXISTS saga_transaction (
-    tenant_id TEXT NOT NULL, transaction_id TEXT NOT NULL, flow TEXT NOT NULL,
-    coordination TEXT NOT NULL, status TEXT NOT NULL, initiator TEXT,
-    started_at TEXT NOT NULL, ended_at TEXT, context TEXT NOT NULL DEFAULT '{}',
-    version INTEGER NOT NULL DEFAULT 1, updated_at TEXT NOT NULL,
-    PRIMARY KEY (tenant_id, transaction_id)
-);
-CREATE TABLE IF NOT EXISTS saga_activity (
-    tenant_id TEXT NOT NULL, transaction_id TEXT NOT NULL, activity_id TEXT NOT NULL,
-    participant TEXT NOT NULL, name TEXT NOT NULL, status TEXT NOT NULL,
-    attempt INTEGER NOT NULL DEFAULT 1, region TEXT, triggered_by TEXT, result TEXT,
-    error TEXT, started_at TEXT, ended_at TEXT, duration_ms REAL,
-    PRIMARY KEY (tenant_id, transaction_id, activity_id)
-);
-CREATE TABLE IF NOT EXISTS saga_log_event (
-    tenant_id TEXT NOT NULL, transaction_id TEXT NOT NULL, sequence INTEGER NOT NULL,
-    event_id TEXT NOT NULL UNIQUE, event_type TEXT NOT NULL, kind TEXT NOT NULL,
-    source TEXT, causation_id TEXT, payload TEXT NOT NULL DEFAULT '{}',
-    occurred_at TEXT NOT NULL, event_version INTEGER NOT NULL DEFAULT 1,
-    PRIMARY KEY (tenant_id, transaction_id, sequence)
-);
-CREATE TABLE IF NOT EXISTS saga_snapshot (
-    tenant_id TEXT NOT NULL, transaction_id TEXT NOT NULL, kind TEXT NOT NULL,
-    sequence INTEGER NOT NULL, state TEXT NOT NULL, created_at TEXT NOT NULL,
-    PRIMARY KEY (tenant_id, transaction_id, kind, sequence)
-);
-CREATE TABLE IF NOT EXISTS saga_delivery (
-    tenant_id TEXT NOT NULL, participant TEXT NOT NULL, event_id TEXT NOT NULL,
-    consumed_at TEXT NOT NULL, PRIMARY KEY (tenant_id, participant, event_id)
-);
-CREATE TABLE IF NOT EXISTS saga_deadline (
-    tenant_id TEXT NOT NULL, transaction_id TEXT NOT NULL, owner TEXT NOT NULL,
-    due_at TEXT NOT NULL, claimed_until TEXT,
-    PRIMARY KEY (tenant_id, transaction_id, owner)
-);
-"""
 
 
 def _iso(value: Any) -> Any:
@@ -82,6 +43,78 @@ def _iso(value: Any) -> Any:
 
 def _row(values: list[Any]) -> list[Any]:
     return [_iso(v) for v in values]
+
+
+async def _write_activities(conn: Any, tenant: str, batch: LogWrite) -> None:
+    columns = codec.ACTIVITY_COLUMNS
+    for activity in batch.activities:
+        stored = activity
+        if (
+            activity.name == TRANSACTION_MARKER
+            and await _marker_status(conn, tenant, activity) == "compensated"
+        ):
+            stored = replace(activity, status="compensated")  # tombstones stay
+        await conn.execute(
+            f"INSERT OR REPLACE INTO saga_activity ({', '.join(columns)})"
+            f" VALUES ({', '.join('?' for _ in columns)})",
+            _row(codec.activity_values(stored, tenant)),
+        )
+
+
+async def _write_deadlines(conn: Any, tenant: str, batch: LogWrite) -> None:
+    if batch.deadline is not None:
+        d = batch.deadline
+        await conn.execute(
+            "INSERT OR REPLACE INTO saga_deadline"
+            " (tenant_id, transaction_id, owner, due_at, claimed_until)"
+            " VALUES (?, ?, ?, ?, NULL)",
+            (tenant, d.transaction_id, d.owner, _iso(d.due_at)),
+        )
+    for transaction_id, owner in batch.clear_deadlines:
+        await conn.execute(
+            "DELETE FROM saga_deadline WHERE tenant_id = ? AND transaction_id = ? AND owner = ?",
+            (tenant, transaction_id, owner),
+        )
+
+
+async def _write_outbox(conn: Any, tenant: str, batch: LogWrite) -> None:
+    for message in batch.publish:
+        await conn.execute(
+            "INSERT INTO outbox_events (event_id, saga_id, event_type, payload, status,"
+            " created_at, aggregate_type, aggregate_id, headers, partition_key, tenant_id)"
+            " VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)",
+            (
+                str(uuid.uuid4()),
+                message.transaction_id,
+                message.event_type,
+                codec.dumps(message.payload),
+                _iso(datetime.now(UTC)),
+                message.aggregate_type,
+                message.transaction_id,
+                codec.dumps({"log_event_id": message.log_event_id}),
+                message.partition_key,
+                tenant,
+            ),
+        )
+
+
+async def _marker_status(conn: Any, tenant: str, activity: Activity) -> str | None:
+    cursor = await conn.execute(
+        "SELECT status FROM saga_activity"
+        " WHERE tenant_id = ? AND transaction_id = ? AND activity_id = ?",
+        (tenant, activity.transaction_id, activity.activity_id),
+    )
+    row = await cursor.fetchone()
+    return None if row is None else str(row[0])
+
+
+async def _ended(conn: Any, tenant: str, transaction_id: str, batch: LogWrite) -> bool:
+    cursor = await conn.execute(
+        "SELECT 1 FROM saga_activity WHERE tenant_id = ? AND transaction_id = ?"
+        " AND participant = ? AND name = ? AND status IN ('completed', 'compensated')",
+        (tenant, transaction_id, batch.guard, TRANSACTION_MARKER),
+    )
+    return await cursor.fetchone() is not None
 
 
 def _tenant_clause() -> tuple[str, tuple[str, ...]]:
@@ -97,14 +130,39 @@ class SQLiteSagaLogStore(SagaLogStore):
         self.db_path = db_path
         self._conn: Any = None
         self._lock = asyncio.Lock()
+        self._init_lock = asyncio.Lock()
 
     async def _connection(self) -> Any:
+        # Initialized once, and published only when ready: a concurrent caller
+        # must neither open a second connection nor write while the outbox DDL
+        # holds an open transaction.
         if self._conn is None:
-            self._conn = await aiosqlite.connect(self.db_path)
-            self._conn.row_factory = aiosqlite.Row
-            await self._conn.executescript(SCHEMA)
-            await self._conn.commit()
+            async with self._init_lock:
+                if self._conn is None:
+                    conn = await aiosqlite.connect(self.db_path)
+                    conn.row_factory = aiosqlite.Row
+                    await conn.executescript(SCHEMA)
+                    await conn.commit()
+                    await self._init_outbox(conn)
+                    self._conn = conn
         return self._conn
+
+    @staticmethod
+    async def _init_outbox(conn: Any) -> None:
+        """Create the ``SQLiteOutboxStorage`` table on this connection (same DDL)."""
+        from sagaz.core.storage.backends.sqlite.outbox import SQLiteOutboxStorage
+
+        schema = SQLiteOutboxStorage.__new__(SQLiteOutboxStorage)
+        schema._conn = conn
+        await schema._init_schema()
+
+    def outbox_storage(self) -> Any:
+        if self.db_path == ":memory:":
+            msg = "An in-memory SQLite saga log has no outbox another connection can read"
+            raise ValueError(msg)
+        from sagaz.core.storage.backends.sqlite.outbox import SQLiteOutboxStorage
+
+        return SQLiteOutboxStorage(self.db_path)
 
     # -- writes ------------------------------------------------------------------
 
@@ -123,6 +181,8 @@ class SQLiteSagaLogStore(SagaLogStore):
 
     async def _write(self, conn: Any, tenant: str, batch: LogWrite) -> list[LogEvent]:
         columns: tuple[str, ...]
+        ended = {t for t in batch.guarded_transactions() if await _ended(conn, tenant, t, batch)}
+        batch.drop_guarded(ended)
         if batch.transaction is not None:
             columns = codec.TRANSACTION_COLUMNS
             await conn.execute(
@@ -147,26 +207,9 @@ class SQLiteSagaLogStore(SagaLogStore):
                 _row(codec.event_values(event, tenant, last + 1)),
             )
             stored.append(replace(event, tenant_id=tenant, sequence=last + 1))
-        for activity in batch.activities:
-            columns = codec.ACTIVITY_COLUMNS
-            await conn.execute(
-                f"INSERT OR REPLACE INTO saga_activity ({', '.join(columns)})"
-                f" VALUES ({', '.join('?' for _ in columns)})",
-                _row(codec.activity_values(activity, tenant)),
-            )
-        if batch.deadline is not None:
-            d = batch.deadline
-            await conn.execute(
-                "INSERT OR REPLACE INTO saga_deadline"
-                " (tenant_id, transaction_id, owner, due_at, claimed_until)"
-                " VALUES (?, ?, ?, ?, NULL)",
-                (tenant, d.transaction_id, d.owner, _iso(d.due_at)),
-            )
-        for transaction_id, owner in batch.clear_deadlines:
-            await conn.execute(
-                "DELETE FROM saga_deadline WHERE tenant_id = ? AND transaction_id = ? AND owner = ?",
-                (tenant, transaction_id, owner),
-            )
+        await _write_activities(conn, tenant, batch)
+        await _write_deadlines(conn, tenant, batch)
+        await _write_outbox(conn, tenant, batch)
         return stored
 
     async def _apply_status(self, conn: Any, tenant: str, batch: LogWrite) -> None:

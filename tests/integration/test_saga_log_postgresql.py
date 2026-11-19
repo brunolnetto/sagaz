@@ -21,13 +21,19 @@ from sagaz.core.storage.saga_log import (
 )
 from sagaz.core.storage.saga_log._pg_schema import service_role_grants
 from sagaz.core.storage.saga_log.postgresql import PostgreSQLSagaLogStore
-from tests.unit.core.test_saga_log import TestContract, activity, event, tx
+from tests.unit.core.test_saga_log import (
+    TestContract,
+    TestGuardsAndOutbox,
+    activity,
+    event,
+    tx,
+)
 
 asyncpg = pytest.importorskip("asyncpg")
 
 pytestmark = [pytest.mark.integration, pytest.mark.xdist_group(name="postgres")]
 
-__all__ = ["TestContract"]  # the shared contract, against PostgreSQL
+__all__ = ["TestContract", "TestGuardsAndOutbox"]  # the shared contract, on PostgreSQL
 
 TABLES = (
     "saga_transaction, saga_activity, saga_log_event, saga_snapshot,"
@@ -62,7 +68,7 @@ async def store(database_url):
     yield log
     if log._pool is not None:
         async with log._pool.acquire() as conn:
-            await conn.execute(f"TRUNCATE {TABLES}")
+            await conn.execute(f"TRUNCATE {TABLES}, saga_outbox")
     await log.close()
 
 
@@ -107,7 +113,9 @@ async def service_role(store, database_url):
     await service.close()
     admin = await asyncpg.connect(database_url)
     try:
-        await admin.execute(f"REVOKE ALL ON {TABLES}, sagaz_schema_version FROM {role}")
+        await admin.execute(
+            f"REVOKE ALL ON {TABLES}, sagaz_schema_version, saga_outbox FROM {role}"
+        )
         await admin.execute(f"DROP ROLE {role}")
     finally:
         await admin.close()

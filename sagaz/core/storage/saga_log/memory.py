@@ -7,15 +7,18 @@ import copy
 from collections.abc import Collection
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from sagaz.core.storage._tenancy import scoped_tenant, write_tenant
 from sagaz.core.storage.saga_log._base import SagaLogStore
 from sagaz.core.storage.saga_log._model import (
+    TRANSACTION_MARKER,
     Activity,
     ConcurrencyError,
     Deadline,
     LogEvent,
     LogWrite,
+    OutboxMessage,
     Participant,
     Snapshot,
     SnapshotKind,
@@ -23,6 +26,31 @@ from sagaz.core.storage.saga_log._model import (
 )
 
 Key = tuple[str, str]  # (tenant_id, transaction_id)
+COMPENSATED_MARKER = "compensated"
+ENDED_MARKERS = frozenset({"completed", COMPENSATED_MARKER})
+
+
+def _keeps_compensated(previous: Activity | None, new: Activity) -> bool:
+    """A participant's marker never goes back from compensated to completed."""
+    return (
+        previous is not None
+        and new.name == TRANSACTION_MARKER
+        and previous.status == COMPENSATED_MARKER
+    )
+
+
+def _outbox_event(message: OutboxMessage) -> Any:
+    from sagaz.core.outbox.types import OutboxEvent
+
+    return OutboxEvent(
+        saga_id=message.transaction_id,
+        aggregate_type=message.aggregate_type,
+        aggregate_id=message.transaction_id,
+        event_type=message.event_type,
+        payload=message.payload,
+        headers={"log_event_id": message.log_event_id} if message.log_event_id else {},
+        partition_key=message.partition_key,
+    )
 
 
 class InMemorySagaLogStore(SagaLogStore):
@@ -36,6 +64,12 @@ class InMemorySagaLogStore(SagaLogStore):
         self._deliveries: set[tuple[str, str, str]] = set()
         self._deadlines: dict[tuple[str, str, str], Deadline] = {}
         self._lock = asyncio.Lock()
+        from sagaz.core.storage.backends.memory.outbox import InMemoryOutboxStorage
+
+        self._outbox = InMemoryOutboxStorage()
+
+    def outbox_storage(self) -> Any:
+        return self._outbox
 
     # -- writes ------------------------------------------------------------------
 
@@ -43,6 +77,9 @@ class InMemorySagaLogStore(SagaLogStore):
         tenant = write_tenant()
         async with self._lock:
             self._check(tenant, batch)
+            batch.drop_guarded(
+                {t for t in batch.guarded_transactions() if self._ended(tenant, t, batch.guard)}
+            )
             if batch.transaction is not None:
                 key = (tenant, batch.transaction.transaction_id)
                 self._transactions.setdefault(
@@ -52,16 +89,33 @@ class InMemorySagaLogStore(SagaLogStore):
                 self._apply_status(tenant, batch)
             stored = [self._append(tenant, event) for event in batch.events]
             for activity in batch.activities:
-                activities = self._activities.setdefault((tenant, activity.transaction_id), {})
-                activities[activity.activity_id] = replace(
-                    copy.deepcopy(activity), tenant_id=tenant
-                )
-            if batch.deadline is not None:
-                d = batch.deadline
-                self._deadlines[(tenant, d.transaction_id, d.owner)] = replace(d, tenant_id=tenant)
-            for transaction_id, owner in batch.clear_deadlines:
-                self._deadlines.pop((tenant, transaction_id, owner), None)
+                self._upsert_activity(tenant, activity)
+            self._apply_deadlines(tenant, batch)
+        for message in batch.publish:
+            await self._outbox.insert(_outbox_event(message))
         return stored
+
+    def _upsert_activity(self, tenant: str, activity: Activity) -> None:
+        activities = self._activities.setdefault((tenant, activity.transaction_id), {})
+        stored = replace(copy.deepcopy(activity), tenant_id=tenant)
+        if _keeps_compensated(activities.get(activity.activity_id), activity):
+            stored = replace(stored, status=COMPENSATED_MARKER)
+        activities[activity.activity_id] = stored
+
+    def _apply_deadlines(self, tenant: str, batch: LogWrite) -> None:
+        if batch.deadline is not None:
+            d = batch.deadline
+            self._deadlines[(tenant, d.transaction_id, d.owner)] = replace(d, tenant_id=tenant)
+        for transaction_id, owner in batch.clear_deadlines:
+            self._deadlines.pop((tenant, transaction_id, owner), None)
+
+    def _ended(self, tenant: str, transaction_id: str, participant: str | None) -> bool:
+        return any(
+            a.participant == participant
+            and a.name == TRANSACTION_MARKER
+            and a.status in ENDED_MARKERS
+            for a in self._activities.get((tenant, transaction_id), {}).values()
+        )
 
     def _check(self, tenant: str, batch: LogWrite) -> None:
         """Validate the whole batch before changing anything (atomicity)."""

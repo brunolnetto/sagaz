@@ -9,10 +9,12 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
+from typing import Any
 
 from sagaz.choreography._deadlines import DeadlineWatcher
 from sagaz.choreography._dispatch import Dispatcher
 from sagaz.choreography.events import COMPENSATE, AbstractEventBus, Event, HandlerT
+from sagaz.choreography.relay import ChoreographyRelay
 from sagaz.choreography.saga import ChoreographedSaga
 from sagaz.choreography.state import ParticipantState, create_participant_state
 
@@ -38,6 +40,12 @@ class ChoreographyEngine:
         (``sqlite://...``, ``postgresql://...``). Default: each participant's
         own memory, lost on restart. A shared durable state lets replicas of a
         participant compensate each other's actions (#448).
+    saga_log:
+        A ``SagaLogStore`` or URL (ADR-041): participant state lives on the
+        unified saga log, and every published event is written to the log and
+        its outbox in one database transaction. ``engine.relay`` then publishes
+        the outbox on *bus*, every *relay_interval* seconds while the engine
+        runs (or call ``await engine.relay.relay()``).
     deadline_poll_interval / deadline_lease:
         How often expired deadlines (``begin(..., deadline=...)``) are checked,
         and for how long a replica's claim on one holds (seconds, #449).
@@ -72,9 +80,23 @@ class ChoreographyEngine:
         state: ParticipantState | str | None = None,
         deadline_poll_interval: float = 1.0,
         deadline_lease: float = 60.0,
+        saga_log: Any = None,
+        relay_interval: float = 0.1,
     ) -> None:
         self._bus = bus
         self._state = create_participant_state(state) if isinstance(state, str) else state
+        self.relay: ChoreographyRelay | None = None
+        if saga_log is not None:  # ADR-041: state and atomic publishing on the log
+            if isinstance(saga_log, str):
+                from sagaz.core.storage.saga_log import create_saga_log_store
+
+                saga_log = create_saga_log_store(saga_log)
+            from sagaz.choreography.state.unified import UnifiedParticipantState
+
+            self._state = UnifiedParticipantState(saga_log)
+            self.relay = ChoreographyRelay(
+                saga_log.outbox_storage(), bus, poll_interval=relay_interval
+            )
         self._completion_events = frozenset(completion_events)
         self._dispatcher = Dispatcher(bus.publish, self._completion_events)
         self._sagas: dict[str, ChoreographedSaga] = {}
@@ -97,11 +119,15 @@ class ChoreographyEngine:
         self._running = True
         if self._state is not None:  # deadlines may outlive a restart
             self.deadlines.start()
+        if self.relay is not None:
+            await self.relay.start()
         logger.info("ChoreographyEngine started with %d saga(s)", len(self._sagas))
 
     async def stop(self) -> None:
         """Deregister all sagas and shut down the engine."""
         await self.deadlines.stop()
+        if self.relay is not None:
+            await self.relay.close()
         for saga in list(self._sagas.values()):
             self._deregister(saga)
         self._sagas.clear()

@@ -17,7 +17,7 @@ participant. All operations act in the current tenant scope (ADR-020).
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Collection
+from collections.abc import Awaitable, Callable, Collection
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -79,6 +79,26 @@ class ParticipantState(ABC):
         acts on it. It is deleted when its transaction finishes; if the claimer
         dies first, the lease expires and another replica claims it.
         """
+
+    async def publish(
+        self,
+        participant: str,
+        event: Event,
+        send: Callable[[Event], Awaitable[None]],
+        *,
+        cause: Event | None = None,
+        remember: bool = False,
+        begin: bool = False,
+    ) -> None:
+        """Publish *event* for *participant*, first recording *cause* if *remember*.
+
+        *begin* marks the first event of a transaction. Here the two steps are
+        separate (record, then ``send`` on the bus); the unified saga log does
+        both in one database transaction through its outbox (ADR-041).
+        """
+        if remember and cause is not None:
+            await self.record_action(participant, cause)
+        await send(event)
 
     async def prune(self, older_than: timedelta) -> int:
         """Delete finished transactions and handled deliveries older than *older_than*.

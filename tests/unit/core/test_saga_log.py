@@ -6,11 +6,14 @@ PostgreSQL in ``tests/integration/test_saga_log_postgresql.py``.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from sagaz.core.storage.backends.memory.outbox import InMemoryOutboxStorage
 from sagaz.core.storage.saga_log import (
+    TRANSACTION_MARKER,
     Activity,
     ConcurrencyError,
     Coordination,
@@ -19,6 +22,7 @@ from sagaz.core.storage.saga_log import (
     InMemorySagaLogStore,
     LogEvent,
     LogWrite,
+    OutboxMessage,
     Participant,
     Snapshot,
     SnapshotKind,
@@ -195,6 +199,68 @@ class TestContract:
         with system_scope():
             assert len(await store.list_transactions()) == 2
             assert len(await store.events("t-1")) == 2
+
+
+async def claim_outbox(store, batch_size: int = 100):
+    """Claim the pending messages of *store*'s outbox, as a relay would."""
+    outbox = store.outbox_storage()
+    if isinstance(outbox, InMemoryOutboxStorage):
+        return await outbox.claim_batch("relay-1", batch_size=batch_size)
+    await outbox.initialize()
+    try:
+        return await outbox.claim_batch("relay-1", batch_size=batch_size)
+    finally:
+        await outbox.close()
+
+
+class TestGuardsAndOutbox:
+    """Phase 3 (#466): tombstones, markers and the transactional outbox."""
+
+    async def test_a_participant_that_ended_records_nothing_more(self, store):
+        marker = Activity(
+            "t-1",
+            "inventory:__transaction__",
+            "inventory",
+            TRANSACTION_MARKER,
+            status="compensated",
+        )
+        await store.write(LogWrite(activities=[marker]))
+        late = LogWrite(
+            activities=[activity(status="completed")],
+            deadline=Deadline("t-1", "inventory", T0),
+            guard="inventory",
+        )
+        await store.write(late)
+        assert [a.name for a in await store.activities("t-1")] == [TRANSACTION_MARKER]
+        others = LogWrite(activities=[Activity("t-1", "p:1", "payments", "x")], guard="payments")
+        await store.write(others)  # another participant is not affected
+        assert len(await store.activities("t-1")) == 2
+
+    async def test_a_compensated_marker_stays_compensated(self, store):
+        compensated = Activity(
+            "t-1",
+            "inventory:__transaction__",
+            "inventory",
+            TRANSACTION_MARKER,
+            status="compensated",
+        )
+        await store.write(LogWrite(activities=[compensated]))
+        await store.write(LogWrite(activities=[replace(compensated, status="completed")]))
+        (marker,) = await store.activities("t-1")
+        assert marker.status == "compensated"
+
+    async def test_published_messages_land_in_the_outbox(self, store):
+        message = OutboxMessage(
+            "t-1",
+            "order.created",
+            {"event_type": "order.created"},
+            log_event_id="e-1",
+            partition_key="t-1",
+        )
+        await store.write(LogWrite(events=[event()], publish=[message]))
+        (pending,) = await claim_outbox(store)
+        assert (pending.event_type, pending.saga_id) == ("order.created", "t-1")
+        assert pending.payload == {"event_type": "order.created"}
 
 
 class TestFactory:
