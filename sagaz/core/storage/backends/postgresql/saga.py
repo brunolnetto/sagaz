@@ -24,6 +24,7 @@ from sagaz.core.storage.backends.postgresql._saga_query import (
 )
 from sagaz.core.storage.backends.postgresql._saga_rows import _PostgreSQLSagaRowMixin
 from sagaz.core.storage.backends.postgresql._saga_schema import SAGA_TABLES_SQL
+from sagaz.core.storage.backends.postgresql._schema_version import apply_schema
 from sagaz.core.storage.backends.postgresql._tenancy import POOL_OPTIONS, acquire_scoped
 from sagaz.core.storage.base import (
     SagaStorage,
@@ -112,7 +113,7 @@ class PostgreSQLSagaStorage(
 
                 # Initialize (and upgrade) the database schema
                 async with self._pool.acquire() as conn:  # type: ignore[attr-defined]
-                    await conn.execute(self.CREATE_TABLES_SQL)
+                    await apply_schema(conn, "saga", self.CREATE_TABLES_SQL)
 
             except Exception as e:
                 msg = f"Failed to connect to PostgreSQL: {e}"

@@ -15,6 +15,7 @@ from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.replay import ReplayResult, SagaSnapshot, SnapshotNotFoundError
 from sagaz.core.storage.base import SagaStorageConnectionError
 from sagaz.core.types import SagaStatus
+from tests.unit.core.storage.backends._pg_mocks import schema_ready
 
 # Check availability of dependencies
 try:
@@ -93,6 +94,7 @@ class TestPostgreSQLSnapshotStorageUnit:
                 # Mock pool and connection
                 mock_pool = AsyncMock()
                 mock_conn = AsyncMock()
+                schema_ready(mock_conn)
                 mock_asyncpg.create_pool = AsyncMock(return_value=mock_pool)
                 # Mock acquire to return an async context manager
                 mock_pool.acquire = MagicMock(
@@ -135,6 +137,7 @@ class TestPostgreSQLSnapshotStorageUnit:
             with patch("sagaz.core.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
                 mock_pool = AsyncMock()
                 mock_conn = AsyncMock()
+                schema_ready(mock_conn)
                 mock_asyncpg.create_pool = AsyncMock(return_value=mock_pool)
                 # Mock acquire to return an async context manager
                 mock_pool.acquire = MagicMock(
@@ -165,6 +168,7 @@ class TestPostgreSQLSnapshotStorageUnit:
             with patch("sagaz.core.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
                 mock_pool = AsyncMock()
                 mock_conn = AsyncMock()
+                schema_ready(mock_conn)
                 mock_asyncpg.create_pool = AsyncMock(return_value=mock_pool)
                 # Mock acquire to return an async context manager
                 mock_pool.acquire = MagicMock(
@@ -192,6 +196,7 @@ class TestPostgreSQLSnapshotStorageUnit:
             with patch("sagaz.core.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
                 mock_pool = AsyncMock()
                 mock_conn = AsyncMock()
+                schema_ready(mock_conn)
                 mock_asyncpg.create_pool = AsyncMock(return_value=mock_pool)
                 # Mock acquire to return an async context manager
                 mock_pool.acquire = MagicMock(
@@ -218,6 +223,7 @@ class TestPostgreSQLSnapshotStorageUnit:
             with patch("sagaz.core.storage.backends.postgresql.snapshot.asyncpg") as mock_asyncpg:
                 mock_pool = AsyncMock()
                 mock_conn = AsyncMock()
+                schema_ready(mock_conn)
                 mock_asyncpg.create_pool = AsyncMock(return_value=mock_pool)
 
                 # Mock acquire for _get_pool table creation

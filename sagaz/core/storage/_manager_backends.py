@@ -80,10 +80,11 @@ class _StorageBackendInitMixin:
         # Initialize schemas
         assert self._shared_pool is not None
         async with self._shared_pool.acquire() as conn:
-            await conn.execute(PostgreSQLSagaStorage.CREATE_TABLES_SQL)
+            from sagaz.core.storage.backends.postgresql._schema_version import apply_schema
             from sagaz.core.storage.backends.postgresql.outbox import OUTBOX_SCHEMA
 
-            await conn.execute(OUTBOX_SCHEMA)
+            await apply_schema(conn, "saga", PostgreSQLSagaStorage.CREATE_TABLES_SQL)
+            await apply_schema(conn, "outbox", OUTBOX_SCHEMA)
 
     async def _initialize_redis_unified(self) -> None:
         """Initialize Redis with shared connection."""
