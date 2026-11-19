@@ -87,3 +87,80 @@ async def read_storage(
         )
         step_records.extend(_step_record(saga, step) for step in saga.get("steps") or [])
     return saga_records, step_records, choreography
+
+
+#: Activity statuses outside the step vocabulary, mapped as the legacy layout
+#: recorded them (a step whose compensation failed ended ``failed``).
+_ACTIVITY_OUTCOME = {"compensation_failed": "failed"}
+
+
+def _activity_record(transaction: Any, activity: Any) -> dict[str, Any]:
+    return {
+        "saga_id": transaction.transaction_id,
+        "saga_name": transaction.flow,
+        "step_name": activity.name,
+        "action": activity.name,
+        "outcome": _ACTIVITY_OUTCOME.get(activity.status, activity.status),
+        "duration_ms": activity.duration_ms,
+        "attempt": activity.attempt,
+        "executed_at": _timestamp(activity.ended_at or activity.started_at),
+    }
+
+
+async def _choreography_record(log: Any, transaction: Any) -> dict[str, Any] | None:
+    """A choreographed transaction in the tracker-record shape the Silver layer reads."""
+    from sagaz.choreography.tracker import RECORD_NAME, status_from_log
+
+    status = await status_from_log(log, transaction.transaction_id)
+    if status is None:
+        return None
+    if transaction.status in _CHOREOGRAPHY_STATUSES:
+        status.status = transaction.status
+    return {
+        "saga_id": transaction.transaction_id,
+        "saga_name": RECORD_NAME,
+        "tenant_id": transaction.tenant_id,
+        "context": status.to_dict(),
+    }
+
+
+#: The transaction row's status (kept by the tracker) wins over the projection,
+#: which cannot tell completion without the completion event types.
+_CHOREOGRAPHY_STATUSES = frozenset(
+    {"executing", "completed", "compensating", "compensated", "failed"}
+)
+
+
+async def read_saga_log(
+    log: Any,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """One pass over a unified saga log (ADR-041): the same three record lists as
+    :func:`read_storage`, for orchestrated and choreographed transactions alike."""
+    from sagaz.core.tenant import system_scope, tenant_scope
+
+    saga_records: list[dict[str, Any]] = []
+    step_records: list[dict[str, Any]] = []
+    choreography: list[dict[str, Any]] = []
+    with system_scope():
+        transactions = await log.list_transactions(limit=2**31 - 1)
+    for transaction in transactions:
+        with tenant_scope(transaction.tenant_id):
+            if transaction.coordination == "choreographed":
+                record = await _choreography_record(log, transaction)
+                if record is not None:
+                    choreography.append(record)
+                continue
+            saga_records.append(
+                {
+                    "saga_id": transaction.transaction_id,
+                    "saga_name": transaction.flow,
+                    "status": transaction.status,
+                    "created_at": _timestamp(transaction.started_at),
+                    "updated_at": _timestamp(transaction.ended_at or transaction.updated_at),
+                }
+            )
+            step_records.extend(
+                _activity_record(transaction, a)
+                for a in await log.activities(transaction.transaction_id)
+            )
+    return saga_records, step_records, choreography

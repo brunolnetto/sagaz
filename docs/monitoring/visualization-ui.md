@@ -139,6 +139,7 @@ Each request rebuilds the Bronze → Silver → Gold pipeline from that storage
 | `GET` | `/analytics/choreography` | Choreographed transactions per flow: outcomes, compensation rate, p50 / p95 duration |
 | `GET` | `/analytics/choreography-participants` | Per participant: events emitted, failures caused, actions undone, compensation failures |
 | `GET` | `/analytics/choreography-hops` | Per participant and event type: p50 / p95 / p99 latency from the causing event |
+| `GET` | `/analytics/flows` | Orchestrated and choreographed transactions per flow: outcomes, compensation rate, p50 / p95 duration |
 | `GET` | `/analytics/choreography-failures` | Failing participant, event and reason, and how many transactions were left inconsistent |
 
 Responses are `{report, rows, sagas_loaded, quality_errors}`. Without

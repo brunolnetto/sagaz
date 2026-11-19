@@ -9,7 +9,8 @@ memory), participant isolation, and `sagaz migrate unify`. Phase 2 (#465):
 orchestrated sagas record on the log (`storage_layout = "unified"`). Phase 3 (#466):
 choreography on the log, with atomic publishing through the outbox
 (`ChoreographyEngine(saga_log=...)`, `ChoreographyRelay`), and the tracker as a
-projection. Guide:
+projection. Phase 4 (#467): analytics reads the log (`SagaAnalyticsPipeline(saga_log)`,
+`FLOW_SUMMARY`). Guide:
 [Unified saga log](../../guides/unified-saga-log.md). Phases 2–4: #465, #466, #467.
 
 Prerequisite of the Fluss/Iceberg analytics (ADR-013, now v2.2.0): the log this ADR

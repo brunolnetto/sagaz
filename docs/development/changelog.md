@@ -37,6 +37,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Tracker:** `ChoreographyTracker(saga_log=...)` projects the status from the log
     and keeps `saga_transaction.status` in step. `sagaz choreography status
     --saga-log` reads it.
+- **Unified saga log, phase 4** (#467): `SagaAnalyticsPipeline(saga_log)` reads the log
+  for both coordination styles.
+  - **New report:** `SagaQueries.FLOW_SUMMARY` (`/api/v1/analytics/flows`) compares
+    them per flow.
+  - **Migration:** `sagaz migrate unify` now carries the tracker's failure and
+    compensation reports onto the migrated compensation events, so the Gold reports
+    match the old layout's.
 
 ## [2.0.2] - 2026-11-18
 
