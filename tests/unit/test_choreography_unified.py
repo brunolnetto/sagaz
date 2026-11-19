@@ -303,3 +303,12 @@ def test_status_from_the_cli(tmp_path):
     missing = CliRunner().invoke(cli, ["choreography", "status", "bad"], env=unset)
     assert missing.exit_code != 0
     assert "--saga-log" in missing.output
+
+
+def test_a_sqlite_outbox_is_relayed_one_message_at_a_time(tmp_path):
+    from sagaz.core.storage.backends.sqlite.outbox import SQLiteOutboxStorage
+
+    sqlite_relay = ChoreographyRelay(SQLiteOutboxStorage(str(tmp_path / "o.db")), EventBus())
+    memory_relay = ChoreographyRelay(InMemorySagaLogStore().outbox_storage(), EventBus())
+    assert sqlite_relay.worker.config.batch_size == 1
+    assert memory_relay.worker.config.batch_size == 100
