@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     engines start writing to it in the next phases.
   - **Guide:** [Unified saga log](../guides/unified-saga-log.md).
 
+## [2.0.2] - 2026-11-18
+
+Hotfix: PostgreSQL stores no longer block or deadlock running writers on startup.
+
 ### Fixed
 - **PostgreSQL stores no longer block or deadlock running writers on startup** (#469).
   Every store used to run its whole schema each time it opened a pool. The
