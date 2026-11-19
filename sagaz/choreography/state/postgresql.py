@@ -16,6 +16,7 @@ from sagaz.choreography.events import Event
 from sagaz.choreography.state._base import COMPENSATED, COMPLETED, Deadline, ParticipantState
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.storage._tenancy import write_tenant
+from sagaz.core.storage.backends.postgresql._schema_version import apply_schema
 from sagaz.core.storage.backends.postgresql._tenancy import (
     POOL_OPTIONS,
     acquire_scoped,
@@ -69,7 +70,6 @@ CREATE TABLE IF NOT EXISTS choreography_deliveries (
 {tenant_isolation_sql("choreography_deadlines")}
 """
 
-_SCHEMA_LOCK = "SELECT pg_advisory_xact_lock(hashtext('sagaz.choreography.state.schema'))"
 # Serializes record_action and finish of one transaction, so an action is
 # never recorded after the transaction ended.
 _TX_LOCK = "SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2 || '/' || $3))"
@@ -108,9 +108,8 @@ class PostgreSQLParticipantState(ParticipantState):
                     max_size=self.pool_max_size,
                     **{**POOL_OPTIONS, **self.pool_kwargs},
                 )
-                async with pool.acquire() as conn, conn.transaction():
-                    await conn.execute(_SCHEMA_LOCK)
-                    await conn.execute(SCHEMA)
+                async with pool.acquire() as conn:
+                    await apply_schema(conn, "choreography_state", SCHEMA)
                 self._pool = pool
         return self._pool
 

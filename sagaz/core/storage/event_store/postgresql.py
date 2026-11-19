@@ -17,6 +17,7 @@ from typing import Any
 from sagaz.core.events import SagaEvent
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.storage._tenancy import scoped_tenant, write_tenant
+from sagaz.core.storage.backends.postgresql._schema_version import apply_schema
 from sagaz.core.storage.backends.postgresql._tenancy import (
     POOL_OPTIONS,
     acquire_scoped,
@@ -52,8 +53,6 @@ CREATE TABLE IF NOT EXISTS saga_event_snapshots (
 {tenant_isolation_sql("saga_events")}
 {tenant_isolation_sql("saga_event_snapshots")}
 """
-
-_SCHEMA_LOCK = "SELECT pg_advisory_xact_lock(hashtext('sagaz.event_store.schema'))"
 
 
 def _json(value: Any) -> Any:
@@ -95,10 +94,8 @@ class PostgreSQLEventStore(SagaEventStore):
                     max_size=self.pool_max_size,
                     **{**POOL_OPTIONS, **self.pool_kwargs},
                 )
-                # Processes starting together would deadlock on the RLS DDL.
-                async with pool.acquire() as conn, conn.transaction():
-                    await conn.execute(_SCHEMA_LOCK)
-                    await conn.execute(SCHEMA)
+                async with pool.acquire() as conn:
+                    await apply_schema(conn, "event_store", SCHEMA)
                 self._pool = pool
         return self._pool
 
