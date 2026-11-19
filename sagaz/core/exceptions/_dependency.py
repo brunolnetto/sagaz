@@ -13,6 +13,8 @@ class MissingDependencyError(Exception):
         """Get installation commands for dependencies."""
         return {
             "redis": "pip install redis",
+            "pyfluss": "pip install 'sagaz[fluss]'",
+            "pyarrow": "pip install 'sagaz[fluss]'",
             "asyncpg": "pip install asyncpg",
             "opentelemetry": "pip install opentelemetry-api opentelemetry-sdk",
             "opentelemetry-otlp": "pip install opentelemetry-exporter-otlp-proto-grpc",
