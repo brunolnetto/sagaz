@@ -49,6 +49,7 @@ from sagaz.cli._setup_handlers import (
     _execute_setup,
     _gather_setup_configuration,
 )
+from sagaz.cli.analytics import analytics_cli
 from sagaz.cli.choreography import choreography_cli
 from sagaz.cli.demonstrations import demo_cli
 from sagaz.cli.deploy import deploy_cmd, teardown_cmd
@@ -222,6 +223,7 @@ cli.add_command(replay, name="replay")
 cli.add_command(tenant_cli, name="tenant")
 cli.add_command(choreography_cli, name="choreography")
 cli.add_command(event_log_cmd, name="event-log")
+cli.add_command(analytics_cli, name="analytics")
 cli.add_command(region_cli, name="region")
 cli.add_command(deploy_cmd, name="deploy")
 cli.add_command(teardown_cmd, name="teardown")

@@ -84,7 +84,7 @@ class TestFlows:
         transaction = await log.get_transaction(start.saga_id)
         assert (transaction.coordination, transaction.flow) == ("choreographed", "order.created")
         assert (transaction.initiator, transaction.status) == ("orders", "completed")
-        events = await log.events(start.saga_id)
+        *events, changed = await log.events(start.saga_id)
         assert [e.event_type for e in events] == [
             "order.created",
             "inventory.reserved",
@@ -93,6 +93,11 @@ class TestFlows:
         ]
         assert [e.causation_id for e in events[1:]] == [e.event_id for e in events[:-1]]
         assert {e.kind for e in events} == {"business"}
+        # The tracker records the status change on the log (ADR-013).
+        assert (changed.event_type, changed.kind) == ("TransactionStatusChanged", "lifecycle")
+        assert changed.payload == {"status": "completed", "previous": "executing"}
+        assert (changed.source, changed.causation_id) == ("orders", events[-1].event_id)
+        assert changed.occurred_at == events[-1].occurred_at
         assert status.status == "completed"
         assert inventory.reserved == ["o-1"]
 
@@ -107,9 +112,12 @@ class TestFlows:
         assert status.status == "compensated"
         assert status.failure["participant"] == "payments"
         assert (await log.get_transaction(start.saga_id)).status == "compensated"
-        kinds = [e.kind for e in await log.events(start.saga_id)]
+        logged = await log.events(start.saga_id)
+        kinds = [e.kind for e in logged]
         assert "compensate" in kinds
         assert kinds.count("compensated") == 4
+        changes = [e.payload["status"] for e in logged if e.kind == "lifecycle"]
+        assert changes == ["compensating", "compensated"]
         markers = {
             a.participant: a.status
             for a in await log.activities(start.saga_id)

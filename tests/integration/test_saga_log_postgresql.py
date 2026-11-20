@@ -21,6 +21,7 @@ from sagaz.core.storage.saga_log import (
 )
 from sagaz.core.storage.saga_log._pg_schema import service_role_grants
 from sagaz.core.storage.saga_log.postgresql import PostgreSQLSagaLogStore
+from sagaz.core.tenant import system_scope
 from tests.unit.core.test_saga_log import (
     TestContract,
     TestGuardsAndOutbox,
@@ -28,12 +29,14 @@ from tests.unit.core.test_saga_log import (
     event,
     tx,
 )
+from tests.unit.core.test_saga_log_export import TestExportContract, read_all
 
 asyncpg = pytest.importorskip("asyncpg")
 
 pytestmark = [pytest.mark.integration, pytest.mark.xdist_group(name="postgres")]
 
-__all__ = ["TestContract", "TestGuardsAndOutbox"]  # the shared contract, on PostgreSQL
+# The shared contracts, on PostgreSQL
+__all__ = ["TestContract", "TestExportContract", "TestGuardsAndOutbox"]
 
 TABLES = (
     "saga_transaction, saga_activity, saga_log_event, saga_snapshot,"
@@ -68,7 +71,7 @@ async def store(database_url):
     yield log
     if log._pool is not None:
         async with log._pool.acquire() as conn:
-            await conn.execute(f"TRUNCATE {TABLES}, saga_outbox")
+            await conn.execute(f"TRUNCATE {TABLES}, saga_outbox, saga_export_cursor")
     await log.close()
 
 
@@ -217,3 +220,66 @@ async def test_a_new_process_does_not_block_running_writers(store, database_url)
             await asyncio.wait_for(newcomer.participants(), timeout=5)
         finally:
             await newcomer.close()
+
+
+async def test_a_late_commit_is_not_skipped(store, database_url):
+    """A transaction that started first but commits last is exported, after it commits."""
+    await store.write(LogWrite(transaction=tx("t-1"), events=[event("t-1")]))
+    long = await asyncpg.connect(database_url)
+    try:
+        transaction = long.transaction()
+        await transaction.start()
+        await long.execute(
+            "INSERT INTO saga_log_event (tenant_id, transaction_id, sequence, event_id,"
+            " event_type, kind, occurred_at) VALUES ('default', 't-long', 1, 'late',"
+            " 'SagaStarted', 'lifecycle', now())"
+        )
+        # A shorter transaction commits while the long one is still open.
+        await store.write(LogWrite(events=[event("t-1", "SagaCompleted")]))
+        with system_scope():
+            seen = await read_all(store)  # stops below the long transaction
+        assert [e.event.event_type for e in seen] == ["SagaStarted"]
+        await transaction.commit()
+    finally:
+        await long.close()
+
+    with system_scope():
+        rest = await read_all(store)
+    assert [e.event.event_id for e in rest][0] == "late"
+    assert [e.event.event_type for e in rest] == ["SagaStarted", "SagaCompleted"]
+
+
+async def test_upgrading_adds_the_export_order(store, database_url):
+    """An existing log gets writer_xid on its rows when the schema is re-applied."""
+    await store.write(LogWrite(transaction=tx("t-1"), events=[event("t-1")]))
+    async with store._pool.acquire() as conn:
+        await conn.execute("ALTER TABLE saga_log_event DROP COLUMN writer_xid")
+        await conn.execute("DELETE FROM sagaz_schema_version WHERE component = 'saga_log'")
+    upgraded = PostgreSQLSagaLogStore(database_url)
+    try:
+        with system_scope():
+            assert [e.event.event_type for e in await read_all(upgraded)] == ["SagaStarted"]
+    finally:
+        await upgraded.close()
+
+
+async def test_exporting_to_fluss_resumes_after_an_outage(store):
+    """The PostgreSQL log through the exporter, with Fluss failing mid-batch (#481)."""
+    pytest.importorskip("pyarrow")
+    from sagaz.core.storage.saga_log import SagaLogExporter, SagaLogReader
+    from sagaz.integrations.fluss import FlussSink
+    from tests.unit.test_fluss_export import FakeFluss, fill
+
+    fake = FakeFluss()
+    await fill(store)
+    fake.fail_after = 3
+
+    def exporter():
+        reader = SagaLogReader(store, "fluss", batch_size=2)
+        return SagaLogExporter(reader, FlussSink("fluss:9123", client=fake))
+
+    with pytest.raises(ConnectionError):
+        await exporter().export()
+    fake.fail_after = None
+    assert await exporter().export() == 3
+    assert len(fake.rows) == 5

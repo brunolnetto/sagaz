@@ -48,6 +48,12 @@ class ConcurrencyError(RuntimeError):
     """A transaction changed since it was read (``expected_version`` mismatch)."""
 
 
+#: The lifecycle event recording a choreographed transaction's status change
+#: (payload ``{"status": ..., "previous": ...}``): written by the choreography
+#: tracker, so the log alone tells every transaction's status.
+STATUS_CHANGED = "TransactionStatusChanged"
+
+
 @dataclass
 class Transaction:
     """One distributed transaction: an orchestrated saga or a choreographed flow."""
@@ -204,3 +210,48 @@ class LogWrite:
         ]
         if self.deadline is not None and self.deadline.transaction_id in ended:
             self.deadline = None
+
+
+@dataclass(frozen=True)
+class ExportedEvent:
+    """A committed log event with its transaction's coordination and flow."""
+
+    event: LogEvent
+    coordination: str | None = None
+    flow: str | None = None
+
+
+@dataclass(frozen=True)
+class ExportBatch:
+    """Committed events in log order, and the position to resume after them.
+
+    ``position`` is opaque and backend-specific; it is ``None`` only when the
+    batch is empty and the reader had no position yet.
+    """
+
+    events: list[ExportedEvent]
+    position: str | None
+
+    def __bool__(self) -> bool:
+        return bool(self.events)
+
+
+def status_changed(
+    transaction_id: str,
+    status: str,
+    previous: str,
+    *,
+    source: str | None,
+    occurred_at: datetime,
+    causation_id: str | None = None,
+) -> LogEvent:
+    """The :data:`STATUS_CHANGED` lifecycle event of a choreographed transaction."""
+    return LogEvent(
+        transaction_id,
+        STATUS_CHANGED,
+        EventKind.LIFECYCLE,
+        source=source,
+        causation_id=causation_id,
+        payload={"status": status, "previous": previous},
+        occurred_at=occurred_at,
+    )

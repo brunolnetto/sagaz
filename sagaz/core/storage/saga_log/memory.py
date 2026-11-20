@@ -16,6 +16,8 @@ from sagaz.core.storage.saga_log._model import (
     Activity,
     ConcurrencyError,
     Deadline,
+    ExportBatch,
+    ExportedEvent,
     LogEvent,
     LogWrite,
     OutboxMessage,
@@ -59,6 +61,8 @@ class InMemorySagaLogStore(SagaLogStore):
         self._activities: dict[Key, dict[str, Activity]] = {}
         self._events: dict[Key, list[LogEvent]] = {}
         self._event_ids: set[str] = set()
+        self._log: list[LogEvent] = []  # commit order, for exporters
+        self._cursors: dict[str, str] = {}
         self._snapshots: dict[tuple[str, str, str], dict[int, Snapshot]] = {}
         self._participants: dict[Key, Participant] = {}
         self._deliveries: set[tuple[str, str, str]] = set()
@@ -155,6 +159,7 @@ class InMemorySagaLogStore(SagaLogStore):
         stream = self._events.setdefault((tenant, event.transaction_id), [])
         stored = replace(event, tenant_id=tenant, sequence=len(stream) + 1)
         stream.append(stored)
+        self._log.append(stored)
         self._event_ids.add(stored.event_id)
         return stored
 
@@ -236,6 +241,26 @@ class InMemorySagaLogStore(SagaLogStore):
             for e in stream
             if e.sequence > after_sequence
         ]
+
+    async def read_committed(self, after: str | None = None, limit: int = 500) -> ExportBatch:
+        start = 0 if after is None else int(after)
+        rows = []
+        for event in self._log[start : start + limit]:
+            transaction = self._transactions.get((event.tenant_id, event.transaction_id))
+            rows.append(
+                ExportedEvent(
+                    event,
+                    None if transaction is None else str(transaction.coordination),
+                    None if transaction is None else transaction.flow,
+                )
+            )
+        return ExportBatch(rows, str(start + len(rows)) if rows else after)
+
+    async def load_cursor(self, name: str) -> str | None:
+        return self._cursors.get(name)
+
+    async def save_cursor(self, name: str, position: str) -> None:
+        self._cursors[name] = position
 
     async def latest_snapshot(
         self, transaction_id: str, kind: SnapshotKind = SnapshotKind.PROJECTION

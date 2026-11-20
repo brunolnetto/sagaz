@@ -143,7 +143,9 @@ class ChoreographyTracker:
 
     async def _observe_log(self, event: Event) -> None:
         """Unified log (ADR-041): the status is a projection of the log; keep the
-        transaction row's status in step with it."""
+        transaction row's status in step with it, and record each change as a
+        ``TransactionStatusChanged`` lifecycle event, so that the log alone
+        tells a choreographed transaction's status (ADR-013 exports it)."""
         from sagaz.core.storage.saga_log import ConcurrencyError, StatusChange
 
         log = self._log
@@ -160,7 +162,7 @@ class ChoreographyTracker:
             ended_at=event.created_at if ended else None,
         )
         try:
-            await log.write(LogWrite(status=change))
+            await log.write(LogWrite(status=change, events=[_transition(current, status, event)]))
         except ConcurrencyError:  # another tracker moved it: it will converge
             return
 
@@ -210,6 +212,25 @@ class ChoreographyTracker:
         )
 
 
+def _transition(current: Any, status: TransactionStatus, event: Event) -> Any:
+    """The lifecycle event recording *current*'s move to *status*.
+
+    It is caused by the last log event the projection folded: on an in-process
+    bus, handlers may have logged later events before *event* is observed.
+    """
+    from sagaz.core.storage.saga_log import status_changed
+
+    last = status.events[-1] if status.events else {"event_id": event.event_id}
+    return status_changed(
+        current.transaction_id,
+        status.status,
+        current.status,
+        source=current.initiator,  # the row's owner, who may update it
+        causation_id=last["event_id"],
+        occurred_at=datetime.fromisoformat(last["at"]) if "at" in last else event.created_at,
+    )
+
+
 def _as_timedelta(value: timedelta | float | None) -> timedelta | None:
     if value is None or isinstance(value, timedelta):
         return value
@@ -247,6 +268,8 @@ async def status_from_log(
         return None
     status = TransactionStatus(correlation_id, tenant_id=entries[0].tenant_id)
     for entry in entries:
+        if entry.kind == "lifecycle":  # the tracker's own status changes
+            continue
         status.apply(from_log_event(entry), frozenset(completion_events))
     transaction = await log.get_transaction(correlation_id)
     if transaction is not None and transaction.status == COMPLETED and status.status == EXECUTING:

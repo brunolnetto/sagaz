@@ -5,12 +5,15 @@ from __future__ import annotations
 from sagaz.core.storage.saga_log._base import SagaLogStore
 from sagaz.core.storage.saga_log._model import (
     ORCHESTRATOR,
+    STATUS_CHANGED,
     TRANSACTION_MARKER,
     Activity,
     ConcurrencyError,
     Coordination,
     Deadline,
     EventKind,
+    ExportBatch,
+    ExportedEvent,
     LogEvent,
     LogWrite,
     OutboxMessage,
@@ -19,7 +22,9 @@ from sagaz.core.storage.saga_log._model import (
     SnapshotKind,
     StatusChange,
     Transaction,
+    status_changed,
 )
+from sagaz.core.storage.saga_log.export import ExportSink, SagaLogExporter, SagaLogReader
 from sagaz.core.storage.saga_log.memory import InMemorySagaLogStore
 
 
@@ -41,21 +46,28 @@ def create_saga_log_store(url: str) -> SagaLogStore:
 
 __all__ = [
     "ORCHESTRATOR",
+    "STATUS_CHANGED",
     "TRANSACTION_MARKER",
     "Activity",
     "ConcurrencyError",
     "Coordination",
     "Deadline",
     "EventKind",
+    "ExportBatch",
+    "ExportSink",
+    "ExportedEvent",
     "InMemorySagaLogStore",
     "LogEvent",
     "LogWrite",
     "OutboxMessage",
     "Participant",
+    "SagaLogExporter",
+    "SagaLogReader",
     "SagaLogStore",
     "Snapshot",
     "SnapshotKind",
     "StatusChange",
     "Transaction",
     "create_saga_log_store",
+    "status_changed",
 ]

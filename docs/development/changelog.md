@@ -7,6 +7,88 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-11-20
+
+Streaming and historical analytics on the unified saga log (ADR-013).
+
+- **Export:** the log is exported at least once to an idempotent Apache Fluss table.
+- **History:** Fluss tiers the table to Apache Iceberg.
+- **Analysis:** reports in Flink SQL, and Prometheus metrics with a Grafana
+  dashboard.
+- **Release gates:** checked end to end in CI.
+
+### Added
+- **Exporting the saga log** (#480, ADR-013): `SagaLogReader(log, name)` reads committed
+  events of every tenant, with their transaction's coordination and flow, in an order no
+  later commit can land before.
+  - **Cursor:** it resumes from its acknowledged position, stored in
+    `saga_export_cursor`, so delivery is at least once.
+  - **Order:** the rowid in SQLite; in PostgreSQL the writing transaction's id
+    (`writer_xid`), read below the oldest running transaction.
+  - **Upgrade:** `writer_xid` is added to existing PostgreSQL logs on the first
+    connection. The `ALTER TABLE` rewrites `saga_log_event`, so on a large log it holds
+    an exclusive lock for a while: plan the upgrade.
+- **Fluss export** (#481, ADR-013):
+  - **Exporter:** `SagaLogExporter(reader, sink)` moves the log to an `ExportSink` at
+    least once. It acknowledges only after the sink accepted a batch, backs off while
+    the sink is down, and reports `metrics()` (exported, errors, lag).
+  - **Sink:** `FlussSink` (`sagaz[fluss]`, the official async client) upserts into a
+    Fluss primary-key table on `(dt, tenant_id, transaction_id, sequence)`, so
+    redelivered events are written once. The table is created on first use, with day
+    partitions and tiering to the lake.
+  - **CLI:** `sagaz analytics export --saga-log ... --to fluss://host:port [--once]`,
+    and `sagaz analytics fluss-ddl` to print the table.
+- **Local lakehouse without Docker** (#482): `scripts/lakehouse/lakehouse.sh` installs
+  and runs pinned Fluss 1.0.0, Flink 1.20.5 and Iceberg 1.10.1 from binary
+  distributions (`fetch`, `start`, `tiering`, `sql`, `status`, `stop`, `reset`), with
+  the Iceberg catalog in PostgreSQL and the warehouse on disk.
+  - **Partitions:** `FlussSink` creates each day's partition as events arrive.
+    Fluss's auto-partitioning is off, because its retention would drop a backfill
+    of older events.
+  - **Buckets:** the bucket key is `transaction_id` alone, since tiering to Iceberg
+    takes one bucket key.
+  - **Freshness:** `freshness=` and `--freshness` set how far behind the lake may be.
+
+- **Saga analytics in Flink SQL** (#483): `sagaz analytics flink-sql flow-summary|throughput`
+  prints reports over the exported log (`sagaz.integrations.flink_sql`).
+  - **Parity:** on the same log, `flow-summary` gives the same counts and rates as the
+    embedded `SagaQueries.FLOW_SUMMARY`.
+  - **New column:** the Fluss table gains `occurred_at_ms`.
+  - **Status events:** the `ChoreographyTracker` records each status change of a
+    choreographed transaction as a `TransactionStatusChanged` lifecycle event, so the
+    log alone tells every transaction's status. `sagaz migrate unify` adds it to
+    finished ones.
+  - **Guide:** [Fluss and Iceberg analytics](../monitoring/fluss-iceberg-analytics.md).
+
+- **Flow metrics for Prometheus** (#483): `sagaz analytics metrics` serves the flow
+  summary of the Iceberg history as Prometheus metrics (`sagaz[iceberg]`).
+  - **Reading:** pyiceberg reads the catalog Fluss writes to, and DuckDB computes the
+    report with the same semantics as `flow-summary`, cached between scrapes.
+  - **Exporter metrics:** `sagaz analytics export --metrics-port` serves the exporter's
+    exported events, errors and lag.
+  - **Dashboard:** the Grafana dashboard "Sagaz - Saga Flows" charts both.
+
+- **Lakehouse in Docker, and the release gates** (#484):
+  `sagaz/deployment/resources/local/lakehouse/docker-compose.yaml`.
+  - **Stack:** Fluss 1.0 with host and container listeners, Flink tiering, Iceberg
+    on S3 (RustFS) with a PostgreSQL JDBC catalog, and an optional Prometheus and
+    Grafana profile.
+  - **Gates:** `tests/integration/test_lakehouse_e2e.py` checks no loss across a
+    Fluss outage, p99 latency below 1 s, each event once in Iceberg, and flow-summary
+    parity. The `Lakehouse` workflow runs it in CI.
+  - **CLI:** `sagaz analytics metrics --catalog-property` passes pyiceberg properties
+    (S3 endpoint and credentials).
+
+### Fixed
+- **Fluss sink stalls** (#484): a write to a Fluss server that went away waited
+  forever, without an error, so the exporter never backed off. `FlussSink` now fails
+  a write after `timeout` seconds (30 by default), drops the session and reconnects
+  on the next attempt.
+
+### Removed
+- `jobs/fluss_to_iceberg.sql`, the hand-written tiering job of the first ADR-013
+  design: Fluss's tiering service replaces it.
+
 ## [2.1.0] - 2026-11-19
 
 The unified saga log (ADR-041): one OLTP model for orchestrated and choreographed

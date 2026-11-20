@@ -1,6 +1,6 @@
 [project]
 name = "sagaz"
-version = "2.1.0"
+version = "2.2.0"
 description = "Production-ready Saga pattern with DAG support"
 readme = "README.md"
 dependencies = [
@@ -68,6 +68,18 @@ monitor = ["sagaz[visualization]"]
 aws = [
     "aioboto3>=12.0.0",
     "zstandard>=0.22.0",  # For S3 snapshot compression
+]
+# Saga analytics from the Iceberg history as Prometheus metrics (ADR-013).
+iceberg = [
+    "pyiceberg[sql-postgres,sql-sqlite,pyarrow]>=0.9.0",
+    "duckdb>=1.0.0",
+    "prometheus-client>=0.20.0",
+]
+# Fluss export (ADR-013). pyfluss 1.0 ships wheels up to CPython 3.12; on 3.13
+# install it separately (it builds from source with a Rust toolchain).
+fluss = [
+    "pyfluss>=1.0.0; python_version < '3.13'",
+    "pyarrow>=15.0.0",
 ]
 cdc = [
     "psycopg2-binary>=2.9.9",

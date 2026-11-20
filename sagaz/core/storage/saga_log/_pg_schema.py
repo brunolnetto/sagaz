@@ -88,6 +88,19 @@ CREATE TABLE IF NOT EXISTS saga_log_event (
     PRIMARY KEY (tenant_id, transaction_id, sequence)
 );
 CREATE INDEX IF NOT EXISTS idx_saga_log_event_type ON saga_log_event (event_type, occurred_at);
+-- Export order (ADR-013): the writing transaction's id. Exporters read only
+-- rows below the oldest running transaction, so no later commit can land
+-- before their position.
+ALTER TABLE saga_log_event
+    ADD COLUMN IF NOT EXISTS writer_xid xid8 NOT NULL DEFAULT pg_current_xact_id();
+CREATE INDEX IF NOT EXISTS idx_saga_log_event_export
+    ON saga_log_event (writer_xid, tenant_id, transaction_id, sequence);
+
+CREATE TABLE IF NOT EXISTS saga_export_cursor (
+    name        TEXT        PRIMARY KEY,
+    position    TEXT        NOT NULL,
+    updated_at  TIMESTAMPTZ NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS saga_snapshot (
     tenant_id       TEXT        NOT NULL DEFAULT 'default',
