@@ -25,6 +25,7 @@ import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
+from sagaz.core._poller import Poller
 from sagaz.core.tenant import system_scope
 
 if TYPE_CHECKING:
@@ -110,7 +111,10 @@ class SagaLogExporter:
         self.errors = 0
         self.last_error: str | None = None
         self.last_occurred_at: datetime | None = None
-        self._task: asyncio.Task[None] | None = None
+        self._delay = poll_interval
+        self._poller = Poller(
+            self._tick, lambda: self._delay, name=f"saga-log-exporter-{reader.name}"
+        )
 
     async def export(self) -> int:
         """Export everything committed so far; return how many events.
@@ -144,38 +148,33 @@ class SagaLogExporter:
 
     @property
     def running(self) -> bool:
-        return self._task is not None and not self._task.done()
+        return self._poller.running
 
     async def start(self) -> None:
-        if not self.running:
-            self._task = asyncio.get_running_loop().create_task(self._run())
+        self._poller.start()
 
     async def stop(self) -> None:
-        if self._task is not None:
-            self._task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await self._task
-            self._task = None
+        """Stop after the batch in progress (an overrunning one is cancelled and
+        exported again later: its position was not acknowledged)."""
+        await self._poller.stop()
 
     async def close(self) -> None:
         """Stop, and close the sink."""
         await self.stop()
         await self.sink.close()
 
-    async def _run(self) -> None:
-        delay = self.poll_interval
-        while True:
-            try:
-                await self.export()
-                delay = self.poll_interval
-            except Exception as exc:  # the sink or the log is down: retry later
-                self.errors += 1
-                self.last_error = f"{type(exc).__name__}: {exc}"
-                delay = min(max(delay * 2, self.poll_interval), self.max_backoff)
-                logger.warning(
-                    "Exporter %s failed (%s); retrying in %.1fs",
-                    self.reader.name,
-                    self.last_error,
-                    delay,
-                )
-            await asyncio.sleep(delay)
+    async def _tick(self) -> None:
+        """One background round; a failure backs off up to ``max_backoff``."""
+        try:
+            await self.export()
+            self._delay = self.poll_interval
+        except Exception as exc:  # the sink or the log is down: retry later
+            self.errors += 1
+            self.last_error = f"{type(exc).__name__}: {exc}"
+            self._delay = min(max(self._delay * 2, self.poll_interval), self.max_backoff)
+            logger.warning(
+                "Exporter %s failed (%s); retrying in %.1fs",
+                self.reader.name,
+                self.last_error,
+                self._delay,
+            )
