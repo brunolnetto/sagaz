@@ -16,7 +16,10 @@ class CDCError(Exception):
 
 @dataclass(frozen=True)
 class CDCChange:
-    """One outbox row insert captured from the database's change stream.
+    """One row insert captured from the database's change stream.
+
+    ``event`` is an ``OutboxEvent`` for the outbox, or whatever the source's
+    row mapper returns (a ``LogEvent`` for the saga log, #495).
 
     ``committed_at`` is when the inserting transaction committed, used to
     measure CDC lag. ``position`` is opaque to the worker (a WAL LSN, a Kafka
@@ -24,7 +27,7 @@ class CDCChange:
     been processed.
     """
 
-    event: OutboxEvent
+    event: Any  # an OutboxEvent unless the source maps rows otherwise
     committed_at: datetime | None
     position: Any
 

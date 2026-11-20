@@ -159,9 +159,12 @@ class SagaLogExporter:
         await self._poller.stop()
 
     async def close(self) -> None:
-        """Stop, and close the sink."""
+        """Stop, and close the sink (and the reader, if it holds a stream)."""
         await self.stop()
         await self.sink.close()
+        close_reader = getattr(self.reader, "close", None)
+        if callable(close_reader):
+            await close_reader()
 
     async def _tick(self) -> None:
         """One background round; a failure backs off up to ``max_backoff``."""

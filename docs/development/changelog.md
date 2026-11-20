@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Views:** a Mermaid diagram of the steps or of the event causation, the steps, the
     events and the context.
   - **Python:** `sagaz.visualization.gradio.launch()` and `build_app()`.
+- **CDC reader for the saga log export** (#495): `SagaLogCDCReader` streams
+  `saga_log_event` through PostgreSQL logical replication, in commit order, with
+  at-least-once delivery from its replication slot.
+  - **CLI:** `sagaz analytics export --cdc [--cdc-dsn]` uses it.
+  - **Generic CDC source:** `PgLogicalSource` takes a `row_mapper` and gains `poll(timeout)`.
+  - **Gates:** the lakehouse release gates run with both readers.
 
 ### Fixed
 - **SQLite saga log contention** (#500): a relay on its own SQLite connection competed with

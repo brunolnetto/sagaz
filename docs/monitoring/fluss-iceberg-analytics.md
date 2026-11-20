@@ -54,7 +54,27 @@ sagaz analytics export --saga-log postgresql://... --to fluss://localhost:9123 -
 ```
 
 The exporter keeps its position in the log's `saga_export_cursor` table, so a
-restarted exporter resumes where it stopped. While Fluss is unreachable it
+restarted exporter resumes where it stopped.
+
+### Streaming the log with CDC
+
+On PostgreSQL, `--cdc` streams the log through logical replication instead of polling.
+It needs `pip install 'sagaz[cdc]'`, `wal_level = logical` and a role with
+`REPLICATION`:
+
+```bash
+sagaz analytics export --saga-log postgresql://... --to fluss://localhost:9123 --cdc
+```
+
+- **Order and timing:** changes arrive in commit order, as soon as their transaction
+  commits.
+- **Position:** the replication slot `sagaz_log_<name>` keeps it, and an acknowledged
+  batch lets the server discard its WAL.
+- **Earlier events are not streamed:** only changes committed after the slot exists
+  reach the reader. Start the exporter before the services write. For events already in
+  the log, run a cursor export once under another `--name`.
+- **Abandoned slots:** a slot nobody reads retains WAL. Drop the slot of an exporter you
+  retire. While Fluss is unreachable it
 backs off and retries; nothing is lost.
 
 ### With Docker
