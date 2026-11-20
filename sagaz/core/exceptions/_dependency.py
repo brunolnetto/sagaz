@@ -13,6 +13,7 @@ class MissingDependencyError(Exception):
         """Get installation commands for dependencies."""
         return {
             "redis": "pip install redis",
+            "testcontainers": "pip install 'sagaz[demo]'",
             "pyfluss": "pip install 'sagaz[fluss]'",
             "pyarrow": "pip install 'sagaz[fluss]'",
             "asyncpg": "pip install asyncpg",

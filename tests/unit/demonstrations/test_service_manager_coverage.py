@@ -258,3 +258,27 @@ class TestServiceManagerContextManager:
         # Both containers should have been stopped
         mock_pg.stop.assert_called_once()
         mock_redis.stop.assert_called_once()
+
+
+def test_containers_need_the_demo_extra(monkeypatch):
+    """Without testcontainers (no longer a core dependency), the error says how to install it."""
+    import importlib.util
+
+    import pytest
+
+    from sagaz.core.exceptions import MissingDependencyError
+    from sagaz.demonstrations.utils.service_manager import ServiceManager
+
+    real_find_spec = importlib.util.find_spec
+    monkeypatch.setattr(
+        importlib.util,
+        "find_spec",
+        lambda name, *a: None if name == "testcontainers" else real_find_spec(name, *a),
+    )
+    with (
+        pytest.raises(MissingDependencyError, match=r"sagaz\[demo\]"),
+        ServiceManager(postgres=True),
+    ):
+        pass
+    with ServiceManager() as urls:  # no container asked for: no dependency needed
+        assert urls.postgres_url is None

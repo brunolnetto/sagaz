@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **`testcontainers` is no longer a core dependency** (#498). Only the demonstrations that
+  start PostgreSQL or Redis in Docker use it. Install it with `pip install 'sagaz[demo]'`;
+  without it, those demonstrations raise `MissingDependencyError` with that hint.
+
 ## [2.2.0] - 2026-11-20
 
 Streaming and historical analytics on the unified saga log (ADR-013).
