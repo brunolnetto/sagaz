@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **`testcontainers` is no longer a core dependency** (#498). Only the demonstrations that
+  start PostgreSQL or Redis in Docker use it. Install it with `pip install 'sagaz[demo]'`;
+  without it, those demonstrations raise `MissingDependencyError` with that hint.
 - **Documentation** (#499):
   - **README:** the features and project status of v2.2.0, with working links.
   - **Roadmap:** `docs/ROADMAP.md` is rewritten from the release plan; the old planning

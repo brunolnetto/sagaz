@@ -13,7 +13,6 @@ dependencies = [
     "rich>=13.0.0",
     "simple-term-menu>=1.6.0",
     "PyYAML>=6.0.0",
-    "testcontainers>=4.14.2",
 ]
 requires-python = ">=3.11"
 
@@ -27,6 +26,8 @@ storage = [
     "asyncpg>=0.30.0",  # PostgreSQL storage
     "redis>=7.0.0",      # Redis storage  
 ]
+# Demonstrations that start PostgreSQL or Redis in Docker (`sagaz demo`).
+demo = ["testcontainers[postgres,redis]>=4.14.2"]
 integration-tests = [
     # Integration testing with real databases (requires Docker)
     "testcontainers[kafka,postgres,rabbitmq,redis]>=4.13.0",
