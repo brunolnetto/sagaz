@@ -174,9 +174,17 @@ async def drop_database(name: str | None) -> None:
 
     admin = await asyncpg.connect(PG_ADMIN)
     try:
+        # A closed reader's walsender releases its slot shortly after it disconnects.
+        for _ in range(60):
+            active = await admin.fetchval(
+                "SELECT count(*) FROM pg_replication_slots WHERE database = $1 AND active", name
+            )
+            if not active:
+                break
+            await asyncio.sleep(0.5)
         await admin.execute(
             "SELECT pg_drop_replication_slot(slot_name) FROM pg_replication_slots"
-            " WHERE database = $1 AND NOT active",
+            " WHERE database = $1",
             name,
         )
         await admin.execute(f"DROP DATABASE {name} WITH (FORCE)")
@@ -214,6 +222,12 @@ def scenario(tmp_path_factory):
     async def scenario_on(log, reader) -> dict:
         sink = TimingSink(BOOTSTRAP, TABLE, freshness="10s", timeout=5)
         exporter = SagaLogExporter(reader, sink, poll_interval=0.05, max_backoff=2)
+        try:
+            return await steps(log, sink, exporter)
+        finally:
+            await exporter.close()  # also stops a CDC reader, releasing its slot
+
+    async def steps(log, sink: TimingSink, exporter: SagaLogExporter) -> dict:
         await exporter.start()
         # Warm up: the first write creates the table and the day's partition.
         sink.measure = False
@@ -234,7 +248,7 @@ def scenario(tmp_path_factory):
         compose("start", "tablet-server")
         await wait_until_exported(log, sink, exporter, timeout=300)
         errors = exporter.errors
-        await exporter.close()
+        await exporter.stop()
         logged = await logged_events(log)
         (embedded,) = (await reports(log, "FLOW_SUMMARY")).values()
         return {
