@@ -13,6 +13,7 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-011](adr-011-cdc-support.md) | CDC Support (PostgreSQL logical replication, Debezium) | v1.9.0 | 2026-11 |
 | [ADR-012](adr-012-synchronous-orchestration-model.md) | Synchronous Orchestration Model | v1.0.0 | 2024-12 |
 | [ADR-013](adr-013-fluss-iceberg-analytics.md) | Fluss + Iceberg Analytics on the Unified Saga Log | v2.2.0 | 2026-11 |
+| [ADR-014](adr-014-schema-registry.md) | Schema Registry (Avro, JSON Schema) | v2.3.0 | 2026-11 |
 | [ADR-015](adr-015-unified-saga-api.md) | Unified Saga API | v1.0.3 | 2024-12 |
 | [ADR-016](adr-016-unified-storage-layer.md) | Unified Storage Layer | v1.2.0 | 2026-01 |
 | [ADR-017](adr-017-chaos-engineering.md) | Chaos Engineering | v1.4.0 | 2026-04 |
@@ -51,9 +52,7 @@ its recovery, compensation and migration semantics are reviewed.
 
 ## 📋 Proposed (Future Releases)
 
-| ADR | Title | Target | Description |
-|-----|-------|--------|-------------|
-| [ADR-014](adr-014-schema-registry.md) | Schema Registry | v2.3.0 | Schema registry for saga events: Avro/JSON Schema, Confluent-compatible registries ([#502](https://github.com/brunolnetto/sagaz/issues/502)); to be revised for the unified saga log |
+None at the moment. StateChart phase 2 (ADR-040, [#190](https://github.com/brunolnetto/sagaz/issues/190)) is in the backlog.
 
 ---
 

@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Schema registry for saga events** (#502, ADR-014): `SchemaRegistrySerializer` encodes
+  events in Avro or JSON Schema through a Confluent-compatible registry (Confluent, Redpanda,
+  Apicurio), in Confluent's wire format (`sagaz[schema-registry]`).
+  - **Where it applies:** outbox messages on every broker
+    (`create_broker(..., serializer=...)`) and choreography events on the Kafka bus
+    (`KafkaEventBusConfig(serializer=...)`).
+  - **Schemas:** you write each event type's payload schema, and sagaz wraps it in the
+    envelope. Subjects follow `<topic>-<record name>`.
+  - **Defaults:** JSON stays the default, and `deserialize` reads both registry-encoded
+    and plain JSON messages.
+  - **CLI:** `sagaz schema envelope|check|register`.
 - **Gradio asset monitor** (#501, ADR-039): `sagaz monitor --ui gradio --saga-log URL` (or
   `--storage-url`) browses persisted transactions of both coordination styles
   (`sagaz[gradio]`).
