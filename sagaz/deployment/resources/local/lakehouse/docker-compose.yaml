@@ -1,0 +1,24 @@
+# Prometheus and Grafana for the saga flow metrics (ADR-013).
+#
+# On the host, serve the metrics they scrape:
+#   sagaz analytics metrics --catalog-uri postgresql://... --port 9464
+#   sagaz analytics export ... --metrics-port 9465
+# then: docker compose -f sagaz/deployment/resources/local/lakehouse/docker-compose.yaml up -d
+# Grafana: http://localhost:3000 (admin / admin), dashboard "Sagaz - Saga Flows".
+services:
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    ports: ["9090:9090"]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    extra_hosts: ["host.docker.internal:host-gateway"]
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    ports: ["3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on: [prometheus]

@@ -76,6 +76,44 @@ On the same log, `flow-summary` in Flink and in the embedded DuckDB pipeline
 agree on every count and rate. Durations agree to the millisecond, because
 Flink works in milliseconds and DuckDB in microseconds.
 
+## Prometheus and Grafana
+
+`sagaz analytics metrics` serves the flow summary of the Iceberg history to
+Prometheus (`pip install 'sagaz[iceberg]'`). It reads the table with pyiceberg,
+through the catalog Fluss writes to: a pyiceberg SQL catalog reads the tables a
+JDBC catalog keeps. DuckDB then computes `flow-summary`:
+
+```bash
+sagaz analytics metrics --catalog-uri postgresql://postgres@localhost:5432/iceberg \
+    --warehouse file:///path/to/warehouse --port 9464 --days 30
+```
+
+The report is cached for `--refresh` seconds (60 by default), so scrapes never
+wait on a table scan. A failed refresh keeps serving the last report: the
+failure is counted, and the report's age keeps growing. `--days` limits the scan
+to recent day partitions. `--catalog-name` must equal Fluss's
+`datalake.iceberg.name`, because a SQL catalog files tables under it.
+
+| Metric | Labels |
+|--------|--------|
+| `sagaz_flow_transactions` | `coordination`, `flow`, `status`: completed, compensated, failed, in_flight |
+| `sagaz_flow_compensation_rate_percent` | `coordination`, `flow` |
+| `sagaz_flow_duration_milliseconds` | `coordination`, `flow`, `quantile`: 0.5, 0.95 |
+| `sagaz_flow_report_age_seconds`, `sagaz_flow_report_errors_total` | none |
+
+`sagaz analytics export --metrics-port 9465` also serves the exporter's own
+metrics, labelled by `exporter`:
+
+- `sagaz_log_export_events_total`;
+- `sagaz_log_export_errors_total`;
+- `sagaz_log_export_lag_seconds`, the seconds since the last exported event
+  occurred.
+
+The Grafana dashboard
+`sagaz/deployment/resources/local/lakehouse/grafana/dashboards/sagaz-flows.json`
+("Sagaz - Saga Flows") charts both. It has variables for the Prometheus data
+source, the coordination style and the flow.
+
 ## Limits
 
 - **Freshness:** the Iceberg table is behind the log by the table's freshness.
