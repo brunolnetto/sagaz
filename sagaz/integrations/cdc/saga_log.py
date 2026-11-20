@@ -101,6 +101,7 @@ class SagaLogCDCReader:
             row_mapper=log_event_from_row,
         )
         self._position: str | None = None
+        self._pending: ExportBatch | None = None  # read, not yet acknowledged
         self._started = False
         self._flows: dict[tuple[str, str], tuple[str | None, str | None]] = {}
 
@@ -110,7 +111,14 @@ class SagaLogCDCReader:
         return self._position
 
     async def read(self, limit: int | None = None) -> ExportBatch:
-        """The next committed events, or an empty batch after ``idle_timeout`` seconds."""
+        """The next committed events, or an empty batch after ``idle_timeout`` seconds.
+
+        A batch is returned again until it is acknowledged: a stream, unlike a
+        cursor, does not rewind, so a batch the sink failed to take would
+        otherwise be skipped (and confirmed by a later acknowledgement).
+        """
+        if self._pending is not None:
+            return self._pending
         if not self._started:
             # The publication needs saga_log_event: touching the log creates its
             # schema if no service has written to it yet.
@@ -122,7 +130,8 @@ class SagaLogCDCReader:
         if not changes:
             return ExportBatch([], self._position)
         events = [await self._exported(change.event) for change in changes]
-        return ExportBatch(events, str(changes[-1].position))
+        self._pending = ExportBatch(events, str(changes[-1].position))
+        return self._pending
 
     async def acknowledge(self, batch: ExportBatch) -> None:
         """Confirm *batch* to the server: its WAL may go, and it is not read again."""
@@ -130,6 +139,8 @@ class SagaLogCDCReader:
             return
         await self.source.ack(int(batch.position))
         self._position = batch.position
+        if batch is self._pending:
+            self._pending = None
 
     async def close(self) -> None:
         """Stop streaming (the slot keeps the unacknowledged changes)."""

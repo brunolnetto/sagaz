@@ -114,13 +114,47 @@ class TestReader:
 
         second = await reader.read()  # a transaction the log does not know
         assert (second.events[0].coordination, second.events[0].flow) == (None, None)
+        await reader.acknowledge(second)
         idle = await reader.read()
-        assert (idle.events, idle.position) == ([], "100")  # nothing acknowledged since
+        assert (idle.events, idle.position) == ([], "250")
         await reader.acknowledge(idle)  # a no-op
-        assert source.acked == [100]
+        assert source.acked == [100, 250]
         await reader.close()
         await reader.close()
         assert (source.started, source.stopped) == (1, 1)
+
+    async def test_a_batch_is_read_again_until_acknowledged(self):
+        """A failed sink write must not skip the batch (the stream does not rewind)."""
+        log = await make_log()
+        source = FakeSource([[change(100)], [change(200, tid="t-2")]])
+        reader = SagaLogCDCReader(log, "unused", source=source)
+        first = await reader.read()
+        assert await reader.read() is first  # not acknowledged: the same batch
+        await reader.acknowledge(first)
+        second = await reader.read()
+        assert second.position == "200"
+
+    async def test_an_exporter_retries_a_failed_batch(self):
+        log = await make_log()
+        source = FakeSource([[change(100)], [change(200, tid="t-2")]])
+        written = []
+        failures = [ConnectionError("fluss down")]
+
+        class Sink:
+            async def write(self, events):
+                if failures:
+                    raise failures.pop()
+                written.extend(events)
+
+            async def close(self):
+                pass
+
+        exporter = SagaLogExporter(SagaLogCDCReader(log, "unused", source=source), Sink())
+        with pytest.raises(ConnectionError):
+            await exporter.export()
+        assert await exporter.export() == 2
+        assert [e.event.transaction_id for e in written] == ["t-1", "t-2"]
+        assert source.acked == [100, 200]
 
     async def test_the_exporter_closes_the_reader(self):
         log = await make_log()
