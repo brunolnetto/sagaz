@@ -57,6 +57,9 @@ jobs:
       - name: Run ruff formatter check
         run: uv run ruff format --check sagaz/ tests/
 
+      - name: Check documentation links
+        run: uv run python scripts/check_doc_links.py
+
       - name: Install optional dependencies for type checking
         run: uv pip install redis aio-pika aiokafka prometheus_client asyncpg
 

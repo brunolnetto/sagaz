@@ -2,7 +2,7 @@
 
 ## Status
 
-**Deferred** | Date: 2026-01-05
+**Planned for v2.3.0** ([#502](https://github.com/brunolnetto/sagaz/issues/502)) | Date: 2026-01-05 | To be revised for the unified saga log before implementation
 
 ## Dependencies
 

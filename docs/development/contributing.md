@@ -182,7 +182,7 @@ Only `develop` pushes to `main` — never feature branches directly.
 ## See Also
 
 - [Development Policy](../../.github/skills/development-policy/SKILL.md) — enforced policies and branch protection
-- [Workflow Improvements](workflow-improvements.md) — potential future enhancements
+- Workflow Improvements — potential future enhancements
 - [Testing Guide](testing.md) — running tests and writing new ones
 - [Makefile Reference](makefile.md) — all available make targets
 - [Changelog](changelog.md) — project history

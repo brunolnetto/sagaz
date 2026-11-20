@@ -4,7 +4,7 @@
 **Created:** 2026-01-05  
 **Author:** Automated via Sagaz Development  
 **Target Version:** 1.2.0  
-**ADR:** [ADR-016: Unified Storage Layer](adr/adr-016-unified-storage-layer.md)
+**ADR:** [ADR-016: Unified Storage Layer](../adr/adr-016-unified-storage-layer.md)
 
 ---
 

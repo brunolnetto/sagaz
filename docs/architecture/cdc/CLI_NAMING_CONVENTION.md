@@ -338,7 +338,7 @@ sagaz extend --enable-outbox-cdc
 
 ## See Also
 
-- [CLI Integration](CLI_INTEGRATION.md) - Full CLI design
+- CLI Integration - Full CLI design
 - [ADR-011](../adr/adr-011-cdc-support.md) - Technical details
 - User docs should say "outbox", technical docs can say "CDC"
 

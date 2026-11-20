@@ -332,8 +332,8 @@ sagaz_partition_size_bytes{table="saga_outbox"}
 | Document | Purpose |
 |----------|---------|
 | [scalable-deployment-plan.md](scalable-deployment-plan.md) | Detailed architecture plan & rationale |
-| [ha-postgres-quickref.md](../guides/ha-postgres-quickref.md) | Quick reference for operators |
-| [local-postgres/README.md](../../sagaz/resources/local-postgres/README.md) | Local development guide |
+| [ha-postgres-quickref.md](../../guides/ha-postgres-quickref.md) | Quick reference for operators |
+| [local-postgres/README.md](../../../sagaz/deployment/resources/local/postgres/README.md) | Local development guide |
 | This file | Implementation summary |
 
 ---

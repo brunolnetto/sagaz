@@ -413,10 +413,10 @@ REINDEX INDEX CONCURRENTLY idx_saga_executions_status_created;
 
 ## 📚 Additional Resources
 
-- **Full Documentation:** [docs/architecture/scalable-deployment-plan.md](../../docs/architecture/scalable-deployment-plan.md)
-- **Local Setup Guide:** [sagaz/resources/local/postgres/README.md](../../sagaz/resources/local/postgres/README.md)
-- **Partitioning Guide:** [docs/guides/partitioning.md](../../docs/guides/partitioning.md) (TODO)
-- **Connection Pooling Guide:** [docs/guides/connection-pooling.md](../../docs/guides/connection-pooling.md) (TODO)
+- **Full Documentation:** [docs/architecture/scalable-deployment-plan.md](../architecture/implementation-plans/scalable-deployment-plan.md)
+- **Local Setup Guide:** [sagaz/resources/local/postgres/README.md](../../sagaz/deployment/resources/local/postgres/README.md)
+- **Partitioning Guide:** docs/guides/partitioning.md (TODO)
+- **Connection Pooling Guide:** docs/guides/connection-pooling.md (TODO)
 
 ---
 
@@ -463,4 +463,4 @@ REINDEX INDEX CONCURRENTLY idx_saga_executions_status_created;
 Open an issue: https://github.com/brunolnetto/sagaz/issues
 
 **Want to contribute?**  
-See [CONTRIBUTING.md](../../CONTRIBUTING.md)
+See [CONTRIBUTING.md](../development/contributing.md)

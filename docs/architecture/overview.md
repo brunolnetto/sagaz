@@ -175,7 +175,7 @@ graph LR
 | **Polling** (current) | 1-5K/sec | Most applications |
 | **CDC** (planned) | 50-100K/sec | High-throughput requirements |
 
-See [ADR-011: CDC Support](adr-011-cdc-support.md) for full design.
+See [ADR-011: CDC Support](adr/adr-011-cdc-support.md) for full design.
 
 ---
 
@@ -187,7 +187,7 @@ See [ADR-011: CDC Support](adr-011-cdc-support.md) for full design.
 - [Unified Saga API (ADR-015)](adr/adr-015-unified-saga-api.md) - Single class for declarative and imperative modes
 - [Synchronous Orchestration (ADR-012)](adr/adr-012-synchronous-orchestration-model.md) - Why steps are direct calls, not messages
 - [CDC Support (ADR-011)](adr/adr-011-cdc-support.md) - High-throughput upgrade path
-- [Distributed Saga Support (Design)](design-distributed-saga-support.md) - Future v2.0 design for microservice sagas
+- [Distributed Saga Support (Design)](future/design-distributed-saga-support.md) - Future v2.0 design for microservice sagas
 - [Roadmap](../ROADMAP.md) - Planned features
 
 

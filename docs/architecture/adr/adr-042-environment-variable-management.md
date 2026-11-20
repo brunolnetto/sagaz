@@ -1,7 +1,8 @@
-# ADR-015: Environment Variable Management with .env Support
+# ADR-042: Environment Variable Management with .env Support
 
 **Status:** Accepted  
 **Date:** 2026-01-11  
+**Renumbered:** 2026-11-20, from ADR-015 (a number already used by the Unified Saga API)  
 **Deciders:** Core Team  
 **Related ADRs:**
 - ADR-001 (Core Architecture)
