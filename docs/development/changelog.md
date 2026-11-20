@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-11-20
+
+Streaming and historical analytics on the unified saga log (ADR-013).
+
+- **Export:** the log is exported at least once to an idempotent Apache Fluss table.
+- **History:** Fluss tiers the table to Apache Iceberg.
+- **Analysis:** reports in Flink SQL, and Prometheus metrics with a Grafana
+  dashboard.
+- **Release gates:** checked end to end in CI.
+
 ### Added
 - **Exporting the saga log** (#480, ADR-013): `SagaLogReader(log, name)` reads committed
   events of every tenant, with their transaction's coordination and flow, in an order no

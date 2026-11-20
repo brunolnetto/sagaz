@@ -367,7 +367,7 @@ ADR-041 unified saga log ──────────────────�
 | v2.0.1  | 5    | Choreography Analytics (patch) | Released 2026-11-18 |
 | v2.0.2  | 5    | Schema DDL hotfix (#469) | Released 2026-11-18 |
 | v2.1.0  | 6    | Unified Saga Log | Released 2026-11-19 |
-| v2.2.0  | 7    | Streaming & Historical Analytics | Deferred (after Wave 6) |
+| v2.2.0  | 7    | Streaming & Historical Analytics | Released 2026-11-20 |
 
 ---
 
