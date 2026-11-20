@@ -142,7 +142,9 @@ class TestApp:
         assert any(row[0] == "charge" for row in steps)
         assert events
         missing = [["default", "nope", *[""] * 6]]
-        header, *_ = await handlers["select"](missing, gr.SelectData(None, {"index": [0, 1], "value": "nope"}))
+        header, *_ = await handlers["select"](
+            missing, gr.SelectData(None, {"index": [0, 1], "value": "nope"})
+        )
         assert "not found" in header
 
 
