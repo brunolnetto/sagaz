@@ -316,4 +316,4 @@ sagaz dlq purge
 
 - [ADR-011: CDC Support](../architecture/adr/adr-011-cdc-support.md)
 - [AlertManager Rules](../monitoring/alertmanager-rules.yml)
-- [Outbox Pattern](outbox-pattern.md)
+- Outbox Pattern

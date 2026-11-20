@@ -423,6 +423,6 @@ Ensure your AWS credentials have these permissions:
 
 ## See Also
 
-- [ADR-024: Saga Replay & Time-Travel](../docs/architecture/adr/adr-024-saga-replay.md)
-- [Snapshot Storage Interface](sagaz/storage/interfaces/snapshot.py)
-- [Replay CLI Commands](sagaz/cli/replay.py)
+- [ADR-024: Saga Replay & Time-Travel](../architecture/adr/adr-024-saga-replay.md)
+- [Snapshot Storage Interface](../../sagaz/core/storage/interfaces/snapshot.py)
+- [Replay CLI Commands](../../sagaz/cli/replay.py)

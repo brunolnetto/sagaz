@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Documentation** (#499):
+  - **README:** the features and project status of v2.2.0, with working links.
+  - **Roadmap:** `docs/ROADMAP.md` is rewritten from the release plan; the old planning
+    document is in `docs/archive/`.
+  - **ADR statuses:** ADR-035 and ADR-043 are implemented, and ADR-014 and ADR-039 are
+    planned for v2.3.0.
+  - **Links:** relative links in the docs are fixed and checked in CI
+    (`scripts/check_doc_links.py`).
+  - **Two ADR numbers were used twice** and are renumbered:
+    - Environment Variable Management: ADR-015 → **ADR-042**;
+    - sqldim Analytics Pipeline: ADR-036 → **ADR-043**.
+
+    ADR-015 (Unified Saga API) and ADR-036 (Lifecycle Hooks & Observers) keep
+    their numbers.
+
 ## [2.2.0] - 2026-11-20
 
 Streaming and historical analytics on the unified saga log (ADR-013).
@@ -460,7 +476,7 @@ Wave 2 — "Analytics & Chaos".
 
 ### Added
 - `sagaz.testing.ChaosMonkey` (ADR-017): seeded fault injection for saga steps — random failures, timeouts and latency, optionally limited to `target_steps` (#79).
-- `sagaz[analytics]` extra (ADR-036): Bronze → Silver → Gold DuckDB pipeline built on sqldim. `SagaAnalyticsPipeline(storage).run()` reads sagas and steps from any saga storage (read-only); Gold queries cover saga summary, per-step p50/p95/p99 latency and error rate, compensations and lifecycle milestones (#74, #382).
+- `sagaz[analytics]` extra (ADR-043): Bronze → Silver → Gold DuckDB pipeline built on sqldim. `SagaAnalyticsPipeline(storage).run()` reads sagas and steps from any saga storage (read-only); Gold queries cover saga summary, per-step p50/p95/p99 latency and error rate, compensations and lifecycle milestones (#74, #382).
 - `sagaz[visualization]` / `sagaz[monitor]` extras (ADR-035): `sagaz monitor` serves a dashboard with run list and detail, runtime-state diagrams, per-run and global SSE streams, metrics summary and step explorer; REST API under `/api/v1` and the `/api/sagas`, `/api/metrics/summary` paths (#374, #383).
 - Monitor analytics reports at `/api/v1/analytics/{summary,step-latency,compensations,lifecycle}`, enabled with `sagaz monitor --storage-url` or `SAGAZ_STORAGE_URL` (#382).
 - Mermaid is served by the monitor from a SHA-384-verified local cache; browsers never contact a CDN (#374).
@@ -935,4 +951,4 @@ See Git history for versions prior to 0.9.0.
 
 **Questions or issues?** Open an issue on GitHub or contact the maintainers.
 
-**Want to contribute?** See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+**Want to contribute?** See [CONTRIBUTING.md](contributing.md) for guidelines.

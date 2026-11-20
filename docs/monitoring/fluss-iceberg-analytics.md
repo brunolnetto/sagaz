@@ -1,6 +1,6 @@
 # Streaming and Historical Analytics: Fluss and Iceberg
 
-The embedded pipeline (`SagaAnalyticsPipeline`, ADR-036) analyzes a saga log
+The embedded pipeline (`SagaAnalyticsPipeline`, ADR-043) analyzes a saga log
 from a single process. For every service writing to one log, with history kept
 for months, sagaz exports the unified saga log (ADR-041) to
 [Apache Fluss](https://fluss.apache.org/), and Fluss tiers it to

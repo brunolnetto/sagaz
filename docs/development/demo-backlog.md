@@ -135,14 +135,14 @@ async def test_otel_sends_to_collector():
 
 ## How to Add a Demo
 
-1. **Create issue** using [demo.md template](.github/ISSUE_TEMPLATE/demo.md)
+1. **Create issue** using [demo.md template](../../.github/ISSUE_TEMPLATE/demo.md)
    ```bash
    gh issue create --template=demo.md \
      --title "demo: [domain] [pattern]" \
      --label "demo:roadmap"
    ```
 
-2. **Implement** following [demo-module-template.md](docs/development/demo-module-template.md)
+2. **Implement** following [demo-module-template.md](demo-module-template.md)
    ```
    sagaz/demonstrations/[domain]/[pattern]/main.py    # Demo impl
    tests/unit/demonstrations/[domain]/test_[pattern].py  # Tests (100% coverage)
@@ -208,10 +208,10 @@ ruff check sagaz/demonstrations/
 
 ## Related Documents
 
-- **Template:** [docs/development/demo-module-template.md](docs/development/demo-module-template.md)
-- **Issue Template:** [.github/ISSUE_TEMPLATE/demo.md](.github/ISSUE_TEMPLATE/demo.md)
-- **Inventory Script:** [scripts/inventory_demos.py](scripts/inventory_demos.py)
-- **Feature Roadmap:** [docs/ROADMAP.md](docs/ROADMAP.md)
+- **Template:** [docs/development/demo-module-template.md](demo-module-template.md)
+- **Issue Template:** [.github/ISSUE_TEMPLATE/demo.md](../../.github/ISSUE_TEMPLATE/demo.md)
+- **Inventory Script:** [scripts/inventory_demos.py](../../scripts/inventory_demos.py)
+- **Feature Roadmap:** [docs/ROADMAP.md](../ROADMAP.md)
 
 ---
 
