@@ -64,6 +64,12 @@ CATALOG = {
     "s3.force-virtual-addressing": "false",
 }
 SAGAS = int(os.environ.get("SAGAZ_LAKEHOUSE_SAGAS", "1000"))
+# cursor: a SQLite log read with SagaLogReader; cdc: a PostgreSQL log (the compose's
+# catalog server, wal_level=logical) read with SagaLogCDCReader (#495).
+READER = os.environ.get("SAGAZ_LAKEHOUSE_READER", "cursor")
+PG_ADMIN = os.environ.get(
+    "SAGAZ_LAKEHOUSE_PG", "postgresql://iceberg:iceberg@localhost:15433/iceberg"
+)
 RATE = float(os.environ.get("SAGAZ_LAKEHOUSE_RATE", "20"))  # sagas per second, latency phase
 TABLE = f"sagaz.saga_log_e2e_{int(time.time())}"  # a fresh table per run
 
@@ -79,9 +85,11 @@ class TimingSink(FlussSink):
         super().__init__(*args, **kwargs)
         self.latencies: list[float] = []
         self.measure = True
+        self.exported_ids: set[str] = set()
 
     async def write(self, events) -> None:
         await super().write(events)
+        self.exported_ids.update(e.event.event_id for e in events)
         if self.measure:
             now = datetime.now(UTC)
             self.latencies += [(now - e.event.occurred_at).total_seconds() for e in events]
@@ -112,15 +120,76 @@ async def run_choreography(log, count: int) -> None:
         await service.settle()
 
 
-async def wait_until_exported(log, exporter: SagaLogExporter, timeout: float = 120) -> None:
+async def logged_events(log) -> list:
+    with system_scope():
+        logged, position = [], None
+        while batch := await log.read_committed(position, 1000):
+            logged += batch.events
+            position = batch.position
+    return logged
+
+
+async def wait_until_exported(
+    log, sink: TimingSink, exporter: SagaLogExporter, timeout: float = 120
+) -> None:
+    """Until every committed event of the log reached the sink (any reader)."""
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        with system_scope():
-            pending = await log.read_committed(exporter.reader.position, 1)
-        if not pending.events:
+        ids = {e.event.event_id for e in await logged_events(log)}
+        if ids <= sink.exported_ids:
             return
-        await asyncio.sleep(0.2)
+        await asyncio.sleep(0.5)
     pytest.fail(f"exporter did not catch up: {exporter.metrics()}")
+
+
+async def open_log(path: str):
+    """The log, and the reader, of this run's mode."""
+    if READER == "cursor":
+        log = SQLiteSagaLogStore(path)
+        return log, SagaLogReader(log, "e2e"), None
+    from urllib.parse import urlsplit, urlunsplit
+
+    import asyncpg
+
+    from sagaz.core.storage.saga_log.postgresql import PostgreSQLSagaLogStore
+    from sagaz.integrations.cdc.saga_log import SagaLogCDCReader
+
+    name = f"sagaz_e2e_{int(time.time())}"
+    admin = await asyncpg.connect(PG_ADMIN)
+    try:
+        await admin.execute(f"CREATE DATABASE {name}")
+    finally:
+        await admin.close()
+    dsn = urlunsplit(urlsplit(PG_ADMIN)._replace(path=f"/{name}"))
+    log = PostgreSQLSagaLogStore(dsn)
+    reader = SagaLogCDCReader(log, dsn, name=name, idle_timeout=0.2)
+    await reader.read()  # create the slot first: earlier commits are not streamed
+    return log, reader, name
+
+
+async def drop_database(name: str | None) -> None:
+    if name is None:
+        return
+    import asyncpg
+
+    admin = await asyncpg.connect(PG_ADMIN)
+    try:
+        # A closed reader's walsender releases its slot shortly after it disconnects.
+        for _ in range(60):
+            active = await admin.fetchval(
+                "SELECT count(*) FROM pg_replication_slots WHERE database = $1 AND active", name
+            )
+            if not active:
+                break
+            await asyncio.sleep(0.5)
+        await admin.execute(
+            "SELECT pg_drop_replication_slot(slot_name) FROM pg_replication_slots"
+            " WHERE database = $1",
+            name,
+        )
+        await admin.execute(f"DROP DATABASE {name} WITH (FORCE)")
+    finally:
+        await admin.close()
 
 
 def wait_for_tiering(expected: int, timeout: float = 180) -> list[dict]:
@@ -143,45 +212,51 @@ def scenario(tmp_path_factory):
     path = str(tmp_path_factory.mktemp("lakehouse") / "log.db")
 
     async def run() -> dict:
-        async with SQLiteSagaLogStore(path) as log:
-            sink = TimingSink(BOOTSTRAP, TABLE, freshness="10s", timeout=5)
-            exporter = SagaLogExporter(
-                SagaLogReader(log, "e2e"), sink, poll_interval=0.05, max_backoff=2
-            )
-            await exporter.start()
-            # Warm up: the first write creates the table and the day's partition.
-            sink.measure = False
-            await run_sagas(log, 1, offset=SAGAS)
-            await wait_until_exported(log, exporter)
-            # Latency at a steady rate, without an outage.
-            sink.measure = True
-            await run_sagas(log, SAGAS // 2, rate=RATE)
-            await wait_until_exported(log, exporter)
-            latencies = list(sink.latencies)
-            # No loss: Fluss's tablet server goes away mid-load.
-            sink.measure = False
-            await run_sagas(log, SAGAS // 4, offset=SAGAS // 2)
-            compose("stop", "tablet-server")
-            await run_sagas(log, SAGAS // 4, offset=SAGAS * 3 // 4)
-            await run_choreography(log, 30)
-            await asyncio.sleep(5)
-            compose("start", "tablet-server")
-            await wait_until_exported(log, exporter, timeout=300)
-            errors = exporter.errors
-            await exporter.close()
-            with system_scope():
-                logged = []
-                position = None
-                while batch := await log.read_committed(position, 1000):
-                    logged += batch.events
-                    position = batch.position
-            (embedded,) = (await reports(log, "FLOW_SUMMARY")).values()
-            return {
-                "latencies": latencies,
-                "errors": errors,
-                "logged": logged,
-                "embedded": embedded,
-            }
+        log, reader, database = await open_log(path)
+        try:
+            return await scenario_on(log, reader)
+        finally:
+            await log.close()
+            await drop_database(database)
+
+    async def scenario_on(log, reader) -> dict:
+        sink = TimingSink(BOOTSTRAP, TABLE, freshness="10s", timeout=5)
+        exporter = SagaLogExporter(reader, sink, poll_interval=0.05, max_backoff=2)
+        try:
+            return await steps(log, sink, exporter)
+        finally:
+            await exporter.close()  # also stops a CDC reader, releasing its slot
+
+    async def steps(log, sink: TimingSink, exporter: SagaLogExporter) -> dict:
+        await exporter.start()
+        # Warm up: the first write creates the table and the day's partition.
+        sink.measure = False
+        await run_sagas(log, 1, offset=SAGAS)
+        await wait_until_exported(log, sink, exporter)
+        # Latency at a steady rate, without an outage.
+        sink.measure = True
+        await run_sagas(log, SAGAS // 2, rate=RATE)
+        await wait_until_exported(log, sink, exporter)
+        latencies = list(sink.latencies)
+        # No loss: Fluss's tablet server goes away mid-load.
+        sink.measure = False
+        await run_sagas(log, SAGAS // 4, offset=SAGAS // 2)
+        compose("stop", "tablet-server")
+        await run_sagas(log, SAGAS // 4, offset=SAGAS * 3 // 4)
+        await run_choreography(log, 30)
+        await asyncio.sleep(5)
+        compose("start", "tablet-server")
+        await wait_until_exported(log, sink, exporter, timeout=300)
+        errors = exporter.errors
+        await exporter.stop()
+        logged = await logged_events(log)
+        (embedded,) = (await reports(log, "FLOW_SUMMARY")).values()
+        return {
+            "latencies": latencies,
+            "errors": errors,
+            "logged": logged,
+            "embedded": embedded,
+        }
 
     result = asyncio.run(run())
     result["iceberg"] = wait_for_tiering(len(result["logged"]))

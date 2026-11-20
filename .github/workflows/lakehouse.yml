@@ -29,9 +29,15 @@ env:
 
 jobs:
   gates:
-    name: Lakehouse release gates
+    name: Lakehouse release gates (${{ matrix.reader }})
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        # cursor: a SQLite log polled with SagaLogReader;
+        # cdc: a PostgreSQL log streamed through logical replication (#495).
+        reader: [cursor, cdc]
     defaults:
       run:
         working-directory: sagaz/deployment/resources/local/lakehouse
@@ -45,7 +51,7 @@ jobs:
           python-version: "3.12"  # pyfluss 1.0 ships wheels up to 3.12
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.3.3
+        uses: astral-sh/setup-uv@v10.4.0
         with:
           version: "0.13.9"
           enable-cache: true
@@ -53,7 +59,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: .
-        run: uv sync --python 3.12 --group dev --extra analytics --extra fluss --extra iceberg
+        run: uv sync --python 3.12 --group dev --extra analytics --extra fluss --extra iceberg --extra cdc
 
       - name: Start the lakehouse
         run: |
@@ -74,6 +80,7 @@ jobs:
         env:
           SAGAZ_TEST_LAKEHOUSE: "1"
           SAGAZ_LAKEHOUSE_SAGAS: "1000"
+          SAGAZ_LAKEHOUSE_READER: ${{ matrix.reader }}
         run: uv run pytest tests/integration/test_lakehouse_e2e.py -v -s --tb=short -p no:randomly
 
       - name: Service logs

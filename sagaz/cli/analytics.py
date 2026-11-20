@@ -40,6 +40,19 @@ def _serve(collector: Any, port: int, host: str) -> None:
     start_http_server(port, addr=host, registry=registry)
 
 
+def _reader(log: Any, log_url: str, name: str, cdc: bool, cdc_dsn: str | None) -> Any:
+    from sagaz.core.storage.saga_log import SagaLogReader
+
+    if not cdc:
+        return SagaLogReader(log, name)
+    if not log_url.startswith(("postgresql://", "postgres://")):
+        msg = "CDC reads a PostgreSQL saga log: use a postgresql:// --saga-log"
+        raise click.BadParameter(msg, param_hint="--cdc")
+    from sagaz.integrations.cdc.saga_log import SagaLogCDCReader
+
+    return SagaLogCDCReader(log, cdc_dsn or log_url, name=name)
+
+
 async def _export(
     log_url: str,
     sink: Any,
@@ -47,15 +60,17 @@ async def _export(
     once: bool,
     interval: float,
     metrics_port: int | None = None,
+    cdc: bool = False,
+    cdc_dsn: str | None = None,
 ) -> int:
     from sagaz.core.storage.saga_log import (
         SagaLogExporter,
-        SagaLogReader,
         create_saga_log_store,
     )
 
     async with create_saga_log_store(log_url) as log:
-        exporter = SagaLogExporter(SagaLogReader(log, name), sink, poll_interval=interval)
+        reader = _reader(log, log_url, name, cdc, cdc_dsn)
+        exporter = SagaLogExporter(reader, sink, poll_interval=interval)
         try:
             if once:
                 return await exporter.export()
@@ -84,6 +99,10 @@ async def _export(
               help="How far behind the lake may be (a created table), e.g. 1min.")  # fmt: skip
 @click.option("--poll-interval", default=0.5, show_default=True, type=float,
               help="Seconds between polls when running continuously.")  # fmt: skip
+@click.option("--cdc", is_flag=True,
+              help="Stream the log through PostgreSQL logical replication instead of polling.")  # fmt: skip
+@click.option("--cdc-dsn", default=None,
+              help="Replication connection for --cdc (a REPLICATION role); the log URL by default.")  # fmt: skip
 @click.option("--metrics-port", type=int, default=None,
               help="Serve the exporter's Prometheus metrics on this port.")  # fmt: skip
 def export_cmd(
@@ -94,12 +113,16 @@ def export_cmd(
     once: bool,
     freshness: str | None,
     poll_interval: float,
+    cdc: bool,
+    cdc_dsn: str | None,
     metrics_port: int | None,
 ) -> None:
     """Export committed saga log events, at least once, resuming from the cursor."""
     sink = _sink(target, table, freshness)
     try:
-        count = asyncio.run(_export(log_url, sink, name, once, poll_interval, metrics_port))
+        count = asyncio.run(
+            _export(log_url, sink, name, once, poll_interval, metrics_port, cdc, cdc_dsn)
+        )
     except KeyboardInterrupt:  # pragma: no cover - interactive
         return
     click.echo(f"Exported {count} events to {target} ({table}), exporter {name!r}.")
