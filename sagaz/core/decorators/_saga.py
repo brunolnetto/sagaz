@@ -9,6 +9,7 @@ from sagaz.core.decorators._collection import DecoratorCollectionManager
 from sagaz.core.decorators._execution import ExecutionEngine
 from sagaz.core.decorators._ordering import _DecoratorOrderingMixin
 from sagaz.core.decorators._pivot import _DecoratorPivotMixin
+from sagaz.core.decorators._step_chart import _DecoratorStepChartMixin
 from sagaz.core.decorators._steps import (
     OnCompensateHook,
     OnEnterHook,
@@ -65,7 +66,12 @@ class SagaStepDefinition:
     """Region whose workers run this step and its compensation; None = local."""
 
 
-class Saga(_DecoratorPivotMixin, _DecoratorOrderingMixin, _DecoratorVisualizationMixin):
+class Saga(
+    _DecoratorPivotMixin,
+    _DecoratorOrderingMixin,
+    _DecoratorVisualizationMixin,
+    _DecoratorStepChartMixin,
+):
     """
     Base class for declarative saga definitions.
 
@@ -110,7 +116,9 @@ class Saga(_DecoratorPivotMixin, _DecoratorOrderingMixin, _DecoratorVisualizatio
             if hasattr(method, "_trigger_metadata"):
                 TriggerRegistry.register(cls, name, method._trigger_metadata)
 
-    def __init__(self, name: str | None = None, config=None):
+    def __init__(
+        self, name: str | None = None, config=None, *, use_step_statechart: bool | None = None
+    ):
         """
         Initialize the saga.
 
@@ -134,6 +142,8 @@ class Saga(_DecoratorPivotMixin, _DecoratorOrderingMixin, _DecoratorVisualizatio
         Args:
             name: Saga name (required for imperative mode, optional for declarative)
             config: Optional SagaConfig. If not provided, uses global config.
+            use_step_statechart: Run on the step chart (StateChart phase 3, ADR-040).
+                None (default): the class attribute, else ``config.use_step_statechart``.
 
         Note: You cannot mix both approaches. Once you use decorators,
               add_step() will raise an error, and vice versa.
@@ -160,6 +170,7 @@ class Saga(_DecoratorPivotMixin, _DecoratorOrderingMixin, _DecoratorVisualizatio
             from sagaz.core.config import get_config
 
             self._config = get_config()
+        self._init_step_chart(use_step_statechart)
 
         # If no class-level listeners defined, use config listeners
         if self.listeners is None and self._config:

@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-**Last Updated**: 2026-11-11
+**Last Updated**: 2026-11-20
 
 This directory contains Architecture Decision Records (ADRs) documenting significant technical decisions for Sagaz.
 
@@ -10,7 +10,10 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 
 | ADR | Title | Version | Date |
 |-----|-------|---------|------|
+| [ADR-011](adr-011-cdc-support.md) | CDC Support (PostgreSQL logical replication, Debezium) | v1.9.0 | 2026-11 |
 | [ADR-012](adr-012-synchronous-orchestration-model.md) | Synchronous Orchestration Model | v1.0.0 | 2024-12 |
+| [ADR-013](adr-013-fluss-iceberg-analytics.md) | Fluss + Iceberg Analytics on the Unified Saga Log | v2.2.0 | 2026-11 |
+| [ADR-014](adr-014-schema-registry.md) | Schema Registry (Avro, JSON Schema) | v2.3.0 | 2026-11 |
 | [ADR-015](adr-015-unified-saga-api.md) | Unified Saga API | v1.0.3 | 2024-12 |
 | [ADR-016](adr-016-unified-storage-layer.md) | Unified Storage Layer | v1.2.0 | 2026-01 |
 | [ADR-017](adr-017-chaos-engineering.md) | Chaos Engineering | v1.4.0 | 2026-04 |
@@ -25,46 +28,31 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-026](adr-026-industry-examples-expansion.md) | Industry Examples Expansion | v1.4-1.6 | 2026-01 |
 | [ADR-027](adr-027-project-cli.md) | Project CLI | v1.3.0 | 2026-01 |
 | [ADR-028](adr-028-framework-integration.md) | Framework Integration (FastAPI/Django/Flask) | v1.3.0 | 2026-01 |
+| [ADR-029](adr-029-saga-choreography.md) | Saga Choreography Pattern | v1.10.0 | 2026-11 |
 | [ADR-030](adr-030-dry-run-parallel-analysis.md) | Dry-Run Parallel Analysis | v1.3.0 | 2026-01 |
 | [ADR-031](adr-031-dry-run-simplification.md) | Dry-Run Simplification | v1.3.0 | 2026-01 |
 | [ADR-032](adr-032-cli-command-organization.md) | CLI Command Organization | v1.3.0 | 2026-01 |
+| [ADR-033](adr-033-event-sourcing-integration.md) | Event Sourcing Integration | v2.0.0 | 2026-11 |
+| [ADR-034](adr-034-multi-region-coordination.md) | Multi-Region Coordination | v2.0.0 | 2026-11 |
+| [ADR-035](adr-035-saga-visualization-ui.md) | Saga Visualization UI (`sagaz monitor`) | v1.8.0 | 2026-11 |
 | [ADR-036](adr-036-lifecycle-hooks-observers.md) | Lifecycle Hooks & Observers | v1.3.0 | 2026-04 |
 | [ADR-037](adr-037-compliance-data-governance.md) | Compliance & Data Governance | v2.1.0 | 2026-04 |
-| [ADR-040](adr-040-statechart-saga-lifecycle.md) | StateChart Saga Lifecycle (Phase 1) | v1.7.0 | 2026-11 |
+| [ADR-038](adr-038-dlq-observability.md) | DLQ Observability (error classification, replay validation) | v1.3.0 | 2026-04 |
+| [ADR-039](adr-039-gradio-ui-monitor.md) | Gradio Saga Asset Monitor | v2.3.0 | 2026-11 |
+| [ADR-040](adr-040-statechart-saga-lifecycle.md) | StateChart Saga Lifecycle (Phases 1 to 3) | v1.7.0, v2.3.0 | 2026-11 |
+| [ADR-041](adr-041-unified-saga-log.md) | Unified Saga Log | v2.1.0 | 2026-11 |
+| [ADR-042](adr-042-environment-variable-management.md) | Environment Variable Management (`.env`) | v1.1.1 | 2026-01 |
+| [ADR-043](adr-043-sqldim-analytics-pipeline.md) | sqldim Analytics Pipeline | v1.8.0 | 2026-11 |
+
+ADR-040 covers phase 1 (flat lifecycle, v1.7.0) and, in v2.3.0, phases 2 (step charts
+and compensation re-entry, [#190](https://github.com/brunolnetto/sagaz/issues/190)) and 3
+(the declarative engine and pivot/taint states, [#522](https://github.com/brunolnetto/sagaz/issues/522)).
 
 ---
 
 ## 📋 Proposed (Future Releases)
 
-### High Priority
-
-| ADR | Title | Target | Description |
-|-----|-------|--------|-------------|
-| [ADR-029](adr-029-saga-choreography.md) | Saga Choreography Pattern | v1.10.0 | Event-driven distributed coordination (implemented) |
-| [ADR-041](adr-041-unified-saga-log.md) | Unified Saga Log | v2.1.0 | One OLTP model (shared, append-only saga log) for orchestrated and choreographed sagas; shareable across services |
-| [ADR-039](adr-039-gradio-ui-monitor.md) | Gradio-Based Saga Asset Monitor | v1.7.0 | Python-native monitoring UI for development |
-
-### Medium / Low Priority
-
-| ADR | Title | Target | Description |
-|-----|-------|--------|-------------|
-### Low Priority / Future
-
-| ADR | Title | Target | Description |
-|-----|-------|--------|-------------|
-| [ADR-011](adr-011-cdc-support.md) | CDC Support | v1.9.0 | Outbox CDC via PostgreSQL logical replication or Debezium (implemented) |
-| [ADR-013](adr-013-fluss-iceberg-analytics.md) | Fluss Analytics | v2.2.0 | Exports the unified saga log to Fluss at least once (idempotent PK table); Fluss tiers it to Iceberg |
-| [ADR-033](adr-033-event-sourcing-integration.md) | Event Sourcing Integration | v2.0.0 | Opt-in event-sourced storage strategy for full audit trail (implemented) |
-| [ADR-034](adr-034-multi-region-coordination.md) | Multi-Region Coordination | v2.0.0 | Cross-region step routing with data residency and same-jurisdiction failover (implemented) |
-| [ADR-035](adr-035-saga-visualization-ui.md) | Saga Visualization UI | v2.0.0 | Browser-based live saga monitoring dashboard |
-
----
-
-## ⏸️ Deferred
-
-| ADR | Title | Reason |
-|-----|-------|--------|
-| [ADR-014](adr-014-schema-registry.md) | Schema Registry | Optional for single-language setups, needed for polyglot/multi-team |
+None at the moment.
 
 ---
 

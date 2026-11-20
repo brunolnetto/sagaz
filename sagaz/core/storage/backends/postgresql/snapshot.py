@@ -33,6 +33,15 @@ except ImportError:
     asyncpg = None
 
 
+def _configuration(row) -> list[str]:
+    """The stored configuration; empty for older rows (the snapshot falls back to [status])."""
+    keys = row.keys() if hasattr(row, "keys") else ()
+    value = row["configuration"] if "configuration" in keys else None
+    if value is None:
+        return []
+    return json.loads(value) if isinstance(value, str) else list(value)
+
+
 class PostgreSQLSnapshotStorage(_PostgreSQLReplayLogMixin, SnapshotStorage):
     """
     PostgreSQL implementation of snapshot storage
@@ -107,16 +116,18 @@ class PostgreSQLSnapshotStorage(_PostgreSQLReplayLogMixin, SnapshotStorage):
                 """
                 INSERT INTO saga_snapshots (
                     snapshot_id, saga_id, saga_name, step_name, step_index,
-                    status, context, completed_steps, created_at, retention_until
+                    status, context, completed_steps, created_at, retention_until,
+                    configuration
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
                 ON CONFLICT (saga_id, step_name, created_at) DO UPDATE
                 SET
                     snapshot_id = EXCLUDED.snapshot_id,
                     status = EXCLUDED.status,
                     context = EXCLUDED.context,
                     completed_steps = EXCLUDED.completed_steps,
-                    retention_until = EXCLUDED.retention_until
+                    retention_until = EXCLUDED.retention_until,
+                    configuration = EXCLUDED.configuration
                 """,
                 snapshot.snapshot_id,
                 snapshot.saga_id,
@@ -128,6 +139,7 @@ class PostgreSQLSnapshotStorage(_PostgreSQLReplayLogMixin, SnapshotStorage):
                 json.dumps(snapshot.completed_steps),
                 snapshot.created_at,
                 snapshot.retention_until,
+                json.dumps([getattr(state, "value", state) for state in snapshot.configuration]),
             )
 
     async def get_snapshot(self, snapshot_id: UUID) -> SagaSnapshot | None:
@@ -138,7 +150,7 @@ class PostgreSQLSnapshotStorage(_PostgreSQLReplayLogMixin, SnapshotStorage):
             row = await conn.fetchrow(
                 """
                 SELECT snapshot_id, saga_id, saga_name, step_name, step_index,
-                       status, context, completed_steps, created_at, retention_until
+                       status, context, completed_steps, created_at, retention_until, configuration
                 FROM saga_snapshots
                 WHERE snapshot_id = $1
                 """,
@@ -161,7 +173,7 @@ class PostgreSQLSnapshotStorage(_PostgreSQLReplayLogMixin, SnapshotStorage):
                 row = await conn.fetchrow(
                     """
                     SELECT snapshot_id, saga_id, saga_name, step_name, step_index,
-                           status, context, completed_steps, created_at, retention_until
+                           status, context, completed_steps, created_at, retention_until, configuration
                     FROM saga_snapshots
                     WHERE saga_id = $1 AND step_name = $2
                     ORDER BY created_at DESC
@@ -174,7 +186,7 @@ class PostgreSQLSnapshotStorage(_PostgreSQLReplayLogMixin, SnapshotStorage):
                 row = await conn.fetchrow(
                     """
                     SELECT snapshot_id, saga_id, saga_name, step_name, step_index,
-                           status, context, completed_steps, created_at, retention_until
+                           status, context, completed_steps, created_at, retention_until, configuration
                     FROM saga_snapshots
                     WHERE saga_id = $1
                     ORDER BY created_at DESC
@@ -196,7 +208,7 @@ class PostgreSQLSnapshotStorage(_PostgreSQLReplayLogMixin, SnapshotStorage):
             row = await conn.fetchrow(
                 """
                 SELECT snapshot_id, saga_id, saga_name, step_name, step_index,
-                       status, context, completed_steps, created_at, retention_until
+                       status, context, completed_steps, created_at, retention_until, configuration
                 FROM saga_snapshots
                 WHERE saga_id = $1 AND created_at <= $2
                 ORDER BY created_at DESC
@@ -219,7 +231,7 @@ class PostgreSQLSnapshotStorage(_PostgreSQLReplayLogMixin, SnapshotStorage):
             rows = await conn.fetch(
                 """
                 SELECT snapshot_id, saga_id, saga_name, step_name, step_index,
-                       status, context, completed_steps, created_at, retention_until
+                       status, context, completed_steps, created_at, retention_until, configuration
                 FROM saga_snapshots
                 WHERE saga_id = $1
                 ORDER BY created_at DESC
@@ -283,6 +295,7 @@ class PostgreSQLSnapshotStorage(_PostgreSQLReplayLogMixin, SnapshotStorage):
             else row["completed_steps"],
             created_at=row["created_at"],
             retention_until=row["retention_until"],
+            configuration=_configuration(row),
         )
 
     async def close(self) -> None:

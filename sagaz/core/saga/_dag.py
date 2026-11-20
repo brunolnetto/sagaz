@@ -164,6 +164,7 @@ class DAGExecutor:
                 batch_error = await self._execute_batch(batch_idx, batch, step_map, strategy)
 
                 if batch_error:
+                    await self.saga._fail_running_steps(batch)  # cancelled by the strategy
                     await self.saga._compensate_all()
                     return self._build_dag_result(
                         start_time, success=False, status=SagaStatus.ROLLED_BACK, error=batch_error
@@ -201,7 +202,7 @@ class DAGExecutor:
         logger.info(f"Executing batch {batch_idx + 1}/{len(self.saga.execution_batches)}: {batch}")
 
         batch_executors = [
-            _StepExecutor(step_map[step_name], self.saga.context) for step_name in batch
+            _StepExecutor(step_map[step_name], self.saga.context, self.saga) for step_name in batch
         ]
 
         try:

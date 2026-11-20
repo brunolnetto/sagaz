@@ -1,4 +1,4 @@
-# ADR-040: StateChart for the Saga Lifecycle (Phase 1)
+# ADR-040: StateChart for the Saga Lifecycle (Phases 1 to 3)
 
 ## Status
 
@@ -7,7 +7,8 @@
 - Initial implementation: v1.7.0 (PR #363)
 - Dependency security floor: `python-statemachine>=3.2.0` (PR #365)
 - Phase 1 completion evidence and regression hardening: v1.7.1
-- Follow-up: Phase 2 remains separately scoped in issue #190
+- Phase 2 (opt-in step regions and compensation re-entry): v2.3.0, issue #190. See "Phase 2" below.
+- Phase 3 (the declarative engine, pivot/taint states): v2.3.0, issue #522. See "Phase 3" below.
 
 ## Context
 
@@ -103,6 +104,17 @@ Snapshots include the serializable configuration. Deserializing a historical
 snapshot without that field falls back to `[status]`. This keeps older snapshot
 payloads readable without pretending they contain hierarchical state.
 
+### 5a. Final state agrees with the result (v2.3.0, #517)
+
+The saga machine's final state matches the result's status on every failure path:
+
+- **Nothing to undo:** a failure before any step completed ends in `rolled_back`
+  through `nothing_to_compensate` (`executing → rolled_back`), as the result says.
+- **DAG failures:** the DAG mode ends in `rolled_back` when every compensation succeeded,
+  and in `failed` (`compensation_failed`) when one did not.
+- **PostgreSQL snapshots:** they store `configuration` in a JSONB column, added in place to
+  existing tables. Rows written before have none and fall back to `[status]`.
+
 ### 6. Keep runtime state out of SagaContext
 
 `SagaContext` remains a domain data and metadata container. It is not attached
@@ -147,13 +159,158 @@ than being written implicitly into domain context.
    SagaContext is not a state-bearing model and should not acquire runtime state
    implicitly.
 
-## Phase 2 Boundary
+## Phase 2 (v2.3.0, #190)
 
-Compound and parallel regions, step-level StateChart topology, `invoke`,
-`DoneData`, `HistoryState`, restart/re-entry semantics, and migration of nested
-configurations are not part of this decision's Phase 1 implementation. They
-remain deferred to [issue #190](https://github.com/brunolnetto/sagaz/issues/190)
-and require a separate design and compatibility review.
+### Scope
+
+The phase 1 contract stays. Phase 2 adds, behind `Saga(use_step_statechart=True)` or
+`SagaConfig.use_step_statechart`:
+
+- **One chart region per step**, so the configuration says where every step is.
+- **Compensation re-entry** from a persisted configuration.
+
+With the flag off, nothing changes: the flat `SagaStateMachine` runs, as in phase 1.
+Phase 2 covers the imperative `Saga`. The declarative engine
+(`sagaz.core.decorators`) has no state machine at all, so it is left to a phase 3.
+
+### Topology
+
+```
+pending                                  (initial)
+active (parallel)
+├── lifecycle: executing ─fail→ compensating
+└── steps (parallel)
+    └── step/<name>: pending → executing → completed → compensating → compensated
+                                   ↘ failed               ↘ compensation_failed
+                     pending → completed (adopt: replayed or idempotent steps)
+completed | rolled_back | failed         (final)
+```
+
+- **Orthogonal regions:** the lifecycle and the steps are separate regions. Moving to
+  `compensating` leaves each step region where it was, completed or failed.
+- **Saga events:** they are phase 1's, with the same guards and the same four runtime
+  flags, which are verified with nested states.
+- **Step events:** `s<i>__start|succeed|fail|adopt|compensate|compensated|compensation_failed`.
+- **Persisted values:** `step/<percent-encoded name>[/<sub-state>]`, which is injective
+  for any step name.
+- **The configuration:**
+  - it is reported in document order;
+  - it is nested only while the saga runs, and flat once it ends (`['rolled_back']`);
+  - the scalar `status`, `current_state` (the lifecycle state's name) and the storage
+    status are unchanged.
+- **DAG sagas:** they use the same `steps` parallel state. Steps still executing when a
+  batch fails (cancelled by the strategy) end in `failed`.
+- **Chart classes:** one is built per tuple of step names and cached
+  (`build_step_statechart`).
+
+### Executor hooks
+
+The existing execution points send the step events, so the executor keeps ownership of
+retries, timeouts, parallel strategies and errors:
+
+- **Sequential and DAG step execution:** start, succeed and fail.
+- **Compensation:** compensate, compensated and compensation_failed.
+- **Skipped steps:** adopt, for steps a snapshot replay or idempotency skips.
+- **Checkpoints:** with the flag on and snapshots enabled, a snapshot is also captured
+  after each compensated step, which is the checkpoint compensation resumes from.
+
+### Re-entry guarantee
+
+There is no crash recovery of a running saga in Sagaz. Phase 2 guarantees this instead:
+**from a persisted configuration and the ordered completed steps, a new `Saga` with the
+same step definitions finishes the compensation in reverse completion order, and does not
+run again the compensations that succeeded.**
+
+- **`restore_state(configuration, completed_steps)`:**
+  - it validates the configuration against the chart, rejecting a missing lifecycle
+    state, a step in zero or two states, or a foreign value; the library itself accepts
+    any set of states;
+  - it binds the configuration without running callbacks.
+- **`pending_compensations()`:** the steps left to undo, in order.
+- **`in_doubt_steps()`:** steps that were `executing`, so whether their action took
+  effect is unknown. They are reported, never compensated automatically.
+- **`resume_compensation()`:** enters `compensating` if needed, compensates the pending
+  steps and ends in `rolled_back` or `failed`.
+- **Idempotent compensations:** a step restored in `compensating` has its compensation
+  run again, so compensations must be idempotent.
+- **Forward re-execution:** stays with `SagaReplay`.
+
+### Not adopted from the issue
+
+- **`invoke`:** it would move step execution into the chart engine, against the
+  executor's ownership and `catch_errors_as_events=False`.
+- **`DoneData`:** results already flow through `SagaContext`.
+- **`HistoryState`:** the orthogonal step regions keep their state through compensation,
+  and re-entry comes from a validated restored configuration.
+- **Automatic `done.state` transitions:** the executor keeps explicit control.
+- **The declarative engine, and pivot/taint states:** they come in phase 3, below.
+
+`python-statemachine` is pinned below 4, because the chart is built with its
+`NestedStateFactory`.
+
+## Phase 3 (v2.3.0, #522)
+
+### Pivot and taint states in the chart
+
+Pivots (ADR-023) were enforced only by the declarative engine's compensation loop. The
+chart now encodes them:
+
+- **`tainted` step state:** a completed step becomes `tainted` (`s<i>__taint`) once a pivot
+  that depends on it completes. `tainted` has no `compensate` transition.
+- **Pivot regions:** a pivot step's region has no compensation states and no `compensate`
+  transition. A completed pivot is a point of no return in the chart itself.
+- **Building:** `build_step_statechart(step_names, pivots)` builds and caches one class per
+  steps-and-pivots pair.
+- **What the chart enforces:** compensating a tainted or pivot step raises
+  `TransitionNotAllowed`, whatever the executor does.
+
+### The declarative engine
+
+`sagaz.core.decorators.Saga` gets the same opt-in. It can come from
+`Saga(use_step_statechart=True)`, a `use_step_statechart = True` class attribute, or
+`SagaConfig.use_step_statechart`. The engine hosts the chart, and its existing points send
+the events:
+
+- **Steps:** start, succeed and fail.
+- **Pivots:** taint for the ancestors a completed pivot taints.
+- **Compensation:** compensate, then compensated or compensation_failed.
+- **Lifecycle:**
+  - `succeed` when the saga succeeds;
+  - `fail`, or `nothing_to_compensate`, when it fails;
+  - `finish_compensation` or `compensation_failed` when compensation ends.
+
+The configuration is stored with the saga state (`save_saga_state(configuration=...)`). With
+the flag on, it is also stored as `COMPENSATING` after each compensated step: that is the
+checkpoint. `state_configuration`, `get_step_states()` and `in_doubt_steps()` report on the
+last run.
+
+**Re-entry:** `await saga.resume_compensation(saga_id)` loads the stored state from
+`SagaConfig.storage` and works as follows:
+
+- it validates the configuration and binds it without callbacks;
+- it restores the context, step records and pivot/taint bookkeeping;
+- it compensates the steps still `completed` or `compensating`, in the compensation graph's
+  order (compensations must be idempotent);
+- it leaves tainted and pivot steps alone, and only logs the steps that were `executing`;
+- it records the outcome in the event log when the saga is event-sourced, stores the final
+  state, and returns `ROLLED_BACK` or `FAILED`.
+
+The declarative engine compensates in dependency order, not completion order, so it needs
+no list of completed steps.
+
+### Fix
+
+The declarative engine stored `ROLLED_BACK` even when a compensation failed, while its event
+log recorded `SagaFailed`. It now stores `FAILED`, with or without the flag.
+
+### Still out of scope
+
+- **A `PARTIALLY_COMMITTED` final state:** a saga that fails after a pivot still ends
+  `rolled_back`; its tainted and pivot steps are the record of the partial commit. Making
+  it a chart final state would change the stored statuses that dashboards and analytics
+  read.
+- **Forward recovery handlers:** `@forward_recovery` handlers are collected but not run
+  by the engine. Running them is its own feature.
 
 ## References
 
@@ -161,5 +318,6 @@ and require a separate design and compatibility review.
 - [PR #363 — StateChart Phase 1 implementation](https://github.com/brunolnetto/sagaz/pull/363)
 - [PR #365 — python-statemachine security upgrade](https://github.com/brunolnetto/sagaz/pull/365)
 - [Issue #190 — StateChart Phase 2](https://github.com/brunolnetto/sagaz/issues/190)
+- [Guide: step charts](../../guides/step-statechart.md)
 - [python-statemachine: Behaviour](https://python-statemachine.readthedocs.io/en/latest/behaviour.html)
 - [python-statemachine: Upgrading from 2.x to 3.0](https://python-statemachine.readthedocs.io/en/stable/releases/upgrade_2x_to_3.html)

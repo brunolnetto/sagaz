@@ -12,10 +12,13 @@ Usage:
 
 from __future__ import annotations
 
+import importlib.util
 import logging
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any
+
+from sagaz.core.exceptions import MissingDependencyError
 
 logger = logging.getLogger("sagaz.demonstrations.utils.service_manager")
 
@@ -45,6 +48,9 @@ def ServiceManager(*, postgres: bool = False, redis: bool = False):
         with ServiceManager(postgres=True, redis=True) as svc:
             await run(svc.postgres_url, svc.redis_url)
     """
+    if (postgres or redis) and importlib.util.find_spec("testcontainers") is None:
+        msg = "testcontainers"
+        raise MissingDependencyError(msg, "Demonstrations with containers")
     containers: list[Any] = []
     urls = ServiceURLs()
 

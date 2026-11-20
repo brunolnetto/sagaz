@@ -31,6 +31,7 @@ Wave 4  ─── v1.10.0 ─────── Event-driven choreography      (
 Wave 5  ─── v2.0.0 ──────── Core extensions                (event sourcing, multi-region — released)
 Wave 6  ─── v2.1.0 ─────── Unified saga log                (ADR-041: one OLTP model for both coordination styles)
 Wave 7  ─── v2.2.0 ─────── Streaming & historical analytics (Fluss + Iceberg; reads the unified log)
+Wave 8  ─── v2.3.0 ─────── Maintenance, CDC & ecosystem   (one release: deps, docs, CDC reader, Gradio, schema registry)
 ```
 
 ---
@@ -115,7 +116,7 @@ Wave 7  ─── v2.2.0 ─────── Streaming & historical analytics 
 | PR | Feature | Issue | Merged into `develop` |
 |----|---------|-------|-----------------------|
 | #79 | ChaosMonkey injection (ADR-017) + real-Saga E2E test | #78, #111 | ✅ squash `b856e4e` |
-| #74 | sqldim Bronze→Silver→Gold analytics pipeline (ADR-036) | #73 | ✅ squash `b17e749` |
+| #74 | sqldim Bronze→Silver→Gold analytics pipeline (ADR-043) | #73 | ✅ squash `b17e749` |
 | #374 | Saga visualization monitor (ADR-035) + coverage/test-infra hardening | #58, #113 | ✅ merge `5abb001` |
 | #377 | Demo: `reliability/chaos_patterns` (real ChaosMonkey experiments) | #251 | ✅ squash `6c25baf` |
 | #378 | Demo: `observability/otel_tracing` + `TracingSagaListener` fix | #248 | ✅ squash `e326c34` |
@@ -280,10 +281,27 @@ models and a JSON blob (the stopgap in v2.0.1, #459).
 
 ---
 
-## Blocking Issues Tracker
+## Wave 8 — v2.3.0 "Maintenance, CDC & Ecosystem"
 
-| Issue | Blocks PR | Status | Summary |
-|-------|-----------|--------|---------|
+**GitHub milestone**: [#22](https://github.com/brunolnetto/sagaz/milestone/22)
+**Decided**: 2026-11-20. One release instead of several patch and minor versions. No Python 3.15 for now.
+**Scope**:
+
+| Issue | Feature | Notes |
+|-------|---------|-------|
+| #498 | Dependency updates | Renovate capped below Python 3.15; lakehouse job on 3.12 |
+| #499 | Docs refresh | README, roadmap, ADR statuses and numbering, links |
+| #500 | Test connection leak, SQLite write contention | Report the pyfluss panic upstream |
+| #495 | CDC reader for the saga log export | The cursor reader already meets the v2.2.0 latency gate |
+| #501 | Gradio saga asset monitor (ADR-039) | Revise the ADR for the unified saga log first |
+| #502 | Schema registry for saga events (ADR-014) | Revise the ADR for the unified saga log first |
+| #190 | StateChart phase 2: step charts, compensation re-entry (ADR-040) | Added to the wave on 2026-11-20 |
+| #522 | StateChart phase 3: the declarative engine, pivot/taint states (ADR-040) | Added to the wave on 2026-11-20 |
+| #517 | Saga final state agrees with the result; PostgreSQL snapshots keep the configuration | Found while designing #190 |
+
+**Backlog**: saga forward recovery (`@forward_recovery` handlers, a `PARTIALLY_COMMITTED` final state).
+
+-------|-----------|--------|---------|
 | #102 | #70 | 🔴 Open | `enable_event_sourcing=True` not wired into `Saga.__init__` |
 | #104 | #72 | 🔴 Open | `region=` param absent from `Saga.add_step()` |
 
@@ -368,6 +386,7 @@ ADR-041 unified saga log ──────────────────�
 | v2.0.2  | 5    | Schema DDL hotfix (#469) | Released 2026-11-18 |
 | v2.1.0  | 6    | Unified Saga Log | Released 2026-11-19 |
 | v2.2.0  | 7    | Streaming & Historical Analytics | Released 2026-11-20 |
+| v2.3.0  | 8    | Maintenance, CDC & Ecosystem | Released 2026-11-20 |
 
 ---
 

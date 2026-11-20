@@ -295,7 +295,7 @@ Sagaz v1.0 uses **synchronous orchestration**:
 
 **Accepted** - See [ADR-012: Synchronous Orchestration Model](adr/adr-012-synchronous-orchestration-model.md) for details.
 
-For distributed saga support (steps as separate services), see [Design Doc: Distributed Saga Support](design-distributed-saga-support.md).
+For distributed saga support (steps as separate services), see [Design Doc: Distributed Saga Support](future/design-distributed-saga-support.md).
 
 ---
 

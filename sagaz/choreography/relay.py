@@ -21,6 +21,7 @@ import json
 from typing import Any
 
 from sagaz.choreography.events import AbstractEventBus, Event
+from sagaz.core._poller import Poller
 from sagaz.core.outbox.brokers.base import BaseBroker
 from sagaz.core.outbox.types import OutboxConfig, OutboxEvent
 from sagaz.core.outbox.worker import OutboxWorker
@@ -67,8 +68,8 @@ class ChoreographyRelay:
         outbox: The ``OutboxStorage`` the log writes to (``log.outbox_storage()``).
         bus: The choreography bus to publish on.
         poll_interval: Seconds between polls while running in the background.
-        batch_size: Messages claimed per poll (1 for a SQLite outbox, which
-            cannot take concurrent writers).
+        batch_size: Messages claimed per poll (1 for a ``SQLiteOutboxStorage``
+            on a connection of its own).
         max_retries: Failed publications of a message before it goes to the
             outbox dead letter.
     """
@@ -84,10 +85,12 @@ class ChoreographyRelay:
     ) -> None:
         self.outbox = outbox
         if _single_writer(outbox):
-            # A batch is published concurrently: the handlers' writes (on the
-            # saga log's connection) would interleave with the outbox's status
-            # updates (another connection), and SQLite, with one writer at a
-            # time, answers "database is locked". One message at a time.
+            # A batch is published concurrently: with an outbox on its own SQLite
+            # connection, the handlers' writes (on the saga log's connection) and
+            # the status updates (on this one) compete for SQLite's single write
+            # lock. One message at a time. A saga log's own outbox
+            # (``log.outbox_storage()``) shares the log's connection and lock, and
+            # takes whole batches.
             batch_size = 1
         self.worker = OutboxWorker(
             outbox,
@@ -101,7 +104,7 @@ class ChoreographyRelay:
         )
         self._sent = 0
         self.poll_interval = poll_interval
-        self._task: asyncio.Task[None] | None = None
+        self._poller = Poller(self.relay, poll_interval, name="choreography-relay")
         self._ready = False
 
     async def _ensure_ready(self) -> None:
@@ -136,16 +139,12 @@ class ChoreographyRelay:
 
     async def start(self) -> None:
         """Relay in the background, every ``poll_interval`` seconds."""
-        await self._ensure_ready()  # connect here, never inside the cancellable task
-        if self._task is None or self._task.done():
-            self._task = asyncio.get_running_loop().create_task(self._poll())
+        await self._ensure_ready()  # connect here, never inside the background task
+        self._poller.start()
 
     async def stop(self) -> None:
-        if self._task is not None:
-            self._task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await self._task
-            self._task = None
+        """Stop after the batch in progress, never in the middle of a database call."""
+        await self._poller.stop()
 
     async def close(self) -> None:
         """Stop, and release the outbox storage's connections."""
@@ -154,8 +153,3 @@ class ChoreographyRelay:
         if self._ready and callable(close):
             await close()
         self._ready = False
-
-    async def _poll(self) -> None:
-        while True:
-            await self.relay()
-            await asyncio.sleep(self.poll_interval)

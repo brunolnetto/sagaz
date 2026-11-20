@@ -36,66 +36,16 @@ if TYPE_CHECKING:
     from sagaz.core.saga import Saga
 
 
-class SagaStateMachine(StateChart):
-    """
-    State machine for managing saga lifecycle transitions.
-
-    Provides state management with guards and hooks for saga execution.
-    Supports async callbacks via python-statemachine's native async support.
-
-    States:
-        pending: Initial state, saga not yet started
-        executing: Saga is running steps
-        completed: All steps completed successfully (final)
-        compensating: Running compensation for failed steps
-        rolled_back: All compensations completed (final)
-        failed: Unrecoverable failure (final)
-
-    Events:
-        start: Begin saga execution (pending -> executing)
-        succeed: Saga completed successfully (executing -> completed)
-        fail: Saga failed, begin compensation (executing -> compensating)
-        fail_unrecoverable: Unrecoverable failure (executing -> failed)
-        finish_compensation: Compensation completed (compensating -> rolled_back)
-        compensation_failed: Compensation failed (compensating -> failed)
-
-    Usage:
-        >>> sm = SagaStateMachine(saga_instance)
-        >>> await sm.activate_initial_state()
-        >>>
-        >>> # Start execution
-        >>> await sm.start()
-        >>>
-        >>> # On success
-        >>> await sm.succeed()
-        >>>
-        >>> # On failure with compensation
-        >>> await sm.fail()
-        >>> await sm.finish_compensation()
-    """
+class _SagaChartBase(StateChart):
+    """What every saga chart shares: the runtime contract, the guards and the
+    lifecycle callbacks into the saga. ``SagaStateMachine`` (flat, phase 1) and the
+    step charts of phase 2 (``sagaz.core.execution.step_statechart``) add the states."""
 
     # Preserve the legacy StateMachine 2.x runtime contract.
     allow_event_without_transition = False
     enable_self_transition_entries = False
     atomic_configuration_update = True
     catch_errors_as_events = False
-
-    # Define saga states
-    pending = State("Pending", initial=True)
-    executing = State("Executing")
-    completed = State("Completed", final=True)
-    compensating = State("Compensating")
-    rolled_back = State("RolledBack", final=True)
-    failed = State("Failed", final=True)
-
-    # Define state transitions with conditions
-    # Note: cond is a string method name that returns bool
-    start = pending.to(executing, cond="has_steps")
-    succeed = executing.to(completed)
-    fail = executing.to(compensating, cond="has_completed_steps")
-    fail_unrecoverable = executing.to(failed)
-    finish_compensation = compensating.to(rolled_back)
-    compensation_failed = compensating.to(failed)
 
     def __init__(self, saga: Optional["Saga"] = None, **kwargs):
         """
@@ -172,6 +122,65 @@ class SagaStateMachine(StateChart):
     async def on_fail(self) -> None:
         """Called when fail transition is triggered."""
         # Override in subclass if needed
+
+
+class SagaStateMachine(_SagaChartBase):
+    """
+    State machine for managing saga lifecycle transitions.
+
+    Provides state management with guards and hooks for saga execution.
+    Supports async callbacks via python-statemachine's native async support.
+
+    States:
+        pending: Initial state, saga not yet started
+        executing: Saga is running steps
+        completed: All steps completed successfully (final)
+        compensating: Running compensation for failed steps
+        rolled_back: All compensations completed (final)
+        failed: Unrecoverable failure (final)
+
+    Events:
+        start: Begin saga execution (pending -> executing)
+        succeed: Saga completed successfully (executing -> completed)
+        fail: Saga failed, begin compensation (executing -> compensating)
+        fail_unrecoverable: Unrecoverable failure (executing -> failed)
+        finish_compensation: Compensation completed (compensating -> rolled_back)
+        compensation_failed: Compensation failed (compensating -> failed)
+        nothing_to_compensate: Failed before any step completed (executing -> rolled_back)
+
+    Usage:
+        >>> sm = SagaStateMachine(saga_instance)
+        >>> await sm.activate_initial_state()
+        >>>
+        >>> # Start execution
+        >>> await sm.start()
+        >>>
+        >>> # On success
+        >>> await sm.succeed()
+        >>>
+        >>> # On failure with compensation
+        >>> await sm.fail()
+        >>> await sm.finish_compensation()
+    """
+
+    # Define saga states
+    pending = State("Pending", initial=True)
+    executing = State("Executing")
+    completed = State("Completed", final=True)
+    compensating = State("Compensating")
+    rolled_back = State("RolledBack", final=True)
+    failed = State("Failed", final=True)
+
+    # Define state transitions with conditions
+    # Note: cond is a string method name that returns bool
+    start = pending.to(executing, cond="has_steps")
+    succeed = executing.to(completed)
+    fail = executing.to(compensating, cond="has_completed_steps")
+    fail_unrecoverable = executing.to(failed)
+    finish_compensation = compensating.to(rolled_back)
+    compensation_failed = compensating.to(failed)
+    # A failure before any step completed: nothing to undo (#517).
+    nothing_to_compensate = executing.to(rolled_back)
 
 
 class SagaStepStateMachine(StateChart):

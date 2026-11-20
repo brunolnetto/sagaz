@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 from sagaz.core.decorators._event_sourcing import _EventSourcingMixin
 from sagaz.core.decorators._regions import _RegionRoutingMixin
+from sagaz.core.decorators._step_chart import _EngineStepChartMixin
 from sagaz.core.decorators._step_ledger import StepLedger
 from sagaz.core.events import (
     CompensationStarted,
@@ -32,7 +33,7 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-class ExecutionEngine(_EventSourcingMixin, _RegionRoutingMixin):
+class ExecutionEngine(_EventSourcingMixin, _RegionRoutingMixin, _EngineStepChartMixin):
     """Orchestrates saga execution and compensation."""
 
     def __init__(self, saga: "Saga"):
@@ -64,46 +65,22 @@ class ExecutionEngine(_EventSourcingMixin, _RegionRoutingMixin):
         name = self._get_saga_name()
         self._check_regions()
         self._register_compensations()
+        await self._chart_open()  # the phase 3 step chart, when the saga uses one
         await self._open_recorder(name)
         await self._record(SagaStarted, initial_context=json_safe(self.saga._context))
-
-        # Persist start
-        storage = self.saga._config.storage if self.saga._config else None
-        if storage:
-            try:
-                await storage.save_saga_state(
-                    self.saga._saga_id,
-                    name,
-                    SagaStatus.EXECUTING,
-                    self._ledger.snapshot(),
-                    self.saga._context,
-                )
-            except Exception as e:
-                logger.warning(f"Failed to persist saga start: {e}")
+        await self._persist(SagaStatus.EXECUTING)
 
         try:
             await self._notify_listeners(
                 "on_saga_start", name, self.saga._saga_id, self.saga._context
             )
             await self._execute_all_levels()
+            await self._chart_succeeded()
             await self._notify_listeners(
                 "on_saga_complete", name, self.saga._saga_id, self.saga._context
             )
             await self._record(SagaCompleted, duration_ms=self._elapsed_ms())
-
-            # Persist completion
-            if storage:
-                try:
-                    await storage.save_saga_state(
-                        self.saga._saga_id,
-                        name,
-                        SagaStatus.COMPLETED,
-                        self._ledger.snapshot(),
-                        self.saga._context,
-                    )
-                except Exception as e:
-                    logger.warning(f"Failed to persist saga completion: {e}")
-
+            await self._persist(SagaStatus.COMPLETED)
             return self.saga._context
         except Exception as e:
             await self._record(
@@ -112,25 +89,15 @@ class ExecutionEngine(_EventSourcingMixin, _RegionRoutingMixin):
                 error_type=type(e).__name__,
                 error_message=str(e),
             )
+            await self._chart_failed()
             await self._compensate()
+            await self._chart_compensation_done()
             await self._record_outcome(e)
             await self._notify_listeners(
                 "on_saga_failed", name, self.saga._saga_id, self.saga._context, e
             )
-
-            # Persist failure
-            if storage:
-                try:
-                    await storage.save_saga_state(
-                        self.saga._saga_id,
-                        name,
-                        SagaStatus.ROLLED_BACK,
-                        self._ledger.snapshot(),
-                        self.saga._context,
-                    )
-                except Exception as e_storage:
-                    logger.warning(f"Failed to persist saga failure: {e_storage}")
-
+            # FAILED when a compensation failed, as the event log records it.
+            await self._persist(self._failure_status())
             raise
 
     def _initialize_run(self, initial_context: dict[str, Any], saga_id: str | None) -> None:
@@ -205,6 +172,7 @@ class ExecutionEngine(_EventSourcingMixin, _RegionRoutingMixin):
         await self._call_hook(step.on_enter, self.saga._context, step.step_id)
 
         self._ledger.started(step.step_id)
+        await self._chart_step(step.step_id, "start")
         # A tenant quota may lower the step's timeout (ADR-020).
         timeout = capped_timeout(step.timeout_seconds)
         step_started = time.monotonic()
@@ -214,8 +182,10 @@ class ExecutionEngine(_EventSourcingMixin, _RegionRoutingMixin):
                 result = await asyncio.wait_for(self._run_step(step), timeout=timeout)
             except BaseException as error:
                 self._ledger.finished(step.step_id, error)
+                await self._chart_step(step.step_id, "fail")
                 raise
             self._ledger.finished(step.step_id)
+            await self._chart_step(step.step_id, "succeed")
 
             # Merge result into context
             if result and isinstance(result, dict):
@@ -227,7 +197,7 @@ class ExecutionEngine(_EventSourcingMixin, _RegionRoutingMixin):
 
             # Handle pivot step completion - propagate taint to ancestors
             if step.pivot:
-                self.saga._propagate_taint_from_pivot(step.step_id)
+                await self._chart_taint(self.saga._propagate_taint_from_pivot(step.step_id))
                 logger.info(f"Pivot step '{step.step_id}' completed - ancestors are now tainted")
 
             await self._record(
@@ -341,12 +311,15 @@ class ExecutionEngine(_EventSourcingMixin, _RegionRoutingMixin):
             # Call on_compensate hook before compensation
             await self._call_hook(on_compensate, self.saga._context, step_id)
 
+            await self._chart_compensating(step_id)
             await asyncio.wait_for(
                 self._run_compensation(step_id, node.compensation_fn),
                 timeout=node.timeout_seconds,
             )
             self.saga._context[f"__{step_id}_compensated"] = True
             self._ledger.compensated(step_id)
+            await self._chart_step(step_id, "compensated")
+            await self._checkpoint()
             await self._record(StepCompensated, step_name=step_id)
 
             # Notify listeners: compensation complete
@@ -357,6 +330,7 @@ class ExecutionEngine(_EventSourcingMixin, _RegionRoutingMixin):
             # Log but don't fail - we want all compensations to attempt
             self.saga._context[f"__{step_id}_compensation_error"] = str(e)
             self._compensation_failed = True
+            await self._chart_compensation_failed(step_id)
             await self._record(
                 StepCompensationFailed,
                 step_name=step_id,

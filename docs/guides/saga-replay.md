@@ -386,8 +386,8 @@ result = await replay.from_checkpoint(...)
 ## Next Steps
 
 - [Storage Backends Guide](replay-storage-backends.md) - Choose the right backend
-- [CLI Reference](replay-cli.md) - Full CLI documentation
-- [Time-Travel Queries](time-travel-queries.md) - Advanced historical queries
+- CLI Reference - Full CLI documentation
+- Time-Travel Queries - Advanced historical queries
 - [ADR-024](../architecture/adr/adr-024-saga-replay.md) - Design decisions
 
 ## Examples

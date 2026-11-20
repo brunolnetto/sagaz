@@ -36,7 +36,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.3.3
+        uses: astral-sh/setup-uv@v10.4.0
         with:
           version: "0.13.9"
           enable-cache: true
@@ -44,7 +44,7 @@ jobs:
 
       - name: Install dependencies
         # The analytics extra (duckdb, sqldim): without it the analytics tests skip.
-        run: uv sync --group dev --extra analytics --extra fluss --extra iceberg
+        run: uv sync --group dev --extra analytics --extra fluss --extra iceberg --extra gradio --extra schema-registry
 
       - name: Run unit tests with coverage
         run: |
@@ -100,14 +100,14 @@ jobs:
           python-version: '3.14'
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.3.3
+        uses: astral-sh/setup-uv@v10.4.0
         with:
           version: "0.13.9"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
       - name: Install dependencies (with integration test deps)
-        run: uv sync --group dev --extra integration-tests --extra analytics --extra fluss --extra iceberg
+        run: uv sync --group dev --extra integration-tests --extra analytics --extra fluss --extra iceberg --extra schema-registry
 
       - name: Run integration tests
         run: |
@@ -144,7 +144,7 @@ jobs:
           python-version: "3.14"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.3.3
+        uses: astral-sh/setup-uv@v10.4.0
 
       - name: Create virtual environment
         run: uv venv

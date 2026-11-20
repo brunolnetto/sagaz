@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed** | Date: 2026-04-07 | Priority: Medium | Target: v2.2.0
+**Implemented** | Date: 2026-04-07 | Released: v1.8.0 (`sagaz monitor`, [#58](https://github.com/brunolnetto/sagaz/issues/58))
 
 **Implementation Status:**
 - ⚪ Phase 1: Backend API for Visualization Data (Not Started)

@@ -62,7 +62,7 @@ services:
     command: /data
 
   rustfs-init:
-    image: rustfs/rc:v0.1.36
+    image: rustfs/rc:v0.1.38
     depends_on: [rustfs]
     entrypoint: >
       /bin/sh -c "
@@ -71,7 +71,9 @@ services:
       "
 
   catalog:
-    image: postgres:17
+    image: postgres:19
+    # Also hosts saga logs read through logical replication (sagaz analytics export --cdc).
+    command: ["postgres", "-c", "wal_level=logical", "-c", "max_replication_slots=10", "-c", "max_wal_senders=10"]
     ports: ["${SAGAZ_CATALOG_PORT:-15433}:5432"]
     environment:
       POSTGRES_USER: iceberg
@@ -85,7 +87,7 @@ services:
       start_period: 30s
 
   zookeeper:
-    image: zookeeper:3.9.2
+    image: zookeeper:3.9.7
     restart: always
 
   coordinator-server:
@@ -140,7 +142,7 @@ services:
         taskmanager.memory.task.off-heap.size: 128m
 
   prometheus:
-    image: prom/prometheus:v3.5.0
+    image: prom/prometheus:v3.16.0
     profiles: [metrics]
     ports: ["9090:9090"]
     volumes:
@@ -148,7 +150,7 @@ services:
     extra_hosts: ["host.docker.internal:host-gateway"]
 
   grafana:
-    image: grafana/grafana:12.1.1
+    image: grafana/grafana:13.3.1
     profiles: [metrics]
     ports: ["3000:3000"]
     environment:

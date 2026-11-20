@@ -1,6 +1,6 @@
 # CDC CLI Integration Design
 
-**Related**: [ADR-011: CDC Support](docs/architecture/adr/adr-011-cdc-support.md)
+**Related**: [ADR-011: CDC Support](../adr/adr-011-cdc-support.md)
 
 ## Overview
 
@@ -469,6 +469,6 @@ async def validate_cdc_setup() -> list[ValidationResult]:
 
 ## See Also
 
-- [ADR-011: CDC Support](docs/architecture/adr/adr-011-cdc-support.md) - Full CDC design
+- [ADR-011: CDC Support](../adr/adr-011-cdc-support.md) - Full CDC design
 - [CDC_UNIFIED_WORKER_SUMMARY.md](CDC_UNIFIED_WORKER_SUMMARY.md) - Worker design
-- [ROADMAP.md](docs/ROADMAP.md) - Q1/Q2 2026 CLI plans
+- [ROADMAP.md](../../ROADMAP.md) - Q1/Q2 2026 CLI plans

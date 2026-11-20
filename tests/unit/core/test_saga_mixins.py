@@ -22,6 +22,7 @@ from sagaz.core.saga._compensation import _SagaCompensationMixin
 from sagaz.core.saga._event_sourcing import _SagaEventSourcingMixin
 from sagaz.core.saga._snapshot import _SagaSnapshotMixin
 from sagaz.core.saga._step import SagaStep
+from sagaz.core.saga._step_chart import _SagaStepChartMixin
 from sagaz.core.saga._visualization import _SagaVisualizationMixin
 from sagaz.core.types import SagaStepStatus
 
@@ -143,11 +144,13 @@ class TestSagaStep:
 # =============================================================================
 
 
-class _CompensationHost(_SagaCompensationMixin, _SagaEventSourcingMixin):
-    """Minimal host for _SagaCompensationMixin tests (event recording off)."""
+class _CompensationHost(_SagaCompensationMixin, _SagaEventSourcingMixin, _SagaStepChartMixin):
+    """Minimal host for _SagaCompensationMixin tests (event recording off, no step chart)."""
 
     def __init__(self, retry_backoff_base: float = 0.0):
         self._init_event_sourcing(None, 50)
+        self._init_step_chart(False)
+        self._state_machine = MagicMock()
         self.completed_steps: list[SagaStep] = []
         self.compensation_errors: list[Exception] = []
         self.context = MagicMock()

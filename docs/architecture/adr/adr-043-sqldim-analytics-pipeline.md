@@ -1,8 +1,10 @@
-# ADR-036: sqldim-Powered Analytics Pipeline for Saga OLTP & Visualization
+# ADR-043: sqldim-Powered Analytics Pipeline for Saga OLTP & Visualization
 
 ## Status
 
-**In Progress** | Date: 2026-04-07 | Priority: Medium | Target: v2.2.0
+**Implemented** | Date: 2026-04-07 | Released: v1.8.0 | Extended: v2.0.1 (choreography), v2.1.0 (unified saga log)
+
+Renumbered on 2026-11-20 from ADR-036, a number it shared with Lifecycle Hooks & Observers.
 
 **Implementation Status:**
 - ⚪ Phase 1: Saga Star Schema (Not Started)
@@ -17,7 +19,7 @@
 - ADR-046 (SQLite backend, #46): Unlocks local/embedded analytic sink
 
 **Synergies** (optional, not required):
-- ADR-035: Visualization UI (ADR-036 provides the query layer the UI reads)
+- ADR-035: Visualization UI (ADR-043 provides the query layer the UI reads)
 - ADR-033: Event Sourcing (event log becomes an enriched fact table)
 - ADR-011: CDC Support (DebeziumSource reuses sqldim's existing `DebeziumSource`)
 

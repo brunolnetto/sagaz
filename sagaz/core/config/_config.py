@@ -93,6 +93,10 @@ class SagaConfig:
     default_max_retries: int = 3
     failure_strategy: str = "FAIL_FAST_WITH_GRACE"
 
+    # StateChart phase 2 (ADR-040, #190): imperative sagas run on a chart with one
+    # region per step, whose configuration says where every step is. Off by default.
+    use_step_statechart: bool = False
+
     # Internal: cached listeners list
     _listeners: list[SagaListener] = field(default_factory=list, repr=False)
     _derived_outbox_storage: Any = field(default=None, repr=False)

@@ -1,17 +1,18 @@
 [project]
 name = "sagaz"
-version = "2.2.0"
+version = "2.3.0"
 description = "Production-ready Saga pattern with DAG support"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = [
     "aiofiles>=25.1.0",
     "click>=8.1.0",
     "python-dotenv>=1.0.0",
-    "python-statemachine>=3.2.0",
+    "python-statemachine>=3.2.0,<4",  # phase 2 builds charts with its NestedStateFactory
     "rich>=13.0.0",
     "simple-term-menu>=1.6.0",
     "PyYAML>=6.0.0",
-    "testcontainers>=4.14.2",
 ]
 requires-python = ">=3.11"
 
@@ -25,6 +26,8 @@ storage = [
     "asyncpg>=0.30.0",  # PostgreSQL storage
     "redis>=7.0.0",      # Redis storage  
 ]
+# Demonstrations that start PostgreSQL or Redis in Docker (`sagaz demo`).
+demo = ["testcontainers[postgres,redis]>=4.14.2"]
 integration-tests = [
     # Integration testing with real databases (requires Docker)
     "testcontainers[kafka,postgres,rabbitmq,redis]>=4.13.0",
@@ -65,6 +68,10 @@ visualization = [
     "sse-starlette>=1.0.0",
 ]
 monitor = ["sagaz[visualization]"]
+# Gradio monitor of persisted saga assets (ADR-039): sagaz monitor --ui gradio
+gradio = ["gradio>=5.25.0"]
+# Schema registry serialization of saga events (ADR-014): Avro, JSON Schema
+schema-registry = ["confluent-kafka[avro,json,schemaregistry]>=2.10.0"]
 aws = [
     "aioboto3>=12.0.0",
     "zstandard>=0.22.0",  # For S3 snapshot compression
@@ -181,7 +188,7 @@ sqlite = [
 # ============================================================================
 
 [build-system]
-requires = ["setuptools>=68.0", "wheel"]
+requires = ["setuptools>=77.0", "wheel"]  # SPDX license expression (PEP 639)
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]

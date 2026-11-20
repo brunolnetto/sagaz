@@ -57,7 +57,7 @@
 | [ADR-028](adr/adr-028-framework-integration.md) | Framework Integration | 🟢 **Implemented** | - | - | - |
 | [ADR-029](adr/adr-029-saga-choreography.md) | Saga Choreography Pattern | ⚪ Proposed | 🔴 High | High | 6-9 weeks ⭐ |
 
-**Duration (AI)**: AI-agent supported development time. See [ADR Effort Estimates](ADR_EFFORT_ESTIMATES.md) for detailed task breakdowns and Critical Path Analysis section below.
+**Duration (AI)**: AI-agent supported development time. See [ADR Effort Estimates](../archive/ADR_EFFORT_ESTIMATES.md) for detailed task breakdowns and Critical Path Analysis section below.
 
 **Priority Legend:**
 - 🔴 **High** - Critical features, implement first
@@ -549,11 +549,11 @@ ADR-024 (Replay) ✅ - Replay choreographed sagas
   - Event bus infrastructure
   - Choreography engine
   - Distributed coordination
-- ADR-036 sqldim Analytics Pipeline (May–Jun 2026, v2.2.0) — **In Progress** (PR [#74](https://github.com/brunolnetto/sagaz/pull/74))
+- ADR-043 sqldim Analytics Pipeline (May–Jun 2026, v2.2.0) — **In Progress** (PR [#74](https://github.com/brunolnetto/sagaz/pull/74))
   - Bronze→Silver→Gold medallion over saga OLTP (sqldim >= 0.1.1)
   - Depends on ADR-016 (Storage) + #46 (SQLite); enables ADR-035 Gold query layer
 - ADR-035 Visualization UI (Jun 2026, v2.2.0) — **Proposed** (PR [#71](https://github.com/brunolnetto/sagaz/pull/71))
-  - Reads Gold layer from ADR-036 for /api/v1/analytics/* endpoints
+  - Reads Gold layer from ADR-043 for /api/v1/analytics/* endpoints
 - ADR-033 Event Sourcing (Nov 2026, v2.3.0) — **Proposed** (PR [#70](https://github.com/brunolnetto/sagaz/pull/70))
 - ADR-034 Multi-Region (Dec 2026, v2.4.0) — **Proposed** (PR [#72](https://github.com/brunolnetto/sagaz/pull/72))
 

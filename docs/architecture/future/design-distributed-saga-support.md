@@ -1029,6 +1029,6 @@ For now, Sagaz v1.0's synchronous orchestration handles the primary use case of 
 
 ### Related Sagaz Documentation
 
-- [ADR-012: Synchronous Orchestration Model](adr/adr-012-synchronous-orchestration-model.md) - Why v1.0 uses direct calls
-- [ADR-011: CDC Support](adr/adr-011-cdc-support.md) - High-throughput outbox upgrade path
+- [ADR-012: Synchronous Orchestration Model](../adr/adr-012-synchronous-orchestration-model.md) - Why v1.0 uses direct calls
+- [ADR-011: CDC Support](../adr/adr-011-cdc-support.md) - High-throughput outbox upgrade path
 

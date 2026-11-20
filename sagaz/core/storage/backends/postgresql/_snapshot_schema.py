@@ -23,6 +23,9 @@ SNAPSHOT_TABLES_SQL = """
         CONSTRAINT idx_saga_snapshots_saga_id_step UNIQUE(saga_id, step_name, created_at)
     );
 
+    -- The StateChart configuration (ADR-040): NULL in rows written before it was kept.
+    ALTER TABLE saga_snapshots ADD COLUMN IF NOT EXISTS configuration JSONB;
+
     CREATE INDEX IF NOT EXISTS idx_saga_snapshots_saga_id ON saga_snapshots(saga_id);
     CREATE INDEX IF NOT EXISTS idx_saga_snapshots_created_at ON saga_snapshots(created_at);
     CREATE INDEX IF NOT EXISTS idx_saga_snapshots_retention ON saga_snapshots(retention_until);

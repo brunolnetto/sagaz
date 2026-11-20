@@ -54,7 +54,7 @@ Detailed implementation plans for approved architectural decisions.
 | [Unified Storage](implementation-plans/unified-storage-implementation-plan.md) | ADR-016 | Planned |
 | [Scalable Deployment](implementation-plans/scalable-deployment-plan.md) | - | Reference |
 | [HA PostgreSQL](implementation-plans/ha-postgres-implementation.md) | - | Implemented |
-| [Industry Examples](industry-examples-implementation-plan.md) | ADR-026 | Proposed |
+| [Industry Examples](implementation-plans/industry-examples-implementation-plan.md) | ADR-026 | Proposed |
 
 ➡️ See [implementation-plans/README.md](implementation-plans/README.md) for plan format.
 
@@ -97,7 +97,7 @@ Historical documents for reference.
 
 | Document | Description |
 |----------|-------------|
-| [Resources Reorganization](archive/resources-reorganization-summary.md) | v1.1.0 resource folder migration notes |
+| [Resources Reorganization](../archive/resources-reorganization-summary.md) | v1.1.0 resource folder migration notes |
 
 ---
 
@@ -134,8 +134,8 @@ Always update this README and [decisions.md](decisions.md) when adding new ADRs.
 ## 📚 Related Documentation
 
 - [Main README](../../README.md) - Project overview and quick start
-- [Examples](../../examples/README.md) - Usage examples by domain
-- [API Reference](../api/) - API documentation
+- [Examples](../../sagaz/examples/README.md) - Usage examples by domain
+- API Reference - API documentation
 - [Guides](../guides/) - How-to guides and tutorials
 
 ---

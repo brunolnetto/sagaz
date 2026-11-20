@@ -1,4 +1,4 @@
-"""Choreographed sagas in the analytics pipeline (#459, ADR-029, ADR-036).
+"""Choreographed sagas in the analytics pipeline (#459, ADR-029, ADR-043).
 
 A :class:`~sagaz.choreography.ChoreographyTracker` with a saga storage saves
 each choreographed transaction as a saga record named ``choreography``, with

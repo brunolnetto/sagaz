@@ -158,7 +158,8 @@ def create_broker(
 
     Args:
         broker_type: Type of broker ('memory', 'kafka', 'rabbitmq', 'redis')
-        **kwargs: Broker-specific configuration
+        **kwargs: Broker-specific configuration, plus ``serializer``: an
+            ``EventSerializer`` for published events (JSON by default, ADR-014)
 
     Returns:
         Configured broker instance
@@ -185,13 +186,17 @@ def create_broker(
         raise ValueError(msg)
 
     factory, dependency = _BROKER_REGISTRY[broker_type]
+    serializer = kwargs.pop("serializer", None)
 
     try:
-        return factory(kwargs)  # type: ignore[no-any-return]
+        broker = factory(kwargs)
     except ImportError as exc:
         if dependency:
             raise MissingDependencyError(dependency, f"{broker_type} message broker") from exc
         raise
+    if serializer is not None:
+        broker.serializer = serializer
+    return broker  # type: ignore[no-any-return]
 
 
 def create_broker_from_env() -> MessageBroker:

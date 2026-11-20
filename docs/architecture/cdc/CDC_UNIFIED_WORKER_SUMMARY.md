@@ -1,6 +1,6 @@
 # CDC Support: Unified Worker Design
 
-**ADR**: [ADR-011: CDC Support](docs/architecture/adr/adr-011-cdc-support.md)
+**ADR**: [ADR-011: CDC Support](../adr/adr-011-cdc-support.md)
 
 ## Summary
 

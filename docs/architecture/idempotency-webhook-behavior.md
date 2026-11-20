@@ -319,9 +319,9 @@ async def test_webhook_with_idempotency_key_returns_202(app):
 
 ## Related Documentation
 
-- [ADR-025: Event-Driven Triggers](/docs/architecture/adr/adr-025-event-driven-triggers.md)
-- [Idempotency Validation Implementation](/docs/architecture/implementation-plans/idempotency-validation.md)
-- [Event Triggers Implementation Plan](/docs/architecture/implementation-plans/event-triggers-implementation-plan.md)
+- [ADR-025: Event-Driven Triggers](adr/adr-025-event-driven-triggers.md)
+- [Idempotency Validation Implementation](implementation-plans/idempotency-validation.md)
+- [Event Triggers Implementation Plan](implementation-plans/event-triggers-implementation-plan.md)
 
 ## Summary
 

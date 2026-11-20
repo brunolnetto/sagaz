@@ -158,12 +158,10 @@ class SQLiteSagaLogStore(SQLiteExportMixin, SagaLogStore):
         await schema._init_schema()
 
     def outbox_storage(self) -> Any:
-        if self.db_path == ":memory:":
-            msg = "An in-memory SQLite saga log has no outbox another connection can read"
-            raise ValueError(msg)
-        from sagaz.core.storage.backends.sqlite.outbox import SQLiteOutboxStorage
+        """The outbox on this log's connection and write lock (works for ``:memory:`` too)."""
+        from sagaz.core.storage.saga_log._sqlite_outbox import SharedSQLiteOutboxStorage
 
-        return SQLiteOutboxStorage(self.db_path)
+        return SharedSQLiteOutboxStorage(self)
 
     # -- writes ------------------------------------------------------------------
 

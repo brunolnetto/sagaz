@@ -2,20 +2,11 @@
 
 ## Status
 
-**Deferred** | Date: 2026-01-05
+**Accepted** | Date: 2026-01-05 | Revised: 2026-11-20 | Target: v2.3.0 ([#502](https://github.com/brunolnetto/sagaz/issues/502))
 
-## Dependencies
-
-**Prerequisites**: None (independent feature)
-
-**Synergies**:
-- ADR-025: Event Triggers (schema validation for events)
-- ADR-018: Saga Versioning (schema evolution)
-
-**Roadmap**: **Phase 4 (v2.0.0)** - Optional, only for polyglot microservices
-> ⚠️ **Note**: This is an **optional** feature for advanced use cases. 
-> For most Sagaz deployments, schemas defined in Python code (Pydantic/dataclasses) 
-> are sufficient since consumers import the same library.
+The first version (deferred, 2026-01-05) planned Avro and Protobuf serializers configured
+through `SagaConfig`. This revision fixes the scope against the code as of v2.2.0: the
+outbox brokers and the choreography buses.
 
 ## When You Need This
 
@@ -29,226 +20,101 @@
 
 ## Context
 
-Sagaz publishes saga events to message brokers (Kafka, RabbitMQ, Redis). For **advanced** use cases:
+Sagaz publishes events in two places, both as JSON today:
 
-1. **Schema Evolution**: Event schemas change over time (new fields, deprecations)
-2. **Compatibility**: Consumers need to handle multiple schema versions
-3. **Validation**: Invalid events should be caught early
-4. **Documentation**: Schemas serve as contracts between services
+- **Outbox messages:** `BaseBroker.publish_event` builds one envelope for every broker
+  (Kafka, RabbitMQ, Redis): `event_id`, `saga_id`, `aggregate_type`, `aggregate_id`,
+  `event_type`, `tenant_id`, `payload` and `timestamp`. The topic defaults to the
+  event type.
+- **Choreography events on the Kafka bus:** `Event.to_dict()`, with `event_type`, `data`,
+  `event_id`, `saga_id`, `created_at`, `tenant_id`, `causation_id` and `source`. They go
+  on one topic shared by every event type.
 
-Without a schema registry (only matters for polyglot/multi-team):
-
-| Problem | Impact |
-|---------|--------|
-| No schema validation | Invalid events cause runtime failures |
-| No version tracking | Breaking changes go undetected |
-| No documentation | Consumers guess event structure |
-| Tight coupling | All services must deploy simultaneously |
+Teams in other languages need the shapes as contracts, validated on publish, with
+compatibility checked as they evolve.
 
 ## Decision
 
-We will integrate **Schema Registry** support for saga event serialization, supporting:
+Pluggable **event serializers** with a **Confluent-compatible schema registry**
+implementation. It works with the Confluent Schema Registry, the Redpanda registry, and
+Apicurio in Confluent-compatibility mode.
 
-1. **Confluent Schema Registry** (Kafka ecosystems)
-2. **RedPanda Schema Registry** (lightweight alternative)
-3. **AWS Glue Schema Registry** (AWS-native)
+### Scope (v2.3.0)
 
-### Supported Formats
+- **Outbox messages, every broker:** `BaseBroker.publish_event` serializes through
+  `broker.serializer`. The default `JsonEventSerializer` keeps today's bytes.
+- **Choreography events on the Kafka bus:** through `KafkaEventBusConfig.serializer`.
+  The RabbitMQ and Redis Streams buses keep JSON for now.
+- **Out of scope:** the saga log export to Fluss (ADR-013), which has its own table
+  schema, Protobuf, and the AWS Glue registry.
 
-| Format | Use Case | Status |
-|--------|----------|--------|
-| **Avro** | Compact, schema evolution | Primary |
-| **Protobuf** | Performance, gRPC integration | Secondary |
-| **JSON Schema** | Debugging, human readability | Optional |
+### Schemas
 
-### Architecture
+- **What users write:** the schema of each event type's **payload** (outbox `payload`,
+  or choreography `data`), in Avro or JSON Schema. Sagaz wraps it in the envelope
+  schema, so the envelope's fields are defined once, by sagaz.
+- **Record names:** derived from the event type, for example `order.created` becomes
+  `sagaz.outbox.order_created` or `sagaz.choreography.order_created`.
+- **Subjects:** `TopicRecordNameStrategy` (`<topic>-<record name>`). The choreography
+  bus carries every event type on one topic, and a subject per topic would force every
+  type into one schema.
+- **Registration:** schemas are auto-registered by default. The registry enforces the
+  subject's compatibility mode, BACKWARD by default.
+- **Event types without a schema:** an error by default (`on_missing="error"`), so
+  publishing fails, the outbox retries, and the message eventually reaches the dead
+  letter queue. With `on_missing="json"`, they are published as JSON.
 
-```
-┌─────────────┐     ┌─────────────────┐     ┌─────────────┐
-│  Saga App   │────▶│ Schema Registry │     │    Kafka    │
-│  (Producer) │     │  (Validation)   │     │   Broker    │
-└──────┬──────┘     └────────┬────────┘     └──────┬──────┘
-       │                     │                     │
-       │ 1. Register/fetch   │                     │
-       │    schema           │                     │
-       │◀────────────────────┤                     │
-       │                     │                     │
-       │ 2. Serialize with   │                     │
-       │    schema ID        │                     │
-       ├─────────────────────┼────────────────────▶│
-       │                     │                     │
-       │                     │                     │
-┌──────┴──────┐              │              ┌──────┴──────┐
-│  Consumer   │◀─────────────┼──────────────│    Kafka    │
-│   (Inbox)   │ 3. Deserialize│             │   Broker    │
-└─────────────┘   with schema │             └─────────────┘
-                              │
-                     ┌────────┴────────┐
-                     │ Schema Registry │
-                     │  (Fetch schema) │
-                     └─────────────────┘
-```
+### Wire format and consumers
 
-## Implementation
+- **Wire format:** Confluent's: a magic byte 0, the 4-byte schema id, then the encoded
+  record.
+- **`deserialize()`:** decodes registry-encoded and plain JSON messages alike. Mixed
+  topics keep working during a migration.
+- **Kafka bus consumers:** they deserialize with the configured serializer.
 
-### Schema Definition (Avro)
+### Library
 
-```avro
-{
-  "namespace": "io.sagaz.events",
-  "type": "record",
-  "name": "SagaEvent",
-  "fields": [
-    {"name": "event_id", "type": "string"},
-    {"name": "event_type", "type": {
-      "type": "enum",
-      "name": "EventType",
-      "symbols": ["SAGA_STARTED", "STEP_COMPLETED", "STEP_FAILED", 
-                   "COMPENSATION_STARTED", "COMPENSATION_COMPLETED", 
-                   "SAGA_COMPLETED", "SAGA_ROLLED_BACK"]
-    }},
-    {"name": "saga_id", "type": "string"},
-    {"name": "saga_name", "type": "string"},
-    {"name": "step_name", "type": ["null", "string"], "default": null},
-    {"name": "duration_ms", "type": ["null", "long"], "default": null},
-    {"name": "error_type", "type": ["null", "string"], "default": null},
-    {"name": "error_message", "type": ["null", "string"], "default": null},
-    {"name": "context", "type": {"type": "map", "values": "string"}, "default": {}},
-    {"name": "timestamp", "type": "long", "logicalType": "timestamp-millis"},
-    {"name": "schema_version", "type": "int", "default": 1}
-  ]
-}
-```
+`confluent-kafka`'s schema registry client and its **async** Avro and JSON Schema
+serializers (`sagaz[schema-registry]`). No call blocks the event loop. Its mock
+registry client backs the unit tests.
 
-### Serializer Configuration
+### Tooling
 
-```python
-from sagaz.brokers.kafka import KafkaOutboxBroker
-from sagaz.serializers import AvroSerializer
+`sagaz schema` has three commands:
 
-# Configure with Schema Registry
-broker = KafkaOutboxBroker(
-    bootstrap_servers="kafka:9092",
-    serializer=AvroSerializer(
-        schema_registry_url="http://schema-registry:8081",
-        schema_subject="saga-events-value",
-        auto_register=True,  # Register new schemas automatically
-    )
-)
-```
-
-### Compatibility Modes
-
-| Mode | Description | Recommendation |
-|------|-------------|----------------|
-| BACKWARD | New schema can read old data | ✅ Default |
-| FORWARD | Old schema can read new data | For critical paths |
-| FULL | Both backward and forward | Maximum safety |
-| NONE | No compatibility checks | Development only |
+- **`envelope`:** prints the full schema of an event type.
+- **`check`:** tests a payload schema against the registered versions of its subject.
+- **`register`:** registers it.
 
 ## Alternatives Considered
 
-### Alternative 1: Embedded Schema (No Registry)
-
-Include schema in every message.
-
-**Pros**:
-- No external dependency
-- Self-describing messages
-
-**Cons**:
-- Message size bloat
-- No central versioning
-- No compatibility checks
-
-**Decision**: Rejected - doesn't scale.
-
-### Alternative 2: Protobuf Only
-
-Use Protobuf without registry.
-
-**Pros**:
-- Efficient serialization
-- Strong typing
-
-**Cons**:
-- No runtime schema evolution
-- Requires code regeneration
-
-**Decision**: Protobuf supported, but with registry.
-
-### Alternative 3: Custom Schema Management
-
-Build in-house schema management.
-
-**Pros**:
-- Full control
-- No vendor dependency
-
-**Cons**:
-- Significant effort
-- Reinventing the wheel
-
-**Decision**: Rejected - use proven solutions.
+- **Embedded schemas (no registry):** this makes every message larger and offers no
+  compatibility checks. Rejected.
+- **Protobuf only:** it needs generated code and is less natural for Python-first
+  users. Possible later.
+- **Custom schema management:** this would reinvent a registry. Rejected.
+- **`python-schema-registry-client`:** an async third-party client. The official client
+  now has async serializers and a mock for tests, so it is preferred.
 
 ## Consequences
 
-### Positive
-
-1. **Schema Evolution**: Add/remove fields safely
-2. **Validation**: Catch invalid events at producer
-3. **Documentation**: Schemas are living documentation
-4. **Compatibility**: Multiple schema versions coexist
-5. **Compact**: Avro is space-efficient
-
-### Negative
-
-1. **Complexity**: Additional infrastructure
-2. **Latency**: Schema fetch adds milliseconds
-3. **Learning curve**: Teams need Avro/Protobuf knowledge
-4. **Kafka dependency**: Best with Kafka ecosystem
-
-### Mitigations
-
-| Risk | Mitigation |
-|------|------------|
-| Latency | Client-side schema caching |
-| Complexity | Provide Docker Compose templates |
-| Learning curve | Documentation and examples |
-| Kafka dependency | JSON Schema fallback for others |
-
-## Implementation Plan
-
-### Phase 1: Core Integration (v2.0.0)
-- [ ] Create `AvroSerializer` class
-- [ ] Create `ProtobufSerializer` class
-- [ ] Schema Registry client wrapper
-- [ ] Configuration via `SagaConfig`
-
-### Phase 2: Schema Definitions (v2.0.0)
-- [ ] Define core event schemas (Avro)
-- [ ] Define core event schemas (Protobuf)
-- [ ] Schema evolution documentation
-
-### Phase 3: Tooling (v2.0.1)
-- [ ] Schema compatibility checker CLI
-- [ ] Schema migration documentation
-- [ ] Docker Compose with Schema Registry
+- **Positive:** typed, validated contracts for consumers in any language, with schema
+  evolution checked by the registry.
+- **Positive:** this is opt-in. JSON stays the default, and existing consumers are
+  unaffected.
+- **Negative:** another service to run (the registry), and `confluent-kafka` as an
+  optional dependency.
+- **Negative:** a payload that does not match its schema fails on publish. That is the
+  point, but it surfaces as outbox retries and DLQ entries.
 
 ## References
 
 - [Confluent Schema Registry](https://docs.confluent.io/platform/current/schema-registry/)
-- [RedPanda Schema Registry](https://docs.redpanda.com/docs/manage/schema-registry/)
+- [Redpanda Schema Registry](https://docs.redpanda.com/current/manage/schema-reg/)
 - [Apache Avro](https://avro.apache.org/)
-- [Protocol Buffers](https://protobuf.dev/)
-- [ADR-011: CDC Support](adr-011-cdc-support.md)
+- [JSON Schema](https://json-schema.org/)
+- [ADR-029: Saga Choreography](adr-029-saga-choreography.md)
 
 ## Decision Makers
 
 - @brunolnetto (Maintainer)
-
-## Changelog
-
-| Date | Change |
-|------|--------|
-| 2024-12-27 | Initial proposal |

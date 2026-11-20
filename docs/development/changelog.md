@@ -7,6 +7,111 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-11-20
+
+Maintenance, CDC and ecosystem, plus StateChart phases 2 and 3 (ADR-040).
+
+- **StateChart:**
+  - opt-in step charts that say where every step is;
+  - pivot/taint states in the chart;
+  - re-entry into an interrupted compensation, for imperative and declarative sagas.
+- **Ecosystem:** a CDC reader for the saga log export, a Gradio asset monitor, and a schema
+  registry for saga events.
+- **Fixes:** saga final states and stored statuses agree with the result, and background
+  loops stop cleanly.
+- **Maintenance:** dependencies, documentation, and an MIT `LICENSE`.
+
+### Added
+- **StateChart phase 2: step charts** (#190, ADR-040): `Saga(use_step_statechart=True)` (or
+  `SagaConfig.use_step_statechart`) runs the saga on a chart with one region per step.
+  `state_configuration` then says where every step is, for example
+  `step/charge/compensating`.
+  - **Flag off:** nothing changes.
+  - **Re-entry:** `restore_state(configuration, completed_steps)` and
+    `resume_compensation()` finish an interrupted compensation from a persisted
+    configuration, in reverse completion order, without running again those that
+    succeeded. `pending_compensations()` and `in_doubt_steps()` report what is left and
+    what is uncertain.
+  - **Checkpoints:** with snapshots on, one is taken after each compensated step.
+  - **Dependency:** `python-statemachine` is pinned below 4.
+- **StateChart phase 3** (#522, ADR-040): step charts for the declarative engine and
+  pivot/taint states.
+  - **Pivots in the chart:** a completed ancestor of a completed pivot becomes `tainted`,
+    and pivot regions have no compensation. The chart refuses to compensate either.
+  - **Declarative `Saga`:** `use_step_statechart` (argument, class attribute or
+    `SagaConfig`) runs it on the chart. The configuration is stored with the saga state,
+    with a checkpoint after each compensated step.
+  - **Re-entry:** `await saga.resume_compensation(saga_id)` finishes an interrupted
+    compensation from `SagaConfig.storage`.
+- **Schema registry for saga events** (#502, ADR-014): `SchemaRegistrySerializer` encodes
+  events in Avro or JSON Schema through a Confluent-compatible registry (Confluent, Redpanda,
+  Apicurio), in Confluent's wire format (`sagaz[schema-registry]`).
+  - **Where it applies:** outbox messages on every broker
+    (`create_broker(..., serializer=...)`) and choreography events on the Kafka bus
+    (`KafkaEventBusConfig(serializer=...)`).
+  - **Schemas:** you write each event type's payload schema, and sagaz wraps it in the
+    envelope. Subjects follow `<topic>-<record name>`.
+  - **Defaults:** JSON stays the default, and `deserialize` reads both registry-encoded
+    and plain JSON messages.
+  - **CLI:** `sagaz schema envelope|check|register`.
+- **Gradio asset monitor** (#501, ADR-039): `sagaz monitor --ui gradio --saga-log URL` (or
+  `--storage-url`) browses persisted transactions of both coordination styles
+  (`sagaz[gradio]`).
+  - **Views:** a Mermaid diagram of the steps or of the event causation, the steps, the
+    events and the context.
+  - **Python:** `sagaz.visualization.gradio.launch()` and `build_app()`.
+- **CDC reader for the saga log export** (#495): `SagaLogCDCReader` streams
+  `saga_log_event` through PostgreSQL logical replication, in commit order, with
+  at-least-once delivery from its replication slot.
+  - **CLI:** `sagaz analytics export --cdc [--cdc-dsn]` uses it.
+  - **Generic CDC source:** `PgLogicalSource` takes a `row_mapper` and gains `poll(timeout)`.
+  - **Gates:** the lakehouse release gates run with both readers.
+
+### Fixed
+- **Declarative saga status after a failed compensation** (#522): the engine stored
+  `ROLLED_BACK`; it now stores `FAILED`, as its event log already recorded.
+- **Saga final state on failures** (#517): the state machine sometimes ended somewhere other
+  than where the result said the saga ended.
+  - **DAG, failed compensation:** the status was `ROLLED_BACK` while the result was
+    `FAILED`.
+  - **Failure before any step completed:** the configuration stayed at `['executing']`
+    (sequential), or the saga ended `FAILED` while the result said `ROLLED_BACK` (DAG).
+  - **Fix:** the new `nothing_to_compensate` transition (`executing → rolled_back`), and
+    a DAG finalization that follows the result.
+  - **PostgreSQL snapshots** now keep the StateChart configuration. They dropped it,
+    contrary to ADR-040.
+- **SQLite saga log contention** (#500): a relay on its own SQLite connection competed with
+  the log's writes for SQLite's single write lock and failed under load with
+  `database is locked`.
+  - **Shared outbox:** `SQLiteSagaLogStore.outbox_storage()` now returns an outbox on the
+    log's own connection and lock (`SharedSQLiteOutboxStorage`). The relay therefore takes
+    whole batches again, and an in-memory SQLite log has an outbox too.
+- **Background loops stop between iterations** (#500): the choreography relay, the deadline
+  watcher and the saga log exporter used to cancel their task mid-iteration.
+  - **Symptom:** a cancelled database call could finish after its event loop had closed,
+    which showed up in CI as `Event loop is closed` in a worker thread.
+  - **Fix:** they now finish the iteration in progress, and only one that overruns 10 s is
+    cancelled (`sagaz.core._poller.Poller`).
+
+### Changed
+- **`testcontainers` is no longer a core dependency** (#498). Only the demonstrations that
+  start PostgreSQL or Redis in Docker use it. Install it with `pip install 'sagaz[demo]'`;
+  without it, those demonstrations raise `MissingDependencyError` with that hint.
+- **Documentation** (#499):
+  - **README:** the features and project status of v2.2.0, with working links.
+  - **Roadmap:** `docs/ROADMAP.md` is rewritten from the release plan; the old planning
+    document is in `docs/archive/`.
+  - **ADR statuses:** ADR-035 and ADR-043 are implemented, and ADR-014 and ADR-039 are
+    planned for v2.3.0.
+  - **Links:** relative links in the docs are fixed and checked in CI
+    (`scripts/check_doc_links.py`).
+  - **Two ADR numbers were used twice** and are renumbered:
+    - Environment Variable Management: ADR-015 → **ADR-042**;
+    - sqldim Analytics Pipeline: ADR-036 → **ADR-043**.
+
+    ADR-015 (Unified Saga API) and ADR-036 (Lifecycle Hooks & Observers) keep
+    their numbers.
+
 ## [2.2.0] - 2026-11-20
 
 Streaming and historical analytics on the unified saga log (ADR-013).
@@ -460,7 +565,7 @@ Wave 2 — "Analytics & Chaos".
 
 ### Added
 - `sagaz.testing.ChaosMonkey` (ADR-017): seeded fault injection for saga steps — random failures, timeouts and latency, optionally limited to `target_steps` (#79).
-- `sagaz[analytics]` extra (ADR-036): Bronze → Silver → Gold DuckDB pipeline built on sqldim. `SagaAnalyticsPipeline(storage).run()` reads sagas and steps from any saga storage (read-only); Gold queries cover saga summary, per-step p50/p95/p99 latency and error rate, compensations and lifecycle milestones (#74, #382).
+- `sagaz[analytics]` extra (ADR-043): Bronze → Silver → Gold DuckDB pipeline built on sqldim. `SagaAnalyticsPipeline(storage).run()` reads sagas and steps from any saga storage (read-only); Gold queries cover saga summary, per-step p50/p95/p99 latency and error rate, compensations and lifecycle milestones (#74, #382).
 - `sagaz[visualization]` / `sagaz[monitor]` extras (ADR-035): `sagaz monitor` serves a dashboard with run list and detail, runtime-state diagrams, per-run and global SSE streams, metrics summary and step explorer; REST API under `/api/v1` and the `/api/sagas`, `/api/metrics/summary` paths (#374, #383).
 - Monitor analytics reports at `/api/v1/analytics/{summary,step-latency,compensations,lifecycle}`, enabled with `sagaz monitor --storage-url` or `SAGAZ_STORAGE_URL` (#382).
 - Mermaid is served by the monitor from a SHA-384-verified local cache; browsers never contact a CDN (#374).
@@ -935,4 +1040,4 @@ See Git history for versions prior to 0.9.0.
 
 **Questions or issues?** Open an issue on GitHub or contact the maintainers.
 
-**Want to contribute?** See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+**Want to contribute?** See [CONTRIBUTING.md](contributing.md) for guidelines.

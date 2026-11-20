@@ -44,6 +44,11 @@ class _SagaExecutionMixin:
 
         async def _execute_dag(self) -> SagaResult: ...
 
+        # Provided by _SagaStepChartMixin (StateChart phase 2).
+        def _arm_step_chart(self) -> None: ...
+
+        async def _step_event(self, step_name: str, event: str) -> None: ...
+
         async def _capture_snapshot(
             self, step_name: str, step_index: int, before: bool = True
         ) -> None: ...
@@ -63,7 +68,8 @@ class _SagaExecutionMixin:
         if plan_error:
             return self._planning_failure_result(plan_error, start_time)
 
-        # Start state machine
+        # Start state machine (the step chart, if enabled, needs the steps: built now)
+        self._arm_step_chart()
         try:
             await self._state_machine.start()
         except TransitionNotAllowed as e:
@@ -119,17 +125,24 @@ class _SagaExecutionMixin:
         if result.success:
             await self._state_machine.succeed()
         else:
-            await self._finalize_dag_failure()
+            await self._finalize_dag_failure(result.status)
 
         return result
 
-    async def _finalize_dag_failure(self):
-        """Finalize state machine after DAG failure."""
-        try:
-            await self._state_machine.fail()
-            await self._state_machine.finish_compensation()
-        except TransitionNotAllowed:
-            await self._state_machine.fail_unrecoverable()
+    async def _finalize_dag_failure(self, status: SagaStatus) -> None:
+        """End the state machine where the DAG result says the saga ended (#517)."""
+        machine = self._state_machine
+        if not self.completed_steps:  # nothing was undone
+            if status == SagaStatus.ROLLED_BACK:
+                await machine.nothing_to_compensate()
+            else:
+                await machine.fail_unrecoverable()
+            return
+        await machine.fail()
+        if status == SagaStatus.ROLLED_BACK:
+            await machine.finish_compensation()
+        else:  # a compensation failed
+            await machine.compensation_failed()
 
     async def _execute_sequential_mode(self, start_time) -> SagaResult:
         """Execute in sequential mode."""
@@ -138,6 +151,7 @@ class _SagaExecutionMixin:
         for i, step in enumerate(self.steps):
             if step.idempotency_key in self._executed_step_keys:
                 logger.info(f"Skipping step '{step.name}' - already executed (idempotent)")
+                await self._step_event(step.name, "adopt")
                 continue
 
             # Capture snapshot before step execution
@@ -174,7 +188,13 @@ class _SagaExecutionMixin:
         try:
             await self._state_machine.fail()
         except TransitionNotAllowed:
-            await self._es_finish("rolled_back")  # nothing completed, nothing to undo
+            # Nothing completed, nothing to undo: end in rolled_back like the result
+            # (entering it records the outcome in the event store). A saga that never
+            # started executing (e.g. a refused start from a snapshot) stays where it is.
+            if "executing" in self._state_machine.configuration_values:
+                await self._state_machine.nothing_to_compensate()
+            else:
+                await self._es_finish("rolled_back")
             return self._no_compensation_result(error, start_time)
 
         return await self._attempt_compensation(error, start_time)
