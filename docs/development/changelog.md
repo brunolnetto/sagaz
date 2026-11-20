@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Gradio asset monitor** (#501, ADR-039): `sagaz monitor --ui gradio --saga-log URL` (or
+  `--storage-url`) browses persisted transactions of both coordination styles
+  (`sagaz[gradio]`).
+  - **Views:** a Mermaid diagram of the steps or of the event causation, the steps, the
+    events and the context.
+  - **Python:** `sagaz.visualization.gradio.launch()` and `build_app()`.
 - **CDC reader for the saga log export** (#495): `SagaLogCDCReader` streams
   `saga_log_event` through PostgreSQL logical replication, in commit order, with
   at-least-once delivery from its replication slot.

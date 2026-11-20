@@ -215,3 +215,38 @@ app = create_app(
 )
 run_server(app, host="127.0.0.1", port=7070)
 ```
+
+## Asset monitor (Gradio)
+
+The dashboard above shows runs as they happen, from a listener, and keeps nothing.
+The asset monitor (ADR-039) shows what is **persisted** instead: transactions of a
+unified saga log, or sagas of a legacy saga storage, for both coordination styles.
+
+```bash
+pip install 'sagaz[gradio]'
+sagaz monitor --ui gradio --saga-log postgresql://...      # or sqlite:///log.db
+sagaz monitor --ui gradio --storage-url sqlite:///sagas.db # a legacy saga storage
+```
+
+The monitor reads only. It has these views:
+
+- **Transactions:** filter by coordination, flow, status and tenant.
+- **Detail of a selected transaction:**
+  - **Diagram:** a Mermaid diagram. For an orchestrated saga, the steps in start order,
+    colored by status. For a choreographed one, its events as a causation graph labelled
+    by participant.
+  - **Steps:** status, attempt, duration and error.
+  - **Events:** kind, source and causation.
+  - **Context:** the transaction's context.
+
+From Python:
+
+```python
+from sagaz.visualization.gradio import build_app, launch, AssetSource
+
+launch(saga_log="postgresql://...")               # serves on 127.0.0.1:7860
+app = build_app(AssetSource(saga_log=my_log))     # gr.Blocks, to mount or launch yourself
+```
+
+Like the dashboard, it is unauthenticated. It binds to loopback, and a non-loopback
+`--host` needs `--unsafe-expose`.

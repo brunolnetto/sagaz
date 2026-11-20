@@ -20,10 +20,13 @@ def _url_host(host: str) -> str:
 @click.command()
 @click.option(
     "--ui",
-    type=click.Choice(["web", "grafana"], case_sensitive=False),
+    type=click.Choice(["web", "grafana", "gradio"], case_sensitive=False),
     default="web",
     show_default=True,
-    help="Dashboard backend.",
+    help=(
+        "Dashboard backend: web (live runs, ADR-035), grafana, or gradio (persisted "
+        "saga assets from --saga-log or --storage-url, ADR-039; needs sagaz[gradio])."
+    ),
 )
 @click.option(
     "--host",
@@ -64,6 +67,14 @@ def _url_host(host: str) -> str:
     ),
 )
 @click.option(
+    "--saga-log",
+    "saga_log",
+    envvar="SAGAZ_SAGA_LOG_URL",
+    default=None,
+    metavar="URL",
+    help="Unified saga log the gradio monitor reads (read-only). Env: SAGAZ_SAGA_LOG_URL.",
+)
+@click.option(
     "--unsafe-expose",
     is_flag=True,
     help=(
@@ -78,8 +89,9 @@ def monitor_cmd(
     no_browser: bool,
     unsafe_expose: bool,
     storage_url: str | None = None,
+    saga_log: str | None = None,
 ) -> None:
-    """Start the Saga visualization dashboard or open Grafana."""
+    """Start the Saga visualization dashboard, the asset monitor, or open Grafana."""
     import os
     import secrets
 
@@ -87,6 +99,9 @@ def monitor_cmd(
         grafana_url = "http://localhost:3000"
         click.echo(f"Grafana dashboard: {grafana_url}")
         _maybe_open_browser(grafana_url, no_browser, announce=False)
+        return
+    if ui == "gradio":
+        _gradio_monitor(host, port, unsafe_expose, no_browser, saga_log, storage_url)
         return
 
     _require_safe_bind(host, unsafe_expose)
@@ -160,3 +175,28 @@ def _maybe_open_browser(url: str, no_browser: bool, *, announce: bool = True) ->
         webbrowser.open(url)
     elif announce:
         click.echo("Browser launch disabled.")
+
+
+def _gradio_monitor(
+    host: str,
+    port: int,
+    unsafe_expose: bool,
+    no_browser: bool,
+    saga_log: str | None,
+    storage_url: str | None,
+) -> None:
+    """Serve the Gradio asset monitor (ADR-039) over a saga log or a saga storage."""
+    if not saga_log and not storage_url:
+        msg = "the gradio monitor reads --saga-log URL (or --storage-url URL)"
+        raise click.UsageError(msg)
+    _require_safe_bind(host, unsafe_expose)
+    import importlib.util
+
+    if importlib.util.find_spec("gradio") is None:
+        msg = "the gradio monitor needs: pip install 'sagaz[gradio]'"
+        raise click.ClickException(msg)
+    from sagaz.visualization.gradio import launch
+
+    source = {"saga_log": saga_log} if saga_log else {"storage": storage_url}
+    click.echo(f"Sagaz asset monitor: http://{_browser_host(host)}:{port}/")
+    launch(**source, host=host, port=port, open_browser=not no_browser)
