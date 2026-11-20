@@ -50,6 +50,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     finished ones.
   - **Guide:** [Fluss and Iceberg analytics](../monitoring/fluss-iceberg-analytics.md).
 
+- **Flow metrics for Prometheus** (#483): `sagaz analytics metrics` serves the flow
+  summary of the Iceberg history as Prometheus metrics (`sagaz[iceberg]`).
+  - **Reading:** pyiceberg reads the catalog Fluss writes to, and DuckDB computes the
+    report with the same semantics as `flow-summary`, cached between scrapes.
+  - **Exporter metrics:** `sagaz analytics export --metrics-port` serves the exporter's
+    exported events, errors and lag.
+  - **Dashboard:** the Grafana dashboard "Sagaz - Saga Flows" charts both.
+
 ### Removed
 - `jobs/fluss_to_iceberg.sql`, the hand-written tiering job of the first ADR-013
   design: Fluss's tiering service replaces it.

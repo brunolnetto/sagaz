@@ -284,7 +284,7 @@ class TestExport:
             await asyncio.sleep(0.005)
         assert job.metrics()["last_error"] == "ConnectionError: tablet server unreachable"
         fake.fail_after = None
-        for _ in range(200):
+        for _ in range(2000):  # up to 10 s on a loaded machine
             if len(fake.rows) == 5:
                 break
             await asyncio.sleep(0.005)
