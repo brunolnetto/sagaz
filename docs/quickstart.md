@@ -335,8 +335,8 @@ diagram = await saga.to_mermaid_with_execution(
 |-------|------|
 | Configuration Guide | [Configuration](guides/configuration.md) |
 | Mermaid Visualization | [Diagram Guide](guides/mermaid.md) |
-| Grafana Dashboards | [Grafana Setup](../grafana/README.md) |
+| Grafana Dashboards | Grafana Setup |
 | Architecture | [Overview](architecture/overview.md) |
-| Full API Reference | [API Docs](reference/api.md) |
+| Full API Reference | API Docs |
 | Kubernetes Deployment | [K8s Guide](guides/kubernetes.md) |
 | Performance Tuning | [Benchmarking](guides/benchmarking.md) |

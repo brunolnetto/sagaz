@@ -36,6 +36,27 @@
 - **Global configuration** - Configure once, all sagas inherit
 - **Type-safe instances** - Real storage/broker instances, not brittle strings
 
+### Choreography & Event-Driven Sagas
+- **Choreographed sagas** - Participants react to events on a bus, with compensation requests and reports
+- **Guarantees** - Idempotent delivery, tombstones for late events, deadlines, durable participant state
+- **Tracker** - Status of every choreographed transaction, with stalled-transaction detection
+
+### Unified Saga Log
+- **One OLTP model** - Orchestrated and choreographed sagas in the same append-only log, shareable between services
+- **Atomic publication** - Choreography state and events written together, delivered through the outbox
+- **Per-participant write policies** - PostgreSQL row-level security per tenant and per service role
+- **Event sourcing** - Rebuild any saga from its events, with snapshots and replay
+
+### Multi-Tenancy & Multi-Region
+- **Tenant isolation** - Tenant scope on every store, with PostgreSQL row-level security
+- **Multi-region routing** - Step affinity, data residency, and same-jurisdiction failover
+
+### Analytics
+- **Embedded pipeline** - DuckDB reports over the saga log (`sagaz[analytics]`), served by `sagaz monitor`
+- **Streaming and history** - Export the log to Apache Fluss, tiered to Apache Iceberg (`sagaz[fluss]`)
+- **Flink SQL reports** - `sagaz analytics flink-sql` over the Iceberg history
+- **Prometheus metrics** - Flow summary from Iceberg (`sagaz[iceberg]`), with a Grafana dashboard
+
 ### Storage Backends
 - **SQLite** - File-based persistence for local development and smaller deployments
 - **PostgreSQL** - Production-grade with ACID guarantees
@@ -47,6 +68,7 @@
 - **OpenTelemetry tracing** - Distributed tracing support
 - **Structured logging** - JSON logs with correlation IDs
 - **Grafana dashboard** - Ready-to-import JSON template
+- **Change data capture** - Outbox relay through PostgreSQL logical replication or Debezium
 - **Kubernetes manifests** - Production-ready deployment
 - **Health checks** - Liveness and readiness probes
 - **Chaos engineering tests** - 12 resilience tests validating production readiness
@@ -73,6 +95,12 @@ pip install "sagaz[storage]"
 
 # With Kafka broker
 pip install "sagaz[kafka]"
+
+# Analytics: embedded (DuckDB), Fluss export, Iceberg metrics
+pip install "sagaz[analytics]" "sagaz[fluss]" "sagaz[iceberg]"
+
+# Change data capture (PostgreSQL logical replication, Debezium)
+pip install "sagaz[cdc]"
 ```
 
 ### CLI Deployment Scenarios
@@ -232,8 +260,6 @@ result = await inbox.process_idempotent(
 
 ### Unified Configuration
 
-### Unified Configuration
-
 ```python
 from sagaz import SagaConfig, configure, create_storage_manager  
 
@@ -318,7 +344,7 @@ kubectl apply -f k8s/
 - Production security (non-root, read-only fs)
 - Complete monitoring stack
 
-See [`k8s/README.md`](k8s/README.md) for detailed deployment guide.
+See [`sagaz/deployment/resources/k8s/README.md`](sagaz/deployment/resources/k8s/README.md) for the detailed deployment guide.
 
 ---
 
@@ -341,7 +367,10 @@ consumer_inbox_duplicates_total
 
 ### Grafana Dashboard
 
-Ready-to-import dashboard template at [`grafana/sagaz-dashboard.json`](grafana/sagaz-dashboard.json).
+Ready-to-import dashboards:
+
+- **Sagas and outbox:** [`main-dashboard.json`](sagaz/deployment/resources/k8s/monitoring/dashboards/main-dashboard.json) and [`outbox-dashboard.json`](sagaz/deployment/resources/k8s/monitoring/dashboards/outbox-dashboard.json).
+- **Saga flows from the Iceberg history:** ["Sagaz - Saga Flows"](sagaz/deployment/resources/local/lakehouse/grafana/dashboards/sagaz-flows.json).
 
 ### Grafana Alerts
 
@@ -371,10 +400,10 @@ The library includes comprehensive chaos engineering tests that verify system re
 
 ```bash
 # Run all chaos engineering tests
-pytest tests/test_chaos_engineering.py -v -m chaos
+pytest tests/integration/test_chaos_engineering.py -v -m chaos
 
 # Test specific failure scenario
-pytest tests/test_chaos_engineering.py::TestWorkerCrashRecovery -v
+pytest tests/integration/test_chaos_engineering.py::TestWorkerCrashRecovery -v
 ```
 
 **Key Findings:**
@@ -383,7 +412,7 @@ pytest tests/test_chaos_engineering.py::TestWorkerCrashRecovery -v
 - Graceful handling of 50 events under extreme load
 - Automatic recovery with exponential backoff
 
-See [docs/CHAOS_ENGINEERING.md](docs/CHAOS_ENGINEERING.md) for detailed chaos test documentation.
+See [ADR-017](docs/architecture/adr/adr-017-chaos-engineering.md) for the chaos engineering design.
 
 ---
 
@@ -391,15 +420,19 @@ See [docs/CHAOS_ENGINEERING.md](docs/CHAOS_ENGINEERING.md) for detailed chaos te
 
 | Topic | Link |
 |-------|------|
-| **Documentation Index** | [docs/DOCUMENTATION_INDEX.md](docs/DOCUMENTATION_INDEX.md) |
+| **Documentation Home** | [docs/README.md](docs/README.md) |
 | **Configuration Guide** | [docs/guides/configuration.md](docs/guides/configuration.md) |
-| **DAG Pattern** | [docs/feature_compensation_graph.md](docs/feature_compensation_graph.md) |
-| **Optimistic Sending** | [docs/optimistic-sending.md](docs/optimistic-sending.md) |
-| **Consumer Inbox** | [docs/consumer-inbox.md](docs/consumer-inbox.md) |
-| **Kubernetes Deploy** | [k8s/README.md](k8s/README.md) |
-| **Grafana Dashboards** | [grafana/README.md](grafana/README.md) |
-| **Chaos Engineering** | [docs/CHAOS_ENGINEERING.md](docs/CHAOS_ENGINEERING.md) |
-| **Observability Reference** | [docs/observability/OBSERVABILITY_REFERENCE.md](docs/observability/OBSERVABILITY_REFERENCE.md) |
+| **DAG Pattern** | [docs/architecture/deep-dives/compensation-graph-deep-dive.md](docs/architecture/deep-dives/compensation-graph-deep-dive.md) |
+| **Optimistic Sending** | [docs/patterns/optimistic-sending.md](docs/patterns/optimistic-sending.md) |
+| **Consumer Inbox** | [docs/patterns/consumer-inbox.md](docs/patterns/consumer-inbox.md) |
+| **Unified Saga Log** | [docs/guides/unified-saga-log.md](docs/guides/unified-saga-log.md) |
+| **Event Sourcing** | [docs/guides/event-sourcing.md](docs/guides/event-sourcing.md) |
+| **Multi-Tenancy** | [docs/guides/multi-tenancy.md](docs/guides/multi-tenancy.md) |
+| **Multi-Region** | [docs/guides/multi-region.md](docs/guides/multi-region.md) |
+| **Fluss & Iceberg Analytics** | [docs/monitoring/fluss-iceberg-analytics.md](docs/monitoring/fluss-iceberg-analytics.md) |
+| **Kubernetes Deploy** | [sagaz/deployment/resources/k8s/README.md](sagaz/deployment/resources/k8s/README.md) |
+| **Observability Reference** | [docs/monitoring/OBSERVABILITY_REFERENCE.md](docs/monitoring/OBSERVABILITY_REFERENCE.md) |
+| **Architecture Decisions** | [docs/architecture/adr/README.md](docs/architecture/adr/README.md) |
 | **Changelog** | [docs/development/changelog.md](docs/development/changelog.md) |
 
 ---
@@ -422,9 +455,9 @@ See [docs/CHAOS_ENGINEERING.md](docs/CHAOS_ENGINEERING.md) for detailed chaos te
 
 ## Production Stats
 
-- **96% test coverage** (860+ passing tests)
-- **Type-safe** - Full type hints
-- **Zero dependencies** - Core features work standalone
+- **98% unit test coverage** (4,800+ passing tests), plus integration, chaos and lakehouse end-to-end suites
+- **Type-safe** - Full type hints, checked with mypy
+- **Small core** - Integrations are optional extras
 - **Well-documented** - Comprehensive examples
 - **Battle-tested** - Production-ready
 - **Kubernetes-native** - Cloud-ready deployment
@@ -447,7 +480,6 @@ uv run pytest
 
 # With coverage
 uv run pytest --cov=sagaz --cov-report=html
-# Current: 96% coverage
 ```
 
 ---
@@ -460,33 +492,12 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Project Status
 
-**Current Version**: 1.6.0 (November 2026)
+**Current Version**: 2.2.0 (November 2026)
 
-**Recent Updates** (v1.6.0):
-- **Dead Letter Queue** - park, replay, and purge failed outbox events, with Prometheus depth metrics
-- **SQLite storage** - Saga storage and transactional outbox through the optional `sagaz[sqlite]` extra
-- **Storage migration** - cross-backend transfer tooling, canonical validation, checksums, and destination-state safeguards
-- **Developer workflow** - conventional-commit and branch-name validation improvements
+**Recent releases:**
+- **v2.2.0** - Streaming and historical analytics on the saga log. The log is exported to Apache Fluss and tiered to Apache Iceberg, with Flink SQL reports, Prometheus metrics and a Grafana dashboard.
+- **v2.1.0** - Unified saga log: one OLTP model for orchestrated and choreographed sagas, with atomic choreography publication and analytics over both coordination styles.
+- **v2.0.0** - Event sourcing and multi-region routing with data residency.
+- **v1.10.0** - Event-driven choreography with delivery guarantees.
 
-**Earlier Releases**:
-- v1.4.0: Lightweight context streaming, industry examples, and saga replay/time-travel
-- v1.3.0: Pivot steps, event triggers, dry-run mode, CLI, and framework integration
-- v1.2.0: Unified storage layer and compensation result passing
-- Consumer inbox pattern (exactly-once processing)
-- Kubernetes manifests (production deployment)
-- 96% test coverage with 860+ tests
-
-See [docs/ROADMAP.md](docs/ROADMAP.md) for roadmap.
-
----
-
-**Need Help?**
-
-- Read the [docs](docs/)
-- Report [issues](https://github.com/brunolnetto/sagaz/issues)
-- Join discussions
-- Contact maintainers
-
----
-
-*Built for distributed systems*
+See the [changelog](docs/development/changelog.md) for every release and the [release plan](docs/planning/release-plan.md) for what comes next.

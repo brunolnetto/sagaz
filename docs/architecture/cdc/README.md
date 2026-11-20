@@ -179,4 +179,4 @@ Throughput:        48,000 events/sec
 
 - [Roadmap](../../ROADMAP.md) - Q2 2026 implementation timeline
 - [ADR-012: Synchronous Orchestration](../adr/adr-012-synchronous-orchestration-model.md) - Current architecture
-- [Outbox Pattern Docs](../../../patterns/outbox/) - Base implementation
+- Outbox Pattern Docs - Base implementation

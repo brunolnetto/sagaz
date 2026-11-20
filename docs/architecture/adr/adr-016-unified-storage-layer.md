@@ -193,7 +193,7 @@ See **[Unified Storage Implementation Plan](../implementation-plans/unified-stor
 
 ## References
 
-- [Unified Storage Implementation Plan](../unified-storage-implementation-plan.md)
+- [Unified Storage Implementation Plan](../implementation-plans/unified-storage-implementation-plan.md)
 - [ROADMAP v1.2.0](../../ROADMAP.md)
 - Current implementations:
   - `sagaz/storage/` (saga storage)

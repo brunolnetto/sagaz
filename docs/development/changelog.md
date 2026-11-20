@@ -20,6 +20,106 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     which showed up in CI as `Event loop is closed` in a worker thread.
   - **Fix:** they now finish the iteration in progress, and only one that overruns 10 s is
     cancelled (`sagaz.core._poller.Poller`).
+## [2.2.0] - 2026-11-20
+Streaming and historical analytics on the unified saga log (ADR-013).
+- **Export:** the log is exported at least once to an idempotent Apache Fluss table.
+- **History:** Fluss tiers the table to Apache Iceberg.
+- **Analysis:** reports in Flink SQL, and Prometheus metrics with a Grafana
+  dashboard.
+- **Release gates:** checked end to end in CI.
+### Added
+### Fixed
+- **Fluss sink stalls** (#484): a write to a Fluss server that went away waited
+  forever, without an error, so the exporter never backed off. `FlussSink` now fails
+  a write after `timeout` seconds (30 by default), drops the session and reconnects
+  on the next attempt.
+### Removed
+### Fixed
+- **SQLite stores** (event store #57, choreography participant state #448): concurrent
+  first use could open a second connection or write during schema creation
+  (`cannot start a transaction within a transaction`). Initialization now runs once,
+  under a lock.
+## [2.0.2] - 2026-11-18
+Hotfix: PostgreSQL stores no longer block or deadlock running writers on startup.
+### Fixed
+### Fixed
+- **Orchestration analytics:** choreographed transactions no longer appear as a
+  phantom saga named `choreography`, with no steps, in the orchestration reports
+  (#459).
+## [2.0.0] - 2026-11-18
+Wave 5: core extensions. Sagas can keep their full history as events (#57, ADR-033)
+and run steps in other regions while keeping data in its jurisdiction (#59,
+ADR-034). Choreographed sagas get the guarantees the literature expects from a
+system without a coordinator: per-transaction ordering, compensation that commutes
+with late events, durable participant state and deadlines.
+### Breaking changes
+### Fixed
+- **Choreography: late events after compensation** (#446): a participant that has
+  compensated a transaction no longer acts on that transaction's later business
+  events. Before, a late event performed an action that nothing undid. Such events
+  are counted as `outcome="after_compensation"`.
+- **Choreography over Kafka: per-transaction ordering** (#447): events are keyed by
+  correlation id instead of event type, so a transaction's events share a partition
+  and keep their order.
+## [1.10.0] - 2026-11-18
+Wave 4: event-driven saga choreography (#56, ADR-029). Opt-in: orchestrated
+`Saga`s are unchanged.
+### Added
+### Fixed
+- The worker `Dockerfile`:
+  - `pip install` failed because `README.md` was not copied;
+  - the package was copied to `./sage/`, and the image ran a module that does not exist.
+  (#414)
+- Redis outbox:
+  - stuck events were never detected or released (#397);
+  - the pending count counted the whole stream (#399);
+  - events returned to `PENDING` after a failed publish were never redelivered
+    (#401, #402).
+- SQLite outbox: stuck-event detection compared timestamps as text and never
+  matched. (#398)
+- Transfer validation could accept another tenant's record with the same id.
+  `SagaConfig.with_storage()` and `with_broker()` dropped `tenant_registry`. (#400)
+- The dry-run display module failed to import without `rich`. (#407)
+- The structural gate test could time out under load. (#396)
+- `uv.lock` was missing the `encryption` extra. (#410)
+- Merge conflict markers in the contributing guide. (#406)
+### Dependencies
+### Fixed
+- The 1.8.0 wheel shipped none of the deployment templates (Docker Compose, Kubernetes, monitoring): `package-data` still pointed at `resources/`, which had moved to `deployment/resources/`, and the CLI read templates from the old location. `sagaz setup` printed `ERROR copying ...` and then reported a successful setup. Templates are now packaged and read from `sagaz/deployment/resources`.
+- `sagaz setup` stops with a clear error when a required template is missing, instead of reporting success.
+- Add the `py.typed` marker that the package declared but never contained, so type checkers use sagaz's annotations (PEP 561).
+- `sagaz version` printed the hard-coded legacy version `1.0.3`; it now reports the installed version, like `sagaz --version`.
+### Known issues
+### Fixed
+- `TracingSagaListener` emitted no spans: it called the tracer's context managers without entering them. It now emits a saga span with step and compensation child spans, with ERROR status on failures (#378).
+- Outbox DLQ semantics now match across backends: the in-memory backend ignored the `event` argument on `DEAD_LETTER`, and Redis skipped retry counting without an error message and stored an empty `dead_letter_at` (#374).
+- `ChaosMonkey` reports latency injections that exceed the step timeout (#79).
+### Tests
+### Fixed
+- **FIXED:** Import path corrections in documentation examples
+---
+## [1.0.0] - 2024-12-23
+### Added
+### Fixed
+- **FIXED:** Async context manager protocol errors in test mocks
+  - `test_postgresql_get_events_by_saga` now uses proper async mocks
+  - `test_postgresql_claim_and_lock` now uses proper async mocks
+
+### Changed
+- **Documentation** (#499):
+  - **README:** the features and project status of v2.2.0, with working links.
+  - **Roadmap:** `docs/ROADMAP.md` is rewritten from the release plan; the old planning
+    document is in `docs/archive/`.
+  - **ADR statuses:** ADR-035 and ADR-043 are implemented, and ADR-014 and ADR-039 are
+    planned for v2.3.0.
+  - **Links:** relative links in the docs are fixed and checked in CI
+    (`scripts/check_doc_links.py`).
+  - **Two ADR numbers were used twice** and are renumbered:
+    - Environment Variable Management: ADR-015 → **ADR-042**;
+    - sqldim Analytics Pipeline: ADR-036 → **ADR-043**.
+
+    ADR-015 (Unified Saga API) and ADR-036 (Lifecycle Hooks & Observers) keep
+    their numbers.
 
 ## [2.2.0] - 2026-11-20
 
@@ -474,7 +574,7 @@ Wave 2 — "Analytics & Chaos".
 
 ### Added
 - `sagaz.testing.ChaosMonkey` (ADR-017): seeded fault injection for saga steps — random failures, timeouts and latency, optionally limited to `target_steps` (#79).
-- `sagaz[analytics]` extra (ADR-036): Bronze → Silver → Gold DuckDB pipeline built on sqldim. `SagaAnalyticsPipeline(storage).run()` reads sagas and steps from any saga storage (read-only); Gold queries cover saga summary, per-step p50/p95/p99 latency and error rate, compensations and lifecycle milestones (#74, #382).
+- `sagaz[analytics]` extra (ADR-043): Bronze → Silver → Gold DuckDB pipeline built on sqldim. `SagaAnalyticsPipeline(storage).run()` reads sagas and steps from any saga storage (read-only); Gold queries cover saga summary, per-step p50/p95/p99 latency and error rate, compensations and lifecycle milestones (#74, #382).
 - `sagaz[visualization]` / `sagaz[monitor]` extras (ADR-035): `sagaz monitor` serves a dashboard with run list and detail, runtime-state diagrams, per-run and global SSE streams, metrics summary and step explorer; REST API under `/api/v1` and the `/api/sagas`, `/api/metrics/summary` paths (#374, #383).
 - Monitor analytics reports at `/api/v1/analytics/{summary,step-latency,compensations,lifecycle}`, enabled with `sagaz monitor --storage-url` or `SAGAZ_STORAGE_URL` (#382).
 - Mermaid is served by the monitor from a SHA-384-verified local cache; browsers never contact a CDN (#374).
@@ -949,4 +1049,4 @@ See Git history for versions prior to 0.9.0.
 
 **Questions or issues?** Open an issue on GitHub or contact the maintainers.
 
-**Want to contribute?** See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+**Want to contribute?** See [CONTRIBUTING.md](contributing.md) for guidelines.

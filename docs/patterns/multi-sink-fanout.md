@@ -315,6 +315,6 @@ This approach:
 
 ## Related Documentation
 
-- [SagaListener API](../api/listeners.md)
-- [Fluss Analytics](../architecture/fluss-analytics.md)
+- SagaListener API
+- [Fluss Analytics](../architecture/future/fluss-analytics.md)
 - [Dead Letter Queue](dead-letter-queue.md)

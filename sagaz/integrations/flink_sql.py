@@ -12,7 +12,7 @@ Iceberg table, ``iceberg.sagaz.saga_log_event``. It is behind the log by the
 table's freshness (``sagaz analytics export --freshness``). The ranking and
 windows they use need batch mode; in streaming, Flink only supports Top-N
 rankings and windows on a watermarked time attribute. :data:`FLOW_SUMMARY` has the semantics of the embedded pipeline's
-``SagaQueries.FLOW_SUMMARY`` (ADR-036), so the two agree on the same log::
+``SagaQueries.FLOW_SUMMARY`` (ADR-043), so the two agree on the same log::
 
     sagaz analytics flink-sql flow-summary --table iceberg.sagaz.saga_log_event
 

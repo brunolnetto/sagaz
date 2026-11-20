@@ -3,6 +3,8 @@ name = "sagaz"
 version = "2.2.0"
 description = "Production-ready Saga pattern with DAG support"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = [
     "aiofiles>=25.1.0",
     "click>=8.1.0",
@@ -181,7 +183,7 @@ sqlite = [
 # ============================================================================
 
 [build-system]
-requires = ["setuptools>=68.0", "wheel"]
+requires = ["setuptools>=77.0", "wheel"]  # SPDX license expression (PEP 639)
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]

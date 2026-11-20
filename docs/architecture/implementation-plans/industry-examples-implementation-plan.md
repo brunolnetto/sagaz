@@ -3,7 +3,7 @@
 **Version:** 1.0  
 **Created:** 2026-01-07  
 **Target Release:** v1.4.0 - v1.5.0  
-**Related ADR:** [ADR-026: Industry Examples Expansion Strategy](adr/adr-026-industry-examples-expansion.md)
+**Related ADR:** [ADR-026: Industry Examples Expansion Strategy](../adr/adr-026-industry-examples-expansion.md)
 
 ---
 
@@ -799,7 +799,7 @@ jobs:
 
 ## References
 
-- [ADR-026: Industry Examples Expansion Strategy](adr/adr-026-industry-examples-expansion.md)
-- [ADR-023: Pivot/Irreversible Steps](adr/adr-023-pivot-irreversible-steps.md)
-- [ADR-022: Compensation Result Passing](adr/adr-022-compensation-result-passing.md)
-- [Examples README](../../examples/README.md)
+- [ADR-026: Industry Examples Expansion Strategy](../adr/adr-026-industry-examples-expansion.md)
+- [ADR-023: Pivot/Irreversible Steps](../adr/adr-023-pivot-irreversible-steps.md)
+- [ADR-022: Compensation Result Passing](../adr/adr-022-compensation-result-passing.md)
+- [Examples README](../../../sagaz/examples/README.md)

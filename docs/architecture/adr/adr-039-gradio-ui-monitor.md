@@ -1,7 +1,7 @@
 # ADR-039: Gradio-Based Saga Asset Monitor
 
 ## Status
-Proposed (2026-04-24)
+Proposed (2026-04-24). Planned for v2.3.0 ([#501](https://github.com/brunolnetto/sagaz/issues/501)), after a revision for the unified saga log.
 
 ## Context
 As the Sagaz ecosystem grows, developers need a zero-config, visual way to monitor saga assets (states, contexts, and dependency graphs) during development. While Grafana/Prometheus provide production-grade monitoring, they require a full infrastructure stack (database, metrics exporter, Grafana server).
