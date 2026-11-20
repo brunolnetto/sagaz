@@ -140,7 +140,7 @@ services:
         taskmanager.memory.task.off-heap.size: 128m
 
   prometheus:
-    image: prom/prometheus:v3.5.0
+    image: prom/prometheus:v3.16.0
     profiles: [metrics]
     ports: ["9090:9090"]
     volumes:
