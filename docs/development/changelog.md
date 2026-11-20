@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **CDC reader for the saga log export** (#495): `SagaLogCDCReader` streams
+  `saga_log_event` through PostgreSQL logical replication, in commit order, with
+  at-least-once delivery from its replication slot.
+  - **CLI:** `sagaz analytics export --cdc [--cdc-dsn]` uses it.
+  - **Generic CDC source:** `PgLogicalSource` takes a `row_mapper` and gains `poll(timeout)`.
+  - **Gates:** the lakehouse release gates run with both readers.
+
 ### Fixed
 - **SQLite saga log contention** (#500): a relay on its own SQLite connection competed with
   the log's writes for SQLite's single write lock and failed under load with
