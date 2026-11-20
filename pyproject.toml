@@ -68,6 +68,8 @@ visualization = [
     "sse-starlette>=1.0.0",
 ]
 monitor = ["sagaz[visualization]"]
+# Gradio monitor of persisted saga assets (ADR-039): sagaz monitor --ui gradio
+gradio = ["gradio>=5.25.0"]
 aws = [
     "aioboto3>=12.0.0",
     "zstandard>=0.22.0",  # For S3 snapshot compression

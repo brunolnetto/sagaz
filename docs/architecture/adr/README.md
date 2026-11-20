@@ -37,6 +37,7 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-036](adr-036-lifecycle-hooks-observers.md) | Lifecycle Hooks & Observers | v1.3.0 | 2026-04 |
 | [ADR-037](adr-037-compliance-data-governance.md) | Compliance & Data Governance | v2.1.0 | 2026-04 |
 | [ADR-038](adr-038-dlq-observability.md) | DLQ Observability (error classification, replay validation) | v1.3.0 | 2026-04 |
+| [ADR-039](adr-039-gradio-ui-monitor.md) | Gradio Saga Asset Monitor | v2.3.0 | 2026-11 |
 | [ADR-040](adr-040-statechart-saga-lifecycle.md) | StateChart Saga Lifecycle (Phase 1) | v1.7.0 | 2026-11 |
 | [ADR-041](adr-041-unified-saga-log.md) | Unified Saga Log | v2.1.0 | 2026-11 |
 | [ADR-042](adr-042-environment-variable-management.md) | Environment Variable Management (`.env`) | v1.1.1 | 2026-01 |
@@ -53,7 +54,6 @@ its recovery, compensation and migration semantics are reviewed.
 | ADR | Title | Target | Description |
 |-----|-------|--------|-------------|
 | [ADR-014](adr-014-schema-registry.md) | Schema Registry | v2.3.0 | Schema registry for saga events: Avro/JSON Schema, Confluent-compatible registries ([#502](https://github.com/brunolnetto/sagaz/issues/502)); to be revised for the unified saga log |
-| [ADR-039](adr-039-gradio-ui-monitor.md) | Gradio-Based Saga Asset Monitor | v2.3.0 | Python-native monitoring UI for development ([#501](https://github.com/brunolnetto/sagaz/issues/501)); to be revised for the unified saga log |
 
 ---
 
