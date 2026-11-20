@@ -47,6 +47,7 @@ class FakeFluss:
         self.upserts = 0
         self.fail_after: int | None = None  # fail the upsert after this many
         self.created: list = []
+        self.hang = False
         self.partitions: list = []
         self.connections = 0
         self.closed = 0
@@ -57,6 +58,8 @@ class FakeFluss:
                 self.row, self.ok = row, ok
 
             async def wait(self):
+                if fake.hang:  # a server that went away: never acknowledged
+                    await asyncio.Event().wait()
                 if not self.ok:
                     msg = "tablet server unreachable"
                     raise ConnectionError(msg)
@@ -91,6 +94,8 @@ class FakeFluss:
 
             async def close(self):
                 fake.closed += 1
+                if fake.hang:
+                    await asyncio.Event().wait()
 
         async def create(config):
             fake.connections += 1
@@ -298,6 +303,45 @@ class TestExport:
         await sink.write([])
         await sink.close()
         assert fake.connections == 0
+
+
+class TestTimeout:
+    async def test_a_write_fluss_never_acknowledges_times_out(self, log):
+        """The client waits forever on a server that went away: the sink must not."""
+        fake = FakeFluss()
+        await fill(log)
+        fake.hang = True
+        sink = FlussSink("fluss:9123", client=fake, timeout=0.05)
+        job = SagaLogExporter(SagaLogReader(log, "fluss", batch_size=2), sink)
+        with pytest.raises(TimeoutError):
+            await job.export()
+        assert fake.closed == 1  # the stuck session was dropped (its close timed out too)
+        fake.hang = False
+        assert await job.export() == 5  # a new session, from the cursor
+        assert len(fake.rows) == 5
+        assert fake.connections == 2
+
+    async def test_the_background_exporter_recovers_from_a_hang(self, log):
+        fake = FakeFluss()
+        await fill(log)
+        fake.hang = True
+        sink = FlussSink("fluss:9123", client=fake, timeout=0.05)
+        job = SagaLogExporter(
+            SagaLogReader(log, "fluss"), sink, poll_interval=0.01, max_backoff=0.02
+        )
+        await job.start()
+        for _ in range(500):
+            if job.errors:
+                break
+            await asyncio.sleep(0.01)
+        assert job.metrics()["last_error"].startswith("TimeoutError")
+        fake.hang = False
+        for _ in range(2000):
+            if len(fake.rows) == 5:
+                break
+            await asyncio.sleep(0.005)
+        await job.close()
+        assert len(fake.rows) == 5
 
 
 class TestSinkSetup:

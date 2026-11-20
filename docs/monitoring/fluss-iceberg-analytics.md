@@ -57,6 +57,48 @@ The exporter keeps its position in the log's `saga_export_cursor` table, so a
 restarted exporter resumes where it stopped. While Fluss is unreachable it
 backs off and retries; nothing is lost.
 
+### With Docker
+
+`sagaz/deployment/resources/local/lakehouse/docker-compose.yaml` runs the same
+stack in containers. Fluss runs with ZooKeeper, Flink runs the tiering job, and
+Iceberg lives on S3 (RustFS), with its JDBC catalog in PostgreSQL. With
+`--profile metrics`, Prometheus and Grafana run too.
+
+```bash
+cd sagaz/deployment/resources/local/lakehouse
+./fetch-jars.sh && docker compose up -d
+docker compose exec jobmanager /opt/flink/tiering.sh
+
+sagaz analytics export --saga-log ... --to fluss://localhost:9124
+sagaz analytics metrics --catalog-uri postgresql://iceberg:iceberg@localhost:15433/iceberg \
+    --catalog-property s3.endpoint=http://localhost:9000 \
+    --catalog-property s3.access-key-id=rustfsadmin \
+    --catalog-property s3.secret-access-key=rustfsadmin
+```
+
+Each Fluss server listens twice:
+
+- **`FLUSS`:** used by the containers;
+- **`CLIENT`:** advertised as `localhost` (ports 9124 and 9125) and used by the
+  host.
+
+A client receives the endpoints of the listener it connected through.
+
+### Release gates
+
+`tests/integration/test_lakehouse_e2e.py` runs the gates of ADR-013 against
+the compose. It needs `SAGAZ_TEST_LAKEHOUSE=1`, Python 3.12 for pyfluss, and
+the tiering job submitted. The `Lakehouse` CI workflow runs them with 1,000
+sagas.
+
+1. **No loss:** the tablet server is stopped and restarted mid-load. The
+   events in Iceberg per tenant and transaction must equal the log's.
+2. **Latency:** p99 from `occurred_at` to Fluss acknowledging an event must
+   be below 1 s, at a steady rate after a warm-up.
+3. **Tiering:** Iceberg must hold each of the log's events exactly once.
+4. **Parity:** the flow summary over Iceberg must equal the embedded
+   pipeline's.
+
 ## Reports
 
 `sagaz analytics flink-sql REPORT` prints a report in Flink SQL. Run it in

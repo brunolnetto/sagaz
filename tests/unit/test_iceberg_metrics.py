@@ -12,6 +12,7 @@ pytest.importorskip("duckdb")
 pytest.importorskip("sqldim")
 prometheus_client = pytest.importorskip("prometheus_client")
 
+import click  # noqa: E402
 from click.testing import CliRunner  # noqa: E402
 from prometheus_client import CollectorRegistry, generate_latest  # noqa: E402
 
@@ -265,6 +266,10 @@ def test_catalog_uris():
         "warehouse": "s3://b",
     }
     assert _catalog_properties("sqlite:///c.db", None) == {"type": "sql", "uri": "sqlite:///c.db"}
+    s3 = _catalog_properties("sqlite:///c.db", None, ("s3.endpoint = http://h:9000", "a=b=c"))
+    assert (s3["s3.endpoint"], s3["a"]) == ("http://h:9000", "b=c")
+    with pytest.raises(click.BadParameter, match="key=value"):
+        _catalog_properties("sqlite:///c.db", None, ("nope",))
 
 
 def test_the_exporter_serves_its_metrics(tmp_path, monkeypatch):
