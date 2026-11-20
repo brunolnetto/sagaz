@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **SQLite saga log contention** (#500): a relay on its own SQLite connection competed with
+  the log's writes for SQLite's single write lock and failed under load with
+  `database is locked`.
+  - **Shared outbox:** `SQLiteSagaLogStore.outbox_storage()` now returns an outbox on the
+    log's own connection and lock (`SharedSQLiteOutboxStorage`). The relay therefore takes
+    whole batches again, and an in-memory SQLite log has an outbox too.
+- **Background loops stop between iterations** (#500): the choreography relay, the deadline
+  watcher and the saga log exporter used to cancel their task mid-iteration.
+  - **Symptom:** a cancelled database call could finish after its event loop had closed,
+    which showed up in CI as `Event loop is closed` in a worker thread.
+  - **Fix:** they now finish the iteration in progress, and only one that overruns 10 s is
+    cancelled (`sagaz.core._poller.Poller`).
+
 ## [2.2.0] - 2026-11-20
 
 Streaming and historical analytics on the unified saga log (ADR-013).

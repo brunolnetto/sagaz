@@ -19,6 +19,7 @@ from sagaz.choreography import _dispatch
 from sagaz.choreography.events import COMPENSATE, Event
 from sagaz.choreography.saga import ChoreographedSaga
 from sagaz.choreography.state import ParticipantState
+from sagaz.core._poller import Poller
 from sagaz.core.tenant import system_scope, tenant_scope
 
 logger = logging.getLogger(__name__)
@@ -42,31 +43,25 @@ class DeadlineWatcher:
         self._participants = participants
         self.poll_interval = poll_interval
         self.lease = timedelta(seconds=lease)
-        self._task: asyncio.Task[None] | None = None
+        self._poller = Poller(self._check, poll_interval, name="choreography-deadlines")
 
     @property
     def running(self) -> bool:
-        return self._task is not None and not self._task.done()
+        return self._poller.running
 
     def start(self) -> None:
         """Start polling (idempotent; needs a running event loop)."""
-        if not self.running:
-            self._task = asyncio.get_running_loop().create_task(self._poll())
+        self._poller.start()
 
     async def stop(self) -> None:
-        if self._task is not None:
-            self._task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await self._task
-            self._task = None
+        """Stop after the check in progress, never in the middle of a database call."""
+        await self._poller.stop()
 
-    async def _poll(self) -> None:
-        while True:
-            try:
-                await self.expire()
-            except Exception:
-                logger.exception("Checking choreography deadlines failed")
-            await asyncio.sleep(self.poll_interval)
+    async def _check(self) -> None:
+        try:
+            await self.expire()
+        except Exception:
+            logger.exception("Checking choreography deadlines failed")
 
     async def expire(self, now: datetime | None = None) -> int:
         """Compensate the transactions whose deadline passed; return how many."""
