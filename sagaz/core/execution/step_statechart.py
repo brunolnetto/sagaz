@@ -10,10 +10,15 @@ active (parallel)
 ├── lifecycle: executing ─fail→ compensating
 └── steps (parallel)
     └── step/<name>: pending → executing → completed → compensating → compensated
-                                   ↘ failed               ↘ compensation_failed
+                                   ↘ failed     ↓ taint    ↘ compensation_failed
+                                              tainted (locked: an ancestor of a pivot)
                      pending → completed ("adopt": restored or idempotent steps)
 completed | rolled_back | failed         (final; the configuration is flat again)
 ```
+
+Pivot/taint (phase 3, ADR-023): a pivot step's region has no ``compensate``
+transition, and a completed step becomes ``tainted`` once a pivot that depends on
+it completes. The chart itself refuses to compensate either.
 
 The saga-level events and guards are phase 1's (``start``, ``succeed``, ``fail``,
 ``fail_unrecoverable``, ``finish_compensation``, ``compensation_failed``,
@@ -44,7 +49,9 @@ STEP_STATES = (
     "compensating",
     "compensated",
     "compensation_failed",
+    "tainted",
 )
+_COMPENSATION_STATES = frozenset({"compensating", "compensated", "compensation_failed"})
 _FINAL_STEP_STATES = frozenset({"failed", "compensated", "compensation_failed"})
 _STEP_EVENTS = {
     "start": ("pending", "executing"),
@@ -54,6 +61,7 @@ _STEP_EVENTS = {
     "compensate": ("completed", "compensating"),
     "compensated": ("compensating", "compensated"),
     "compensation_failed": ("compensating", "compensation_failed"),
+    "taint": ("completed", "tainted"),
 }
 LIFECYCLE_STATES = ("executing", "compensating")
 FINAL_STATES = ("completed", "rolled_back", "failed")
@@ -65,17 +73,21 @@ def step_state_value(step_name: str, sub_state: str | None = None) -> str:
     return value if sub_state is None else f"{value}/{sub_state}"
 
 
-def _step_region(index: int, name: str) -> Any:
+def _step_region(index: int, name: str, pivot: bool = False) -> Any:
+    # A completed pivot is a point of no return: its region has no compensation.
+    subs = [sub for sub in STEP_STATES if not (pivot and sub in _COMPENSATION_STATES)]
     states = {
         sub: State(
             value=step_state_value(name, sub),
             initial=sub == "pending",
             final=sub in _FINAL_STEP_STATES,
         )
-        for sub in STEP_STATES
+        for sub in subs
     }
     attrs: dict[str, Any] = {f"s{index}_{sub}": state for sub, state in states.items()}
     for event, (source, target) in _STEP_EVENTS.items():
+        if source not in states or target not in states:
+            continue
         attrs[f"s{index}__{event}"] = states[source].to(states[target])
     return NestedStateFactory(
         f"s{index}", (State.Compound,), attrs, name=name, value=step_state_value(name)
@@ -83,10 +95,15 @@ def _step_region(index: int, name: str) -> Any:
 
 
 @lru_cache(maxsize=128)
-def build_step_statechart(step_names: tuple[str, ...]) -> type[_SagaChartBase]:
-    """The chart class for a saga with these steps (built once per tuple of names)."""
+def build_step_statechart(
+    step_names: tuple[str, ...], pivots: frozenset[str] = frozenset()
+) -> type[_SagaChartBase]:
+    """The chart class for a saga with these steps and pivot steps (built once, cached)."""
     if len(set(step_names)) != len(step_names):
         msg = f"step names must be unique, got {list(step_names)}"
+        raise ValueError(msg)
+    if not pivots <= set(step_names):
+        msg = f"pivots must be steps of the saga: {sorted(pivots - set(step_names))}"
         raise ValueError(msg)
     lifecycle_states = {
         "executing": State(initial=True, value="executing"),
@@ -98,7 +115,7 @@ def build_step_statechart(step_names: tuple[str, ...]) -> type[_SagaChartBase]:
     steps = NestedStateFactory(
         "steps",
         (State.Parallel,),
-        {f"s{i}": _step_region(i, name) for i, name in enumerate(step_names)},
+        {f"s{i}": _step_region(i, name, name in pivots) for i, name in enumerate(step_names)},
         value="steps",
     )
     active = NestedStateFactory(
@@ -116,6 +133,7 @@ def build_step_statechart(step_names: tuple[str, ...]) -> type[_SagaChartBase]:
     attrs["compensation_failed"] = compensating.to(finals["failed"])
     attrs["nothing_to_compensate"] = executing.to(finals["rolled_back"])
     attrs["step_names"] = step_names
+    attrs["pivots"] = pivots
     # The metaclass builds a _SagaChartBase subclass.
     return StateMachineMetaclass(  # type: ignore[return-value]
         f"SagaStepChart{len(step_names)}", (_SagaChartBase,), attrs

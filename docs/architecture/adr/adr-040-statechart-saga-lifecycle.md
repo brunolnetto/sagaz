@@ -1,4 +1,4 @@
-# ADR-040: StateChart for the Saga Lifecycle (Phases 1 and 2)
+# ADR-040: StateChart for the Saga Lifecycle (Phases 1 to 3)
 
 ## Status
 
@@ -8,6 +8,7 @@
 - Dependency security floor: `python-statemachine>=3.2.0` (PR #365)
 - Phase 1 completion evidence and regression hardening: v1.7.1
 - Phase 2 (opt-in step regions and compensation re-entry): v2.3.0, issue #190. See "Phase 2" below.
+- Phase 3 (the declarative engine, pivot/taint states): v2.3.0, issue #522. See "Phase 3" below.
 
 ## Context
 
@@ -242,10 +243,74 @@ run again the compensations that succeeded.**
 - **`HistoryState`:** the orthogonal step regions keep their state through compensation,
   and re-entry comes from a validated restored configuration.
 - **Automatic `done.state` transitions:** the executor keeps explicit control.
-- **The declarative engine, and pivot/taint states:** they come in a phase 3.
+- **The declarative engine, and pivot/taint states:** they come in phase 3, below.
 
 `python-statemachine` is pinned below 4, because the chart is built with its
 `NestedStateFactory`.
+
+## Phase 3 (v2.3.0, #522)
+
+### Pivot and taint states in the chart
+
+Pivots (ADR-023) were enforced only by the declarative engine's compensation loop. The
+chart now encodes them:
+
+- **`tainted` step state:** a completed step becomes `tainted` (`s<i>__taint`) once a pivot
+  that depends on it completes. `tainted` has no `compensate` transition.
+- **Pivot regions:** a pivot step's region has no compensation states and no `compensate`
+  transition. A completed pivot is a point of no return in the chart itself.
+- **Building:** `build_step_statechart(step_names, pivots)` builds and caches one class per
+  steps-and-pivots pair.
+- **What the chart enforces:** compensating a tainted or pivot step raises
+  `TransitionNotAllowed`, whatever the executor does.
+
+### The declarative engine
+
+`sagaz.core.decorators.Saga` gets the same opt-in. It can come from
+`Saga(use_step_statechart=True)`, a `use_step_statechart = True` class attribute, or
+`SagaConfig.use_step_statechart`. The engine hosts the chart, and its existing points send
+the events:
+
+- **Steps:** start, succeed and fail.
+- **Pivots:** taint for the ancestors a completed pivot taints.
+- **Compensation:** compensate, then compensated or compensation_failed.
+- **Lifecycle:**
+  - `succeed` when the saga succeeds;
+  - `fail`, or `nothing_to_compensate`, when it fails;
+  - `finish_compensation` or `compensation_failed` when compensation ends.
+
+The configuration is stored with the saga state (`save_saga_state(configuration=...)`). With
+the flag on, it is also stored as `COMPENSATING` after each compensated step: that is the
+checkpoint. `state_configuration`, `get_step_states()` and `in_doubt_steps()` report on the
+last run.
+
+**Re-entry:** `await saga.resume_compensation(saga_id)` loads the stored state from
+`SagaConfig.storage` and works as follows:
+
+- it validates the configuration and binds it without callbacks;
+- it restores the context, step records and pivot/taint bookkeeping;
+- it compensates the steps still `completed` or `compensating`, in the compensation graph's
+  order (compensations must be idempotent);
+- it leaves tainted and pivot steps alone, and only logs the steps that were `executing`;
+- it records the outcome in the event log when the saga is event-sourced, stores the final
+  state, and returns `ROLLED_BACK` or `FAILED`.
+
+The declarative engine compensates in dependency order, not completion order, so it needs
+no list of completed steps.
+
+### Fix
+
+The declarative engine stored `ROLLED_BACK` even when a compensation failed, while its event
+log recorded `SagaFailed`. It now stores `FAILED`, with or without the flag.
+
+### Still out of scope
+
+- **A `PARTIALLY_COMMITTED` final state:** a saga that fails after a pivot still ends
+  `rolled_back`; its tainted and pivot steps are the record of the partial commit. Making
+  it a chart final state would change the stored statuses that dashboards and analytics
+  read.
+- **Forward recovery handlers:** `@forward_recovery` handlers are collected but not run
+  by the engine. Running them is its own feature.
 
 ## References
 

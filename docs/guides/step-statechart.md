@@ -14,8 +14,16 @@ saga = Saga("order", use_step_statechart=True)
 ```
 
 With the flag off, sagas run exactly as before. The flag changes only the configuration;
-statuses, results, `current_state` and stored statuses are the same. It applies to the
-imperative `Saga`; the declarative (decorator) engine ignores it for now.
+statuses, results, `current_state` and stored statuses are the same.
+
+The declarative (decorator) `Saga` takes the same flag, as an argument, a class attribute
+or from `SagaConfig`:
+
+```python
+class OrderSaga(Saga):
+    saga_name = "order"
+    use_step_statechart = True
+```
 
 ## What the configuration says
 
@@ -31,7 +39,11 @@ While the saga runs, `saga.state_configuration` holds the lifecycle and each ste
 ```
 
 - **Step states:** `pending`, `executing`, `completed`, `failed`, `compensating`,
-  `compensated` and `compensation_failed`.
+  `compensated`, `compensation_failed` and `tainted`.
+- **Pivots** (`@step(..., pivot=True)`, declarative sagas):
+  - once a pivot completes, the completed steps it depends on become `tainted`;
+  - a pivot's region has no compensation states;
+  - the chart refuses to compensate a tainted or pivot step.
 - **Step names:** they are percent-encoded, so `a/b` becomes `step/a%2Fb`.
 - **After the saga ends:** the configuration is flat again (`["rolled_back"]`).
 
@@ -72,3 +84,19 @@ result = await saga.resume_compensation()   # ROLLED_BACK, or FAILED
   chart, and steps it does not define.
 - **Forward re-execution:** resuming forward execution is `SagaReplay`'s job
   ([saga replay](saga-replay.md)).
+
+### Declarative sagas
+
+A declarative saga stores its configuration with the saga state (`SagaConfig.storage`),
+and again after each compensated step. To finish an interrupted compensation:
+
+```python
+saga = OrderSaga(config=config)                      # the same step definitions
+status = await saga.resume_compensation(saga_id)     # ROLLED_BACK, or FAILED
+```
+
+- **Order:** it compensates in the compensation graph's order. No list of completed
+  steps is needed.
+- **Locked steps:** tainted and pivot steps are left as they are.
+- **In-doubt steps:** steps that were executing are logged, not compensated.
+- **Event log:** if the saga is event-sourced, the outcome is recorded there too.

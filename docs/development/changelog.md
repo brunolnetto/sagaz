@@ -20,6 +20,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     what is uncertain.
   - **Checkpoints:** with snapshots on, one is taken after each compensated step.
   - **Dependency:** `python-statemachine` is pinned below 4.
+- **StateChart phase 3** (#522, ADR-040): step charts for the declarative engine and
+  pivot/taint states.
+  - **Pivots in the chart:** a completed ancestor of a completed pivot becomes `tainted`,
+    and pivot regions have no compensation. The chart refuses to compensate either.
+  - **Declarative `Saga`:** `use_step_statechart` (argument, class attribute or
+    `SagaConfig`) runs it on the chart. The configuration is stored with the saga state,
+    with a checkpoint after each compensated step.
+  - **Re-entry:** `await saga.resume_compensation(saga_id)` finishes an interrupted
+    compensation from `SagaConfig.storage`.
 - **Schema registry for saga events** (#502, ADR-014): `SchemaRegistrySerializer` encodes
   events in Avro or JSON Schema through a Confluent-compatible registry (Confluent, Redpanda,
   Apicurio), in Confluent's wire format (`sagaz[schema-registry]`).
@@ -45,6 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Gates:** the lakehouse release gates run with both readers.
 
 ### Fixed
+- **Declarative saga status after a failed compensation** (#522): the engine stored
+  `ROLLED_BACK`; it now stores `FAILED`, as its event log already recorded.
 - **Saga final state on failures** (#517): the state machine sometimes ended somewhere other
   than where the result said the saga ended.
   - **DAG, failed compensation:** the status was `ROLLED_BACK` while the result was
