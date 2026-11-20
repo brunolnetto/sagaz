@@ -17,12 +17,16 @@ It uses the official async client (``pip install 'sagaz[fluss]'``, module
 
 from __future__ import annotations
 
+import asyncio
 import importlib
 import json
+import logging
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from sagaz.core.exceptions import MissingDependencyError
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from sagaz.core.storage.saga_log import ExportedEvent
@@ -145,6 +149,7 @@ class FlussSink:
         create_table: Create the database and table on first use.
         datalake: Enable tiering to the lake (Iceberg) on a created table.
         freshness: How far behind the lake may be, e.g. ``"1min"`` (created table).
+        timeout: Seconds a write (or closing a session) may take before it fails.
         properties: Extra client configuration (``Config`` properties).
         client: The client module; ``fluss`` by default (tests pass a fake).
     """
@@ -157,6 +162,7 @@ class FlussSink:
         create_table: bool = True,
         datalake: bool = True,
         freshness: str | None = None,
+        timeout: float = 30.0,
         properties: dict[str, str] | None = None,
         client: Any = None,
     ) -> None:
@@ -170,6 +176,7 @@ class FlussSink:
         self.create_table = create_table
         self.datalake = datalake
         self.freshness = freshness
+        self.timeout = timeout
         self.properties = dict(properties or {})
         self._client = client
         self._connection: Any = None
@@ -218,29 +225,40 @@ class FlussSink:
         await admin.create_table(path, descriptor, ignore_if_exists=True)
 
     async def write(self, events: list[ExportedEvent]) -> None:
-        """Upsert *events*; return once Fluss acknowledged every one."""
+        """Upsert *events*; return once Fluss acknowledged every one.
+
+        Raises ``TimeoutError`` after ``timeout`` seconds: the client waits
+        forever on a server that went away, which would stall the exporter
+        without an error to back off on.
+        """
         if not events:
             return
-        writer = await self._ensure_writer()
-        rows = [fluss_row(e) for e in events]
         try:
-            for day in sorted({row[PARTITION_KEY] for row in rows} - self._partitions):
-                await self._admin.create_partition(
-                    self._path, {PARTITION_KEY: day}, ignore_if_exists=True
-                )
-                self._partitions.add(day)
-            handles = [writer.upsert(row) for row in rows]
-            await writer.flush()
-            for handle in handles:
-                await handle.wait()
+            await asyncio.wait_for(self._write([fluss_row(e) for e in events]), self.timeout)
         except BaseException:
             # A writer that failed may hold a broken session: reconnect next time.
             await self.close()
             raise
 
+    async def _write(self, rows: list[dict[str, Any]]) -> None:
+        writer = await self._ensure_writer()
+        for day in sorted({row[PARTITION_KEY] for row in rows} - self._partitions):
+            await self._admin.create_partition(
+                self._path, {PARTITION_KEY: day}, ignore_if_exists=True
+            )
+            self._partitions.add(day)
+        handles = [writer.upsert(row) for row in rows]
+        await writer.flush()
+        for handle in handles:
+            await handle.wait()
+
     async def close(self) -> None:
+        """Drop the session; closing it waits at most ``timeout`` seconds."""
         connection, self._connection, self._writer = self._connection, None, None
         self._admin = self._path = None
         self._partitions.clear()
         if connection is not None:
-            await connection.close()
+            try:
+                await asyncio.wait_for(connection.close(), self.timeout)
+            except Exception:  # a session to a server that went away
+                logger.warning("Could not close the Fluss connection cleanly", exc_info=True)

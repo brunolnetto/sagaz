@@ -1,13 +1,147 @@
-# Prometheus and Grafana for the saga flow metrics (ADR-013).
+# The streaming analytics stack of ADR-013 in Docker: Fluss 1.0 (with ZooKeeper),
+# Flink 1.20 for the tiering service, Iceberg on S3 (RustFS) with its JDBC catalog
+# in PostgreSQL, and, with --profile metrics, Prometheus and Grafana.
 #
-# On the host, serve the metrics they scrape:
-#   sagaz analytics metrics --catalog-uri postgresql://... --port 9464
-#   sagaz analytics export ... --metrics-port 9465
-# then: docker compose -f sagaz/deployment/resources/local/lakehouse/docker-compose.yaml up -d
-# Grafana: http://localhost:3000 (admin / admin), dashboard "Sagaz - Saga Flows".
+#   ./fetch-jars.sh                         # once: Iceberg/S3/JDBC JARs for Fluss
+#   docker compose up -d                    # the lakehouse
+#   docker compose --profile metrics up -d  # plus Prometheus and Grafana
+#   docker compose exec jobmanager /opt/flink/tiering.sh   # the tiering job
+#
+# Clients on the host (sagaz analytics export / metrics):
+#   Fluss bootstrap   localhost:9124 (the coordinator's CLIENT listener)
+#   Iceberg catalog   postgresql://iceberg:iceberg@localhost:15433/iceberg (SAGAZ_CATALOG_PORT)
+#   Warehouse (S3)    s3://fluss/iceberg at http://localhost:9000 (rustfsadmin / rustfsadmin)
+#
+# Each Fluss server has two listeners: FLUSS, which the containers use, and
+# CLIENT, advertised as localhost, which the host uses. A client gets the
+# endpoints of the listener it connected through.
+#
+# Based on the Fluss 1.0 lakehouse quickstart.
+
+x-fluss: &fluss
+  image: apache/fluss:1.0.0
+  volumes:
+    - ./lib/iceberg-aws-1.10.1.jar:/opt/fluss/plugins/iceberg/iceberg-aws-1.10.1.jar:ro
+    - ./lib/iceberg-aws-bundle-1.10.1.jar:/opt/fluss/plugins/iceberg/iceberg-aws-bundle-1.10.1.jar:ro
+    - ./lib/postgresql-42.7.14.jar:/opt/fluss/plugins/iceberg/postgresql-42.7.14.jar:ro
+
+x-fluss-properties: &fluss-properties |
+  zookeeper.address: zookeeper:2181
+  internal.listener.name: FLUSS
+  remote.data.dir: s3://fluss/remote-data
+  s3.endpoint: http://rustfs:9000
+  s3.access-key: rustfsadmin
+  s3.secret-key: rustfsadmin
+  s3.region: us-east-1
+  s3.path-style-access: true
+  s3.assumed.role.arn: arn:aws:iam::000000000000:role/rustfsadmin
+  s3.assumed.role.sts.endpoint: http://rustfs:9000
+  datalake.enabled: true
+  datalake.format: iceberg
+  datalake.iceberg.catalog-impl: org.apache.iceberg.jdbc.JdbcCatalog
+  datalake.iceberg.name: iceberg
+  datalake.iceberg.uri: jdbc:postgresql://catalog:5432/iceberg
+  datalake.iceberg.jdbc.user: iceberg
+  datalake.iceberg.jdbc.password: iceberg
+  datalake.iceberg.warehouse: s3://fluss/iceberg
+  datalake.iceberg.io-impl: org.apache.iceberg.aws.s3.S3FileIO
+  datalake.iceberg.s3.endpoint: http://rustfs:9000
+  datalake.iceberg.s3.access-key-id: rustfsadmin
+  datalake.iceberg.s3.secret-access-key: rustfsadmin
+  datalake.iceberg.s3.path-style-access: true
+  datalake.iceberg.client.region: us-east-1
+
 services:
+  rustfs:
+    image: rustfs/rustfs:1.0.0-alpha.83
+    ports: ["9000:9000"]
+    environment:
+      RUSTFS_ACCESS_KEY: rustfsadmin
+      RUSTFS_SECRET_KEY: rustfsadmin
+    volumes: [rustfs-data:/data]
+    command: /data
+
+  rustfs-init:
+    image: rustfs/rc:v0.1.36
+    depends_on: [rustfs]
+    entrypoint: >
+      /bin/sh -c "
+      until rc alias set rustfs http://rustfs:9000 rustfsadmin rustfsadmin; do sleep 1; done;
+      rc mb --ignore-existing rustfs/fluss;
+      "
+
+  catalog:
+    image: postgres:17
+    ports: ["${SAGAZ_CATALOG_PORT:-15433}:5432"]
+    environment:
+      POSTGRES_USER: iceberg
+      POSTGRES_PASSWORD: iceberg
+      POSTGRES_DB: iceberg
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iceberg"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+      start_period: 30s
+
+  zookeeper:
+    image: zookeeper:3.9.2
+    restart: always
+
+  coordinator-server:
+    <<: *fluss
+    command: coordinatorServer
+    ports: ["9124:9124"]
+    depends_on:
+      catalog: {condition: service_healthy}
+      zookeeper: {condition: service_started}
+      rustfs-init: {condition: service_completed_successfully}
+    environment:
+      FLUSS_PROPERTIES: |
+        bind.listeners: FLUSS://coordinator-server:9123, CLIENT://0.0.0.0:9124
+        advertised.listeners: FLUSS://coordinator-server:9123, CLIENT://localhost:9124
+      FLUSS_COMMON: *fluss-properties
+    entrypoint: ["/bin/bash", "-c", "export FLUSS_PROPERTIES=\"$$FLUSS_PROPERTIES$$FLUSS_COMMON\"; exec /docker-entrypoint.sh \"$$@\"", "--"]
+
+  tablet-server:
+    <<: *fluss
+    command: tabletServer
+    ports: ["9125:9125"]
+    depends_on: [coordinator-server]
+    environment:
+      FLUSS_PROPERTIES: |
+        bind.listeners: FLUSS://tablet-server:9123, CLIENT://0.0.0.0:9125
+        advertised.listeners: FLUSS://tablet-server:9123, CLIENT://localhost:9125
+        data.dir: /tmp/fluss/data
+      FLUSS_COMMON: *fluss-properties
+    entrypoint: ["/bin/bash", "-c", "export FLUSS_PROPERTIES=\"$$FLUSS_PROPERTIES$$FLUSS_COMMON\"; exec /docker-entrypoint.sh \"$$@\"", "--"]
+
+  jobmanager:
+    image: apache/fluss-quickstart-flink:1.20-1.0.0
+    ports: ["8083:8081"]
+    entrypoint: ["/opt/flink/init_iceberg.sh"]
+    command: ["jobmanager"]
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: jobmanager
+    volumes:
+      - ./tiering.sh:/opt/flink/tiering.sh:ro
+
+  taskmanager:
+    image: apache/fluss-quickstart-flink:1.20-1.0.0
+    depends_on: [jobmanager]
+    entrypoint: ["/opt/flink/init_iceberg.sh"]
+    command: ["taskmanager"]
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: jobmanager
+        taskmanager.numberOfTaskSlots: 4
+        taskmanager.memory.process.size: 2048m
+        taskmanager.memory.task.off-heap.size: 128m
+
   prometheus:
     image: prom/prometheus:v3.5.0
+    profiles: [metrics]
     ports: ["9090:9090"]
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -15,6 +149,7 @@ services:
 
   grafana:
     image: grafana/grafana:12.1.1
+    profiles: [metrics]
     ports: ["3000:3000"]
     environment:
       GF_SECURITY_ADMIN_PASSWORD: admin
@@ -22,3 +157,6 @@ services:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on: [prometheus]
+
+volumes:
+  rustfs-data:

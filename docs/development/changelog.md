@@ -58,6 +58,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     exported events, errors and lag.
   - **Dashboard:** the Grafana dashboard "Sagaz - Saga Flows" charts both.
 
+- **Lakehouse in Docker, and the release gates** (#484):
+  `sagaz/deployment/resources/local/lakehouse/docker-compose.yaml`.
+  - **Stack:** Fluss 1.0 with host and container listeners, Flink tiering, Iceberg
+    on S3 (RustFS) with a PostgreSQL JDBC catalog, and an optional Prometheus and
+    Grafana profile.
+  - **Gates:** `tests/integration/test_lakehouse_e2e.py` checks no loss across a
+    Fluss outage, p99 latency below 1 s, each event once in Iceberg, and flow-summary
+    parity. The `Lakehouse` workflow runs it in CI.
+  - **CLI:** `sagaz analytics metrics --catalog-property` passes pyiceberg properties
+    (S3 endpoint and credentials).
+
+### Fixed
+- **Fluss sink stalls** (#484): a write to a Fluss server that went away waited
+  forever, without an error, so the exporter never backed off. `FlussSink` now fails
+  a write after `timeout` seconds (30 by default), drops the session and reconnects
+  on the next attempt.
+
 ### Removed
 - `jobs/fluss_to_iceberg.sql`, the hand-written tiering job of the first ADR-013
   design: Fluss's tiering service replaces it.

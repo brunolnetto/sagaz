@@ -129,13 +129,24 @@ def flink_sql_cmd(report_name: str, table: str) -> None:
         raise click.BadParameter(str(exc), param_hint="REPORT") from exc
 
 
-def _catalog_properties(uri: str, warehouse: str | None) -> dict[str, str]:
-    """pyiceberg SQL catalog properties for a JDBC-style catalog database URL."""
+def _catalog_properties(
+    uri: str, warehouse: str | None, extra: tuple[str, ...] = ()
+) -> dict[str, str]:
+    """pyiceberg SQL catalog properties for a JDBC-style catalog database URL.
+
+    *extra* are ``key=value`` pyiceberg properties, e.g. ``s3.endpoint=http://...``.
+    """
     if uri.startswith(("postgresql://", "postgres://")):
         uri = "postgresql+psycopg2://" + uri.split("://", 1)[1]
     properties = {"type": "sql", "uri": uri}
     if warehouse:
         properties["warehouse"] = warehouse
+    for item in extra:
+        key, sep, value = item.partition("=")
+        if not sep or not key:
+            msg = f"Expected key=value, got {item!r}"
+            raise click.BadParameter(msg, param_hint="--catalog-property")
+        properties[key.strip()] = value.strip()
     return properties
 
 
@@ -152,6 +163,8 @@ def _wait_forever() -> None:  # pragma: no cover - interactive
 @click.option("--catalog-name", default="iceberg", show_default=True,
               help="Fluss's datalake.iceberg.name.")  # fmt: skip
 @click.option("--warehouse", default=None, help="Warehouse location, e.g. s3://bucket/path.")
+@click.option("--catalog-property", "catalog_properties", multiple=True, metavar="KEY=VALUE",
+              help="A pyiceberg property, e.g. s3.endpoint=http://localhost:9000 (repeatable).")  # fmt: skip
 @click.option("--table", default="sagaz.saga_log_event", show_default=True)
 @click.option("--days", type=int, default=None, help="Only the last DAYS day partitions.")
 @click.option("--refresh", default=60.0, show_default=True, type=float,
@@ -162,6 +175,7 @@ def metrics_cmd(
     catalog_uri: str,
     catalog_name: str,
     warehouse: str | None,
+    catalog_properties: tuple[str, ...],
     table: str,
     days: int | None,
     refresh: float,
@@ -172,7 +186,7 @@ def metrics_cmd(
     from sagaz.integrations.iceberg_metrics import IcebergFlowCollector, IcebergLogSource
 
     source = IcebergLogSource(
-        _catalog_properties(catalog_uri, warehouse),
+        _catalog_properties(catalog_uri, warehouse, catalog_properties),
         table,
         catalog_name=catalog_name,
         days=days,
