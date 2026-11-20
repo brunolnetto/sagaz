@@ -54,8 +54,6 @@ its recovery, compensation and migration semantics are reviewed.
 
 None at the moment. StateChart phase 2 (ADR-040, [#190](https://github.com/brunolnetto/sagaz/issues/190)) is in the backlog.
 
------|-------|--------|-------------|
-
 ---
 
 ## ADR Status Definitions
