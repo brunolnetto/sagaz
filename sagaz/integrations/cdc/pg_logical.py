@@ -52,7 +52,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import threading
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import suppress
 from typing import Any
 
@@ -94,6 +94,8 @@ class PgLogicalSource:
             which bounds how long :meth:`ack` and :meth:`stop` take to apply.
         connection_factory: ``factory(dsn, replication)`` returning a psycopg2
             connection (for tests or custom connection setup).
+        row_mapper: Maps an inserted row (``{column: text}``) to the change's
+            event; ``event_from_row`` (an outbox event) by default.
     """
 
     name = "pg_logical"
@@ -112,6 +114,7 @@ class PgLogicalSource:
         queue_size: int = 64,
         poll_interval: float = 0.1,
         connection_factory: ConnectionFactory | None = None,
+        row_mapper: Callable[[dict[str, Any]], Any] | None = None,
     ) -> None:
         if batch_size < 1 or queue_size < 1:
             msg = "batch_size and queue_size must be positive"
@@ -127,6 +130,7 @@ class PgLogicalSource:
         self.queue_size = queue_size
         self.poll_interval = poll_interval
         self._factory = connection_factory or default_connection_factory
+        self._row_mapper = row_mapper
         self._acks = AckState()
         self._thread: threading.Thread | None = None
         self._stream: ReplicationStream | None = None
@@ -163,6 +167,7 @@ class PgLogicalSource:
             acks=self._acks,
             stopping=stopping,
             poll_interval=self.poll_interval,
+            **({"mapper": self._row_mapper} if self._row_mapper else {}),
         )
         self._thread = threading.Thread(
             target=self._run,
@@ -198,6 +203,24 @@ class PgLogicalSource:
                 self._finish(item)
                 return
             yield await self._fill(item)
+
+    async def poll(self, timeout: float) -> list[CDCChange]:
+        """The next batch of changes, or ``[]`` if none arrives within *timeout* seconds.
+
+        Unlike :meth:`changes`, waiting can time out without ending the stream.
+        Raises :class:`CDCError` if the reader failed, and returns ``[]`` once stopped.
+        """
+        if self._queue is None:
+            msg = "PgLogicalSource.poll() called before start()"
+            raise CDCError(msg)
+        try:
+            item = await self._take(timeout)
+        except TimeoutError:
+            return []
+        if not isinstance(item, list):
+            self._finish(item)
+            return []
+        return await self._fill(item)
 
     async def drop_slot(self, *, drop_publication: bool = False) -> bool:
         """Drop the replication slot (and the publication); True if the slot existed.

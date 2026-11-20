@@ -72,6 +72,8 @@ services:
 
   catalog:
     image: postgres:19
+    # Also hosts saga logs read through logical replication (sagaz analytics export --cdc).
+    command: ["postgres", "-c", "wal_level=logical", "-c", "max_replication_slots=10", "-c", "max_wal_senders=10"]
     ports: ["${SAGAZ_CATALOG_PORT:-15433}:5432"]
     environment:
       POSTGRES_USER: iceberg

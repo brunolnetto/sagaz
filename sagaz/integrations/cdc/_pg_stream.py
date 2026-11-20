@@ -90,9 +90,11 @@ class ReplicationStream:
         acks: AckState,
         stopping: threading.Event,
         poll_interval: float = 0.1,
+        mapper: Callable[[dict[str, Any]], Any] = event_from_row,
     ) -> None:
         self.cursor = cursor
         self.table = table
+        self.mapper = mapper
         self.emit = emit
         self.acks = acks
         self.stopping = stopping
@@ -139,10 +141,10 @@ class ReplicationStream:
         if not matches_table(relation, self.table):
             return
         try:
-            event = event_from_row(self.decoder.row(insert))
+            event = self.mapper(self.decoder.row(insert))
         except (CDCError, ValueError, TypeError) as exc:
             self.skipped_rows += 1
-            logger.warning("Skipping an outbox row CDC cannot map: %s", exc)
+            logger.warning("Skipping a %s row CDC cannot map: %s", self.table, exc)
             return
         self._events.append(event)
 
