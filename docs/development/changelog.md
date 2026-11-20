@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **StateChart phase 2: step charts** (#190, ADR-040): `Saga(use_step_statechart=True)` (or
+  `SagaConfig.use_step_statechart`) runs the saga on a chart with one region per step.
+  `state_configuration` then says where every step is, for example
+  `step/charge/compensating`.
+  - **Flag off:** nothing changes.
+  - **Re-entry:** `restore_state(configuration, completed_steps)` and
+    `resume_compensation()` finish an interrupted compensation from a persisted
+    configuration, in reverse completion order, without running again those that
+    succeeded. `pending_compensations()` and `in_doubt_steps()` report what is left and
+    what is uncertain.
+  - **Checkpoints:** with snapshots on, one is taken after each compensated step.
+  - **Dependency:** `python-statemachine` is pinned below 4.
 - **Schema registry for saga events** (#502, ADR-014): `SchemaRegistrySerializer` encodes
   events in Avro or JSON Schema through a Confluent-compatible registry (Confluent, Redpanda,
   Apicurio), in Confluent's wire format (`sagaz[schema-registry]`).

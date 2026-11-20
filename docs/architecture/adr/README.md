@@ -39,20 +39,20 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-037](adr-037-compliance-data-governance.md) | Compliance & Data Governance | v2.1.0 | 2026-04 |
 | [ADR-038](adr-038-dlq-observability.md) | DLQ Observability (error classification, replay validation) | v1.3.0 | 2026-04 |
 | [ADR-039](adr-039-gradio-ui-monitor.md) | Gradio Saga Asset Monitor | v2.3.0 | 2026-11 |
-| [ADR-040](adr-040-statechart-saga-lifecycle.md) | StateChart Saga Lifecycle (Phase 1) | v1.7.0 | 2026-11 |
+| [ADR-040](adr-040-statechart-saga-lifecycle.md) | StateChart Saga Lifecycle (Phases 1 and 2) | v1.7.0, v2.3.0 | 2026-11 |
 | [ADR-041](adr-041-unified-saga-log.md) | Unified Saga Log | v2.1.0 | 2026-11 |
 | [ADR-042](adr-042-environment-variable-management.md) | Environment Variable Management (`.env`) | v1.1.1 | 2026-01 |
 | [ADR-043](adr-043-sqldim-analytics-pipeline.md) | sqldim Analytics Pipeline | v1.8.0 | 2026-11 |
 
-ADR-040 covers phase 1 of the StateChart migration. Phase 2 (compound and parallel step
-regions, [#190](https://github.com/brunolnetto/sagaz/issues/190)) is in the backlog until
-its recovery, compensation and migration semantics are reviewed.
+ADR-040 covers phases 1 (flat lifecycle, v1.7.0) and 2 (step charts and compensation
+re-entry, v2.3.0, [#190](https://github.com/brunolnetto/sagaz/issues/190)). Phase 3, the
+declarative engine, is in the backlog.
 
 ---
 
 ## 📋 Proposed (Future Releases)
 
-None at the moment. StateChart phase 2 (ADR-040, [#190](https://github.com/brunolnetto/sagaz/issues/190)) is in the backlog.
+None at the moment. StateChart phase 3 (ADR-040: the declarative engine) is in the backlog.
 
 ---
 

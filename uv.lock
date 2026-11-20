@@ -5392,7 +5392,7 @@ requires-dist = [
     { name = "pyfluss", marker = "python_full_version < '3.13' and extra == 'fluss'", specifier = ">=1.0.0" },
     { name = "pyiceberg", extras = ["sql-postgres", "sql-sqlite", "pyarrow"], marker = "extra == 'iceberg'", specifier = ">=0.9.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
-    { name = "python-statemachine", specifier = ">=3.2.0" },
+    { name = "python-statemachine", specifier = ">=3.2.0,<4" },
     { name = "pyyaml", specifier = ">=6.0.0" },
     { name = "redis", marker = "extra == 'redis'", specifier = ">=7.1.0" },
     { name = "redis", marker = "extra == 'storage'", specifier = ">=7.0.0" },

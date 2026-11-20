@@ -44,6 +44,11 @@ class _SagaExecutionMixin:
 
         async def _execute_dag(self) -> SagaResult: ...
 
+        # Provided by _SagaStepChartMixin (StateChart phase 2).
+        def _arm_step_chart(self) -> None: ...
+
+        async def _step_event(self, step_name: str, event: str) -> None: ...
+
         async def _capture_snapshot(
             self, step_name: str, step_index: int, before: bool = True
         ) -> None: ...
@@ -63,7 +68,8 @@ class _SagaExecutionMixin:
         if plan_error:
             return self._planning_failure_result(plan_error, start_time)
 
-        # Start state machine
+        # Start state machine (the step chart, if enabled, needs the steps: built now)
+        self._arm_step_chart()
         try:
             await self._state_machine.start()
         except TransitionNotAllowed as e:
@@ -145,6 +151,7 @@ class _SagaExecutionMixin:
         for i, step in enumerate(self.steps):
             if step.idempotency_key in self._executed_step_keys:
                 logger.info(f"Skipping step '{step.name}' - already executed (idempotent)")
+                await self._step_event(step.name, "adopt")
                 continue
 
             # Capture snapshot before step execution

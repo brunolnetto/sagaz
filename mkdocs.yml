@@ -73,6 +73,7 @@ nav:
     - Multi-Region Sagas: guides/multi-region.md
     - Unified Saga Log: guides/unified-saga-log.md
     - Saga Replay: guides/saga-replay.md
+    - Step Charts: guides/step-statechart.md
     - Replay Storage Backends: guides/replay-storage-backends.md
     - HA PostgreSQL Quick Reference: guides/ha-postgres-quickref.md
     - Mermaid Diagrams: guides/mermaid.md
