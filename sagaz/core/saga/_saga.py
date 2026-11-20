@@ -25,6 +25,7 @@ from sagaz.core.saga._execution import _SagaExecutionMixin
 from sagaz.core.saga._lifecycle import _SagaLifecycleMixin
 from sagaz.core.saga._snapshot import _SagaSnapshotMixin
 from sagaz.core.saga._step import SagaStep
+from sagaz.core.saga._step_chart import _SagaStepChartMixin
 from sagaz.core.saga._step_execution import StepExecutor
 from sagaz.core.saga._visualization import _SagaVisualizationMixin
 from sagaz.core.types import ParallelFailureStrategy, SagaResult, SagaStatus
@@ -40,6 +41,7 @@ class Saga(
     _SagaCompensationMixin,
     _SagaSnapshotMixin,
     _SagaEventSourcingMixin,
+    _SagaStepChartMixin,
     ABC,
 ):
     """
@@ -64,6 +66,7 @@ class Saga(
         snapshot_threshold: int = 50,
         saga_log: "SagaLogStore | str | None" = None,
         participant: str | None = None,
+        use_step_statechart: bool | None = None,
     ):
         self.name = name
         self.version = version
@@ -77,6 +80,8 @@ class Saga(
         self.error: Exception | None = None
         self.compensation_errors: list[Exception] = []
         self._state_machine = SagaStateMachine(self)
+        # StateChart phase 2 (ADR-040, #190): one region per step; off by default.
+        self._init_step_chart(use_step_statechart)
         self._executing = False
         self._execution_lock = asyncio.Lock()
         self._executed_step_keys: set[str] = set()  # For idempotency

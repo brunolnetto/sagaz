@@ -48,6 +48,10 @@ class _SagaSnapshotMixin:
     if TYPE_CHECKING:
 
         async def _execute_step_with_retry(self, step: SagaStep) -> None: ...
+
+        def _arm_step_chart(self) -> None: ...  # _SagaStepChartMixin
+
+        async def _step_event(self, step_name: str, event: str) -> None: ...
         async def _handle_execution_failure(
             self, error: Exception, start_time: datetime
         ) -> SagaResult: ...
@@ -58,13 +62,25 @@ class _SagaSnapshotMixin:
 
     @property
     def current_state(self) -> str:
-        """Get current state name"""
-        return self._state_machine.current_state.name  # type: ignore[union-attr, no-any-return]
+        """Get current state name (the saga-level state under the phase 2 step chart)."""
+        from sagaz.core.execution.step_statechart import (
+            configuration_values,
+            is_step_chart,
+            lifecycle_state,
+        )
+
+        machine = self._state_machine
+        if is_step_chart(machine):
+            value = lifecycle_state(configuration_values(machine))
+            return str(machine.states_map[value].name)
+        return machine.current_state.name  # type: ignore[union-attr, no-any-return]
 
     @property
     def state_configuration(self) -> list[str]:
-        """Return active state values in a serializable representation."""
-        values = [str(value) for value in self._state_machine.configuration_values]
+        """Return active state values in a serializable representation (document order)."""
+        from sagaz.core.execution.step_statechart import configuration_values
+
+        values = configuration_values(self._state_machine)
         return values or [self.status.value]
 
     def get_status(self) -> dict[str, Any]:
@@ -203,6 +219,7 @@ class _SagaSnapshotMixin:
                 }
 
                 # Start state machine execution
+                self._arm_step_chart()
                 try:
                     await self._state_machine.start()
                 except TransitionNotAllowed as e:
@@ -219,6 +236,7 @@ class _SagaSnapshotMixin:
                     if step.idempotency_key in self._executed_step_keys:
                         logger.info(f"Skipping step '{step.name}' - already completed")
                         self.completed_steps.append(step)
+                        await self._step_event(step.name, "adopt")
                         continue
 
                     # Capture snapshot before executing

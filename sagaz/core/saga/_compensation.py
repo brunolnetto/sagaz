@@ -26,7 +26,20 @@ class _SagaCompensationMixin:
     retry_backoff_base: float
     context: "SagaContext"
 
+    steps: list["SagaStep"]
+
     if TYPE_CHECKING:
+        # Provided by _SagaStepChartMixin and _SagaSnapshotMixin (StateChart phase 2).
+        _step_chart_on: bool
+
+        async def _step_compensating(self, step_name: str) -> None: ...
+
+        async def _step_event(self, step_name: str, event: str) -> None: ...
+
+        async def _capture_snapshot(
+            self, step_name: str, step_index: int, before: bool = True
+        ) -> None: ...
+
         # Provided by _SagaEventSourcingMixin on the concrete Saga host.
         async def _es_compensation_started(self) -> None: ...
 
@@ -58,14 +71,19 @@ class _SagaCompensationMixin:
 
     async def _try_compensate_step(self, step) -> SagaCompensationError | None:
         """Try to compensate a step, returning error if failed."""
+        await self._step_compensating(step.name)
         try:
             await self._compensate_step_with_retry(step)
         except SagaCompensationError as e:
             await self._es_step_compensation_failed(step.name, e)
+            await self._step_event(step.name, "compensation_failed")
             self.compensation_errors.append(e)
             logger.error(f"Compensation failed for step '{step.name}': {e}")
             return e
         await self._es_step_compensated(step.name)
+        await self._step_event(step.name, "compensated")
+        if self._step_chart_on:  # a checkpoint to resume the compensation from
+            await self._capture_snapshot(step.name, self.steps.index(step), before=False)
         return None
 
     def _raise_compensation_error(self, errors: list[SagaCompensationError]) -> None:

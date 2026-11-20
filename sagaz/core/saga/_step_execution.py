@@ -49,6 +49,7 @@ class StepExecutor:
         # Initial attempt + retries; a tenant quota may lower the retries (ADR-020).
         total_attempts = capped_retries(step.max_retries) + 1
         started = time.monotonic()
+        await self.saga._step_event(step.name, "start")  # retries stay in "executing"
 
         for attempt in range(total_attempts):
             try:
@@ -57,6 +58,7 @@ class StepExecutor:
                 await self.saga._es_step_executed(
                     step.name, step.result, (time.monotonic() - started) * 1000, attempt + 1
                 )
+                await self.saga._step_event(step.name, "succeed")
                 return  # Success!
 
             except SagaTimeoutError as e:
@@ -81,6 +83,7 @@ class StepExecutor:
         step.error = last_error
         assert last_error is not None, "last_error should be set after exhausting retries"
         await self.saga._es_step_failed(step.name, last_error, total_attempts)
+        await self.saga._step_event(step.name, "fail")
         raise last_error
 
     async def execute_step(self, step: "SagaStep") -> None:

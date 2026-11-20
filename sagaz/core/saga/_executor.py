@@ -27,7 +27,7 @@ class _StepExecutor:
         completed: Whether the step completed successfully.
     """
 
-    def __init__(self, step: "SagaStep", saga_context: "SagaContext"):
+    def __init__(self, step: "SagaStep", saga_context: "SagaContext", saga: Any = None):
         """Initialize executor for a step and context.
 
         Args:
@@ -37,6 +37,7 @@ class _StepExecutor:
         self.step = step
         self.saga_context = saga_context
         self.result = None
+        self.saga = saga  # for the phase 2 step chart's events (None: no events)
         self.error: Exception | None = None
         self.completed = False
         self.duration_ms = 0.0
@@ -55,6 +56,7 @@ class _StepExecutor:
             Any exception raised by the step action.
         """
         started = time.monotonic()
+        await self._event("start")
         try:
             result = await self.step.action(self.saga_context)
             self.duration_ms = (time.monotonic() - started) * 1000
@@ -63,11 +65,17 @@ class _StepExecutor:
             # Store result in context for dependent steps
             self.saga_context.set(self.step.name, result)
             self.completed = True
+            await self._event("succeed")
             return result
         except Exception as e:
             self.error = e
             self.step.error = e
+            await self._event("fail")
             raise
+
+    async def _event(self, event: str) -> None:
+        if self.saga is not None:
+            await self.saga._step_event(self.step.name, event)
 
     async def compensate(self) -> None:
         """Execute the step compensation if available.

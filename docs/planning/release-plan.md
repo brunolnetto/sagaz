@@ -295,8 +295,10 @@ models and a JSON blob (the stopgap in v2.0.1, #459).
 | #495 | CDC reader for the saga log export | The cursor reader already meets the v2.2.0 latency gate |
 | #501 | Gradio saga asset monitor (ADR-039) | Revise the ADR for the unified saga log first |
 | #502 | Schema registry for saga events (ADR-014) | Revise the ADR for the unified saga log first |
+| #190 | StateChart phase 2: step charts, compensation re-entry (ADR-040) | Added to the wave on 2026-11-20 |
+| #517 | Saga final state agrees with the result; PostgreSQL snapshots keep the configuration | Found while designing #190 |
 
-**Backlog**: StateChart phase 2 (#190, ADR-040) has no target release until its semantics are reviewed.
+**Backlog**: StateChart phase 3 (the declarative engine, pivot/taint states in the chart).
 
 -------|-----------|--------|---------|
 | #102 | #70 | 🔴 Open | `enable_event_sourcing=True` not wired into `Saga.__init__` |

@@ -1,4 +1,4 @@
-# ADR-040: StateChart for the Saga Lifecycle (Phase 1)
+# ADR-040: StateChart for the Saga Lifecycle (Phases 1 and 2)
 
 ## Status
 
@@ -7,7 +7,7 @@
 - Initial implementation: v1.7.0 (PR #363)
 - Dependency security floor: `python-statemachine>=3.2.0` (PR #365)
 - Phase 1 completion evidence and regression hardening: v1.7.1
-- Follow-up: Phase 2 remains separately scoped in issue #190
+- Phase 2 (opt-in step regions and compensation re-entry): v2.3.0, issue #190. See "Phase 2" below.
 
 ## Context
 
@@ -158,13 +158,94 @@ than being written implicitly into domain context.
    SagaContext is not a state-bearing model and should not acquire runtime state
    implicitly.
 
-## Phase 2 Boundary
+## Phase 2 (v2.3.0, #190)
 
-Compound and parallel regions, step-level StateChart topology, `invoke`,
-`DoneData`, `HistoryState`, restart/re-entry semantics, and migration of nested
-configurations are not part of this decision's Phase 1 implementation. They
-remain deferred to [issue #190](https://github.com/brunolnetto/sagaz/issues/190)
-and require a separate design and compatibility review.
+### Scope
+
+The phase 1 contract stays. Phase 2 adds, behind `Saga(use_step_statechart=True)` or
+`SagaConfig.use_step_statechart`:
+
+- **One chart region per step**, so the configuration says where every step is.
+- **Compensation re-entry** from a persisted configuration.
+
+With the flag off, nothing changes: the flat `SagaStateMachine` runs, as in phase 1.
+Phase 2 covers the imperative `Saga`. The declarative engine
+(`sagaz.core.decorators`) has no state machine at all, so it is left to a phase 3.
+
+### Topology
+
+```
+pending                                  (initial)
+active (parallel)
+├── lifecycle: executing ─fail→ compensating
+└── steps (parallel)
+    └── step/<name>: pending → executing → completed → compensating → compensated
+                                   ↘ failed               ↘ compensation_failed
+                     pending → completed (adopt: replayed or idempotent steps)
+completed | rolled_back | failed         (final)
+```
+
+- **Orthogonal regions:** the lifecycle and the steps are separate regions. Moving to
+  `compensating` leaves each step region where it was, completed or failed.
+- **Saga events:** they are phase 1's, with the same guards and the same four runtime
+  flags, which are verified with nested states.
+- **Step events:** `s<i>__start|succeed|fail|adopt|compensate|compensated|compensation_failed`.
+- **Persisted values:** `step/<percent-encoded name>[/<sub-state>]`, which is injective
+  for any step name.
+- **The configuration:**
+  - it is reported in document order;
+  - it is nested only while the saga runs, and flat once it ends (`['rolled_back']`);
+  - the scalar `status`, `current_state` (the lifecycle state's name) and the storage
+    status are unchanged.
+- **DAG sagas:** they use the same `steps` parallel state. Steps still executing when a
+  batch fails (cancelled by the strategy) end in `failed`.
+- **Chart classes:** one is built per tuple of step names and cached
+  (`build_step_statechart`).
+
+### Executor hooks
+
+The existing execution points send the step events, so the executor keeps ownership of
+retries, timeouts, parallel strategies and errors:
+
+- **Sequential and DAG step execution:** start, succeed and fail.
+- **Compensation:** compensate, compensated and compensation_failed.
+- **Skipped steps:** adopt, for steps a snapshot replay or idempotency skips.
+- **Checkpoints:** with the flag on and snapshots enabled, a snapshot is also captured
+  after each compensated step, which is the checkpoint compensation resumes from.
+
+### Re-entry guarantee
+
+There is no crash recovery of a running saga in Sagaz. Phase 2 guarantees this instead:
+**from a persisted configuration and the ordered completed steps, a new `Saga` with the
+same step definitions finishes the compensation in reverse completion order, and does not
+run again the compensations that succeeded.**
+
+- **`restore_state(configuration, completed_steps)`:**
+  - it validates the configuration against the chart, rejecting a missing lifecycle
+    state, a step in zero or two states, or a foreign value; the library itself accepts
+    any set of states;
+  - it binds the configuration without running callbacks.
+- **`pending_compensations()`:** the steps left to undo, in order.
+- **`in_doubt_steps()`:** steps that were `executing`, so whether their action took
+  effect is unknown. They are reported, never compensated automatically.
+- **`resume_compensation()`:** enters `compensating` if needed, compensates the pending
+  steps and ends in `rolled_back` or `failed`.
+- **Idempotent compensations:** a step restored in `compensating` has its compensation
+  run again, so compensations must be idempotent.
+- **Forward re-execution:** stays with `SagaReplay`.
+
+### Not adopted from the issue
+
+- **`invoke`:** it would move step execution into the chart engine, against the
+  executor's ownership and `catch_errors_as_events=False`.
+- **`DoneData`:** results already flow through `SagaContext`.
+- **`HistoryState`:** the orthogonal step regions keep their state through compensation,
+  and re-entry comes from a validated restored configuration.
+- **Automatic `done.state` transitions:** the executor keeps explicit control.
+- **The declarative engine, and pivot/taint states:** they come in a phase 3.
+
+`python-statemachine` is pinned below 4, because the chart is built with its
+`NestedStateFactory`.
 
 ## References
 
@@ -172,5 +253,6 @@ and require a separate design and compatibility review.
 - [PR #363 — StateChart Phase 1 implementation](https://github.com/brunolnetto/sagaz/pull/363)
 - [PR #365 — python-statemachine security upgrade](https://github.com/brunolnetto/sagaz/pull/365)
 - [Issue #190 — StateChart Phase 2](https://github.com/brunolnetto/sagaz/issues/190)
+- [Guide: step charts](../../guides/step-statechart.md)
 - [python-statemachine: Behaviour](https://python-statemachine.readthedocs.io/en/latest/behaviour.html)
 - [python-statemachine: Upgrading from 2.x to 3.0](https://python-statemachine.readthedocs.io/en/stable/releases/upgrade_2x_to_3.html)
