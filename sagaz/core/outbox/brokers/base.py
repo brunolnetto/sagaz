@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
+from sagaz.core.outbox.serialization import EventSerializer, JsonEventSerializer
 from sagaz.core.outbox.types import OutboxEvent
 
 
@@ -104,6 +105,9 @@ class BaseBroker(ABC):
     def __init__(self, config: BrokerConfig | None = None):
         self.config = config or BrokerConfig()
         self._connected = False
+        # How publish_event encodes the envelope (ADR-014): JSON unless replaced,
+        # e.g. by sagaz.integrations.schema_registry.SchemaRegistrySerializer.
+        self.serializer: EventSerializer = JsonEventSerializer()
 
     @abstractmethod
     async def connect(self) -> None:
@@ -153,8 +157,6 @@ class BaseBroker(ABC):
             event: The outbox event to publish
             topic: Optional topic override (defaults to event_type)
         """
-        import json
-
         topic = topic or event.event_type
 
         # Build message payload
@@ -169,7 +171,7 @@ class BaseBroker(ABC):
             "timestamp": event.created_at.isoformat() if event.created_at else None,
         }
 
-        message = json.dumps(payload).encode("utf-8")
+        message = await self.serializer.serialize(topic, payload, event.event_type)
 
         # Merge headers
         headers = {

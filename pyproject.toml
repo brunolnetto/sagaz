@@ -68,6 +68,8 @@ visualization = [
     "sse-starlette>=1.0.0",
 ]
 monitor = ["sagaz[visualization]"]
+# Schema registry serialization of saga events (ADR-014): Avro, JSON Schema
+schema-registry = ["confluent-kafka[avro,json,schemaregistry]>=2.10.0"]
 aws = [
     "aioboto3>=12.0.0",
     "zstandard>=0.22.0",  # For S3 snapshot compression

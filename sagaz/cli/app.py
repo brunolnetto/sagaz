@@ -61,6 +61,7 @@ from sagaz.cli.project import check as check_cmd
 from sagaz.cli.project import list_sagas
 from sagaz.cli.region import region_cli
 from sagaz.cli.replay import replay
+from sagaz.cli.schema import schema_cli
 from sagaz.cli.tenant import tenant_cli
 from sagaz.cli.visualize import visualize_cmd
 
@@ -224,6 +225,7 @@ cli.add_command(tenant_cli, name="tenant")
 cli.add_command(choreography_cli, name="choreography")
 cli.add_command(event_log_cmd, name="event-log")
 cli.add_command(analytics_cli, name="analytics")
+cli.add_command(schema_cli, name="schema")
 cli.add_command(region_cli, name="region")
 cli.add_command(deploy_cmd, name="deploy")
 cli.add_command(teardown_cmd, name="teardown")

@@ -98,6 +98,9 @@ class KafkaEventBusConfig:
     topic: str = "sagaz.choreography"
     consumer_group: str = "sagaz"
     consumer_name: str = "worker-1"
+    # How events become message values (ADR-014): JSON when None, else an
+    # EventSerializer such as SchemaRegistrySerializer(envelope="choreography").
+    serializer: Any = None
     auto_offset_reset: str = "latest"
     max_poll_records: int = 100
     security_protocol: str = "PLAINTEXT"
@@ -257,7 +260,12 @@ class KafkaEventBus(AbstractEventBus):
         if self._producer is None:
             msg = "Call start() before publish()"
             raise RuntimeError(msg)
-        value = _event_to_value(event)
+        serializer = self._config.serializer
+        value = (
+            _event_to_value(event)
+            if serializer is None
+            else await serializer.serialize(self._config.topic, event.to_dict(), event.event_type)
+        )
         await self._producer.send_and_wait(
             self._config.topic,
             value=value,
@@ -291,7 +299,12 @@ class KafkaEventBus(AbstractEventBus):
     async def _dispatch(self, value: bytes) -> None:
         """Deserialise one Kafka value and invoke matching handlers."""
         try:
-            event = _value_to_event(value)
+            serializer = self._config.serializer
+            event = (
+                _value_to_event(value)
+                if serializer is None
+                else Event.from_dict(await serializer.deserialize(self._config.topic, value))
+            )
         except Exception:
             logger.exception("Failed to deserialise Kafka message: %s", value)
             return
