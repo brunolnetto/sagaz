@@ -291,6 +291,6 @@ ORDER BY compensation_count DESC;
 
 ## Related Documents
 
-- [ADR-012: Sagaz v1.0 Synchronous Orchestration](adr/012-synchronous-orchestration.md)
-- [Distributed Saga Design v2.0](design/distributed-saga-v2.md)
-- [Outbox Pattern Implementation](../brokers/README.md)
+- [ADR-012: Sagaz v1.0 Synchronous Orchestration](../adr/adr-012-synchronous-orchestration-model.md)
+- Distributed Saga Design v2.0
+- Outbox Pattern Implementation

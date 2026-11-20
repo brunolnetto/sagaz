@@ -3,7 +3,7 @@
 **Version:** 1.0  
 **Created:** 2026-01-07  
 **Target Release:** v1.3.0  
-**Related ADR:** [ADR-023: Pivot/Irreversible Steps](adr/adr-023-pivot-irreversible-steps.md)
+**Related ADR:** [ADR-023: Pivot/Irreversible Steps](../adr/adr-023-pivot-irreversible-steps.md)
 
 ---
 
@@ -530,5 +530,5 @@ Phases 4 and 5 can be developed in parallel.
 
 ## References
 
-- [ADR-023: Pivot/Irreversible Steps](adr/adr-023-pivot-irreversible-steps.md)
-- [ADR-022: Compensation Result Passing](adr/adr-022-compensation-result-passing.md)
+- [ADR-023: Pivot/Irreversible Steps](../adr/adr-023-pivot-irreversible-steps.md)
+- [ADR-022: Compensation Result Passing](../adr/adr-022-compensation-result-passing.md)

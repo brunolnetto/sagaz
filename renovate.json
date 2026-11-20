@@ -1,7 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
-  "baseBranches": ["develop"],
+  "baseBranchPatterns": ["develop"],
   "prCreation": "immediate",
   "labels": ["dependencies"],
   "commitMessagePrefix": "chore(deps): ",
@@ -13,6 +13,17 @@
       "matchPackageNames": ["ipython"],
       "allowedVersions": "<9.12.0",
       "description": "ipython>=9.12.0 requires Python>=3.12; pin until Python 3.11 is dropped"
+    },
+    {
+      "matchDepNames": ["python"],
+      "allowedVersions": "<3.15",
+      "description": "Python 3.15 is not supported yet: stay on 3.14 (CI, Dockerfile) until the maintainer decides"
+    },
+    {
+      "matchFileNames": [".github/workflows/lakehouse.yml"],
+      "matchDepNames": ["python"],
+      "enabled": false,
+      "description": "The lakehouse gates run on Python 3.12: pyfluss 1.0 ships wheels up to 3.12"
     }
   ]
 }

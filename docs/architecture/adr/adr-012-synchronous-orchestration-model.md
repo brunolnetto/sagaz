@@ -235,7 +235,7 @@ This ADR clarifies:
 
 - [Architecture Overview](../overview.md) - High-level system design
 - [ADR-011: CDC Support](adr-011-cdc-support.md) - High-throughput outbox upgrade path
-- [Design Doc: Distributed Saga Support](../design-distributed-saga-support.md) - Future v2.0 design (if implemented)
+- [Design Doc: Distributed Saga Support](../future/design-distributed-saga-support.md) - Future v2.0 design (if implemented)
 
 ---
 

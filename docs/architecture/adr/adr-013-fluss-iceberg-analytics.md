@@ -13,12 +13,12 @@ and its prototype (PR #67) is superseded: see "Revision notes".
 - **ADR-041, unified saga log (v2.1.0)**: the only input. Everything analytics
   needs is in `saga_log_event`, for orchestrated and choreographed sagas alike.
 - **ADR-011, CDC**: `PgLogicalSource` streams a table's inserts from the WAL.
-- **ADR-036, embedded analytics**: the DuckDB pipeline reads the same log; its
+- **ADR-043, embedded analytics**: the DuckDB pipeline reads the same log; its
   Gold queries are the reference the Flink SQL versions must match.
 
 ## Context
 
-The embedded pipeline (ADR-036) answers analytics questions from one process
+The embedded pipeline (ADR-043) answers analytics questions from one process
 and over a bounded window. Teams running many services need:
 
 - **Real-time views** across every service writing the log: throughput,
@@ -125,7 +125,7 @@ CREATE TABLE sagaz.saga_log_event (
 
 ### Queries
 
-The ADR-036 Gold reports, `FLOW_SUMMARY` first, are rewritten in Flink SQL:
+The ADR-043 Gold reports, `FLOW_SUMMARY` first, are rewritten in Flink SQL:
 in batch over the Iceberg table, and in streaming over the Fluss table. The same fixture must give the same numbers in DuckDB and in
 Flink.
 
@@ -220,7 +220,7 @@ PR #67 is superseded and closed:
 - [Fluss and Iceberg](https://fluss.apache.org/docs/next/streaming-lakehouse/integrate-data-lakes/iceberg)
 - [Apache Iceberg](https://iceberg.apache.org/)
 - [ADR-011: CDC Support](adr-011-cdc-support.md)
-- [ADR-036: Embedded analytics pipeline](adr-036-sqldim-analytics-pipeline.md)
+- [ADR-043: Embedded analytics pipeline](adr-043-sqldim-analytics-pipeline.md)
 - [ADR-041: Unified saga log](adr-041-unified-saga-log.md)
 
 ## Decision Makers
