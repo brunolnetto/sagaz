@@ -55,6 +55,12 @@ class StepLedger:
             record["status"] = SagaStepStatus.COMPENSATED.value
             record["compensated_at"] = datetime.now(UTC)
 
+    def restore(self, records: list[dict[str, Any]]) -> None:
+        """Continue a stored run: its step records, as ``snapshot`` returned them."""
+        for record in records:
+            if record.get("name") in self._order:
+                self._records[record["name"]] = dict(record)
+
     def snapshot(self) -> list[dict[str, Any]]:
         """Records of the steps that ran, in the saga's step order."""
         return [dict(self._records[name]) for name in self._order if name in self._records]

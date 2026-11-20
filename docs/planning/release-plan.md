@@ -296,9 +296,10 @@ models and a JSON blob (the stopgap in v2.0.1, #459).
 | #501 | Gradio saga asset monitor (ADR-039) | Revise the ADR for the unified saga log first |
 | #502 | Schema registry for saga events (ADR-014) | Revise the ADR for the unified saga log first |
 | #190 | StateChart phase 2: step charts, compensation re-entry (ADR-040) | Added to the wave on 2026-11-20 |
+| #522 | StateChart phase 3: the declarative engine, pivot/taint states (ADR-040) | Added to the wave on 2026-11-20 |
 | #517 | Saga final state agrees with the result; PostgreSQL snapshots keep the configuration | Found while designing #190 |
 
-**Backlog**: StateChart phase 3 (the declarative engine, pivot/taint states in the chart).
+**Backlog**: saga forward recovery (`@forward_recovery` handlers, a `PARTIALLY_COMMITTED` final state).
 
 -------|-----------|--------|---------|
 | #102 | #70 | 🔴 Open | `enable_event_sourcing=True` not wired into `Saga.__init__` |

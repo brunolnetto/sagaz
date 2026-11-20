@@ -52,12 +52,13 @@ One release instead of several patch and minor versions
 | [#501](https://github.com/brunolnetto/sagaz/issues/501) | Gradio saga asset monitor (ADR-039) |
 | [#502](https://github.com/brunolnetto/sagaz/issues/502) | Schema registry for saga events (ADR-014) |
 | [#190](https://github.com/brunolnetto/sagaz/issues/190) | StateChart phase 2: step charts and compensation re-entry (ADR-040) |
+| [#522](https://github.com/brunolnetto/sagaz/issues/522) | StateChart phase 3: the declarative engine and pivot/taint states (ADR-040) |
 | [#517](https://github.com/brunolnetto/sagaz/issues/517) | Saga final state agrees with the result; PostgreSQL snapshots keep the configuration |
 
 ## Backlog
 
-- **StateChart phase 3**: step charts for the declarative (decorator) engine, which has no
-  state machine yet, and pivot/taint states in the chart (ADR-040).
+- **Saga forward recovery**: run the `@forward_recovery` handlers, and a
+  `PARTIALLY_COMMITTED` final state for sagas that fail after a pivot (ADR-023, ADR-040).
 - **Python 3.15**: not supported yet. Renovate stays on 3.14.
 
 The planning history before v2.0 (sprint calendars, alternative schedules) is archived in
