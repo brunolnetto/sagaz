@@ -71,7 +71,7 @@ services:
       "
 
   catalog:
-    image: postgres:17
+    image: postgres:19
     ports: ["${SAGAZ_CATALOG_PORT:-15433}:5432"]
     environment:
       POSTGRES_USER: iceberg
