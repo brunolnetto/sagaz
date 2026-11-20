@@ -103,6 +103,17 @@ Snapshots include the serializable configuration. Deserializing a historical
 snapshot without that field falls back to `[status]`. This keeps older snapshot
 payloads readable without pretending they contain hierarchical state.
 
+### 5a. Final state agrees with the result (v2.3.0, #517)
+
+The saga machine's final state matches the result's status on every failure path:
+
+- **Nothing to undo:** a failure before any step completed ends in `rolled_back`
+  through `nothing_to_compensate` (`executing → rolled_back`), as the result says.
+- **DAG failures:** the DAG mode ends in `rolled_back` when every compensation succeeded,
+  and in `failed` (`compensation_failed`) when one did not.
+- **PostgreSQL snapshots:** they store `configuration` in a JSONB column, added in place to
+  existing tables. Rows written before have none and fall back to `[status]`.
+
 ### 6. Keep runtime state out of SagaContext
 
 `SagaContext` remains a domain data and metadata container. It is not attached

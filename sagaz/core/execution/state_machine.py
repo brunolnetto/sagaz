@@ -58,6 +58,7 @@ class SagaStateMachine(StateChart):
         fail_unrecoverable: Unrecoverable failure (executing -> failed)
         finish_compensation: Compensation completed (compensating -> rolled_back)
         compensation_failed: Compensation failed (compensating -> failed)
+        nothing_to_compensate: Failed before any step completed (executing -> rolled_back)
 
     Usage:
         >>> sm = SagaStateMachine(saga_instance)
@@ -96,6 +97,8 @@ class SagaStateMachine(StateChart):
     fail_unrecoverable = executing.to(failed)
     finish_compensation = compensating.to(rolled_back)
     compensation_failed = compensating.to(failed)
+    # A failure before any step completed: nothing to undo (#517).
+    nothing_to_compensate = executing.to(rolled_back)
 
     def __init__(self, saga: Optional["Saga"] = None, **kwargs):
         """

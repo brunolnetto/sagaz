@@ -33,6 +33,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Gates:** the lakehouse release gates run with both readers.
 
 ### Fixed
+- **Saga final state on failures** (#517): the state machine sometimes ended somewhere other
+  than where the result said the saga ended.
+  - **DAG, failed compensation:** the status was `ROLLED_BACK` while the result was
+    `FAILED`.
+  - **Failure before any step completed:** the configuration stayed at `['executing']`
+    (sequential), or the saga ended `FAILED` while the result said `ROLLED_BACK` (DAG).
+  - **Fix:** the new `nothing_to_compensate` transition (`executing → rolled_back`), and
+    a DAG finalization that follows the result.
+  - **PostgreSQL snapshots** now keep the StateChart configuration. They dropped it,
+    contrary to ADR-040.
 - **SQLite saga log contention** (#500): a relay on its own SQLite connection competed with
   the log's writes for SQLite's single write lock and failed under load with
   `database is locked`.
