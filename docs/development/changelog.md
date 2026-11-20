@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-11-20
+
+Maintenance, CDC and ecosystem, plus StateChart phases 2 and 3 (ADR-040).
+
+- **StateChart:**
+  - opt-in step charts that say where every step is;
+  - pivot/taint states in the chart;
+  - re-entry into an interrupted compensation, for imperative and declarative sagas.
+- **Ecosystem:** a CDC reader for the saga log export, a Gradio asset monitor, and a schema
+  registry for saga events.
+- **Fixes:** saga final states and stored statuses agree with the result, and background
+  loops stop cleanly.
+- **Maintenance:** dependencies, documentation, and an MIT `LICENSE`.
+
 ### Added
 - **StateChart phase 2: step charts** (#190, ADR-040): `Saga(use_step_statechart=True)` (or
   `SagaConfig.use_step_statechart`) runs the saga on a chart with one region per step.
