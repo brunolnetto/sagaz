@@ -48,7 +48,7 @@ jobs:
       - name: Set up Python 3.12
         uses: actions/setup-python@v7
         with:
-          python-version: "3.12"  # pyfluss 1.0 ships wheels up to 3.12
+          python-version: "3.15"  # pyfluss 1.0 ships wheels up to 3.12
 
       - name: Install uv
         uses: astral-sh/setup-uv@v10.4.0
