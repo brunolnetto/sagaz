@@ -1,0 +1,1 @@
+"""Software & Technology examples domain."""

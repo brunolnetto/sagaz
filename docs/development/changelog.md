@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Examples grouped by industry**: `sagaz/examples/` follows the industry domains of the
+  Apache Airflow user survey: Banking & Financial Services, Retail & eCommerce, Manufacturing
+  & Automotive, Healthcare & Life Sciences, Public Sector & Education, Communications, Media
+  & Entertainment, Consumer Goods, Software & Technology, and Travel & Hospitality.
+  - **Software & Technology:** holds AI, data, IoT, the framework integrations and the
+    observability demos, as separate subdomains.
+  - **Energy:** grid and smart-meter examples are under Public Sector.
+  - **Paths changed:** examples moved, so their import paths changed, for example
+    `sagaz.examples.business.finance.payment_processing` →
+    `sagaz.examples.banking_finance.finance.payment_processing`.
+  - **`sagaz examples list --domain`:** accepts the display name or the folder name, in
+    any case (`consumer_goods`).
+
+### Added
+- **Consumer Goods examples**:
+  - product launch (shipping to retailers is the pivot);
+  - product recall (filing with the regulator is the pivot; it taints the production halt
+    and the quarantine);
+  - retail replenishment with EDI 855/856/810 (the truck's dispatch is the pivot);
+  - trade promotion (the in-store activation is the pivot).
+
 ## [2.3.0] - 2026-11-20
 
 Maintenance, CDC and ecosystem, plus StateChart phases 2 and 3 (ADR-040).

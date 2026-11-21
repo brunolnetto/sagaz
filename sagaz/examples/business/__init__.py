@@ -1,1 +1,0 @@
-"""Business examples domain."""

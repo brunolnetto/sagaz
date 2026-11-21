@@ -81,16 +81,17 @@ class TestGetDomains:
         """Test that expected domains are present."""
         result = get_domains()
         expected_domains = {
-            "Business",
-            "Technology",
-            "Healthcare",
-            "Infrastructure",
-            "Public Services",
-            "Digital Media",
-            "Platform",
+            "Banking & Financial Services",
+            "Retail & eCommerce",
+            "Manufacturing & Automotive",
+            "Healthcare & Life Sciences",
+            "Public Sector & Education",
+            "Communications, Media & Entertainment",
+            "Consumer Goods",
+            "Software & Technology",
+            "Travel & Hospitality",
         }
-        # All expected domains should be present (if examples exist)
-        assert set(result.keys()).issubset(expected_domains)
+        assert set(result.keys()) == expected_domains  # every industry has examples
 
     def test_all_categories_mapped(self):
         """Test that all categories from get_categories are in domains."""

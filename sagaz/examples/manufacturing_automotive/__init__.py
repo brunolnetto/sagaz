@@ -1,0 +1,1 @@
+"""Manufacturing & Automotive examples domain."""
