@@ -69,7 +69,7 @@ class RedisSagaStorage(_RedisSagaQueryMixin, _RedisSagaMaintenanceMixin, SagaSto
         redis_url: str = "redis://localhost:6379",
         key_prefix: str = "saga:",
         default_ttl: int | None = None,  # TTL in seconds for completed sagas
-        **redis_kwargs,
+        **redis_kwargs: Any,
     ):
         """
         Configure the Redis saga storage backend.

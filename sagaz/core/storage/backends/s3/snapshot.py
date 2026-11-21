@@ -68,7 +68,7 @@ class S3SnapshotStorage(_S3SagaIndexMixin, _S3ReplayLogMixin, SnapshotStorage):
         compression_level: int = 3,  # zstd compression level (1-22)
         enable_encryption: bool = True,  # Server-side encryption (SSE-S3)
         storage_class: str = "STANDARD",  # or "STANDARD_IA", "GLACIER", etc.
-        **s3_kwargs,
+        **s3_kwargs: Any,
     ):
         if not AIOBOTO3_AVAILABLE:
             msg = "aioboto3"

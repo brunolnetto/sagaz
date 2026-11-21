@@ -250,7 +250,7 @@ class Saga(
     # API Protection - Prevent mixing declarative and imperative approaches
     # =========================================================================
 
-    async def run(self, *args, **kwargs):
+    async def run(self, *args: Any, **kwargs: Any):
         """
         The run() method is for declarative Saga. Use execute() for imperative Saga.
 

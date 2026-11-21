@@ -75,7 +75,11 @@ class PostgreSQLSagaStorage(
     CREATE_TABLES_SQL = SAGA_TABLES_SQL
 
     def __init__(
-        self, connection_string: str, pool_min_size: int = 5, pool_max_size: int = 20, **pool_kwargs
+        self,
+        connection_string: str,
+        pool_min_size: int = 5,
+        pool_max_size: int = 20,
+        **pool_kwargs: Any,
     ):
         """
         Configure the PostgreSQL saga storage backend.

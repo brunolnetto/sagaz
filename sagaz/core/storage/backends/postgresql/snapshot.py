@@ -62,7 +62,7 @@ class PostgreSQLSnapshotStorage(_PostgreSQLReplayLogMixin, SnapshotStorage):
         connection_string: str,
         pool_min_size: int = 5,
         pool_max_size: int = 20,
-        **pool_kwargs,
+        **pool_kwargs: Any,
     ):
         """
         Configure the storage backend.

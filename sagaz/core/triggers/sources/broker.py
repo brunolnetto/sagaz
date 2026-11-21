@@ -168,7 +168,7 @@ class BrokerTriggerConsumer:
         return triggered_ids
 
 
-async def create_broker_consumer(broker_type: str, **config) -> BrokerTriggerConsumer:
+async def create_broker_consumer(broker_type: str, **config: Any) -> BrokerTriggerConsumer:
     """
     Factory function to create a broker consumer.
 

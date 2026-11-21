@@ -57,7 +57,7 @@ class StorageManager(_StorageBackendInitMixin, BaseStorageManager):
         *,
         saga_url: str | None = None,
         outbox_url: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         """
         Initialize storage manager.
@@ -249,7 +249,7 @@ def create_storage_manager(
     saga_url: str | None = None,
     outbox_url: str | None = None,
     backend: str | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> StorageManager:
     """
     Create a storage manager with flexible backend configuration.
@@ -290,7 +290,7 @@ def create_storage_manager(
 
 
 def _create_with_explicit_backend(
-    backend: str, url: str | None, saga_url: str | None, outbox_url: str | None, **kwargs
+    backend: str, url: str | None, saga_url: str | None, outbox_url: str | None, **kwargs: Any
 ) -> StorageManager:
     """Create storage manager with explicit backend type."""
     backend = backend.lower()

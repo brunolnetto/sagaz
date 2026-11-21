@@ -16,6 +16,7 @@ Usage:
 import asyncio
 import logging
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from sagaz.core.compliance import (
@@ -46,7 +47,7 @@ class WireTransferSaga(Saga):
     Demonstrates compliance features for regulated industries.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any):
         super().__init__(name="wire-transfer", **kwargs)
 
     async def build(self):

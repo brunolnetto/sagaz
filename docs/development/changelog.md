@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Bare `Any` annotations went from 427 to 343. The stricter types found real gaps: two unchecked `fetchone()` results, and the Gradio monitor's arguments, which also accept a URL.
   - New `scripts/check_typing_budget.py` (run by `make typecheck` and CI): `pyproject.toml` records the counts of bare `Any`, missing annotations and `# type: ignore`, and the build fails if a count differs. Debt can only go down.
 
+- **Every `*args` and `**kwargs` is typed (#596).**
+  - The 60 untyped variadics are annotated, and ruff's `ANN002`/`ANN003` now reject a new one.
+  - `sagaz.core.logger`: a `LoggerLike` protocol types `set_logger()` and `get_logger()`; `logging.Logger`, structlog and loguru loggers fit it.
+  - The outbox's no-op Prometheus metrics existed twice, one copy untyped. There is now one, in `sagaz/core/outbox/_metrics.py`.
+  - `create_broker()`: its docstring names the configuration class whose fields each broker type takes, and the internal factories are typed.
+
 ### Fixed
 
 - **There is one `SagaStorage` (#599).** Two unrelated classes had that name. The built-in backends inherited the one in `sagaz.core.storage.base`, while `sagaz.core.storage` exported the one in `interfaces`. So `isinstance(InMemorySagaStorage(), SagaStorage)` was false with the documented import, and a function annotated `storage: SagaStorage` rejected every built-in backend under mypy. `base` now re-exports the single class (and `SagaStepState`); every import path still works.

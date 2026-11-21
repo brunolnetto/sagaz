@@ -262,6 +262,8 @@ select = [
     "ERA", # eradicate
     "RUF", # Ruff-specific rules
     "PGH", # pygrep-hooks: no blanket "# type: ignore" or "# noqa" (#594)
+    "ANN002", # *args needs a type (#596)
+    "ANN003", # **kwargs needs a type (#596)
 ]
 
 ignore = [
@@ -293,6 +295,11 @@ ignore = [
 known-first-party = ["sagaz"]
 section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
 
+[tool.ruff.lint.flake8-annotations]
+# ``*args: Any`` / ``**kwargs: Any`` is the idiom for arguments passed through to another
+# call, so it does not count as a bare Any (ANN401).
+allow-star-arg-any = true
+
 [tool.ruff.lint.per-file-ignores]
 # Allow print statements in CLI scripts
 "scripts/*" = ["T20"]
@@ -316,6 +323,8 @@ section-order = ["future", "standard-library", "third-party", "first-party", "lo
 "sagaz/*/*/factory.py" = ["T20"]
 # Tests can have magic values, print statements, test-specific patterns
 "tests/*" = [
+    "ANN002",   # Tests are not type-checked: fakes may leave *args untyped
+    "ANN003",   # ...and **kwargs
     "PLR2004",  # Magic values in tests
     "T20",      # Print statements for debugging
     "ARG",      # Unused arguments in fixtures
@@ -384,16 +393,14 @@ exclude = [
 # when a count differs: above, debt was added; below, lower the number here so the gain
 # is kept. The ANN rules are ruff's annotation checks, not enabled yet (#595, #596, #597).
 [tool.sagaz.typing-budget]
-ANN401 = 343        # a bare Any as a whole annotation
+ANN401 = 308        # a bare Any as a whole annotation
 ANN001 = 222        # parameter without a type
-ANN002 = 19         # *args without a type
-ANN003 = 41         # **kwargs without a type
-ANN201 = 58         # public function without a return type
-ANN202 = 181        # private function without a return type
+ANN201 = 52         # public function without a return type
+ANN202 = 174        # private function without a return type
 ANN204 = 103        # special method without a return type
 ANN205 = 2          # static method without a return type
 ANN206 = 1          # class method without a return type
-"type-ignore" = 56  # "# type: ignore" comments
+"type-ignore" = 51  # "# type: ignore" comments
 
 # ============================================================================
 # Pytest Configuration

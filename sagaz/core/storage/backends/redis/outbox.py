@@ -76,7 +76,7 @@ class RedisOutboxStorage(
         consumer_group: str = "sagaz-workers",
         max_stream_length: int = 100000,
         event_ttl_seconds: int = 86400 * 7,  # 7 days
-        **redis_kwargs,
+        **redis_kwargs: Any,
     ):
         """
         Initialize Redis outbox storage.

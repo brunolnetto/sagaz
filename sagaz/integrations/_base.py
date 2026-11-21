@@ -62,7 +62,7 @@ class SagaContextManager:
 
     @classmethod
     @contextmanager
-    def scope(cls, **initial_values):
+    def scope(cls, **initial_values: Any):
         """
         Create a new context scope with initial values.
 

@@ -4,6 +4,7 @@
 import asyncio
 import logging
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from sagaz.core.context import SagaContext
@@ -22,7 +23,7 @@ logger = logging.getLogger(__name__)
 class OrderSaga(Saga):
     """Order processing saga with potential payment failure."""
 
-    def __init__(self, fail_at_step: str | None = None, **kwargs):
+    def __init__(self, fail_at_step: str | None = None, **kwargs: Any):
         super().__init__(name="order-processing", **kwargs)
         self.fail_at_step = fail_at_step
 

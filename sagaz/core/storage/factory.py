@@ -148,7 +148,7 @@ def create_storage(
     # SQLite options
     db_path: str = ":memory:",
     # Additional kwargs
-    **kwargs,
+    **kwargs: Any,
 ) -> SagaStorage | tuple:
     """
     Create a storage backend with a simple, unified API.

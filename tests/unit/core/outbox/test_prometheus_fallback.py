@@ -1,7 +1,6 @@
 """
-Tests to cover prometheus ImportError fallback code in:
-- sagaz/core/outbox/optimistic_publisher.py (lines 16-43)
-- sagaz/core/outbox/consumer_inbox.py (lines 17-38)
+The outbox works without prometheus_client: ``sagaz/core/outbox/_metrics.py`` gives
+``optimistic_publisher`` and ``consumer_inbox`` no-op metrics.
 
 Strategy: temporarily remove prometheus_client from sys.modules,
 reload the target module, verify NoOp fallback behavior, then restore.
@@ -18,6 +17,9 @@ _ALIAS_TO_CANONICAL = {
 }
 
 
+_SHARED = "sagaz.core.outbox._metrics"
+
+
 @contextmanager
 def _without_prometheus(module_name: str):
     """Context manager that reloads a module without prometheus_client available."""
@@ -25,6 +27,7 @@ def _without_prometheus(module_name: str):
     # Save original modules (alias + canonical)
     orig_module = sys.modules.get(module_name)
     orig_canonical = sys.modules.get(canonical)
+    orig_shared = sys.modules.get(_SHARED)
     orig_prometheus_modules = {k: v for k, v in sys.modules.items() if "prometheus_client" in k}
 
     # Remove prometheus from sys.modules
@@ -38,6 +41,7 @@ def _without_prometheus(module_name: str):
     # try/except ImportError block at module level.
     sys.modules.pop(module_name, None)
     sys.modules.pop(canonical, None)
+    sys.modules.pop(_SHARED, None)  # both modules take Counter and Histogram from it
 
     try:
         mod = importlib.import_module(canonical)
@@ -58,6 +62,9 @@ def _without_prometheus(module_name: str):
             sys.modules[module_name] = orig_module
         if orig_canonical is not None:
             sys.modules[canonical] = orig_canonical
+        sys.modules.pop(_SHARED, None)
+        if orig_shared is not None:
+            sys.modules[_SHARED] = orig_shared
 
 
 class TestOptimisticPublisherPromethusFallback:

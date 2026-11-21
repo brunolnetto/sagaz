@@ -187,7 +187,7 @@ class _SagaCompensationMixin:
             raise SagaCompensationError(msg) from e
 
     @staticmethod
-    async def _invoke(func: Callable[..., Any], *args, **kwargs) -> Any:
+    async def _invoke(func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """Invoke function (handle both sync and async)"""
         if asyncio.iscoroutinefunction(func):
             return await func(*args, **kwargs)
