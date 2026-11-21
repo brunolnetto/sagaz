@@ -140,7 +140,9 @@ jobs:
         continue-on-error: true
 
       - name: Run pip-audit for vulnerabilities
-        run: uv run pip-audit --strict --progress-spinner=off || true
+        # Gates: a dependency with a known advisory fails the build. To accept one that has
+        # no fix yet, add --ignore-vuln <ID> here with a comment saying why.
+        run: uv run pip-audit --strict --progress-spinner=off
 
 # ─── Code Quality (CodeQL + Cyclomatic Complexity) ───────────────────────────
 

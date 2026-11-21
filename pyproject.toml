@@ -50,7 +50,7 @@ rabbitmq = [
     "aio-pika>=9.0.0",
 ]
 tracing = [
-    "opentelemetry-api>=1.39.1",
+    "opentelemetry-api>=1.45.1",
     "opentelemetry-exporter-otlp-proto-grpc>=1.39.1",
     "opentelemetry-sdk>=1.39.1",
 ]
@@ -94,7 +94,7 @@ cdc = [
     "httpx>=0.28.1",
 ]
 encryption = [
-    "cryptography>=42.0.0",
+    "cryptography>=46.0.7",
 ]
 compression = [
     "zstandard>=0.22.0",  # For snapshot compression
@@ -102,9 +102,9 @@ compression = [
 
 [dependency-groups]
 ai = [
-    "langchain-openai>=1.1.7",
+    "langchain-openai>=1.1.14",
     "pydantic>=2.12.5",
-    "pydantic-ai>=0.8.1",
+    "pydantic-ai>=1.56.0",
 ]
 cli = [
     "click>=8.3.1",
@@ -131,10 +131,10 @@ dev = [
     "testcontainers[kafka,postgres,rabbitmq,redis,localstack]>=4.13.3",
     "pytest-timeout>=2.4.0",
     # Django integration tests
-    "django>=5.2.10",
+    "django>=5.2.17",
     "asgiref>=3.8.0",
     # OpenTelemetry (for tracing tests)
-    "opentelemetry-api>=1.20.0",
+    "opentelemetry-api>=1.45.1",
     "opentelemetry-sdk>=1.20.0",
     "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
     # Type stubs
@@ -153,13 +153,13 @@ dev = [
     "prometheus-client>=0.23.1",
     "httpx>=0.28.1",
     # Per-tenant encryption (sagaz[encryption]) and the CDC pg_logical source (sagaz[cdc])
-    "cryptography>=42.0.0",
+    "cryptography>=46.0.7",
     "psycopg2-binary>=2.9.9",
     "pytest-json-report>=1.5.0",
     "codebase-stats==0.1.0",
 ]
 django = [
-    "django>=5.2.10",
+    "django>=5.2.17",
     "asgiref>=3.8.0",  # ASGI support for Django
 ]
 web = [
@@ -167,8 +167,8 @@ web = [
     "fastapi>=0.128.0",
     "uvicorn>=0.34.0",
     "flask>=3.1.2",
-    "werkzeug>=3.1.0",
-    "django>=5.2.10",
+    "werkzeug>=3.1.9",
+    "django>=5.2.17",
     "asgiref>=3.8.0",
 ]
 fastapi = [
@@ -177,7 +177,7 @@ fastapi = [
 ]
 flask = [
     "flask>=3.1.2",
-    "werkzeug>=3.1.0",  # WSGI utilities for Flask
+    "werkzeug>=3.1.9",  # WSGI utilities for Flask
 ]
 sqlite = [
     "aiosqlite>=0.22.1",
