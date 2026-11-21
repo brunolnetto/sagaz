@@ -64,7 +64,7 @@ class ContentPublishingSaga(Saga):
         logger.warning(f"↩️ [{ctx.get('article_id')}] Voiding legal approval...")
         await asyncio.sleep(0.05)
 
-    @action("publish_content", depends_on=["legal_review"])
+    @action("publish_content", depends_on=["legal_review"], pivot=True)
     async def publish_content(self, ctx: SagaContext) -> dict[str, Any]:
         """🔒 PIVOT STEP: Publish content - now public."""
         article_id = ctx.get("article_id")

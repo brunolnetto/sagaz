@@ -177,7 +177,7 @@ class CrossBorderWireTransferSaga(Saga):
         logger.warning(f"↩️ [{ctx.get('transfer_id')}] Releasing FX rate lock...")
         await asyncio.sleep(0.05)
 
-    @action("submit_swift_message", depends_on=["reserve_fx_rate"])
+    @action("submit_swift_message", depends_on=["reserve_fx_rate"], pivot=True)
     async def submit_swift_message(self, ctx: SagaContext) -> dict[str, Any]:
         """🔒 PIVOT STEP 1: Submit SWIFT MT103 message."""
         transfer_id = ctx.get("transfer_id")

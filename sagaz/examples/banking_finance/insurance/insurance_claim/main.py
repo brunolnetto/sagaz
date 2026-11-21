@@ -78,7 +78,7 @@ class InsuranceClaimSaga(Saga):
         logger.warning(f"↩️ [{ctx.get('claim_id')}] Revoking approval...")
         await asyncio.sleep(0.05)
 
-    @action("disburse_payment", depends_on=["approve_claim"])
+    @action("disburse_payment", depends_on=["approve_claim"], pivot=True)
     async def disburse_payment(self, ctx: SagaContext) -> dict[str, Any]:
         """🔒 PIVOT STEP: Disburse claim payment to claimant."""
         claim_id = ctx.get("claim_id")

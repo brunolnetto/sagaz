@@ -13,97 +13,104 @@ and observability demos are under Software & Technology.
 
 ```
 sagaz/examples/
-├── banking_finance/                    ← Banking & Financial Services
+├── banking_finance/                      ← Banking & Financial Services
 │   ├── finance/
-│   │   ├── crypto_exchange/            ← 🔒 Blockchain pivot
-│   │   ├── loan_origination/           ← Loan disbursement pivot
-│   │   ├── payment_processing/         ← Payment gateway integration
-│   │   ├── trade_execution/            ← Stock trading system
-│   │   └── wire_transfer/              ← Cross-border SWIFT transfer
+│   │   ├── crypto_exchange/              ← 🔒 Blockchain pivot
+│   │   ├── loan_origination/             ← 🔒 Loan disbursement pivot
+│   │   ├── payment_processing/           ← Payment gateway integration
+│   │   ├── trade_execution/              ← Stock trading system
+│   │   └── wire_transfer/                ← 🔒 Cross-border SWIFT transfer
 │   ├── insurance/
-│   │   └── insurance_claim/            ← Claim payment pivot
+│   │   └── insurance_claim/              ← 🔒 Claim payment pivot
 │   └── real_estate/
-│       ├── property_closing/           ← 🔒 Legal commitment pivot
-│       └── rental_application/         ← 🔒 Deposit charge pivot
+│       ├── property_closing/             ← 🔒 Legal commitment pivot
+│       └── rental_application/           ← 🔒 Deposit charge pivot
 │
-├── retail_ecommerce/                   ← Retail & eCommerce
+├── retail_ecommerce/                     ← Retail & eCommerce
 │   └── commerce/
-│       └── order_processing/           ← Order fulfillment workflow
+│       └── order_processing/             ← Order fulfillment workflow
 │
-├── manufacturing_automotive/           ← Manufacturing & Automotive
+├── manufacturing_automotive/             ← Manufacturing & Automotive
 │   └── manufacturing/
-│       ├── chemical_reactor/           ← 🔒 Reaction initiation pivot
-│       ├── production/                 ← 🔒 Physical action pivot
-│       └── three_d_printing/           ← Material commitment pivot
+│       ├── chemical_reactor/             ← 🔒 Reaction initiation pivot
+│       ├── production/                   ← 🔒 Physical action pivot
+│       └── three_d_printing/             ← 🔒 Material commitment pivot
 │
-├── healthcare_life_sciences/           ← Healthcare & Life Sciences
+├── healthcare_life_sciences/             ← Healthcare & Life Sciences
 │   └── healthcare/
-│       ├── lab_processing/             ← 🔒 Consumable resource pivot
-│       ├── patient_onboarding/         ← HIPAA-compliant registration
-│       ├── prescription/               ← DEA/PDMP dispensing pivot
-│       └── procedure_scheduling/       ← 🔒 OR reservation pivot
+│       ├── lab_processing/               ← 🔒 Consumable resource pivot
+│       ├── patient_onboarding/           ← HIPAA-compliant registration
+│       ├── prescription/                 ← 🔒 DEA/PDMP dispensing pivot
+│       └── procedure_scheduling/         ← 🔒 OR reservation pivot
 │
-├── public_sector_education/            ← Public Sector & Education
+├── public_sector_education/              ← Public Sector & Education
 │   ├── government/
-│   │   ├── regulatory_filing/          ← SEC/FDA submission pivot
-│   │   └── visa_application/           ← Biometric capture pivot
+│   │   ├── regulatory_filing/            ← 🔒 SEC/FDA submission pivot
+│   │   └── visa_application/             ← 🔒 Biometric capture pivot
 │   ├── education/
-│   │   ├── course_enrollment/          ← Seat confirmation pivot
-│   │   └── exam_proctoring/            ← 🔒 Exam start pivot
+│   │   ├── course_enrollment/            ← 🔒 Seat confirmation pivot
+│   │   └── exam_proctoring/              ← 🔒 Exam start pivot
 │   └── energy/
-│       ├── power_grid/                 ← 🔒 Breaker close pivot
-│       └── smart_meter/                ← Meter activation pivot
+│       ├── power_grid/                   ← 🔒 Breaker close pivot
+│       └── smart_meter/                  ← 🔒 Meter activation pivot
 │
-├── communications_media_entertainment/ ← Communications, Media & Entertainment
+├── communications_media_entertainment/   ← Communications, Media & Entertainment
 │   ├── telecom/
-│   │   ├── number_porting/             ← 🔒 NPAC regulatory pivot
-│   │   └── sim_provisioning/           ← 🔒 SIM activation pivot
+│   │   ├── number_porting/               ← 🔒 NPAC regulatory pivot
+│   │   └── sim_provisioning/             ← 🔒 SIM activation pivot
 │   ├── media/
-│   │   ├── content_publishing/         ← CDN distribution pivot
-│   │   └── live_streaming/             ← 🔒 Real-time broadcast pivot
+│   │   ├── content_publishing/           ← 🔒 CDN distribution pivot
+│   │   └── live_streaming/               ← 🔒 Real-time broadcast pivot
 │   └── gaming/
-│       ├── in_game_purchase/           ← Payment pivot
-│       └── tournament_match/           ← Match start pivot
+│       ├── in_game_purchase/             ← 🔒 Payment pivot
+│       └── tournament_match/             ← 🔒 Match start pivot
 │
-├── consumer_goods/                     ← Consumer Goods
+├── consumer_goods/                       ← Consumer Goods
 │   ├── product/
-│   │   ├── product_launch/             ← 🔒 Shipping to retailers pivot
-│   │   └── product_recall/             ← 🔒 Regulator filing pivot (taints the holds)
-│   └── distribution/
-│       ├── retail_replenishment/       ← 🔒 Truck dispatch pivot (EDI 855/856/810)
-│       └── trade_promotion/            ← 🔒 In-store activation pivot
+│   │   ├── product_launch/               ← 🔒 Shipping to retailers pivot
+│   │   └── product_recall/               ← 🔒 Regulator filing pivot (taints the holds)
+│   ├── distribution/
+│   │   ├── retail_replenishment/         ← 🔒 Truck dispatch pivot (EDI 855/856/810)
+│   │   └── trade_promotion/              ← 🔒 In-store activation pivot
+│   ├── direct_to_consumer/
+│   │   ├── returns_processing/           ← 🔒 Refund pivot
+│   │   └── subscription_box/             ← 🔒 Carrier pickup pivot
+│   └── supply/
+│       ├── co_packer_order/              ← 🔒 Production run pivot
+│       └── packaging_switch/             ← 🔒 Line cut-over pivot (label validation)
 │
-├── software_technology/                ← Software & Technology
+├── software_technology/                  ← Software & Technology
 │   ├── ai/
-│   │   ├── ai_content_pipeline/        ← AI content generation with review
-│   │   ├── federated_learning/         ← Distributed edge training
-│   │   ├── langgraph_support_agent/    ← LangGraph support agent with tools
-│   │   ├── pydantic_ai_research/       ← Pydantic AI research workflow
-│   │   └── training/                   ← MLOps training pipeline
+│   │   ├── ai_content_pipeline/          ← AI content generation with review
+│   │   ├── federated_learning/           ← Distributed edge training
+│   │   ├── langgraph_support_agent/      ← LangGraph support agent with tools
+│   │   ├── pydantic_ai_research/         ← Pydantic AI research workflow
+│   │   └── training/                     ← MLOps training pipeline
 │   ├── data/
-│   │   ├── data_migration/             ← Cross-database migration
-│   │   ├── data_quality_gate/          ← Data validation with quarantine
-│   │   ├── etl_pipeline/               ← Extract-Transform-Load workflow
-│   │   └── lakehouse_ingestion/        ← Bronze → Silver → Gold pipeline
+│   │   ├── data_migration/               ← Cross-database migration
+│   │   ├── data_quality_gate/            ← Data validation with quarantine
+│   │   ├── etl_pipeline/                 ← Extract-Transform-Load workflow
+│   │   └── lakehouse_ingestion/          ← Bronze → Silver → Gold pipeline
 │   ├── iot/
-│   │   ├── device_orchestration/       ← Smart home coordinator
-│   │   └── smart_grid/                 ← Energy demand response
+│   │   ├── device_orchestration/         ← Smart home coordinator
+│   │   └── smart_grid/                   ← Energy demand response
 │   ├── integrations/
-│   │   ├── django_app/                 ← Django with AppConfig
-│   │   ├── fastapi_app/                ← FastAPI with DI and lifespan
-│   │   └── flask_app/                  ← Flask extension pattern
+│   │   ├── django_app/                   ← Django with AppConfig
+│   │   ├── fastapi_app/                  ← FastAPI with DI and lifespan
+│   │   └── flask_app/                    ← Flask extension pattern
 │   └── observability/
-│       ├── mermaid_visualization/      ← Mermaid diagram generation
-│       ├── metrics_monitoring/         ← Metrics monitoring
-│       ├── order_recovery/             ← Recovering a failed order
-│       ├── simple_demo/                ← The smallest saga
-│       └── time_travel/                ← Replay and time travel over snapshots
+│       ├── mermaid_visualization/        ← Mermaid diagram generation
+│       ├── metrics_monitoring/           ← Metrics monitoring
+│       ├── order_recovery/               ← Recovering a failed order
+│       ├── simple_demo/                  ← The smallest saga
+│       └── time_travel/                  ← Replay and time travel over snapshots
 │
-├── travel_hospitality/                 ← Travel & Hospitality
+├── travel_hospitality/                   ← Travel & Hospitality
 │   ├── travel/
-│   │   └── travel_booking/             ← Travel reservation workflow
+│   │   └── travel_booking/               ← Travel reservation workflow
 │   └── logistics/
-│       └── drone_delivery/             ← Autonomous delivery
+│       └── drone_delivery/               ← Autonomous delivery
+│
 └── README.md
 ```
 
@@ -125,14 +132,14 @@ sagaz examples list --domain consumer_goods
 sagaz examples run consumer_goods/product/product_launch
 ```
 
-**Industries** (53 examples):
+**Industries** (57 examples):
 - 📁 **Banking & Financial Services** (8) - finance, insurance, real_estate
 - 📁 **Retail & eCommerce** (1) - commerce
 - 📁 **Manufacturing & Automotive** (3) - manufacturing
 - 📁 **Healthcare & Life Sciences** (4) - healthcare
 - 📁 **Public Sector & Education** (6) - government, education, energy
 - 📁 **Communications, Media & Entertainment** (6) - telecom, media, gaming
-- 📁 **Consumer Goods** (4) - product, distribution
+- 📁 **Consumer Goods** (8) - product, distribution, direct_to_consumer, supply
 - 📁 **Software & Technology** (19) - ai, data, iot, integrations, observability
 - 📁 **Travel & Hospitality** (2) - travel, logistics
 

@@ -64,7 +64,7 @@ class ThreeDPrintingSaga(Saga):
         logger.warning(f"↩️ [{ctx.get('job_id')}] Cooling down printer...")
         await asyncio.sleep(0.1)
 
-    @action("start_print", depends_on=["preheat_printer"])
+    @action("start_print", depends_on=["preheat_printer"], pivot=True)
     async def start_print(self, ctx: SagaContext) -> dict[str, Any]:
         """🔒 PIVOT STEP: Begin 3D printing - material committed."""
         job_id = ctx.get("job_id")

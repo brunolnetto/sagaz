@@ -52,6 +52,22 @@ CONSUMER_GOODS = [
     ("product.product_recall", "ProductRecallSaga", {"defect_confirmed": False}),
     ("distribution.retail_replenishment", "RetailReplenishmentSaga", {"no_carrier": True}),
     ("distribution.trade_promotion", "TradePromotionSaga", {"line_down": True}),
+    (
+        "direct_to_consumer.subscription_box",
+        "SubscriptionBoxSaga",
+        {"missing_item": "trail-mix"},
+    ),
+    (
+        "direct_to_consumer.returns_processing",
+        "ReturnsProcessingSaga",
+        {"condition": "not_ours"},
+    ),
+    ("supply.co_packer_order", "CoPackerOrderSaga", {"sample_rejected": True}),
+    (
+        "supply.packaging_switch",
+        "PackagingSwitchSaga",
+        {"artwork": {"nutrition_panel": True, "barcode": True}},
+    ),
 ]
 
 
@@ -71,6 +87,16 @@ async def test_consumer_goods_examples_complete_and_compensate(module, cls, fail
         "retailer": "R",
         "discount_per_unit": "0.5",
         "expected_units": 10,
+        "subscriber_id": "SUB",
+        "box_items": ["a"],
+        "order_id": "O",
+        "amount": "1.00",
+        "co_packer": "C",
+        "materials": ["m"],
+        "cases": 1,
+        "new_supplier": "N",
+        "old_supplier": "D",
+        "artwork": {"version": "v1", "allergens": True, "nutrition_panel": True, "barcode": True},
     }
     context = await saga_cls().run(dict(base))
     pivots = [s.step_id for s in saga_cls().get_steps() if s.pivot]
@@ -83,3 +109,31 @@ async def test_consumer_goods_examples_complete_and_compensate(module, cls, fail
 
 async def _no_sleep(_seconds: float) -> None:
     return None
+
+
+def _declared_pivots() -> list[tuple[str, str]]:
+    """(module, step) for every example whose docstring declares a ``Pivot Step:``."""
+    examples = get_examples_dir()
+    found = []
+    for main in sorted(examples.glob("*/*/*/main.py")):
+        text = main.read_text(encoding="utf-8")
+        for line in text.splitlines():
+            if line.strip().startswith("Pivot Step:"):
+                module = ".".join(main.relative_to(examples).with_suffix("").parts)
+                found.append((module, line.split(":", 1)[1].strip()))
+    return found
+
+
+@pytest.mark.parametrize(("module", "step"), _declared_pivots())
+def test_a_declared_pivot_is_a_pivot_step(module, step):
+    """An example that says a step is its pivot marks it ``pivot=True``."""
+    mod = importlib.import_module(f"sagaz.examples.{module}")
+    sagas = [
+        obj
+        for obj in vars(mod).values()
+        if isinstance(obj, type)
+        and getattr(obj, "__module__", "") == mod.__name__
+        and hasattr(obj, "get_steps")
+    ]
+    pivots = {s.step_id for saga in sagas for s in saga().get_steps() if s.pivot}
+    assert step in pivots, f"{module}: {step} is described as the pivot but is not pivot=True"

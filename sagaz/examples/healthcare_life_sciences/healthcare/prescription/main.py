@@ -63,7 +63,7 @@ class PrescriptionFulfillmentSaga(Saga):
         logger.warning(f"↩️ [{ctx.get('prescription_id')}] Reversing insurance claim...")
         await asyncio.sleep(0.05)
 
-    @action("dispense_medication", depends_on=["insurance_adjudicate"])
+    @action("dispense_medication", depends_on=["insurance_adjudicate"], pivot=True)
     async def dispense_medication(self, ctx: SagaContext) -> dict[str, Any]:
         """🔒 PIVOT STEP: Dispense medication - DEA/PDMP logged."""
         rx_id = ctx.get("prescription_id")
