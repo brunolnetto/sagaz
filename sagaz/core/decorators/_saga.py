@@ -294,32 +294,46 @@ class Saga(
         saga_id: str | None = None,
         *,
         tenant_context: TenantContext | str | None = None,
+        allow_rerun: bool = False,
     ) -> dict[str, Any]:
         """
         Execute this saga.
 
         Args:
             initial_context: Initial data for the saga
-            saga_id: Optional saga identifier for tracing
+            saga_id: Identifies the run; a new id is generated when omitted. A saga
+                id runs once: one that already exists in storage raises
+                ``SagaAlreadyExistsError`` before any step runs, so a retried
+                request does not run its steps (charge, ship) twice.
             tenant_context: Run as this tenant (ADR-020). Storage is scoped to
                 it, its quotas apply, and ``ctx["tenant_id"]`` is set. A tenant
                 id is resolved through ``SagaConfig.tenant_registry`` when one
                 is configured.
+            allow_rerun: Run an existing ``saga_id`` again, all its steps included
+                (an event-sourced stream or unified-log transaction continues).
 
         Returns:
             Final context with all step results merged
 
         Raises:
+            SagaAlreadyExistsError: ``saga_id`` already exists and ``allow_rerun`` is False.
+            SagaPersistenceError: the state could not be saved (see
+                ``SagaConfig.tolerate_persistence_errors``).
             Exception: If saga fails (compensations will be attempted first)
         """
         if tenant_context is None:
-            return await ExecutionEngine(self).run(initial_context, saga_id)
+            return await self._engine(allow_rerun).run(initial_context, saga_id)
         registry = getattr(self._config, "tenant_registry", None)
         tenant = resolve_tenant(tenant_context, registry)
         ensure_tenant_context_matches(initial_context, tenant.tenant_id)
         async with tenant_execution(tenant):
             context = {**initial_context, "tenant_id": tenant.tenant_id}
-            return await ExecutionEngine(self).run(context, saga_id)
+            return await self._engine(allow_rerun).run(context, saga_id)
+
+    def _engine(self, allow_rerun: bool) -> ExecutionEngine:
+        engine = ExecutionEngine(self)
+        engine.allow_rerun = allow_rerun
+        return engine
 
     # Backward compatibility methods (private methods moved to ExecutionEngine)
     def _initialize_run(self, initial_context: dict[str, Any], saga_id: str | None) -> None:

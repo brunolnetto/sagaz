@@ -210,6 +210,7 @@ configure(config)
 | `logging` | `bool` | `True` | Enable structured logging |
 | `default_timeout` | `float` | `60.0` | Default step timeout (seconds) |
 | `default_max_retries` | `int` | `3` | Default retry count |
+| `tolerate_persistence_errors` | `bool` | `False` | Log, instead of raising `SagaPersistenceError`, when the saga state cannot be saved |
 
 ---
 

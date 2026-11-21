@@ -46,6 +46,29 @@ class SagaStorage(ABC):
             metadata: Additional metadata (version, timestamps, etc.)
         """
 
+    async def create_saga_state(
+        self,
+        saga_id: str,
+        saga_name: str,
+        status: SagaStatus,
+        steps: list[dict[str, Any]],
+        context: dict[str, Any],
+        metadata: dict[str, Any] | None = None,
+        configuration: list[str] | None = None,
+    ) -> bool:
+        """Save the state of a new saga; ``False``, writing nothing, if ``saga_id`` exists.
+
+        This default checks, then writes: two concurrent calls may both succeed.
+        Backends override it with an atomic insert (the memory, SQLite,
+        PostgreSQL and Redis backends do).
+        """
+        if await self.load_saga_state(saga_id) is not None:
+            return False
+        await self.save_saga_state(
+            saga_id, saga_name, status, steps, context, metadata, configuration
+        )
+        return True
+
     @abstractmethod
     async def load_saga_state(self, saga_id: str) -> dict[str, Any] | None:
         """

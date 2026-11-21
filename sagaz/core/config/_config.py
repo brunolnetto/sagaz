@@ -93,6 +93,10 @@ class SagaConfig:
     default_max_retries: int = 3
     failure_strategy: str = "FAIL_FAST_WITH_GRACE"
 
+    # A failure to save the saga state raises SagaPersistenceError (#534); True logs a
+    # warning instead and lets the saga go on (the behavior before 2.4).
+    tolerate_persistence_errors: bool = False
+
     # StateChart phase 2 (ADR-040, #190): imperative sagas run on a chart with one
     # region per step, whose configuration says where every step is. Off by default.
     use_step_statechart: bool = False

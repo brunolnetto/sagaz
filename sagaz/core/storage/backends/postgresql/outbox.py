@@ -119,7 +119,9 @@ class PostgreSQLOutboxStorage(
         self._pool: asyncpg.Pool | None = None
 
     async def initialize(self) -> None:
-        """Initialize the connection pool and create schema."""
+        """Initialize the connection pool and create schema (once; later calls are no-ops)."""
+        if self._pool is not None:
+            return
         self._pool = await asyncpg.create_pool(
             self.connection_string,
             min_size=self.pool_min_size,

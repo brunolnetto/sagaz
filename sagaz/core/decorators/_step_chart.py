@@ -15,6 +15,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from sagaz.core.events import SagaFailed, SagaRolledBack
+from sagaz.core.exceptions import SagaPersistenceError
 from sagaz.core.execution.step_statechart import (
     build_step_statechart,
     configuration_values,
@@ -102,6 +103,7 @@ class _EngineStepChartMixin:
         async def _open_recorder(self, saga_name: str) -> None: ...
         async def _record(self, event_type: Any, **fields: Any) -> None: ...
         async def _compensate(self) -> None: ...
+        async def _persist(self, status: SagaStatus, phase: str | None = None) -> None: ...
         def _elapsed_ms(self, since: float | None = None) -> float: ...
 
     # The chart's guards read these from its host, the engine.
@@ -181,30 +183,21 @@ class _EngineStepChartMixin:
     def _failure_status(self) -> SagaStatus:
         return SagaStatus.FAILED if self._compensation_failed else SagaStatus.ROLLED_BACK
 
-    async def _persist(self, status: SagaStatus) -> None:
-        """Store the saga state (and the configuration, under the step chart)."""
-        storage = self.saga._config.storage if self.saga._config else None
-        if not storage:
-            return
-        extra = {}
-        if self._chart is not None:
-            extra["configuration"] = configuration_values(self._chart)
-        try:
-            await storage.save_saga_state(
-                self.saga._saga_id,
-                self._get_saga_name(),
-                status,
-                self._ledger.snapshot(),
-                self.saga._context,
-                **extra,
-            )
-        except Exception as e:
-            logger.warning(f"Failed to persist saga state ({status.value}): {e}")
+    def _configuration_to_store(self) -> list[str] | None:
+        """The chart configuration stored with the saga state (None without a chart)."""
+        return configuration_values(self._chart) if self._chart is not None else None
 
     async def _checkpoint(self) -> None:
-        """After a compensated step: the configuration to resume the compensation from."""
-        if self._chart is not None:
-            await self._persist(SagaStatus.COMPENSATING)
+        """After a compensated step: the configuration to resume the compensation from.
+
+        A failure to save it is logged, not raised: the compensation itself succeeded.
+        """
+        if self._chart is None:
+            return
+        try:
+            await self._persist(SagaStatus.COMPENSATING, "compensation checkpoint")
+        except SagaPersistenceError as e:
+            logger.error(str(e))
 
     # -- re-entry ----------------------------------------------------------------------
 

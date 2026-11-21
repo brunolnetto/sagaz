@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     any case (`consumer_goods`).
 
 ### Added
+- **`SagaAlreadyExistsError`, `SagaPersistenceError`**, **`SagaStorage.create_saga_state`**
+  and **`SagaConfig.tolerate_persistence_errors`** (#534, #535).
 - **`sagaz.__version__`** (#532).
 - **Consumer Goods examples**:
   - product launch (shipping to retailers is the pivot);
@@ -38,6 +40,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - packaging switch, with label validation (the line cut-over is the pivot).
 
 ### Fixed
+- **A saga id runs once** (#535): running an existing `saga_id` again ran every step again,
+  so a retried request charged twice. The saga is now created with an atomic insert
+  (`SagaStorage.create_saga_state`, atomic on the memory, SQLite, PostgreSQL and Redis
+  backends). An existing id raises `SagaAlreadyExistsError` before any step runs,
+  including under concurrent runs.
+  - **Behavior change:** to run an id again on purpose (an event-sourced stream or
+    unified-log transaction continues), pass `run(..., allow_rerun=True)`.
+- **Saga durability** (#534):
+  - **Progress:** the state is saved after each level of steps, not only at start and
+    end, so a crash leaves a record of what ran.
+  - **Failures to save:** these were only logged, so a saga ran its side effects and
+    reported success. They now raise `SagaPersistenceError`, and a saga that cannot
+    save its progress stops and compensates.
+    `SagaConfig(tolerate_persistence_errors=True)` restores logging. On a failed run,
+    the step's exception is still the one raised, with the failed save added as a note.
+  - **Outbox:** an outbox storage derived from `SagaConfig(storage=..., broker=...)`
+    was never initialized, so every event was dropped. `OutboxSagaListener` now
+    initializes it before the first insert, and `PostgreSQLOutboxStorage.initialize()` is
+    idempotent.
 - **Packaging** (#532): the 2.3.0 wheel and sdist were about 56 MiB, because jars that
   git ignores, downloaded for the local lakehouse, were packaged. Untracked files are now
   excluded, and `scripts/check_dist.py`, run by `make build` and the release workflow,

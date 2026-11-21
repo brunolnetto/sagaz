@@ -128,7 +128,7 @@ class TestDeclarative:
     async def test_a_rerun_starts_the_transaction_again(self, log):
         saga = order_saga(log)
         await saga.run({"order_id": "o-5"}, saga_id="s-5")
-        await saga.run({"order_id": "o-5"}, saga_id="s-5")
+        await saga.run({"order_id": "o-5"}, saga_id="s-5", allow_rerun=True)
         transaction, _, events = await state(log, "s-5")
         assert (transaction.status, transaction.version) == ("completed", 4)
         assert [e.sequence for e in events] == list(range(1, 9))
