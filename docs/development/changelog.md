@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-11-21
+
+Security and typing. A security review signed the external context storage, upgraded
+every dependency with a known advisory and made bandit and pip-audit gate CI. A typing
+review annotated every function, cut `# type: ignore` from 151 to 47, and made mypy gate
+CI; the stricter types exposed real bugs, fixed here.
+
+**Breaking changes**
+
+- **External context storage needs a signing key (#589).** Pass `signing_key=` or set `SAGAZ_EXTERNAL_STORAGE_KEY`; read older, unsigned payloads with `allow_unsigned=True`. Details under Security.
+- **`SQLiteOutboxStorage` refuses `connection=` (#607).** It never used it. Details under Fixed.
+- **`OptimisticPublisher._resolve_topic()` is removed (#605).** The topic is the event type, as for the outbox worker.
+
 ### Changed
 
 - **Suppression comments are specific and explained, and mypy gates CI (#594).**
@@ -37,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`make build` works, and the Makefile mirrors CI (#586).** It ran the system Python, which lacks the `build` package; `make install MODE=dev` asked for extras that do not exist; `make ci` reformatted files instead of checking them. Every target now runs through `uv`, `make check` runs the gates CI enforces, and `docs/development/makefile.md` documents the real targets.
 - **`OptimisticPublisher` publishes (#605).** It called `broker.publish(value=...)` and `storage.mark_sent()`, which no broker or outbox storage has; an `except Exception` hid the `TypeError`, so every event silently fell back to polling. It now publishes with `broker.publish_event(event)` and marks the event with `update_status(..., OutboxStatus.SENT)`, exactly as the outbox worker does, so an event reaches the same topic in the same format by either path. `_resolve_topic()` is gone: the topic is the event type, as for the worker.
 - **`sagaz validate` and `sagaz simulate` print their results without `rich` (#606).** The plain-text functions were loops over `pass`, so a user without `rich` saw nothing. They now print what the Rich versions show: checks, errors and warnings, layers, parallelization metrics, the critical path and compensation layers.
 - **`SQLiteOutboxStorage` refuses a caller's connection (#607). Breaking change** for code that passed one. `insert()` and `update_status()` accepted `connection=` and ignored it, writing and committing through the storage's own connection, so the outbox row was not part of the caller's transaction and nothing said so. They now raise `OutboxStorageError`. Omit the argument; for outbox messages that commit with a saga's state on SQLite, use the unified saga log (`SQLiteSagaLogStore`).
@@ -45,6 +59,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- **Dependencies with known advisories are upgraded, and pip-audit gates CI (#588).** `pip-audit` reported advisories in 25 locked packages (aiohttp, cryptography, django, urllib3, werkzeug, pydantic-ai and others); CI ran it with `|| true`. All are upgraded and the audit is clean. Minimum versions rise for the `encryption` extra (`cryptography>=46.0.7`) and the `tracing` extra (`opentelemetry-api>=1.45.1`).
+- **bandit findings are triaged, and bandit gates CI (#590).**
+  - Fixed: the Flask example ran with `debug=True` on `0.0.0.0`; the AI training example used predictable `/tmp` directories; `flink_sql.report()` pasted its `table` argument into SQL unchecked.
+  - The 66 SQL findings in the storage backends are false positives (only constant fragments are interpolated; values are bound) and are marked `# nosec B608` with the reason.
+  - The metrics servers keep binding `0.0.0.0` for container scraping; `sagaz analytics export` gains `--metrics-host`.
 - **External context storage signs its payloads (#589). Breaking change.** `FileSystemExternalStorage` and `S3ExternalStorage` pickle the values they store, and unpickling runs code. Before, anyone who could write to the directory or the bucket could run code in every worker that loaded a payload. Each payload is now stored with an HMAC-SHA256 signature, which is checked before anything is unpickled. A payload that is missing its signature, was modified, was moved to another name or was signed with another key raises `ExternalStorageIntegrityError`.
   - **Migration:** pass `signing_key=` (at least 16 bytes), or set `SAGAZ_EXTERNAL_STORAGE_KEY` to the same secret in every worker, e.g. `python -c 'import secrets; print(secrets.token_hex(32))'`. Without a key, the constructors raise.
   - **Older payloads:** they are unsigned. Read them with `allow_unsigned=True` (it logs a warning) until they expire. That setting is unsafe while others can write to the storage.
