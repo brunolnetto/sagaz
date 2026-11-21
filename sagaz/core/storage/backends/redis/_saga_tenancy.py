@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Awaitable, Callable
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar
 
 from sagaz.core.storage._tenancy import (
     REDIS_TENANT_NAMESPACE,
@@ -25,6 +25,18 @@ from sagaz.core.storage._tenancy import (
 from sagaz.core.tenant import DEFAULT_TENANT, tenant_scope
 
 T = TypeVar("T")
+
+
+class RedisIndexReader(Protocol):
+    """The index reads the saga mixins await on the Redis client.
+
+    redis-py types every command as "an awaitable or the value", which ``await``
+    rejects, so the mixins name the awaited shape they rely on instead.
+    """
+
+    async def smembers(self, name: str) -> set[Any]: ...
+
+    async def keys(self, pattern: str) -> list[Any]: ...
 
 
 def _decode(value: Any) -> str:

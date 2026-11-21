@@ -12,7 +12,7 @@ import pytest
 
 from sagaz.core.outbox.consumer_inbox import ConsumerInbox
 from sagaz.core.outbox.optimistic_publisher import OptimisticPublisher
-from sagaz.core.outbox.types import OutboxEvent
+from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
 
 
 class TestOptimisticPublisher:
@@ -22,14 +22,14 @@ class TestOptimisticPublisher:
     def mock_storage(self):
         """Mock outbox storage."""
         storage = Mock()
-        storage.mark_sent = AsyncMock()
+        storage.update_status = AsyncMock()
         return storage
 
     @pytest.fixture
     def mock_broker(self):
         """Mock message broker."""
         broker = Mock()
-        broker.publish = AsyncMock()
+        broker.publish_event = AsyncMock()
         return broker
 
     @pytest.fixture
@@ -60,8 +60,8 @@ class TestOptimisticPublisher:
 
         # Assert
         assert result is True
-        mock_broker.publish.assert_called_once()
-        mock_storage.mark_sent.assert_called_once_with(sample_event.event_id)
+        mock_broker.publish_event.assert_called_once()
+        mock_storage.update_status.assert_called_once_with(sample_event.event_id, OutboxStatus.SENT)
 
     async def test_optimistic_send_disabled(self, mock_storage, mock_broker, sample_event):
         """Test optimistic send when disabled."""
@@ -73,8 +73,8 @@ class TestOptimisticPublisher:
 
         # Assert
         assert result is False
-        mock_broker.publish.assert_not_called()
-        mock_storage.mark_sent.assert_not_called()
+        mock_broker.publish_event.assert_not_called()
+        mock_storage.update_status.assert_not_called()
 
     async def test_optimistic_send_timeout(
         self, publisher, sample_event, mock_broker, mock_storage
@@ -85,48 +85,35 @@ class TestOptimisticPublisher:
         async def slow_publish(*args, **kwargs):
             await asyncio.sleep(1.0)  # Exceeds 0.5s timeout
 
-        mock_broker.publish.side_effect = slow_publish
+        mock_broker.publish_event.side_effect = slow_publish
 
         # Act
         result = await publisher.publish_after_commit(sample_event)
 
         # Assert
         assert result is False  # Failed, will fallback to polling
-        mock_storage.mark_sent.assert_not_called()
+        mock_storage.update_status.assert_not_called()
 
     async def test_optimistic_send_broker_error(
         self, publisher, sample_event, mock_broker, mock_storage
     ):
         """Test optimistic send broker error fallback."""
         # Arrange
-        mock_broker.publish.side_effect = Exception("Broker connection refused")
+        mock_broker.publish_event.side_effect = Exception("Broker connection refused")
 
         # Act
         result = await publisher.publish_after_commit(sample_event)
 
         # Assert
         assert result is False  # Failed, will fallback to polling
-        mock_storage.mark_sent.assert_not_called()
+        mock_storage.update_status.assert_not_called()
 
-    async def test_topic_resolution_default(self, publisher, sample_event):
-        """Test default topic resolution."""
-        topic = publisher._resolve_topic(sample_event)
-        assert topic == "events.ordercreated"
-
-    async def test_topic_resolution_custom_routing_key(self, publisher):
-        """Test custom routing key takes precedence."""
-        event = OutboxEvent(
-            saga_id="saga-123",
-            event_type="OrderCreated",
-            aggregate_type="order",
-            aggregate_id="order-456",
-            payload={},
-            headers={"trace_id": "trace-789"},
-            routing_key="custom.orders.created",
-        )
-
-        topic = publisher._resolve_topic(event)
-        assert topic == "custom.orders.created"
+    async def test_it_publishes_the_event_as_the_worker_does(
+        self, publisher, sample_event, mock_broker
+    ):
+        """One call to publish_event(event): the broker picks the topic and format (#605)."""
+        await publisher.publish_after_commit(sample_event)
+        mock_broker.publish_event.assert_called_once_with(sample_event)
 
 
 class TestConsumerInbox:
@@ -224,13 +211,13 @@ class TestIntegrationOptimisticAndInbox:
 
         # Mock storage
         storage = Mock()
-        storage.mark_sent = AsyncMock()
+        storage.update_status = AsyncMock()
         storage.check_and_insert_inbox = AsyncMock(return_value=False)
         storage.update_inbox_duration = AsyncMock()
 
         # Mock broker
         broker = Mock()
-        broker.publish = AsyncMock()
+        broker.publish_event = AsyncMock()
 
         # Create publisher and inbox
         publisher = OptimisticPublisher(storage, broker, enabled=True)

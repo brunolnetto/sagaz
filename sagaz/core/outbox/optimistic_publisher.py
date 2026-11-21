@@ -4,48 +4,22 @@ Optimistic event publishing - attempts immediate broker publish after commit.
 Reduces latency from ~100ms (polling) to <10ms (immediate) in happy path.
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
-from typing import Any
+from typing import TYPE_CHECKING
 
-# Optional prometheus metrics
-try:
-    from prometheus_client import Counter, Histogram
+from sagaz.core.outbox._metrics import PROMETHEUS_AVAILABLE, Counter, Histogram
 
-    PROMETHEUS_AVAILABLE = True
-except ImportError:
-    PROMETHEUS_AVAILABLE = False
-    # No-op fallbacks
-    from contextlib import contextmanager
+from .types import OutboxEvent, OutboxStatus
 
-    class _NoOpMetric:
-        def inc(self, *args: Any, **kwargs: Any) -> None:
-            pass
-
-        def observe(self, *args: Any, **kwargs: Any) -> None:
-            pass
-
-        def labels(self, *args: Any, **kwargs: Any) -> "_NoOpMetric":
-            return self
-
-        @contextmanager
-        def time(self):
-            """No-op context manager for timing."""
-            yield
-
-    def _noop_counter(*args: Any, **kwargs: Any) -> _NoOpMetric:
-        return _NoOpMetric()
-
-    def _noop_histogram(*args: Any, **kwargs: Any) -> _NoOpMetric:
-        return _NoOpMetric()
-
-    Counter = _noop_counter  # type: ignore[misc,assignment]
-    Histogram = _noop_histogram  # type: ignore[misc,assignment]
-
-
-from .types import OutboxEvent
+if TYPE_CHECKING:
+    from sagaz.core.outbox.brokers.base import BaseBroker
+    from sagaz.core.storage.interfaces import OutboxStorage
 
 logger = logging.getLogger(__name__)
+
 
 # Metrics (no-op if prometheus not installed)
 OPTIMISTIC_SEND_ATTEMPTS = Counter(
@@ -78,11 +52,11 @@ class OptimisticPublisher:
 
     def __init__(
         self,
-        storage,  # OutboxStorage
-        broker,  # MessageBroker
+        storage: OutboxStorage,
+        broker: BaseBroker,
         enabled: bool = True,
         timeout_seconds: float = 0.5,
-    ):
+    ) -> None:
         self.storage = storage
         self.broker = broker
         self.enabled = enabled
@@ -104,18 +78,15 @@ class OptimisticPublisher:
 
         try:
             with OPTIMISTIC_SEND_LATENCY.time():
+                # The outbox worker publishes the same way: an event reaches the same
+                # topic, in the same format, whichever path delivers it.
                 await asyncio.wait_for(
-                    self.broker.publish(
-                        topic=self._resolve_topic(event),
-                        key=event.partition_key,
-                        value=event.payload,
-                        headers={**event.headers, "tenant_id": event.tenant_id},
-                    ),
+                    self.broker.publish_event(event),
                     timeout=self.timeout_seconds,
                 )
 
             # Success!
-            await self.storage.mark_sent(event.event_id)
+            await self.storage.update_status(event.event_id, OutboxStatus.SENT)
             OPTIMISTIC_SEND_SUCCESS.inc()
 
             logger.info(f"Optimistic send succeeded: {event.event_id}")
@@ -130,9 +101,3 @@ class OptimisticPublisher:
             OPTIMISTIC_SEND_FAILURES.labels(reason=type(exc).__name__).inc()
             logger.warning(f"Optimistic failed: {event.event_id}, will fallback: {exc}")
             return False
-
-    def _resolve_topic(self, event: OutboxEvent) -> str:
-        """Map event to broker topic."""
-        if event.routing_key:
-            return event.routing_key
-        return f"events.{event.event_type.lower().replace('_', '.')}"

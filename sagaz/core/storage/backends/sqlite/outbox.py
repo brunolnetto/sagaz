@@ -20,20 +20,19 @@ import logging
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
+# mypy reads the import alone: no ignore is needed with or without the dependency.
 if TYPE_CHECKING:
-    import aiosqlite as aiosqlite_types
-
-try:
     import aiosqlite
-
-    AIOSQLITE_AVAILABLE = True
-except ImportError:
-    AIOSQLITE_AVAILABLE = False
-    aiosqlite = None  # type: ignore[assignment]
+else:
+    try:
+        import aiosqlite
+    except ImportError:
+        aiosqlite = None
 
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
 from sagaz.core.storage._outbox_tenancy import resolve_event_tenant
+from sagaz.core.storage.backends.sqlite._outbox_base import own_connection_only
 from sagaz.core.storage.backends.sqlite._outbox_dlq import SQLiteOutboxDeadLetterMixin
 from sagaz.core.storage.backends.sqlite._outbox_rows import SQLiteOutboxRowMappingMixin
 from sagaz.core.storage.backends.sqlite._outbox_schema import SQLiteOutboxSchemaMixin
@@ -50,6 +49,7 @@ from sagaz.core.storage.core import (
 )
 from sagaz.core.storage.interfaces.outbox import OutboxStorage
 
+AIOSQLITE_AVAILABLE = aiosqlite is not None
 logger = logging.getLogger(__name__)
 
 
@@ -82,7 +82,7 @@ class SQLiteOutboxStorage(
         ...     await storage.insert(event)
     """
 
-    def __init__(self, db_path: str = ":memory:"):
+    def __init__(self, db_path: str = ":memory:") -> None:
         """
         Initialize SQLite outbox storage.
 
@@ -113,12 +113,12 @@ class SQLiteOutboxStorage(
 
         return self._conn
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> SQLiteOutboxStorage:
         """Async context manager entry."""
         await self._get_connection()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
         """Async context manager exit."""
         await self.close()
 
@@ -129,8 +129,9 @@ class SQLiteOutboxStorage(
             self._conn = None
             self._initialized = False
 
-    async def insert(self, event: OutboxEvent, connection=None) -> OutboxEvent:
-        """Insert an outbox event."""
+    async def insert(self, event: OutboxEvent, connection: object | None = None) -> OutboxEvent:
+        """Insert an outbox event. A caller's ``connection`` is refused (#607)."""
+        own_connection_only(connection)
         conn = await self._get_connection()
         now = datetime.now(UTC).isoformat()
         tenant_id = resolve_event_tenant(event)
@@ -180,7 +181,7 @@ class SQLiteOutboxStorage(
         conn = await self._get_connection()
 
         cursor = await conn.execute(
-            f"SELECT * FROM outbox_events WHERE event_id = ? AND {TENANT_FILTER}",
+            f"SELECT * FROM outbox_events WHERE event_id = ? AND {TENANT_FILTER}",  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             (event_id, *tenant_params()),
         )
         row = await cursor.fetchone()
@@ -195,10 +196,11 @@ class SQLiteOutboxStorage(
         event_id: str,
         status: OutboxStatus,
         error_message: str | None = None,
-        connection=None,
+        connection: object | None = None,
         event: OutboxEvent | None = None,
     ) -> OutboxEvent:
-        """Update event status."""
+        """Update event status. A caller's ``connection`` is refused (#607)."""
+        own_connection_only(connection)
         conn = await self._get_connection()
         now = datetime.now(UTC).isoformat()
         query, params = self._build_update_status_query(event_id, status, error_message, event, now)
@@ -227,7 +229,7 @@ class SQLiteOutboxStorage(
             SELECT event_id FROM outbox_events
             WHERE status = 'pending' AND {TENANT_FILTER}
             LIMIT ?
-            """,
+            """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             (*tenant_params(), batch_size),
         )
         rows = await cursor.fetchall()
@@ -244,14 +246,13 @@ class SQLiteOutboxStorage(
             UPDATE outbox_events
             SET status = 'claimed', worker_id = ?, claimed_at = ?
             WHERE event_id IN ({placeholders})
-            """,
+            """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             (worker_id, now.isoformat(), *event_ids),
         )
         await conn.commit()
 
-        # Fetch the claimed events
         cursor = await conn.execute(
-            f"SELECT * FROM outbox_events WHERE event_id IN ({placeholders})",
+            f"SELECT * FROM outbox_events WHERE event_id IN ({placeholders})",  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             event_ids,
         )
         rows = await cursor.fetchall()
@@ -263,7 +264,7 @@ class SQLiteOutboxStorage(
         conn = await self._get_connection()
 
         cursor = await conn.execute(
-            f"SELECT * FROM outbox_events WHERE saga_id = ? AND {TENANT_FILTER} ORDER BY created_at",
+            f"SELECT * FROM outbox_events WHERE saga_id = ? AND {TENANT_FILTER} ORDER BY created_at",  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             (saga_id, *tenant_params()),
         )
         rows = await cursor.fetchall()
@@ -284,7 +285,7 @@ class SQLiteOutboxStorage(
             AND julianday(claimed_at) < julianday(?)
             AND {TENANT_FILTER}
             ORDER BY claimed_at
-            """,
+            """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             (self._stuck_cutoff(claimed_older_than_seconds), *tenant_params()),
         )
         rows = await cursor.fetchall()
@@ -306,7 +307,7 @@ class SQLiteOutboxStorage(
             WHERE status = 'claimed'
             AND julianday(claimed_at) < julianday(?)
             AND {TENANT_FILTER}
-            """,
+            """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             (self._stuck_cutoff(claimed_older_than_seconds), *tenant_params()),
         )
         await conn.commit()
@@ -333,7 +334,7 @@ class SQLiteOutboxStorage(
         conn = await self._get_connection()
 
         cursor = await conn.execute(
-            f"SELECT COUNT(*) FROM outbox_events WHERE status = 'pending' AND {TENANT_FILTER}",
+            f"SELECT COUNT(*) FROM outbox_events WHERE status = 'pending' AND {TENANT_FILTER}",  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             tenant_params(),
         )
         row = await cursor.fetchone()
@@ -386,7 +387,7 @@ class SQLiteOutboxStorage(
                 SUM(CASE WHEN status = 'dead_letter' THEN 1 ELSE 0 END) as dead_letter
             FROM outbox_events
             WHERE {TENANT_FILTER}
-            """,
+            """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             tenant_params(),
         )
         row = await cursor.fetchone()

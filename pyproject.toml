@@ -1,6 +1,6 @@
 [project]
 name = "sagaz"
-version = "2.4.0"
+version = "2.5.0"
 description = "Production-ready Saga pattern with DAG support"
 readme = "README.md"
 license = "MIT"
@@ -50,7 +50,7 @@ rabbitmq = [
     "aio-pika>=9.0.0",
 ]
 tracing = [
-    "opentelemetry-api>=1.39.1",
+    "opentelemetry-api>=1.45.1",
     "opentelemetry-exporter-otlp-proto-grpc>=1.39.1",
     "opentelemetry-sdk>=1.39.1",
 ]
@@ -94,7 +94,7 @@ cdc = [
     "httpx>=0.28.1",
 ]
 encryption = [
-    "cryptography>=42.0.0",
+    "cryptography>=46.0.7",
 ]
 compression = [
     "zstandard>=0.22.0",  # For snapshot compression
@@ -102,9 +102,9 @@ compression = [
 
 [dependency-groups]
 ai = [
-    "langchain-openai>=1.1.7",
+    "langchain-openai>=1.1.14",
     "pydantic>=2.12.5",
-    "pydantic-ai>=0.8.1",
+    "pydantic-ai>=1.56.0",
 ]
 cli = [
     "click>=8.3.1",
@@ -131,10 +131,10 @@ dev = [
     "testcontainers[kafka,postgres,rabbitmq,redis,localstack]>=4.13.3",
     "pytest-timeout>=2.4.0",
     # Django integration tests
-    "django>=5.2.10",
+    "django>=5.2.17",
     "asgiref>=3.8.0",
     # OpenTelemetry (for tracing tests)
-    "opentelemetry-api>=1.20.0",
+    "opentelemetry-api>=1.45.1",
     "opentelemetry-sdk>=1.20.0",
     "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
     # Type stubs
@@ -153,13 +153,13 @@ dev = [
     "prometheus-client>=0.23.1",
     "httpx>=0.28.1",
     # Per-tenant encryption (sagaz[encryption]) and the CDC pg_logical source (sagaz[cdc])
-    "cryptography>=42.0.0",
+    "cryptography>=46.0.7",
     "psycopg2-binary>=2.9.9",
     "pytest-json-report>=1.5.0",
     "codebase-stats==0.1.0",
 ]
 django = [
-    "django>=5.2.10",
+    "django>=5.2.17",
     "asgiref>=3.8.0",  # ASGI support for Django
 ]
 web = [
@@ -167,8 +167,8 @@ web = [
     "fastapi>=0.128.0",
     "uvicorn>=0.34.0",
     "flask>=3.1.2",
-    "werkzeug>=3.1.0",
-    "django>=5.2.10",
+    "werkzeug>=3.1.9",
+    "django>=5.2.17",
     "asgiref>=3.8.0",
 ]
 fastapi = [
@@ -177,7 +177,7 @@ fastapi = [
 ]
 flask = [
     "flask>=3.1.2",
-    "werkzeug>=3.1.0",  # WSGI utilities for Flask
+    "werkzeug>=3.1.9",  # WSGI utilities for Flask
 ]
 sqlite = [
     "aiosqlite>=0.22.1",
@@ -261,6 +261,15 @@ select = [
     "PTH", # flake8-use-pathlib
     "ERA", # eradicate
     "RUF", # Ruff-specific rules
+    "PGH", # pygrep-hooks: no blanket "# type: ignore" or "# noqa" (#594)
+    "ANN001", # every parameter needs a type (#597)
+    "ANN002", # *args needs a type (#596)
+    "ANN003", # **kwargs needs a type (#596)
+    "ANN201", # every public function needs a return type (#597)
+    "ANN202", # ...and every private one
+    "ANN204", # ...and every special method
+    "ANN205", # ...and every static method
+    "ANN206", # ...and every class method
 ]
 
 ignore = [
@@ -292,6 +301,11 @@ ignore = [
 known-first-party = ["sagaz"]
 section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
 
+[tool.ruff.lint.flake8-annotations]
+# ``*args: Any`` / ``**kwargs: Any`` is the idiom for arguments passed through to another
+# call, so it does not count as a bare Any (ANN401).
+allow-star-arg-any = true
+
 [tool.ruff.lint.per-file-ignores]
 # Allow print statements in CLI scripts
 "scripts/*" = ["T20"]
@@ -315,6 +329,7 @@ section-order = ["future", "standard-library", "third-party", "first-party", "lo
 "sagaz/*/*/factory.py" = ["T20"]
 # Tests can have magic values, print statements, test-specific patterns
 "tests/*" = [
+    "ANN",      # Tests are not type-checked: fakes and fixtures may go unannotated
     "PLR2004",  # Magic values in tests
     "T20",      # Print statements for debugging
     "ARG",      # Unused arguments in fixtures
@@ -354,13 +369,16 @@ line-ending = "auto"
 python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
+# Every definition is annotated (#597): a new one without types is an error.
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
 check_untyped_defs = true
 no_implicit_optional = true
 warn_redundant_casts = true
-# Disabled: Optional dependency patterns require type:ignore that appear unused when deps are installed
-warn_unused_ignores = false
+# An ignore that silences nothing is reported, so stale ones cannot pile up (#594). An
+# optional import must need no ignore whether or not its extra is installed: import it
+# under ``if TYPE_CHECKING:`` and do the try/except in the ``else:`` branch.
+warn_unused_ignores = true
 warn_no_return = true
 strict_equality = true
 ignore_missing_imports = true
@@ -373,6 +391,16 @@ exclude = [
     "tests/",
     ".venv/",
 ]
+
+# ============================================================================
+# Typing budget (scripts/check_typing_budget.py)
+# ============================================================================
+# How many findings each measure has today, over sagaz/ without the examples. CI fails
+# when a count differs: above, debt was added; below, lower the number here so the gain
+# is kept. ANN401 is the one annotation rule not enabled yet (#595).
+[tool.sagaz.typing-budget]
+ANN401 = 291        # a bare Any as a whole annotation
+"type-ignore" = 47  # "# type: ignore" comments
 
 # ============================================================================
 # Pytest Configuration
@@ -430,6 +458,7 @@ branch = true
 [tool.coverage.report]
 exclude_lines = [
     "pragma: no cover",
+    "if TYPE_CHECKING:",
     "def __repr__",
     "if self.debug:",
     "if settings.DEBUG",

@@ -33,7 +33,7 @@ except ImportError:
     asyncpg = None
 
 
-def _configuration(row) -> list[str]:
+def _configuration(row: "asyncpg.Record") -> list[str]:
     """The stored configuration; empty for older rows (the snapshot falls back to [status])."""
     keys = row.keys() if hasattr(row, "keys") else ()
     value = row["configuration"] if "configuration" in keys else None
@@ -62,8 +62,8 @@ class PostgreSQLSnapshotStorage(_PostgreSQLReplayLogMixin, SnapshotStorage):
         connection_string: str,
         pool_min_size: int = 5,
         pool_max_size: int = 20,
-        **pool_kwargs,
-    ):
+        **pool_kwargs: Any,
+    ) -> None:
         """
         Configure the storage backend.
 
@@ -88,7 +88,7 @@ class PostgreSQLSnapshotStorage(_PostgreSQLReplayLogMixin, SnapshotStorage):
         self._pool: Any = None
         self._lock = asyncio.Lock()
 
-    async def _get_pool(self):
+    async def _get_pool(self) -> "asyncpg.Pool":
         """Get connection pool, creating if necessary"""
         if self._pool is None:
             try:
@@ -276,7 +276,7 @@ class PostgreSQLSnapshotStorage(_PostgreSQLReplayLogMixin, SnapshotStorage):
             # Parse "DELETE N" result
             return int(result.split()[-1]) if result.startswith("DELETE") else 0
 
-    def _row_to_snapshot(self, row) -> SagaSnapshot:
+    def _row_to_snapshot(self, row: "asyncpg.Record") -> SagaSnapshot:
         """Convert database row to SagaSnapshot"""
         from sagaz.core.types import SagaStatus
 
@@ -304,11 +304,11 @@ class PostgreSQLSnapshotStorage(_PostgreSQLReplayLogMixin, SnapshotStorage):
             await self._pool.close()
             self._pool = None
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "PostgreSQLSnapshotStorage":
         """Context manager entry"""
         await self._get_pool()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
         """Context manager exit"""
         await self.close()

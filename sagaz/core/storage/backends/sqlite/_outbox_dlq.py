@@ -25,7 +25,7 @@ class SQLiteOutboxDeadLetterMixin(SQLiteOutboxRowMappingMixin, SQLiteOutboxMixin
             WHERE status = 'dead_letter' AND {TENANT_FILTER}
             ORDER BY created_at DESC
             LIMIT ?
-            """,
+            """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             (*tenant_params(), limit),
         )
         rows = await cursor.fetchall()
@@ -68,7 +68,7 @@ class SQLiteOutboxDeadLetterMixin(SQLiteOutboxRowMappingMixin, SQLiteOutboxMixin
 
         if older_than is None:
             cursor = await conn.execute(
-                f"DELETE FROM outbox_events WHERE status = 'dead_letter' AND {TENANT_FILTER}",
+                f"DELETE FROM outbox_events WHERE status = 'dead_letter' AND {TENANT_FILTER}",  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                 tenant_params(),
             )
         else:
@@ -80,7 +80,7 @@ class SQLiteOutboxDeadLetterMixin(SQLiteOutboxRowMappingMixin, SQLiteOutboxMixin
                 AND dead_letter_at IS NOT NULL
                 AND dead_letter_at < ?
                 AND {TENANT_FILTER}
-                """,
+                """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                 (cutoff, *tenant_params()),
             )
         await conn.commit()

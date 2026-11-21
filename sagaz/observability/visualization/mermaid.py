@@ -33,7 +33,7 @@ class MermaidGenerator(_NodeRenderingMixin, _EdgeRenderingMixin, _StylingMixin):
         show_state_markers: bool = True,
         highlight_trail: HighlightTrail | None = None,
         show_pivot_zones: bool = True,
-    ):
+    ) -> None:
         """
         Initialise the generator with saga step metadata.
 

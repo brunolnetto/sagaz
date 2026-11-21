@@ -23,7 +23,7 @@ class ConfigurationError(Exception):
 class MemoryFootprintError(Exception):
     """Raised when memory footprint exceeds strict limit"""
 
-    def __init__(self, key: str, size_bytes: int, limit_bytes: int, message: str):
+    def __init__(self, key: str, size_bytes: int, limit_bytes: int, message: str) -> None:
         """Record the offending key, actual size, and configured limit."""
         self.key = key
         self.size_bytes = size_bytes
@@ -96,8 +96,10 @@ class SagaContext:
                 "auto_offload=True requires a storage backend.\n\n"
                 "Configure external storage:\n"
                 "  from sagaz.core import FileSystemExternalStorage, S3ExternalStorage\n\n"
+                "  # Payloads are pickled and signed: set SAGAZ_EXTERNAL_STORAGE_KEY\n"
+                "  # (or pass signing_key=...) to the same secret in every worker.\n\n"
                 "  # For testing/development:\n"
-                "  storage = FileSystemExternalStorage('/tmp/saga-storage')\n\n"
+                "  storage = FileSystemExternalStorage('./saga-storage')\n\n"
                 "  # For production:\n"
                 "  storage = S3ExternalStorage(\n"
                 "      bucket='my-saga-bucket',\n"

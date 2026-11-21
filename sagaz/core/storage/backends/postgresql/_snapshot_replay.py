@@ -6,13 +6,16 @@ from uuid import UUID
 
 from sagaz.core.replay import ReplayResult
 
+if TYPE_CHECKING:
+    from asyncpg import Pool
+
 
 class _PostgreSQLReplayLogMixin:
     """Reads and writes rows of the ``saga_replay_log`` table."""
 
     if TYPE_CHECKING:
 
-        async def _get_pool(self) -> Any: ...
+        async def _get_pool(self) -> "Pool": ...
 
     async def save_replay_log(self, replay_result: ReplayResult) -> None:
         """Save replay log"""

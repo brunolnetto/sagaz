@@ -5,7 +5,7 @@ import logging
 from abc import ABC
 from collections.abc import Callable, Iterable
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Never
 from uuid import uuid4
 
 if TYPE_CHECKING:
@@ -67,7 +67,7 @@ class Saga(
         saga_log: "SagaLogStore | str | None" = None,
         participant: str | None = None,
         use_step_statechart: bool | None = None,
-    ):
+    ) -> None:
         self.name = name
         self.version = version
         self.saga_id = str(uuid4())
@@ -250,7 +250,7 @@ class Saga(
     # API Protection - Prevent mixing declarative and imperative approaches
     # =========================================================================
 
-    async def run(self, *args, **kwargs):
+    async def run(self, *args: Any, **kwargs: Any) -> Never:
         """
         The run() method is for declarative Saga. Use execute() for imperative Saga.
 

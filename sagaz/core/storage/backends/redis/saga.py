@@ -9,8 +9,9 @@ Requires: pip install redis
 
 import asyncio
 import json
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.storage._tenancy import TENANT_FIELD, write_tenant
@@ -26,13 +27,19 @@ from sagaz.core.storage.base import (
 from sagaz.core.tenant import is_system_scope, tenant_scope
 from sagaz.core.types import SagaStatus, SagaStepStatus
 
-try:
+# mypy reads the imports alone: no ignore is needed with or without the dependency.
+if TYPE_CHECKING:
     import redis.asyncio as redis
 
     REDIS_AVAILABLE = True
-except ImportError:
-    REDIS_AVAILABLE = False
-    redis: Any = None  # type: ignore[assignment, no-redef]
+else:
+    try:
+        import redis.asyncio as redis
+
+        REDIS_AVAILABLE = True
+    except ImportError:
+        REDIS_AVAILABLE = False
+        redis = None
 
 
 class RedisSagaStorage(_RedisSagaQueryMixin, _RedisSagaMaintenanceMixin, SagaStorage):
@@ -63,8 +70,8 @@ class RedisSagaStorage(_RedisSagaQueryMixin, _RedisSagaMaintenanceMixin, SagaSto
         redis_url: str = "redis://localhost:6379",
         key_prefix: str = "saga:",
         default_ttl: int | None = None,  # TTL in seconds for completed sagas
-        **redis_kwargs,
-    ):
+        **redis_kwargs: Any,
+    ) -> None:
         """
         Configure the Redis saga storage backend.
 
@@ -90,13 +97,13 @@ class RedisSagaStorage(_RedisSagaQueryMixin, _RedisSagaMaintenanceMixin, SagaSto
         self._redis: Any = None
         self._lock = asyncio.Lock()
 
-    async def _get_redis(self):
+    async def _get_redis(self) -> Any:
         """Get Redis connection, creating if necessary"""
         if self._redis is None:
             try:
                 self._redis = redis.from_url(self.redis_url, **self.redis_kwargs)
                 # Test connection
-                await self._redis.ping()  # type: ignore[attr-defined]
+                await self._redis.ping()
             except Exception as e:
                 msg = f"Failed to connect to Redis: {e}"
                 raise SagaStorageConnectionError(msg) from e
@@ -347,21 +354,21 @@ class RedisSagaStorage(_RedisSagaQueryMixin, _RedisSagaMaintenanceMixin, SagaSto
             metadata=saga_data["metadata"],
         )
 
-    async def close(self):
+    async def close(self) -> None:
         """Close connection explicitly."""
         if self._redis:
             await self._redis.close()
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "RedisSagaStorage":
         """Async context manager entry"""
         await self._get_redis()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
         """Async context manager exit"""
         await self.close()
 
-    async def export_all(self):
+    async def export_all(self) -> AsyncIterator[dict[str, Any]]:
         """Export all records of the current scope, each with its ``tenant_id``."""
         redis_client = await self._get_redis()
         tenants = await self._all_tenants() if is_system_scope() else [write_tenant()]

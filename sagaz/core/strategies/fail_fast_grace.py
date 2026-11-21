@@ -21,7 +21,7 @@ class FailFastWithGraceStrategy(ParallelExecutionStrategy):
     3. Begin compensation after graceful completion or timeout
     """
 
-    def __init__(self, grace_period: float = 2.0):
+    def __init__(self, grace_period: float = 2.0) -> None:
         """
         Initialize strategy with grace period
 
@@ -73,7 +73,7 @@ class FailFastWithGraceStrategy(ParallelExecutionStrategy):
                 return task  # type: ignore[no-any-return]
         return None
 
-    async def _handle_failure_with_grace(self, pending: set):
+    async def _handle_failure_with_grace(self, pending: set) -> None:
         """Allow grace period for pending tasks, then cancel."""
         if not pending:
             return
@@ -87,7 +87,7 @@ class FailFastWithGraceStrategy(ParallelExecutionStrategy):
                 if not task.done():
                     task.cancel()  # pragma: no cover - Python 3.12+ wait_for cancels tasks before raising TimeoutError
 
-    def _cancel_all_tasks(self, tasks: list):
+    def _cancel_all_tasks(self, tasks: list) -> None:
         """Cancel all incomplete tasks."""
         for task in tasks:
             if not task.done():

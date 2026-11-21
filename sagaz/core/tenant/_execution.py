@@ -3,15 +3,20 @@
 from __future__ import annotations
 
 from contextlib import AbstractAsyncContextManager
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.tenant._context import TenantContext
 from sagaz.core.tenant._errors import CrossTenantAccessError
 from sagaz.core.tenant._quotas import quota_enforcer
 from sagaz.core.tenant._scope import _enter_tenant, _exit_tenant
 
+if TYPE_CHECKING:
+    from sagaz.core.tenant._registry import TenantRegistry
 
-def resolve_tenant(tenant: TenantContext | str, registry: Any | None = None) -> TenantContext:
+
+def resolve_tenant(
+    tenant: TenantContext | str, registry: TenantRegistry | None = None
+) -> TenantContext:
     """Turn a tenant id into its :class:`TenantContext`.
 
     With a registry, the id must be registered (its plan and quotas are used);

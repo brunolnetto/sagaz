@@ -28,7 +28,7 @@ def substitute(text: str) -> str:
     # Pattern: ${VAR}, ${VAR:-default}, ${VAR:?error}
     pattern = r"\$\{([^}:]+)(?::([?-])([^}]*))?\}"
 
-    def replace(match):
+    def replace(match: re.Match[str]) -> str:
         var_name = match.group(1)
         operator = match.group(2)
         operand = match.group(3)

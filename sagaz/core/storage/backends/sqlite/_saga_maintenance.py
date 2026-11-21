@@ -37,7 +37,7 @@ class _SQLiteSagaMaintenanceMixin:
                 SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
                 SUM(CASE WHEN status = 'executing' THEN 1 ELSE 0 END) as executing
             FROM sagas WHERE 1=1{clause}
-        """,
+        """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             params,
         )
         row = await cursor.fetchone()
@@ -78,7 +78,7 @@ class _SQLiteSagaMaintenanceMixin:
             WHERE status IN ({placeholders})
             AND updated_at < ?
             AND saga_name NOT LIKE ? ESCAPE '\\'{clause}
-            """,
+            """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             (*status_values, older_than.isoformat(), RESERVED_SAGA_LIKE, *params),
         )
         await conn.commit()
@@ -108,6 +108,6 @@ class _SQLiteSagaMaintenanceMixin:
         """Count total sagas."""
         conn = await self._get_connection()
         clause, params = tenant_filter()
-        cursor = await conn.execute(f"SELECT COUNT(*) FROM sagas WHERE 1=1{clause}", params)
+        cursor = await conn.execute(f"SELECT COUNT(*) FROM sagas WHERE 1=1{clause}", params)  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
         row = await cursor.fetchone()
         return row[0] if row else 0

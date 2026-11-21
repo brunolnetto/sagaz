@@ -14,7 +14,7 @@ Requires: pip install aioboto3 zstandard
 import asyncio
 import json
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from sagaz.core.exceptions import MissingDependencyError
@@ -29,15 +29,18 @@ try:
     AIOBOTO3_AVAILABLE = True
 except ImportError:
     AIOBOTO3_AVAILABLE = False
-    aioboto3 = None  # type: ignore[assignment]
+    aioboto3 = None
 
-try:
+# mypy reads the import alone, so it needs no ignore whether or not the extra is installed.
+if TYPE_CHECKING:
     import zstandard as zstd
+else:
+    try:
+        import zstandard as zstd
+    except ImportError:
+        zstd = None
 
-    ZSTD_AVAILABLE = True
-except ImportError:
-    ZSTD_AVAILABLE = False
-    zstd = None  # type: ignore[assignment]
+ZSTD_AVAILABLE = zstd is not None
 
 
 class S3SnapshotStorage(_S3SagaIndexMixin, _S3ReplayLogMixin, SnapshotStorage):
@@ -65,8 +68,8 @@ class S3SnapshotStorage(_S3SagaIndexMixin, _S3ReplayLogMixin, SnapshotStorage):
         compression_level: int = 3,  # zstd compression level (1-22)
         enable_encryption: bool = True,  # Server-side encryption (SSE-S3)
         storage_class: str = "STANDARD",  # or "STANDARD_IA", "GLACIER", etc.
-        **s3_kwargs,
-    ):
+        **s3_kwargs: Any,
+    ) -> None:
         if not AIOBOTO3_AVAILABLE:
             msg = "aioboto3"
             raise MissingDependencyError(msg, "S3 snapshot storage backend")
@@ -93,7 +96,7 @@ class S3SnapshotStorage(_S3SagaIndexMixin, _S3ReplayLogMixin, SnapshotStorage):
         )
         self._decompressor = zstd.ZstdDecompressor() if self.enable_compression else None
 
-    async def _get_s3_client(self):
+    async def _get_s3_client(self) -> Any:
         """Get S3 client, creating if necessary"""
         if self._s3_client is None:
             try:
@@ -128,7 +131,8 @@ class S3SnapshotStorage(_S3SagaIndexMixin, _S3ReplayLogMixin, SnapshotStorage):
         json_bytes = json.dumps(data, default=str).encode("utf-8")
 
         if self.enable_compression and self._compressor:
-            return self._compressor.compress(json_bytes)
+            compressed: bytes = self._compressor.compress(json_bytes)
+            return compressed
 
         return json_bytes
 
@@ -188,7 +192,7 @@ class S3SnapshotStorage(_S3SagaIndexMixin, _S3ReplayLogMixin, SnapshotStorage):
             body = await response["Body"].read()
             snapshot_dict = self._deserialize(body)
             return SagaSnapshot.from_dict(snapshot_dict)
-        except s3.exceptions.NoSuchKey:  # type: ignore[attr-defined]
+        except s3.exceptions.NoSuchKey:
             return None
 
     async def get_latest_snapshot(
@@ -204,7 +208,7 @@ class S3SnapshotStorage(_S3SagaIndexMixin, _S3ReplayLogMixin, SnapshotStorage):
             )
             body = await response["Body"].read()
             index_data = json.loads(body.decode("utf-8"))
-        except s3.exceptions.NoSuchKey:  # type: ignore[attr-defined]
+        except s3.exceptions.NoSuchKey:
             return None
 
         # Find matching snapshot
@@ -232,7 +236,7 @@ class S3SnapshotStorage(_S3SagaIndexMixin, _S3ReplayLogMixin, SnapshotStorage):
             )
             body = await response["Body"].read()
             index_data = json.loads(body.decode("utf-8"))
-        except s3.exceptions.NoSuchKey:  # type: ignore[attr-defined]
+        except s3.exceptions.NoSuchKey:
             return None
 
         # Find snapshot at or before timestamp
@@ -257,7 +261,7 @@ class S3SnapshotStorage(_S3SagaIndexMixin, _S3ReplayLogMixin, SnapshotStorage):
             )
             body = await response["Body"].read()
             index_data = json.loads(body.decode("utf-8"))
-        except s3.exceptions.NoSuchKey:  # type: ignore[attr-defined]
+        except s3.exceptions.NoSuchKey:
             return []
 
         # Fetch snapshots
@@ -335,11 +339,11 @@ class S3SnapshotStorage(_S3SagaIndexMixin, _S3ReplayLogMixin, SnapshotStorage):
             self._s3_client = None
             self._session = None
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "S3SnapshotStorage":
         """Context manager entry"""
         await self._get_s3_client()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
         """Context manager exit"""
         await self.close()

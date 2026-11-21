@@ -8,6 +8,7 @@ Provides framework-agnostic utilities used by all integrations:
 
 import contextvars
 import uuid
+from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any
 
@@ -62,7 +63,7 @@ class SagaContextManager:
 
     @classmethod
     @contextmanager
-    def scope(cls, **initial_values):
+    def scope(cls, **initial_values: Any) -> Iterator[None]:
         """
         Create a new context scope with initial values.
 

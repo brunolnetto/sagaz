@@ -101,7 +101,7 @@ class KafkaBroker(BaseBroker):
         >>> await broker.close()
     """
 
-    def __init__(self, config: KafkaBrokerConfig | None = None):
+    def __init__(self, config: KafkaBrokerConfig | None = None) -> None:
         """
         Initialize Kafka broker.
 

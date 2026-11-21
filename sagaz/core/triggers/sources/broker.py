@@ -22,10 +22,13 @@ Example:
 """
 
 import asyncio
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.logger import get_logger
 from sagaz.core.triggers.registry import TriggerRegistry
+
+if TYPE_CHECKING:
+    from sagaz.core.outbox.brokers.base import MessageBroker
 
 logger = get_logger(__name__)
 
@@ -46,7 +49,7 @@ class BrokerTriggerConsumer:
         await consumer.stop()   # Stop when done
     """
 
-    def __init__(self, broker: Any):
+    def __init__(self, broker: "MessageBroker") -> None:
         """
         Initialize the consumer.
 
@@ -168,7 +171,7 @@ class BrokerTriggerConsumer:
         return triggered_ids
 
 
-async def create_broker_consumer(broker_type: str, **config) -> BrokerTriggerConsumer:
+async def create_broker_consumer(broker_type: str, **config: Any) -> BrokerTriggerConsumer:
     """
     Factory function to create a broker consumer.
 

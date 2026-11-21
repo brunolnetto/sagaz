@@ -16,6 +16,7 @@ here so ``from sagaz.cli.app import <command>`` keeps working.
 import subprocess
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
 
@@ -66,15 +67,23 @@ from sagaz.cli.schema import schema_cli
 from sagaz.cli.tenant import tenant_cli
 from sagaz.cli.visualize import visualize_cmd
 
-try:
+# mypy reads the imports alone: no ignore is needed with or without the dependency.
+if TYPE_CHECKING:
     from rich.console import Console
     from rich.panel import Panel
     from rich.table import Table
 
     console: Console | None = Console()
-except ImportError:
-    console = None
-    Panel = None  # type: ignore[assignment,misc]
+else:
+    try:
+        from rich.console import Console
+        from rich.panel import Panel
+        from rich.table import Table
+
+        console: Console | None = Console()
+    except ImportError:
+        console = None
+        Panel = None
 
 __all__ = [
     "_LOOPBACK_HOSTS",
@@ -133,17 +142,17 @@ __all__ = [
 class OrderedGroup(click.Group):
     """Click Group that lists commands in the order they were added."""
 
-    def list_commands(self, ctx):
+    def list_commands(self, ctx: click.Context) -> list[str]:
         return list(self.commands.keys())
 
-    def format_commands(self, ctx, formatter):
+    def format_commands(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
         """Override to hide the automatic Commands section."""
         # Do nothing - this prevents Click from adding the Commands list
 
 
 @click.group(cls=OrderedGroup)
 @click.version_option(package_name="sagaz", prog_name="sagaz")
-def cli():
+def cli() -> None:
     """
     Sagaz - Production-ready Saga Pattern Orchestration.
 

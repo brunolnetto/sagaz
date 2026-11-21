@@ -6,14 +6,14 @@ from typing import Any
 
 try:
     import duckdb
-except ImportError as exc:  # pragma: no cover
+except ImportError as exc:  # pragma: no cover - the extra is installed in tests
     msg = "DuckDB is required for sagaz analytics. Install with: pip install sagaz[analytics]"
     raise ImportError(msg) from exc
 
 try:
     import narwhals as nw
     from sqldim import TransformPipeline, col
-except ImportError as exc:  # pragma: no cover
+except ImportError as exc:  # pragma: no cover - the extra is installed in tests
     msg = "sqldim and narwhals are required for sagaz analytics. Install with: pip install sagaz[analytics]"
     raise ImportError(msg) from exc
 
@@ -107,12 +107,12 @@ class SagaBronzeProcessor:
         # tmp_name and schema are module constants (never user input); record
         # values are bound through ``?`` placeholders below.
         cols_ddl = ", ".join(f'"{k}" {v}' for k, v in schema.items())
-        self._conn.execute(f"CREATE OR REPLACE TEMP TABLE {tmp_name} ({cols_ddl})")  # nosec B608
+        self._conn.execute(f"CREATE OR REPLACE TEMP TABLE {tmp_name} ({cols_ddl})")  # nosec B608 - tmp_name and schema are module constants
 
         keys = list(schema.keys())
         placeholders = ", ".join("?" for _ in keys)
         self._conn.executemany(
-            f"INSERT INTO {tmp_name} VALUES ({placeholders})",  # nosec B608
+            f"INSERT INTO {tmp_name} VALUES ({placeholders})",  # nosec B608 - tmp_name is a module constant; values are bound
             [tuple(r.get(k) for k in keys) for r in records],
         )
 

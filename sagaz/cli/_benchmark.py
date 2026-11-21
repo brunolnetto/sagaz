@@ -12,11 +12,14 @@ import asyncio
 import statistics
 import time
 from dataclasses import asdict, dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from sagaz import Saga, action, compensate
 from sagaz.core.config import SagaConfig
+
+if TYPE_CHECKING:
+    from sagaz.core.storage.interfaces import SagaStorage
 
 
 @dataclass(frozen=True)
@@ -108,7 +111,7 @@ async def _run_sagas(config: SagaConfig, profile: Profile, prefix: str) -> tuple
     return latencies, failed
 
 
-async def _cleanup(storage: Any, prefix: str, count: int) -> None:
+async def _cleanup(storage: SagaStorage, prefix: str, count: int) -> None:
     for index in range(count):
         await storage.delete_saga_state(f"{prefix}-{index}")
 

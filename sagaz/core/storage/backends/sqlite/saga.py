@@ -29,15 +29,23 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
     import aiosqlite as aiosqlite_types
 
-try:
+# mypy reads the imports alone: no ignore is needed with or without the dependency.
+if TYPE_CHECKING:
     import aiosqlite
 
     AIOSQLITE_AVAILABLE = True
-except ImportError:
-    AIOSQLITE_AVAILABLE = False
-    aiosqlite = None  # type: ignore[assignment]
+else:
+    try:
+        import aiosqlite
+
+        AIOSQLITE_AVAILABLE = True
+    except ImportError:
+        AIOSQLITE_AVAILABLE = False
+        aiosqlite = None
 
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.storage._tenancy import TENANT_FIELD, write_tenant
@@ -78,7 +86,7 @@ class SQLiteSagaStorage(_SQLiteSagaMaintenanceMixin, SagaStorage):
         ...     )
     """
 
-    def __init__(self, db_path: str = ":memory:"):
+    def __init__(self, db_path: str = ":memory:") -> None:
         """
         Initialize SQLite saga storage.
 
@@ -117,12 +125,12 @@ class SQLiteSagaStorage(_SQLiteSagaMaintenanceMixin, SagaStorage):
             raise RuntimeError(msg)
         await init_saga_schema(conn)
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> SQLiteSagaStorage:
         """Async context manager entry."""
         await self._get_connection()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
         """Async context manager exit."""
         await self.close()
 
@@ -224,7 +232,7 @@ class SQLiteSagaStorage(_SQLiteSagaMaintenanceMixin, SagaStorage):
         conn = await self._get_connection()
         clause, params = tenant_filter()
         cursor = await conn.execute(
-            f"SELECT * FROM sagas WHERE saga_id = ?{clause} ORDER BY tenant_id",
+            f"SELECT * FROM sagas WHERE saga_id = ?{clause} ORDER BY tenant_id",  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             (saga_id, *params),
         )
         return [self._row_to_dict(row) for row in await cursor.fetchall()]
@@ -259,7 +267,7 @@ class SQLiteSagaStorage(_SQLiteSagaMaintenanceMixin, SagaStorage):
         clause, params = tenant_filter()
 
         cursor = await conn.execute(
-            f"DELETE FROM sagas WHERE saga_id = ?{clause}",
+            f"DELETE FROM sagas WHERE saga_id = ?{clause}",  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             (saga_id, *params),
         )
         await conn.commit()
@@ -277,7 +285,7 @@ class SQLiteSagaStorage(_SQLiteSagaMaintenanceMixin, SagaStorage):
         conn = await self._get_connection()
 
         clause, params = tenant_filter()
-        query = f"SELECT * FROM sagas WHERE 1=1{clause}"
+        query = f"SELECT * FROM sagas WHERE 1=1{clause}"  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
 
         if status:
             query += " AND status = ?"
@@ -342,12 +350,13 @@ class SQLiteSagaStorage(_SQLiteSagaMaintenanceMixin, SagaStorage):
                     step["executed_at"] = executed_at.isoformat()
                 break
 
-    async def export_all(self):
+    async def export_all(self) -> AsyncIterator[dict[str, Any]]:
         """Export all records of the current scope, each with its ``tenant_id``."""
         conn = await self._get_connection()
         clause, params = tenant_filter()
         cursor = await conn.execute(
-            f"SELECT * FROM sagas WHERE 1=1{clause} ORDER BY saga_id, tenant_id", params
+            f"SELECT * FROM sagas WHERE 1=1{clause} ORDER BY saga_id, tenant_id",  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
+            params,
         )
 
         async for row in cursor:

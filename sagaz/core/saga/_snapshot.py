@@ -73,7 +73,7 @@ class _SagaSnapshotMixin:
         if is_step_chart(machine):
             value = lifecycle_state(configuration_values(machine))
             return str(machine.states_map[value].name)
-        return machine.current_state.name  # type: ignore[union-attr, no-any-return]
+        return machine.current_state.name  # type: ignore[union-attr]
 
     @property
     def state_configuration(self) -> list[str]:
@@ -101,7 +101,7 @@ class _SagaSnapshotMixin:
             "compensation_errors": [str(e) for e in self.compensation_errors],
         }
 
-    def _get_step_status(self, step) -> dict[str, Any]:
+    def _get_step_status(self, step: SagaStep) -> dict[str, Any]:
         """Get status dict for a single step."""
         return {
             "name": step.name,

@@ -8,15 +8,19 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.visualization.gradio._app import AssetSource, build_app
+
+if TYPE_CHECKING:
+    from sagaz.core.storage.interfaces import SagaStorage
+    from sagaz.core.storage.saga_log import SagaLogStore
 
 
 def launch(
     *,
-    saga_log: Any = None,
-    storage: Any = None,
+    saga_log: SagaLogStore | str | None = None,
+    storage: SagaStorage | str | None = None,
     host: str = "127.0.0.1",
     port: int = 7860,
     open_browser: bool = False,

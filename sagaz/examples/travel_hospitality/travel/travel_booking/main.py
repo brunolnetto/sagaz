@@ -144,7 +144,7 @@ class TravelBookingSaga(Saga):
         }
 
 
-async def main():
+async def main() -> None:
     """Run the travel booking saga demo."""
 
     # Create a reusable saga instance

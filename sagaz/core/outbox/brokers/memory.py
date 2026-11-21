@@ -21,7 +21,7 @@ class InMemoryBroker(BaseBroker):
         >>> assert len(messages) == 1
     """
 
-    def __init__(self, config: BrokerConfig | None = None):
+    def __init__(self, config: BrokerConfig | None = None) -> None:
         super().__init__(config)
         self._messages: dict[str, list] = {}
 

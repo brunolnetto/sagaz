@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Protocol
 
 from sagaz.core.events import json_safe
 from sagaz.core.storage.saga_log._model import (
@@ -72,7 +72,13 @@ def event_values(e: LogEvent, tenant: str, sequence: int) -> list[Any]:
     ]  # fmt: skip
 
 
-def to_transaction(row: Mapping[str, Any]) -> Transaction:
+class Row(Protocol):
+    """A database row read by column name: a dict, an asyncpg ``Record`` or a ``sqlite3.Row``."""
+
+    def __getitem__(self, key: str, /) -> Any: ...
+
+
+def to_transaction(row: Row) -> Transaction:
     return Transaction(
         transaction_id=row["transaction_id"],
         flow=row["flow"],
@@ -88,7 +94,7 @@ def to_transaction(row: Mapping[str, Any]) -> Transaction:
     )
 
 
-def to_activity(row: Mapping[str, Any]) -> Activity:
+def to_activity(row: Row) -> Activity:
     return Activity(
         transaction_id=row["transaction_id"],
         activity_id=row["activity_id"],
@@ -107,7 +113,7 @@ def to_activity(row: Mapping[str, Any]) -> Activity:
     )
 
 
-def to_event(row: Mapping[str, Any]) -> LogEvent:
+def to_event(row: Row) -> LogEvent:
     return LogEvent(
         transaction_id=row["transaction_id"],
         event_type=row["event_type"],
@@ -123,7 +129,7 @@ def to_event(row: Mapping[str, Any]) -> LogEvent:
     )
 
 
-def to_snapshot(row: Mapping[str, Any]) -> Snapshot:
+def to_snapshot(row: Row) -> Snapshot:
     return Snapshot(
         transaction_id=row["transaction_id"],
         sequence=row["sequence"],
@@ -134,7 +140,7 @@ def to_snapshot(row: Mapping[str, Any]) -> Snapshot:
     )
 
 
-def to_participant(row: Mapping[str, Any]) -> Participant:
+def to_participant(row: Row) -> Participant:
     return Participant(
         name=row["name"],
         region=row["region"],
@@ -144,7 +150,7 @@ def to_participant(row: Mapping[str, Any]) -> Participant:
     )
 
 
-def to_deadline(row: Mapping[str, Any]) -> Deadline:
+def to_deadline(row: Row) -> Deadline:
     return Deadline(
         transaction_id=row["transaction_id"],
         owner=row["owner"],

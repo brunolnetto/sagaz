@@ -21,7 +21,7 @@ try:
 except ImportError:  # pragma: no cover - asyncpg is optional
     asyncpg = cast(Any, None)
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:  # pragma: no cover - typing only
     import asyncpg as asyncpg_types
 
 
@@ -52,7 +52,7 @@ class PostgreSQLOutboxInboxMixin(PostgreSQLOutboxMixinBase):
             True if duplicate (already processed), False if new
         """
 
-        async def _execute(conn):
+        async def _execute(conn: "asyncpg_types.Connection") -> bool:
             try:
                 await conn.execute(
                     """
@@ -75,9 +75,9 @@ class PostgreSQLOutboxInboxMixin(PostgreSQLOutboxMixinBase):
 
         if connection:
             async with scoped_connection(self._pool, connection) as conn:
-                return await _execute(conn)  # type: ignore[no-any-return]
+                return await _execute(conn)
         async with scoped_connection(self._pool) as conn, conn.transaction():
-            return await _execute(conn)  # type: ignore[no-any-return]
+            return await _execute(conn)
 
     async def update_inbox_duration(self, event_id: str, duration_ms: int) -> None:
         """Update processing duration for an event."""
@@ -87,7 +87,7 @@ class PostgreSQLOutboxInboxMixin(PostgreSQLOutboxMixinBase):
                 UPDATE consumer_inbox
                 SET processing_duration_ms = $1
                 WHERE event_id = $2 AND {tenant_predicate(3)}
-                """,
+                """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                 duration_ms,
                 event_id,
                 tenant_param(),
@@ -107,7 +107,7 @@ class PostgreSQLOutboxInboxMixin(PostgreSQLOutboxMixinBase):
                 WHERE consumer_name = $1
                 AND consumed_at < NOW() - make_interval(days => $2)
                 AND {tenant_predicate(3)}
-                """,
+                """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                 consumer_name,
                 older_than_days,
                 tenant_param(),

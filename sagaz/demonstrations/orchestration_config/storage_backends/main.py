@@ -109,6 +109,7 @@ async def _run() -> None:
         with ServiceManager(redis=True) as svc:
             from sagaz.core.storage.backends.redis.saga import RedisSagaStorage
 
+            assert svc.redis_url is not None, "ServiceManager(redis=True) sets the URL"
             async with RedisSagaStorage(svc.redis_url) as redis_storage:
                 await test_storage("Redis", redis_storage)
     except Exception as exc:
@@ -125,6 +126,7 @@ async def _run() -> None:
         with ServiceManager(postgres=True) as svc:
             from sagaz.core.storage.backends.postgresql.saga import PostgreSQLSagaStorage
 
+            assert svc.postgres_url is not None, "ServiceManager(postgres=True) sets the URL"
             async with PostgreSQLSagaStorage(svc.postgres_url) as pg_storage:
                 await test_storage("PostgreSQL", pg_storage)
     except Exception as exc:

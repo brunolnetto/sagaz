@@ -18,7 +18,7 @@ from sagaz.cli import replay_ui
 
 if TYPE_CHECKING:
     from sagaz.core.replay.saga_replay import ReplayResult, SagaReplay
-    from sagaz.core.replay.time_travel import HistoricalState
+    from sagaz.core.replay.time_travel import HistoricalState, SagaTimeTravel
 
 
 STORAGE_KINDS = ["redis", "postgres", "filesystem", "memory"]
@@ -76,7 +76,7 @@ def _ui_kwargs() -> dict[str, Any]:
     return cli_replay._ui_kwargs()
 
 
-async def _show_checkpoints(replay: "SagaReplay", verbose: bool):
+async def _show_checkpoints(replay: "SagaReplay", verbose: bool) -> None:
     """Display available checkpoints."""
     if not verbose:
         return
@@ -85,7 +85,7 @@ async def _show_checkpoints(replay: "SagaReplay", verbose: bool):
     replay_ui.show_checkpoints(checkpoints, verbose, **_ui_kwargs())
 
 
-def _show_replay_result(result: "ReplayResult", verbose: bool, dry_run: bool):
+def _show_replay_result(result: "ReplayResult", verbose: bool, dry_run: bool) -> None:
     """Display replay result."""
     replay_ui.show_replay_result(result, verbose, dry_run, **_ui_kwargs())
 
@@ -116,12 +116,12 @@ async def _execute_replay(
     return result.replay_status.value == "success"
 
 
-def _display_key_value(key: str, value: Any, output_format: str):
+def _display_key_value(key: str, value: Any, output_format: str) -> None:
     """Display a key-value pair."""
     replay_ui.display_key_value(key, value, output_format, echo_func=click.echo)
 
 
-def _display_full_state(state: "HistoricalState", output_format: str):
+def _display_full_state(state: "HistoricalState", output_format: str) -> None:
     """Display full saga state."""
     replay_ui.display_full_state(state, output_format, **_ui_kwargs())
 
@@ -147,7 +147,7 @@ async def _execute_time_travel(
 
 
 async def _time_travel_query(
-    time_travel: Any, timestamp: datetime, key: str | None, output_format: str
+    time_travel: "SagaTimeTravel", timestamp: datetime, key: str | None, output_format: str
 ) -> bool:
     if key:
         # Query specific key
@@ -174,7 +174,7 @@ async def _execute_list_changes(
     limit: int,
     storage_type: str,
     storage_url: str | None = None,
-):
+) -> None:
     """Execute list changes query"""
     from sagaz.core.replay.time_travel import SagaTimeTravel
 

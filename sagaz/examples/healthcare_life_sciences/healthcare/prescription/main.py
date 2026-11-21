@@ -86,7 +86,7 @@ class PrescriptionFulfillmentSaga(Saga):
         return {"picked_up": True, "picked_up_at": datetime.now().isoformat()}
 
 
-async def main():
+async def main() -> None:
     saga = PrescriptionFulfillmentSaga()
     await saga.run(
         {

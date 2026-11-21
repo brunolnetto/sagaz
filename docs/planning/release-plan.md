@@ -33,7 +33,8 @@ Wave 6  ─── v2.1.0 ─────── Unified saga log                (
 Wave 7  ─── v2.2.0 ─────── Streaming & historical analytics (Fluss + Iceberg; reads the unified log)
 Wave 8  ─── v2.3.0 ─────── Maintenance, CDC & ecosystem   (one release: deps, docs, CDC reader, Gradio, schema registry)
 Wave 9  ─── v2.4.0 ─────── Developer experience           (usability review: retries, durability, one error contract, runnable docs)
-Wave 10 ─── v2.5.0 ─────── Mode parity                    (orchestrated and choreographed sagas offer the same capabilities)
+Wave 10 ─── v2.5.0 ─────── Security & typing              (signed storage, audited deps, gating checks, every function annotated)
+Wave 11 ─── v2.6.0 ─────── Mode parity                    (orchestrated and choreographed sagas offer the same capabilities)
 ```
 
 ---
@@ -322,7 +323,30 @@ perspective, and on 2026-11-21 a feature × saga mode audit (`docs/reference/fea
 | #549–#559 | Bugs found by the feature × mode audit | |
 | #578 | `storage_layout="classic"` | `"legacy"` kept as an alias |
 
-## Wave 10 — v2.5.0 "Mode Parity"
+## Wave 10 — v2.5.0 "Security & Typing"
+
+**GitHub milestone**: [#25](https://github.com/brunolnetto/sagaz/milestone/25)
+**Scope**: a security review and a typing review of the source, done before the parity
+work so that it starts from a clean base. It contains breaking changes (#589, #607),
+which is why it is a minor release and not v2.4.1.
+
+| Issue | What | Notes |
+|---|---|---|
+| #586 | Makefile runs through `uv` and mirrors CI | `make build` had failed when publishing v2.4.0 |
+| #588 | Dependencies with known advisories | 25 packages upgraded; pip-audit gates CI |
+| #589 | External context storage signs what it pickles | **Breaking**: a signing key is required |
+| #590 | bandit findings triaged | bandit gates CI |
+| #594 | Suppression comments are specific and explained | mypy gates CI; `# type: ignore` 151 → 47 |
+| #595 | The library's own types where `Any` hid them | Bare `Any` 427 → 291; typing budget |
+| #596 | Every `*args` / `**kwargs` is typed | |
+| #597 | Every function is annotated | ruff and mypy enforce it |
+| #599 | One `SagaStorage` | The exported class was not the backends' base |
+| #603 | CI reports and gates coverage in the structural summary | |
+| #605 | `OptimisticPublisher` publishes | It never had |
+| #606 | `sagaz validate` / `simulate` print without `rich` | |
+| #607 | `SQLiteOutboxStorage` refuses a caller's connection | **Breaking** |
+
+## Wave 11 — v2.6.0 "Mode Parity"
 
 **GitHub milestone**: [#24](https://github.com/brunolnetto/sagaz/milestone/24)
 **Scope**: the gaps of `docs/reference/feature-matrix.md`: imperative choreography (#560),
@@ -420,7 +444,8 @@ ADR-041 unified saga log ──────────────────�
 | v2.2.0  | 7    | Streaming & Historical Analytics | Released 2026-11-20 |
 | v2.3.0  | 8    | Maintenance, CDC & Ecosystem | Released 2026-11-20 |
 | v2.4.0  | 9    | Developer Experience | Released 2026-11-21 |
-| v2.5.0  | 10   | Mode Parity | Planned |
+| v2.5.0  | 10   | Security & Typing | Released 2026-11-21 |
+| v2.6.0  | 11   | Mode Parity | Planned |
 
 ---
 

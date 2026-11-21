@@ -15,12 +15,16 @@ from __future__ import annotations
 import asyncio
 from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.choreography.events import COMPENSATE, COMPENSATED, AbstractEventBus, Event
 from sagaz.core.storage.saga_log._model import LogWrite
 from sagaz.core.tenant import tenant_scope
 from sagaz.core.types import SagaStatus
+
+if TYPE_CHECKING:
+    from sagaz.core.storage.interfaces import SagaStorage
+    from sagaz.core.storage.saga_log import SagaLogStore
 
 #: Saga name of the records the tracker writes.
 RECORD_NAME = "choreography"
@@ -122,10 +126,10 @@ class ChoreographyTracker:
     def __init__(
         self,
         bus: AbstractEventBus,
-        storage: Any | None = None,
+        storage: SagaStorage | None = None,
         completion_events: tuple[str, ...] | frozenset[str] = (),
         stall_after: timedelta | float | None = None,
-        saga_log: Any | None = None,
+        saga_log: SagaLogStore | None = None,
     ) -> None:
         self._bus = bus
         self._log = saga_log
@@ -253,7 +257,7 @@ def stalled_view(
 
 
 async def status_from_log(
-    log: Any, correlation_id: str, completion_events: frozenset[str] | tuple[str, ...] = ()
+    log: SagaLogStore, correlation_id: str, completion_events: frozenset[str] | tuple[str, ...] = ()
 ) -> TransactionStatus | None:
     """A transaction's status projected from the unified saga log (ADR-041).
 
@@ -277,7 +281,7 @@ async def status_from_log(
     return status
 
 
-async def load_status(storage: Any, correlation_id: str) -> TransactionStatus | None:
+async def load_status(storage: SagaStorage, correlation_id: str) -> TransactionStatus | None:
     """Read a transaction's status from *storage* (current tenant scope)."""
     record = await storage.load_saga_state(correlation_id)
     if not record or record.get("saga_name") != RECORD_NAME:

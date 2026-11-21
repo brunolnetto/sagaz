@@ -212,7 +212,7 @@ class CrossBorderWireTransferSaga(Saga):
         return result
 
 
-async def main():
+async def main() -> None:
     saga = CrossBorderWireTransferSaga()
 
     await saga.run(

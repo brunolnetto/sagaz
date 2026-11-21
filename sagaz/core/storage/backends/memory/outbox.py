@@ -11,17 +11,19 @@ from sagaz.core.storage._outbox_tenancy import event_visible, resolve_event_tena
 from sagaz.core.storage.interfaces.outbox import OutboxStorage, OutboxStorageError
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
     from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
 
 
-def _get_outbox_status():
+def _get_outbox_status() -> type[OutboxStatus]:
     """Lazy import of OutboxStatus to avoid circular imports."""
     from sagaz.core.outbox.types import OutboxStatus
 
     return OutboxStatus
 
 
-def _get_outbox_event():
+def _get_outbox_event() -> type[OutboxEvent]:
     """Lazy import of OutboxEvent to avoid circular imports."""
     from sagaz.core.outbox.types import OutboxEvent
 
@@ -45,7 +47,7 @@ class InMemoryOutboxStorage(OutboxStorage):
         >>> claimed = await storage.claim_batch("worker-1", batch_size=10)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialise an empty in-memory outbox with no pending events."""
         self._events: dict[str, OutboxEvent] = {}
 
@@ -197,7 +199,7 @@ class InMemoryOutboxStorage(OutboxStorage):
         """Count total events."""
         return len(self._visible_events())
 
-    async def export_all(self):
+    async def export_all(self) -> AsyncIterator[dict[str, Any]]:
         """Export all records for transfer."""
         # Sort by ID
         sorted_events = sorted(self._visible_events(), key=lambda x: x.event_id)

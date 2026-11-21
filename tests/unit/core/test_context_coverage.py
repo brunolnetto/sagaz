@@ -14,6 +14,8 @@ from sagaz.core.context import (
     SagaContext,
 )
 
+TEST_KEY = "test-signing-key-0123456789"
+
 
 class TestContextCoverage:
     @pytest.fixture
@@ -24,7 +26,7 @@ class TestContextCoverage:
 
     @pytest.fixture
     def fs_storage(self, temp_storage_path):
-        return FileSystemExternalStorage(temp_storage_path)
+        return FileSystemExternalStorage(temp_storage_path, signing_key=TEST_KEY)
 
     @pytest.fixture
     def context(self, fs_storage):
@@ -47,7 +49,7 @@ class TestContextCoverage:
     async def test_fs_storage_file_not_found(self, fs_storage):
         """Test loading non-existent file."""
         with pytest.raises(FileNotFoundError):
-            await fs_storage.load("file:///non/existent/path")
+            await fs_storage.load(f"file://{fs_storage.base_path.resolve()}/missing.bin")
 
     @pytest.mark.asyncio
     async def test_fs_storage_invalid_uri_delete(self, fs_storage):

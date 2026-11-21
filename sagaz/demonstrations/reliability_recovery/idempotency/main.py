@@ -74,7 +74,7 @@ class PaymentSagaWithIdempotency(Saga):
 # ============================================================================
 
 
-async def _run():
+async def _run() -> None:
     """Run the idempotency key enforcement demonstration."""
     print("=" * 70)
     print("IDEMPOTENCY KEY ENFORCEMENT DEMONSTRATION")
@@ -108,7 +108,7 @@ async def _run():
     print("=" * 70 + "\n")
 
 
-def main():
+def main() -> None:
     """Main entry point for sagaz demo run idempotency."""
     asyncio.run(_run())
 

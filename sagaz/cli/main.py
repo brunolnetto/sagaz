@@ -27,7 +27,7 @@ from rich.console import Console
 console = Console()
 
 
-def main():
+def main() -> None:
     """Main entry point for the sagaz CLI."""
     from sagaz.cli.app import cli
 

@@ -34,7 +34,7 @@ __all__ = [
 # via __getattr__. The real implementations are loaded lazily at runtime.
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:  # pragma: no cover - typing only
     from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
     from sagaz.core.storage.backends.memory import (
         InMemoryOutboxStorage,
@@ -77,7 +77,7 @@ _BACKEND_IMPORTS = {
 }
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> object:
     """Lazy import of storage backends."""
     if name in _BACKEND_IMPORTS:
         module_name, class_name = _BACKEND_IMPORTS[name]

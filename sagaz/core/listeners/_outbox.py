@@ -4,7 +4,7 @@ import asyncio
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    pass
+    from sagaz.core.storage.interfaces.outbox import OutboxStorage
 
 from sagaz.core.listeners._base import SagaListener
 from sagaz.core.logger import get_logger
@@ -34,7 +34,7 @@ class OutboxSagaListener(SagaListener):
         >>> # - order-processing.completed
     """
 
-    def __init__(self, storage, publish_step_events: bool = True):
+    def __init__(self, storage: "OutboxStorage", publish_step_events: bool = True) -> None:
         self.storage = storage
         self.publish_step_events = publish_step_events
         self._ready = False

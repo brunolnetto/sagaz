@@ -25,9 +25,10 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator, Callable
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.storage.core import TransferError
+from sagaz.core.storage.interfaces.saga import implements
 from sagaz.core.storage.transfer._models import (
     TransferConfig,
     TransferErrorPolicy,
@@ -35,6 +36,9 @@ from sagaz.core.storage.transfer._models import (
     TransferResult,
 )
 from sagaz.core.storage.transfer._validation import _TransferValidationMixin
+
+if TYPE_CHECKING:
+    from sagaz.core.storage.interfaces import OutboxStorage, SagaStorage
 
 logger = logging.getLogger(__name__)
 
@@ -61,10 +65,10 @@ class TransferService(_TransferValidationMixin):
 
     def __init__(
         self,
-        source,
-        target,
+        source: "SagaStorage | OutboxStorage",
+        target: "SagaStorage | OutboxStorage",
         config: TransferConfig | None = None,
-    ):
+    ) -> None:
         """
         Initialize transfer service.
 
@@ -171,7 +175,7 @@ class TransferService(_TransferValidationMixin):
 
     async def _export_records(self) -> AsyncIterator[dict[str, Any]]:
         """Export records from source storage."""
-        if not hasattr(self.source, "export_all"):
+        if not implements(self.source, "export_all"):
             raise TransferError(
                 message=f"{self.source.__class__.__name__} does not support export",
                 source=self.source.__class__.__name__,
@@ -217,7 +221,7 @@ class TransferService(_TransferValidationMixin):
 
     async def _transfer_record(self, record: dict[str, Any]) -> None:
         """Transfer a single record to target."""
-        if not hasattr(self.target, "import_record"):
+        if not implements(self.target, "import_record"):
             raise TransferError(
                 message=f"{self.target.__class__.__name__} does not support import",
                 target=self.target.__class__.__name__,
@@ -255,8 +259,8 @@ class TransferService(_TransferValidationMixin):
 
 
 async def transfer_data(
-    source,
-    target,
+    source: "SagaStorage | OutboxStorage",
+    target: "SagaStorage | OutboxStorage",
     batch_size: int = 100,
     validate: bool = True,
     on_error: str = "skip",

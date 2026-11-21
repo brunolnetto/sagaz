@@ -23,22 +23,31 @@ Quick Start:
     ...     print("Install opentelemetry for distributed tracing")
 """
 
+from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-try:
+# mypy reads the imports alone: no ignore is needed with or without the dependency.
+if TYPE_CHECKING:
     from opentelemetry import context, trace
     from opentelemetry.trace import Status, StatusCode
     from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
     TRACING_AVAILABLE = True
-except ImportError:
-    # Graceful degradation if OpenTelemetry is not installed
-    TRACING_AVAILABLE = False
-    trace = None  # type: ignore[assignment]
-    Status = None  # type: ignore[assignment, misc]
-    StatusCode = None  # type: ignore[assignment, misc]
+else:
+    try:
+        from opentelemetry import context, trace
+        from opentelemetry.trace import Status, StatusCode
+        from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
+        TRACING_AVAILABLE = True
+    except ImportError:
+        # Graceful degradation if OpenTelemetry is not installed
+        TRACING_AVAILABLE = False
+        trace = None
+        Status = None
+        StatusCode = None
 
 
 from sagaz.core.types import SagaStatus, SagaStepStatus
@@ -84,7 +93,7 @@ class SagaTracer:
         ...     pass
     """
 
-    def __init__(self, service_name: str = "saga-service"):
+    def __init__(self, service_name: str = "saga-service") -> None:
         self.service_name = service_name
 
         if TRACING_AVAILABLE and trace is not None:
@@ -99,7 +108,7 @@ class SagaTracer:
         saga_name: str,
         total_steps: int,
         parent_context: dict[str, str] | None = None,
-    ):
+    ) -> "Iterator[trace.Span | None]":
         """
         Start a distributed trace for saga execution
 
@@ -154,7 +163,7 @@ class SagaTracer:
     @contextmanager
     def start_step_trace(
         self, saga_id: str, saga_name: str, step_name: str, step_type: str = "action"
-    ):
+    ) -> "Iterator[trace.Span | None]":
         """
         Start a trace span for saga step execution
 
@@ -275,7 +284,9 @@ class SagaTracer:
         TraceContextTextMapPropagator().inject(carrier)
         return carrier
 
-    def create_child_span(self, name: str, attributes: dict[str, Any] | None = None):
+    def create_child_span(
+        self, name: str, attributes: dict[str, Any] | None = None
+    ) -> "trace.Span | None":
         """Create a child span for external service calls"""
 
         if not TRACING_AVAILABLE or not self.tracer:

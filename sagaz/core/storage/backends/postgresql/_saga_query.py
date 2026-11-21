@@ -12,6 +12,11 @@ from sagaz.core.storage._tenancy import TENANT_FIELD, scoped_tenant
 from sagaz.core.storage.backends.postgresql._tenancy import acquire_scoped
 from sagaz.core.types import SagaStatus
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from asyncpg import Pool, Record
+
 
 def tenant_condition(column: str, params: list[Any]) -> str:
     """SQL condition limiting ``column`` to the current tenant (``TRUE`` in the system scope).
@@ -30,12 +35,14 @@ class _PostgreSQLSagaQueryMixin:
 
     if TYPE_CHECKING:
 
-        async def _get_pool(self) -> Any: ...
+        async def _get_pool(self) -> "Pool": ...
 
-        def _build_saga_dict(self, saga_row, step_rows) -> dict[str, Any]: ...
+        def _build_saga_dict(
+            self, saga_row: "Record", step_rows: "Iterable[Record]"
+        ) -> dict[str, Any]: ...
 
         @staticmethod
-        def _row_tenant(saga_row) -> str: ...
+        def _row_tenant(saga_row: "Record") -> str: ...
 
     async def list_sagas(
         self,
@@ -79,7 +86,7 @@ class _PostgreSQLSagaQueryMixin:
             GROUP BY s.tenant_id, s.saga_id, s.saga_name, s.status, s.created_at, s.updated_at
             ORDER BY s.created_at DESC
             LIMIT ${len(params) - 1} OFFSET ${len(params)}
-        """
+        """  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
 
         async with acquire_scoped(pool) as conn:
             rows = await conn.fetch(query, *params)
@@ -111,7 +118,8 @@ class _PostgreSQLSagaQueryMixin:
             async with conn.transaction():
                 # Stream sagas
                 cursor = conn.cursor(
-                    f"SELECT * FROM sagas WHERE {condition} ORDER BY saga_id, tenant_id", *params
+                    f"SELECT * FROM sagas WHERE {condition} ORDER BY saga_id, tenant_id",  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
+                    *params,
                 )
 
                 async for row in cursor:

@@ -1,19 +1,26 @@
 import sys
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import click
 import yaml
 
-try:
+# mypy reads the imports alone: no ignore is needed with or without the dependency.
+if TYPE_CHECKING:
     from rich.console import Console
 
     console = Console()
-except ImportError:
-    console = None  # type: ignore[assignment]
+else:
+    try:
+        from rich.console import Console
+
+        console = Console()
+    except ImportError:
+        console = None
 
 
-def echo(message: str, **kwargs):
+def echo(message: str, **kwargs: Any) -> None:
     """Safe echo that renders rich markup if available, or falls back to click.echo."""
     if console:
         console.print(message, **kwargs)
@@ -127,7 +134,7 @@ def _inspect_module(module_name: str, file_path: Path) -> list[dict[str, Any]]:
     return discovered
 
 
-def _iter_python_files(paths: list[str]):
+def _iter_python_files(paths: list[str]) -> Iterator[Path]:
     """Yield all valid Python files from given paths."""
     for path_str in paths:
         p = Path(path_str)
@@ -153,7 +160,7 @@ def _discover_sagas(paths: list[str]) -> list[dict[str, Any]]:
 
 
 @click.command()
-def check():
+def check() -> None:
     """
     Validate the Sagaz project structure and configuration.
     """
@@ -188,7 +195,7 @@ def check():
 
 
 @click.command(name="list")
-def list_sagas():
+def list_sagas() -> None:
     """
     List all discovered sagas in the project.
     """

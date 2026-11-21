@@ -25,12 +25,15 @@ import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from functools import partial
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.saga import Saga
 from sagaz.core.storage.backends.memory.saga import InMemorySagaStorage
 from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
 from sagaz.core.types import SagaStatus
+
+if TYPE_CHECKING:
+    from sagaz.core.storage.interfaces import SagaStorage
 
 STEP_IO_SECONDS = 0.015
 INDEPENDENT_STEPS = (
@@ -123,7 +126,7 @@ class SimulatedRedisSagaStorage(InMemorySagaStorage):
         return await super().load_saga_state(saga_id)
 
 
-async def _save_and_load(storage: Any) -> None:
+async def _save_and_load(storage: SagaStorage) -> None:
     for i in range(STORAGE_OPERATIONS):
         saga_id = f"saga-{i}"
         await storage.save_saga_state(

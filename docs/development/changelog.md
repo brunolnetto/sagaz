@@ -7,6 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-11-21
+
+Security and typing. A security review signed the external context storage, upgraded
+every dependency with a known advisory and made bandit and pip-audit gate CI. A typing
+review annotated every function, cut `# type: ignore` from 151 to 47, and made mypy gate
+CI; the stricter types exposed real bugs, fixed here.
+
+**Breaking changes**
+
+- **External context storage needs a signing key (#589).** Pass `signing_key=` or set `SAGAZ_EXTERNAL_STORAGE_KEY`; read older, unsigned payloads with `allow_unsigned=True`. Details under Security.
+- **`SQLiteOutboxStorage` refuses `connection=` (#607).** It never used it. Details under Fixed.
+- **`OptimisticPublisher._resolve_topic()` is removed (#605).** The topic is the event type, as for the outbox worker.
+
+### Changed
+
+- **Suppression comments are specific and explained, and mypy gates CI (#594).**
+  - `# type: ignore` in the library went from 151 to 56: 17 had no error code, 65 silenced nothing, and 40 existed only for optional imports. Optional imports are now read by mypy under `if TYPE_CHECKING:`, so they need no ignore with or without the dependency.
+  - `warn_unused_ignores` is on, and ruff's `PGH` rules reject a blanket `# type: ignore` or `# noqa`.
+  - `scripts/check_suppressions.py` (run by `make lint` and CI) requires an error code on `# type: ignore`, a rule on `# noqa`, a rule and a reason on `# nosec`, and a reason on `# pragma: no cover`.
+  - The CI mypy step no longer has `continue-on-error`: a type error now fails the build.
+
+- **`Any` at the library's own boundaries (#595).**
+  - 37 parameters that were sagaz types annotated as `Any` (`storage`, `saga_log`, `outbox`, `transaction`…) now name the type: `SagaStorage`, `SagaLogStore`, `OutboxStorage`, `Transaction`…
+  - 20 driver parameters name `asyncpg.Pool`/`Connection` or `aiosqlite.Connection`, and 26 functions that returned `Any` now return their real type.
+  - Bare `Any` annotations went from 427 to 343. The stricter types found real gaps: two unchecked `fetchone()` results, and the Gradio monitor's arguments, which also accept a URL.
+  - New `scripts/check_typing_budget.py` (run by `make typecheck` and CI): `pyproject.toml` records the counts of bare `Any`, missing annotations and `# type: ignore`, and the build fails if a count differs. Debt can only go down.
+
+- **Every `*args` and `**kwargs` is typed (#596).**
+  - The 60 untyped variadics are annotated, and ruff's `ANN002`/`ANN003` now reject a new one.
+  - `sagaz.core.logger`: a `LoggerLike` protocol types `set_logger()` and `get_logger()`; `logging.Logger`, structlog and loguru loggers fit it.
+  - The outbox's no-op Prometheus metrics existed twice, one copy untyped. There is now one, in `sagaz/core/outbox/_metrics.py`.
+  - `create_broker()`: its docstring names the configuration class whose fields each broker type takes, and the internal factories are typed.
+
+- **Every function is annotated (#597).**
+  - About 780 missing parameter and return types were added across the library, the examples and `scripts/`. Ruff's `ANN001` and `ANN201`–`ANN206` now reject an unannotated definition (tests excepted).
+  - The typing budget keeps two measures: bare `Any` (291, from 427) and `# type: ignore` (47, from 151 at the start of this release).
+  - mypy runs with `disallow_untyped_defs` and `disallow_incomplete_defs` on.
+  - `LoggerLike` gains `log()`, which `LoggingSagaListener` calls; `NullLogger` implements it.
+  - `FlaskSagaExtension.register_webhook_blueprint()` raises a clear `RuntimeError` when no app is set, where it raised `AttributeError`.
+  - The `postgres_storage` demonstration read `saga.saga_id` on a declarative saga, which has no such attribute, and crashed when Docker was available. It now passes its own `saga_id` to `run()`.
+
+### Fixed
+
+- **`make build` works, and the Makefile mirrors CI (#586).** It ran the system Python, which lacks the `build` package; `make install MODE=dev` asked for extras that do not exist; `make ci` reformatted files instead of checking them. Every target now runs through `uv`, `make check` runs the gates CI enforces, and `docs/development/makefile.md` documents the real targets.
+- **`OptimisticPublisher` publishes (#605).** It called `broker.publish(value=...)` and `storage.mark_sent()`, which no broker or outbox storage has; an `except Exception` hid the `TypeError`, so every event silently fell back to polling. It now publishes with `broker.publish_event(event)` and marks the event with `update_status(..., OutboxStatus.SENT)`, exactly as the outbox worker does, so an event reaches the same topic in the same format by either path. `_resolve_topic()` is gone: the topic is the event type, as for the worker.
+- **`sagaz validate` and `sagaz simulate` print their results without `rich` (#606).** The plain-text functions were loops over `pass`, so a user without `rich` saw nothing. They now print what the Rich versions show: checks, errors and warnings, layers, parallelization metrics, the critical path and compensation layers.
+- **`SQLiteOutboxStorage` refuses a caller's connection (#607). Breaking change** for code that passed one. `insert()` and `update_status()` accepted `connection=` and ignored it, writing and committing through the storage's own connection, so the outbox row was not part of the caller's transaction and nothing said so. They now raise `OutboxStorageError`. Omit the argument; for outbox messages that commit with a saga's state on SQLite, use the unified saga log (`SQLiteSagaLogStore`).
+- **CI reports and gates coverage in the structural summary (#603).** The Code Complexity job ran `codebase-stats` without coverage data, so its "Coverage" and "Low cov" rows always said "skipped". The unit-test job now publishes `coverage.json`, and a new Coverage Gate job after it reports the project coverage and the files to cover first, and requires 95%; a missing coverage file fails it. `make quality-gate` does the same when `coverage.json` exists (`make coverage FORMAT=json`).
+- **There is one `SagaStorage` (#599).** Two unrelated classes had that name. The built-in backends inherited the one in `sagaz.core.storage.base`, while `sagaz.core.storage` exported the one in `interfaces`. So `isinstance(InMemorySagaStorage(), SagaStorage)` was false with the documented import, and a function annotated `storage: SagaStorage` rejected every built-in backend under mypy. `base` now re-exports the single class (and `SagaStepState`); every import path still works.
+
+### Security
+
+- **Dependencies with known advisories are upgraded, and pip-audit gates CI (#588).** `pip-audit` reported advisories in 25 locked packages (aiohttp, cryptography, django, urllib3, werkzeug, pydantic-ai and others); CI ran it with `|| true`. All are upgraded and the audit is clean. Minimum versions rise for the `encryption` extra (`cryptography>=46.0.7`) and the `tracing` extra (`opentelemetry-api>=1.45.1`).
+- **bandit findings are triaged, and bandit gates CI (#590).**
+  - Fixed: the Flask example ran with `debug=True` on `0.0.0.0`; the AI training example used predictable `/tmp` directories; `flink_sql.report()` pasted its `table` argument into SQL unchecked.
+  - The 66 SQL findings in the storage backends are false positives (only constant fragments are interpolated; values are bound) and are marked `# nosec B608` with the reason.
+  - The metrics servers keep binding `0.0.0.0` for container scraping; `sagaz analytics export` gains `--metrics-host`.
+- **External context storage signs its payloads (#589). Breaking change.** `FileSystemExternalStorage` and `S3ExternalStorage` pickle the values they store, and unpickling runs code. Before, anyone who could write to the directory or the bucket could run code in every worker that loaded a payload. Each payload is now stored with an HMAC-SHA256 signature, which is checked before anything is unpickled. A payload that is missing its signature, was modified, was moved to another name or was signed with another key raises `ExternalStorageIntegrityError`.
+  - **Migration:** pass `signing_key=` (at least 16 bytes), or set `SAGAZ_EXTERNAL_STORAGE_KEY` to the same secret in every worker, e.g. `python -c 'import secrets; print(secrets.token_hex(32))'`. Without a key, the constructors raise.
+  - **Older payloads:** they are unsigned. Read them with `allow_unsigned=True` (it logs a warning) until they expire. That setting is unsafe while others can write to the storage.
+  - **`FileSystemExternalStorage`:** it now only reads and deletes files under its `base_path`. Before, a `file://` URI could point anywhere on disk.
+
 ## [2.4.0] - 2026-11-21
 
 Developer experience, from a usability review by a backend engineer's perspective and a

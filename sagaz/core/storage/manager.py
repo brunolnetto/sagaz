@@ -57,8 +57,8 @@ class StorageManager(_StorageBackendInitMixin, BaseStorageManager):
         *,
         saga_url: str | None = None,
         outbox_url: str | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         """
         Initialize storage manager.
 
@@ -181,7 +181,7 @@ class StorageManager(_StorageBackendInitMixin, BaseStorageManager):
         if self._saga_storage:
             try:
                 if hasattr(self._saga_storage, "health_check"):
-                    result = await self._saga_storage.health_check()  # type: ignore[assignment]
+                    result = await self._saga_storage.health_check()
                     saga_health = self._normalize_health_result(result)
                 else:
                     saga_health = {"status": "healthy"}
@@ -229,7 +229,7 @@ class StorageManager(_StorageBackendInitMixin, BaseStorageManager):
             )
             return {"status": status_val}
         if isinstance(result, dict):
-            return result  # type: ignore[return-value]
+            return result
         return {"status": "healthy"}
 
 
@@ -249,7 +249,7 @@ def create_storage_manager(
     saga_url: str | None = None,
     outbox_url: str | None = None,
     backend: str | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> StorageManager:
     """
     Create a storage manager with flexible backend configuration.
@@ -290,7 +290,7 @@ def create_storage_manager(
 
 
 def _create_with_explicit_backend(
-    backend: str, url: str | None, saga_url: str | None, outbox_url: str | None, **kwargs
+    backend: str, url: str | None, saga_url: str | None, outbox_url: str | None, **kwargs: Any
 ) -> StorageManager:
     """Create storage manager with explicit backend type."""
     backend = backend.lower()

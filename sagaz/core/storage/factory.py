@@ -19,11 +19,14 @@ Usage:
     >>> saga, outbox = create_storage("postgresql", storage_type="both")
 """
 
-from typing import Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.storage.backends.memory import InMemorySagaStorage
 from sagaz.core.storage.base import SagaStorage
+
+if TYPE_CHECKING:
+    from sagaz.core.storage.interfaces import OutboxStorage
 
 StorageType = Literal["saga", "outbox", "both"]
 
@@ -39,7 +42,7 @@ def _create_redis_saga_storage(kwargs: dict) -> SagaStorage:
     )
 
 
-def _create_redis_outbox_storage(kwargs: dict):
+def _create_redis_outbox_storage(kwargs: dict) -> "OutboxStorage":
     """Create Redis outbox storage instance."""
     from sagaz.core.storage.backends.redis import RedisOutboxStorage
 
@@ -68,7 +71,7 @@ def _create_postgresql_saga_storage(kwargs: dict) -> SagaStorage:
     )
 
 
-def _create_postgresql_outbox_storage(kwargs: dict):
+def _create_postgresql_outbox_storage(kwargs: dict) -> "OutboxStorage":
     """Create PostgreSQL outbox storage instance."""
     connection_string = kwargs.get("connection_string")
     if not connection_string:
@@ -86,14 +89,14 @@ def _create_postgresql_outbox_storage(kwargs: dict):
     )
 
 
-def _create_memory_outbox_storage(kwargs: dict):
+def _create_memory_outbox_storage(kwargs: dict) -> "OutboxStorage":
     """Create in-memory outbox storage instance."""
     from sagaz.core.storage.backends.memory import InMemoryOutboxStorage
 
     return InMemoryOutboxStorage()
 
 
-def _create_sqlite_saga_storage(kwargs: dict):
+def _create_sqlite_saga_storage(kwargs: dict) -> SagaStorage:
     """Create SQLite saga storage instance."""
     from sagaz.core.storage.backends.sqlite import SQLiteSagaStorage
 
@@ -102,7 +105,7 @@ def _create_sqlite_saga_storage(kwargs: dict):
     )
 
 
-def _create_sqlite_outbox_storage(kwargs: dict):
+def _create_sqlite_outbox_storage(kwargs: dict) -> "OutboxStorage":
     """Create SQLite outbox storage instance."""
     from sagaz.core.storage.backends.sqlite import SQLiteOutboxStorage
 
@@ -148,7 +151,7 @@ def create_storage(
     # SQLite options
     db_path: str = ":memory:",
     # Additional kwargs
-    **kwargs,
+    **kwargs: Any,
 ) -> SagaStorage | tuple:
     """
     Create a storage backend with a simple, unified API.
@@ -235,7 +238,7 @@ def create_storage(
 
     try:
         if storage_type == "saga":
-            return cast(SagaStorage, _SAGA_STORAGE_REGISTRY[backend](factory_kwargs))
+            return _SAGA_STORAGE_REGISTRY[backend](factory_kwargs)
         if storage_type == "outbox":
             return cast("tuple[Any, ...]", _OUTBOX_STORAGE_REGISTRY[backend](factory_kwargs))
         # both

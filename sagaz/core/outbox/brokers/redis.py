@@ -18,7 +18,7 @@ Usage:
 import logging
 import os
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.outbox.brokers.base import (
@@ -30,13 +30,19 @@ from sagaz.core.outbox.brokers.base import (
 )
 
 # Try to import redis
-try:
+# mypy reads the imports alone: no ignore is needed with or without the dependency.
+if TYPE_CHECKING:
     import redis.asyncio as redis
 
     REDIS_AVAILABLE = True
-except ImportError:
-    REDIS_AVAILABLE = False
-    redis: Any = None  # type: ignore[assignment, no-redef]
+else:
+    try:
+        import redis.asyncio as redis
+
+        REDIS_AVAILABLE = True
+    except ImportError:
+        REDIS_AVAILABLE = False
+        redis = None
 
 
 logger = logging.getLogger(__name__)
@@ -111,7 +117,7 @@ class RedisBroker(BaseBroker):
         >>> await broker.close()
     """
 
-    def __init__(self, config: RedisBrokerConfig | None = None):
+    def __init__(self, config: RedisBrokerConfig | None = None) -> None:
         """
         Initialize Redis broker.
 
@@ -155,7 +161,7 @@ class RedisBroker(BaseBroker):
             )
 
             # Verify connection
-            await self._client.ping()  # type: ignore[attr-defined]
+            await self._client.ping()
 
             self._connected = True
             logger.info("Connected to Redis")

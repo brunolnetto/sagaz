@@ -297,7 +297,7 @@ class SupplyChainDroneDeliverySaga(Saga):
         return return_result
 
 
-async def main():
+async def main() -> None:
     """Run the supply chain drone delivery saga demo."""
 
     # Reusable saga instance

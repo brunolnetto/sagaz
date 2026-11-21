@@ -51,7 +51,7 @@ except ImportError:
     pass
 
 
-def _initialize_agents():
+def _initialize_agents() -> None:
     """Initialize agents lazily (only when actually used)."""
     global _agents_initialized, outline_agent, content_agent, quality_agent, seo_agent
 
@@ -312,7 +312,7 @@ class ContentPipelineSaga(Saga):
 # =============================================================================
 
 
-async def run_demo():
+async def run_demo() -> None:
     """Run the content pipeline demo."""
 
     # Check requirements

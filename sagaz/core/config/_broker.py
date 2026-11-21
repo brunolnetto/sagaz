@@ -5,10 +5,17 @@ from various sources (environment, files, URLs).
 """
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
     from sagaz.core.outbox.brokers.base import BaseBroker
+
+
+class EnvLike(Protocol):
+    """What configuration reads variables from: an ``EnvManager``, or a plain ``dict``."""
+
+    def get(self, key: str, default: str | None = None, /) -> str | None: ...
+
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +24,7 @@ class BrokerConfigManager:
     """Manages message broker backend configuration and initialization."""
 
     @classmethod
-    def from_env(cls, env: object) -> "BaseBroker | None":
+    def from_env(cls, env: EnvLike) -> "BaseBroker | None":
         """Construct a broker descriptor from environment variables.
 
         Checks SAGAZ_BROKER_URL first; falls back to
@@ -30,23 +37,23 @@ class BrokerConfigManager:
         Returns:
             Broker backend instance or None
         """
-        broker_url = env.get("SAGAZ_BROKER_URL", "")  # type: ignore
+        broker_url = env.get("SAGAZ_BROKER_URL", "")
         if broker_url:
             return cls._parse_broker_url(broker_url)
 
-        broker_type = env.get("SAGAZ_BROKER_TYPE", "")  # type: ignore
+        broker_type = env.get("SAGAZ_BROKER_TYPE", "")
         if broker_type == "kafka":
-            host = env.get("SAGAZ_BROKER_HOST", "localhost")  # type: ignore
-            port = env.get("SAGAZ_BROKER_PORT", "9092")  # type: ignore
+            host = env.get("SAGAZ_BROKER_HOST", "localhost")
+            port = env.get("SAGAZ_BROKER_PORT", "9092")
             return cls._parse_broker_url(f"kafka://{host}:{port}")
         if broker_type == "rabbitmq":
-            host = env.get("SAGAZ_BROKER_HOST", "localhost")  # type: ignore
-            port = env.get("SAGAZ_BROKER_PORT", "5672")  # type: ignore
-            user = env.get("SAGAZ_BROKER_USER", "guest")  # type: ignore
-            password = env.get("SAGAZ_BROKER_PASSWORD", "guest")  # type: ignore
+            host = env.get("SAGAZ_BROKER_HOST", "localhost")
+            port = env.get("SAGAZ_BROKER_PORT", "5672")
+            user = env.get("SAGAZ_BROKER_USER", "guest")
+            password = env.get("SAGAZ_BROKER_PASSWORD", "guest")
             return cls._parse_broker_url(f"amqp://{user}:{password}@{host}:{port}/")
         if broker_type == "redis":
-            redis_url = env.get("SAGAZ_BROKER_URL")  # type: ignore
+            redis_url = env.get("SAGAZ_BROKER_URL")
             if redis_url is None:
                 redis_url = "redis://localhost:6379/1"
             return cls._parse_broker_url(redis_url)

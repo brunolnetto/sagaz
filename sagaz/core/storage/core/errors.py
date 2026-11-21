@@ -16,7 +16,7 @@ class StorageError(Exception):
     making it easy to catch storage-related errors.
     """
 
-    def __init__(self, message: str, details: dict[str, Any] | None = None):
+    def __init__(self, message: str, details: dict[str, Any] | None = None) -> None:
         super().__init__(message)
         self.message = message
         self.details = details or {}
@@ -43,8 +43,8 @@ class ConnectionError(StorageError):  # pylint: disable=redefined-builtin
         message: str = "Failed to connect to storage backend",
         backend: str | None = None,
         url: str | None = None,
-        **details,
-    ):
+        **details: Any,
+    ) -> None:
         super().__init__(
             message,
             details={"backend": backend, "url": self._mask_url(url), **details},
@@ -78,8 +78,8 @@ class NotFoundError(StorageError):
         message: str = "Item not found",
         item_type: str | None = None,
         item_id: str | None = None,
-        **details,
-    ):
+        **details: Any,
+    ) -> None:
         super().__init__(
             message,
             details={"item_type": item_type, "item_id": item_id, **details},
@@ -103,8 +103,8 @@ class SerializationError(StorageError):
         message: str = "Serialization failed",
         operation: str | None = None,  # "serialize" or "deserialize"
         data_type: str | None = None,
-        **details,
-    ):
+        **details: Any,
+    ) -> None:
         super().__init__(
             message,
             details={"operation": operation, "data_type": data_type, **details},
@@ -130,8 +130,8 @@ class TransferError(StorageError):
         target: str | None = None,
         records_transferred: int = 0,
         records_failed: int = 0,
-        **details,
-    ):
+        **details: Any,
+    ) -> None:
         super().__init__(
             message,
             details={
@@ -162,8 +162,8 @@ class TransactionError(StorageError):
         self,
         message: str = "Transaction failed",
         operation: str | None = None,  # "commit", "rollback", "begin"
-        **details,
-    ):
+        **details: Any,
+    ) -> None:
         super().__init__(
             message,
             details={"operation": operation, **details},
@@ -187,8 +187,8 @@ class ConcurrencyError(StorageError):
         item_id: str | None = None,
         expected_version: int | None = None,
         actual_version: int | None = None,
-        **details,
-    ):
+        **details: Any,
+    ) -> None:
         super().__init__(
             message,
             details={
@@ -218,8 +218,8 @@ class CapacityError(StorageError):
         message: str = "Storage capacity exceeded",
         limit: int | None = None,
         current: int | None = None,
-        **details,
-    ):
+        **details: Any,
+    ) -> None:
         super().__init__(
             message,
             details={"limit": limit, "current": current, **details},

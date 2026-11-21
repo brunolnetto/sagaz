@@ -78,7 +78,7 @@ class _GraphOrderingMixin:
         remaining: set[str],
         deps: dict[str, set[str]],
         in_degree: dict[str, int],
-    ):
+    ) -> None:
         """Remove processed nodes and update in-degrees."""
         for step in processed:
             remaining.remove(step)
@@ -134,14 +134,14 @@ class _GraphOrderingMixin:
         self._validate_dependencies_exist()
         self._validate_no_cycles()
 
-    def _validate_dependencies_exist(self):
+    def _validate_dependencies_exist(self) -> None:
         """Check all dependencies reference existing steps."""
         for step_id, node in self.nodes.items():
             for dep in node.depends_on:
                 if dep not in self.nodes:
                     raise MissingDependencyError(step_id, dep)
 
-    def _validate_no_cycles(self):
+    def _validate_no_cycles(self) -> None:
         """Check for circular dependencies via topological sort."""
         deps: dict[str, set[str]] = {
             step_id: set(node.depends_on) for step_id, node in self.nodes.items()

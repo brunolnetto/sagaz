@@ -21,7 +21,7 @@ class MissingDependencyError(Exception):
             "opentelemetry-otlp": "pip install opentelemetry-exporter-otlp-proto-grpc",
         }
 
-    def __init__(self, package: str, feature: str | None = None):
+    def __init__(self, package: str, feature: str | None = None) -> None:
         self.package = package
         self.feature = feature
 

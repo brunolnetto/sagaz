@@ -21,6 +21,7 @@ Usage:
 
 import asyncio
 import logging
+from collections.abc import AsyncIterator
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
@@ -73,7 +74,9 @@ async def _run() -> None:
             return {"created": True}
 
         @compensate("create_order")
-        async def cancel_order(self, ctx: dict) -> None:  # pragma: no cover
+        async def cancel_order(
+            self, ctx: dict
+        ) -> None:  # pragma: no cover - the demo's happy path never compensates
             logger.info(f"  ↩ Cancelling order {ctx.get('order_id')}")
 
         @action("charge", depends_on=["create_order"])
@@ -83,7 +86,9 @@ async def _run() -> None:
             return {"charge_id": "CHG-1"}
 
         @compensate("charge")
-        async def refund(self, ctx: dict) -> None:  # pragma: no cover
+        async def refund(
+            self, ctx: dict
+        ) -> None:  # pragma: no cover - the demo's happy path never compensates
             logger.info("  ↩ Refunding charge")
 
     # OrderSaga is consumed by the @trigger decorator which registers it in
@@ -97,7 +102,9 @@ async def _run() -> None:
     configure(SagaConfig())
 
     @asynccontextmanager
-    async def lifespan(app: FastAPI):  # pragma: no cover
+    async def lifespan(
+        app: FastAPI,
+    ) -> AsyncIterator[None]:  # pragma: no cover - runs only under an ASGI server
         await sagaz_startup()
         yield
         await sagaz_shutdown()
@@ -106,7 +113,7 @@ async def _run() -> None:
     app.include_router(create_webhook_router("/webhooks"))
 
     @app.get("/health")
-    async def health():
+    async def health() -> dict[str, str]:
         return {"status": "ok"}
 
     # ------------------------------------------------------------------

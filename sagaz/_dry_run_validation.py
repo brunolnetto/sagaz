@@ -11,7 +11,7 @@ class _DryRunValidationMixin(_StepIntrospection):
     async def _validate(
         self,
         saga: object,
-        context: dict[str, Any],  # type: ignore
+        context: dict[str, Any],
     ) -> ValidationResult:
         """Validate saga configuration."""
         errors = []
@@ -78,8 +78,8 @@ class _DryRunValidationMixin(_StepIntrospection):
         saga: object,
         context: dict[str, Any],
         checks: dict,
-        errors: list,  # type: ignore
-    ):
+        errors: list,
+    ) -> None:
         """Validate required context fields."""
         checks["required_context_fields"] = []
         if hasattr(saga, "required_context_fields"):
@@ -88,7 +88,7 @@ class _DryRunValidationMixin(_StepIntrospection):
             if missing:
                 errors.append(f"Missing required context fields: {sorted(missing)}")
 
-    def _validate_cycles(self, steps: list, checks: dict, errors: list):
+    def _validate_cycles(self, steps: list, checks: dict, errors: list) -> None:
         """Build DAG and check for cycles."""
         dag: dict[str, list[str]] = {}
         for step in steps:
@@ -118,7 +118,7 @@ class _DryRunValidationMixin(_StepIntrospection):
         visited = set()
         rec_stack = set()
 
-        def dfs(node: str, path: list[str]):
+        def dfs(node: str, path: list[str]) -> None:
             visited.add(node)
             rec_stack.add(node)
             path.append(node)

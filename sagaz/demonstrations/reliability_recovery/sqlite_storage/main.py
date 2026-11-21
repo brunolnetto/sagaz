@@ -44,20 +44,20 @@ async def _run_order(order_id: str, fail: bool = False) -> tuple[str, SagaResult
     from sagaz.core.saga import Saga, SagaContext
     from sagaz.core.types import SagaStatus
 
-    async def validate(ctx: SagaContext):
+    async def validate(ctx: SagaContext) -> dict[str, bool]:
         return {"valid": True}
 
-    async def cancel_validate(result: dict, ctx: SagaContext):
+    async def cancel_validate(result: dict, ctx: SagaContext) -> None:
         pass
 
-    async def charge(ctx: SagaContext):
+    async def charge(ctx: SagaContext) -> dict[str, str]:
         if fail:
             msg = "Card declined"
             raise RuntimeError(msg)
         return {"charge_id": f"CHG-{order_id}"}
 
-    async def refund(result: dict, ctx: SagaContext):
-        pass  # pragma: no cover
+    async def refund(result: dict, ctx: SagaContext) -> None:
+        pass  # pragma: no cover - the demo never compensates this step
 
     saga = Saga(name="order")
     await saga.add_step("validate", validate, cancel_validate)

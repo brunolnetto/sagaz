@@ -46,19 +46,25 @@ import os
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.choreography.events import AbstractEventBus, Event, HandlerT
 from sagaz.core.exceptions import MissingDependencyError
 
-try:
-    from aiokafka import AIOKafkaConsumer, AIOKafkaProducer  # type: ignore[import-untyped]
+# mypy reads the imports alone: no ignore is needed with or without the dependency.
+if TYPE_CHECKING:
+    from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 
     _KAFKA_AVAILABLE = True
-except ImportError:
-    _KAFKA_AVAILABLE = False
-    AIOKafkaProducer: Any = None  # type: ignore[assignment, no-redef]
-    AIOKafkaConsumer: Any = None  # type: ignore[assignment, no-redef]
+else:
+    try:
+        from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
+
+        _KAFKA_AVAILABLE = True
+    except ImportError:
+        _KAFKA_AVAILABLE = False
+        AIOKafkaProducer = None
+        AIOKafkaConsumer = None
 
 logger = logging.getLogger(__name__)
 

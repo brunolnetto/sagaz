@@ -40,18 +40,24 @@ import os
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.choreography.events import AbstractEventBus, Event, HandlerT
 from sagaz.core.exceptions import MissingDependencyError
 
-try:
-    import redis.asyncio as aioredis  # type: ignore[import-untyped]
+# mypy reads the imports alone: no ignore is needed with or without the dependency.
+if TYPE_CHECKING:
+    import redis.asyncio as aioredis
 
     _REDIS_AVAILABLE = True
-except ImportError:
-    _REDIS_AVAILABLE = False
-    aioredis: Any = None  # type: ignore[assignment, no-redef]
+else:
+    try:
+        import redis.asyncio as aioredis
+
+        _REDIS_AVAILABLE = True
+    except ImportError:
+        _REDIS_AVAILABLE = False
+        aioredis = None
 
 logger = logging.getLogger(__name__)
 

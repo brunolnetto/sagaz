@@ -45,7 +45,7 @@ class ExecutionEngine(
 ):
     """Orchestrates saga execution and compensation."""
 
-    def __init__(self, saga: "Saga"):
+    def __init__(self, saga: "Saga") -> None:
         """Initialize execution engine with saga instance.
 
         Args:
@@ -163,7 +163,7 @@ class ExecutionEngine(
         """Get the saga name from class attribute or class name."""
         return self.saga.saga_name or self.saga.__class__.__name__
 
-    async def _notify_listeners(self, event_name: str, *args) -> None:
+    async def _notify_listeners(self, event_name: str, *args: Any) -> None:
         """Notify all listeners of an event."""
         for listener in self.saga._instance_listeners:
             try:
@@ -271,7 +271,7 @@ class ExecutionEngine(
             )
             raise
 
-    async def _call_hook(self, hook: Any | None, *args) -> None:
+    async def _call_hook(self, hook: Any | None, *args: Any) -> None:
         """Call a hook function, handling both sync and async hooks."""
         if hook is None:
             return

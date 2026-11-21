@@ -15,11 +15,14 @@ import shutil
 import subprocess
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import click
 
 from sagaz.cli._deploy_resources import _resources
+
+if TYPE_CHECKING:
+    from importlib.resources.abc import Traversable
 
 TFVARS = "sagaz.auto.tfvars.json"
 PLAN = "sagaz.tfplan"
@@ -65,7 +68,7 @@ def chart_path() -> Path:
     return chart
 
 
-def _copy_tree(source: Any, target: Path) -> None:
+def _copy_tree(source: Traversable, target: Path) -> None:
     target.mkdir(parents=True, exist_ok=True)
     for item in source.iterdir():
         if item.is_dir():

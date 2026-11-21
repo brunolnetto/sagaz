@@ -6,17 +6,22 @@ import asyncio
 import json
 from collections.abc import Collection
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.choreography.events import Event
 from sagaz.choreography.state._base import COMPENSATED, COMPLETED, Deadline, ParticipantState
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.storage._tenancy import write_tenant
 
-try:
+# mypy reads the imports alone: no ignore is needed with or without the dependency.
+if TYPE_CHECKING:
     import aiosqlite
-except ImportError:  # pragma: no cover - aiosqlite is a dev dependency
-    aiosqlite = None  # type: ignore[assignment]
+    from aiosqlite import Connection
+else:
+    try:
+        import aiosqlite
+    except ImportError:  # pragma: no cover - aiosqlite is a dev dependency
+        aiosqlite = None
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS choreography_actions (
@@ -64,25 +69,27 @@ class SQLiteParticipantState(ParticipantState):
     """Participant state in a SQLite file (or ``":memory:"``)."""
 
     def __init__(self, db_path: str = ":memory:") -> None:
-        if aiosqlite is None:  # pragma: no cover
+        if aiosqlite is None:  # pragma: no cover - the driver is installed in tests
             msg = "aiosqlite"
             raise MissingDependencyError(msg, "SQLite participant state")
         self.db_path = db_path
-        self._conn: Any = None
+        self._conn: Connection | None = None
         self._lock = asyncio.Lock()
         self._init_lock = asyncio.Lock()
 
-    async def _connection(self) -> Any:
+    async def _connection(self) -> Connection:
         # Initialized once, and published only when ready: a concurrent caller
         # must neither open a second connection nor use a half-made schema.
-        if self._conn is None:
+        conn = self._conn
+        if conn is None:
             async with self._init_lock:
-                if self._conn is None:
+                conn = self._conn
+                if conn is None:
                     conn = await aiosqlite.connect(self.db_path)
                     await conn.executescript(SCHEMA)
                     await conn.commit()
                     self._conn = conn
-        return self._conn
+        return conn
 
     async def record_action(self, participant: str, event: Event) -> None:
         if not event.saga_id:
@@ -122,7 +129,7 @@ class SQLiteParticipantState(ParticipantState):
             done = [Event.from_dict(json.loads(body)) for (body,) in await cursor.fetchall()]
             for table in ("choreography_actions", "choreography_deadlines"):
                 await conn.execute(
-                    f"DELETE FROM {table}"
+                    f"DELETE FROM {table}"  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                     " WHERE tenant_id = ? AND participant = ? AND correlation_id = ?",
                     key,
                 )
@@ -189,7 +196,7 @@ class SQLiteParticipantState(ParticipantState):
         marks = ", ".join("?" for _ in names)
         async with self._lock:
             cursor = await conn.execute(
-                "SELECT tenant_id, participant, correlation_id, due_at FROM choreography_deadlines"
+                "SELECT tenant_id, participant, correlation_id, due_at FROM choreography_deadlines"  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                 f" WHERE participant IN ({marks}) AND due_at <= ?"
                 " AND (claimed_until IS NULL OR claimed_until <= ?) ORDER BY due_at LIMIT ?",
                 (*names, now.isoformat(), now.isoformat(), limit),

@@ -30,7 +30,7 @@ import logging
 import sys
 import time
 from datetime import datetime
-from typing import Any
+from typing import Any, Never
 
 from _service_manager import ServiceManager
 
@@ -47,7 +47,7 @@ _pg_url: str = ""
 _redis_url: str = ""
 
 
-def record_result(test_name: str, success: bool, message: str = "", details: Any = None):
+def record_result(test_name: str, success: bool, message: str = "", details: Any = None) -> None:
     """Record a test result."""
     test_results[test_name] = {
         "success": success,
@@ -64,7 +64,7 @@ def record_result(test_name: str, success: bool, message: str = "", details: Any
 # ============================================================================
 
 
-async def test_basic_saga_execution():
+async def test_basic_saga_execution() -> None:
     """Test basic saga execution using the ClassicSaga API."""
     test_name = "Basic Saga Execution (ClassicSaga)"
 
@@ -76,15 +76,15 @@ async def test_basic_saga_execution():
 
         execution_log = []
 
-        async def validate_order(ctx: SagaContext):
+        async def validate_order(ctx: SagaContext) -> dict[str, Any]:
             execution_log.append("validate_order")
             return {"validated": True, "order_id": "ORD-TEST-001"}
 
-        async def reserve_inventory(ctx: SagaContext):
+        async def reserve_inventory(ctx: SagaContext) -> dict[str, Any]:
             execution_log.append("reserve_inventory")
             return {"reserved": True, "items": 3}
 
-        async def process_payment(ctx: SagaContext):
+        async def process_payment(ctx: SagaContext) -> dict[str, Any]:
             execution_log.append("process_payment")
             return {"payment_id": "PAY-001", "amount": 99.99}
 
@@ -120,7 +120,7 @@ async def test_basic_saga_execution():
 # ============================================================================
 
 
-async def test_declarative_saga_compensation():
+async def test_declarative_saga_compensation() -> None:
     """Test declarative saga with compensation on failure."""
     test_name = "Declarative Saga Compensation"
 
@@ -133,23 +133,23 @@ async def test_declarative_saga_compensation():
             saga_name = "compensation-test"
 
             @action("step_1")
-            async def step_1(self, ctx):
+            async def step_1(self, ctx: dict[str, Any]) -> dict[str, Any]:
                 return {"step": 1}
 
             @compensate("step_1")
-            async def comp_step_1(self, ctx):
+            async def comp_step_1(self, ctx: dict[str, Any]) -> None:
                 compensation_log.append("compensated_step_1")
 
             @action("step_2", depends_on=["step_1"])
-            async def step_2(self, ctx):
+            async def step_2(self, ctx: dict[str, Any]) -> dict[str, Any]:
                 return {"step": 2}
 
             @compensate("step_2")
-            async def comp_step_2(self, ctx):
+            async def comp_step_2(self, ctx: dict[str, Any]) -> None:
                 compensation_log.append("compensated_step_2")
 
             @action("failing_step", depends_on=["step_2"])
-            async def failing_step(self, ctx):
+            async def failing_step(self, ctx: dict[str, Any]) -> Never:
                 msg = "Intentional failure for testing"
                 raise SagaStepError(msg)
 
@@ -185,7 +185,7 @@ async def test_declarative_saga_compensation():
 # ============================================================================
 
 
-async def test_postgresql_outbox_storage():
+async def test_postgresql_outbox_storage() -> None:
     """Test PostgreSQL storage for outbox events."""
     test_name = "PostgreSQL Outbox Storage"
 
@@ -242,7 +242,7 @@ async def test_postgresql_outbox_storage():
 # ============================================================================
 
 
-async def test_redis_broker():
+async def test_redis_broker() -> None:
     """Test Redis broker for publishing outbox events."""
     test_name = "Redis Broker"
 
@@ -298,7 +298,7 @@ async def test_redis_broker():
 # ============================================================================
 
 
-async def test_outbox_pattern():
+async def test_outbox_pattern() -> None:
     """Test the complete outbox pattern flow."""
     test_name = "Outbox Pattern E2E"
 
@@ -383,7 +383,7 @@ async def test_outbox_pattern():
 # ============================================================================
 
 
-async def test_saga_listeners():
+async def test_saga_listeners() -> None:
     """Test saga with listeners for observability."""
     test_name = "Saga Listeners"
 
@@ -396,16 +396,22 @@ async def test_saga_listeners():
         class TrackingListener:
             """Simple listener that tracks calls."""
 
-            def on_saga_start(self, saga_name, saga_id, context):
+            def on_saga_start(self, saga_name: str, saga_id: str, context: dict[str, Any]) -> None:
                 listener_calls.append(f"start:{saga_name}")
 
-            def on_step_enter(self, saga_name, step_name, context):
+            def on_step_enter(
+                self, saga_name: str, step_name: str, context: dict[str, Any]
+            ) -> None:
                 listener_calls.append(f"enter:{step_name}")
 
-            def on_step_success(self, saga_name, step_name, context, result):
+            def on_step_success(
+                self, saga_name: str, step_name: str, context: dict[str, Any], result: object
+            ) -> None:
                 listener_calls.append(f"success:{step_name}")
 
-            def on_saga_complete(self, saga_name, saga_id, context):
+            def on_saga_complete(
+                self, saga_name: str, saga_id: str, context: dict[str, Any]
+            ) -> None:
                 listener_calls.append(f"complete:{saga_name}")
 
         class TrackedSaga(Saga):
@@ -413,7 +419,7 @@ async def test_saga_listeners():
             listeners = [TrackingListener()]
 
             @action("tracked_step")
-            async def tracked_step(self, ctx):
+            async def tracked_step(self, ctx: dict[str, Any]) -> dict[str, Any]:
                 return {"tracked": True}
 
         saga = TrackedSaga()
@@ -447,7 +453,7 @@ async def test_saga_listeners():
 # ============================================================================
 
 
-async def run_all_tests():
+async def run_all_tests() -> None:
     """Run all integration tests."""
     print("\n" + "=" * 70)
     print("🧪 SAGAZ LOCAL INTEGRATION TEST SUITE")
@@ -490,7 +496,7 @@ async def run_all_tests():
         print("🎉 All tests passed! Sagaz is working correctly.")
 
 
-def main():
+def main() -> None:
     """Entry point — provisions containers, runs tests, tears down."""
     global _pg_url, _redis_url
 

@@ -7,40 +7,26 @@ Ensures exactly-once processing despite at-least-once delivery.
 import logging
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
-from typing import TypeVar
+from typing import Any, Protocol, TypeVar
 
-# Optional prometheus metrics
-try:
-    from prometheus_client import Counter, Histogram
-
-    PROMETHEUS_AVAILABLE = True
-except ImportError:
-    PROMETHEUS_AVAILABLE = False
-
-    # No-op fallbacks
-    class _NoOpMetric:
-        def inc(self, *args, **kwargs):
-            pass
-
-        def observe(self, *args, **kwargs):
-            pass
-
-        def labels(self, *args, **kwargs):
-            return self
-
-    def _noop_counter(*args, **kwargs) -> _NoOpMetric:
-        return _NoOpMetric()
-
-    def _noop_histogram(*args, **kwargs) -> _NoOpMetric:
-        return _NoOpMetric()
-
-    Counter = _noop_counter  # type: ignore[misc,assignment]
-    Histogram = _noop_histogram  # type: ignore[misc,assignment]
-
+from sagaz.core.outbox._metrics import PROMETHEUS_AVAILABLE, Counter, Histogram
 
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
+
+
+class InboxStorage(Protocol):
+    """The ``consumer_inbox`` operations of a storage (``PostgreSQLOutboxStorage`` has them)."""
+
+    async def check_and_insert_inbox(
+        self, event_id: str, consumer_name: str, source_topic: str, event_type: str, payload: dict
+    ) -> bool: ...
+
+    async def update_inbox_duration(self, event_id: str, duration_ms: int) -> None: ...
+
+    async def cleanup_inbox(self, consumer_name: str, older_than_days: int) -> int: ...
+
 
 # Metrics (no-op if prometheus not installed)
 INBOX_PROCESSED = Counter(
@@ -74,7 +60,7 @@ class ConsumerInbox:
         )
     """
 
-    def __init__(self, storage, consumer_name: str):
+    def __init__(self, storage: InboxStorage, consumer_name: str) -> None:
         self.storage = storage
         self.consumer_name = consumer_name
 
@@ -134,4 +120,4 @@ class ConsumerInbox:
         )
 
         logger.info(f"Cleaned up {deleted} old inbox entries")
-        return deleted  # type: ignore[no-any-return]
+        return deleted

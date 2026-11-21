@@ -4,7 +4,7 @@ Row mapping for ``PostgreSQLOutboxStorage``: converts ``saga_outbox`` rows into
 """
 
 import json
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
 from sagaz.core.tenant import DEFAULT_TENANT
@@ -19,7 +19,7 @@ class PostgreSQLOutboxRowMappingMixin:
     def _row_to_event(self, row: "asyncpg.Record") -> OutboxEvent:
         """Convert database row to OutboxEvent."""
 
-        def _row_value(key: str, default=None):
+        def _row_value(key: str, default: object = None) -> Any:
             if hasattr(row, "__contains__") and key in row:
                 return row[key]
             if hasattr(row, "get"):

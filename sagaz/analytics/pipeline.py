@@ -37,11 +37,14 @@ Or as a context manager::
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any, TypeGuard
+
+if TYPE_CHECKING:
+    from sagaz.core.storage.saga_log import SagaLogStore
 
 try:
     import duckdb
-except ImportError as exc:  # pragma: no cover
+except ImportError as exc:  # pragma: no cover - the extra is installed in tests
     msg = "DuckDB is required for sagaz analytics. Install with: pip install sagaz[analytics]"
     raise ImportError(msg) from exc
 
@@ -62,7 +65,7 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-def _is_saga_log(source: Any) -> bool:
+def _is_saga_log(source: object) -> TypeGuard[SagaLogStore]:
     from sagaz.core.storage.saga_log import SagaLogStore
 
     return isinstance(source, SagaLogStore)
@@ -79,7 +82,7 @@ class SagaAnalyticsPipeline(_SilverLoaderMixin, _ChoreographyLoaderMixin):
 
     """
 
-    def __init__(self, storage: Any | None = None, *, duckdb_path: str = ":memory:") -> None:
+    def __init__(self, storage: object | None = None, *, duckdb_path: str = ":memory:") -> None:
         self._storage = storage
         self._conn = duckdb.connect(duckdb_path)
         self._bronze = SagaBronzeProcessor(self._conn)

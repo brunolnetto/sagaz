@@ -129,7 +129,7 @@ class MedicalProcedureSchedulingSaga(Saga):
         return {"instructions_sent": True, "fasting_required": True}
 
 
-async def main():
+async def main() -> None:
     saga = MedicalProcedureSchedulingSaga()
     await saga.run(
         {

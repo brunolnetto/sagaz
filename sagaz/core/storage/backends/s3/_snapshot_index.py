@@ -29,7 +29,7 @@ class _S3SagaIndexMixin:
             response = await s3.get_object(Bucket=self.bucket_name, Key=index_key)
             body = await response["Body"].read()
             index_data = json.loads(body.decode("utf-8"))
-        except s3.exceptions.NoSuchKey:  # type: ignore[attr-defined]
+        except s3.exceptions.NoSuchKey:
             index_data = {"saga_id": str(saga_id), "snapshots": []}
 
         # Add new snapshot
@@ -78,5 +78,5 @@ class _S3SagaIndexMixin:
                 Body=json.dumps(index_data).encode("utf-8"),
                 ContentType="application/json",
             )
-        except s3.exceptions.NoSuchKey:  # type: ignore[attr-defined]
+        except s3.exceptions.NoSuchKey:
             pass

@@ -22,7 +22,7 @@ def _init_k8s(
     separate_outbox: bool = False,
     oltp_storage: str = "postgresql",
     outbox_storage: str = "same",
-):
+) -> None:
     """Copy Kubernetes manifests from the library to the current directory."""
     _log_k8s_init_start(with_ha, oltp_storage)
 
@@ -38,7 +38,7 @@ def _init_k8s(
         click.echo(f"Error copying manifests: {e}")
 
 
-def _log_k8s_init_start(with_ha: bool, oltp_storage: str):
+def _log_k8s_init_start(with_ha: bool, oltp_storage: str) -> None:
     """Log the start of K8s initialization."""
     if not console:
         return
@@ -65,7 +65,7 @@ def _prepare_k8s_directory() -> bool:
 
 def _copy_k8s_manifests(
     with_ha: bool, separate_outbox: bool = False, oltp_storage: str = "postgresql"
-):
+) -> None:
     """Copy base Kubernetes manifests."""
     if oltp_storage == "postgresql":
         if with_ha:
@@ -95,7 +95,7 @@ def _copy_k8s_manifests(
         _copy_resource(f"k8s/{manifest}", f"k8s/{manifest}")
 
 
-def _copy_k8s_observability(with_observability: bool):
+def _copy_k8s_observability(with_observability: bool) -> None:
     """Copy K8s observability manifests if enabled."""
     if with_observability:
         _copy_resource("k8s/prometheus-monitoring.yaml", "k8s/prometheus-monitoring.yaml")
@@ -105,7 +105,7 @@ def _copy_k8s_observability(with_observability: bool):
         click.echo("  SKIP k8s/monitoring (observability disabled)")
 
 
-def _copy_k8s_benchmarks(with_benchmarks: bool):
+def _copy_k8s_benchmarks(with_benchmarks: bool) -> None:
     """Copy K8s benchmark configs if enabled."""
     if with_benchmarks:
         _create_k8s_benchmark_config()
@@ -113,7 +113,7 @@ def _copy_k8s_benchmarks(with_benchmarks: bool):
         click.echo("  SKIP k8s/benchmark (use --with-benchmarks to include)")
 
 
-def _log_k8s_init_complete(with_ha: bool):
+def _log_k8s_init_complete(with_ha: bool) -> None:
     """Log completion message for K8s initialization."""
     if not console:
         return
@@ -127,7 +127,7 @@ def _log_k8s_init_complete(with_ha: bool):
         console.print("  - pgbouncer-ro:6433 (read pool)")
 
 
-def _create_k8s_benchmark_config():
+def _create_k8s_benchmark_config() -> None:
     """Create Kubernetes benchmark job configuration."""
     Path("k8s/benchmark").mkdir(parents=True, exist_ok=True)
 

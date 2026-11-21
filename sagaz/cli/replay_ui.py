@@ -9,10 +9,15 @@ from typing import TYPE_CHECKING, Any
 import click
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from rich.console import Console as RichConsole
     from rich.json import JSON as RichJSON  # noqa: N811
     from rich.panel import Panel as RichPanel
     from rich.table import Table as RichTable
+
+    from sagaz.core.replay import ReplayResult
+    from sagaz.core.replay.time_travel import HistoricalState
 
 _console: RichConsole | None
 JSON: type[RichJSON] | None
@@ -49,9 +54,9 @@ def display_replay_config(
     context_override: dict,
     dry_run: bool,
     rich_available: bool | None = None,
-    echo_func=None,
-    console=None,
-):
+    echo_func: Callable[..., object] | None = None,
+    console: RichConsole | None = None,
+) -> None:
     """Display replay configuration."""
     if rich_available is None:
         rich_available = _HAS_RICH
@@ -65,7 +70,14 @@ def display_replay_config(
         echo(f"Replaying saga {saga_id} from step {from_step}...")
 
 
-def _display_replay_config_rich(con, saga_id, from_step, storage, context_override, dry_run):
+def _display_replay_config_rich(
+    con: RichConsole,
+    saga_id: str,
+    from_step: str,
+    storage: str,
+    context_override: dict,
+    dry_run: bool,
+) -> None:
     """Internal Rich display for replay config."""
     if Panel is None:
         return
@@ -84,7 +96,11 @@ def _display_replay_config_rich(con, saga_id, from_step, storage, context_overri
     )
 
 
-def display_success(rich_available: bool | None = None, echo_func=None, console=None):
+def display_success(
+    rich_available: bool | None = None,
+    echo_func: Callable[..., object] | None = None,
+    console: RichConsole | None = None,
+) -> None:
     """Display success message."""
     if rich_available is None:
         rich_available = _HAS_RICH
@@ -98,7 +114,11 @@ def display_success(rich_available: bool | None = None, echo_func=None, console=
         echo("✓ Replay completed successfully")
 
 
-def display_failure(rich_available: bool | None = None, echo_func=None, console=None):
+def display_failure(
+    rich_available: bool | None = None,
+    echo_func: Callable[..., object] | None = None,
+    console: RichConsole | None = None,
+) -> None:
     """Display failure message."""
     if rich_available is None:
         rich_available = _HAS_RICH
@@ -113,8 +133,12 @@ def display_failure(rich_available: bool | None = None, echo_func=None, console=
 
 
 def handle_exception(
-    e: Exception, verbose: bool, rich_available: bool | None = None, echo_func=None, console=None
-):
+    e: Exception,
+    verbose: bool,
+    rich_available: bool | None = None,
+    echo_func: Callable[..., object] | None = None,
+    console: RichConsole | None = None,
+) -> None:
     """Handle and display exception."""
     if rich_available is None:
         rich_available = _HAS_RICH
@@ -137,9 +161,9 @@ def show_checkpoints(
     checkpoints: list,
     verbose: bool,
     rich_available: bool | None = None,
-    echo_func=None,
-    console=None,
-):
+    echo_func: Callable[..., object] | None = None,
+    console: RichConsole | None = None,
+) -> None:
     """Display available checkpoints."""
     if not verbose:
         return
@@ -156,7 +180,7 @@ def show_checkpoints(
         _show_checkpoints_text(echo, checkpoints)
 
 
-def _show_checkpoints_rich(con, checkpoints):
+def _show_checkpoints_rich(con: RichConsole, checkpoints: list[dict[str, Any]]) -> None:
     """Internal Rich display for checkpoints."""
     if Table is None:
         return
@@ -169,7 +193,7 @@ def _show_checkpoints_rich(con, checkpoints):
     con.print(table)
 
 
-def _show_checkpoints_text(echo, checkpoints):
+def _show_checkpoints_text(echo: Callable[..., object], checkpoints: list[dict[str, Any]]) -> None:
     """Internal Text display for checkpoints."""
     echo("\nAvailable checkpoints:")
     for cp in checkpoints:
@@ -177,13 +201,13 @@ def _show_checkpoints_text(echo, checkpoints):
 
 
 def show_replay_result(
-    result,
+    result: ReplayResult,
     verbose: bool,
     dry_run: bool,
     rich_available: bool | None = None,
-    echo_func=None,
-    console=None,
-):
+    echo_func: Callable[..., object] | None = None,
+    console: RichConsole | None = None,
+) -> None:
     """Display replay result."""
     if not (verbose or dry_run):
         return
@@ -200,7 +224,7 @@ def show_replay_result(
         _show_replay_result_text(echo, result)
 
 
-def _show_replay_result_rich(con, result):
+def _show_replay_result_rich(con: RichConsole, result: ReplayResult) -> None:
     """Internal Rich display for replay result."""
     if Panel is None:
         return
@@ -218,7 +242,7 @@ def _show_replay_result_rich(con, result):
     )
 
 
-def _show_replay_result_text(echo, result):
+def _show_replay_result_text(echo: Callable[..., object], result: ReplayResult) -> None:
     """Internal Text display for replay result."""
     echo(f"\nReplay status: {result.replay_status.value}")
     echo(f"Original saga ID: {result.original_saga_id}")
@@ -227,7 +251,9 @@ def _show_replay_result_text(echo, result):
         echo(f"Error: {result.error_message}")
 
 
-def display_key_value(key: str, value: Any, output_format: str, echo_func=None):
+def display_key_value(
+    key: str, value: Any, output_format: str, echo_func: Callable[..., object] | None = None
+) -> None:
     """Display a key-value pair."""
     echo = echo_func or click.echo
     if output_format == "json":
@@ -239,8 +265,12 @@ def display_key_value(key: str, value: Any, output_format: str, echo_func=None):
 
 
 def display_full_state(
-    state, output_format: str, rich_available: bool | None = None, echo_func=None, console=None
-):
+    state: HistoricalState,
+    output_format: str,
+    rich_available: bool | None = None,
+    echo_func: Callable[..., object] | None = None,
+    console: RichConsole | None = None,
+) -> None:
     """Display full saga state."""
     if rich_available is None:
         rich_available = _HAS_RICH
@@ -258,7 +288,7 @@ def display_full_state(
         _display_state_text(state, echo_func=echo)
 
 
-def _display_state_table(state, console=None):
+def _display_state_table(state: HistoricalState, console: RichConsole | None = None) -> None:
     """Display state as table (Rich)."""
     if Table is None:
         return
@@ -283,7 +313,9 @@ def _display_state_table(state, console=None):
         con.print(JSON.from_data(state.context))
 
 
-def _display_state_text(state, echo_func=None):
+def _display_state_text(
+    state: HistoricalState, echo_func: Callable[..., object] | None = None
+) -> None:
     """Display state as text."""
     echo = echo_func or click.echo
     echo(f"Saga ID: {state.saga_id}")
@@ -298,8 +330,12 @@ def _display_state_text(state, echo_func=None):
 
 
 def display_changes(
-    changes: list, saga_id: Any, rich_available: bool | None = None, echo_func=None, console=None
-):
+    changes: list,
+    saga_id: Any,
+    rich_available: bool | None = None,
+    echo_func: Callable[..., object] | None = None,
+    console: RichConsole | None = None,
+) -> None:
     """Display state changes."""
     if rich_available is None:
         rich_available = _HAS_RICH
@@ -313,7 +349,9 @@ def display_changes(
         _display_changes_text(echo, changes, saga_id)
 
 
-def _display_changes_rich(con, changes, saga_id):
+def _display_changes_rich(
+    con: RichConsole, changes: list[HistoricalState], saga_id: object
+) -> None:
     """Internal Rich display for state changes."""
     if Table is None:
         return
@@ -338,7 +376,9 @@ def _display_changes_rich(con, changes, saga_id):
     con.print(f"\n[dim]Total: {len(changes)} changes[/dim]")
 
 
-def _display_changes_text(echo, changes, saga_id):
+def _display_changes_text(
+    echo: Callable[..., object], changes: list[HistoricalState], saga_id: object
+) -> None:
     """Internal Text display for state changes."""
     echo(f"State changes for {saga_id}:")
     for i, change in enumerate(changes, 1):

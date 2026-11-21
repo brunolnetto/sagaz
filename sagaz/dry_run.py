@@ -42,14 +42,14 @@ class DryRunEngine(_DryRunValidationMixin, _DryRunAnalysisMixin):
         ...     print(f"Errors: {result.validation_errors}")
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize dry-run engine."""
 
     async def run(
         self,
         saga: object,
         context: dict[str, Any],
-        mode: DryRunMode,  # type: ignore
+        mode: DryRunMode,
     ) -> DryRunResult:
         """Run saga in dry-run mode.
 

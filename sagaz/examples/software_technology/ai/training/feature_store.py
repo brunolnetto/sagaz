@@ -20,7 +20,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def successful_pipeline_demo():
+async def successful_pipeline_demo() -> None:
     """Demonstrate successful feature pipeline execution."""
 
     # Reusable saga instance
@@ -53,7 +53,7 @@ async def successful_pipeline_demo():
     await saga.run(pipeline_data)
 
 
-async def failed_pipeline_demo():
+async def failed_pipeline_demo() -> None:
     """Demonstrate pipeline failure with automatic rollback."""
 
     # Use very strict validation rules to increase failure probability
@@ -84,7 +84,7 @@ async def failed_pipeline_demo():
         pass
 
 
-async def main():
+async def main() -> None:
     """Run feature pipeline scenarios."""
     # Successful pipeline
     await successful_pipeline_demo()

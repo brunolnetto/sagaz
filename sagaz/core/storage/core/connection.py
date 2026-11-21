@@ -42,7 +42,7 @@ class ConnectionConfig:
     # Additional connection-specific options
     options: dict[str, Any] | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.options is None:
             self.options = {}
 
@@ -91,7 +91,7 @@ class ConnectionManager(ABC, Generic[T]):
             await conn.execute(...)
     """
 
-    def __init__(self, config: ConnectionConfig):
+    def __init__(self, config: ConnectionConfig) -> None:
         self.config = config
         self._initialized = False
 
@@ -185,7 +185,7 @@ class ConnectionManager(ABC, Generic[T]):
         await self.initialize()
         return self
 
-    async def __aexit__(self, *args) -> None:
+    async def __aexit__(self, *args: Any) -> None:
         await self.close()
 
 
@@ -197,7 +197,7 @@ class SingleConnectionManager(ConnectionManager[T]):
     Useful for SQLite or simple Redis connections.
     """
 
-    def __init__(self, config: ConnectionConfig):
+    def __init__(self, config: ConnectionConfig) -> None:
         super().__init__(config)
         self._connection: T | None = None
 

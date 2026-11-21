@@ -282,7 +282,7 @@ class SagaStorage(ABC):
         """Async context manager entry."""
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+    async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
         """Async context manager exit."""
 
     async def close(self) -> None:
@@ -291,6 +291,17 @@ class SagaStorage(ABC):
 
         Override if your backend needs cleanup.
         """
+
+
+def implements(storage: object, method: str) -> bool:
+    """Whether *storage* really provides *method*, not just ``SagaStorage``'s default.
+
+    ``export_all`` and ``import_record`` have defaults that raise ``NotImplementedError``,
+    so ``hasattr`` is true for every saga storage: this tells a real implementation apart.
+    """
+    found = getattr(storage, method, None)
+    default = getattr(SagaStorage, method, None)
+    return found is not None and getattr(found, "__func__", found) is not default
 
 
 # ==========================================================================
@@ -310,7 +321,7 @@ class SagaStepState:
         executed_at: datetime | None = None,
         compensated_at: datetime | None = None,
         retry_count: int = 0,
-    ):
+    ) -> None:
         self.name = name
         self.status = status
         self.result = result

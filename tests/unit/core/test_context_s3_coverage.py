@@ -5,6 +5,8 @@ import pytest
 
 from sagaz.core.context import HAS_AIOBOTO3, S3ExternalStorage
 
+TEST_KEY = "test-signing-key-0123456789"
+
 
 # 1. Test missing aioboto3
 def test_init_raises_if_missing_aioboto3():
@@ -12,7 +14,7 @@ def test_init_raises_if_missing_aioboto3():
     # S3ExternalStorage.__init__ reads it.
     with patch("sagaz.core.context._storage.HAS_AIOBOTO3", False):
         with pytest.raises(ImportError, match="aioboto3 is required"):
-            S3ExternalStorage("bucket")
+            S3ExternalStorage("bucket", signing_key=TEST_KEY)
 
 
 # 2. Test malformed S3 URIs
@@ -21,7 +23,7 @@ class TestS3MalformedURIs:
     @pytest.fixture
     def s3_storage(self):
         # Clean mock without needing full session logic for these simple tests
-        return S3ExternalStorage("bucket")
+        return S3ExternalStorage("bucket", signing_key=TEST_KEY)
 
     @pytest.mark.asyncio
     async def test_load_malformed_uri(self, s3_storage):
@@ -54,7 +56,7 @@ class TestS3Errors:
     @pytest.fixture
     def s3_storage(self, mock_session):
         with patch("sagaz.core.context.aioboto3.Session", return_value=mock_session):
-            yield S3ExternalStorage("bucket")
+            yield S3ExternalStorage("bucket", signing_key=TEST_KEY)
 
     @pytest.mark.asyncio
     async def test_load_nosuchkey_raises_filenotfound(self, s3_storage, mock_s3_client):

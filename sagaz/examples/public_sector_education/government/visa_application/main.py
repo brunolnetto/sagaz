@@ -94,7 +94,7 @@ class VisaApplicationSaga(Saga):
         return {"decision": "APPROVED", "visa_class": "B1/B2", "validity_years": 10}
 
 
-async def main():
+async def main() -> None:
     saga = VisaApplicationSaga()
     await saga.run(
         {

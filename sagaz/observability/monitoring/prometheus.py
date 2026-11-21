@@ -30,19 +30,27 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from prometheus_client import CollectorRegistry
+
     from sagaz.core.types import SagaStatus
 
 # Check if prometheus_client is installed
-try:
+# mypy reads the imports alone: no ignore is needed with or without the dependency.
+if TYPE_CHECKING:
     from prometheus_client import Counter, Gauge, Histogram, start_http_server
 
     PROMETHEUS_AVAILABLE = True
-except ImportError:
-    PROMETHEUS_AVAILABLE = False
-    Counter: Any = None  # type: ignore[no-redef]
-    Gauge: Any = None  # type: ignore[no-redef]
-    Histogram: Any = None  # type: ignore[no-redef]
-    start_http_server: Any = None  # type: ignore[no-redef]
+else:
+    try:
+        from prometheus_client import Counter, Gauge, Histogram, start_http_server
+
+        PROMETHEUS_AVAILABLE = True
+    except ImportError:
+        PROMETHEUS_AVAILABLE = False
+        Counter = None
+        Gauge = None
+        Histogram = None
+        start_http_server = None
 
 
 logger = logging.getLogger(__name__)
@@ -69,7 +77,7 @@ class PrometheusMetrics:
         ...     listeners = [MetricsSagaListener(metrics=metrics)]
     """
 
-    def __init__(self, prefix: str = "saga", registry: Any = None):
+    def __init__(self, prefix: str = "saga", registry: "CollectorRegistry | None" = None) -> None:
         """
         Initialize Prometheus metrics.
 
@@ -194,13 +202,15 @@ class PrometheusMetrics:
         self._active_count.labels(saga_name=saga_name).dec()
 
 
-def start_metrics_server(port: int = 8000, addr: str = "0.0.0.0") -> None:
+def start_metrics_server(port: int = 8000, addr: str = "0.0.0.0") -> None:  # nosec B104 - container default; pass addr="127.0.0.1" to keep it local
     """
     Start a Prometheus HTTP metrics server.
 
     Args:
         port: Port to listen on (default: 8000)
-        addr: Address to bind to (default: 0.0.0.0 for all interfaces)
+        addr: Address to bind to. The default, 0.0.0.0, serves every interface so that
+            Prometheus can scrape a container; use "127.0.0.1" outside one to keep the
+            metrics local.
 
     Example:
         >>> from sagaz.observability.monitoring.prometheus import start_metrics_server

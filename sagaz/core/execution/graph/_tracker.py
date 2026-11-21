@@ -6,7 +6,7 @@ class _CompensationTracker:
 
     __slots__ = ("errors", "executed", "failed", "failed_set", "should_stop", "skipped")
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialise all tracking collections to empty/default state."""
         self.executed: list[str] = []
         self.failed: list[str] = []

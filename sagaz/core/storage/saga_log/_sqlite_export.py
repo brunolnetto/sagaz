@@ -9,10 +9,13 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.storage.saga_log import _codec as codec
 from sagaz.core.storage.saga_log._model import ExportBatch, ExportedEvent
+
+if TYPE_CHECKING:
+    from aiosqlite import Connection
 
 _READ = (
     "SELECT e.rowid AS position, e.*, t.coordination, t.flow FROM saga_log_event e"
@@ -53,7 +56,7 @@ class SQLiteExportMixin:
             await self._upsert_cursor(conn, name, position)
 
     @staticmethod
-    async def _upsert_cursor(conn: Any, name: str, position: str) -> None:
+    async def _upsert_cursor(conn: Connection, name: str, position: str) -> None:
         await conn.execute(
             "INSERT INTO saga_export_cursor (name, position, updated_at) VALUES (?, ?, ?)"
             " ON CONFLICT (name) DO UPDATE SET position = excluded.position,"

@@ -5,6 +5,8 @@ ML training pipeline saga: dataset validation through model deployment, with rol
 import asyncio
 import logging
 import random
+import shutil
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -53,8 +55,8 @@ class MLTrainingPipelineSaga(Saga):
             raise SagaStepError(msg)
 
         # Create temporary validation artifacts
-        temp_dir = Path("/tmp") / f"ml_validation_{experiment_id}"
-        temp_dir.mkdir(parents=True, exist_ok=True)
+        # mkdtemp: a fresh, private directory, never one an attacker created beforehand.
+        temp_dir = Path(tempfile.mkdtemp(prefix=f"ml_validation_{experiment_id}_"))
         validation_report = temp_dir / "validation_report.json"
         validation_report.write_text('{"status": "passed"}')
 
@@ -77,7 +79,7 @@ class MLTrainingPipelineSaga(Saga):
         temp_dir = ctx.get("temp_dir")
         if temp_dir:
             logger.info(f"Removing validation directory: {temp_dir}")
-            # In production: shutil.rmtree(temp_dir)
+            shutil.rmtree(temp_dir, ignore_errors=True)
             await asyncio.sleep(0.1)
 
     @action("engineer_features", depends_on=["validate_dataset"])
@@ -95,8 +97,7 @@ class MLTrainingPipelineSaga(Saga):
         feature_importance_scores = [random.random() for _ in range(engineered_features)]
 
         # Save feature artifacts
-        feature_dir = Path("/tmp") / f"ml_features_{experiment_id}"
-        feature_dir.mkdir(parents=True, exist_ok=True)
+        feature_dir = Path(tempfile.mkdtemp(prefix=f"ml_features_{experiment_id}_"))
 
         transformer_path = feature_dir / "feature_transformer.pkl"
         transformer_path.write_text("# Pickle transformer here")
@@ -125,7 +126,7 @@ class MLTrainingPipelineSaga(Saga):
         feature_dir = ctx.get("feature_dir")
         if feature_dir:
             logger.info(f"Removing feature directory: {feature_dir}")
-            # In production: shutil.rmtree(feature_dir)
+            shutil.rmtree(feature_dir, ignore_errors=True)
             await asyncio.sleep(0.1)
 
     @action("train_model", depends_on=["engineer_features"])
@@ -165,8 +166,7 @@ class MLTrainingPipelineSaga(Saga):
         await asyncio.sleep(0.5)  # Simulate training time
 
         # Save model artifacts
-        model_dir = Path("/tmp") / f"ml_model_{experiment_id}"
-        model_dir.mkdir(parents=True, exist_ok=True)
+        model_dir = Path(tempfile.mkdtemp(prefix=f"ml_model_{experiment_id}_"))
 
         model_path = model_dir / f"{model_name}.h5"
         model_path.write_text("# Model weights here")
@@ -194,7 +194,7 @@ class MLTrainingPipelineSaga(Saga):
         model_dir = ctx.get("model_dir")
         if model_dir:
             logger.info(f"Removing model directory: {model_dir}")
-            # In production: shutil.rmtree(model_dir)
+            shutil.rmtree(model_dir, ignore_errors=True)
             await asyncio.sleep(0.1)
 
     @action("evaluate_model", depends_on=["train_model"])

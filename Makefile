@@ -1,20 +1,23 @@
-.PHONY: help test coverage lint complexity quality-gate format check clean clean-containers install dev docs
+# Every tool runs inside the project's uv environment, as in CI. Override with RUN=
+# (empty) to use whatever is on PATH, e.g. an activated virtualenv.
+RUN ?= uv run
 
-# Default target
+PYTHON := $(RUN) python
+PYTEST := $(RUN) pytest
+RUFF := $(RUN) ruff
+MYPY := $(RUN) mypy
+RADON := $(RUN) radon
+
 .DEFAULT_GOAL := help
+.PHONY: help test coverage lint lint-fix format format-check typecheck complexity \
+	quality-gate security check ci install dev clean clean-containers version build \
+	benchmark info
 
-# Colors for output
 CYAN := \033[36m
 GREEN := \033[32m
 YELLOW := \033[33m
 RED := \033[31m
 RESET := \033[0m
-
-# Project info
-PYTHON := python3
-PYTEST := pytest
-COVERAGE := coverage
-RADON := radon
 
 # Arguments
 TYPE ?= fast
@@ -22,299 +25,184 @@ FORMAT ?= terminal
 MODE ?=
 MISSING ?= no
 PARALLEL ?= yes
-# xdist workers; each worker may start its own test containers, so keep it bounded
-WORKERS ?= 4
+# xdist workers. Each worker may start its own test containers, so keep this small.
+WORKERS ?= 2
+
+ifeq ($(PARALLEL),yes)
+XDIST := -n $(WORKERS)
+else
+XDIST :=
+endif
 
 help: ## Show this help message
 	@echo "$(CYAN)Sagaz Development Makefile$(RESET)"
 	@echo ""
-	@echo "$(GREEN)Main Commands:$(RESET)"
-	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | grep -v "##@" | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(CYAN)%-15s$(RESET) %s\n", $$1, $$2}'
+	@echo "$(GREEN)Targets:$(RESET)"
+	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(CYAN)%-17s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(YELLOW)Arguments:$(RESET)"
-	@echo "  TYPE=<type>       For test: fast|all|integration|performance|watch (default: fast)"
-	@echo "  FORMAT=<format>   For coverage: terminal|html|xml (default: terminal)"
-	@echo "  MISSING=<yes|no>  For coverage: show missing lines (default: no)"
-	@echo "  MODE=<mode>       For complexity: summary|full|json|mi|raw (default: summary)"
-	@echo "  PARALLEL=<yes|no> For test/coverage: enable parallel execution (default: yes)"
-	@echo ""
-	@echo "$(CYAN)Note:$(RESET) Tests run in parallel by default (pytest -n $(WORKERS); override with WORKERS=N)"
+	@echo "  TYPE=<type>       test: fast|all|integration|performance|watch (default: fast)"
+	@echo "  FORMAT=<format>   coverage: terminal|html|xml|json (default: terminal)"
+	@echo "  MISSING=<yes|no>  coverage: show missing lines (default: no)"
+	@echo "  MODE=<mode>       complexity: summary|full|json|mi|raw; clean: all"
+	@echo "  PARALLEL=<yes|no> test/coverage: run with pytest-xdist (default: yes)"
+	@echo "  WORKERS=<n>       xdist workers when PARALLEL=yes (default: 2)"
+	@echo "  RUN=<prefix>      command prefix for every tool (default: uv run)"
 	@echo ""
 	@echo "$(YELLOW)Examples:$(RESET)"
-	@echo "  make test                    # Run fast tests (parallel)"
-	@echo "  make test TYPE=all           # Run all tests (parallel)"
-	@echo "  make coverage                # Coverage report"
-	@echo "  make coverage MISSING=yes    # Show missing lines"
-	@echo "  make coverage FORMAT=html    # HTML coverage report"
-	@echo "  make complexity MODE=full    # Detailed complexity"
-	@echo "  make check                   # Run all checks"
+	@echo "  make dev                     # uv sync --group dev"
+	@echo "  make test                    # fast tests"
+	@echo "  make test TYPE=all           # every test, containers included"
+	@echo "  make coverage FORMAT=html    # HTML report in htmlcov/"
+	@echo "  make check                   # the gates CI enforces, then tests"
+	@echo "  make build                   # sdist + wheel, verified"
 
 # ============================================================================
 # Testing
 # ============================================================================
 
-test: ## Run tests (TYPE=fast|all|integration|performance|watch, PARALLEL=yes|no)
+test: ## Run tests (TYPE=fast|all|integration|performance|watch, PARALLEL, WORKERS)
 	@echo "$(GREEN)Running tests (TYPE=$(TYPE), PARALLEL=$(PARALLEL))...$(RESET)"
 ifeq ($(TYPE),all)
-ifeq ($(PARALLEL),yes)
-	$(PYTEST) -n $(WORKERS) -v -m "" --parallel-containers
-else
-	$(PYTEST) -v -m "" --parallel-containers
-endif
+	$(PYTEST) $(XDIST) -v -m "" --parallel-containers
 else ifeq ($(TYPE),integration)
-ifeq ($(PARALLEL),yes)
-	$(PYTEST) -n $(WORKERS) -v -m integration --parallel-containers
-else
-	$(PYTEST) -v -m integration --parallel-containers
-endif
+	$(PYTEST) $(XDIST) -v -m integration --parallel-containers
 else ifeq ($(TYPE),performance)
 	$(PYTEST) -v -m performance
 else ifeq ($(TYPE),watch)
-	@if command -v ptw >/dev/null 2>&1; then \
-		ptw -- -v; \
-	else \
-		echo "$(RED)Error: pytest-watch not installed. Run: pip install pytest-watch$(RESET)"; \
-		exit 1; \
-	fi
+	$(RUN) ptw -- -v
 else
-ifeq ($(PARALLEL),yes)
-	$(PYTEST) -n $(WORKERS) -v
-else
-	$(PYTEST) -v
+	$(PYTEST) $(XDIST) -v
 endif
-endif
+
+benchmark: ## Run performance benchmarks (same as make test TYPE=performance)
+	@$(MAKE) --no-print-directory test TYPE=performance
 
 # ============================================================================
 # Coverage
 # ============================================================================
 
-coverage: ## Run tests with coverage (FORMAT=terminal|html|xml, MISSING=yes, PARALLEL=yes|no)
+COV_TERM := $(if $(filter yes,$(MISSING)),--cov-report=term-missing,--cov-report=term)
+
+coverage: ## Run tests with coverage (FORMAT=terminal|html|xml|json, MISSING=yes, PARALLEL)
 	@echo "$(GREEN)Running tests with coverage (FORMAT=$(FORMAT), PARALLEL=$(PARALLEL))...$(RESET)"
-ifeq ($(PARALLEL),yes)
-	$(eval PYTEST_OPTS := -n $(WORKERS))
-else
-	$(eval PYTEST_OPTS := )
-endif
 ifeq ($(FORMAT),html)
-	@if [ "$(MISSING)" = "yes" ]; then \
-		$(PYTEST) $(PYTEST_OPTS) --cov=sagaz --cov-report=html --cov-report=term-missing; \
-	else \
-		$(PYTEST) $(PYTEST_OPTS) --cov=sagaz --cov-report=html; \
-	fi
+	$(PYTEST) $(XDIST) --cov=sagaz --cov-report=html $(if $(filter yes,$(MISSING)),--cov-report=term-missing,)
 	@echo "$(GREEN)✓ HTML report at htmlcov/index.html$(RESET)"
-	@echo "$(YELLOW)Open with: open htmlcov/index.html$(RESET)"
 else ifeq ($(FORMAT),xml)
-	$(PYTEST) $(PYTEST_OPTS) --cov=sagaz --cov-report=xml
-	@echo "$(GREEN)✓ XML report generated$(RESET)"
+	$(PYTEST) $(XDIST) --cov=sagaz --cov-report=xml
+	@echo "$(GREEN)✓ XML report at coverage.xml$(RESET)"
+else ifeq ($(FORMAT),json)
+	$(PYTEST) $(XDIST) --cov=sagaz --cov-report=json:coverage.json --cov-report=xml
+	@echo "$(GREEN)✓ coverage.json (read by make quality-gate) and coverage.xml$(RESET)"
 else
-	@if [ "$(MISSING)" = "yes" ]; then \
-		$(PYTEST) $(PYTEST_OPTS) --cov=sagaz --cov-report=term-missing; \
-	else \
-		$(PYTEST) $(PYTEST_OPTS) --cov=sagaz --cov-report=term; \
-	fi
-	@echo ""
-	@echo "$(YELLOW)Tips:$(RESET)"
-	@echo "  make coverage MISSING=yes      # Show missing lines"
-	@echo "  make coverage FORMAT=html      # HTML report"
-	@echo "  make coverage PARALLEL=no      # Disable parallel execution"
+	$(PYTEST) $(XDIST) --cov=sagaz $(COV_TERM)
 endif
 
 # ============================================================================
-# Code Quality
+# Code quality (the same commands CI runs)
 # ============================================================================
 
-lint: ## Run linting (ruff check)
-	@echo "$(GREEN)Running linter...$(RESET)"
-	@if command -v ruff >/dev/null 2>&1; then \
-		ruff check sagaz/ tests/; \
-	else \
-		echo "$(YELLOW)Warning: ruff not installed. Install with: pip install ruff$(RESET)"; \
-		exit 1; \
-	fi
+lint: ## Lint with ruff; check that suppression comments say what and why
+	$(RUFF) check sagaz/ tests/
+	$(PYTHON) scripts/check_suppressions.py
 
-lint-fix: ## Auto-fix linting issues
-	@echo "$(GREEN)Auto-fixing linting issues...$(RESET)"
-	@if command -v ruff >/dev/null 2>&1; then \
-		ruff check --fix sagaz/ tests/; \
-	else \
-		echo "$(RED)Error: ruff not installed$(RESET)"; \
-		exit 1; \
-	fi
+lint-fix: ## Lint with ruff and apply its fixes
+	$(RUFF) check --fix sagaz/ tests/
 
 format: ## Format code with ruff
-	@echo "$(GREEN)Formatting code...$(RESET)"
-	@if command -v ruff >/dev/null 2>&1; then \
-		ruff format sagaz/ tests/; \
-		echo "$(GREEN)✓ Code formatted$(RESET)"; \
-	else \
-		echo "$(RED)Error: ruff not installed$(RESET)"; \
-		exit 1; \
-	fi
+	$(RUFF) format sagaz/ tests/
 
-format-check: ## Check if code is formatted
-	@echo "$(GREEN)Checking code formatting...$(RESET)"
-	@if command -v ruff >/dev/null 2>&1; then \
-		ruff format --check sagaz/ tests/; \
-	else \
-		echo "$(RED)Error: ruff not installed$(RESET)"; \
-		exit 1; \
-	fi
+format-check: ## Check formatting without changing files
+	$(RUFF) format --check sagaz/ tests/
 
-# ============================================================================
-# Complexity Analysis
-# ============================================================================
+typecheck: ## Type-check with mypy; check the typing budget (it can only go down)
+	$(MYPY) sagaz/ --ignore-missing-imports
+	$(PYTHON) scripts/check_typing_budget.py
 
-complexity: ## Show cyclomatic complexity (MODE=summary|full|json|mi|raw)
-	@echo "$(GREEN)Complexity Analysis (MODE=$(MODE))...$(RESET)"
+# With a coverage.json (make coverage FORMAT=json), the gate also reports coverage and
+# requires 95%, as CI does; without one, it checks sizes, complexity and maintainability.
+ifneq ($(wildcard coverage.json),)
+GATE_SCOPE := --coverage coverage.json --min-coverage 95
+else
+GATE_SCOPE := --only sizes,cc,mi
+endif
+
+quality-gate: ## Structural gate: CC <= 10, modules <= 400 lines, MI >= 20; coverage >= 95% if coverage.json exists
+	$(RUN) codebase-stats --root sagaz $(GATE_SCOPE) --format summary
+
+security: ## Security scan with bandit
+	$(RUN) bandit -r sagaz/ -c pyproject.toml -ll
+
+complexity: ## Show radon metrics (MODE=summary|full|json|mi|raw); informational
 ifeq ($(MODE),full)
-	@echo "$(CYAN)=== Full Complexity Report ===$(RESET)"
 	$(RADON) cc sagaz/ -a -s
 else ifeq ($(MODE),json)
-	@echo "$(GREEN)Generating JSON report...$(RESET)"
 	$(RADON) cc sagaz/ -j > complexity-report.json
 	@echo "$(GREEN)✓ Saved to complexity-report.json$(RESET)"
 else ifeq ($(MODE),mi)
-	@echo "$(CYAN)=== Maintainability Index ===$(RESET)"
-	@echo ""
 	$(RADON) mi sagaz/ -s -n B
-	@echo ""
 	@echo "$(YELLOW)Legend: A=100-20 (highly maintainable), B=19-10 (maintainable), C=9-0 (difficult)$(RESET)"
 else ifeq ($(MODE),raw)
-	@echo "$(CYAN)=== Raw Code Metrics ===$(RESET)"
 	$(RADON) raw sagaz/ -s
 else
-	@echo "$(CYAN)=== Cyclomatic Complexity (C+ only) ===$(RESET)"
-	@echo ""
 	$(RADON) cc sagaz/ -a -s -n C
-	@echo ""
-	@echo "$(YELLOW)Legend: A=1-5 (simple), B=6-10 (easy), C=11-20 (moderate), D=21-50 (complex), F=50+ (very complex)$(RESET)"
-	@echo "$(YELLOW)For full report: make complexity MODE=full$(RESET)"
+	@echo "$(YELLOW)Legend: A=1-5, B=6-10, C=11-20, D=21-50, F=50+. Full report: make complexity MODE=full$(RESET)"
 endif
 
-# ============================================================================
-# Security
-# ============================================================================
+check: lint format-check typecheck quality-gate test ## Run the CI gates, then the fast tests
+	@echo "$(GREEN)✓ All checks passed$(RESET)"
 
-quality-gate: ## Structural gate (codebase-stats): CC <= 10, modules <= 400 lines, MI >= 20
-	codebase-stats --root sagaz --format summary
-
-security: ## Run security checks with bandit
-	@echo "$(GREEN)Running security checks...$(RESET)"
-	@if command -v bandit >/dev/null 2>&1; then \
-		bandit -r sagaz/ -ll; \
-	else \
-		echo "$(YELLOW)Warning: bandit not installed. Install with: pip install bandit$(RESET)"; \
-	fi
-
-# ============================================================================
-# Combined Checks
-# ============================================================================
-
-check: lint complexity test ## Run all checks (lint + complexity + test)
-	@echo ""
-	@echo "$(GREEN)✓ All checks passed!$(RESET)"
-
-ci: ## Run CI checks (lint + format-check + coverage xml)
-	@echo "$(GREEN)Running CI checks...$(RESET)"
-	@$(MAKE) lint
-	@$(MAKE) format MODE=check
-	@$(MAKE) coverage FORMAT=xml
+ci: lint format-check typecheck ## Run the CI gates, with coverage (JSON and XML)
+	@$(MAKE) --no-print-directory coverage FORMAT=json
+	@$(MAKE) --no-print-directory quality-gate
 	@echo "$(GREEN)✓ CI checks complete$(RESET)"
 
 # ============================================================================
-# Installation & Setup
+# Setup
 # ============================================================================
 
-install: ## Install package (MODE=dev for dev dependencies, MODE=tools for dev tools)
-	@echo "$(GREEN)Installing sagaz...$(RESET)"
-ifeq ($(MODE),dev)
-	pip install -e ".[dev,test]"
-	@echo "$(GREEN)✓ Development dependencies installed$(RESET)"
-else ifeq ($(MODE),tools)
-	pip install ruff radon bandit pytest-watch
-	@echo "$(GREEN)✓ Development tools installed$(RESET)"
-else
-	pip install -e .
-	@echo "$(GREEN)✓ Package installed in development mode$(RESET)"
-endif
+install: ## Install the package and its runtime dependencies (uv sync)
+	uv sync
 
-dev: ## Setup complete development environment
-	@echo "$(GREEN)Setting up development environment...$(RESET)"
-	@$(MAKE) install MODE=dev
-	@$(MAKE) install MODE=tools
-	@echo ""
-	@echo "$(GREEN)✓ Development environment ready!$(RESET)"
-	@echo ""
-	@echo "$(CYAN)Quick Start:$(RESET)"
-	@echo "  make test          # Run tests"
-	@echo "  make coverage      # Check coverage"
-	@echo "  make complexity    # Check complexity"
-	@echo "  make check         # Run all checks"
+dev: ## Install the dev group: tests, linters, type checker, tools
+	uv sync --group dev
+	@echo "$(GREEN)✓ Development environment ready. Next: make check$(RESET)"
 
 # ============================================================================
 # Cleanup
 # ============================================================================
 
 clean-containers: ## Remove leftover testcontainers containers (only those labeled by testcontainers)
-	@echo "$(YELLOW)Removing leftover test containers...$(RESET)"
 	@ids=$$(docker ps -aq --filter label=org.testcontainers.lang=python); \
 	if [ -n "$$ids" ]; then docker rm -f $$ids; else echo "No test containers found."; fi
 
-clean: ## Clean generated files (MODE=all for everything including venv)
-	@echo "$(YELLOW)Cleaning generated files...$(RESET)"
-	rm -rf .coverage htmlcov/ coverage.xml .pytest_cache/ complexity-report.json
-	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-	find . -type f -name "*.pyc" -delete
-	find . -type f -name "*.pyo" -delete
-	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
-	rm -rf build/ dist/ .ruff_cache/
+clean: ## Remove generated files (MODE=all also removes .venv)
+	rm -rf .coverage htmlcov/ coverage.xml coverage.json .pytest_cache/ complexity-report.json
+	find . -type d -name "__pycache__" -not -path "./.venv/*" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name "*.egg-info" -not -path "./.venv/*" -exec rm -rf {} + 2>/dev/null || true
+	rm -rf build/ dist/ .ruff_cache/ .mypy_cache/
 ifeq ($(MODE),all)
-	@echo "$(RED)Removing virtual environment...$(RESET)"
 	rm -rf .venv/
-	@echo "$(GREEN)✓ Everything cleaned$(RESET)"
-else
-	@echo "$(GREEN)✓ Cleaned (use MODE=all to remove venv)$(RESET)"
 endif
 
 # ============================================================================
-# Build & Release
+# Build & release
 # ============================================================================
 
-version: ## Show current version
-	@echo "$(CYAN)Sagaz version:$(RESET) $(shell grep '^version' pyproject.toml | cut -d'"' -f2)"
+version: ## Show the current version
+	@grep '^version' pyproject.toml | cut -d'"' -f2
 
-build: ## Build distribution packages
-	@$(MAKE) clean
-	@echo "$(GREEN)Building distribution packages...$(RESET)"
-	$(PYTHON) -m build
+build: ## Build the sdist and wheel into dist/ and verify them (scripts/check_dist.py)
+	rm -rf dist/
+	uv build
 	$(PYTHON) scripts/check_dist.py dist
-	@echo "$(GREEN)✓ Build complete$(RESET)"
+	@echo "$(GREEN)✓ Build complete. Publish with: uv publish$(RESET)"
 
-benchmark: ## Run performance benchmarks
-	@echo "$(GREEN)Running benchmarks...$(RESET)"
-	$(PYTEST) -v -m performance
-
-# ============================================================================
-# Info
-# ============================================================================
-
-info: ## Show project information
-	@echo "$(CYAN)Sagaz Project Information$(RESET)"
-	@echo ""
-	@echo "$(GREEN)Version:$(RESET)       $(shell grep '^version' pyproject.toml | cut -d'"' -f2)"
-	@echo "$(GREEN)Python:$(RESET)        $(shell $(PYTHON) --version)"
-	@echo "$(GREEN)Pytest:$(RESET)        $(shell $(PYTEST) --version 2>&1 | head -1)"
-	@echo "$(GREEN)Coverage:$(RESET)      $(shell $(COVERAGE) --version 2>&1 | head -1)"
-	@echo "$(GREEN)Radon:$(RESET)         $(shell $(RADON) --version 2>&1)"
-	@echo ""
-	@echo "$(CYAN)Development Tools:$(RESET)"
-	@if command -v ruff >/dev/null 2>&1; then \
-		echo "$(GREEN)Ruff:$(RESET)          $(shell ruff --version)"; \
-	else \
-		echo "$(YELLOW)Ruff:$(RESET)          Not installed"; \
-	fi
-	@if command -v bandit >/dev/null 2>&1; then \
-		echo "$(GREEN)Bandit:$(RESET)        $(shell bandit --version 2>&1 | head -1)"; \
-	else \
-		echo "$(YELLOW)Bandit:$(RESET)        Not installed"; \
-	fi
+info: ## Show versions of the project and its tools
+	@echo "$(GREEN)Sagaz:$(RESET)   $$(grep '^version' pyproject.toml | cut -d'"' -f2)"
+	@echo "$(GREEN)uv:$(RESET)      $$(uv --version)"
+	@echo "$(GREEN)Python:$(RESET)  $$($(PYTHON) --version 2>&1)"
+	@echo "$(GREEN)Pytest:$(RESET)  $$($(PYTEST) --version 2>&1 | head -1)"
+	@echo "$(GREEN)Ruff:$(RESET)    $$($(RUFF) --version 2>&1)"
+	@echo "$(GREEN)Mypy:$(RESET)    $$($(MYPY) --version 2>&1)"

@@ -6,19 +6,32 @@
 # Postponed annotations: ``-> Table`` must not be evaluated when rich is missing.
 from __future__ import annotations
 
-try:
+from typing import TYPE_CHECKING
+
+# mypy reads the imports alone: no ignore is needed with or without the dependency.
+if TYPE_CHECKING:
     from rich.console import Console
     from rich.panel import Panel
     from rich.table import Table
 
+    from sagaz._dry_run_types import DryRunResult
+
     console = Console()
     RICH_AVAILABLE = True
-except ImportError:
-    console = None  # type: ignore[assignment]
-    RICH_AVAILABLE = False
+else:
+    try:
+        from rich.console import Console
+        from rich.panel import Panel
+        from rich.table import Table
+
+        console = Console()
+        RICH_AVAILABLE = True
+    except ImportError:
+        console = None
+        RICH_AVAILABLE = False
 
 
-def _display_validation_result_rich(result):
+def _display_validation_result_rich(result: DryRunResult) -> None:
     """Display validation result with Rich formatting."""
     if result.success:
         _display_validation_success_rich(result)
@@ -26,7 +39,7 @@ def _display_validation_result_rich(result):
         _display_validation_failure_rich(result)
 
 
-def _display_validation_success_rich(result):
+def _display_validation_success_rich(result: DryRunResult) -> None:
     """Display successful validation with Rich."""
     console.print(Panel("[green]✓ Validation passed[/green]", title="Success"))
 
@@ -36,7 +49,7 @@ def _display_validation_success_rich(result):
     _display_warnings_rich(result.validation_warnings)
 
 
-def _display_validation_failure_rich(result):
+def _display_validation_failure_rich(result: DryRunResult) -> None:
     """Display validation failure with Rich."""
     console.print(Panel("[red]✗ Validation failed[/red]", title="Error"))
     console.print("\n[red]Errors:[/red]")
@@ -46,7 +59,7 @@ def _display_validation_failure_rich(result):
     _display_warnings_rich(result.validation_warnings)
 
 
-def _display_validation_checks_table(checks: dict):
+def _display_validation_checks_table(checks: dict) -> None:
     """Display validation checks in a table."""
     table = Table(title="Validation Checks", show_header=True)
     table.add_column("Check", style="cyan")
@@ -64,7 +77,7 @@ def _display_validation_checks_table(checks: dict):
     console.print(table)
 
 
-def _display_warnings_rich(warnings: list):
+def _display_warnings_rich(warnings: list) -> None:
     """Display warnings with Rich formatting."""
     if warnings:
         console.print("\n[yellow]⚠ Warnings:[/yellow]")
@@ -72,22 +85,7 @@ def _display_warnings_rich(warnings: list):
             console.print(f"  • {warning}")
 
 
-def _display_validation_result_plain(result):
-    """Display validation result in plain text."""
-    if result.success:
-        if result.validation_warnings:
-            for _warning in result.validation_warnings:
-                pass
-    else:
-        for _error in result.validation_errors:
-            pass
-
-        if result.validation_warnings:
-            for _warning in result.validation_warnings:
-                pass
-
-
-def _build_parallelization_table(result) -> Table:
+def _build_parallelization_table(result: DryRunResult) -> Table:
     """Build parallelization analysis table."""
     table = Table(show_header=False)
     table.add_column("Metric", style="cyan")
@@ -102,7 +100,7 @@ def _build_parallelization_table(result) -> Table:
     return table
 
 
-def _display_forward_layers(layers: list):
+def _display_forward_layers(layers: list) -> None:
     """Display forward execution layers."""
     console.print("\n[bold]Forward Execution Layers (Parallelizable Groups):[/bold]")
     for layer in layers:
@@ -113,7 +111,7 @@ def _display_forward_layers(layers: list):
             console.print(f"  [dim]Depends on: {', '.join(sorted(layer.dependencies))}[/dim]")
 
 
-def _display_simulation_result_rich(result, show_parallel: bool):
+def _display_simulation_result_rich(result: DryRunResult, show_parallel: bool) -> None:
     """Display simulation result with Rich formatting."""
     console.print(Panel("[green]DAG Analysis Complete[/green]", title="Success"))
 
@@ -141,24 +139,6 @@ def _display_simulation_result_rich(result, show_parallel: bool):
             console.print(f"[dim]  Group {idx}: {', '.join(group)}[/dim]")
 
 
-def _display_simulation_result_plain(result, show_parallel: bool):
-    """Display simulation result in plain text."""
-
-    for layer in result.forward_layers:
-        for _step in layer.steps:
-            pass
-        if layer.dependencies:
-            pass
-
-    if result.critical_path:
-        pass
-
-    if result.backward_layers:
-        for layer in result.backward_layers:
-            for _step in layer.steps:
-                pass
-
-
 def _build_validation_table(checks: dict) -> Table:
     """Build validation checks table."""
     table = Table(show_header=True)
@@ -177,7 +157,7 @@ def _build_validation_table(checks: dict) -> Table:
     return table
 
 
-def _display_single_validation_result_rich(saga_name: str, result):
+def _display_single_validation_result_rich(saga_name: str, result: DryRunResult) -> None:
     """Display validation result for a single saga."""
     console.print(f"\n[bold cyan]saga_class: {saga_name}[/bold cyan]")
 
@@ -201,7 +181,7 @@ def _display_single_validation_result_rich(saga_name: str, result):
                 console.print(f"  • {warning}")
 
 
-def _display_project_validation_results_rich(results):
+def _display_project_validation_results_rich(results: list[tuple[str, DryRunResult]]) -> None:
     """Display validation results for multiple sagas with Rich formatting."""
     all_success = all(result.success for _, result in results)
 
@@ -214,30 +194,9 @@ def _display_project_validation_results_rich(results):
         _display_single_validation_result_rich(saga_name, result)
 
 
-def _display_project_validation_results_plain(results):
-    """Display validation results for multiple sagas in plain text."""
-    all_success = all(result.success for _, result in results)
-
-    if all_success:
-        pass
-    else:
-        pass
-
-    for _saga_name, result in results:
-        if result.success:
-            if result.validation_warnings:
-                for _warning in result.validation_warnings:
-                    pass
-        else:
-            for _error in result.validation_errors:
-                pass
-
-            if result.validation_warnings:
-                for _warning in result.validation_warnings:
-                    pass
-
-
-def _display_single_simulation_result_rich(saga_name: str, result, show_parallel: bool):
+def _display_single_simulation_result_rich(
+    saga_name: str, result: DryRunResult, show_parallel: bool
+) -> None:
     """Display simulation result for a single saga."""
     console.print(f"\n[bold cyan]═══ saga_class: {saga_name} ═══[/bold cyan]")
 
@@ -270,7 +229,9 @@ def _display_single_simulation_result_rich(saga_name: str, result, show_parallel
             console.print(f"[dim]  Group {idx}: {', '.join(group)}[/dim]")
 
 
-def _display_project_simulation_results_rich(results, show_parallel: bool):
+def _display_project_simulation_results_rich(
+    results: list[tuple[str, DryRunResult]], show_parallel: bool
+) -> None:
     """Display simulation results for multiple sagas with Rich formatting."""
     all_success = all(result.success for _, result in results)
 
@@ -281,43 +242,3 @@ def _display_project_simulation_results_rich(results, show_parallel: bool):
 
     for saga_name, result in results:
         _display_single_simulation_result_rich(saga_name, result, show_parallel)
-
-
-def _print_forward_layers_plain(layers: list):
-    """Print forward execution layers in plain text."""
-    for layer in layers:
-        for _step in layer.steps:
-            pass
-        if layer.dependencies:
-            pass
-
-
-def _print_parallelization_plain(result):
-    """Print parallelization analysis in plain text."""
-
-
-def _display_project_simulation_results_plain(results, show_parallel: bool):
-    """Display simulation results for multiple sagas in plain text."""
-    all_success = all(result.success for _, result in results)
-
-    if all_success:
-        pass
-    else:
-        pass
-
-    for _saga_name, result in results:
-        if not result.success:
-            for _error in result.validation_errors:
-                pass
-            continue
-
-        _print_forward_layers_plain(result.forward_layers)
-        _print_parallelization_plain(result)
-
-        if result.critical_path:
-            pass
-
-        if result.backward_layers:
-            for layer in result.backward_layers:
-                for _step in layer.steps:
-                    pass

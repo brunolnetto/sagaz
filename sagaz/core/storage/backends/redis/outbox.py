@@ -76,8 +76,8 @@ class RedisOutboxStorage(
         consumer_group: str = "sagaz-workers",
         max_stream_length: int = 100000,
         event_ttl_seconds: int = 86400 * 7,  # 7 days
-        **redis_kwargs,
-    ):
+        **redis_kwargs: Any,
+    ) -> None:
         """
         Initialize Redis outbox storage.
 
@@ -331,5 +331,5 @@ class RedisOutboxStorage(
         await self.initialize()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+    async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
         await self.close()

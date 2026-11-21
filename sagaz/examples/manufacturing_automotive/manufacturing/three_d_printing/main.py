@@ -92,7 +92,7 @@ class ThreeDPrintingSaga(Saga):
         return {"quality_passed": True, "dimensional_accuracy": "99.5%"}
 
 
-async def main():
+async def main() -> None:
     saga = ThreeDPrintingSaga()
     await saga.run(
         {

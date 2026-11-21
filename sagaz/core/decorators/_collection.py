@@ -4,7 +4,8 @@ Handles discovery and registration of @step, @compensate, and @forward_recovery
 decorated methods from a saga class.
 """
 
-from typing import TYPE_CHECKING
+from collections.abc import Awaitable
+from typing import TYPE_CHECKING, Any, Protocol
 
 from sagaz.core.decorators._steps import (
     CompensationMetadata,
@@ -20,10 +21,27 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+class _StepMethod(Protocol):
+    """A bound method decorated with ``@step`` or ``@action``."""
+
+    _saga_step_meta: StepMetadata
+
+    def __call__(self, ctx: dict[str, Any], /) -> Awaitable[dict[str, Any] | None]: ...
+
+
+class _CompensationMethod(Protocol):
+    """A bound method decorated with ``@compensate``."""
+
+    __name__: str
+    _saga_compensation_meta: CompensationMetadata
+
+    def __call__(self, ctx: dict[str, Any], /) -> Awaitable[None]: ...
+
+
 class DecoratorCollectionManager:
     """Manages collection of decorated methods from saga instances."""
 
-    def __init__(self, saga: "Saga"):
+    def __init__(self, saga: "Saga") -> None:
         """Initialize manager with saga instance.
 
         Args:
@@ -55,7 +73,7 @@ class DecoratorCollectionManager:
             if hasattr(attr, "_saga_step_meta"):
                 self._register_step_from_decorator(attr)
 
-    def _register_step_from_decorator(self, method) -> None:
+    def _register_step_from_decorator(self, method: _StepMethod) -> None:
         """Register a step from a decorated method.
 
         Args:
@@ -99,7 +117,7 @@ class DecoratorCollectionManager:
             if hasattr(attr, "_saga_compensation_meta"):
                 self._attach_compensation_to_step(attr)
 
-    def _attach_compensation_to_step(self, method) -> None:
+    def _attach_compensation_to_step(self, method: _CompensationMethod) -> None:
         """Attach a compensation method to its corresponding step.
 
         Args:

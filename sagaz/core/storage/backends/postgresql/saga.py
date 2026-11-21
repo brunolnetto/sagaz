@@ -75,8 +75,12 @@ class PostgreSQLSagaStorage(
     CREATE_TABLES_SQL = SAGA_TABLES_SQL
 
     def __init__(
-        self, connection_string: str, pool_min_size: int = 5, pool_max_size: int = 20, **pool_kwargs
-    ):
+        self,
+        connection_string: str,
+        pool_min_size: int = 5,
+        pool_max_size: int = 20,
+        **pool_kwargs: Any,
+    ) -> None:
         """
         Configure the PostgreSQL saga storage backend.
 
@@ -100,7 +104,7 @@ class PostgreSQLSagaStorage(
         self._pool = None
         self._lock = asyncio.Lock()
 
-    async def _get_pool(self):
+    async def _get_pool(self) -> "asyncpg.Pool":
         """Get connection pool, creating if necessary"""
         if self._pool is None:
             try:
@@ -258,7 +262,7 @@ class PostgreSQLSagaStorage(
                        configuration, created_at, updated_at, tenant_id
                 FROM sagas WHERE saga_id = $1 AND {condition}
                 ORDER BY tenant_id LIMIT 1
-            """,
+            """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                 *params,
             )
 
@@ -287,7 +291,8 @@ class PostgreSQLSagaStorage(
         async with acquire_scoped(pool) as conn:
             # Cascade delete will handle steps
             result = await conn.execute(
-                f"DELETE FROM sagas WHERE saga_id = $1 AND {condition}", *params
+                f"DELETE FROM sagas WHERE saga_id = $1 AND {condition}",  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
+                *params,
             )
             return int(result.split()[-1]) > 0  # Extract affected row count
 
@@ -314,7 +319,7 @@ class PostgreSQLSagaStorage(
                     UPDATE saga_steps
                     SET status = $3, result = $4, error = $5, executed_at = $6
                     WHERE saga_id = $1 AND step_name = $2 AND {condition}
-                """,
+                """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                 *params,
             )
 
@@ -328,16 +333,16 @@ class PostgreSQLSagaStorage(
             await conn.execute(
                 f"""
                     UPDATE sagas SET updated_at = NOW() WHERE saga_id = $1 AND {saga_condition}
-                """,
+                """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                 *saga_params,
             )
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "PostgreSQLSagaStorage":
         """Async context manager entry"""
         await self._get_pool()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
         """Async context manager exit"""
         if self._pool:
             await self._pool.close()

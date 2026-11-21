@@ -72,7 +72,7 @@ async def _add_tenant_key(conn: aiosqlite.Connection) -> None:
         DROP TABLE sagas;
         ALTER TABLE sagas_tenanted RENAME TO sagas;
         COMMIT;
-        """
+        """  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
     )
     try:
         await conn.executescript(script)

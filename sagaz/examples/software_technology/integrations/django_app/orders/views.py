@@ -7,8 +7,9 @@ which triggers sagas registered with @trigger(source=...).
 
 import asyncio
 import uuid
+from typing import Any
 
-from django.http import JsonResponse
+from django.http import HttpRequest, JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -19,7 +20,7 @@ from sagaz.integrations.django import get_webhook_status
 from .sagas import OrderSaga
 
 
-def health_check(request):
+def health_check(request: HttpRequest) -> JsonResponse:
     """Health check endpoint."""
     return JsonResponse({"status": "healthy"})
 
@@ -33,7 +34,7 @@ class OrderValidateView(View):
     Checks if order_id is already being processed or completed.
     """
 
-    def post(self, request):
+    def post(self, request: HttpRequest) -> JsonResponse:
         import json
 
         try:
@@ -58,7 +59,7 @@ class OrderValidateView(View):
                 loop.run_until_complete(config.storage.load_saga_state(saga_id))
                 if config.storage
                 else None
-            )  # type: ignore[union-attr]
+            )
         finally:
             loop.close()
 
@@ -117,7 +118,7 @@ class OrderValidateView(View):
 class OrderDiagramView(View):
     """Get saga diagram."""
 
-    def get(self, request, order_id):
+    def get(self, request: HttpRequest, order_id: str) -> JsonResponse:
         saga = OrderSaga()
         return JsonResponse(
             {
@@ -132,7 +133,7 @@ class OrderDiagramView(View):
 class WebhookStatusView(View):
     """Check status of event processing."""
 
-    def get(self, request, source, correlation_id):
+    def get(self, request: HttpRequest, source: str, correlation_id: str) -> JsonResponse:
         status = get_webhook_status(correlation_id)
 
         if not status:
@@ -141,7 +142,7 @@ class WebhookStatusView(View):
         response_data = self._build_response_data(status, correlation_id, source)
         return JsonResponse(response_data)
 
-    def _not_found_response(self, correlation_id, source):
+    def _not_found_response(self, correlation_id: str, source: str) -> JsonResponse:
         """Build 404 response."""
         return JsonResponse(
             {
@@ -153,7 +154,9 @@ class WebhookStatusView(View):
             status=404,
         )
 
-    def _build_response_data(self, status, correlation_id, source):
+    def _build_response_data(
+        self, status: dict[str, Any], correlation_id: str, source: str
+    ) -> dict[str, Any]:
         """Build response data dictionary."""
         saga_statuses = status.get("saga_statuses", {})
         saga_ids = status.get("saga_ids", [])
@@ -171,9 +174,11 @@ class WebhookStatusView(View):
 
         return response_data
 
-    def _compute_overall_status(self, status, saga_statuses, saga_ids):
+    def _compute_overall_status(
+        self, status: dict[str, Any], saga_statuses: dict[str, str], saga_ids: list[str]
+    ) -> str:
         """Compute overall status from saga statuses."""
-        overall_status = status["status"]
+        overall_status: str = status["status"]
 
         if overall_status == "triggered" and saga_ids:
             completed_count = sum(1 for s in saga_statuses.values() if s in ("completed", "failed"))
@@ -183,7 +188,12 @@ class WebhookStatusView(View):
 
         return overall_status
 
-    def _add_optional_fields(self, response_data, status, saga_statuses):
+    def _add_optional_fields(
+        self,
+        response_data: dict[str, Any],
+        status: dict[str, Any],
+        saga_statuses: dict[str, str],
+    ) -> None:
         """Add optional fields to response."""
         if saga_statuses:
             response_data["saga_statuses"] = saga_statuses
@@ -192,7 +202,9 @@ class WebhookStatusView(View):
         if "error" in status:
             response_data["error"] = status["error"]
 
-    def _get_status_message(self, overall_status, saga_ids, saga_statuses):
+    def _get_status_message(
+        self, overall_status: str, saga_ids: list[str], saga_statuses: dict[str, str]
+    ) -> str:
         """Get message for status."""
         messages = {
             "queued": "Event is queued for processing",

@@ -5,6 +5,7 @@ Used by storage transfer/migration tooling to move events between backends.
 Both the active and the archive table are covered.
 """
 
+from collections.abc import AsyncIterator
 from typing import Any
 
 from sagaz.core.outbox.types import OutboxEvent
@@ -31,12 +32,12 @@ class PostgreSQLOutboxTransferMixin(PostgreSQLOutboxRowMappingMixin, PostgreSQLO
                 SELECT
                     (SELECT COUNT(*) FROM saga_outbox WHERE {tenant_predicate(1)})
                     + (SELECT COUNT(*) FROM saga_outbox_archive WHERE {tenant_predicate(1)})
-                """,
+                """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                 tenant_param(),
             )
             return int(count)
 
-    async def export_all(self):
+    async def export_all(self) -> AsyncIterator[dict[str, Any]]:
         """Export active and archived outbox records for transfer."""
         async with scoped_connection(self._pool) as conn:
             async with conn.transaction():
@@ -47,7 +48,7 @@ class PostgreSQLOutboxTransferMixin(PostgreSQLOutboxRowMappingMixin, PostgreSQLO
                         UNION ALL
                         SELECT * FROM saga_outbox_archive WHERE {tenant_predicate(1)}
                         ORDER BY event_id
-                        """,
+                        """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                         tenant_param(),
                     )
                     async for row in cursor:
@@ -74,7 +75,7 @@ class PostgreSQLOutboxTransferMixin(PostgreSQLOutboxRowMappingMixin, PostgreSQLO
                     SELECT * FROM saga_outbox
                     WHERE event_id = $1 AND {tenant_predicate(2)}
                     FOR UPDATE
-                    """,
+                    """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                     event.event_id,
                     tenant_param(),
                 )
@@ -85,7 +86,7 @@ class PostgreSQLOutboxTransferMixin(PostgreSQLOutboxRowMappingMixin, PostgreSQLO
                         SELECT * FROM saga_outbox_archive
                         WHERE event_id = $1 AND {tenant_predicate(2)}
                         FOR UPDATE
-                        """,
+                        """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                         event.event_id,
                         tenant_param(),
                     )

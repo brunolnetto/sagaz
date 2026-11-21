@@ -20,7 +20,7 @@ from sagaz.core.storage.interfaces.snapshot import SnapshotStorage
 class InMemorySnapshotStorage(SnapshotStorage):
     """In-memory implementation of snapshot storage"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._snapshots: dict[UUID, SagaSnapshot] = {}
         self._saga_snapshots: dict[UUID, list[UUID]] = {}  # saga_id -> [snapshot_ids]
         self._replay_logs: dict[UUID, dict[str, Any]] = {}

@@ -153,7 +153,7 @@ class CustomerSupportSaga(Saga):
 # =============================================================================
 
 
-async def run_demo():
+async def run_demo() -> None:
     """Run the customer support demo."""
 
     # Check requirements

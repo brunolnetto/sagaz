@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 from dataclasses import replace
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.events import SagaEvent
 from sagaz.core.exceptions import MissingDependencyError
@@ -25,10 +25,13 @@ from sagaz.core.storage.backends.postgresql._tenancy import (
 )
 from sagaz.core.storage.event_store._base import SagaEventStore, SagaSnapshot
 
+if TYPE_CHECKING:
+    from asyncpg import Pool
+
 try:
     import asyncpg
 except ImportError:  # pragma: no cover - asyncpg is a core dependency
-    asyncpg = None  # type: ignore[assignment]
+    asyncpg = None
 
 SCHEMA = f"""
 CREATE TABLE IF NOT EXISTS saga_events (
@@ -75,7 +78,7 @@ class PostgreSQLEventStore(SagaEventStore):
         pool_max_size: int = 10,
         **pool_kwargs: Any,
     ) -> None:
-        if asyncpg is None:  # pragma: no cover
+        if asyncpg is None:  # pragma: no cover - the driver is installed in tests
             msg = "asyncpg"
             raise MissingDependencyError(msg, "PostgreSQL event store")
         self.connection_string = connection_string
@@ -85,7 +88,7 @@ class PostgreSQLEventStore(SagaEventStore):
         self._pool: Any = None
         self._lock = asyncio.Lock()
 
-    async def _get_pool(self) -> Any:
+    async def _get_pool(self) -> Pool:
         async with self._lock:
             if self._pool is None:
                 pool = await asyncpg.create_pool(

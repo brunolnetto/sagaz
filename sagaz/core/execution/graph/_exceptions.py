@@ -8,7 +8,7 @@ class CompensationGraphError(Exception):
 class CircularDependencyError(CompensationGraphError):
     """Raised when circular dependencies are detected in the graph."""
 
-    def __init__(self, cycle: list[str]):
+    def __init__(self, cycle: list[str]) -> None:
         """Record the full cycle path for diagnostic messages."""
         self.cycle = cycle
         super().__init__(f"Circular dependency detected: {' -> '.join(cycle)}")
@@ -17,7 +17,7 @@ class CircularDependencyError(CompensationGraphError):
 class MissingDependencyError(CompensationGraphError):
     """Raised when a step depends on a non-existent step."""
 
-    def __init__(self, step_id: str, missing_dep: str):
+    def __init__(self, step_id: str, missing_dep: str) -> None:
         """Record the dependant step and the absent dependency name."""
         self.step_id = step_id
         self.missing_dep = missing_dep

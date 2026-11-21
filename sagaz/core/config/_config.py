@@ -11,8 +11,9 @@ if TYPE_CHECKING:
     from sagaz.core.listeners import SagaListener
     from sagaz.core.outbox.brokers.base import BaseBroker
     from sagaz.core.storage.base import SagaStorage
+    from sagaz.core.storage.interfaces.outbox import OutboxStorage
 
-from sagaz.core.config._broker import BrokerConfigManager
+from sagaz.core.config._broker import BrokerConfigManager, EnvLike
 from sagaz.core.config._storage import StorageConfigManager
 
 logger = logging.getLogger("sagaz.core.config")
@@ -207,7 +208,9 @@ class SagaConfig:
         """Create a new config with different storage (immutable update)."""
         return self._replace(storage=storage)
 
-    def with_broker(self, broker: BaseBroker, outbox_storage=None) -> SagaConfig:
+    def with_broker(
+        self, broker: BaseBroker, outbox_storage: OutboxStorage | None = None
+    ) -> SagaConfig:
         """Create a new config with different broker (immutable update)."""
         return self._replace(broker=broker, outbox_storage=outbox_storage or self.outbox_storage)
 
@@ -227,12 +230,12 @@ class SagaConfig:
         return SagaConfig(**values)
 
     @classmethod
-    def _storage_from_env(cls, env: object) -> object:
+    def _storage_from_env(cls, env: EnvLike) -> object:
         """Construct a storage backend from an env-dict (backward compat helper)."""
         return StorageConfigManager.from_env(env)
 
     @classmethod
-    def _broker_from_env(cls, env: object) -> object:
+    def _broker_from_env(cls, env: EnvLike) -> object:
         """Construct a broker backend from an env-dict (backward compat helper)."""
         return BrokerConfigManager.from_env(env)
 
@@ -345,16 +348,16 @@ class SagaConfig:
 
     # Backward compatibility: delegate to submodule methods
     @staticmethod
-    def _parse_storage_url(url: str):
+    def _parse_storage_url(url: str) -> SagaStorage:
         """Backward compatible: parse storage URL and return storage instance."""
         return StorageConfigManager._parse_storage_url(url)
 
     @staticmethod
-    def _parse_broker_url(url: str):
+    def _parse_broker_url(url: str) -> BaseBroker:
         """Backward compatible: parse broker URL and return broker instance."""
         return BrokerConfigManager._parse_broker_url(url)
 
-    def _setup_from_manager(self):
+    def _setup_from_manager(self) -> None:
         """Backward compatible: setup from storage manager (instance method)."""
         storage, storage_manager = StorageConfigManager.setup_from_manager(
             self.storage, self.storage_manager

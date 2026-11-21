@@ -118,7 +118,7 @@ class RentalApplicationSaga(Saga):
         return {"lease_id": f"LEASE-{app_id}", "lease_term_months": 12}
 
 
-async def main():
+async def main() -> None:
     saga = RentalApplicationSaga()
     await saga.run(
         {

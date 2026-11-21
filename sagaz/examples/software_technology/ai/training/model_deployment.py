@@ -326,7 +326,7 @@ class ModelDeploymentSaga(Saga):
         }
 
 
-async def successful_deployment_demo():
+async def successful_deployment_demo() -> None:
     """Demonstrate successful model deployment."""
 
     # Reusable saga instance
@@ -345,7 +345,7 @@ async def successful_deployment_demo():
     await saga.run(deployment_data)
 
 
-async def failed_deployment_demo():
+async def failed_deployment_demo() -> None:
     """Demonstrate deployment failure with automatic rollback."""
 
     saga = ModelDeploymentSaga()
@@ -374,7 +374,7 @@ async def failed_deployment_demo():
                 pass
 
 
-async def main():
+async def main() -> None:
     """Run deployment scenarios."""
     # Successful deployment
     await successful_deployment_demo()

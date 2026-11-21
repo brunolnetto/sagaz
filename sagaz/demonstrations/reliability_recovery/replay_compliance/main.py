@@ -16,6 +16,7 @@ Usage:
 import asyncio
 import logging
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from sagaz.core.compliance import (
@@ -46,10 +47,10 @@ class WireTransferSaga(Saga):
     Demonstrates compliance features for regulated industries.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(name="wire-transfer", **kwargs)
 
-    async def build(self):
+    async def build(self) -> None:
         await self.add_step("validate_sender", self._validate_sender, self._cancel_validation)
         await self.add_step("check_compliance", self._check_compliance, self._flag_compliance)
         await self.add_step("execute_transfer", self._execute_transfer, self._reverse_transfer)
@@ -62,7 +63,7 @@ class WireTransferSaga(Saga):
         await asyncio.sleep(0.05)
         return {"sender_validated": True, "validation_time": datetime.now().isoformat()}
 
-    async def _cancel_validation(self, result, ctx: SagaContext) -> None:
+    async def _cancel_validation(self, result: dict[str, Any] | None, ctx: SagaContext) -> None:
         transfer_id = ctx.get("transfer_id")
         logger.warning(f"[TRANSFER {transfer_id}] Invalidating sender")
         await asyncio.sleep(0.05)
@@ -74,7 +75,7 @@ class WireTransferSaga(Saga):
         await asyncio.sleep(0.05)
         return {"compliance_check": "passed", "aml_score": 95, "kyc_verified": True}
 
-    async def _flag_compliance(self, result, ctx: SagaContext) -> None:
+    async def _flag_compliance(self, result: dict[str, Any] | None, ctx: SagaContext) -> None:
         transfer_id = ctx.get("transfer_id")
         logger.warning(f"[TRANSFER {transfer_id}] Flagging compliance check")
         await asyncio.sleep(0.05)
@@ -90,7 +91,7 @@ class WireTransferSaga(Saga):
             "executed_at": datetime.now().isoformat(),
         }
 
-    async def _reverse_transfer(self, result, ctx: SagaContext) -> None:
+    async def _reverse_transfer(self, result: dict[str, Any] | None, ctx: SagaContext) -> None:
         transfer_id = ctx.get("transfer_id")
         swift_code = result.get("swift_code") if result else None
         if swift_code:
@@ -109,7 +110,7 @@ class WireTransferSaga(Saga):
 # ============================================================================
 
 
-async def _run():
+async def _run() -> None:
     """Run the compliance demonstration."""
     print("\n" + "=" * 70)
     print("SAGA REPLAY COMPLIANCE DEMO - Financial Transaction Protection")
@@ -247,7 +248,7 @@ async def _run():
     print("=" * 70 + "\n")
 
 
-def main():
+def main() -> None:
     """Main entry point for sagaz demo run replay_compliance."""
     asyncio.run(_run())
 

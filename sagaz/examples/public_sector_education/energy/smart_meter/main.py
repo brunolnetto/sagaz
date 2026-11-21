@@ -93,7 +93,7 @@ class SmartMeterDeploymentSaga(Saga):
         return {"customer_notified": True}
 
 
-async def main():
+async def main() -> None:
     saga = SmartMeterDeploymentSaga()
     await saga.run(
         {

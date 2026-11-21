@@ -8,7 +8,8 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from sagaz.core.storage.base import SagaStorage
+    from sagaz.core.outbox.brokers.base import MessageBroker
+    from sagaz.core.storage.interfaces import OutboxStorage, SagaStorage
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ class StorageConfigManager:
     """Manages storage backend configuration and initialization."""
 
     @staticmethod
-    def setup_from_manager(storage: Any, storage_manager: Any) -> tuple[Any, Any]:
+    def setup_from_manager(storage: "SagaStorage | None", storage_manager: Any) -> tuple[Any, Any]:
         """Extract storage instances from StorageManager.
 
         Args:
@@ -56,7 +57,11 @@ class StorageConfigManager:
         return storage, manager_ref
 
     @staticmethod
-    def derive_outbox_storage(storage: Any, broker: Any, outbox_storage: Any) -> Any:
+    def derive_outbox_storage(
+        storage: "SagaStorage | None",
+        broker: "MessageBroker | None",
+        outbox_storage: "OutboxStorage | None",
+    ) -> "OutboxStorage | None":
         """Derive outbox storage from saga storage if not explicitly set.
 
         For transactional guarantees, outbox storage should ideally use
@@ -105,7 +110,7 @@ class StorageConfigManager:
         return StorageConfigManager._use_memory_outbox_with_warning()
 
     @staticmethod
-    def _use_memory_outbox_with_warning() -> Any:
+    def _use_memory_outbox_with_warning() -> "OutboxStorage":
         """Use in-memory outbox storage with a warning."""
         from sagaz.core.storage.backends.memory.outbox import InMemoryOutboxStorage
 

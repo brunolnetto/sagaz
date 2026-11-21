@@ -5,15 +5,19 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import click
 
 from sagaz.core.events import SagaEvent
 from sagaz.core.tenant import DEFAULT_TENANT, tenant_scope
 
+if TYPE_CHECKING:
+    from sagaz.core.storage.event_store import SagaEventStore
+    from sagaz.core.storage.saga_log._model import Transaction
 
-def _store(url: str, layout: str) -> Any:
+
+def _store(url: str, layout: str) -> SagaEventStore:
     if layout == "unified":  # ADR-041: the event store is a view on the saga log
         from sagaz.core.storage.saga_log import create_saga_log_store
         from sagaz.core.storage.saga_log.event_store import SagaLogEventStore
@@ -51,7 +55,7 @@ async def _load_choreographed(url: str, saga_id: str, tenant: str) -> tuple[Any,
             return transaction, await log.events(saga_id)
 
 
-def _show_choreographed(transaction: Any, events: list, as_json: bool) -> None:
+def _show_choreographed(transaction: Transaction, events: list, as_json: bool) -> None:
     if as_json:
         document = {
             "transaction": dataclasses.asdict(transaction),

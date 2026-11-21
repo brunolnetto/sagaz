@@ -28,13 +28,16 @@ cursor reader (``SagaLogReader``) under another name.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.storage.saga_log._model import EventKind, ExportBatch, ExportedEvent, LogEvent
 from sagaz.core.tenant import system_scope, tenant_scope
 from sagaz.integrations.cdc._events import parse_timestamp
 from sagaz.integrations.cdc._types import CDCError
 from sagaz.integrations.cdc.pg_logical import PgLogicalSource
+
+if TYPE_CHECKING:
+    from sagaz.core.storage.saga_log import SagaLogStore
 
 
 def log_event_from_row(row: Mapping[str, Any]) -> LogEvent:
@@ -79,7 +82,7 @@ class SagaLogCDCReader:
 
     def __init__(
         self,
-        log: Any,
+        log: SagaLogStore,
         dsn: str,
         *,
         name: str = "cdc",

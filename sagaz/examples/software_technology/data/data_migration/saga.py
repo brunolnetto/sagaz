@@ -83,7 +83,9 @@ class DataMigrationSaga(DataMigrationCompensations, Saga):
         for table in tables:
             await asyncio.sleep(0.15)
             record_count = random.randint(10000, 100000)
-            checksum = hashlib.md5(f"{table}_{record_count}".encode()).hexdigest()[:8]
+            checksum = hashlib.md5(
+                f"{table}_{record_count}".encode(), usedforsecurity=False
+            ).hexdigest()[:8]
 
             export_path = f"/migration/export/{source_system}/{table}.parquet"
             export_results[table] = {
@@ -160,7 +162,9 @@ class DataMigrationSaga(DataMigrationCompensations, Saga):
             source_count = export_results.get(table, {}).get("record_count", 0)
             # Simulate slight variation (some records might be filtered)
             imported_count = source_count - random.randint(0, int(source_count * 0.001))
-            checksum = hashlib.md5(f"{table}_{imported_count}".encode()).hexdigest()[:8]
+            checksum = hashlib.md5(
+                f"{table}_{imported_count}".encode(), usedforsecurity=False
+            ).hexdigest()[:8]
 
             import_results[table] = {
                 "imported_count": imported_count,

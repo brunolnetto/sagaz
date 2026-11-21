@@ -51,6 +51,7 @@ jobs:
           uv run pytest tests/ \
             --cov=sagaz \
             --cov-report=xml:coverage.xml \
+            --cov-report=json:coverage.json \
             --cov-report=term-missing \
             --cov-fail-under=95 \
             --junitxml=junit.xml \
@@ -79,6 +80,55 @@ jobs:
           files: ./junit.xml
           report_type: test_results
           fail_ci_if_error: false
+
+      - name: Upload coverage.json for the coverage gate
+        # codebase-stats reads this in the coverage-gate job below (#603).
+        if: matrix.python-version == '3.13' && !cancelled()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-json
+          path: coverage.json
+          if-no-files-found: error
+          retention-days: 7
+
+  coverage-gate:
+    name: Coverage Gate (codebase-stats)
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.4.0
+        with:
+          version: "0.13.9"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Download coverage.json
+        uses: actions/download-artifact@v7
+        with:
+          name: coverage-json
+
+      - name: Coverage report and gate
+        # The project coverage and the files to cover first, from the unit tests' data.
+        # --min-coverage matches pytest's --cov-fail-under above; with it, a missing or
+        # empty coverage file fails the gate ("not evaluated") instead of passing.
+        # The sizes, complexity and maintainability gates run in quality-gates.yml.
+        run: |
+          uv run codebase-stats --root sagaz --coverage coverage.json \
+            --only coverage,lowcov --min-coverage 95 --format summary-md >> "$GITHUB_STEP_SUMMARY"
 
   integration-tests:
     name: Integration Tests

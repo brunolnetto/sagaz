@@ -3,10 +3,12 @@
 import logging
 from typing import Any
 
+from sagaz.core.logger import LoggerLike
+
 logger = logging.getLogger(__name__)
 
 
-def log_step_lifecycle(logger_instance=None) -> dict[str, Any]:
+def log_step_lifecycle(logger_instance: LoggerLike | None = None) -> dict[str, Any]:
     """
     Create a set of hooks that log all step lifecycle events.
 
@@ -21,13 +23,13 @@ def log_step_lifecycle(logger_instance=None) -> dict[str, Any]:
     """
     log = logger_instance or logger
 
-    async def on_enter(ctx: dict[str, Any], step_name: str):
+    async def on_enter(ctx: dict[str, Any], step_name: str) -> None:
         log.info(f"[STEP] Entering: {step_name}")
 
-    async def on_success(ctx: dict[str, Any], step_name: str, result: Any):
+    async def on_success(ctx: dict[str, Any], step_name: str, result: Any) -> None:
         log.info(f"[STEP] Success: {step_name}")
 
-    async def on_failure(ctx: dict[str, Any], step_name: str, error: Exception):
+    async def on_failure(ctx: dict[str, Any], step_name: str, error: Exception) -> None:
         log.error(f"[STEP] Failed: {step_name} - {error}")
 
     return {

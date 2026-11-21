@@ -70,9 +70,19 @@ jobs:
         # Every `from sagaz... import ...` in README.md and docs/ must import (#539).
         run: uv run python scripts/check_doc_imports.py
 
+      - name: Check suppression comments
+        # "# type: ignore", "# noqa", "# nosec" and "# pragma: no cover" must each name
+        # what they suppress and why (#594).
+        run: uv run python scripts/check_suppressions.py
+
+      - name: Check the typing budget
+        # Counts of bare Any, missing annotations and type: ignore must match the budget in
+        # pyproject.toml: they can only go down (#595).
+        run: uv run python scripts/check_typing_budget.py
+
       - name: Run mypy type checker
+        # Gates. Unused ignores fail too (warn_unused_ignores in pyproject.toml).
         run: uv run mypy sagaz/ --ignore-missing-imports
-        continue-on-error: true  # pre-existing type errors tracked separately; fix in follow-up
 
 # ─── Commit Linting ───────────────────────────────────────────────────────────
 
@@ -139,8 +149,18 @@ jobs:
           category: bandit
         continue-on-error: true
 
+      - name: Gate on bandit findings (medium severity and up)
+        # A false positive takes an inline "# nosec <rule> - <reason>".
+        run: uv run bandit -r sagaz/ -c pyproject.toml -ll -q
+
       - name: Run pip-audit for vulnerabilities
-        run: uv run pip-audit --strict --progress-spinner=off || true
+        # Gates: a dependency with a known advisory fails the build. To accept one that has
+        # no fix yet, add --ignore-vuln <ID> here with a comment saying why.
+        # The locked dependencies are audited, without the project: sagaz itself is not on
+        # PyPI at a version being prepared, and --strict fails on a package it cannot audit.
+        run: |
+          uv export --frozen --no-emit-project --group dev --format requirements-txt -o audit-requirements.txt -q
+          uv run pip-audit --strict --require-hashes --disable-pip -r audit-requirements.txt --progress-spinner=off
 
 # ─── Code Quality (CodeQL + Cyclomatic Complexity) ───────────────────────────
 
@@ -238,7 +258,9 @@ jobs:
         # Limits live in [tool.codebase-stats.gates] (pyproject.toml): CC <= 10 per
         # function, <= 400 lines and maintainability index >= 20 per module.
         # Exits 1 with "GATE FAILED" on any violation; the summary goes to the job page.
-        run: uv run codebase-stats --root sagaz --format summary-md >> "$GITHUB_STEP_SUMMARY"
+        # Coverage is reported and gated after the unit tests, where its data is:
+        # the coverage-gate job of test-gates.yml (#603).
+        run: uv run codebase-stats --root sagaz --only sizes,cc,mi --format summary-md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Check maintainability index
         run: |
