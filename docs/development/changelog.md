@@ -47,6 +47,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     any case (`consumer_goods`).
 
 ### Added
+- **Feature × mode matrix** (`docs/reference/feature-matrix.md`): which capability
+  orchestrated sagas (`sagaz.Saga`), the legacy engine and choreography have, each cell
+  backed by a test (`scripts/check_feature_matrix.py` checks them in CI), with the gaps
+  linked to their issues (bugs in v2.4.0, parity in v2.5.0).
 - **"Your First Saga Service" guide** (#539): a saga per request, PostgreSQL persistence,
   one run per request, failures, testing without a database, looking a run up, and a
   map of which feature fits which need. The quickstart documents what `run()` raises.
