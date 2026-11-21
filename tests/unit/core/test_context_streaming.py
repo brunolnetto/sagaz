@@ -13,6 +13,8 @@ from sagaz.core.context import (
     SagaContext,
 )
 
+TEST_KEY = "test-signing-key-0123456789"
+
 
 class TestContextStreaming:
     @pytest.fixture
@@ -23,7 +25,7 @@ class TestContextStreaming:
 
     @pytest.fixture
     def fs_storage(self, temp_storage_path):
-        return FileSystemExternalStorage(temp_storage_path)
+        return FileSystemExternalStorage(temp_storage_path, signing_key=TEST_KEY)
 
     @pytest.fixture
     def context(self, fs_storage):

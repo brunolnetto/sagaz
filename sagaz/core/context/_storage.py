@@ -15,6 +15,8 @@ from typing import Any
 
 import aiofiles  # type: ignore[import-untyped]
 
+from sagaz.core.context._signing import resolve_key, seal, unseal
+
 # aioboto3 takes about a second to import: check it is installed, import it on use.
 try:
     HAS_AIOBOTO3 = importlib.util.find_spec("aioboto3") is not None
@@ -118,23 +120,47 @@ class ExternalStorage(ABC):
 class FileSystemExternalStorage(ExternalStorage):
     """Local filesystem implementation for external storage.
 
-    Stores payloads as pickle files in the local filesystem.
-    Suitable for development and testing.
+    Stores payloads as signed pickle files in the local filesystem, and only reads
+    and deletes files under ``base_path``. Suitable for development and testing.
     """
 
-    def __init__(self, base_path: str):
+    def __init__(
+        self,
+        base_path: str,
+        *,
+        signing_key: bytes | str | None = None,
+        allow_unsigned: bool = False,
+    ):
         """Create (or re-use) the directory at base_path for artifact storage.
 
         Args:
             base_path: Base directory for storing artifacts
+            signing_key: HMAC key that signs each payload (at least 16 bytes); defaults
+                to ``$SAGAZ_EXTERNAL_STORAGE_KEY``. Every process that loads the payloads
+                needs the same key.
+            allow_unsigned: Also load unsigned payloads, written before signing existed.
+                Unsafe when others can write to ``base_path``: use it only to migrate.
+
+        Raises:
+            ValueError: If there is no signing key, or it is shorter than 16 bytes
         """
+        self._key = resolve_key(signing_key)
+        self.allow_unsigned = allow_unsigned
         self.base_path = Path(base_path)
         self.base_path.mkdir(parents=True, exist_ok=True)
+
+    def _inside(self, path: Path) -> Path | None:
+        """``path`` resolved, if it lies under ``base_path``; else None."""
+        resolved = path.resolve()
+        return resolved if resolved.is_relative_to(self.base_path.resolve()) else None
+
+    def _name(self, path: Path) -> str:
+        return path.relative_to(self.base_path.resolve()).as_posix()
 
     async def store(
         self, saga_id: str, key: str, value: Any, ttl_seconds: int | None = None
     ) -> "ExternalReference":
-        """Pickle value and write it to <base_path>/saga-<saga_id>/<key>-<uuid>.bin."""
+        """Pickle value and write it, signed, to <base_path>/saga-<saga_id>/<key>-<uuid>.bin."""
         # Serialize
         data = pickle.dumps(value)
 
@@ -143,11 +169,14 @@ class FileSystemExternalStorage(ExternalStorage):
         file_name = f"{key}-{uuid.uuid4()}.bin"
         saga_dir = self.base_path / f"saga-{saga_id}"
         saga_dir.mkdir(parents=True, exist_ok=True)
-        file_path = saga_dir / file_name
+        file_path = self._inside(saga_dir / file_name)
+        if file_path is None:
+            msg = f"Key {key!r} of saga {saga_id!r} would be stored outside {self.base_path}"
+            raise ValueError(msg)
 
         # Write to file
         async with aiofiles.open(file_path, "wb") as f:
-            await f.write(data)
+            await f.write(seal(self._key, self._name(file_path), data))
 
         # Create reference
         # We use absolute path for the URI
@@ -169,24 +198,29 @@ class FileSystemExternalStorage(ExternalStorage):
             raise ValueError(msg)
 
         path_str = uri[7:]  # Strip file://
-        file_path = Path(path_str)
+        file_path = self._inside(Path(path_str))
+        if file_path is None:
+            msg = f"URI {uri} is outside the storage directory {self.base_path}"
+            raise ValueError(msg)
 
         if not file_path.exists():
             msg = f"External storage file not found: {path_str}"
             raise FileNotFoundError(msg)
 
         async with aiofiles.open(file_path, "rb") as f:
-            data = await f.read()
+            blob = await f.read()
 
-        return pickle.loads(data)
+        data = unseal(self._key, self._name(file_path), blob, allow_unsigned=self.allow_unsigned)
+        return pickle.loads(data)  # nosec B301 - signature verified by unseal
 
     async def delete(self, uri: str) -> None:
         """Remove the local artifact file at uri; silently ignores missing files."""
         if not uri.startswith("file://"):
             return
 
-        path_str = uri[7:]
-        file_path = Path(path_str)
+        file_path = self._inside(Path(uri[7:]))
+        if file_path is None:  # not ours: never delete outside base_path
+            return
         try:
             file_path.unlink()
         except FileNotFoundError:  # file already absent — nothing to do
@@ -210,6 +244,9 @@ class S3ExternalStorage(ExternalStorage):
         aws_access_key_id: str | None = None,
         aws_secret_access_key: str | None = None,
         session_kwargs: dict[str, Any] | None = None,
+        *,
+        signing_key: bytes | str | None = None,
+        allow_unsigned: bool = False,
     ):
         """Configure the S3 external storage backend.
 
@@ -220,9 +257,15 @@ class S3ExternalStorage(ExternalStorage):
             aws_access_key_id: Explicit AWS credentials; uses default chain when None
             aws_secret_access_key: Companion secret for aws_access_key_id
             session_kwargs: Extra kwargs forwarded to aioboto3.Session
+            signing_key: HMAC key that signs each payload (at least 16 bytes); defaults
+                to ``$SAGAZ_EXTERNAL_STORAGE_KEY``. Every process that loads the payloads
+                needs the same key.
+            allow_unsigned: Also load unsigned payloads, written before signing existed.
+                Unsafe when others can write to the bucket: use it only to migrate.
 
         Raises:
             ImportError: If aioboto3 is not installed
+            ValueError: If there is no signing key, or it is shorter than 16 bytes
         """
         if not HAS_AIOBOTO3:
             msg = (
@@ -230,6 +273,8 @@ class S3ExternalStorage(ExternalStorage):
             )
             raise ImportError(msg)
 
+        self._key = resolve_key(signing_key)
+        self.allow_unsigned = allow_unsigned
         self.bucket = bucket
         self.region_name = region_name
         self.endpoint_url = endpoint_url
@@ -240,7 +285,7 @@ class S3ExternalStorage(ExternalStorage):
     async def store(
         self, saga_id: str, key: str, value: Any, ttl_seconds: int | None = None
     ) -> "ExternalReference":
-        """Pickle value and upload it to S3 under <bucket>/<saga_id>/<key>-<uuid>.bin."""
+        """Pickle value and upload it, signed, to S3 under <bucket>/<saga_id>/<key>-<uuid>.bin."""
         # Serialize
         data = pickle.dumps(value)
         data_len = len(data)
@@ -263,7 +308,7 @@ class S3ExternalStorage(ExternalStorage):
             await s3.put_object(
                 Bucket=self.bucket,
                 Key=object_key,
-                Body=data,
+                Body=seal(self._key, object_key, data),
                 Metadata={
                     "saga_id": saga_id,
                     "checksum": checksum,
@@ -312,7 +357,7 @@ class S3ExternalStorage(ExternalStorage):
             try:
                 response = await s3.get_object(Bucket=bucket, Key=key)
                 async with response["Body"] as stream:
-                    data = await stream.read()
+                    blob = await stream.read()
             except Exception as e:
                 # Map S3 errors to standard exceptions where possible
                 err_str = str(e)
@@ -321,7 +366,8 @@ class S3ExternalStorage(ExternalStorage):
                     raise FileNotFoundError(msg) from e
                 raise
 
-        return pickle.loads(data)
+        data = unseal(self._key, key, blob, allow_unsigned=self.allow_unsigned)
+        return pickle.loads(data)  # nosec B301 - signature verified by unseal
 
     async def delete(self, uri: str) -> None:
         """Delete the S3 object at uri; silently ignores non-matching URIs."""

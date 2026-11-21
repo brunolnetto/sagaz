@@ -141,8 +141,7 @@ jobs:
 
       - name: Gate on bandit findings (medium severity and up)
         # A false positive takes an inline "# nosec <rule> - <reason>".
-        # B301 (pickle in external context storage) is fixed by #589, which removes this skip.
-        run: uv run bandit -r sagaz/ -c pyproject.toml -ll -q --skip B301
+        run: uv run bandit -r sagaz/ -c pyproject.toml -ll -q
 
       - name: Run pip-audit for vulnerabilities
         # Gates: a dependency with a known advisory fails the build. To accept one that has

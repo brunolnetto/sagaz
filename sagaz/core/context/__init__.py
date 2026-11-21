@@ -14,6 +14,7 @@ from sagaz.core.context._context import (
     MemoryFootprintError,
     SagaContext,
 )
+from sagaz.core.context._signing import ExternalStorageIntegrityError
 from sagaz.core.context._storage import (
     HAS_AIOBOTO3,
     ExternalReference,
@@ -38,6 +39,7 @@ __all__ = [
     "ConfigurationError",
     "ExternalReference",
     "ExternalStorage",
+    "ExternalStorageIntegrityError",
     "FileSystemExternalStorage",
     "LargePayloadWarning",
     "MemoryFootprintError",
