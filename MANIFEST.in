@@ -1,0 +1,3 @@
+# The sdist ships tracked sources only; scripts/check_dist.py enforces it.
+prune sagaz/deployment/resources/local/lakehouse/lib
+global-exclude *.jar *.py[cod] __pycache__ .DS_Store

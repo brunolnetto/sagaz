@@ -33,8 +33,8 @@ from sagaz.core.outbox._worker_bootstrap import get_cdc_source as get_cdc_source
 from sagaz.core.outbox._worker_bootstrap import get_storage as get_storage
 from sagaz.core.outbox._worker_cdc import OutboxWorkerCDCMixin
 from sagaz.core.outbox._worker_failures import OutboxWorkerFailureMixin
+from sagaz.core.outbox._worker_logging import configure_worker_logging, logger
 from sagaz.core.outbox._worker_logging import log_level as log_level
-from sagaz.core.outbox._worker_logging import logger
 
 # Metrics live in _worker_metrics; re-exported here for backward compatibility.
 from sagaz.core.outbox._worker_metrics import (
@@ -351,7 +351,8 @@ class OutboxWorker(OutboxWorkerCDCMixin, OutboxWorkerFailureMixin):
 
 
 async def main():
-    """Main entry point."""
+    """Main entry point (the standalone worker process)."""
+    configure_worker_logging()
     logger.info("Starting sagaz outbox worker...")
 
     # Create storage and broker

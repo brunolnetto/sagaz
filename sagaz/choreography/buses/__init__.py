@@ -31,14 +31,18 @@ Use ``create_event_bus(backend)`` to select a backend at runtime::
     await bus.stop()
 """
 
+from typing import TYPE_CHECKING
+
 from sagaz.choreography.buses.factory import BusBackend, create_event_bus
-from sagaz.choreography.buses.kafka import KafkaEventBus, KafkaEventBusConfig
-from sagaz.choreography.buses.rabbitmq import RabbitMQEventBus, RabbitMQEventBusConfig
-from sagaz.choreography.buses.redis_streams import (
-    RedisStreamsBusConfig,
-    RedisStreamsEventBus,
-)
 from sagaz.choreography.events import AbstractEventBus
+
+if TYPE_CHECKING:
+    from sagaz.choreography.buses.kafka import KafkaEventBus, KafkaEventBusConfig
+    from sagaz.choreography.buses.rabbitmq import RabbitMQEventBus, RabbitMQEventBusConfig
+    from sagaz.choreography.buses.redis_streams import (
+        RedisStreamsBusConfig,
+        RedisStreamsEventBus,
+    )
 
 __all__ = [
     "AbstractEventBus",
@@ -51,3 +55,23 @@ __all__ = [
     "RedisStreamsEventBus",
     "create_event_bus",
 ]
+
+# Each bus imports its broker client (aiokafka, aio_pika, redis), which is slow to
+# import: load a bus on first use, not with ``import sagaz``.
+_LAZY_BUSES = {
+    "KafkaEventBus": "sagaz.choreography.buses.kafka",
+    "KafkaEventBusConfig": "sagaz.choreography.buses.kafka",
+    "RabbitMQEventBus": "sagaz.choreography.buses.rabbitmq",
+    "RabbitMQEventBusConfig": "sagaz.choreography.buses.rabbitmq",
+    "RedisStreamsBusConfig": "sagaz.choreography.buses.redis_streams",
+    "RedisStreamsEventBus": "sagaz.choreography.buses.redis_streams",
+}
+
+
+def __getattr__(name: str) -> object:
+    if name in _LAZY_BUSES:
+        import importlib
+
+        return getattr(importlib.import_module(_LAZY_BUSES[name]), name)
+    msg = f"module {__name__!r} has no attribute {name!r}"
+    raise AttributeError(msg)
