@@ -80,8 +80,9 @@ class SagaConfig:
     snapshot_threshold: int = 50
 
     # Unified saga log (ADR-041): "unified" records every saga on saga_log (a
-    # SagaLogStore or a URL), as participant (the service name).
-    storage_layout: str = "legacy"
+    # SagaLogStore or a URL), as participant (the service name). "classic" (the
+    # default) keeps a table per concern; its former name "legacy" is accepted (#578).
+    storage_layout: str = "classic"
     saga_log: Any | None = None  # SagaLogStore | str
     participant: str | None = None
 
@@ -112,6 +113,8 @@ class SagaConfig:
 
     def __post_init__(self) -> None:
         """Initialize storage and build listeners list."""
+        if self.storage_layout == "legacy":  # the classic layout's former name (#578)
+            self.storage_layout = "classic"
         # Validate: cannot mix storage_manager with storage/outbox_storage
         if self.storage_manager is not None:
             if self.storage is not None:

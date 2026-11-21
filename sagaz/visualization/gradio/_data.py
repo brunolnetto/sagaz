@@ -1,7 +1,7 @@
 """The asset monitor's data layer: saga state as rows and Mermaid (ADR-039).
 
 Plain async functions over a unified saga log (``SagaLogStore``, ADR-041) or a
-legacy ``SagaStorage``. They only read, and import nothing from Gradio, so the
+classic-layout ``SagaStorage``. They only read, and import nothing from Gradio, so the
 UI layer stays thin and this one is tested without a browser.
 """
 
@@ -174,11 +174,11 @@ def causation_diagram(events: list[Any]) -> str:
     return "\n".join(lines + _classes(statuses))
 
 
-# -- legacy saga storage -------------------------------------------------------------
+# -- classic saga storage ------------------------------------------------------------
 
 
 async def list_sagas(storage: Any, *, status: str | None = None, limit: int = 200) -> list[dict]:
-    """Sagas of a legacy ``SagaStorage``, as transaction rows."""
+    """Sagas of a classic-layout ``SagaStorage``, as transaction rows."""
     from sagaz.core.types import SagaStatus
 
     with system_scope():
@@ -199,7 +199,7 @@ async def list_sagas(storage: Any, *, status: str | None = None, limit: int = 20
 
 
 async def saga_detail(storage: Any, tenant: str, saga_id: str) -> dict[str, Any] | None:
-    """A legacy saga's steps, context and diagram, or None if unknown."""
+    """A classic-layout saga's steps, context and diagram, or None if unknown."""
     with tenant_scope(tenant):
         state = await storage.load_saga_state(saga_id)
     if not state:

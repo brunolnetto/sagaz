@@ -89,7 +89,7 @@ async def read_storage(
     return saga_records, step_records, choreography
 
 
-#: Activity statuses outside the step vocabulary, mapped as the legacy layout
+#: Activity statuses outside the step vocabulary, mapped as the classic layout
 #: recorded them (a step whose compensation failed ended ``failed``).
 _ACTIVITY_OUTCOME = {"compensation_failed": "failed"}
 
