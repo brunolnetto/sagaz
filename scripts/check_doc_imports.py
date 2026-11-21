@@ -33,6 +33,26 @@ OPTIONAL = {  # extras a plain dev install may lack; their imports are skipped, 
 }
 
 
+# sagaz modules that only define their names when an extra is installed: their
+# imports are skipped, not failed, when that extra's package is missing.
+OPTIONAL_SAGAZ_MODULES = {
+    "sagaz.analytics": "duckdb",
+    "sagaz.visualization.gradio": "gradio",
+    "sagaz.integrations.fluss": "fluss",
+    "sagaz.integrations.schema_registry": "confluent_kafka",
+}
+
+
+def _extra_missing(statement: str) -> bool:
+    import importlib.util
+
+    module = statement.split()[1]
+    for prefix, package in OPTIONAL_SAGAZ_MODULES.items():
+        if module == prefix or module.startswith(prefix + "."):
+            return importlib.util.find_spec(package) is None
+    return False
+
+
 def python_blocks(text: str) -> list[tuple[int, list[str]]]:
     """(first line number, lines) of each fenced python block."""
     blocks, current, start, in_python = [], [], 0, None
@@ -77,6 +97,8 @@ def check(paths: list[str]) -> list[str]:
     for doc in documents(paths):
         for start, block in python_blocks(doc.read_text(encoding="utf-8")):
             for offset, statement in imports_in(block):
+                if _extra_missing(statement):
+                    continue
                 try:
                     exec(statement, {})
                 except ModuleNotFoundError as error:
