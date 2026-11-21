@@ -30,6 +30,8 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from prometheus_client import CollectorRegistry
+
     from sagaz.core.types import SagaStatus
 
 # Check if prometheus_client is installed
@@ -75,7 +77,7 @@ class PrometheusMetrics:
         ...     listeners = [MetricsSagaListener(metrics=metrics)]
     """
 
-    def __init__(self, prefix: str = "saga", registry: Any = None):
+    def __init__(self, prefix: str = "saga", registry: "CollectorRegistry | None" = None):
         """
         Initialize Prometheus metrics.
 

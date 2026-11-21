@@ -122,7 +122,7 @@ def _kind(event_type: str) -> EventKind:
     return EventKind.BUSINESS
 
 
-def _payload(kind: EventKind, source: Any, status: dict[str, Any]) -> dict[str, Any]:
+def _payload(kind: EventKind, source: str | None, status: dict[str, Any]) -> dict[str, Any]:
     """The tracker kept compensation data beside its events; put it back on them."""
     if kind == EventKind.COMPENSATE:
         return dict(status.get("failure") or {})

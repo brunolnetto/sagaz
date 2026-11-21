@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.choreography._deadlines import DeadlineWatcher
 from sagaz.choreography._dispatch import Dispatcher
@@ -17,6 +17,9 @@ from sagaz.choreography.events import COMPENSATE, AbstractEventBus, Event, Handl
 from sagaz.choreography.relay import ChoreographyRelay
 from sagaz.choreography.saga import ChoreographedSaga
 from sagaz.choreography.state import ParticipantState, create_participant_state
+
+if TYPE_CHECKING:
+    from sagaz.core.storage.saga_log import SagaLogStore
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +83,7 @@ class ChoreographyEngine:
         state: ParticipantState | str | None = None,
         deadline_poll_interval: float = 1.0,
         deadline_lease: float = 60.0,
-        saga_log: Any = None,
+        saga_log: SagaLogStore | str | None = None,
         relay_interval: float = 0.1,
     ) -> None:
         self._bus = bus

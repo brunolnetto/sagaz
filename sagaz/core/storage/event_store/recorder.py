@@ -14,12 +14,15 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import replace
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.events import SagaEvent
 from sagaz.core.storage._tenancy import write_tenant
 from sagaz.core.storage.event_store._base import SagaEventStore, SagaSnapshot
 from sagaz.projections.summary import SagaSummaryProjection, load_projection
+
+if TYPE_CHECKING:
+    from sagaz.core.storage.saga_log import SagaLogStore
 
 logger = logging.getLogger(__name__)
 
@@ -166,7 +169,7 @@ def _as_store(value: SagaEventStore | str) -> SagaEventStore:
     return value
 
 
-def event_sourcing_settings(saga: Any) -> tuple[SagaEventStore, int] | None:
+def event_sourcing_settings(saga: object) -> tuple[SagaEventStore, int] | None:
     """The event store and snapshot threshold of ``saga``, or ``None`` if it records none.
 
     Read from the saga class's ``Meta``, falling back to the saga's ``SagaConfig``:
@@ -208,10 +211,10 @@ def event_sourcing_settings(saga: Any) -> tuple[SagaEventStore, int] | None:
     return _as_store(store), int(threshold)
 
 
-_logs_by_url: dict[str, Any] = {}
+_logs_by_url: dict[str, SagaLogStore] = {}
 
 
-def _unified_store(saga_log: Any, participant: Any) -> SagaEventStore:
+def _unified_store(saga_log: SagaLogStore | str | None, participant: Any) -> SagaEventStore:
     """An event store over the unified saga log (ADR-041), for one saga run."""
     from sagaz.core.storage.saga_log import ORCHESTRATOR, create_saga_log_store
     from sagaz.core.storage.saga_log.event_store import SagaLogEventStore

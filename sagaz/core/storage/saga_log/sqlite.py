@@ -35,6 +35,9 @@ from sagaz.core.storage.saga_log._sqlite_schema import SCHEMA
 # mypy reads the imports alone: no ignore is needed with or without the dependency.
 if TYPE_CHECKING:
     import aiosqlite
+    from aiosqlite import Connection
+
+    from sagaz.core.storage.interfaces import OutboxStorage
 else:
     try:
         import aiosqlite
@@ -50,7 +53,7 @@ def _row(values: list[Any]) -> list[Any]:
     return [_iso(v) for v in values]
 
 
-async def _write_activities(conn: Any, tenant: str, batch: LogWrite) -> None:
+async def _write_activities(conn: Connection, tenant: str, batch: LogWrite) -> None:
     columns = codec.ACTIVITY_COLUMNS
     for activity in batch.activities:
         stored = activity
@@ -66,7 +69,7 @@ async def _write_activities(conn: Any, tenant: str, batch: LogWrite) -> None:
         )
 
 
-async def _write_deadlines(conn: Any, tenant: str, batch: LogWrite) -> None:
+async def _write_deadlines(conn: Connection, tenant: str, batch: LogWrite) -> None:
     if batch.deadline is not None:
         d = batch.deadline
         await conn.execute(
@@ -82,7 +85,7 @@ async def _write_deadlines(conn: Any, tenant: str, batch: LogWrite) -> None:
         )
 
 
-async def _write_outbox(conn: Any, tenant: str, batch: LogWrite) -> None:
+async def _write_outbox(conn: Connection, tenant: str, batch: LogWrite) -> None:
     for message in batch.publish:
         await conn.execute(
             "INSERT INTO outbox_events (event_id, saga_id, event_type, payload, status,"
@@ -103,7 +106,7 @@ async def _write_outbox(conn: Any, tenant: str, batch: LogWrite) -> None:
         )
 
 
-async def _marker_status(conn: Any, tenant: str, activity: Activity) -> str | None:
+async def _marker_status(conn: Connection, tenant: str, activity: Activity) -> str | None:
     cursor = await conn.execute(
         "SELECT status FROM saga_activity"
         " WHERE tenant_id = ? AND transaction_id = ? AND activity_id = ?",
@@ -113,7 +116,7 @@ async def _marker_status(conn: Any, tenant: str, activity: Activity) -> str | No
     return None if row is None else str(row[0])
 
 
-async def _ended(conn: Any, tenant: str, transaction_id: str, batch: LogWrite) -> bool:
+async def _ended(conn: Connection, tenant: str, transaction_id: str, batch: LogWrite) -> bool:
     cursor = await conn.execute(
         "SELECT 1 FROM saga_activity WHERE tenant_id = ? AND transaction_id = ?"
         " AND participant = ? AND name = ? AND status IN ('completed', 'compensated')",
@@ -133,27 +136,29 @@ class SQLiteSagaLogStore(SQLiteExportMixin, SagaLogStore):
             msg = "aiosqlite"
             raise MissingDependencyError(msg, "SQLite saga log")
         self.db_path = db_path
-        self._conn: Any = None
+        self._conn: Connection | None = None
         self._lock = asyncio.Lock()
         self._init_lock = asyncio.Lock()
 
-    async def _connection(self) -> Any:
+    async def _connection(self) -> Connection:
         # Initialized once, and published only when ready: a concurrent caller
         # must neither open a second connection nor write while the outbox DDL
         # holds an open transaction.
-        if self._conn is None:
+        conn = self._conn
+        if conn is None:
             async with self._init_lock:
-                if self._conn is None:
+                conn = self._conn
+                if conn is None:
                     conn = await aiosqlite.connect(self.db_path)
                     conn.row_factory = aiosqlite.Row
                     await conn.executescript(SCHEMA)
                     await conn.commit()
                     await self._init_outbox(conn)
                     self._conn = conn
-        return self._conn
+        return conn
 
     @staticmethod
-    async def _init_outbox(conn: Any) -> None:
+    async def _init_outbox(conn: Connection) -> None:
         """Create the ``SQLiteOutboxStorage`` table on this connection (same DDL)."""
         from sagaz.core.storage.backends.sqlite.outbox import SQLiteOutboxStorage
 
@@ -161,7 +166,7 @@ class SQLiteSagaLogStore(SQLiteExportMixin, SagaLogStore):
         schema._conn = conn
         await schema._init_schema()
 
-    def outbox_storage(self) -> Any:
+    def outbox_storage(self) -> OutboxStorage:
         """The outbox on this log's connection and write lock (works for ``:memory:`` too)."""
         from sagaz.core.storage.saga_log._sqlite_outbox import SharedSQLiteOutboxStorage
 
@@ -182,7 +187,7 @@ class SQLiteSagaLogStore(SQLiteExportMixin, SagaLogStore):
             await conn.commit()
         return stored
 
-    async def _write(self, conn: Any, tenant: str, batch: LogWrite) -> list[LogEvent]:
+    async def _write(self, conn: Connection, tenant: str, batch: LogWrite) -> list[LogEvent]:
         columns: tuple[str, ...]
         ended = {t for t in batch.guarded_transactions() if await _ended(conn, tenant, t, batch)}
         batch.drop_guarded(ended)
@@ -202,7 +207,8 @@ class SQLiteSagaLogStore(SQLiteExportMixin, SagaLogStore):
                 " WHERE tenant_id = ? AND transaction_id = ?",
                 (tenant, event.transaction_id),
             )
-            (last,) = await cursor.fetchone()
+            row = await cursor.fetchone()  # an aggregate: always one row
+            last = row[0] if row else 0
             columns = codec.EVENT_COLUMNS
             await conn.execute(
                 f"INSERT INTO saga_log_event ({', '.join(columns)})"  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
@@ -215,7 +221,7 @@ class SQLiteSagaLogStore(SQLiteExportMixin, SagaLogStore):
         await _write_outbox(conn, tenant, batch)
         return stored
 
-    async def _apply_status(self, conn: Any, tenant: str, batch: LogWrite) -> None:
+    async def _apply_status(self, conn: Connection, tenant: str, batch: LogWrite) -> None:
         change = batch.status
         assert change is not None
         cursor = await conn.execute(

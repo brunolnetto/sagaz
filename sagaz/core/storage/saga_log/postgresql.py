@@ -7,7 +7,7 @@ import uuid
 from collections.abc import Collection
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.storage._tenancy import scoped_tenant, write_tenant
@@ -30,6 +30,11 @@ from sagaz.core.storage.saga_log._model import (
 )
 from sagaz.core.storage.saga_log._pg_export import PostgreSQLExportMixin
 from sagaz.core.storage.saga_log._pg_schema import SCHEMA_SQL
+
+if TYPE_CHECKING:
+    from asyncpg import Connection, Pool
+
+    from sagaz.core.storage.interfaces import OutboxStorage
 
 try:
     import asyncpg
@@ -97,7 +102,7 @@ class PostgreSQLSagaLogStore(PostgreSQLExportMixin, SagaLogStore):
         self._pool: Any = None
         self._lock = asyncio.Lock()
 
-    async def _get_pool(self) -> Any:
+    async def _get_pool(self) -> Pool:
         async with self._lock:
             if self._pool is None:
                 pool = await asyncpg.create_pool(
@@ -111,7 +116,7 @@ class PostgreSQLSagaLogStore(PostgreSQLExportMixin, SagaLogStore):
         return self._pool
 
     @staticmethod
-    async def _ensure_schema(pool: Any) -> None:
+    async def _ensure_schema(pool: Pool) -> None:
         """Create or upgrade the schema; a service role relies on the platform's.
 
         In a database shared by services (ADR-041), the platform role owns the
@@ -178,7 +183,7 @@ class PostgreSQLSagaLogStore(PostgreSQLExportMixin, SagaLogStore):
         return stored
 
     @staticmethod
-    async def _guard(conn: Any, tenant: str, batch: LogWrite) -> None:
+    async def _guard(conn: Connection, tenant: str, batch: LogWrite) -> None:
         """Serialize a participant's writes on a transaction and apply ``batch.guard``.
 
         Markers are locked too, so an action is never recorded after its
@@ -200,12 +205,12 @@ class PostgreSQLSagaLogStore(PostgreSQLExportMixin, SagaLogStore):
         }
         batch.drop_guarded(ended)
 
-    def outbox_storage(self) -> Any:
+    def outbox_storage(self) -> OutboxStorage:
         from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
 
         return PostgreSQLOutboxStorage(self.connection_string)
 
-    async def _apply_status(self, conn: Any, tenant: str, batch: LogWrite) -> None:
+    async def _apply_status(self, conn: Connection, tenant: str, batch: LogWrite) -> None:
         change = batch.status
         assert change is not None
         version = await conn.fetchval(
@@ -224,7 +229,9 @@ class PostgreSQLSagaLogStore(PostgreSQLExportMixin, SagaLogStore):
             msg = f"Transaction {change.transaction_id} is not at version {change.expected_version}"
             raise ConcurrencyError(msg)
 
-    async def _append(self, conn: Any, tenant: str, events: list[LogEvent]) -> list[LogEvent]:
+    async def _append(
+        self, conn: Connection, tenant: str, events: list[LogEvent]
+    ) -> list[LogEvent]:
         stored: list[LogEvent] = []
         last: dict[str, int] = {}
         for event in events:

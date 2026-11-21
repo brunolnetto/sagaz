@@ -8,6 +8,9 @@ from sagaz.core.storage.backends.postgresql._saga_query import tenant_condition
 from sagaz.core.storage.backends.postgresql._tenancy import acquire_scoped
 from sagaz.core.types import SagaStatus
 
+if TYPE_CHECKING:
+    from asyncpg import Pool
+
 
 class _PostgreSQLSagaMaintenanceMixin:
     """Read-only statistics, retention cleanup and health probing.
@@ -18,7 +21,7 @@ class _PostgreSQLSagaMaintenanceMixin:
 
     if TYPE_CHECKING:
 
-        async def _get_pool(self) -> Any: ...
+        async def _get_pool(self) -> "Pool": ...
 
         def _format_bytes(self, num_bytes: int) -> str: ...
 

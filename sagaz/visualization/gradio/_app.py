@@ -7,9 +7,13 @@ use. The app only reads.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 from sagaz.visualization.gradio import _data as data
+
+if TYPE_CHECKING:
+    from sagaz.core.storage.interfaces import SagaStorage
+    from sagaz.core.storage.saga_log import SagaLogStore
 
 COORDINATIONS = ["", "orchestrated", "choreographed"]
 STATUSES = ["", "executing", "compensating", "completed", "compensated", "rolled_back", "failed"]
@@ -22,7 +26,11 @@ class AssetSource:
     (asyncpg pools belong to the loop that creates them).
     """
 
-    def __init__(self, saga_log: Any = None, storage: Any = None) -> None:
+    def __init__(
+        self,
+        saga_log: SagaLogStore | str | None = None,
+        storage: SagaStorage | str | None = None,
+    ) -> None:
         if (saga_log is None) == (storage is None):
             msg = "give exactly one of saga_log or storage"
             raise ValueError(msg)
@@ -34,21 +42,21 @@ class AssetSource:
     def unified(self) -> bool:
         return self._saga_log is not None
 
-    async def _log(self) -> Any:
+    async def _log(self) -> SagaLogStore:
         if isinstance(self._saga_log, str):
             from sagaz.core.storage.saga_log import create_saga_log_store
 
             self._saga_log = create_saga_log_store(self._saga_log)
-        return self._saga_log
+        return cast("SagaLogStore", self._saga_log)  # unified mode: __init__ checked it is set
 
-    async def _classic(self) -> Any:
+    async def _classic(self) -> SagaStorage:
         if isinstance(self._storage, str):
             from sagaz.core.storage import create_storage_manager
 
             self._manager = create_storage_manager(url=self._storage)
             await self._manager.initialize()
             self._storage = self._manager.saga
-        return self._storage
+        return cast("SagaStorage", self._storage)  # classic mode: a URL was resolved above
 
     async def rows(
         self, coordination: str, flow: str, status: str, tenant: str
@@ -73,7 +81,7 @@ class AssetSource:
     async def close(self) -> None:
         if self._manager is not None:
             await self._manager.close()
-        elif self.unified and not isinstance(self._saga_log, str):
+        elif self._saga_log is not None and not isinstance(self._saga_log, str):
             await self._saga_log.close()
 
 

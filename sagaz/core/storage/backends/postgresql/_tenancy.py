@@ -23,10 +23,13 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from weakref import WeakSet
 
 from sagaz.core.tenant import DEFAULT_TENANT, current_tenant_id
+
+if TYPE_CHECKING:
+    from asyncpg import Connection, Pool
 
 #: Name of the RLS policy created on each tenant-owned table.
 POLICY_NAME = "sagaz_tenant_isolation"
@@ -64,12 +67,12 @@ _SET_TENANT = "SELECT set_config('app.tenant_id', $1, false)"
 _at_default: WeakSet[Any] = WeakSet()
 
 
-def _raw_connection(conn: Any) -> Any:
+def _raw_connection(conn: Connection) -> Any:
     # A pool hands out a proxy; its reset callback receives the connection.
     return getattr(conn, "_con", None) or conn
 
 
-async def reset_to_default_tenant(conn: Any) -> None:
+async def reset_to_default_tenant(conn: Connection) -> None:
     """Pool ``reset`` callback: asyncpg's reset plus the default tenant, in one round trip."""
     await conn.execute(
         conn.get_reset_query() + "SELECT set_config('app.tenant_id', 'default', false);"
@@ -81,7 +84,7 @@ async def reset_to_default_tenant(conn: Any) -> None:
 POOL_OPTIONS: dict[str, Any] = {"reset": reset_to_default_tenant}
 
 
-async def apply_scope(conn: Any) -> None:
+async def apply_scope(conn: Connection) -> None:
     """Set ``app.tenant_id`` on ``conn`` to the current scope (skipped when already default)."""
     tenant = current_tenant_id()
     raw = _raw_connection(conn)
@@ -95,7 +98,7 @@ async def apply_scope(conn: Any) -> None:
 
 
 @asynccontextmanager
-async def acquire_scoped(pool: Any) -> AsyncIterator[Any]:
+async def acquire_scoped(pool: Pool) -> AsyncIterator[Any]:
     """``pool.acquire()`` with ``app.tenant_id`` set for the current scope."""
     async with pool.acquire() as conn:
         await apply_scope(conn)

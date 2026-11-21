@@ -62,7 +62,7 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-def _is_saga_log(source: Any) -> bool:
+def _is_saga_log(source: object) -> bool:
     from sagaz.core.storage.saga_log import SagaLogStore
 
     return isinstance(source, SagaLogStore)

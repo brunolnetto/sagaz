@@ -140,7 +140,7 @@ def build_step_statechart(
     )
 
 
-def is_step_chart(machine: Any) -> bool:
+def is_step_chart(machine: object) -> bool:
     """Whether *machine* is a phase 2 step chart (its class carries the step names)."""
     return isinstance(getattr(type(machine), "step_names", None), tuple)
 

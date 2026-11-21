@@ -5,7 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Collection
 from datetime import datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.storage.saga_log._model import (
     Activity,
@@ -18,6 +18,9 @@ from sagaz.core.storage.saga_log._model import (
     SnapshotKind,
     Transaction,
 )
+
+if TYPE_CHECKING:
+    from sagaz.core.storage.interfaces import OutboxStorage
 
 
 class SagaLogStore(ABC):
@@ -55,7 +58,7 @@ class SagaLogStore(ABC):
         """Claim deadlines of *owners* due at *now*, in every tenant, for *lease*."""
 
     @abstractmethod
-    def outbox_storage(self) -> Any:
+    def outbox_storage(self) -> OutboxStorage:
         """An ``OutboxStorage`` over the outbox this store writes ``LogWrite.publish`` to.
 
         Give it to an ``OutboxWorker`` (or use it with CDC) to relay the messages.

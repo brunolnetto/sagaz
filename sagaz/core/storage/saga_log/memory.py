@@ -7,7 +7,7 @@ import copy
 from collections.abc import Collection
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.storage._tenancy import scoped_tenant, write_tenant
 from sagaz.core.storage.saga_log._base import SagaLogStore
@@ -27,6 +27,10 @@ from sagaz.core.storage.saga_log._model import (
     Transaction,
 )
 
+if TYPE_CHECKING:
+    from sagaz.core.outbox.types import OutboxEvent
+    from sagaz.core.storage.interfaces import OutboxStorage
+
 Key = tuple[str, str]  # (tenant_id, transaction_id)
 COMPENSATED_MARKER = "compensated"
 ENDED_MARKERS = frozenset({"completed", COMPENSATED_MARKER})
@@ -41,7 +45,7 @@ def _keeps_compensated(previous: Activity | None, new: Activity) -> bool:
     )
 
 
-def _outbox_event(message: OutboxMessage) -> Any:
+def _outbox_event(message: OutboxMessage) -> OutboxEvent:
     from sagaz.core.outbox.types import OutboxEvent
 
     return OutboxEvent(
@@ -72,7 +76,7 @@ class InMemorySagaLogStore(SagaLogStore):
 
         self._outbox = InMemoryOutboxStorage()
 
-    def outbox_storage(self) -> Any:
+    def outbox_storage(self) -> OutboxStorage:
         return self._outbox
 
     # -- writes ------------------------------------------------------------------

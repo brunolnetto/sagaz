@@ -10,7 +10,7 @@ import asyncio
 import json
 from collections.abc import Collection
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.choreography.events import Event
 from sagaz.choreography.state._base import COMPENSATED, COMPLETED, Deadline, ParticipantState
@@ -22,6 +22,9 @@ from sagaz.core.storage.backends.postgresql._tenancy import (
     acquire_scoped,
     tenant_isolation_sql,
 )
+
+if TYPE_CHECKING:
+    from asyncpg import Pool
 
 try:
     import asyncpg
@@ -99,7 +102,7 @@ class PostgreSQLParticipantState(ParticipantState):
         self._pool: Any = None
         self._lock = asyncio.Lock()
 
-    async def _get_pool(self) -> Any:
+    async def _get_pool(self) -> Pool:
         async with self._lock:
             if self._pool is None:
                 pool = await asyncpg.create_pool(

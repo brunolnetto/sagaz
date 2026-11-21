@@ -378,6 +378,24 @@ exclude = [
 ]
 
 # ============================================================================
+# Typing budget (scripts/check_typing_budget.py)
+# ============================================================================
+# How many findings each measure has today, over sagaz/ without the examples. CI fails
+# when a count differs: above, debt was added; below, lower the number here so the gain
+# is kept. The ANN rules are ruff's annotation checks, not enabled yet (#595, #596, #597).
+[tool.sagaz.typing-budget]
+ANN401 = 343        # a bare Any as a whole annotation
+ANN001 = 222        # parameter without a type
+ANN002 = 19         # *args without a type
+ANN003 = 41         # **kwargs without a type
+ANN201 = 58         # public function without a return type
+ANN202 = 181        # private function without a return type
+ANN204 = 103        # special method without a return type
+ANN205 = 2          # static method without a return type
+ANN206 = 1          # class method without a return type
+"type-ignore" = 56  # "# type: ignore" comments
+
+# ============================================================================
 # Pytest Configuration
 # ============================================================================
 

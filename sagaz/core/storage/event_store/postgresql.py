@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 from dataclasses import replace
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.events import SagaEvent
 from sagaz.core.exceptions import MissingDependencyError
@@ -24,6 +24,9 @@ from sagaz.core.storage.backends.postgresql._tenancy import (
     tenant_isolation_sql,
 )
 from sagaz.core.storage.event_store._base import SagaEventStore, SagaSnapshot
+
+if TYPE_CHECKING:
+    from asyncpg import Pool
 
 try:
     import asyncpg
@@ -85,7 +88,7 @@ class PostgreSQLEventStore(SagaEventStore):
         self._pool: Any = None
         self._lock = asyncio.Lock()
 
-    async def _get_pool(self) -> Any:
+    async def _get_pool(self) -> Pool:
         async with self._lock:
             if self._pool is None:
                 pool = await asyncpg.create_pool(

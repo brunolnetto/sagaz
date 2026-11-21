@@ -10,10 +10,15 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 from sagaz.choreography.tracker import RECORD_NAME as CHOREOGRAPHY_RECORD_NAME
 from sagaz.versioning.registry import VERSION_RECORD_SAGA_NAME
+
+if TYPE_CHECKING:
+    from sagaz.core.storage.interfaces import SagaStorage
+    from sagaz.core.storage.saga_log import SagaLogStore
+    from sagaz.core.storage.saga_log._model import Activity, Transaction
 
 
 def _value(raw: Any) -> Any:
@@ -30,13 +35,13 @@ def _timestamp(raw: Any) -> datetime | None:
     return parsed
 
 
-def _saga_source(storage: Any) -> Any:
+def _saga_source(storage: object) -> SagaStorage:
     """Accept a saga storage or a ``StorageManager`` (which exposes ``.saga``)."""
     if callable(getattr(storage, "export_all", None)):
-        return storage
+        return cast("SagaStorage", storage)  # duck-typed: it has export_all()
     saga_storage = getattr(storage, "saga", None)
     if callable(getattr(saga_storage, "export_all", None)):
-        return saga_storage
+        return cast("SagaStorage", saga_storage)
     msg = f"{type(storage).__name__} does not expose export_all(); pass a saga storage"
     raise TypeError(msg)
 
@@ -55,7 +60,7 @@ def _step_record(saga: dict[str, Any], step: dict[str, Any]) -> dict[str, Any]:
 
 
 async def bronze_records_from_storage(
-    storage: Any,
+    storage: object,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Read every orchestrated saga (and its steps) from ``storage`` as Bronze records."""
     sagas, steps, _choreography = await read_storage(storage)
@@ -63,7 +68,7 @@ async def bronze_records_from_storage(
 
 
 async def read_storage(
-    storage: Any,
+    storage: object,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     """One pass over ``storage``: orchestrated sagas, their steps, and the
     choreographed transactions a ``ChoreographyTracker`` saved (#459)."""
@@ -94,7 +99,7 @@ async def read_storage(
 _ACTIVITY_OUTCOME = {"compensation_failed": "failed"}
 
 
-def _activity_record(transaction: Any, activity: Any) -> dict[str, Any]:
+def _activity_record(transaction: Transaction, activity: Activity) -> dict[str, Any]:
     return {
         "saga_id": transaction.transaction_id,
         "saga_name": transaction.flow,
@@ -107,7 +112,9 @@ def _activity_record(transaction: Any, activity: Any) -> dict[str, Any]:
     }
 
 
-async def _choreography_record(log: Any, transaction: Any) -> dict[str, Any] | None:
+async def _choreography_record(
+    log: SagaLogStore, transaction: Transaction
+) -> dict[str, Any] | None:
     """A choreographed transaction in the tracker-record shape the Silver layer reads."""
     from sagaz.choreography.tracker import RECORD_NAME, status_from_log
 
@@ -132,7 +139,7 @@ _CHOREOGRAPHY_STATUSES = frozenset(
 
 
 async def read_saga_log(
-    log: Any,
+    log: SagaLogStore,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     """One pass over a unified saga log (ADR-041): the same three record lists as
     :func:`read_storage`, for orchestrated and choreographed transactions alike."""

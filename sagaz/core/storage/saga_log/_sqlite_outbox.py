@@ -13,9 +13,14 @@ import functools
 import inspect
 from collections.abc import Awaitable, Callable
 from contextvars import ContextVar
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.storage.backends.sqlite.outbox import SQLiteOutboxStorage
+
+if TYPE_CHECKING:
+    from aiosqlite import Connection
+
+    from sagaz.core.storage.saga_log.sqlite import SQLiteSagaLogStore
 
 _OWN_LIFECYCLE = frozenset({"initialize", "close"})
 # Set while this task holds the store's lock: outbox methods call one another
@@ -26,11 +31,11 @@ _HOLDING: ContextVar[bool] = ContextVar("sagaz_sqlite_outbox_holding", default=F
 class SharedSQLiteOutboxStorage(SQLiteOutboxStorage):
     """``SQLiteOutboxStorage`` on a ``SQLiteSagaLogStore``'s connection and lock."""
 
-    def __init__(self, store: Any) -> None:
+    def __init__(self, store: SQLiteSagaLogStore) -> None:
         super().__init__(store.db_path)
         self._store = store
 
-    async def _get_connection(self) -> Any:
+    async def _get_connection(self) -> Connection:
         self._initialized = True  # the store creates the outbox table on connect
         return await self._store._connection()
 

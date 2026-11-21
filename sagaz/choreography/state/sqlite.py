@@ -16,6 +16,7 @@ from sagaz.core.storage._tenancy import write_tenant
 # mypy reads the imports alone: no ignore is needed with or without the dependency.
 if TYPE_CHECKING:
     import aiosqlite
+    from aiosqlite import Connection
 else:
     try:
         import aiosqlite
@@ -72,21 +73,23 @@ class SQLiteParticipantState(ParticipantState):
             msg = "aiosqlite"
             raise MissingDependencyError(msg, "SQLite participant state")
         self.db_path = db_path
-        self._conn: Any = None
+        self._conn: Connection | None = None
         self._lock = asyncio.Lock()
         self._init_lock = asyncio.Lock()
 
-    async def _connection(self) -> Any:
+    async def _connection(self) -> Connection:
         # Initialized once, and published only when ready: a concurrent caller
         # must neither open a second connection nor use a half-made schema.
-        if self._conn is None:
+        conn = self._conn
+        if conn is None:
             async with self._init_lock:
-                if self._conn is None:
+                conn = self._conn
+                if conn is None:
                     conn = await aiosqlite.connect(self.db_path)
                     await conn.executescript(SCHEMA)
                     await conn.commit()
                     self._conn = conn
-        return self._conn
+        return conn
 
     async def record_action(self, participant: str, event: Event) -> None:
         if not event.saga_id:
