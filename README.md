@@ -500,9 +500,10 @@ MIT License - see [LICENSE](https://github.com/brunolnetto/sagaz/blob/main/LICEN
 
 ## Project Status
 
-**Current Version**: 2.3.0 (November 2026)
+**Current Version**: 2.4.0 (November 2026)
 
 **Recent releases:**
+- **v2.4.0** - Developer experience: retries, durability and a run-once saga id that keep their promises, one failure contract (`SagaFailedError`), a 1 MB package, documentation that runs, and a feature × mode matrix.
 - **v2.3.0** - StateChart step charts with pivot/taint states and compensation re-entry, a CDC reader for the saga log export, a Gradio asset monitor and a schema registry for saga events.
 - **v2.2.0** - Streaming and historical analytics on the saga log. The log is exported to Apache Fluss and tiered to Apache Iceberg, with Flink SQL reports, Prometheus metrics and a Grafana dashboard.
 - **v2.1.0** - Unified saga log: one OLTP model for orchestrated and choreographed sagas, with atomic choreography publication and analytics over both coordination styles.
