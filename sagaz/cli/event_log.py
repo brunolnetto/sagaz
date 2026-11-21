@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import json
 from typing import Any
 
@@ -31,6 +32,41 @@ async def _load(
     async with _store(url, layout) as store:
         with tenant_scope(tenant):
             return await store.load_stream(saga_id), await load_projection(store, saga_id)
+
+
+async def _load_choreographed(url: str, saga_id: str, tenant: str) -> tuple[Any, list] | None:
+    """A choreographed transaction and its events, or None for an orchestrated saga (#557).
+
+    The event store view on the log reads orchestrated lifecycle events; a
+    choreography's business events are read from the log directly.
+    """
+    from sagaz.core.storage.saga_log import create_saga_log_store
+    from sagaz.core.storage.saga_log._model import Coordination
+
+    async with create_saga_log_store(url) as log:
+        with tenant_scope(tenant):
+            transaction = await log.get_transaction(saga_id)
+            if transaction is None or transaction.coordination != Coordination.CHOREOGRAPHED:
+                return None
+            return transaction, await log.events(saga_id)
+
+
+def _show_choreographed(transaction: Any, events: list, as_json: bool) -> None:
+    if as_json:
+        document = {
+            "transaction": dataclasses.asdict(transaction),
+            "events": [dataclasses.asdict(event) for event in events],
+        }
+        click.echo(json.dumps(document, indent=2, sort_keys=True, default=str))
+        return
+    click.echo(
+        f"Transaction {transaction.transaction_id} (choreographed flow {transaction.flow}, "
+        f"tenant {transaction.tenant_id}): {transaction.status}"
+    )
+    for event in events:
+        when = event.occurred_at.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        source = event.source or "?"
+        click.echo(f"  {event.sequence:>4}  {when}  {source:<18}  {event.event_type}".rstrip())
 
 
 def _details(event: SagaEvent) -> str:
@@ -64,7 +100,12 @@ def _details(event: SagaEvent) -> str:
     help="Read the ADR-033 event store (legacy) or the unified saga log (ADR-041).",
 )
 def event_log_cmd(saga_id: str, store_url: str, tenant: str, as_json: bool, layout: str) -> None:
-    """Show every recorded event of the event-sourced saga SAGA_ID."""
+    """Show every recorded event of the saga or choreographed transaction SAGA_ID."""
+    if layout == "unified":
+        choreographed = asyncio.run(_load_choreographed(store_url, saga_id, tenant))
+        if choreographed is not None:
+            _show_choreographed(*choreographed, as_json)
+            return
     events, state = asyncio.run(_load(store_url, saga_id, tenant, layout))
     if not events:
         msg = f"No events for saga '{saga_id}' (tenant '{tenant}')"

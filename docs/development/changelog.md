@@ -93,6 +93,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - packaging switch, with label validation (the line cut-over is the pivot).
 
 ### Fixed
+- **`sagaz replay`** (#556) could not replay anything: `redis` and `postgres` raised
+  `NotImplementedError`, and `memory` built an empty storage with no saga to run. `run`,
+  `time-travel` and `list-changes` now read the snapshot storage the saga wrote to
+  (`--storage redis|postgres|filesystem` with `--storage-url`; `filesystem` is the
+  default), `run` builds the saga from `--saga module:attribute`, `memory` is refused
+  with an explanation, and failures exit non-zero (they exited 0).
+- **`sagaz event-log --layout unified` on a choreographed transaction** (#557) printed
+  `pending` and an `UnrecognizedEvent`; it now shows the transaction's events, with the
+  participant of each, and its status.
 - **Compensation retries in `sagaz.Saga`** (#550): `@compensate(max_retries=...)` was
   ignored, so a failing compensation ran once. It now runs `max_retries + 1` times (default
   3 retries), each attempt under its timeout, with the steps' backoff.

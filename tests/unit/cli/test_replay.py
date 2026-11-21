@@ -2,13 +2,16 @@
 Tests for CLI replay module.
 """
 
+import contextlib
 from datetime import UTC, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID
 
+import click
 import pytest
 from click.testing import CliRunner
 
+from sagaz.cli import _replay_exec
 from sagaz.cli.replay import (
     _execute_list_changes,
     _execute_replay,
@@ -18,6 +21,19 @@ from sagaz.cli.replay import (
     replay_command,
     time_travel_command,
 )
+
+REAL_OPEN_SNAPSHOT_STORAGE = _replay_exec.open_snapshot_storage
+
+
+@pytest.fixture(autouse=True)
+def snapshot_storage_stub(monkeypatch):
+    """These tests mock SagaReplay/SagaTimeTravel: give them a stand-in storage."""
+
+    @contextlib.asynccontextmanager
+    async def fake(kind, url):
+        yield MagicMock()
+
+    monkeypatch.setattr(_replay_exec, "open_snapshot_storage", fake)
 
 
 @pytest.fixture
@@ -100,6 +116,8 @@ class TestReplayCommand:
                 "550e8400-e29b-41d4-a716-446655440000",
                 "--from-step",
                 "step1",
+                "--saga",
+                "tests.unit.cli.test_replay_real_storage:make_order_saga",
                 "--override",
                 "invalid_format",
             ],
@@ -124,6 +142,8 @@ class TestReplayCommand:
                 "550e8400-e29b-41d4-a716-446655440000",
                 "--from-step",
                 "step1",
+                "--saga",
+                "tests.unit.cli.test_replay_real_storage:make_order_saga",
                 "--override",
                 "key1=value1",
             ],
@@ -173,6 +193,8 @@ class TestReplayCommand:
                 "550e8400-e29b-41d4-a716-446655440000",
                 "--from-step",
                 "step1",
+                "--saga",
+                "tests.unit.cli.test_replay_real_storage:make_order_saga",
                 "--verbose",
             ],
         )
@@ -195,6 +217,8 @@ class TestReplayCommand:
                 "550e8400-e29b-41d4-a716-446655440000",
                 "--from-step",
                 "step1",
+                "--saga",
+                "tests.unit.cli.test_replay_real_storage:make_order_saga",
             ],
         )
         assert "failed" in result.output.lower()
@@ -209,6 +233,8 @@ class TestReplayCommand:
                 "550e8400-e29b-41d4-a716-446655440000",
                 "--from-step",
                 "step1",
+                "--saga",
+                "tests.unit.cli.test_replay_real_storage:make_order_saga",
             ],
         )
         assert "Error" in result.output or "Test error" in result.output
@@ -447,11 +473,10 @@ class TestExecuteReplay:
 
     @pytest.mark.asyncio
     async def test_execute_replay_not_implemented_storage(self, mock_saga_replay):
-        """Test replay with not implemented storage type."""
-        saga_id = UUID("550e8400-e29b-41d4-a716-446655440000")
-
-        with pytest.raises(NotImplementedError, match="redis"):
-            await _execute_replay(saga_id, "step1", "redis", "redis://localhost", {}, False, False)
+        """The in-memory storage is refused: it lives in the process that wrote it (#556)."""
+        with pytest.raises(click.UsageError, match="in-memory"):
+            async with REAL_OPEN_SNAPSHOT_STORAGE("memory", None):
+                pass
 
 
 class TestExecuteTimeTravel:
@@ -481,14 +506,10 @@ class TestExecuteTimeTravel:
 
     @pytest.mark.asyncio
     async def test_execute_time_travel_not_implemented_storage(self, mock_time_travel):
-        """Test time-travel with not implemented storage type."""
-        saga_id = UUID("550e8400-e29b-41d4-a716-446655440000")
-        timestamp = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
-
-        with pytest.raises(NotImplementedError, match="postgres"):
-            await _execute_time_travel(
-                saga_id, timestamp, "postgres", "postgresql://localhost", None, "text"
-            )
+        """The in-memory storage is refused: it lives in the process that wrote it (#556)."""
+        with pytest.raises(click.UsageError, match="in-memory"):
+            async with REAL_OPEN_SNAPSHOT_STORAGE("memory", None):
+                pass
 
 
 class TestExecuteListChanges:
@@ -522,11 +543,10 @@ class TestExecuteListChanges:
 
     @pytest.mark.asyncio
     async def test_execute_list_changes_not_implemented_storage(self, mock_time_travel):
-        """Test list changes with not implemented storage type."""
-        saga_id = UUID("550e8400-e29b-41d4-a716-446655440000")
-
-        with pytest.raises(NotImplementedError, match="redis"):
-            await _execute_list_changes(saga_id, None, None, 100, "redis")
+        """The in-memory storage is refused: it lives in the process that wrote it (#556)."""
+        with pytest.raises(click.UsageError, match="in-memory"):
+            async with REAL_OPEN_SNAPSHOT_STORAGE("memory", None):
+                pass
 
 
 class TestStorageTypeValidation:
@@ -605,6 +625,8 @@ class TestRichConsoleOutput:
                 "550e8400-e29b-41d4-a716-446655440000",
                 "--from-step",
                 "step1",
+                "--saga",
+                "tests.unit.cli.test_replay_real_storage:make_order_saga",
                 "--verbose",
             ],
         )
@@ -698,6 +720,8 @@ class TestWithoutRich:
                     "550e8400-e29b-41d4-a716-446655440000",
                     "--from-step",
                     "step1",
+                    "--saga",
+                    "tests.unit.cli.test_replay_real_storage:make_order_saga",
                 ],
             )
             assert result.exit_code == 0
@@ -725,6 +749,8 @@ class TestWithoutRich:
                     "550e8400-e29b-41d4-a716-446655440000",
                     "--from-step",
                     "step1",
+                    "--saga",
+                    "tests.unit.cli.test_replay_real_storage:make_order_saga",
                     "--verbose",
                 ],
             )
@@ -943,7 +969,12 @@ class TestReplayRichImportError:
                 del sys.modules["rich"]
             for key, val in orig_rich.items():
                 sys.modules[key] = val
+            import sagaz.cli as cli_package
+
             for name, original in orig_mods.items():
                 sys.modules.pop(name, None)
                 if original is not None:
                     sys.modules[name] = original
+                    # The re-import also rebound the package attribute: restore it, or later
+                    # tests patching "sagaz.cli.replay..." hit the re-imported copy.
+                    setattr(cli_package, name.rsplit(".", 1)[1], original)
