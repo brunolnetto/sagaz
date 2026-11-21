@@ -16,6 +16,8 @@ from sagaz.core.context import (
     SagaContext,
 )
 
+TEST_KEY = "test-signing-key-0123456789"
+
 
 class TestConfigurationValidation:
     """Test configuration validation rules"""
@@ -38,7 +40,7 @@ class TestConfigurationValidation:
     def test_auto_offload_with_storage_succeeds(self):
         """Auto-offload=True with storage should work"""
         with tempfile.TemporaryDirectory() as tmpdir:
-            storage = FileSystemExternalStorage(tmpdir)
+            storage = FileSystemExternalStorage(tmpdir, signing_key=TEST_KEY)
             ctx = SagaContext()
 
             # Should not raise
@@ -55,7 +57,7 @@ class TestConfigurationValidation:
     def test_storage_without_auto_offload_succeeds(self):
         """Storage configured but auto-offload=False should work"""
         with tempfile.TemporaryDirectory() as tmpdir:
-            storage = FileSystemExternalStorage(tmpdir)
+            storage = FileSystemExternalStorage(tmpdir, signing_key=TEST_KEY)
             ctx = SagaContext()
 
             ctx.configure(
@@ -208,7 +210,7 @@ class TestAutoOffloadBehavior:
     async def test_auto_offload_stores_externally(self):
         """Large values should be auto-offloaded when threshold exceeded"""
         with tempfile.TemporaryDirectory() as tmpdir:
-            storage = FileSystemExternalStorage(tmpdir)
+            storage = FileSystemExternalStorage(tmpdir, signing_key=TEST_KEY)
             ctx = SagaContext()
             ctx.configure(
                 saga_id="test-saga",
@@ -235,7 +237,7 @@ class TestAutoOffloadBehavior:
     async def test_auto_offload_keeps_small_values_in_memory(self):
         """Small values should stay in memory even with auto-offload enabled"""
         with tempfile.TemporaryDirectory() as tmpdir:
-            storage = FileSystemExternalStorage(tmpdir)
+            storage = FileSystemExternalStorage(tmpdir, signing_key=TEST_KEY)
             ctx = SagaContext()
             ctx.configure(
                 saga_id="test-saga",
@@ -256,7 +258,7 @@ class TestAutoOffloadBehavior:
     async def test_strict_limit_takes_precedence_over_auto_offload(self):
         """Strict limit should raise error before auto-offload kicks in"""
         with tempfile.TemporaryDirectory() as tmpdir:
-            storage = FileSystemExternalStorage(tmpdir)
+            storage = FileSystemExternalStorage(tmpdir, signing_key=TEST_KEY)
             ctx = SagaContext()
             ctx.configure(
                 saga_id="test-saga",
@@ -280,7 +282,7 @@ class TestPriorityOrder:
     async def test_all_features_enabled_priority(self):
         """Test priority order when all features enabled"""
         with tempfile.TemporaryDirectory() as tmpdir:
-            storage = FileSystemExternalStorage(tmpdir)
+            storage = FileSystemExternalStorage(tmpdir, signing_key=TEST_KEY)
             ctx = SagaContext()
             ctx.configure(
                 saga_id="test-saga",

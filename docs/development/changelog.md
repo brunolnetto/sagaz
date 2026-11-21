@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **External context storage signs its payloads (#589). Breaking change.** `FileSystemExternalStorage` and `S3ExternalStorage` pickle the values they store, and unpickling runs code. Before, anyone who could write to the directory or the bucket could run code in every worker that loaded a payload. Each payload is now stored with an HMAC-SHA256 signature, which is checked before anything is unpickled. A payload that is missing its signature, was modified, was moved to another name or was signed with another key raises `ExternalStorageIntegrityError`.
+  - **Migration:** pass `signing_key=` (at least 16 bytes), or set `SAGAZ_EXTERNAL_STORAGE_KEY` to the same secret in every worker, e.g. `python -c 'import secrets; print(secrets.token_hex(32))'`. Without a key, the constructors raise.
+  - **Older payloads:** they are unsigned. Read them with `allow_unsigned=True` (it logs a warning) until they expire. That setting is unsafe while others can write to the storage.
+  - **`FileSystemExternalStorage`:** it now only reads and deletes files under its `base_path`. Before, a `file://` URI could point anywhere on disk.
+
 ## [2.4.0] - 2026-11-21
 
 Developer experience, from a usability review by a backend engineer's perspective and a

@@ -5,6 +5,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from sagaz.core.context import HAS_AIOBOTO3, S3ExternalStorage
+from sagaz.core.context._signing import resolve_key, seal, unseal
+
+TEST_KEY = "test-signing-key-0123456789"
 
 
 @pytest.mark.skipif(not HAS_AIOBOTO3, reason="aioboto3 not installed")
@@ -28,7 +31,7 @@ class TestS3Storage:
         # We patch where it is looked up: sagaz.core.context.aioboto3
         # Ensure we patch the Session class on that module
         with patch("sagaz.core.context.aioboto3.Session", return_value=mock_session):
-            yield S3ExternalStorage(bucket="test-bucket")
+            yield S3ExternalStorage(bucket="test-bucket", signing_key=TEST_KEY)
 
     @pytest.mark.asyncio
     async def test_store_calls_put_object(self, s3_storage, mock_s3_client):
@@ -42,7 +45,8 @@ class TestS3Storage:
         mock_s3_client.put_object.assert_called_once()
         call_args = mock_s3_client.put_object.call_args[1]
         assert call_args["Bucket"] == "test-bucket"
-        assert call_args["Body"] == val_bytes
+        object_key = ref.uri.removeprefix("s3://test-bucket/")
+        assert unseal(resolve_key(TEST_KEY), object_key, call_args["Body"]) == val_bytes
         assert call_args["Metadata"]["saga_id"] == "saga-1"
 
     @pytest.mark.asyncio
@@ -52,7 +56,7 @@ class TestS3Storage:
 
         # Mock response body
         mock_body = AsyncMock()
-        mock_body.read.return_value = val_bytes
+        mock_body.read.return_value = seal(resolve_key(TEST_KEY), "saga-1/key-123.bin", val_bytes)
         mock_body.__aenter__.return_value = mock_body
         mock_body.__aexit__.return_value = None
 
