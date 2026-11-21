@@ -3,7 +3,7 @@
 import inspect
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.decorators._collection import DecoratorCollectionManager
 from sagaz.core.decorators._execution import ExecutionEngine
@@ -26,6 +26,9 @@ from sagaz.core.tenant import (
     resolve_tenant,
     tenant_execution,
 )
+
+if TYPE_CHECKING:
+    from sagaz.core.config import SagaConfig
 
 logger = get_logger("sagaz.core.decorators")
 
@@ -109,7 +112,7 @@ class Saga(
     retry_backoff_base: float = 0.01
     """Seconds before a step's first retry; doubles on each further retry."""
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
 
         # Auto-register triggers
@@ -121,8 +124,12 @@ class Saga(
                 TriggerRegistry.register(cls, name, method._trigger_metadata)
 
     def __init__(
-        self, name: str | None = None, config=None, *, use_step_statechart: bool | None = None
-    ):
+        self,
+        name: str | None = None,
+        config: "SagaConfig | None" = None,
+        *,
+        use_step_statechart: bool | None = None,
+    ) -> None:
         """
         Initialize the saga.
 
@@ -279,6 +286,16 @@ class Saga(
         self._step_registry[name] = step_def
 
         return self  # Enable method chaining
+
+    def add_listener(self, listener: Any) -> "Saga":
+        """Add a listener to this saga's, keeping the configured ones (#538).
+
+        The class attribute ``listeners`` replaces the config's logging, metrics and
+        tracing listeners; this adds one to them (as ``SagaConfig.extra_listeners``
+        does for every saga).
+        """
+        self._instance_listeners = [*self._instance_listeners, listener]
+        return self
 
     def get_steps(self) -> list[SagaStepDefinition]:
         """Get all step definitions."""

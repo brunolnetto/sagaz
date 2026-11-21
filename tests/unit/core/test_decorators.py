@@ -296,8 +296,8 @@ class TestSaga:
         assert result["initial"] == "data"
         assert result["step1_done"] is True
         assert result["step2_done"] is True
-        assert result["__step1_completed"] is True
-        assert result["__step2_completed"] is True
+        # The engine's __<step>_completed markers stay internal (#538).
+        assert not any(key.startswith("__") for key in result)
 
     @pytest.mark.asyncio
     async def test_run_with_compensation_on_failure(self):
@@ -490,7 +490,7 @@ class TestSagaAdvanced:
         result = await saga.run({}, saga_id="custom-saga-123")
 
         # Should complete without error
-        assert result["__step1_completed"] is True
+        assert "__step1_completed" not in result  # internal markers are not returned (#538)
 
 
 class TestImperativeSupport:

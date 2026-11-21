@@ -133,7 +133,7 @@ class TestImperativeMode:
         # Step results are merged directly into context
         assert result.get("result") == "success"
         # Step completion is tracked with __stepname_completed
-        assert result.get("__step1_completed") is True
+        assert "__step1_completed" not in result  # internal markers are not returned (#538)
 
     def test_duplicate_step_name_raises_error(self):
         """Adding a step with duplicate name should raise ValueError."""

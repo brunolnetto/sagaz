@@ -122,7 +122,7 @@ class ExecutionEngine(
         )
         await self._record(SagaCompleted, duration_ms=self._elapsed_ms())
         await self._persist(SagaStatus.COMPLETED)
-        return self.saga._context
+        return public_context(self.saga._context)
 
     def _initialize_run(self, initial_context: dict[str, Any], saga_id: str | None) -> None:
         """Initialize saga run state."""
@@ -242,15 +242,16 @@ class ExecutionEngine(
             )
 
         except TimeoutError as e:
+            # Hooks and listeners get the SagaTimeoutError, whose message says what
+            # timed out (asyncio's TimeoutError has none, so logs read "Failed: x - ").
+            timed_out = SagaTimeoutError(f"Step '{step.step_id}' timed out after {timeout}s")
+            timed_out.__cause__ = e
             await self._record_step_failure(step.step_id, e, f"timed out after {timeout}s")
-            # Call on_failure hook
-            await self._call_hook(step.on_failure, self.saga._context, step.step_id, e)
-            # Notify listeners: step failure
+            await self._call_hook(step.on_failure, self.saga._context, step.step_id, timed_out)
             await self._notify_listeners(
-                "on_step_failure", saga_name, step.step_id, self.saga._context, e
+                "on_step_failure", saga_name, step.step_id, self.saga._context, timed_out
             )
-            msg = f"Step '{step.step_id}' timed out after {timeout}s"
-            raise SagaTimeoutError(msg) from e
+            raise timed_out from e
         except Exception as e:
             await self._record_step_failure(step.step_id, e)
             # Call on_failure hook
@@ -364,3 +365,15 @@ class ExecutionEngine(
                 error_type=type(e).__name__,
                 error_message=str(e) or type(e).__name__,
             )
+
+
+_INTERNAL_SUFFIXES = ("_completed", "_compensated", "_compensation_error")
+
+
+def public_context(context: dict[str, Any]) -> dict[str, Any]:
+    """The context a run returns: without the engine's ``__<step>_completed`` markers (#538)."""
+    return {
+        key: value
+        for key, value in context.items()
+        if not (key.startswith("__") and key.endswith(_INTERNAL_SUFFIXES))
+    }
