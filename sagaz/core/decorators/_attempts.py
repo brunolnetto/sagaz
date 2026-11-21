@@ -42,6 +42,8 @@ class _StepAttemptsMixin:
 
         async def _run_step(self, step: SagaStepDefinition, kind: str = ...) -> Any: ...
 
+        async def _run_compensation(self, step_id: str, fallback: Any) -> Any: ...
+
     def _step_timeout(self, step: SagaStepDefinition) -> float:
         """The step's timeout, else the config's default, capped by the tenant's quota."""
         if step.timeout_seconds is not None:
@@ -75,3 +77,27 @@ class _StepAttemptsMixin:
                 await asyncio.sleep(delay)
         msg = "unreachable: the last attempt returns or raises"
         raise AssertionError(msg)
+
+    async def _attempt_compensation(self, step_id: str, node: Any) -> None:
+        """Run a compensation until an attempt succeeds (#550): ``max_retries + 1`` at most.
+
+        Each attempt runs under the compensation's timeout, with the same backoff as
+        steps; the last attempt's error is raised. Cancellation is never retried.
+        """
+        attempts = int(node.max_retries) + 1
+        for attempt in range(attempts):
+            try:
+                await asyncio.wait_for(
+                    self._run_compensation(step_id, node.compensation_fn),
+                    timeout=node.timeout_seconds,
+                )
+                return
+            except Exception as error:
+                if attempt == attempts - 1:
+                    raise
+                delay = self.saga.retry_backoff_base * (2**attempt)
+                logger.warning(
+                    f"Compensation of '{step_id}' failed (attempt {attempt + 1}/{attempts}): "
+                    f"{type(error).__name__}: {error}; retrying in {delay:g}s"
+                )
+                await asyncio.sleep(delay)

@@ -128,6 +128,7 @@ class OrderSaga(Saga):
 | `on_success` | `(ctx, step_name, result)` | After successful completion |
 | `on_failure` | `(ctx, step_name, error)` | When step raises exception |
 | `on_compensate` | `(ctx, step_name)` | When compensation runs |
+| `on_exit` | `(ctx, step_name)` | After the step, whether it succeeded or failed |
 
 ---
 

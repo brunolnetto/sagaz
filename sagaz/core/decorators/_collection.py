@@ -121,6 +121,7 @@ class DecoratorCollectionManager:
             msg = f"step {step_name!r} has two @compensate methods"
             raise SagaDefinitionError(msg)
         step.compensation_fn = method
+        step.compensation_max_retries = meta.max_retries
         # Compensation dependencies are derived from forward dependencies (step.depends_on)
         # No need to set step.compensation_depends_on - it's ignored
         step.compensation_type = meta.compensation_type

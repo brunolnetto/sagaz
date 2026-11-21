@@ -100,19 +100,21 @@ class ExecutionEngine(
             await self._compensate()
             await self._chart_compensation_done()
             await self._record_outcome(e)
-            await self._notify_listeners(
-                "on_saga_failed", name, self.saga._saga_id, self.saga._context, e
-            )
-            # FAILED when a compensation failed, as the event log records it.
-            await self._persist_outcome(self._failure_status(), e)
-            raise SagaFailedError(
+            failure = SagaFailedError(
                 self.saga._saga_id,
                 name,
-                self._failure_status(),
+                self._failure_status(),  # FAILED when a compensation failed
                 self._failed_step,
                 e,
                 self._compensation_errors,
-            ) from e
+            )
+            failure.__cause__ = e
+            # Listeners get the SagaFailedError: its status says rolled back or failed (#551).
+            await self._notify_listeners(
+                "on_saga_failed", name, self.saga._saga_id, self.saga._context, failure
+            )
+            await self._persist_outcome(self._failure_status(), e)
+            raise failure from e
 
         # Every step succeeded: only a step's failure compensates. A failure to save
         # the outcome raises SagaPersistenceError for a saga that did complete.
@@ -145,7 +147,7 @@ class ExecutionEngine(
                     step_def.compensation_fn,
                     depends_on=step_def.depends_on,  # Auto-reversed dependencies
                     compensation_type=step_def.compensation_type,
-                    max_retries=self._step_retries(step_def),
+                    max_retries=capped_retries(step_def.compensation_max_retries),
                     timeout_seconds=capped_timeout(step_def.compensation_timeout_seconds),
                 )
 
@@ -189,6 +191,13 @@ class ExecutionEngine(
                 raise result
 
     async def _execute_step(self, step: "SagaStepDefinition") -> None:
+        """Execute a single step; ``on_exit`` runs after it, whatever the outcome (#555)."""
+        try:
+            await self._execute_step_body(step)
+        finally:
+            await self._call_hook(step.on_exit, self.saga._context, step.step_id)
+
+    async def _execute_step_body(self, step: "SagaStepDefinition") -> None:
         """Execute a single step with lifecycle hooks and listeners."""
         saga_name = self._get_saga_name()
 
@@ -339,10 +348,7 @@ class ExecutionEngine(
             await self._call_hook(on_compensate, self.saga._context, step_id)
 
             await self._chart_compensating(step_id)
-            await asyncio.wait_for(
-                self._run_compensation(step_id, node.compensation_fn),
-                timeout=node.timeout_seconds,
-            )
+            await self._attempt_compensation(step_id, node)  # retries, backoff (#550)
             self.saga._context[f"__{step_id}_compensated"] = True
             self._ledger.compensated(step_id)
             await self._chart_step(step_id, "compensated")
@@ -359,6 +365,9 @@ class ExecutionEngine(
             self._compensation_failed = True
             self._compensation_errors[step_id] = e
             await self._chart_compensation_failed(step_id)
+            await self._notify_listeners(
+                "on_compensation_failed", saga_name, step_id, self.saga._context, e
+            )
             await self._record(
                 StepCompensationFailed,
                 step_name=step_id,

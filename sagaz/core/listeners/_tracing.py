@@ -73,7 +73,9 @@ class TracingSagaListener(SagaListener):
     async def on_saga_failed(
         self, saga_name: str, saga_id: str, ctx: dict[str, Any], error: Exception
     ) -> None:
-        self._end_saga(ctx, "rolled_back", error)
+        # SagaFailedError says whether the saga rolled back or a compensation failed (#551).
+        status = getattr(getattr(error, "status", None), "value", "rolled_back")
+        self._end_saga(ctx, status, error)
 
     # ----------------------------------------------------------------- steps
 
@@ -99,6 +101,12 @@ class TracingSagaListener(SagaListener):
         self, saga_name: str, step_name: str, ctx: dict[str, Any]
     ) -> None:
         self._end_step(ctx, step_name, _COMPENSATION)
+
+    async def on_compensation_failed(
+        self, saga_name: str, step_name: str, ctx: dict[str, Any], error: Exception
+    ) -> None:
+        """Close the compensation's span with its own error, not the saga's (#551)."""
+        self._end_step(ctx, step_name, _COMPENSATION, error)
 
     # -------------------------------------------------------------- internals
 
