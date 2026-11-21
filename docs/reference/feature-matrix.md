@@ -120,7 +120,7 @@ Intrinsic (each mode keeps its own):
 - **Orchestration** routes steps to regions and has step hooks: a participant already
   runs where it is deployed, and its handler is the hook.
 
-Gaps, with their issue: see the ❌/⚠️ cells. The v2.5.0 milestone ("Mode Parity") holds
+Gaps, with their issue: see the ❌/⚠️ cells. The v2.6.0 milestone ("Mode Parity") holds
 the parity work. The bugs the audit found (#549–#559) were fixed in v2.4.0.
 
 ## Inconsistencies across modes
