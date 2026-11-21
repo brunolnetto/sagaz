@@ -1,260 +1,87 @@
 # Makefile Quick Reference
 
-**Location**: `Makefile` in project root
+The Makefile wraps the commands CI runs. Every tool runs through `uv run`, inside the
+project environment, so nothing has to be activated or installed globally. To use the
+tools on your `PATH` instead (an activated virtualenv, say), pass an empty prefix:
+`make lint RUN=`.
 
-All shortcuts for testing, coverage, linting, and complexity analysis.
+`make help` lists every target and argument.
 
----
-
-## Quick Start
+## Quick start
 
 ```bash
-make help          # Show all available commands
-make test          # Run fast tests
-make coverage      # Run tests with coverage
-make complexity    # Check cyclomatic complexity
-make check         # Run all checks (lint + complexity + test)
+make dev      # uv sync --group dev: tests, linters, mypy, tools
+make check    # the CI gates, then the fast tests
 ```
-
----
 
 ## Testing
 
-| Command | Description |
-|---------|-------------|
-| `make test` | Run fast tests (excludes integration/performance) |
-| `make test-all` | Run ALL tests including integration |
-| `make test-parallel` | Run tests in parallel (faster) |
-| `make test-integration` | Run only integration tests |
-| `make test-performance` | Run performance benchmarks |
-| `make test-watch` | Watch mode (re-run on file changes) |
-
----
+| Command | What it runs |
+|---|---|
+| `make test` | Fast tests (no containers), in parallel |
+| `make test TYPE=all` | Every test, test containers included |
+| `make test TYPE=integration` | Integration tests only |
+| `make test TYPE=performance` | Performance tests (also `make benchmark`) |
+| `make test TYPE=watch` | Re-run tests on file changes (pytest-watch) |
+| `make test PARALLEL=no` | Without pytest-xdist |
+| `make test WORKERS=4` | With 4 xdist workers (default 2; each may start its own containers) |
 
 ## Coverage
 
-| Command | Description |
-|---------|-------------|
-| `make coverage` | Run tests with coverage report (terminal) |
-| `make coverage-html` | Generate HTML coverage report |
-| `make coverage-xml` | Generate XML report (for CI) |
-| `make coverage-report` | Show last coverage report |
-| `make coverage-clean` | Clean coverage data |
+| Command | Report |
+|---|---|
+| `make coverage` | Terminal |
+| `make coverage MISSING=yes` | Terminal, with missing lines |
+| `make coverage FORMAT=html` | `htmlcov/index.html` |
+| `make coverage FORMAT=xml` | `coverage.xml` |
 
-**Open HTML report:**
-```bash
-make coverage-html
-open htmlcov/index.html    # macOS
-xdg-open htmlcov/index.html # Linux
-```
+CI fails below 95% coverage (`--cov-fail-under=95`).
 
----
+## Code quality
 
-## Code Quality
+These run the same commands as the CI gates.
 
-| Command | Description |
-|---------|-------------|
-| `make lint` | Run ruff linter |
-| `make lint-fix` | Auto-fix linting issues |
-| `make format` | Format code with ruff |
-| `make format-check` | Check if code is formatted |
-| `make security` | Run security checks (bandit) |
+| Command | Tool |
+|---|---|
+| `make lint` | `ruff check sagaz/ tests/` |
+| `make lint-fix` | `ruff check --fix` |
+| `make format` | `ruff format` (rewrites files) |
+| `make format-check` | `ruff format --check` (changes nothing) |
+| `make typecheck` | `mypy sagaz/ --ignore-missing-imports` |
+| `make quality-gate` | `codebase-stats`: CC ≤ 10 per function, modules ≤ 400 lines, MI ≥ 20 |
+| `make security` | `bandit -ll` (medium severity and up; informational in CI) |
+| `make complexity` | radon metrics, informational: `MODE=summary` (C and worse), `full`, `json`, `mi`, `raw` |
 
----
+## Combined checks
 
-## Complexity Analysis
+| Command | Runs |
+|---|---|
+| `make check` | lint, format-check, typecheck, quality-gate, then `make test` |
+| `make ci` | lint, format-check, typecheck, quality-gate, then `make coverage FORMAT=xml` |
 
-| Command | Description |
-|---------|-------------|
-| `make complexity` | Show cyclomatic complexity (Grade C+) |
-| `make complexity-full` | Detailed complexity for all modules |
-| `make complexity-json` | Output as JSON file |
-| `make maintainability` | Show maintainability index |
-| `make raw-metrics` | Show LOC, LLOC, comments |
+## Setup and cleanup
 
-**Complexity Grades:**
-- **A** (1-5): Simple
-- **B** (6-10): Easy
-- **C** (11-20): Moderate
-- **D** (21-50): Complex
-- **F** (50+): Very complex
+| Command | Does |
+|---|---|
+| `make install` | `uv sync`: the package and its runtime dependencies |
+| `make dev` | `uv sync --group dev` |
+| `make clean` | Removes caches, coverage output, `build/` and `dist/` |
+| `make clean MODE=all` | Also removes `.venv/` |
+| `make clean-containers` | Removes leftover testcontainers containers |
 
----
+## Build and release
 
-## Combined Checks
+| Command | Does |
+|---|---|
+| `make version` | Prints the version in `pyproject.toml` |
+| `make build` | `uv build` into a fresh `dist/`, then `scripts/check_dist.py dist` |
+| `make info` | Versions of sagaz, uv, Python and the tools |
 
-| Command | Description |
-|---------|-------------|
-| `make check` | Run lint + complexity + test |
-| `make check-ci` | Run all CI checks |
-| `make check-quality` | Check complexity + maintainability |
+To publish a release: check out its tag, run `make build`, then `uv publish`.
 
----
-
-## Installation
-
-| Command | Description |
-|---------|-------------|
-| `make install` | Install package in dev mode |
-| `make install-dev` | Install with dev dependencies |
-| `make install-tools` | Install ruff, radon, bandit |
-| `make dev` | Setup complete dev environment |
-
----
-
-## Cleanup
-
-| Command | Description |
-|---------|-------------|
-| `make clean` | Clean generated files (__pycache__, .pyc, etc) |
-| `make coverage-clean` | Clean coverage data only |
-| `make clean-all` | Clean everything including venv |
-
----
-
-## Build & Release
-
-| Command | Description |
-|---------|-------------|
-| `make version` | Show current version |
-| `make build` | Build distribution packages |
-| `make benchmark` | Run performance benchmarks |
-
----
-
-## Development Workflow
-
-### First Time Setup
+## Before opening a pull request
 
 ```bash
-# Clone repo
-git clone https://github.com/you/sagaz.git
-cd sagaz
-
-# Setup development environment
-make dev
-
-# Run checks
-make check
+make format   # apply formatting
+make check    # gates + fast tests
 ```
-
-### Daily Development
-
-```bash
-# Run tests while coding
-make test-watch
-
-# Before committing
-make check
-
-# Check complexity of your changes
-make complexity
-
-# View coverage
-make coverage-html
-```
-
-### Pre-Commit Checklist
-
-```bash
-make format       # Format code
-make lint         # Check linting
-make complexity   # Check complexity
-make test         # Run tests
-make coverage     # Check coverage
-```
-
-Or just:
-```bash
-make check        # Runs lint + complexity + test
-```
-
----
-
-## CI/CD Integration
-
-```yaml
-# .github/workflows/test.yml
-- name: Run checks
-  run: make check-ci
-```
-
-This runs:
-- Linting (ruff)
-- Format check
-- Tests with XML coverage output
-
----
-
-## Examples
-
-### Check Complexity of Specific File
-
-```bash
-radon cc sagaz/core/orchestrator.py -s
-```
-
-### Run Tests with Coverage for Specific Module
-
-```bash
-pytest tests/unit/test_saga.py --cov=sagaz.saga --cov-report=html
-```
-
-### Find High Complexity Functions
-
-```bash
-make complexity-full | grep -E "D|F"
-```
-
-### Watch Tests for Specific File
-
-```bash
-ptw -- tests/unit/test_saga.py -v
-```
-
----
-
-## Troubleshooting
-
-### "ruff: command not found"
-
-```bash
-make install-tools
-# or
-pip install ruff
-```
-
-### "ptw: command not found" (for test-watch)
-
-```bash
-pip install pytest-watch
-```
-
-### "bandit: command not found"
-
-```bash
-pip install bandit
-```
-
----
-
-## Tips
-
-1. **Use `make` without arguments** - defaults to `make help`
-2. **Tab completion** - type `make ` and press TAB to see options
-3. **Parallel tests** - use `make test-parallel` for faster runs
-4. **Watch mode** - use `make watch` while coding
-5. **HTML coverage** - easier to navigate than terminal output
-
----
-
-## Color Legend
-
-- 🟢 **Green** - Success messages
-- 🔵 **Cyan** - Informational messages
-- 🟡 **Yellow** - Warnings or hints
-- 🔴 **Red** - Errors
-
----
-
-**See also**: `make help` for full command list

@@ -113,7 +113,7 @@ docker compose down
 - Check before opening a PR:
   ```bash
   make coverage              # terminal report
-  make coverage-html         # HTML report → htmlcov/index.html
+  make coverage FORMAT=html  # HTML report → htmlcov/index.html
   ```
 - The CI pipeline enforces the threshold via `--cov-fail-under=95`.
 
