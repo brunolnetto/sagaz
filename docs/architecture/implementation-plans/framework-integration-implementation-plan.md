@@ -424,10 +424,10 @@ class SagazExtension:
 
 | Task | Effort | Status | Description |
 |------|--------|--------|-------------|
-| 4.1 FastAPI example app | 1d | ✅ Done | [`examples/integrations/fastapi_app/`](../../../sagaz/examples/platform/integrations/fastapi_app/) |
-| 4.2 Django example app | 1d | ✅ Done | [`examples/integrations/django_app/`](../../../sagaz/examples/platform/integrations/django_app/) |
-| 4.3 Flask example app | 0.5d | ✅ Done | [`examples/integrations/flask_app/`](../../../sagaz/examples/platform/integrations/flask_app/) |
-| 4.4 Integration docs page | 1d | ✅ Done | [`examples/integrations/README.md`](../../../sagaz/examples/platform/integrations/README.md) |
+| 4.1 FastAPI example app | 1d | ✅ Done | [`examples/integrations/fastapi_app/`](../../../sagaz/examples/software_technology/integrations/fastapi_app/) |
+| 4.2 Django example app | 1d | ✅ Done | [`examples/integrations/django_app/`](../../../sagaz/examples/software_technology/integrations/django_app/) |
+| 4.3 Flask example app | 0.5d | ✅ Done | [`examples/integrations/flask_app/`](../../../sagaz/examples/software_technology/integrations/flask_app/) |
+| 4.4 Integration docs page | 1d | ✅ Done | [`examples/integrations/README.md`](../../../sagaz/examples/software_technology/integrations/README.md) |
 | 4.5 Migration guide | 0.5d | Pending | "Migrating from manual setup" |
 | 4.6 Final review | 1d | Pending | Cross-framework consistency check |
 

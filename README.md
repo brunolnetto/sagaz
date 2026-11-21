@@ -134,13 +134,13 @@ Explore and run built-in examples directly from the CLI:
 # List all available examples
 sagaz examples list
 
-# Filter by category
-sagaz examples list --category fintech
-sagaz examples list -c iot
+# Filter by industry (display or folder name)
+sagaz examples list --domain consumer_goods
+sagaz examples list --domain "Banking & Financial Services"
 
 # Run a specific example
-sagaz examples run ecommerce/order_processing
-sagaz examples run monitoring
+sagaz examples run retail_ecommerce/commerce/order_processing
+sagaz examples run consumer_goods/product/product_recall
 
 # Interactive selection menu
 sagaz examples select

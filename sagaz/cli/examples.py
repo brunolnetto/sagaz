@@ -22,6 +22,7 @@ from sagaz.cli._examples_discovery import (
     get_domains,
     get_example_description,
     get_examples_dir,
+    resolve_domain,
 )
 from sagaz.cli._examples_menu import (
     TERM_MENU_AVAILABLE,
@@ -91,6 +92,7 @@ __all__ = [
     "get_examples_dir",
     "interactive_cmd",
     "list_examples_cmd",
+    "resolve_domain",
     "run_example_cmd",
 ]
 
@@ -117,7 +119,7 @@ def examples_cli(ctx):
 
 
 @examples_cli.command(name="list")
-@click.option("--domain", help="Filter by domain (e.g. Business, Technology)")
+@click.option("--domain", help='Filter by domain (e.g. "Consumer Goods", "Software & Technology")')
 def list_examples(domain: str | None = None):
     """List available examples grouped by domain."""
     list_examples_cmd(domain)
@@ -147,12 +149,13 @@ def list_examples_cmd(domain: str | None = None):
 
     # Filter to specific domain if requested
     if domain:
-        if domain not in by_domain:
+        name = resolve_domain(domain, by_domain)
+        if name is None:
             click.echo(f"Error: domain '{domain}' not found.")
             available = ", ".join(by_domain.keys())
             click.echo(f"Available domains: {available}")
             return
-        by_domain = {domain: by_domain[domain]}
+        by_domain = {name: by_domain[name]}
 
     if console and TableClass:
         _display_examples_table(by_domain)
