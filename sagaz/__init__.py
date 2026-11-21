@@ -252,15 +252,20 @@ __all__ = [
 ]
 
 
+def _installed_version() -> str:
+    from importlib.metadata import PackageNotFoundError, version
+
+    try:
+        return version("sagaz")
+    except PackageNotFoundError:  # a source tree without installed metadata
+        return "0+unknown"
+
+
+__version__ = _installed_version()
+
+
 def __getattr__(name: str) -> object:
     """Names resolved on first access, so ``import sagaz`` stays light."""
-    if name == "__version__":
-        from importlib.metadata import PackageNotFoundError, version
-
-        try:
-            return version("sagaz")
-        except PackageNotFoundError:  # running from a source tree without metadata
-            return "0+unknown"
     if name == "cli_examples":  # backward compatibility; the CLI pulls in rich and click
         from sagaz.cli import examples
 
