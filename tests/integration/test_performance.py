@@ -202,6 +202,10 @@ async def run_concurrent_sagas(
         tasks = [run_saga_and_measure(saga_class, context.copy()) for _ in range(batch_size)]
         return await asyncio.gather(*tasks)
 
+    # One untimed run first: the first sagas of a process pay its warm-up (imports, the
+    # global config, storage), which would otherwise be the measured p95.
+    await run_saga_and_measure(saga_class, context.copy())
+
     start = time.perf_counter()
 
     # Run in batches to control concurrency

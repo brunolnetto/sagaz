@@ -93,6 +93,9 @@ async def _run_checkout(*, parallel: bool) -> SagaStatus:
 
 
 async def parallelism_experiment() -> Comparison:
+    # Warm both variants up first, so neither timing includes a first run's setup.
+    await _run_checkout(parallel=False)
+    await _run_checkout(parallel=True)
     sequential_ms, sequential = await _timed(lambda: _run_checkout(parallel=False))
     parallel_ms, parallel = await _timed(lambda: _run_checkout(parallel=True))
     return Comparison(
