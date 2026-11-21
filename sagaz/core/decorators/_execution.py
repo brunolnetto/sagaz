@@ -11,6 +11,7 @@ import uuid
 from typing import TYPE_CHECKING, Any
 
 from sagaz.core.decorators._attempts import _StepAttemptsMixin
+from sagaz.core.decorators._durability import _DurabilityMixin
 from sagaz.core.decorators._event_sourcing import _EventSourcingMixin
 from sagaz.core.decorators._regions import _RegionRoutingMixin
 from sagaz.core.decorators._step_chart import _EngineStepChartMixin
@@ -35,7 +36,11 @@ logger = get_logger(__name__)
 
 
 class ExecutionEngine(
-    _EventSourcingMixin, _RegionRoutingMixin, _EngineStepChartMixin, _StepAttemptsMixin
+    _EventSourcingMixin,
+    _RegionRoutingMixin,
+    _EngineStepChartMixin,
+    _StepAttemptsMixin,
+    _DurabilityMixin,
 ):
     """Orchestrates saga execution and compensation."""
 
@@ -71,7 +76,8 @@ class ExecutionEngine(
         await self._chart_open()  # the phase 3 step chart, when the saga uses one
         await self._open_recorder(name)
         await self._record(SagaStarted, initial_context=json_safe(self.saga._context))
-        await self._persist(SagaStatus.EXECUTING)
+        # Refuses a saga_id that already exists, before any step runs (#535).
+        await self._persist_new()
 
         try:
             await self._notify_listeners(
@@ -100,7 +106,7 @@ class ExecutionEngine(
                 "on_saga_failed", name, self.saga._saga_id, self.saga._context, e
             )
             # FAILED when a compensation failed, as the event log records it.
-            await self._persist(self._failure_status())
+            await self._persist_outcome(self._failure_status(), e)
             raise
 
     def _initialize_run(self, initial_context: dict[str, Any], saga_id: str | None) -> None:
@@ -129,9 +135,12 @@ class ExecutionEngine(
                 )
 
     async def _execute_all_levels(self) -> None:
-        """Execute steps level by level."""
-        for level in self.saga.get_execution_order():
+        """Execute steps level by level, saving the progress after each level (#534)."""
+        levels = self.saga.get_execution_order()
+        for index, level in enumerate(levels):
             await self._execute_level(level)
+            if index < len(levels) - 1:  # the last level's state is saved as COMPLETED
+                await self._persist(SagaStatus.EXECUTING, "progress")
 
     def _get_saga_name(self) -> str:
         """Get the saga name from class attribute or class name."""

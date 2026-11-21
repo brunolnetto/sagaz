@@ -759,35 +759,49 @@ class TestDecoratorsMissingBranches:
     # ---- 889-890: storage.save_saga_state raises on start ----
 
     @pytest.mark.asyncio
-    async def test_run_storage_exception_on_start_logs_warning(self):
-        """Lines 889-890: exception in save_saga_state on start is swallowed."""
+    @pytest.mark.parametrize("tolerate", [False, True])
+    async def test_run_storage_exception_on_start(self, tolerate):
+        """A failure to create the saga stops it before any step runs (#534)."""
         from unittest.mock import AsyncMock, MagicMock
+
+        from sagaz.core.exceptions import SagaPersistenceError
+
+        ran = []
 
         class TinySaga(Saga):
             saga_name = "tiny2"
 
             @step("only")
             async def only(self, ctx):
+                ran.append(1)
                 return {"done": True}
 
         saga = TinySaga()
         mock_storage = AsyncMock()
-        mock_storage.save_saga_state = AsyncMock(side_effect=RuntimeError("db error"))
+        mock_storage.create_saga_state = AsyncMock(side_effect=RuntimeError("db error"))
         mock_config = MagicMock()
         mock_config.storage = mock_storage
         mock_config.listeners = []
+        mock_config.tolerate_persistence_errors = tolerate
         saga._config = mock_config
         saga._instance_listeners = []
 
-        result = await saga.run({})
-        assert result["done"] is True  # saga still completes
+        if tolerate:  # the behavior before 2.4: logged, and the saga goes on
+            assert (await saga.run({}))["done"] is True
+            assert ran == [1]
+        else:
+            with pytest.raises(SagaPersistenceError, match=r"\(start\): db error"):
+                await saga.run({})
+            assert ran == []
 
-    # ---- 903-904: storage.save_saga_state raises on completion ----
+    # ---- storage.save_saga_state raises on completion ----
 
-    @pytest.mark.asyncio
-    async def test_run_storage_exception_on_completion_logs_warning(self):
-        """Lines 903-904: exception in save_saga_state on completion is swallowed."""
+    @pytest.mark.parametrize("tolerate", [False, True])
+    async def test_run_storage_exception_on_completion(self, tolerate):
+        """A completed saga whose state cannot be saved says so (#534)."""
         from unittest.mock import AsyncMock, MagicMock
+
+        from sagaz.core.exceptions import SagaPersistenceError
 
         class TinySaga(Saga):
             saga_name = "tiny3"
@@ -797,24 +811,20 @@ class TestDecoratorsMissingBranches:
                 return {"done": True}
 
         saga = TinySaga()
-        call_count = [0]
-
-        async def save_state_raiser(*args, **kwargs):
-            call_count[0] += 1
-            if call_count[0] == 2:  # Second call = on completion
-                msg = "completion db error"
-                raise RuntimeError(msg)
-
         mock_storage = AsyncMock()
-        mock_storage.save_saga_state = save_state_raiser
+        mock_storage.save_saga_state = AsyncMock(side_effect=RuntimeError("completion db error"))
         mock_config = MagicMock()
         mock_config.storage = mock_storage
         mock_config.listeners = []
+        mock_config.tolerate_persistence_errors = tolerate
         saga._config = mock_config
         saga._instance_listeners = []
 
-        result = await saga.run({})
-        assert result["done"] is True
+        if tolerate:
+            assert (await saga.run({}))["done"] is True
+        else:
+            with pytest.raises(SagaPersistenceError, match="completed"):
+                await saga.run({})
 
     # ---- 912->922, 917-918: storage handling in failure path ----
 
@@ -858,8 +868,10 @@ class TestDecoratorsMissingBranches:
         saga._config = mock_config
         saga._instance_listeners = []
 
-        with pytest.raises(ValueError, match="intentional failure"):
+        with pytest.raises(ValueError, match="intentional failure") as raised:
             await saga.run({})
+        # The step's error stays the one raised; the failed save is noted on it.
+        assert any("could not save saga" in note for note in raised.value.__notes__)
 
     # ---- 964->961: listener with no handler for event ----
 

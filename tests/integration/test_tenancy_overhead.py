@@ -53,12 +53,16 @@ async def test_overhead_on_postgresql_with_row_level_security(app_role_url):
     options = backends.BackendOptions(postgres_url=app_role_url, postgres_pool_size=10)
     result = await _measure("postgres", options)
     assert result.info["rls_enforced"]
-    # Exact and load-independent. A saga acquires two connections; the default
-    # tenant skips the tenant set_config on connections already known to be at
-    # the default (#405), a tenant sets it on each acquisition. The first use of
-    # a fresh pool connection still sets the default once, hence the range.
+    # Exact and load-independent. A saga acquires one connection per state save:
+    # it is created, its progress saved after each level but the last (#534), and
+    # its outcome saved. The default tenant skips the tenant set_config on
+    # connections already known to be at the default (#405), a tenant sets it on
+    # each acquisition. The first use of a fresh pool connection still sets the
+    # default once, hence the range.
+    levels = len(workload.BenchOrderSaga().get_execution_order())
+    acquisitions = 1 + (levels - 1) + 1
     counts = result.info["statements_per_saga"]
-    assert 1 <= counts["multi"] - counts["baseline"] <= 2
+    assert acquisitions - 1 <= counts["multi"] - counts["baseline"] <= acquisitions
     assert _overhead(result) < MAX_OVERHEAD_PCT
 
 

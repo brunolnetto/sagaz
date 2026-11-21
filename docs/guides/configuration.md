@@ -44,6 +44,7 @@ class OrderSaga(Saga):
 | `default_timeout` | `float` | `60.0` | Default step timeout in seconds |
 | `default_max_retries` | `int` | `3` | Default retry count for failed steps |
 | `failure_strategy` | `str` | `"FAIL_FAST_WITH_GRACE"` | Parallel failure strategy |
+| `tolerate_persistence_errors` | `bool` | `False` | `False`: a failure to save the saga state raises `SagaPersistenceError` (the saga stops and compensates what ran). `True`: log it and go on |
 
 ---
 

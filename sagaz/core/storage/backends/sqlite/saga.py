@@ -180,6 +180,45 @@ class SQLiteSagaStorage(_SQLiteSagaMaintenanceMixin, SagaStorage):
         )
         await conn.commit()
 
+    async def create_saga_state(
+        self,
+        saga_id: str,
+        saga_name: str,
+        status: SagaStatus,
+        steps: list[dict[str, Any]],
+        context: dict[str, Any],
+        metadata: dict[str, Any] | None = None,
+        configuration: list[str] | None = None,
+    ) -> bool:
+        """Save a new saga's state, atomically; ``False`` if ``saga_id`` exists."""
+        conn = await self._get_connection()
+        now = datetime.now(UTC).isoformat()
+        status_str = status.value if isinstance(status, SagaStatus) else status
+        cursor = await conn.execute(
+            """
+            INSERT INTO sagas (
+                tenant_id, saga_id, saga_name, status, steps, context, metadata,
+                configuration, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(tenant_id, saga_id) DO NOTHING
+            """,
+            (
+                write_tenant(),
+                saga_id,
+                saga_name,
+                status_str,
+                serialize(steps),
+                serialize(context),
+                serialize(metadata) if metadata else None,
+                serialize(configuration or [status_str]),
+                now,
+                now,
+            ),
+        )
+        await conn.commit()
+        return cursor.rowcount == 1
+
     async def _load_matching(self, saga_id: str) -> list[dict[str, Any]]:
         """Visible sagas with ``saga_id`` (one per tenant in the system scope)."""
         conn = await self._get_connection()

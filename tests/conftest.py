@@ -56,6 +56,18 @@ def suppress_otel_warnings():
 
 
 @pytest.fixture(autouse=True)
+def fresh_global_saga_config(monkeypatch):
+    """Give each test its own global SagaConfig (and its own default in-memory storage).
+
+    A saga id runs once per storage (#535): tests that reuse ids such as "s-1" or
+    "ok" must not see each other's runs through the shared default storage.
+    """
+    from sagaz.core.config import _config
+
+    monkeypatch.setattr(_config, "_global_config", None)
+
+
+@pytest.fixture(autouse=True)
 def reset_sse_starlette_shutdown_state():
     """
     Reset sse-starlette's process-global shutdown flag between tests.

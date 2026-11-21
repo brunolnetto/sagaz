@@ -69,9 +69,11 @@ from sagaz.core.decorators import (
 from sagaz.core.exceptions import (
     IdempotencyKeyRequiredError,
     MissingDependencyError,
+    SagaAlreadyExistsError,
     SagaCompensationError,
     SagaError,
     SagaExecutionError,
+    SagaPersistenceError,
     SagaStepError,
     SagaTimeoutError,
 )
@@ -199,6 +201,7 @@ __all__ = [
     # Primary Exports (Recommended API)
     # =========================================================================
     "Saga",
+    "SagaAlreadyExistsError",
     "SagaCompensationContext",
     "SagaCompensationError",
     "SagaConfig",
@@ -217,6 +220,7 @@ __all__ = [
     # Orchestrator
     # =========================================================================
     "SagaOrchestrator",
+    "SagaPersistenceError",
     # =========================================================================
     # Types and Results
     # =========================================================================

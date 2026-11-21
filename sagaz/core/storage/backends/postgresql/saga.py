@@ -182,6 +182,52 @@ class PostgreSQLSagaStorage(
                         [self._step_params(saga_id, step, tenant_id) for step in steps],
                     )
 
+    async def create_saga_state(
+        self,
+        saga_id: str,
+        saga_name: str,
+        status: SagaStatus,
+        steps: list[dict[str, Any]],
+        context: dict[str, Any],
+        metadata: dict[str, Any] | None = None,
+        configuration: list[str] | None = None,
+    ) -> bool:
+        """Save a new saga's state, atomically; ``False`` if ``saga_id`` exists."""
+        pool = await self._get_pool()
+        tenant_id = write_tenant()
+        async with acquire_scoped(pool) as conn, conn.transaction():
+            inserted = await conn.fetchval(
+                """
+                INSERT INTO sagas (
+                    saga_id, saga_name, status, context, metadata,
+                    configuration, tenant_id, updated_at
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+                ON CONFLICT (tenant_id, saga_id) DO NOTHING
+                RETURNING saga_id
+                """,
+                saga_id,
+                saga_name,
+                status.value,
+                json.dumps(context),
+                json.dumps(metadata or {}),
+                json.dumps(configuration or [status.value]),
+                tenant_id,
+            )
+            if inserted is None:
+                return False
+            if steps:
+                await conn.executemany(
+                    """
+                    INSERT INTO saga_steps
+                    (saga_id, step_name, status, result, error, executed_at,
+                     compensated_at, retry_count, duration_ms, tenant_id)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                    """,
+                    [self._step_params(saga_id, step, tenant_id) for step in steps],
+                )
+        return True
+
     @staticmethod
     def _step_params(saga_id: str, step: dict[str, Any], tenant_id: str) -> list[Any]:
         """Parameters of the ``saga_steps`` insert for one step."""

@@ -68,6 +68,30 @@ class InMemorySagaStorage(SagaStorage):
         """Number of sagas visible in the current scope."""
         return sum(len(partition) for _, partition in self._visible_partitions())
 
+    @staticmethod
+    def _record(
+        tenant_id: str,
+        saga_id: str,
+        saga_name: str,
+        status: SagaStatus,
+        steps: list[dict[str, Any]],
+        context: dict[str, Any],
+        metadata: dict[str, Any] | None = None,
+        configuration: list[str] | None = None,
+    ) -> dict[str, Any]:
+        return {
+            TENANT_FIELD: tenant_id,
+            "saga_id": saga_id,
+            "saga_name": saga_name,
+            "status": status.value,
+            "steps": steps,
+            "context": context,
+            "metadata": metadata or {},
+            "configuration": list(configuration) if configuration else [status.value],
+            "created_at": datetime.now(UTC).isoformat(),
+            "updated_at": datetime.now(UTC).isoformat(),
+        }
+
     async def save_saga_state(
         self,
         saga_id: str,
@@ -81,19 +105,33 @@ class InMemorySagaStorage(SagaStorage):
         """Save saga state to memory"""
 
         tenant_id = write_tenant()
+        record = self._record(
+            tenant_id, saga_id, saga_name, status, steps, context, metadata, configuration
+        )
         async with self._lock:
-            self._partitions.setdefault(tenant_id, {})[saga_id] = {
-                TENANT_FIELD: tenant_id,
-                "saga_id": saga_id,
-                "saga_name": saga_name,
-                "status": status.value,
-                "steps": steps,
-                "context": context,
-                "metadata": metadata or {},
-                "configuration": list(configuration) if configuration else [status.value],
-                "created_at": datetime.now(UTC).isoformat(),
-                "updated_at": datetime.now(UTC).isoformat(),
-            }
+            self._partitions.setdefault(tenant_id, {})[saga_id] = record
+
+    async def create_saga_state(
+        self,
+        saga_id: str,
+        saga_name: str,
+        status: SagaStatus,
+        steps: list[dict[str, Any]],
+        context: dict[str, Any],
+        metadata: dict[str, Any] | None = None,
+        configuration: list[str] | None = None,
+    ) -> bool:
+        """Save a new saga's state, atomically; ``False`` if ``saga_id`` exists."""
+        tenant_id = write_tenant()
+        record = self._record(
+            tenant_id, saga_id, saga_name, status, steps, context, metadata, configuration
+        )
+        async with self._lock:
+            partition = self._partitions.setdefault(tenant_id, {})
+            if saga_id in partition:
+                return False
+            partition[saga_id] = record
+        return True
 
     async def load_saga_state(self, saga_id: str) -> dict[str, Any] | None:
         """Load saga state from memory"""

@@ -217,7 +217,7 @@ class TestEventSourcedSaga:
     async def test_a_rerun_continues_the_stream(self, store):
         saga = make_saga(store)
         await saga.run({"order_id": "o-5"}, saga_id="s-5")
-        await saga.run({"order_id": "o-5"}, saga_id="s-5")
+        await saga.run({"order_id": "o-5"}, saga_id="s-5", allow_rerun=True)
         events = await store.load_stream("s-5")
         assert [e.sequence for e in events] == list(range(1, 9))
         state = await load_projection(store, "s-5")
