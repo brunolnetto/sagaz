@@ -20,6 +20,7 @@ import pytest
 
 from sagaz import Saga, action, compensate
 from sagaz.core.config import SagaConfig
+from sagaz.core.exceptions import SagaFailedError
 from sagaz.core.outbox.brokers.memory import InMemoryBroker
 from sagaz.core.outbox.types import OutboxConfig
 from sagaz.core.outbox.worker import OutboxWorker
@@ -104,7 +105,8 @@ async def test_two_tenants_running_the_same_saga_stay_isolated(stores, app_role_
 
     # The run itself: acme completed, globex failed and compensated.
     assert acme_result["tenant_id"] == "acme"
-    assert isinstance(globex_result, RuntimeError)
+    assert isinstance(globex_result, SagaFailedError)
+    assert isinstance(globex_result.__cause__, RuntimeError)
 
     # Saga state: same id, two independent sagas.
     with tenant_scope("acme"):
