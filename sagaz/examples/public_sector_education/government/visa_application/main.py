@@ -65,7 +65,7 @@ class VisaApplicationSaga(Saga):
         logger.warning(f"↩️ [{ctx.get('application_id')}] Cancelling interview...")
         await asyncio.sleep(0.05)
 
-    @action("capture_biometrics", depends_on=["schedule_interview"])
+    @action("capture_biometrics", depends_on=["schedule_interview"], pivot=True)
     async def capture_biometrics(self, ctx: SagaContext) -> dict[str, Any]:
         """🔒 PIVOT STEP: Capture biometrics - stored in govt database."""
         app_id = ctx.get("application_id")

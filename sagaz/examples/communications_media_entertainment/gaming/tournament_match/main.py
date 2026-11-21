@@ -64,7 +64,7 @@ class TournamentMatchSaga(Saga):
         logger.warning(f"↩️ [{ctx.get('match_id')}] Releasing server...")
         await asyncio.sleep(0.05)
 
-    @action("start_match", depends_on=["reserve_server"])
+    @action("start_match", depends_on=["reserve_server"], pivot=True)
     async def start_match(self, ctx: SagaContext) -> dict[str, Any]:
         """🔒 PIVOT STEP: Start the match - bracket locked."""
         match_id = ctx.get("match_id")

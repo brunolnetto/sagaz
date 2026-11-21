@@ -64,7 +64,7 @@ class CourseEnrollmentSaga(Saga):
         logger.warning(f"↩️ [{ctx.get('enrollment_id')}] Reversing aid application...")
         await asyncio.sleep(0.05)
 
-    @action("confirm_enrollment", depends_on=["apply_financial_aid"])
+    @action("confirm_enrollment", depends_on=["apply_financial_aid"], pivot=True)
     async def confirm_enrollment(self, ctx: SagaContext) -> dict[str, Any]:
         """🔒 PIVOT STEP: Confirm enrollment - seat committed."""
         enrollment_id = ctx.get("enrollment_id")

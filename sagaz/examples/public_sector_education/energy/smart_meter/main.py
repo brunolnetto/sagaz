@@ -64,7 +64,7 @@ class SmartMeterDeploymentSaga(Saga):
         logger.warning(f"↩️ [{ctx.get('order_id')}] Removing hardware...")
         await asyncio.sleep(0.1)
 
-    @action("activate_meter", depends_on=["install_hardware"])
+    @action("activate_meter", depends_on=["install_hardware"], pivot=True)
     async def activate_meter(self, ctx: SagaContext) -> dict[str, Any]:
         """🔒 PIVOT STEP: Activate meter - billing starts."""
         order_id = ctx.get("order_id")

@@ -86,7 +86,7 @@ class LoanOriginationSaga(Saga):
         logger.warning(f"↩️ [{ctx.get('application_id')}] Voiding loan documents...")
         await asyncio.sleep(0.05)
 
-    @action("disburse_funds", depends_on=["generate_loan_documents"])
+    @action("disburse_funds", depends_on=["generate_loan_documents"], pivot=True)
     async def disburse_funds(self, ctx: SagaContext) -> dict[str, Any]:
         """🔒 PIVOT STEP: Disburse loan funds to borrower."""
         app_id = ctx.get("application_id")

@@ -65,7 +65,7 @@ class InGamePurchaseSaga(Saga):
         logger.warning(f"↩️ [{ctx.get('order_id')}] Releasing reserved items...")
         await asyncio.sleep(0.05)
 
-    @action("charge_payment", depends_on=["reserve_items"])
+    @action("charge_payment", depends_on=["reserve_items"], pivot=True)
     async def charge_payment(self, ctx: SagaContext) -> dict[str, Any]:
         """🔒 PIVOT STEP: Charge payment - items committed."""
         order_id = ctx.get("order_id")

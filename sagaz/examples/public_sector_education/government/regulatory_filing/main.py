@@ -64,7 +64,7 @@ class RegulatoryFilingSaga(Saga):
         logger.warning(f"↩️ [{ctx.get('filing_id')}] Voiding signatures...")
         await asyncio.sleep(0.05)
 
-    @action("submit_to_authority", depends_on=["sign_filing"])
+    @action("submit_to_authority", depends_on=["sign_filing"], pivot=True)
     async def submit_to_authority(self, ctx: SagaContext) -> dict[str, Any]:
         """🔒 PIVOT STEP: Submit to regulatory authority - public record."""
         filing_id = ctx.get("filing_id")
