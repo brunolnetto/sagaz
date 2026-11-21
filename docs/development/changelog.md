@@ -89,6 +89,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - packaging switch, with label validation (the line cut-over is the pivot).
 
 ### Fixed
+- **Compensation retries in `sagaz.Saga`** (#550): `@compensate(max_retries=...)` was
+  ignored, so a failing compensation ran once. It now runs `max_retries + 1` times (default
+  3 retries), each attempt under its timeout, with the steps' backoff.
+  `add_step(compensation_max_retries=...)` sets it for steps added imperatively.
+  **Behavior change:** a failing compensation is retried before the saga ends `FAILED`.
+- **Tracing status** (#551): a saga whose compensation failed was traced
+  `saga.status=rolled_back`, and the failed compensation's span carried the saga's error.
+  `on_saga_failed` listeners now receive the `SagaFailedError` (status, failed step, cause),
+  and the new `SagaListener.on_compensation_failed` hook closes the compensation's span
+  with its own error.
+- **`SagaConfig.with_storage()` / `with_broker()`** (#552) dropped fields added since they
+  were written (`extra_listeners`, `tolerate_persistence_errors`, `use_step_statechart`);
+  they now copy every field.
+- **Sync choreography handlers** (#553): a plain `def` `@on_event` handler ran its side
+  effect, then raised `TypeError` and triggered compensation. Sync handlers and
+  compensations now work.
+- **Versioned sagas** (#554): `SagaVersionedMixin.run()` dropped `tenant_context` and
+  `allow_rerun`; it now passes every option to `Saga.run()`.
+- **`on_exit` step hook** (#555) was accepted but never called; it now runs after the step,
+  whether it succeeded or failed.
 - **Documentation that runs** (#539): 67 of the imports in the README and the usage docs
   failed. Some modules had moved (`sagaz.outbox` is now `sagaz.core.outbox`;
   `sagaz.storage`, `sagaz.listeners` and `sagaz.monitoring` moved under `sagaz.core` and

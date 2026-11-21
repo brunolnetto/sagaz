@@ -43,9 +43,13 @@ class SagaVersionedMixin:
         return registry.get_latest(name)
 
     async def run(
-        self, initial_context: dict[str, Any], saga_id: str | None = None
+        self, initial_context: dict[str, Any], saga_id: str | None = None, **options: Any
     ) -> dict[str, Any]:
+        """Validate the context against the active version's schema, then run.
+
+        ``options`` (``tenant_context``, ``allow_rerun``) go to ``Saga.run`` unchanged (#554).
+        """
         validate_context(self.active_saga_version(), initial_context)
         parent: Any = super()
-        result: dict[str, Any] = await parent.run(initial_context, saga_id)
+        result: dict[str, Any] = await parent.run(initial_context, saga_id, **options)
         return result

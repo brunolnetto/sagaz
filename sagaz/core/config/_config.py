@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -202,47 +202,26 @@ class SagaConfig:
 
     def with_storage(self, storage: SagaStorage) -> SagaConfig:
         """Create a new config with different storage (immutable update)."""
-        return SagaConfig(
-            storage=storage,
-            outbox_storage=self.outbox_storage,
-            broker=self.broker,
-            metrics=self.metrics,
-            tracing=self.tracing,
-            logging=self.logging,
-            default_timeout=self.default_timeout,
-            default_max_retries=self.default_max_retries,
-            failure_strategy=self.failure_strategy,
-            tenant_registry=self.tenant_registry,
-            storage_strategy=self.storage_strategy,
-            event_store=self.event_store,
-            snapshot_threshold=self.snapshot_threshold,
-            storage_layout=self.storage_layout,
-            saga_log=self.saga_log,
-            participant=self.participant,
-            regions=self.regions,
-        )
+        return self._replace(storage=storage)
 
     def with_broker(self, broker: BaseBroker, outbox_storage=None) -> SagaConfig:
         """Create a new config with different broker (immutable update)."""
-        return SagaConfig(
-            storage=self.storage,
-            outbox_storage=outbox_storage or self.outbox_storage,
-            broker=broker,
-            metrics=self.metrics,
-            tracing=self.tracing,
-            logging=self.logging,
-            default_timeout=self.default_timeout,
-            default_max_retries=self.default_max_retries,
-            failure_strategy=self.failure_strategy,
-            tenant_registry=self.tenant_registry,
-            storage_strategy=self.storage_strategy,
-            event_store=self.event_store,
-            snapshot_threshold=self.snapshot_threshold,
-            storage_layout=self.storage_layout,
-            saga_log=self.saga_log,
-            participant=self.participant,
-            regions=self.regions,
-        )
+        return self._replace(broker=broker, outbox_storage=outbox_storage or self.outbox_storage)
+
+    def _replace(self, **changes: Any) -> SagaConfig:
+        """A copy with ``changes``, keeping every other field (#552).
+
+        The copy uses the concrete storage, not the ``storage_manager`` it may have
+        come from (a config cannot take both).
+        """
+        values = {
+            f.name: getattr(self, f.name)
+            for f in fields(self)
+            if f.init and not f.name.startswith("_")
+        }
+        values["storage_manager"] = None
+        values.update(changes)
+        return SagaConfig(**values)
 
     @classmethod
     def _storage_from_env(cls, env: object) -> object:

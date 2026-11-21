@@ -54,6 +54,8 @@ class SagaStepDefinition:
     timeout_seconds: float | None = None
     """None: ``SagaConfig.default_timeout`` (60 s unless configured)."""
     compensation_timeout_seconds: float = 30.0
+    compensation_max_retries: int = 3
+    """Retries of a failing compensation (``@compensate(max_retries=)``), with backoff."""
     max_retries: int | None = None
     """None: ``SagaConfig.default_max_retries`` (3 unless configured)."""
     description: str | None = None
@@ -218,6 +220,7 @@ class Saga(
         timeout_seconds: float | None = None,
         compensation_timeout_seconds: float = 30.0,
         max_retries: int | None = None,
+        compensation_max_retries: int = 3,
         description: str | None = None,
         region: str | None = None,
     ) -> "Saga":
@@ -277,6 +280,7 @@ class Saga(
             depends_on=depends_on or [],
             timeout_seconds=timeout_seconds,
             compensation_timeout_seconds=compensation_timeout_seconds,
+            compensation_max_retries=compensation_max_retries,
             max_retries=max_retries,
             description=description or f"Execute {name}",
             region=region,

@@ -15,7 +15,11 @@ from contextvars import ContextVar
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sagaz.choreography.decorators import get_compensated_event_type, get_event_type
+from sagaz.choreography.decorators import (
+    call_maybe_async,
+    get_compensated_event_type,
+    get_event_type,
+)
 from sagaz.choreography.events import Event
 from sagaz.choreography.state import InMemoryParticipantState, ParticipantState
 
@@ -213,7 +217,7 @@ class ChoreographedSaga:
         done = await self._state.finish(self.name, correlation_id, compensated=True)
         for original in reversed(done):
             try:
-                await self._compensators[original.event_type](original)
+                await call_maybe_async(self._compensators[original.event_type], original)
                 undone.append(original.event_type)
             except Exception:
                 logger.exception("%s failed to compensate %r", self.name, original.event_type)

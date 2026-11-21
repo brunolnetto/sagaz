@@ -226,6 +226,34 @@ class TestCompensation:
         await bus.publish(Event(COMPENSATE, saga_id="t-1"))
         assert participant.undone == ["b", "a"]
 
+    async def test_sync_handlers_and_compensations_work(self):
+        """A plain ``def`` handler is not turned into a failure and compensated (#553)."""
+
+        class Sync(ChoreographedSaga):
+            def __init__(self) -> None:
+                super().__init__(name="sync")
+                self.done: list[str] = []
+
+            @on_event("a")
+            def on_a(self, event: Event) -> None:
+                self.done.append("a")
+
+            @compensate("a")
+            def undo_a(self, event: Event) -> None:
+                self.done.append("undo:a")
+
+        bus = EventBus()
+        published: list[str] = []
+        bus.subscribe("*", lambda event: published.append(event.event_type))
+        engine = ChoreographyEngine(bus)
+        participant = Sync()
+        engine.register(participant)
+        await bus.publish(Event("a", saga_id="t-sync"))
+        assert participant.done == ["a"]
+        assert COMPENSATE not in published  # the sync handler did not "fail"
+        await bus.publish(Event(COMPENSATE, saga_id="t-sync"))
+        assert participant.done == ["a", "undo:a"]
+
     async def test_failures_without_a_transaction_are_not_compensated(self):
         async with Stack() as stack:
             await stack.bus.publish(Event("inventory.reserved", {"order_id": "x", "amount": 999}))

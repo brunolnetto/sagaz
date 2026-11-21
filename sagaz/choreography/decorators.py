@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import functools
+import inspect
 from collections.abc import Callable
 from typing import Any
 
@@ -38,7 +39,7 @@ def on_event(event_type: str) -> Callable:
 
         @functools.wraps(fn)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
-            return await fn(*args, **kwargs)
+            return await call_maybe_async(fn, *args, **kwargs)
 
         setattr(wrapper, _HANDLER_ATTR, event_type)
         return wrapper
@@ -84,3 +85,11 @@ def compensate(event_type: str) -> Callable:
 def get_compensated_event_type(method: Callable) -> str | None:
     """Return the event type whose action *method* undoes, or *None*."""
     return getattr(method, _COMPENSATES_ATTR, None)
+
+
+async def call_maybe_async(fn: Callable, *args: Any, **kwargs: Any) -> Any:
+    """Call a handler or compensation that may be a plain ``def`` (#553)."""
+    result = fn(*args, **kwargs)
+    if inspect.isawaitable(result):
+        result = await result
+    return result
