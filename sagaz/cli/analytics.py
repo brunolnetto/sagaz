@@ -12,9 +12,12 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import click
+
+if TYPE_CHECKING:
+    from sagaz.core.storage.saga_log import SagaLogStore
 
 
 @click.group()
@@ -40,7 +43,7 @@ def _serve(collector: Any, port: int, host: str) -> None:
     start_http_server(port, addr=host, registry=registry)
 
 
-def _reader(log: Any, log_url: str, name: str, cdc: bool, cdc_dsn: str | None) -> Any:
+def _reader(log: SagaLogStore, log_url: str, name: str, cdc: bool, cdc_dsn: str | None) -> Any:
     from sagaz.core.storage.saga_log import SagaLogReader
 
     if not cdc:

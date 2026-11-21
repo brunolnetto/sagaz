@@ -12,6 +12,9 @@ from sagaz.core.storage._tenancy import TENANT_FIELD, scoped_tenant
 from sagaz.core.storage.backends.postgresql._tenancy import acquire_scoped
 from sagaz.core.types import SagaStatus
 
+if TYPE_CHECKING:
+    from asyncpg import Pool
+
 
 def tenant_condition(column: str, params: list[Any]) -> str:
     """SQL condition limiting ``column`` to the current tenant (``TRUE`` in the system scope).
@@ -30,7 +33,7 @@ class _PostgreSQLSagaQueryMixin:
 
     if TYPE_CHECKING:
 
-        async def _get_pool(self) -> Any: ...
+        async def _get_pool(self) -> "Pool": ...
 
         def _build_saga_dict(self, saga_row, step_rows) -> dict[str, Any]: ...
 

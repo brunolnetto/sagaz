@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `scripts/check_suppressions.py` (run by `make lint` and CI) requires an error code on `# type: ignore`, a rule on `# noqa`, a rule and a reason on `# nosec`, and a reason on `# pragma: no cover`.
   - The CI mypy step no longer has `continue-on-error`: a type error now fails the build.
 
+- **`Any` at the library's own boundaries (#595).**
+  - 37 parameters that were sagaz types annotated as `Any` (`storage`, `saga_log`, `outbox`, `transaction`…) now name the type: `SagaStorage`, `SagaLogStore`, `OutboxStorage`, `Transaction`…
+  - 20 driver parameters name `asyncpg.Pool`/`Connection` or `aiosqlite.Connection`, and 26 functions that returned `Any` now return their real type.
+  - Bare `Any` annotations went from 427 to 343. The stricter types found real gaps: two unchecked `fetchone()` results, and the Gradio monitor's arguments, which also accept a URL.
+  - New `scripts/check_typing_budget.py` (run by `make typecheck` and CI): `pyproject.toml` records the counts of bare `Any`, missing annotations and `# type: ignore`, and the build fails if a count differs. Debt can only go down.
+
 ### Fixed
 
 - **There is one `SagaStorage` (#599).** Two unrelated classes had that name. The built-in backends inherited the one in `sagaz.core.storage.base`, while `sagaz.core.storage` exported the one in `interfaces`. So `isinstance(InMemorySagaStorage(), SagaStorage)` was false with the documented import, and a function annotated `storage: SagaStorage` rejected every built-in backend under mypy. `base` now re-exports the single class (and `SagaStepState`); every import path still works.

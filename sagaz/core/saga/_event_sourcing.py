@@ -28,6 +28,7 @@ from sagaz.core.events import (
 if TYPE_CHECKING:
     from sagaz.core.context import SagaContext
     from sagaz.core.storage.event_store import SagaEventRecorder, SagaEventStore
+    from sagaz.core.storage.saga_log import SagaLogStore
 
 logger = logging.getLogger("sagaz.core.saga")
 
@@ -51,7 +52,7 @@ class _SagaEventSourcingMixin:
         self,
         event_store: SagaEventStore | str | None,
         snapshot_threshold: int,
-        saga_log: Any = None,
+        saga_log: SagaLogStore | str | None = None,
         participant: str | None = None,
     ) -> None:
         if saga_log is not None:  # the unified saga log (ADR-041)

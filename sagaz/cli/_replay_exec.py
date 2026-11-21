@@ -18,7 +18,7 @@ from sagaz.cli import replay_ui
 
 if TYPE_CHECKING:
     from sagaz.core.replay.saga_replay import ReplayResult, SagaReplay
-    from sagaz.core.replay.time_travel import HistoricalState
+    from sagaz.core.replay.time_travel import HistoricalState, SagaTimeTravel
 
 
 STORAGE_KINDS = ["redis", "postgres", "filesystem", "memory"]
@@ -147,7 +147,7 @@ async def _execute_time_travel(
 
 
 async def _time_travel_query(
-    time_travel: Any, timestamp: datetime, key: str | None, output_format: str
+    time_travel: "SagaTimeTravel", timestamp: datetime, key: str | None, output_format: str
 ) -> bool:
     if key:
         # Query specific key

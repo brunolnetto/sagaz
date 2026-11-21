@@ -16,6 +16,7 @@ from sagaz.core.storage.event_store._base import SagaEventStore, SagaSnapshot
 # mypy reads the imports alone: no ignore is needed with or without the dependency.
 if TYPE_CHECKING:
     import aiosqlite
+    from aiosqlite import Connection
 else:
     try:
         import aiosqlite
@@ -57,21 +58,23 @@ class SQLiteEventStore(SagaEventStore):
             msg = "aiosqlite"
             raise MissingDependencyError(msg, "SQLite event store")
         self.db_path = db_path
-        self._conn: Any = None
+        self._conn: Connection | None = None
         self._lock = asyncio.Lock()
         self._init_lock = asyncio.Lock()
 
-    async def _connection(self) -> Any:
+    async def _connection(self) -> Connection:
         # Initialized once, and published only when ready: a concurrent caller
         # must neither open a second connection nor use a half-made schema.
-        if self._conn is None:
+        conn = self._conn
+        if conn is None:
             async with self._init_lock:
-                if self._conn is None:
+                conn = self._conn
+                if conn is None:
                     conn = await aiosqlite.connect(self.db_path)
                     await conn.executescript(SCHEMA)
                     await conn.commit()
                     self._conn = conn
-        return self._conn
+        return conn
 
     async def append(self, event: SagaEvent) -> SagaEvent:
         tenant = write_tenant(event.tenant_id)
@@ -82,7 +85,8 @@ class SQLiteEventStore(SagaEventStore):
                 " WHERE tenant_id = ? AND saga_id = ?",
                 (tenant, event.saga_id),
             )
-            (last,) = await cursor.fetchone()
+            row = await cursor.fetchone()  # an aggregate: always one row
+            last = row[0] if row else 0
             stored = replace(event, sequence=last + 1, tenant_id=tenant)
             await conn.execute(
                 "INSERT INTO saga_events"

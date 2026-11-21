@@ -15,7 +15,10 @@ up-to-date database takes no exclusive lock.
 from __future__ import annotations
 
 import hashlib
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from asyncpg import Connection
 
 VERSION_TABLE = """
 CREATE TABLE IF NOT EXISTS sagaz_schema_version (
@@ -30,7 +33,7 @@ def schema_version(sql: str) -> str:
     return hashlib.sha256(sql.encode()).hexdigest()[:32]
 
 
-async def _applied_version(conn: Any, component: str) -> str | None:
+async def _applied_version(conn: Connection, component: str) -> str | None:
     # Read before creating: roles without CREATE on the schema (services sharing
     # a database) cannot even run CREATE TABLE IF NOT EXISTS.
     if await conn.fetchval("SELECT to_regclass('sagaz_schema_version')") is None:
@@ -41,7 +44,7 @@ async def _applied_version(conn: Any, component: str) -> str | None:
     return None if version is None else str(version)
 
 
-async def apply_schema(conn: Any, component: str, sql: str) -> bool:
+async def apply_schema(conn: Connection, component: str, sql: str) -> bool:
     """Run *sql* for *component* unless this exact DDL was applied; return whether it ran."""
     version = schema_version(sql)
     if await _applied_version(conn, component) == version:

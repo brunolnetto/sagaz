@@ -75,6 +75,11 @@ jobs:
         # what they suppress and why (#594).
         run: uv run python scripts/check_suppressions.py
 
+      - name: Check the typing budget
+        # Counts of bare Any, missing annotations and type: ignore must match the budget in
+        # pyproject.toml: they can only go down (#595).
+        run: uv run python scripts/check_typing_budget.py
+
       - name: Run mypy type checker
         # Gates. Unused ignores fail too (warn_unused_ignores in pyproject.toml).
         run: uv run mypy sagaz/ --ignore-missing-imports

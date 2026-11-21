@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from sagaz.core.storage.base import SagaStorage
+    from sagaz.core.storage.interfaces import OutboxStorage
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,9 @@ class StorageConfigManager:
         return storage, manager_ref
 
     @staticmethod
-    def derive_outbox_storage(storage: Any, broker: Any, outbox_storage: Any) -> Any:
+    def derive_outbox_storage(
+        storage: Any, broker: Any, outbox_storage: "OutboxStorage | None"
+    ) -> "OutboxStorage | None":
         """Derive outbox storage from saga storage if not explicitly set.
 
         For transactional guarantees, outbox storage should ideally use
@@ -105,7 +108,7 @@ class StorageConfigManager:
         return StorageConfigManager._use_memory_outbox_with_warning()
 
     @staticmethod
-    def _use_memory_outbox_with_warning() -> Any:
+    def _use_memory_outbox_with_warning() -> "OutboxStorage":
         """Use in-memory outbox storage with a warning."""
         from sagaz.core.storage.backends.memory.outbox import InMemoryOutboxStorage
 

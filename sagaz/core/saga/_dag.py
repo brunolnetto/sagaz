@@ -16,6 +16,7 @@ from sagaz.core.types import ParallelFailureStrategy, SagaResult, SagaStatus
 
 if TYPE_CHECKING:
     from sagaz.core.saga import Saga
+    from sagaz.core.strategies.base import ParallelExecutionStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -181,7 +182,7 @@ class DAGExecutor:
                 error=e,
             )
 
-    def _get_parallel_strategy(self) -> Any:
+    def _get_parallel_strategy(self) -> "ParallelExecutionStrategy":
         """Get the parallel execution strategy implementation."""
         from sagaz.core.strategies.fail_fast import FailFastStrategy
         from sagaz.core.strategies.fail_fast_grace import FailFastWithGraceStrategy

@@ -47,7 +47,7 @@ These run the same commands as the CI gates.
 | `make lint-fix` | `ruff check --fix` |
 | `make format` | `ruff format` (rewrites files) |
 | `make format-check` | `ruff format --check` (changes nothing) |
-| `make typecheck` | `mypy sagaz/ --ignore-missing-imports`. An unused `# type: ignore` is an error |
+| `make typecheck` | `mypy sagaz/ --ignore-missing-imports` (an unused `# type: ignore` is an error), then `scripts/check_typing_budget.py`: the counts of bare `Any`, missing annotations and `# type: ignore` must match the budget in `pyproject.toml`, which can only go down |
 | `make quality-gate` | `codebase-stats`: CC ≤ 10 per function, modules ≤ 400 lines, MI ≥ 20 |
 | `make security` | `bandit -ll` (medium severity and up; informational in CI) |
 | `make complexity` | radon metrics, informational: `MODE=summary` (C and worse), `full`, `json`, `mi`, `raw` |

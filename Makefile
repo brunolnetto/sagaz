@@ -113,8 +113,9 @@ format: ## Format code with ruff
 format-check: ## Check formatting without changing files
 	$(RUFF) format --check sagaz/ tests/
 
-typecheck: ## Type-check with mypy
+typecheck: ## Type-check with mypy; check the typing budget (it can only go down)
 	$(MYPY) sagaz/ --ignore-missing-imports
+	$(PYTHON) scripts/check_typing_budget.py
 
 quality-gate: ## Structural gate (codebase-stats): CC <= 10, modules <= 400 lines, MI >= 20
 	$(RUN) codebase-stats --root sagaz --format summary

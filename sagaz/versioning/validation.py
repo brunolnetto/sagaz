@@ -14,10 +14,13 @@ Fields not mentioned in the schema are allowed.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.versioning.exceptions import SagaVersionSchemaError
 from sagaz.versioning.saga_version import SagaVersion
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 _TYPES: dict[str, tuple[type, ...]] = {
     "str": (str,),
@@ -43,7 +46,9 @@ def _type_violation(field: str, descriptor: str, value: Any) -> str | None:
     return None
 
 
-def _model_violations(validator: Any, context: Mapping[str, Any]) -> list[str]:
+def _model_violations(
+    validator: Callable[[dict[str, Any]], object], context: Mapping[str, Any]
+) -> list[str]:
     try:
         validator(dict(context))
     except Exception as exc:  # pydantic.ValidationError, without importing pydantic

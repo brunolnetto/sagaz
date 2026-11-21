@@ -18,7 +18,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.choreography.events import AbstractEventBus, Event
 from sagaz.core._poller import Poller
@@ -26,8 +26,11 @@ from sagaz.core.outbox.brokers.base import BaseBroker
 from sagaz.core.outbox.types import OutboxConfig, OutboxEvent
 from sagaz.core.outbox.worker import OutboxWorker
 
+if TYPE_CHECKING:
+    from sagaz.core.storage.interfaces import OutboxStorage
 
-def _single_writer(outbox: Any) -> bool:
+
+def _single_writer(outbox: OutboxStorage) -> bool:
     return type(outbox).__name__ == "SQLiteOutboxStorage"
 
 
@@ -76,7 +79,7 @@ class ChoreographyRelay:
 
     def __init__(
         self,
-        outbox: Any,
+        outbox: OutboxStorage,
         bus: AbstractEventBus,
         *,
         poll_interval: float = 0.1,

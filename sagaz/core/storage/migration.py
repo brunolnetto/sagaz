@@ -34,13 +34,14 @@ from sagaz.storage.transfer.service import (
 )
 
 if TYPE_CHECKING:
+    from sagaz.core.storage.interfaces import SagaStorage
     from sagaz.storage.manager import StorageManager
 
 logger = logging.getLogger(__name__)
 
 
 async def _storage_checksum(
-    storage: Any,
+    storage: SagaStorage,
     *,
     ignored_fields: frozenset[str] = frozenset(),
 ) -> tuple[int, str]:

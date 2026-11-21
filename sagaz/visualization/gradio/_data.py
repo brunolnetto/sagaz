@@ -10,10 +10,14 @@ from __future__ import annotations
 import json
 import re
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.storage.saga_log._model import TRANSACTION_MARKER
 from sagaz.core.tenant import system_scope, tenant_scope
+
+if TYPE_CHECKING:
+    from sagaz.core.storage.interfaces import SagaStorage
+    from sagaz.core.storage.saga_log import SagaLogStore
 
 TRANSACTION_COLUMNS = (
     "tenant",
@@ -64,7 +68,7 @@ def _classes(statuses: dict[str, str]) -> list[str]:
 
 
 async def list_transactions(
-    log: Any,
+    log: SagaLogStore,
     *,
     coordination: str | None = None,
     flow: str | None = None,
@@ -93,7 +97,9 @@ async def list_transactions(
     ]
 
 
-async def transaction_detail(log: Any, tenant: str, transaction_id: str) -> dict[str, Any] | None:
+async def transaction_detail(
+    log: SagaLogStore, tenant: str, transaction_id: str
+) -> dict[str, Any] | None:
     """A transaction's steps, events, context and diagram, or None if unknown."""
     with tenant_scope(tenant):
         transaction = await log.get_transaction(transaction_id)
@@ -177,7 +183,9 @@ def causation_diagram(events: list[Any]) -> str:
 # -- classic saga storage ------------------------------------------------------------
 
 
-async def list_sagas(storage: Any, *, status: str | None = None, limit: int = 200) -> list[dict]:
+async def list_sagas(
+    storage: SagaStorage, *, status: str | None = None, limit: int = 200
+) -> list[dict]:
     """Sagas of a classic-layout ``SagaStorage``, as transaction rows."""
     from sagaz.core.types import SagaStatus
 
@@ -198,7 +206,7 @@ async def list_sagas(storage: Any, *, status: str | None = None, limit: int = 20
     ]
 
 
-async def saga_detail(storage: Any, tenant: str, saga_id: str) -> dict[str, Any] | None:
+async def saga_detail(storage: SagaStorage, tenant: str, saga_id: str) -> dict[str, Any] | None:
     """A classic-layout saga's steps, context and diagram, or None if unknown."""
     with tenant_scope(tenant):
         state = await storage.load_saga_state(saga_id)

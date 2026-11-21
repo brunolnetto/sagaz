@@ -13,7 +13,10 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from sagaz.core.regions.coordinator import MultiRegionCoordinator
 
 from sagaz.core.regions._registry import Region
 
@@ -40,7 +43,7 @@ def regions_from_config(data: dict[str, Any]) -> list[Region]:
     return regions
 
 
-def coordinator_from_config(data: dict[str, Any]) -> Any:
+def coordinator_from_config(data: dict[str, Any]) -> MultiRegionCoordinator:
     """A (not yet started) ``MultiRegionCoordinator`` for a ``regions:`` block."""
     from sagaz.core.regions.coordinator import MultiRegionCoordinator
 

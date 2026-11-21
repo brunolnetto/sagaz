@@ -22,6 +22,7 @@ from sagaz.core.types import SagaStatus
 if TYPE_CHECKING:
     from sagaz.core.decorators import Saga
     from sagaz.core.decorators._step_ledger import StepLedger
+    from sagaz.core.storage.interfaces import SagaStorage
 
 logger = get_logger("sagaz.core.decorators")
 
@@ -40,7 +41,7 @@ class _DurabilityMixin:
 
         def _configuration_to_store(self) -> list[str] | None: ...
 
-    def _storage(self) -> Any:
+    def _storage(self) -> SagaStorage | None:
         return self.saga._config.storage if self.saga._config else None
 
     def _tolerates_storage_errors(self) -> bool:

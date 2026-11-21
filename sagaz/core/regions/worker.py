@@ -58,7 +58,7 @@ class RegionalWorker:
         if compensation is not None:
             self._steps[(saga_name, step, COMPENSATION)] = compensation
 
-    def serve(self, saga: Any) -> None:
+    def serve(self, saga: object) -> None:
         """Register every region-assigned step of *saga* (a ``Saga`` class or instance)."""
         instance: Any = saga() if inspect.isclass(saga) else saga
         name = instance.saga_name or type(instance).__name__

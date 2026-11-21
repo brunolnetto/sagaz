@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.storage._tenancy import scoped_tenant
 from sagaz.core.storage.backends.postgresql._tenancy import (
@@ -25,6 +25,9 @@ from sagaz.core.storage.backends.postgresql._tenancy import (
     tenant_isolation_sql,
 )
 from sagaz.core.storage.interfaces.outbox import OutboxStorageError
+
+if TYPE_CHECKING:
+    from asyncpg import Pool
 
 #: Tables of the outbox schema that hold tenant-owned rows.
 TENANT_TABLES = ("saga_outbox", "saga_outbox_archive", "consumer_inbox")
@@ -48,7 +51,7 @@ def tenant_param() -> str | None:
 
 
 @asynccontextmanager
-async def scoped_connection(pool: Any, connection: Any | None = None) -> AsyncIterator[Any]:
+async def scoped_connection(pool: Pool, connection: Any | None = None) -> AsyncIterator[Any]:
     """Yield ``connection`` (scoped to the current tenant) or one acquired from ``pool``.
 
     A caller-supplied connection keeps the ``app.tenant_id`` set here after the
