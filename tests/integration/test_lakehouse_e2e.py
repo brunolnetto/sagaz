@@ -28,6 +28,8 @@ from pathlib import Path
 
 import pytest
 
+from sagaz.core.exceptions import SagaFailedError
+
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.skipif(
@@ -106,7 +108,7 @@ async def run_sagas(log, count: int, offset: int = 0, rate: float | None = None)
         with tenant_scope("acme" if i % 2 else "globex"):
             try:
                 await saga.run({"order_id": f"o-{i}"}, saga_id=f"orch-{i}")
-            except (ValueError, RuntimeError):
+            except SagaFailedError:  # a failed run raises it since #536
                 pass
 
 
