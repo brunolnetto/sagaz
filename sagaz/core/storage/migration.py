@@ -27,6 +27,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from sagaz.core.storage.canonical import canonical_value as _canonical_checksum_value
+from sagaz.core.storage.interfaces.saga import implements
 from sagaz.storage.transfer.service import (
     TransferResult,
     transfer_data,
@@ -44,7 +45,7 @@ async def _storage_checksum(
     ignored_fields: frozenset[str] = frozenset(),
 ) -> tuple[int, str]:
     """Compute an order-independent checksum over all exported storage records."""
-    if not hasattr(storage, "export_all"):
+    if not implements(storage, "export_all"):
         msg = f"{storage.__class__.__name__} does not support export_all()"
         raise TypeError(msg)
 

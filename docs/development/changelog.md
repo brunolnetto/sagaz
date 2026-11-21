@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `scripts/check_suppressions.py` (run by `make lint` and CI) requires an error code on `# type: ignore`, a rule on `# noqa`, a rule and a reason on `# nosec`, and a reason on `# pragma: no cover`.
   - The CI mypy step no longer has `continue-on-error`: a type error now fails the build.
 
+### Fixed
+
+- **There is one `SagaStorage` (#599).** Two unrelated classes had that name. The built-in backends inherited the one in `sagaz.core.storage.base`, while `sagaz.core.storage` exported the one in `interfaces`. So `isinstance(InMemorySagaStorage(), SagaStorage)` was false with the documented import, and a function annotated `storage: SagaStorage` rejected every built-in backend under mypy. `base` now re-exports the single class (and `SagaStepState`); every import path still works.
+
 ### Security
 
 - **External context storage signs its payloads (#589). Breaking change.** `FileSystemExternalStorage` and `S3ExternalStorage` pickle the values they store, and unpickling runs code. Before, anyone who could write to the directory or the bucket could run code in every worker that loaded a payload. Each payload is now stored with an HMAC-SHA256 signature, which is checked before anything is unpickled. A payload that is missing its signature, was modified, was moved to another name or was signed with another key raises `ExternalStorageIntegrityError`.
