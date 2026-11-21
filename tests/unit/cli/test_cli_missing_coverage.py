@@ -4,13 +4,30 @@ Tests for missing paths in CLI modules:
 - sagaz/cli/replay.py (89.3%) - lines 24-26, 102, 110, 112, 114, 252, 360, 377, 398, 405-414, 416-418, 555
 """
 
+import contextlib
 import os
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import click
 import pytest
 from click.testing import CliRunner
+
+from sagaz.cli import _replay_exec
+
+REAL_OPEN_SNAPSHOT_STORAGE = _replay_exec.open_snapshot_storage
+
+
+@pytest.fixture(autouse=True)
+def snapshot_storage_stub(monkeypatch):
+    """These tests mock SagaReplay/SagaTimeTravel: give them a stand-in storage."""
+
+    @contextlib.asynccontextmanager
+    async def fake(kind, url):
+        yield MagicMock()
+
+    monkeypatch.setattr(_replay_exec, "open_snapshot_storage", fake)
 
 
 @pytest.fixture
@@ -289,19 +306,10 @@ class TestExecuteReplay:
 
     @pytest.mark.asyncio
     async def test_execute_replay_unsupported_storage(self):
-        """Unsupported storage type raises NotImplementedError."""
-        from uuid import UUID
-
-        with pytest.raises(NotImplementedError):
-            await _execute_replay(
-                saga_id=UUID("550e8400-e29b-41d4-a716-446655440000"),
-                from_step="step1",
-                storage_type="redis",
-                storage_url=None,
-                context_override={},
-                dry_run=False,
-                verbose=False,
-            )
+        """The in-memory storage is refused: it lives in the process that wrote it (#556)."""
+        with pytest.raises(click.UsageError, match="in-memory"):
+            async with REAL_OPEN_SNAPSHOT_STORAGE("memory", None):
+                pass
 
 
 class TestExecuteTimeTravel:

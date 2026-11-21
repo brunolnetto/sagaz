@@ -105,21 +105,34 @@ if state:
 
 ## CLI Usage
 
+The CLI reads the snapshots your sagas wrote: point `--storage` and `--storage-url` at
+the same snapshot storage (`redis`, `postgres`, or a `filesystem` directory, the
+default `./saga-snapshots`). An in-memory snapshot storage lives in the process that took
+the snapshots, so the CLI cannot read it.
+
 ### Replay Command
+
+Replaying runs the saga again, so the CLI needs to build it: `--saga module:attribute`
+names the saga class, or a factory `(saga_name) -> saga` (sync or async) that adds its
+steps.
 
 ```bash
 # Replay from checkpoint
-sagaz replay run abc-123 \
+sagaz replay run 3f2c9a7e-0b1d-4c6e-9a51-6d2f0e8b7c41 \
   --from-step charge_payment \
   --override payment_token=new_token \
   --storage redis \
-  --storage-url redis://localhost:6379
+  --storage-url redis://localhost:6379 \
+  --saga myapp.sagas:build_order_saga
 
-# Dry-run mode (validate without executing)
-sagaz replay run abc-123 \
+# Dry-run mode (validate without executing; no --saga needed)
+sagaz replay run 3f2c9a7e-0b1d-4c6e-9a51-6d2f0e8b7c41 \
   --from-step charge_payment \
+  --storage-url ./saga-snapshots \
   --dry-run
 ```
+
+Every command exits non-zero when it fails.
 
 ### Time-Travel Query
 

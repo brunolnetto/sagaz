@@ -5,6 +5,9 @@ Output goes through ``replay_ui`` with the dependencies returned by
 ``sagaz.cli.replay.HAS_RICH`` / ``console`` / ``click`` keeps taking effect.
 """
 
+import importlib
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -16,6 +19,54 @@ from sagaz.cli import replay_ui
 if TYPE_CHECKING:
     from sagaz.core.replay.saga_replay import ReplayResult, SagaReplay
     from sagaz.core.replay.time_travel import HistoricalState
+
+
+STORAGE_KINDS = ["redis", "postgres", "filesystem", "memory"]
+
+
+@asynccontextmanager
+async def open_snapshot_storage(kind: str, url: str | None) -> AsyncIterator[Any]:
+    """The snapshot storage the saga wrote to (#556): Redis, PostgreSQL or a directory.
+
+    An in-memory storage belongs to the process that wrote it, so the CLI, another
+    process, can never see its snapshots.
+    """
+    if kind == "memory":
+        msg = (
+            "--storage memory cannot work from the CLI: in-memory snapshots live in the "
+            "process that took them. Use --storage redis|postgres|filesystem."
+        )
+        raise click.UsageError(msg)
+    if kind in ("redis", "postgres") and not url:
+        msg = f"--storage {kind} needs --storage-url"
+        raise click.UsageError(msg)
+    if kind == "redis":
+        from sagaz.core.storage.backends.redis.snapshot import RedisSnapshotStorage
+
+        storage: Any = RedisSnapshotStorage(redis_url=url or "")
+    elif kind == "postgres":
+        from sagaz.core.storage.backends.postgresql.snapshot import PostgreSQLSnapshotStorage
+
+        storage = PostgreSQLSnapshotStorage(connection_string=url or "")
+    else:
+        from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
+
+        storage = FilesystemSnapshotStorage(base_path=url or "./saga-snapshots")
+    async with storage:
+        yield storage
+
+
+def load_saga_factory(path: str) -> Any:
+    """``module:attr``: a saga class (built with no arguments) or a factory
+    ``(saga_name) -> saga``, sync or async, that builds the saga to replay (#556)."""
+    module_name, _, attr = path.partition(":")
+    if not module_name or not attr:
+        msg = f"--saga takes module:attribute, got {path!r}"
+        raise click.UsageError(msg)
+    target = getattr(importlib.import_module(module_name), attr)
+    if isinstance(target, type):
+        return lambda _name: target()
+    return target
 
 
 def _ui_kwargs() -> dict[str, Any]:
@@ -47,38 +98,21 @@ async def _execute_replay(
     context_override: dict,
     dry_run: bool,
     verbose: bool,
+    saga_path: str | None = None,
 ) -> bool:
     """Execute the replay operation"""
     from sagaz.core.replay.saga_replay import SagaReplay
 
-    # Create storage
-    if storage_type == "memory":
-        from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
-
-        storage = InMemorySnapshotStorage()
-    else:
-        msg = f"Storage type '{storage_type}' not yet supported"
-        raise NotImplementedError(msg)
-
-    # Create replay instance
-    replay = SagaReplay(
-        saga_id=saga_id,
-        snapshot_storage=storage,
-    )
-
-    # List available checkpoints
-    await _show_checkpoints(replay, verbose)
-
-    # Execute replay
-    result = await replay.from_checkpoint(
-        step_name=from_step,
-        context_override=context_override or None,
-        dry_run=dry_run,
-    )
-
-    # Show result
+    factory = load_saga_factory(saga_path) if saga_path else None
+    async with open_snapshot_storage(storage_type, storage_url) as storage:
+        replay = SagaReplay(saga_id=saga_id, snapshot_storage=storage, saga_factory=factory)
+        await _show_checkpoints(replay, verbose)
+        result = await replay.from_checkpoint(
+            step_name=from_step,
+            context_override=context_override or None,
+            dry_run=dry_run,
+        )
     _show_replay_result(result, verbose, dry_run)
-
     return result.replay_status.value == "success"
 
 
@@ -103,19 +137,18 @@ async def _execute_time_travel(
     """Execute time-travel query"""
     from sagaz.core.replay.time_travel import SagaTimeTravel
 
-    # Create storage
-    if storage_type == "memory":
-        from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
+    async with open_snapshot_storage(storage_type, storage_url) as storage:
+        return await _time_travel_query(
+            SagaTimeTravel(saga_id=saga_id, snapshot_storage=storage),
+            timestamp,
+            key,
+            output_format,
+        )
 
-        storage = InMemorySnapshotStorage()
-    else:
-        msg = f"Storage type '{storage_type}' not yet supported"
-        raise NotImplementedError(msg)
 
-    # Create time-travel instance
-    time_travel = SagaTimeTravel(saga_id=saga_id, snapshot_storage=storage)
-
-    # Query state
+async def _time_travel_query(
+    time_travel: Any, timestamp: datetime, key: str | None, output_format: str
+) -> bool:
     if key:
         # Query specific key
         value = await time_travel.get_context_at(timestamp, key=key)
@@ -140,24 +173,14 @@ async def _execute_list_changes(
     before: datetime | None,
     limit: int,
     storage_type: str,
+    storage_url: str | None = None,
 ):
     """Execute list changes query"""
     from sagaz.core.replay.time_travel import SagaTimeTravel
 
-    # Create storage
-    if storage_type == "memory":
-        from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
-
-        storage = InMemorySnapshotStorage()
-    else:
-        msg = f"Storage type '{storage_type}' not yet supported"
-        raise NotImplementedError(msg)
-
-    # Create time-travel instance
-    time_travel = SagaTimeTravel(saga_id=saga_id, snapshot_storage=storage)
-
-    # Query changes
-    changes = await time_travel.list_state_changes(after=after, before=before, limit=limit)
+    async with open_snapshot_storage(storage_type, storage_url) as storage:
+        time_travel = SagaTimeTravel(saga_id=saga_id, snapshot_storage=storage)
+        changes = await time_travel.list_state_changes(after=after, before=before, limit=limit)
 
     if not changes:
         click.echo("No state changes found")
