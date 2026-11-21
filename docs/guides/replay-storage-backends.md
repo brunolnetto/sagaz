@@ -17,7 +17,7 @@ Sagaz provides multiple storage backends for saga snapshots and replay logs. Cho
 
 **Example:**
 ```python
-from sagaz.storage.backends import InMemorySnapshotStorage
+from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
 
 storage = InMemorySnapshotStorage()
 await storage.save_snapshot(snapshot)
@@ -48,7 +48,7 @@ pip install redis zstandard
 
 **Example:**
 ```python
-from sagaz.storage.backends import RedisSnapshotStorage
+from sagaz.core.storage.backends.redis import RedisSnapshotStorage
 
 storage = RedisSnapshotStorage(
     redis_url="redis://localhost:6379",
@@ -126,7 +126,7 @@ CREATE TABLE saga_replay_log (
 
 **Example:**
 ```python
-from sagaz.storage.backends import PostgreSQLSnapshotStorage
+from sagaz.core.storage.backends.postgresql import PostgreSQLSnapshotStorage
 
 storage = PostgreSQLSnapshotStorage(
     connection_string="postgresql://user:pass@localhost:5432/sagaz",
@@ -172,7 +172,7 @@ pip install aioboto3 zstandard
 
 **Example:**
 ```python
-from sagaz.storage.backends import S3SnapshotStorage
+from sagaz.core.storage.backends.s3 import S3SnapshotStorage
 
 storage = S3SnapshotStorage(
     bucket_name="my-saga-snapshots",
@@ -303,7 +303,8 @@ if snapshot.created_at < datetime.now() - timedelta(days=7):
 Use the storage transfer service to migrate snapshots:
 
 ```python
-from sagaz.storage.backends import RedisSnapshotStorage, S3SnapshotStorage
+from sagaz.core.storage.backends.redis import RedisSnapshotStorage
+from sagaz.core.storage.backends.s3 import S3SnapshotStorage
 
 # Source
 redis_storage = RedisSnapshotStorage()

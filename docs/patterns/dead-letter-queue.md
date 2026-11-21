@@ -42,143 +42,70 @@ graph TB
 
 ## Configuration
 
-### Retry Policy
+### Retries before the DLQ
+
+The outbox worker retries each event that fails to publish, and moves it to the dead
+letter state after `OutboxConfig.max_retries` failed attempts (default 10):
 
 ```python
-from sagaz.config import SagaConfig
-from sagaz.retry import RetryPolicy, ExponentialBackoff
+from sagaz.core.outbox import OutboxConfig, OutboxWorker
 
-config = SagaConfig(
-    retry_policy=RetryPolicy(
-        max_retries=3,
-        backoff=ExponentialBackoff(
-            initial_delay_ms=1000,    # 1 second
-            max_delay_ms=60000,       # 1 minute max
-            multiplier=2.0,           # Double each retry
-            jitter=0.1,               # ±10% randomization
-        ),
-        retryable_exceptions=[
-            "ConnectionError",
-            "TimeoutError",
-            "TransientDatabaseError",
-        ],
-        non_retryable_exceptions=[
-            "ValidationError",
-            "AuthenticationError",
-            "BusinessRuleViolation",
-        ]
-    ),
-    dlq=DLQConfig(
-        enabled=True,
-        topic_suffix="_dlq",          # saga_events_dlq
-        include_stack_trace=True,
-        include_original_message=True,
-        alert_threshold=10,           # Alert after 10 DLQ messages/hour
-    )
+config = OutboxConfig(
+    max_retries=5,               # attempts before DEAD_LETTER
+    poll_interval_seconds=1.0,
+    claim_timeout_seconds=300,   # a claimed event older than this is retried
 )
+worker = OutboxWorker(storage=outbox_storage, broker=broker, config=config)
 ```
 
-### Kafka DLQ Setup
+The worker reads the same settings from the environment (`OUTBOX_MAX_RETRIES`, …)
+with `OutboxConfig.from_env()`.
+
+### What a dead-lettered event records
+
+Each failure classifies the error and fingerprints its message, so the DLQ can be
+grouped by cause:
 
 ```python
-from sagaz.brokers.kafka import KafkaOutboxBroker
+from sagaz.core.outbox.error_classifier import classify_error, create_error_fingerprint
 
-broker = KafkaOutboxBroker(
-    bootstrap_servers="kafka:9092",
-    topic="saga_events",
-    dlq_topic="saga_events_dlq",
-    consumer_group="saga-consumers",
-    dlq_consumer_group="saga-dlq-processors",
-)
+classify_error(ConnectionError("refused"))     # "TRANSIENT": worth retrying
+classify_error(ValueError("bad payload"))      # "PERMANENT": will not succeed on retry
+create_error_fingerprint("Connection refused to 10.0.0.5:5432")  # same for any host/port
 ```
 
-### RabbitMQ DLQ Setup
+The classification is recorded on the event (`error_classification`,
+`error_fingerprint`, `error_type`) alongside the DLQ fields above; it does not change
+the number of retries.
+
+## Handling DLQ Events
+
+### Manual review
+
+The outbox storage reads, re-queues and purges dead-lettered events:
 
 ```python
-from sagaz.brokers.rabbitmq import RabbitMQOutboxBroker
+dead = await outbox_storage.get_dead_letter_events(limit=100)
+for event in dead:
+    print(event.event_id, event.event_type, event.error_classification, event.dead_letter_reason)
 
-broker = RabbitMQOutboxBroker(
-    host="rabbitmq",
-    exchange="saga_events",
-    queue="saga_events_queue",
-    dlq_exchange="saga_events_dlx",   # Dead Letter Exchange
-    dlq_queue="saga_events_dlq",
-    message_ttl=300000,               # 5 minutes before DLQ
-)
+# Fixed the cause (a broker ACL, a consumer bug)? Put the event back in the queue:
+await outbox_storage.requeue_dead_letter_event(dead[0].event_id)
 ```
 
-## DLQ Message Format
+The [recovery commands](#recovery-commands) below do the same from the shell.
 
-When a message is moved to DLQ, it's wrapped with metadata:
+### Grouping by cause
 
-```json
-{
-  "dlq_metadata": {
-    "original_topic": "saga_events",
-    "original_partition": 3,
-    "original_offset": 12345,
-    "failure_timestamp": "2024-12-27T11:45:00Z",
-    "retry_count": 3,
-    "last_error": {
-      "type": "DatabaseConnectionError",
-      "message": "Connection refused to postgres:5432",
-      "stack_trace": "..."
-    },
-    "consumer_id": "saga-consumer-pod-abc123"
-  },
-  "original_message": {
-    "event_type": "SAGA_STARTED",
-    "saga_id": "saga-uuid-123",
-    "saga_name": "OrderSaga",
-    "timestamp": "2024-12-27T11:40:00Z"
-  }
-}
-```
-
-## Handling DLQ Messages
-
-### Manual Review
+Group dead-lettered events by `error_fingerprint` to tell one broken dependency
+(hundreds of events, one fingerprint) from scattered bad payloads, and re-queue a
+group once its cause is fixed:
 
 ```python
-from sagaz.dlq import DLQProcessor
+from collections import Counter
 
-class DLQReviewProcessor(DLQProcessor):
-    """Manual review and selective reprocessing."""
-    
-    async def process_dlq_message(self, message: DLQMessage):
-        # Log for manual review
-        logger.error(
-            f"DLQ Message: {message.dlq_metadata.last_error}",
-            extra={
-                "saga_id": message.original_message.saga_id,
-                "retry_count": message.dlq_metadata.retry_count,
-            }
-        )
-        
-        # Option 1: Fix and retry
-        if self.is_fixable(message):
-            fixed_message = self.fix_message(message)
-            await self.republish(fixed_message)
-            return DLQAction.RESOLVED
-        
-        # Option 2: Skip (business decision)
-        if self.should_skip(message):
-            return DLQAction.SKIPPED
-        
-        # Option 3: Keep in DLQ for later
-        return DLQAction.KEEP
-```
-
-### Automatic Retry with Delay
-
-```python
-from sagaz.dlq import DelayedRetryProcessor
-
-processor = DelayedRetryProcessor(
-    delay_hours=1,           # Wait 1 hour before retry
-    max_dlq_retries=2,       # Only retry DLQ messages twice
-    on_final_failure=lambda msg: notify_team(msg),
-)
+dead = await outbox_storage.get_dead_letter_events(limit=1000)
+by_cause = Counter((e.error_classification, e.error_fingerprint) for e in dead)
 ```
 
 ## Monitoring

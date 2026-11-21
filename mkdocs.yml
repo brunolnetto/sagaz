@@ -63,7 +63,10 @@ nav:
   - Quickstart: quickstart.md
   
   - Guides:
+    - Your First Saga Service: guides/first-saga-service.md
     - Configuration: guides/configuration.md
+    - Local Development: guides/local-development.md
+    - Multi-tenancy: guides/multi-tenancy.md
     - Kubernetes Deployment: guides/kubernetes.md
     - Cloud Deployment (sagaz deploy): guides/cloud-deployment.md
     - Benchmarking: guides/benchmarking.md
@@ -75,6 +78,8 @@ nav:
     - Saga Replay: guides/saga-replay.md
     - Step Charts: guides/step-statechart.md
     - Replay Storage Backends: guides/replay-storage-backends.md
+    - Filesystem Snapshot Storage: guides/filesystem-snapshot-storage.md
+    - Visualization UI: guides/visualization-ui.md
     - HA PostgreSQL Quick Reference: guides/ha-postgres-quickref.md
     - Mermaid Diagrams: guides/mermaid.md
   

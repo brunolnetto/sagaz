@@ -34,11 +34,7 @@ The Multi-Sink Fan-out pattern allows saga events to be routed to multiple desti
 
 ```python
 from sagaz import Saga
-from sagaz.listeners import (
-    OutboxSagaListener,
-    MetricsSagaListener,
-    TracingSagaListener,
-)
+from sagaz import OutboxSagaListener, MetricsSagaListener, TracingSagaListener
 from myapp.listeners import (
     FlussAnalyticsListener,
     ElasticsearchListener,
@@ -74,7 +70,7 @@ saga.add_listener(AuditLogListener(audit_storage))
 ### Custom Sink Listener Template
 
 ```python
-from sagaz.listeners import SagaListener
+from sagaz import SagaListener
 from typing import Any
 
 class CustomSinkListener(SagaListener):

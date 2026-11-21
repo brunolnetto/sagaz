@@ -47,6 +47,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     any case (`consumer_goods`).
 
 ### Added
+- **"Your First Saga Service" guide** (#539): a saga per request, PostgreSQL persistence,
+  one run per request, failures, testing without a database, looking a run up, and a
+  map of which feature fits which need. The quickstart documents what `run()` raises.
+  The multi-tenancy, local development, filesystem snapshot and visualization guides
+  are now in the docs navigation.
+- **`from sagaz import ReplayConfig, SnapshotStrategy, create_storage_manager`** (#539),
+  as the docs used them.
 - **`sagaz saga show <id>`** (#538) prints a stored run: its status, each step's status,
   retries and error, and its context. Use `--json` for the full record. It reads
   `--storage-url` (or `SAGAZ_STORAGE_URL`) and `--tenant`.
@@ -82,6 +89,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - packaging switch, with label validation (the line cut-over is the pivot).
 
 ### Fixed
+- **Documentation that runs** (#539): 67 of the imports in the README and the usage docs
+  failed. Some modules had moved (`sagaz.outbox` is now `sagaz.core.outbox`;
+  `sagaz.storage`, `sagaz.listeners` and `sagaz.monitoring` moved under `sagaz.core` and
+  `sagaz.observability`), and some documented APIs never existed (the dead-letter
+  guide's `RetryPolicy`, `DLQProcessor` and `KafkaOutboxBroker`). They now import, and
+  the dead-letter guide describes the outbox's real retries and DLQ.
+  `scripts/check_doc_imports.py` runs every documented `sagaz` import in CI. The
+  README's links are absolute, so they work on PyPI.
 - **Timeout logs** (#538): a step timeout reached hooks and listeners as asyncio's
   message-less `TimeoutError`, so logs read `[STEP] Failed: s.wait - `. They now get the
   `SagaTimeoutError`, whose message says what timed out.

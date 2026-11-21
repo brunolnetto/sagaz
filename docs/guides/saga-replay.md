@@ -12,7 +12,7 @@ Configure your saga to capture snapshots:
 
 ```python
 from sagaz import Saga, SagaConfig, ReplayConfig
-from sagaz.storage.backends import InMemorySnapshotStorage
+from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
 
 # Configure replay
 config = SagaConfig(
@@ -155,7 +155,7 @@ sagaz replay list-changes abc-123 \
 ### In-Memory (Development)
 
 ```python
-from sagaz.storage.backends import InMemorySnapshotStorage
+from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
 
 storage = InMemorySnapshotStorage()
 ```
@@ -166,7 +166,7 @@ storage = InMemorySnapshotStorage()
 ### Redis (Production)
 
 ```python
-from sagaz.storage.backends import RedisSnapshotStorage
+from sagaz.core.storage.backends.redis import RedisSnapshotStorage
 
 storage = RedisSnapshotStorage(
     redis_url="redis://localhost:6379",
