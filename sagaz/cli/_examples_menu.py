@@ -53,7 +53,7 @@ def _build_domain_menu(domains: dict) -> tuple[list[str], list[str]]:
     return menu_entries, domain_list
 
 
-def _category_menu_loop():
+def _category_menu_loop() -> None:
     """Main domain selection loop (consolidated categories)."""
     domains = get_domains()
 

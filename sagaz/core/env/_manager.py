@@ -36,7 +36,7 @@ class EnvManager:
         >>> storage_url = env.get("SAGAZ_STORAGE_URL")
     """
 
-    def __init__(self, project_root: Path | str | None = None, auto_load: bool = True):
+    def __init__(self, project_root: Path | str | None = None, auto_load: bool = True) -> None:
         """
         Initialize the environment manager.
 

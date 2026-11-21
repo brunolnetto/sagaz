@@ -122,7 +122,7 @@ class OutboxEvent:
     # ADR-020: owning tenant ("default" when no tenant is used)
     tenant_id: str = DEFAULT_TENANT
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Set aggregate_id to saga_id if not specified."""
         if self.aggregate_id is None:
             self.aggregate_id = self.saga_id
@@ -248,7 +248,7 @@ class OutboxError(Exception):
 class OutboxPublishError(OutboxError):
     """Error publishing message to broker."""
 
-    def __init__(self, event: OutboxEvent, message: str, cause: Exception | None = None):
+    def __init__(self, event: OutboxEvent, message: str, cause: Exception | None = None) -> None:
         self.event = event
         self.cause = cause
         super().__init__(f"Failed to publish event {event.event_id}: {message}")
@@ -261,7 +261,7 @@ class OutboxClaimError(OutboxError):
 class ReplayLoopError(OutboxError):
     """Raised when replay_count has reached the configured maximum."""
 
-    def __init__(self, event_id: str, replay_count: int, max_replays: int):
+    def __init__(self, event_id: str, replay_count: int, max_replays: int) -> None:
         self.event_id = event_id
         self.replay_count = replay_count
         self.max_replays = max_replays

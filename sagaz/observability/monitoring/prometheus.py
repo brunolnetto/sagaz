@@ -77,7 +77,7 @@ class PrometheusMetrics:
         ...     listeners = [MetricsSagaListener(metrics=metrics)]
     """
 
-    def __init__(self, prefix: str = "saga", registry: "CollectorRegistry | None" = None):
+    def __init__(self, prefix: str = "saga", registry: "CollectorRegistry | None" = None) -> None:
         """
         Initialize Prometheus metrics.
 

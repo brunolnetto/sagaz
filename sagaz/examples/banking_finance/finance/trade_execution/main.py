@@ -193,10 +193,10 @@ class StrategyActivationSaga(Saga):
 class SagaOrchestrator:
     """Simple saga orchestrator for managing multiple sagas."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.sagas: dict[str, Any] = {}
 
-    async def execute_saga(self, saga: Saga, context: dict[str, Any]):
+    async def execute_saga(self, saga: Saga, context: dict[str, Any]) -> dict[str, Any]:
         """Execute a saga and track it."""
         result = await saga.run(context)
         self.sagas[result.get("saga_id", "unknown")] = {
@@ -205,11 +205,11 @@ class SagaOrchestrator:
         }
         return result
 
-    async def get_saga(self, saga_id: str):
+    async def get_saga(self, saga_id: str) -> dict[str, Any] | None:
         """Get a saga by ID."""
         return self.sagas.get(saga_id)
 
-    async def get_statistics(self):
+    async def get_statistics(self) -> dict[str, int]:
         """Get orchestrator statistics."""
         completed = sum(1 for s in self.sagas.values() if s["result"].get("success"))
         return {
@@ -219,7 +219,7 @@ class SagaOrchestrator:
         }
 
 
-async def main():
+async def main() -> None:
     """Run the trade execution saga demo."""
 
     # Create a reusable saga instance

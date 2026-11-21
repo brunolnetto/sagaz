@@ -81,7 +81,7 @@ class SQLiteOutboxStorage(
         ...     await storage.insert(event)
     """
 
-    def __init__(self, db_path: str = ":memory:"):
+    def __init__(self, db_path: str = ":memory:") -> None:
         """
         Initialize SQLite outbox storage.
 
@@ -112,12 +112,12 @@ class SQLiteOutboxStorage(
 
         return self._conn
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> SQLiteOutboxStorage:
         """Async context manager entry."""
         await self._get_connection()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
         """Async context manager exit."""
         await self.close()
 
@@ -128,7 +128,7 @@ class SQLiteOutboxStorage(
             self._conn = None
             self._initialized = False
 
-    async def insert(self, event: OutboxEvent, connection=None) -> OutboxEvent:
+    async def insert(self, event: OutboxEvent, connection: object | None = None) -> OutboxEvent:
         """Insert an outbox event."""
         conn = await self._get_connection()
         now = datetime.now(UTC).isoformat()
@@ -194,7 +194,7 @@ class SQLiteOutboxStorage(
         event_id: str,
         status: OutboxStatus,
         error_message: str | None = None,
-        connection=None,
+        connection: object | None = None,
         event: OutboxEvent | None = None,
     ) -> OutboxEvent:
         """Update event status."""

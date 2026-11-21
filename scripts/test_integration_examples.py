@@ -4,6 +4,7 @@
 import asyncio
 import sys
 from pathlib import Path
+from typing import Any
 
 # Add sagaz to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -13,7 +14,7 @@ from sagaz.core.storage import InMemorySagaStorage
 from sagaz.core.triggers import trigger
 
 
-def test_flask_saga():
+def test_flask_saga() -> None:
     """Test Flask saga definition."""
     print("✓ Testing Flask OrderSaga...")
 
@@ -32,16 +33,16 @@ def test_flask_saga():
             }
 
         @action("reserve_inventory")
-        async def reserve_inventory(self, ctx: dict):
+        async def reserve_inventory(self, ctx: dict) -> dict[str, Any]:
             await asyncio.sleep(0.01)
             return {"reservation_id": f"RES-{ctx['order_id']}"}
 
         @compensate("reserve_inventory")
-        async def release_inventory(self, ctx: dict):
+        async def release_inventory(self, ctx: dict) -> None:
             pass
 
         @action("charge_payment", depends_on=["reserve_inventory"])
-        async def charge_payment(self, ctx: dict):
+        async def charge_payment(self, ctx: dict) -> dict[str, Any]:
             await asyncio.sleep(0.01)
             if ctx.get("amount", 0) > 1000:
                 msg = "Payment declined"
@@ -49,11 +50,11 @@ def test_flask_saga():
             return {"transaction_id": f"TXN-{ctx['order_id']}"}
 
         @compensate("charge_payment")
-        async def refund_payment(self, ctx: dict):
+        async def refund_payment(self, ctx: dict) -> None:
             pass
 
         @action("ship_order", depends_on=["charge_payment"])
-        async def ship_order(self, ctx: dict):
+        async def ship_order(self, ctx: dict) -> dict[str, Any]:
             return {"tracking": f"TRACK-{ctx['order_id']}"}
 
     # Test saga creation and execution
@@ -71,7 +72,7 @@ def test_flask_saga():
     print("  ✓ Mermaid diagram generated")
 
 
-def test_fastapi_saga():
+def test_fastapi_saga() -> None:
     """Test FastAPI saga definition."""
     print("\n✓ Testing FastAPI OrderSaga...")
 
@@ -90,16 +91,16 @@ def test_fastapi_saga():
             }
 
         @action("reserve_inventory")
-        async def reserve_inventory(self, ctx: dict):
+        async def reserve_inventory(self, ctx: dict) -> dict[str, Any]:
             await asyncio.sleep(0.01)
             return {"reservation_id": f"RES-{ctx['order_id']}"}
 
         @compensate("reserve_inventory")
-        async def release_inventory(self, ctx: dict):
+        async def release_inventory(self, ctx: dict) -> None:
             pass
 
         @action("charge_payment", depends_on=["reserve_inventory"])
-        async def charge_payment(self, ctx: dict):
+        async def charge_payment(self, ctx: dict) -> dict[str, Any]:
             await asyncio.sleep(0.01)
             if ctx.get("amount", 0) > 1000:
                 msg = "Payment declined"
@@ -107,11 +108,11 @@ def test_fastapi_saga():
             return {"transaction_id": f"TXN-{ctx['order_id']}"}
 
         @compensate("charge_payment")
-        async def refund_payment(self, ctx: dict):
+        async def refund_payment(self, ctx: dict) -> None:
             pass
 
         @action("ship_order", depends_on=["charge_payment"])
-        async def ship_order(self, ctx: dict):
+        async def ship_order(self, ctx: dict) -> dict[str, Any]:
             return {
                 "shipment_id": f"SHIP-{ctx['order_id']}",
                 "tracking": f"TRACK-{ctx['order_id']}",
@@ -127,7 +128,7 @@ def test_fastapi_saga():
     print("  ✓ Mermaid diagram generated")
 
 
-def test_django_saga():
+def test_django_saga() -> None:
     """Test Django saga definition."""
     print("\n✓ Testing Django OrderSaga...")
 
@@ -152,7 +153,7 @@ def test_django_saga():
         print("  (This is ok - Django may not be installed)")
 
 
-def main():
+def main() -> int | None:
     """Run all integration tests."""
     print("=" * 70)
     print("TESTING INTEGRATION EXAMPLES")

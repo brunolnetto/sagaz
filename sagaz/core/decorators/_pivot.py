@@ -6,6 +6,7 @@ from sagaz.core.logger import get_logger
 
 if TYPE_CHECKING:
     from sagaz.core.decorators import SagaStepDefinition
+    from sagaz.core.execution.pivot import TaintPropagator
 
 # Keep the original logger name so log records are unchanged by the split.
 logger = get_logger("sagaz.core.decorators")
@@ -24,7 +25,7 @@ class _DecoratorPivotMixin:
         """Get names of all pivot steps in this saga."""
         return [step.step_id for step in self._steps if step.pivot]
 
-    def _get_taint_propagator(self):
+    def _get_taint_propagator(self) -> "TaintPropagator":
         """Create a TaintPropagator for this saga."""
         from sagaz.core.execution.pivot import TaintPropagator
 

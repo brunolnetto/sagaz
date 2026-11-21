@@ -14,7 +14,7 @@ from sagaz import SagaStatus
 class SagaMetrics:
     """Collect and expose saga metrics"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialise all counters and per-saga statistics to zero."""
         self.metrics: dict[str, Any] = {
             "total_executed": 0,
@@ -25,7 +25,7 @@ class SagaMetrics:
             "by_saga_name": {},
         }
 
-    def record_execution(self, saga_name: str, status: SagaStatus, duration: float):
+    def record_execution(self, saga_name: str, status: SagaStatus, duration: float) -> None:
         """Record saga execution"""
         self.metrics["total_executed"] += 1
         self._increment_status_counter(status)

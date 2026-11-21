@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 class DAGExecutor:
     """Handles DAG validation and execution for saga parallel processing"""
 
-    def __init__(self, saga: "Saga"):
+    def __init__(self, saga: "Saga") -> None:
         self.saga = saga
 
     def validate_connected_graph(self) -> None:

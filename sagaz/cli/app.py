@@ -142,17 +142,17 @@ __all__ = [
 class OrderedGroup(click.Group):
     """Click Group that lists commands in the order they were added."""
 
-    def list_commands(self, ctx):
+    def list_commands(self, ctx: click.Context) -> list[str]:
         return list(self.commands.keys())
 
-    def format_commands(self, ctx, formatter):
+    def format_commands(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
         """Override to hide the automatic Commands section."""
         # Do nothing - this prevents Click from adding the Commands list
 
 
 @click.group(cls=OrderedGroup)
 @click.version_option(package_name="sagaz", prog_name="sagaz")
-def cli():
+def cli() -> None:
     """
     Sagaz - Production-ready Saga Pattern Orchestration.
 

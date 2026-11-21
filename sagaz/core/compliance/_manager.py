@@ -1,6 +1,8 @@
 """Compliance configuration and the ComplianceManager facade."""
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+from uuid import UUID
 
 from sagaz.core.compliance._access import AccessLevel, check_access, delete_user_data
 from sagaz.core.compliance._audit import anonymize_context, create_audit_log
@@ -11,6 +13,9 @@ from sagaz.core.compliance._encryption import (
     simple_decrypt,
     simple_encrypt,
 )
+
+if TYPE_CHECKING:
+    from sagaz.core.storage.interfaces.snapshot import SnapshotStorage
 
 
 @dataclass
@@ -57,7 +62,7 @@ class ComplianceManager:
         await manager.delete_user_data(user_id)
     """
 
-    def __init__(self, config: ComplianceConfig):
+    def __init__(self, config: ComplianceConfig) -> None:
         self.config = config
 
     def encrypt_context(self, context: dict) -> dict:
@@ -82,13 +87,16 @@ class ComplianceManager:
         )
 
     async def delete_user_data(
-        self, user_id: str, snapshot_storage, reason: str = "GDPR right to be forgotten"
+        self,
+        user_id: str,
+        snapshot_storage: "SnapshotStorage",
+        reason: str = "GDPR right to be forgotten",
     ) -> int:
         """Delete all snapshots and replay history for a user (GDPR compliance)."""
         return await delete_user_data(user_id, snapshot_storage, self.config.enable_gdpr, reason)
 
     def create_audit_log(
-        self, operation: str, user_id: str, saga_id, details: dict | None = None
+        self, operation: str, user_id: str, saga_id: UUID, details: dict | None = None
     ) -> dict:
         """Create audit log entry for compliance."""
         return create_audit_log(

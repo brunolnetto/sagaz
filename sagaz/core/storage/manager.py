@@ -58,7 +58,7 @@ class StorageManager(_StorageBackendInitMixin, BaseStorageManager):
         saga_url: str | None = None,
         outbox_url: str | None = None,
         **kwargs: Any,
-    ):
+    ) -> None:
         """
         Initialize storage manager.
 

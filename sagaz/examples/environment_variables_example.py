@@ -10,6 +10,7 @@ This example demonstrates three ways to configure Sagaz:
 import asyncio
 import os
 from pathlib import Path
+from typing import Any
 
 from sagaz import Saga, SagaConfig
 
@@ -21,15 +22,15 @@ from sagaz import Saga, SagaConfig
 class OrderSaga(Saga):
     """Simple order processing saga."""
 
-    async def create_order(self, ctx):
+    async def create_order(self, ctx: dict[str, Any]) -> dict[str, Any]:
         """Create order in database."""
         return {"order_id": ctx["order_id"], "status": "created"}
 
-    async def charge_payment(self, ctx):
+    async def charge_payment(self, ctx: dict[str, Any]) -> dict[str, Any]:
         """Charge customer payment."""
         return {"charged": True}
 
-    async def send_confirmation(self, ctx):
+    async def send_confirmation(self, ctx: dict[str, Any]) -> dict[str, Any]:
         """Send confirmation email."""
         return {"email_sent": True}
 
@@ -39,7 +40,7 @@ class OrderSaga(Saga):
 # =============================================================================
 
 
-async def example_1_env_file():
+async def example_1_env_file() -> None:
     """
     Example 1: Load configuration from .env file.
 
@@ -97,7 +98,7 @@ observability:
     Path("sagaz.example.yaml").unlink()
 
 
-async def example_2_environment_variables():
+async def example_2_environment_variables() -> None:
     """
     Example 2: Load configuration from environment variables.
 
@@ -131,7 +132,7 @@ async def example_2_environment_variables():
             del os.environ[key]
 
 
-async def example_3_programmatic():
+async def example_3_programmatic() -> None:
     """
     Example 3: Programmatic configuration.
 
@@ -161,7 +162,7 @@ async def example_3_programmatic():
     await saga.run({"order_id": "ORD-456"})
 
 
-async def example_4_variable_substitution():
+async def example_4_variable_substitution() -> None:
     """
     Example 4: Variable substitution with defaults and required vars.
 
@@ -199,7 +200,7 @@ async def example_4_variable_substitution():
     del os.environ["DB_PORT"]
 
 
-async def example_5_deployment_scenarios():
+async def example_5_deployment_scenarios() -> None:
     """
     Example 5: Show how config works in different deployment scenarios.
     """
@@ -221,7 +222,7 @@ async def example_5_deployment_scenarios():
 # =============================================================================
 
 
-async def main():
+async def main() -> None:
     """Run all examples."""
 
     await example_1_env_file()

@@ -84,7 +84,7 @@ def _prompt_example_choice() -> str | None:
     is_flag=True,
     help="Also generate docker-compose.yaml for local development (asks for the backends).",
 )
-def init_cmd(local: bool):
+def init_cmd(local: bool) -> None:
     """
     Initialize a new Sagaz project interactively.
 
@@ -323,7 +323,7 @@ def _setup_local_environment(project_path: Path) -> None:
 
 
 @click.command()
-def setup_cmd():
+def setup_cmd() -> None:
     """Setup deployment environment interactively."""
     _check_project_exists()
     _display_setup_header()

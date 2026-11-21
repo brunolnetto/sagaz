@@ -101,7 +101,7 @@ class _SagaSnapshotMixin:
             "compensation_errors": [str(e) for e in self.compensation_errors],
         }
 
-    def _get_step_status(self, step) -> dict[str, Any]:
+    def _get_step_status(self, step: SagaStep) -> dict[str, Any]:
         """Get status dict for a single step."""
         return {
             "name": step.name,

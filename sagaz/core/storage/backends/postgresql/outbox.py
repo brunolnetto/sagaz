@@ -97,7 +97,7 @@ class PostgreSQLOutboxStorage(
         connection_string: str,
         pool_min_size: int = 5,
         pool_max_size: int = 20,
-    ):
+    ) -> None:
         """
         Initialize PostgreSQL outbox storage.
 

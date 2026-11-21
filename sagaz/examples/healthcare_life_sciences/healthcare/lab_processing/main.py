@@ -277,7 +277,7 @@ class LabTestProcessingSaga(Saga):
 # =============================================================================
 
 
-async def main():
+async def main() -> None:
     """Run the lab test processing saga demo."""
 
     saga = LabTestProcessingSaga()

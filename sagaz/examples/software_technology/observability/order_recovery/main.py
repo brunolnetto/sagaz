@@ -23,11 +23,11 @@ logger = logging.getLogger(__name__)
 class OrderSaga(Saga):
     """Order processing saga with potential payment failure."""
 
-    def __init__(self, fail_at_step: str | None = None, **kwargs: Any):
+    def __init__(self, fail_at_step: str | None = None, **kwargs: Any) -> None:
         super().__init__(name="order-processing", **kwargs)
         self.fail_at_step = fail_at_step
 
-    async def build(self):
+    async def build(self) -> None:
         await self.add_step("reserve_inventory", self.reserve_inventory, self.release_inventory)
         await self.add_step("process_payment", self.process_payment, self.refund_payment)
         await self.add_step("ship_order", self.ship_order, self.cancel_shipment)
@@ -52,7 +52,7 @@ class OrderSaga(Saga):
         logger.info(f"[ORDER {order_id}] ✓ Reserved {len(reservations)} items")
         return {"reservations": reservations}
 
-    async def release_inventory(self, result, ctx: SagaContext) -> None:
+    async def release_inventory(self, result: dict[str, Any] | None, ctx: SagaContext) -> None:
         """Release reserved inventory."""
         order_id = ctx.get("order_id")
         reservations = result.get("reservations", []) if result else []
@@ -85,7 +85,7 @@ class OrderSaga(Saga):
             "amount": total_amount,
         }
 
-    async def refund_payment(self, result, ctx: SagaContext) -> None:
+    async def refund_payment(self, result: dict[str, Any] | None, ctx: SagaContext) -> None:
         """Refund payment."""
         order_id = ctx.get("order_id")
         transaction_id = result.get("transaction_id") if result else None
@@ -106,7 +106,7 @@ class OrderSaga(Saga):
 
         return {"tracking_number": tracking_number}
 
-    async def cancel_shipment(self, result, ctx: SagaContext) -> None:
+    async def cancel_shipment(self, result: dict[str, Any] | None, ctx: SagaContext) -> None:
         """Cancel shipment."""
         order_id = ctx.get("order_id")
         tracking_number = result.get("tracking_number") if result else None
@@ -116,7 +116,7 @@ class OrderSaga(Saga):
             await asyncio.sleep(0.1)
 
 
-async def main():
+async def main() -> None:
     """Demonstrate saga replay from checkpoint."""
 
     # Setup snapshot storage

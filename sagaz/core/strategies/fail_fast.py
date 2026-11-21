@@ -56,7 +56,9 @@ class FailFastStrategy(ParallelExecutionStrategy):
             raise failed_exception
         return [task.result() for task in tasks]
 
-    async def _check_and_handle_failure(self, done: set, pending: set):
+    async def _check_and_handle_failure(
+        self, done: set[asyncio.Task[Any]], pending: set[asyncio.Task[Any]]
+    ) -> BaseException | None:
         """Check for failed tasks. If found, cancel pending and return exception."""
         for task in done:
             if task.exception():
@@ -64,7 +66,7 @@ class FailFastStrategy(ParallelExecutionStrategy):
                 return task.exception()
         return None
 
-    async def _cancel_pending_tasks(self, pending: set):
+    async def _cancel_pending_tasks(self, pending: set) -> None:
         """Cancel all pending tasks and wait briefly."""
         for pending_task in pending:
             pending_task.cancel()
@@ -72,7 +74,7 @@ class FailFastStrategy(ParallelExecutionStrategy):
         if pending:
             await asyncio.wait(pending, timeout=1.0)
 
-    def _cancel_all_tasks(self, tasks: list):
+    def _cancel_all_tasks(self, tasks: list) -> None:
         """Cancel all incomplete tasks."""
         for task in tasks:
             if not task.done():

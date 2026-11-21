@@ -91,7 +91,7 @@ class TaintPropagator:
         dependencies: dict[str, set[str]],
         pivots: set[str],
         completed_pivots: set[str] | None = None,
-    ):
+    ) -> None:
         """
         Initialize the taint propagator.
 

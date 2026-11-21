@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 class StepExecutor:
     """Handles individual step execution with retry and timeout logic"""
 
-    def __init__(self, saga: "Saga"):
+    def __init__(self, saga: "Saga") -> None:
         self.saga = saga
 
     async def execute_step_with_retry(self, step: "SagaStep") -> None:

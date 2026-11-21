@@ -25,7 +25,7 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator, Callable
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.storage.core import TransferError
 from sagaz.core.storage.interfaces.saga import implements
@@ -36,6 +36,9 @@ from sagaz.core.storage.transfer._models import (
     TransferResult,
 )
 from sagaz.core.storage.transfer._validation import _TransferValidationMixin
+
+if TYPE_CHECKING:
+    from sagaz.core.storage.interfaces import OutboxStorage, SagaStorage
 
 logger = logging.getLogger(__name__)
 
@@ -62,10 +65,10 @@ class TransferService(_TransferValidationMixin):
 
     def __init__(
         self,
-        source,
-        target,
+        source: "SagaStorage | OutboxStorage",
+        target: "SagaStorage | OutboxStorage",
         config: TransferConfig | None = None,
-    ):
+    ) -> None:
         """
         Initialize transfer service.
 
@@ -256,8 +259,8 @@ class TransferService(_TransferValidationMixin):
 
 
 async def transfer_data(
-    source,
-    target,
+    source: "SagaStorage | OutboxStorage",
+    target: "SagaStorage | OutboxStorage",
     batch_size: int = 100,
     validate: bool = True,
     on_error: str = "skip",

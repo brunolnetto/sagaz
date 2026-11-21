@@ -9,7 +9,7 @@ class IdempotencyKeyMissingInPayloadError(Exception):
     explicitly configured idempotency protection.
     """
 
-    def __init__(self, saga_name: str, source: str, key_name: str, payload_keys: list[str]):
+    def __init__(self, saga_name: str, source: str, key_name: str, payload_keys: list[str]) -> None:
         self.saga_name = saga_name
         self.source = source
         self.key_name = key_name
@@ -48,7 +48,7 @@ class IdempotencyKeyRequiredError(Exception):
     and high-value operations, preventing duplicate execution.
     """
 
-    def __init__(self, saga_name: str, source: str, detected_fields: list[str]):
+    def __init__(self, saga_name: str, source: str, detected_fields: list[str]) -> None:
         self.saga_name = saga_name
         self.source = source
         self.detected_fields = detected_fields

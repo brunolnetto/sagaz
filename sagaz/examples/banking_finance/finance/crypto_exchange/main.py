@@ -338,7 +338,7 @@ class CryptoExchangeSaga(Saga):
 # =============================================================================
 
 
-async def main():
+async def main() -> None:
     """Run the crypto exchange saga demo."""
 
     saga = CryptoExchangeSaga()

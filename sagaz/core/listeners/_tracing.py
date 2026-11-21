@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.listeners._base import SagaListener
 from sagaz.core.logger import get_logger
+
+if TYPE_CHECKING:
+    from sagaz.observability.monitoring.tracing import SagaTracer
 
 logger = get_logger(__name__)
 
@@ -37,7 +40,7 @@ class TracingSagaListener(SagaListener):
         ...     listeners = [TracingSagaListener(tracer=tracer)]
     """
 
-    def __init__(self, tracer=None):
+    def __init__(self, tracer: SagaTracer | None = None) -> None:
         if tracer is None:
             from sagaz.observability.monitoring.tracing import saga_tracer
 

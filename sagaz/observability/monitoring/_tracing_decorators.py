@@ -17,7 +17,7 @@ P = ParamSpec("P")
 T = TypeVar("T")
 
 
-def trace_saga_action(tracer: SagaTracer):
+def trace_saga_action(tracer: SagaTracer) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """
     Decorator to automatically trace saga actions
 
@@ -54,7 +54,7 @@ def trace_saga_action(tracer: SagaTracer):
     return decorator
 
 
-def trace_saga_compensation(tracer: SagaTracer):
+def trace_saga_compensation(tracer: SagaTracer) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """
     Decorator to automatically trace saga compensations
 

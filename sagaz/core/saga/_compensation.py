@@ -79,7 +79,7 @@ class _SagaCompensationMixin:
                     errors.append(error)
         return errors
 
-    async def _try_compensate_step(self, step) -> SagaCompensationError | None:
+    async def _try_compensate_step(self, step: "SagaStep") -> SagaCompensationError | None:
         """Try to compensate a step, returning error if failed."""
         await self._step_compensating(step.name)
         try:
@@ -127,7 +127,7 @@ class _SagaCompensationMixin:
         msg = f"Failed to compensate {len(errors)} steps: {error_summary}"
         raise SagaCompensationError(msg)
 
-    async def _compensate_step_with_retry(self, step) -> None:
+    async def _compensate_step_with_retry(self, step: "SagaStep") -> None:
         """Compensate a step with retry logic"""
         last_error: SagaCompensationError | None = None
         # Three attempts by default; a tenant's max_retries quota may lower the
@@ -155,7 +155,7 @@ class _SagaCompensationMixin:
         assert last_error is not None, "last_error should be set after exhausting retries"
         raise last_error
 
-    async def _compensate_step(self, step) -> None:
+    async def _compensate_step(self, step: "SagaStep") -> None:
         """Compensate a single step with timeout"""
         timeout = capped_timeout(step.compensation_timeout)
         try:

@@ -18,7 +18,7 @@ def _init_selfhost(
     separate_outbox: bool = False,
     oltp_storage: str = "postgresql",
     outbox_storage: str = "same",
-):
+) -> None:
     """Create self-hosted/on-premise server setup."""
     if console:
         console.print("Creating self-hosted deployment files...")
@@ -111,7 +111,7 @@ echo "Start with: sudo systemctl start sagaz-worker"
         console.print("  2. Run [bold cyan]cd selfhost && ./install.sh[/bold cyan]")
 
 
-def _create_systemd_service(name: str, description: str, exec_start: str):
+def _create_systemd_service(name: str, description: str, exec_start: str) -> None:
     """Create a systemd service file."""
     service = f"""[Unit]
 Description={description}
@@ -133,7 +133,7 @@ WantedBy=multi-user.target
     click.echo(f"  CREATE selfhost/{name}.service")
 
 
-def _create_selfhost_monitoring():
+def _create_selfhost_monitoring() -> None:
     """Create monitoring config for self-hosted setup."""
     # Prometheus config
     prom_config = """global:

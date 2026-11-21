@@ -23,6 +23,7 @@ Quick Start:
     ...     print("Install opentelemetry for distributed tracing")
 """
 
+from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any
@@ -92,7 +93,7 @@ class SagaTracer:
         ...     pass
     """
 
-    def __init__(self, service_name: str = "saga-service"):
+    def __init__(self, service_name: str = "saga-service") -> None:
         self.service_name = service_name
 
         if TRACING_AVAILABLE and trace is not None:
@@ -107,7 +108,7 @@ class SagaTracer:
         saga_name: str,
         total_steps: int,
         parent_context: dict[str, str] | None = None,
-    ):
+    ) -> "Iterator[trace.Span | None]":
         """
         Start a distributed trace for saga execution
 
@@ -162,7 +163,7 @@ class SagaTracer:
     @contextmanager
     def start_step_trace(
         self, saga_id: str, saga_name: str, step_name: str, step_type: str = "action"
-    ):
+    ) -> "Iterator[trace.Span | None]":
         """
         Start a trace span for saga step execution
 
@@ -283,7 +284,9 @@ class SagaTracer:
         TraceContextTextMapPropagator().inject(carrier)
         return carrier
 
-    def create_child_span(self, name: str, attributes: dict[str, Any] | None = None):
+    def create_child_span(
+        self, name: str, attributes: dict[str, Any] | None = None
+    ) -> "trace.Span | None":
         """Create a child span for external service calls"""
 
         if not TRACING_AVAILABLE or not self.tracer:

@@ -22,7 +22,7 @@ except ImportError:
 
 @click.command()
 @click.option("-d", "--detach", is_flag=True, help="Run in background")
-def dev_cmd(detach: bool):
+def dev_cmd(detach: bool) -> None:
     """
     Start local development environment.
 
@@ -48,7 +48,7 @@ def dev_cmd(detach: bool):
 
 
 @click.command()
-def stop_cmd():
+def stop_cmd() -> None:
     """Stop local development environment."""
     if not Path("docker-compose.yaml").exists():
         click.echo("docker-compose.yaml not found.")
@@ -64,7 +64,7 @@ def stop_cmd():
 
 
 @click.command()
-def status_cmd():
+def status_cmd() -> None:
     """Check health of all services."""
     click.echo("Checking service health...")
     click.echo("")
@@ -112,7 +112,7 @@ def status_cmd():
 @click.argument("saga_id", required=False)
 @click.option("-f", "--follow", is_flag=True, help="Follow log output")
 @click.option("-s", "--service", help="Filter by service name")
-def logs_cmd(saga_id: str, follow: bool, service: str):
+def logs_cmd(saga_id: str, follow: bool, service: str) -> None:
     """
     View saga and service logs.
 
@@ -147,7 +147,7 @@ def logs_cmd(saga_id: str, follow: bool, service: str):
 
 
 @click.command()
-def version_cmd():
+def version_cmd() -> None:
     """Show version information."""
     from importlib.metadata import PackageNotFoundError, version
 

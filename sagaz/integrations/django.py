@@ -10,7 +10,8 @@ Provides:
 import asyncio
 import json
 import threading
-from typing import Any
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.logger import get_logger
 from sagaz.integrations._base import (
@@ -26,6 +27,11 @@ from sagaz.integrations._django_webhooks import (
     _webhook_tracking,
     get_webhook_status,
 )
+
+if TYPE_CHECKING:
+    from django.http import HttpRequest, HttpResponse
+
+    from sagaz.core.decorators import Saga
 
 logger = get_logger(__name__)
 
@@ -57,7 +63,7 @@ def get_sagaz_config() -> dict[str, Any]:
         return {}
 
 
-def run_saga_sync(saga, context: dict[str, Any]) -> dict[str, Any]:
+def run_saga_sync(saga: "Saga", context: dict[str, Any]) -> dict[str, Any]:
     """
     Run a saga synchronously (blocking).
 
@@ -107,10 +113,10 @@ class SagaDjangoMiddleware:
         ]
     """
 
-    def __init__(self, get_response):
+    def __init__(self, get_response: "Callable[[HttpRequest], HttpResponse]") -> None:
         self.get_response = get_response
 
-    def __call__(self, request):
+    def __call__(self, request: "HttpRequest") -> "HttpResponse":
         # Get or generate correlation ID
         correlation_id = request.META.get("HTTP_X_CORRELATION_ID", generate_correlation_id())
 
@@ -130,7 +136,7 @@ class SagaDjangoMiddleware:
             SagaContextManager.clear()
 
 
-def sagaz_webhook_view(request, source: str):
+def sagaz_webhook_view(request: "HttpRequest", source: str) -> "HttpResponse":
     """
     Django view for handling webhook events (fire-and-forget).
 
@@ -169,7 +175,7 @@ def sagaz_webhook_view(request, source: str):
 
     _webhook_tracking[correlation_id] = {"status": "queued", "saga_ids": [], "source": source}
 
-    def process_in_thread():
+    def process_in_thread() -> None:
         from sagaz.core.triggers import fire_event
 
         loop = asyncio.new_event_loop()
@@ -207,7 +213,9 @@ def sagaz_webhook_view(request, source: str):
     )
 
 
-def _validate_idempotency_requirements(source: str, payload: dict) -> tuple[bool, dict | None]:
+def _validate_idempotency_requirements(
+    source: str, payload: dict
+) -> "tuple[bool, HttpResponse | None]":
     """Validate idempotency requirements for triggers.
 
     Returns:
@@ -252,7 +260,9 @@ def _validate_idempotency_requirements(source: str, payload: dict) -> tuple[bool
     return True, None
 
 
-def sagaz_webhook_status_view(request, source: str, correlation_id: str):
+def sagaz_webhook_status_view(
+    request: "HttpRequest", source: str, correlation_id: str
+) -> "HttpResponse":
     """Django view for checking webhook event status."""
     try:
         from django.http import JsonResponse

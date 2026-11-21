@@ -333,7 +333,7 @@ class DataQualityGateSaga(Saga):
         return metrics
 
 
-async def successful_quality_gate_demo():
+async def successful_quality_gate_demo() -> None:
     """Demonstrate successful data quality validation."""
 
     saga = DataQualityGateSaga()
@@ -351,7 +351,7 @@ async def successful_quality_gate_demo():
     )
 
 
-async def failed_quality_gate_demo():
+async def failed_quality_gate_demo() -> None:
     """Demonstrate quality gate failure with quarantine."""
 
     saga = DataQualityGateSaga()
@@ -373,7 +373,7 @@ async def failed_quality_gate_demo():
         pass
 
 
-async def main():
+async def main() -> None:
     """Run data quality gate demos."""
     await successful_quality_gate_demo()
     await failed_quality_gate_demo()

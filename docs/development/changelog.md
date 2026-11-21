@@ -27,6 +27,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The outbox's no-op Prometheus metrics existed twice, one copy untyped. There is now one, in `sagaz/core/outbox/_metrics.py`.
   - `create_broker()`: its docstring names the configuration class whose fields each broker type takes, and the internal factories are typed.
 
+- **Every function is annotated (#597).**
+  - About 780 missing parameter and return types were added across the library, the examples and `scripts/`. Ruff's `ANN001` and `ANN201`–`ANN206` now reject an unannotated definition (tests excepted).
+  - The typing budget keeps two measures: bare `Any` (312) and `# type: ignore` (47, from 151 at the start of this release).
+  - `LoggerLike` gains `log()`, which `LoggingSagaListener` calls; `NullLogger` implements it.
+  - `FlaskSagaExtension.register_webhook_blueprint()` raises a clear `RuntimeError` when no app is set, where it raised `AttributeError`.
+  - The `postgres_storage` demonstration read `saga.saga_id` on a declarative saga, which has no such attribute, and crashed when Docker was available. It now passes its own `saga_id` to `run()`.
+
 ### Fixed
 
 - **CI reports and gates coverage in the structural summary (#603).** The Code Complexity job ran `codebase-stats` without coverage data, so its "Coverage" and "Low cov" rows always said "skipped". The unit-test job now publishes `coverage.json`, and a new Coverage Gate job after it reports the project coverage and the files to cover first, and requires 95%; a missing coverage file fails it. `make quality-gate` does the same when `coverage.json` exists (`make coverage FORMAT=json`).

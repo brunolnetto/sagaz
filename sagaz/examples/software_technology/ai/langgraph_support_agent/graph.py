@@ -1,7 +1,10 @@
 """LangGraph state and workflow for the customer support agent example."""
 
 from operator import add
-from typing import Annotated, Literal, TypedDict
+from typing import TYPE_CHECKING, Annotated, Literal, TypedDict
+
+if TYPE_CHECKING:
+    from langgraph.graph.state import CompiledStateGraph
 
 # =============================================================================
 # LangGraph State Definition
@@ -50,7 +53,7 @@ def _text(response: object) -> str:
     return content if isinstance(content, str) else str(content)
 
 
-def create_support_graph():
+def create_support_graph() -> "CompiledStateGraph":
     """
     Create the LangGraph support agent workflow.
 

@@ -85,7 +85,7 @@ class CourseEnrollmentSaga(Saga):
         return {"confirmation_sent": True}
 
 
-async def main():
+async def main() -> None:
     saga = CourseEnrollmentSaga()
     await saga.run(
         {

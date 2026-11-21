@@ -100,7 +100,7 @@ class TournamentMatchSaga(Saga):
         return {"prizes_distributed": True, "amount": prize_pool}
 
 
-async def main():
+async def main() -> None:
     saga = TournamentMatchSaga()
     await saga.run(
         {

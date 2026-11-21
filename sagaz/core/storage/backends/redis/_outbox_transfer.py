@@ -4,6 +4,7 @@ Counting, export and import of outbox events for ``RedisOutboxStorage``.
 Used by storage transfer/migration tooling to move events between backends.
 """
 
+from collections.abc import AsyncIterator
 from typing import Any
 
 from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
@@ -37,7 +38,7 @@ class RedisOutboxTransferMixin(RedisOutboxSerializationMixin):
                 break
         return total
 
-    async def export_all(self):
+    async def export_all(self) -> AsyncIterator[dict[str, Any]]:
         """Export the events of the current tenant(s)."""
         if not self._initialized:
             await self.initialize()

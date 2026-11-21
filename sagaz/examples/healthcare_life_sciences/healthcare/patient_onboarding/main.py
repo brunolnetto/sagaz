@@ -251,7 +251,7 @@ class HealthcarePatientOnboardingSaga(Saga):
         return welcome_packet
 
 
-async def main():
+async def main() -> None:
     """Run the healthcare patient onboarding saga demo."""
 
     # Reusable saga instance

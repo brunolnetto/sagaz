@@ -19,7 +19,7 @@ logging.basicConfig(
 )
 
 
-async def successful_pipeline_demo():
+async def successful_pipeline_demo() -> None:
     """Demonstrate successful ML pipeline execution."""
 
     # Instantiate reusable saga
@@ -47,7 +47,7 @@ async def successful_pipeline_demo():
             shutil.rmtree(context[key], ignore_errors=True)
 
 
-async def failed_pipeline_demo():
+async def failed_pipeline_demo() -> None:
     """Demonstrate pipeline failure and automatic rollback."""
 
     saga = MLTrainingPipelineSaga()
@@ -71,7 +71,7 @@ async def failed_pipeline_demo():
         pass
 
 
-async def main():
+async def main() -> None:
     """Run both success and failure scenarios."""
     # Run successful pipeline
     await successful_pipeline_demo()

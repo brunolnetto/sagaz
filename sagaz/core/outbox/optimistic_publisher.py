@@ -6,13 +6,28 @@ Reduces latency from ~100ms (polling) to <10ms (immediate) in happy path.
 
 import asyncio
 import logging
-from typing import Any
+from typing import Any, Protocol
 
 from sagaz.core.outbox._metrics import PROMETHEUS_AVAILABLE, Counter, Histogram
 
 from .types import OutboxEvent
 
 logger = logging.getLogger(__name__)
+
+
+class SentMarker(Protocol):
+    """The storage call the publisher makes. No ``OutboxStorage`` has ``mark_sent``."""
+
+    async def mark_sent(self, event_id: str) -> object: ...
+
+
+class KeyValuePublisher(Protocol):
+    """The broker call the publisher makes. ``MessageBroker.publish`` takes ``message: bytes``."""
+
+    async def publish(
+        self, *, topic: str, key: str | None, value: dict[str, Any], headers: dict[str, str]
+    ) -> object: ...
+
 
 # Metrics (no-op if prometheus not installed)
 OPTIMISTIC_SEND_ATTEMPTS = Counter(
@@ -45,11 +60,11 @@ class OptimisticPublisher:
 
     def __init__(
         self,
-        storage,  # OutboxStorage
-        broker,  # MessageBroker
+        storage: SentMarker,
+        broker: KeyValuePublisher,
         enabled: bool = True,
         timeout_seconds: float = 0.5,
-    ):
+    ) -> None:
         self.storage = storage
         self.broker = broker
         self.enabled = enabled

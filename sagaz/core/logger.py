@@ -33,6 +33,8 @@ class LoggerLike(Protocol):
 
     def exception(self, msg: str, /, *args: Any, exc_info: Any = ...) -> Any: ...
 
+    def log(self, level: int, msg: str, /, *args: Any) -> object: ...
+
 
 # Global logger instance - defaults to standard logging
 _custom_logger: LoggerLike | None = None
@@ -57,6 +59,9 @@ class NullLogger:
         """Do nothing."""
 
     def critical(self, *args: Any, **kwargs: Any) -> None:
+        """Do nothing."""
+
+    def log(self, *args: Any, **kwargs: Any) -> None:
         """Do nothing."""
 
 

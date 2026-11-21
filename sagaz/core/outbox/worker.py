@@ -125,7 +125,7 @@ class OutboxWorker(OutboxWorkerCDCMixin, OutboxWorkerFailureMixin):
         on_event_published: Callable[[OutboxEvent], Awaitable[None]] | None = None,
         on_event_failed: Callable[[OutboxEvent, Exception], Awaitable[None]] | None = None,
         cdc_source: CDCSource | None = None,
-    ):
+    ) -> None:
         """
         Initialize the outbox worker.
 
@@ -350,7 +350,7 @@ class OutboxWorker(OutboxWorkerCDCMixin, OutboxWorkerFailureMixin):
         }
 
 
-async def main():
+async def main() -> None:
     """Main entry point (the standalone worker process)."""
     configure_worker_logging()
     logger.info("Starting sagaz outbox worker...")

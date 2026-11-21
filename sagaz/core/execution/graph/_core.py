@@ -41,7 +41,7 @@ class SagaExecutionGraph(_GraphOrderingMixin, _GraphCompensationMixin):
         >>> # step2 has dependency on step1 (forward), so step1 compensates AFTER step2
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialise an empty execution graph with no registered compensations."""
         self.nodes: dict[str, CompensationNode] = {}
         self.executed_steps: list[str] = []

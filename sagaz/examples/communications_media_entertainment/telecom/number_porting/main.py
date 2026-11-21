@@ -281,7 +281,7 @@ class MobileNumberPortingSaga(Saga):
 # =============================================================================
 
 
-async def main():
+async def main() -> None:
     """Run the mobile number porting saga demo."""
 
     saga = MobileNumberPortingSaga()

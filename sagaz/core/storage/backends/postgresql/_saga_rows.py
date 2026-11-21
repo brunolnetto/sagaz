@@ -1,16 +1,21 @@
 """Row mapping helpers for :class:`PostgreSQLSagaStorage`."""
 
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.storage._tenancy import TENANT_FIELD
 from sagaz.core.tenant import DEFAULT_TENANT
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from asyncpg import Record
 
 
 class _PostgreSQLSagaRowMixin:
     """Converts asyncpg saga/step rows into the storage dict format."""
 
-    def _build_saga_dict(self, saga_row, step_rows) -> dict[str, Any]:
+    def _build_saga_dict(self, saga_row: "Record", step_rows: "Iterable[Record]") -> dict[str, Any]:
         """Build saga dict from database rows."""
         try:
             raw_configuration = saga_row["configuration"]
@@ -35,14 +40,14 @@ class _PostgreSQLSagaRowMixin:
         }
 
     @staticmethod
-    def _row_tenant(saga_row) -> str:
+    def _row_tenant(saga_row: "Record") -> str:
         """The tenant of a saga row (rows selected without the column are the default's)."""
         try:
             return saga_row["tenant_id"] or DEFAULT_TENANT
         except (KeyError, IndexError):
             return DEFAULT_TENANT
 
-    def _parse_step_row(self, step_row) -> dict[str, Any]:
+    def _parse_step_row(self, step_row: "Record") -> dict[str, Any]:
         """Parse a step database row into a dict."""
         step_data = {
             "name": step_row["step_name"],

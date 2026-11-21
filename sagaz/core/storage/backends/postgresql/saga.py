@@ -80,7 +80,7 @@ class PostgreSQLSagaStorage(
         pool_min_size: int = 5,
         pool_max_size: int = 20,
         **pool_kwargs: Any,
-    ):
+    ) -> None:
         """
         Configure the PostgreSQL saga storage backend.
 
@@ -104,7 +104,7 @@ class PostgreSQLSagaStorage(
         self._pool = None
         self._lock = asyncio.Lock()
 
-    async def _get_pool(self):
+    async def _get_pool(self) -> "asyncpg.Pool":
         """Get connection pool, creating if necessary"""
         if self._pool is None:
             try:
@@ -337,12 +337,12 @@ class PostgreSQLSagaStorage(
                 *saga_params,
             )
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "PostgreSQLSagaStorage":
         """Async context manager entry"""
         await self._get_pool()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
         """Async context manager exit"""
         if self._pool:
             await self._pool.close()

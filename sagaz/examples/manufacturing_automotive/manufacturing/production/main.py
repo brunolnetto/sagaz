@@ -280,7 +280,7 @@ class ManufacturingProductionSaga(Saga):
 # =============================================================================
 
 
-async def main():
+async def main() -> None:
     """Run the manufacturing production saga demo."""
 
     saga = ManufacturingProductionSaga()

@@ -26,7 +26,7 @@ class MonitoredSagaOrchestrator:
     Tracks success/failure rates and execution times for all sagas.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.sagas: dict[str, Saga] = {}
         self.metrics: dict[str, Any] = {
             "total_executed": 0,
@@ -36,7 +36,7 @@ class MonitoredSagaOrchestrator:
             "execution_times": [],
         }
 
-    async def execute_saga(self, saga: Saga, input_data: dict[str, Any]):
+    async def execute_saga(self, saga: Saga, input_data: dict[str, Any]) -> dict[str, Any]:
         """Execute a saga and collect metrics."""
         start_time = datetime.now()
 
@@ -71,7 +71,7 @@ class MonitoredSagaOrchestrator:
             # Re-raise to maintain saga behavior
             raise
 
-    def get_metrics(self):
+    def get_metrics(self) -> dict[str, Any]:
         """Get current metrics."""
         total = self.metrics["total_executed"]
 
@@ -130,7 +130,7 @@ class SimulatedOperationSaga(Saga):
         logger.warning("Compensating Step B")
 
 
-async def main():
+async def main() -> None:
     orchestrator = MonitoredSagaOrchestrator()
 
     # 1. Run successful sagas

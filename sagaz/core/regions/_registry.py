@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 
 
@@ -43,7 +43,7 @@ class RegionRegistry:
         regions: Iterable[Region],
         home: str,
         stale_after: float = 3.0,
-        clock=time.monotonic,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._regions = {r.name: r for r in regions}
         if home not in self._regions:
@@ -56,7 +56,7 @@ class RegionRegistry:
         self._last_seen = dict.fromkeys(self._regions, started)
         self._overrides: dict[str, str] = {}
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Region]:
         return iter(sorted(self._regions.values(), key=lambda r: (r.jurisdiction, r.priority)))
 
     def get(self, name: str) -> Region:

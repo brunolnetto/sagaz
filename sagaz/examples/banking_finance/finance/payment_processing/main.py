@@ -98,7 +98,7 @@ class PaymentProcessingSaga(Saga):
         }
 
 
-async def main():
+async def main() -> None:
     """Run the payment processing saga demo."""
 
     # Create a reusable saga instance

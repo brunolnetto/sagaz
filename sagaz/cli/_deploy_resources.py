@@ -16,7 +16,7 @@ def _resources() -> Any:
     return pkg_resources.files("sagaz").joinpath("deployment", "resources")
 
 
-def _copy_example_saga(example_template: str, target_dir: Path):
+def _copy_example_saga(example_template: str, target_dir: Path) -> None:
     """Copy an example saga from the package to the target directory."""
     try:
         # Map simple name to full path
@@ -106,7 +106,7 @@ def _copy_dir_resource(resource_dir: str, target_dir: str) -> None:
         pass
 
 
-def _copy_resource(resource_path: str, target_path: str):
+def _copy_resource(resource_path: str, target_path: str) -> None:
     """Copy a resource file from the package to the target path."""
     try:
         content = _resources().joinpath(resource_path).read_text(encoding="utf-8")

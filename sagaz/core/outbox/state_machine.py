@@ -38,7 +38,7 @@ from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
 class InvalidStateTransitionError(Exception):
     """Raised when an invalid state transition is attempted."""
 
-    def __init__(self, event_id: str, from_status: OutboxStatus, to_status: OutboxStatus):
+    def __init__(self, event_id: str, from_status: OutboxStatus, to_status: OutboxStatus) -> None:
         self.event_id = event_id
         self.from_status = from_status
         self.to_status = to_status
@@ -89,7 +89,7 @@ class OutboxStateMachine:
         self,
         max_retries: int = 10,
         on_transition: Callable[[OutboxEvent, OutboxStatus, OutboxStatus], Any] | None = None,
-    ):
+    ) -> None:
         """
         Initialize the state machine.
 

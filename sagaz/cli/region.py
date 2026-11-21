@@ -6,7 +6,7 @@ import asyncio
 import json
 import time
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import click
@@ -14,6 +14,9 @@ import click
 from sagaz.core.regions import Region, RegionRegistry, bus_from_url, publish_failover
 from sagaz.core.regions._config import regions_from_config
 from sagaz.core.regions._protocol import HEARTBEAT
+
+if TYPE_CHECKING:
+    from sagaz.choreography.events import Event
 
 CONFIG_OPTION = click.option(
     "--config",
@@ -64,7 +67,7 @@ async def _listen(regions: list[Region], seconds: float) -> list[dict[str, Any]]
     buses, errors = await _connect(regions)
     seen: dict[str, dict[str, float]] = {r.name: {} for r in regions}
 
-    async def on_heartbeat(event) -> None:
+    async def on_heartbeat(event: Event) -> None:
         if event.data.get("region") in seen:
             seen[event.data["region"]][event.data.get("worker", "?")] = time.monotonic()
 

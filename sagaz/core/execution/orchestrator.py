@@ -24,7 +24,7 @@ class SagaOrchestrator:
         *,
         tenant_id: TenantContext | str | None = None,
         tenant_registry: TenantRegistry | None = None,
-    ):
+    ) -> None:
         """Create an empty orchestrator.
 
         Args:

@@ -328,7 +328,7 @@ class SmartGridEnergySaga(Saga):
         return settlement
 
 
-async def main():
+async def main() -> None:
     """Run the smart grid energy management saga demo."""
 
     # Reusable saga instance

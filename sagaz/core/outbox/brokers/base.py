@@ -102,7 +102,7 @@ class BaseBroker(ABC):
     Provides common functionality and enforces the MessageBroker protocol.
     """
 
-    def __init__(self, config: BrokerConfig | None = None):
+    def __init__(self, config: BrokerConfig | None = None) -> None:
         self.config = config or BrokerConfig()
         self._connected = False
         # How publish_event encodes the envelope (ADR-014): JSON unless replaced,

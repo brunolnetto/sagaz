@@ -48,7 +48,7 @@ class ExternalReference:
         checksum: str,
         created_at: datetime,
         ttl_seconds: int | None = None,
-    ):
+    ) -> None:
         """Initialize external reference.
 
         Args:
@@ -130,7 +130,7 @@ class FileSystemExternalStorage(ExternalStorage):
         *,
         signing_key: bytes | str | None = None,
         allow_unsigned: bool = False,
-    ):
+    ) -> None:
         """Create (or re-use) the directory at base_path for artifact storage.
 
         Args:
@@ -247,7 +247,7 @@ class S3ExternalStorage(ExternalStorage):
         *,
         signing_key: bytes | str | None = None,
         allow_unsigned: bool = False,
-    ):
+    ) -> None:
         """Configure the S3 external storage backend.
 
         Args:

@@ -27,6 +27,12 @@ Usage:
 
 import asyncio
 import logging
+import uuid
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from sagaz import Saga
+    from sagaz.core.storage.interfaces import SagaStorage
 
 logging.basicConfig(level=logging.WARNING, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("sagaz.demo.postgres_storage")
@@ -37,7 +43,7 @@ logger = logging.getLogger("sagaz.demo.postgres_storage")
 # ---------------------------------------------------------------------------
 
 
-async def _build_order_saga(storage, order_id: str):
+async def _build_order_saga(storage: "SagaStorage", order_id: str) -> "Saga":
     from sagaz import Saga, SagaConfig, action, compensate, configure
 
     configure(SagaConfig(storage=storage))
@@ -72,7 +78,7 @@ async def _build_order_saga(storage, order_id: str):
     return OrderSaga()
 
 
-async def _build_failing_saga(storage, order_id: str):
+async def _build_failing_saga(storage: "SagaStorage", order_id: str) -> "Saga":
     from sagaz import Saga, SagaConfig, action, compensate, configure
 
     configure(SagaConfig(storage=storage))
@@ -120,6 +126,7 @@ async def _run() -> None:
         with ServiceManager(postgres=True) as svc:
             from sagaz.core.storage.backends.postgresql.saga import PostgreSQLSagaStorage
 
+            assert svc.postgres_url is not None, "ServiceManager(postgres=True) sets the URL"
             async with PostgreSQLSagaStorage(svc.postgres_url) as storage:
                 # -------------------------------------------------------
                 # Phase 2: successful saga
@@ -129,8 +136,8 @@ async def _run() -> None:
                 print("=" * 60)
 
                 success_saga = await _build_order_saga(storage, "ORD-100")
-                result = await success_saga.run({"order_id": "ORD-100"})
-                success_id = success_saga.saga_id
+                success_id = str(uuid.uuid4())
+                result = await success_saga.run({"order_id": "ORD-100"}, saga_id=success_id)
                 print(f"\n  Saga {success_id} → {result.get('status', 'unknown')}")
 
                 # Persist manually so we can load it back below
@@ -155,11 +162,11 @@ async def _run() -> None:
                 from sagaz.core.types import SagaStatus
 
                 failing_saga = await _build_failing_saga(storage, "ORD-101")
+                failing_id = str(uuid.uuid4())
                 try:
-                    await failing_saga.run({"order_id": "ORD-101"})
+                    await failing_saga.run({"order_id": "ORD-101"}, saga_id=failing_id)
                 except Exception:  # Expected: saga is designed to fail and roll back.
                     pass
-                failing_id = failing_saga.saga_id
                 print(f"\n  Saga {failing_id} → rolled back (expected)")
                 await storage.save_saga_state(
                     saga_id=failing_id,

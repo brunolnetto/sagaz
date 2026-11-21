@@ -94,7 +94,7 @@ class RegulatoryFilingSaga(Saga):
         return {"archived": True, "retention_years": 7}
 
 
-async def main():
+async def main() -> None:
     saga = RegulatoryFilingSaga()
     await saga.run(
         {

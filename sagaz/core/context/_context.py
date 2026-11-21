@@ -23,7 +23,7 @@ class ConfigurationError(Exception):
 class MemoryFootprintError(Exception):
     """Raised when memory footprint exceeds strict limit"""
 
-    def __init__(self, key: str, size_bytes: int, limit_bytes: int, message: str):
+    def __init__(self, key: str, size_bytes: int, limit_bytes: int, message: str) -> None:
         """Record the offending key, actual size, and configured limit."""
         self.key = key
         self.size_bytes = size_bytes

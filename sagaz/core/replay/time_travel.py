@@ -70,7 +70,7 @@ class SagaTimeTravel:
         self,
         saga_id: UUID,
         snapshot_storage: SnapshotStorage,
-    ):
+    ) -> None:
         self.saga_id = saga_id
         self.snapshot_storage = snapshot_storage
 

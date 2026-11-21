@@ -12,7 +12,9 @@ except ImportError:
     console = None
 
 
-def _init_hybrid(broker: str, oltp_storage: str = "postgresql", outbox_storage: str = "same"):
+def _init_hybrid(
+    broker: str, oltp_storage: str = "postgresql", outbox_storage: str = "same"
+) -> None:
     """Create hybrid deployment configuration."""
     if console:
         console.print("Creating hybrid deployment configuration...")
@@ -113,7 +115,7 @@ BROKER_URL={
         console.print("  2. Run [bold cyan]cd hybrid && docker compose up[/bold cyan]")
 
 
-def _init_benchmarks():
+def _init_benchmarks() -> None:
     """Create local benchmark configuration."""
     Path("benchmarks").mkdir(exist_ok=True)
 

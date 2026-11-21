@@ -27,20 +27,21 @@ class RedisOutboxClaimingMixin(RedisOutboxSerializationMixin):
 
     async def _read_from_stream(
         self, worker_id: str, batch_size: int, streams: dict[str, str] | None = None
-    ):
+    ) -> list | None:
         """Read messages from the consumer group of each stream in ``streams``."""
         assert self._redis is not None
         streams = streams or {self._scoped_stream_key(): ""}
         try:
             for stream_key in streams:
                 await self._ensure_group(stream_key)
-            return await self._redis.xreadgroup(
+            response: list | None = await self._redis.xreadgroup(
                 groupname=self._consumer_group,
                 consumername=worker_id,
                 streams=dict.fromkeys(streams, ">"),
                 count=batch_size,
                 block=1000,
             )
+            return response
         except Exception as e:
             logger.warning(f"Error reading from stream: {e}")
             return None
@@ -68,11 +69,16 @@ class RedisOutboxClaimingMixin(RedisOutboxSerializationMixin):
         return events
 
     @staticmethod
-    def _decode(value) -> str:
+    def _decode(value: bytes | str) -> str:
         return value.decode() if isinstance(value, bytes) else value
 
     async def _claim_in_tenant(
-        self, tenant: str | None, message_id, message_data: dict, worker_id: str, now: datetime
+        self,
+        tenant: str | None,
+        message_id: bytes | str,
+        message_data: dict,
+        worker_id: str,
+        now: datetime,
     ) -> OutboxEvent | None:
         if not tenant:
             return await self._claim_single_message(message_id, message_data, worker_id, now)
@@ -80,7 +86,7 @@ class RedisOutboxClaimingMixin(RedisOutboxSerializationMixin):
             return await self._claim_single_message(message_id, message_data, worker_id, now)
 
     async def _claim_single_message(
-        self, message_id, message_data: dict, worker_id: str, now: datetime
+        self, message_id: bytes | str, message_data: dict, worker_id: str, now: datetime
     ) -> OutboxEvent | None:
         """Claim and update a single message. Returns event or None."""
         event_id = self._extract_event_id(message_data)
@@ -110,7 +116,7 @@ class RedisOutboxClaimingMixin(RedisOutboxSerializationMixin):
         return raw or ""
 
     async def _update_claim_metadata(
-        self, event_id: str, message_id, worker_id: str, now: datetime
+        self, event_id: str, message_id: bytes | str, worker_id: str, now: datetime
     ) -> None:
         """Update Redis with claim information."""
         assert self._redis is not None

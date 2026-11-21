@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 
-def check_dependencies():
+def check_dependencies() -> bool | None:
     """Check if required dependencies are installed."""
     try:
         import fastapi
@@ -26,7 +26,7 @@ def check_dependencies():
         return False
 
 
-def install_dependencies():
+def install_dependencies() -> bool:
     """Offer to install required dependencies."""
     requirements_path = Path(__file__).parent / "requirements.txt"
     print("\n⚠️  Required dependencies not installed!")
@@ -49,7 +49,7 @@ def install_dependencies():
     return False
 
 
-def main():
+def main() -> int:
     """Display FastAPI integration demo and optionally run server."""
     print("=" * 70)
     print("FASTAPI INTEGRATION EXAMPLE - Sagaz")

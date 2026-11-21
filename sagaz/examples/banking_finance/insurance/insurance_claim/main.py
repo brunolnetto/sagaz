@@ -100,7 +100,7 @@ class InsuranceClaimSaga(Saga):
         return {"case_closed": True, "closed_at": datetime.now().isoformat()}
 
 
-async def main():
+async def main() -> None:
     saga = InsuranceClaimSaga()
     await saga.run(
         {

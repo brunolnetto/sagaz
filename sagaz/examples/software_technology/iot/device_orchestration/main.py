@@ -197,7 +197,7 @@ class IoTDeviceOrchestrationSaga(Saga):
         return notification
 
 
-async def main():
+async def main() -> None:
     """Run the IoT device orchestration saga demo."""
 
     # Reusable saga instance

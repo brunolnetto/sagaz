@@ -104,7 +104,7 @@ class RabbitMQBroker(BaseBroker):
         >>> await broker.close()
     """
 
-    def __init__(self, config: RabbitMQBrokerConfig | None = None):
+    def __init__(self, config: RabbitMQBrokerConfig | None = None) -> None:
         """
         Initialize RabbitMQ broker.
 

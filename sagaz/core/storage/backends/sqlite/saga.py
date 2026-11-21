@@ -29,6 +29,8 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
     import aiosqlite as aiosqlite_types
 
 # mypy reads the imports alone: no ignore is needed with or without the dependency.
@@ -84,7 +86,7 @@ class SQLiteSagaStorage(_SQLiteSagaMaintenanceMixin, SagaStorage):
         ...     )
     """
 
-    def __init__(self, db_path: str = ":memory:"):
+    def __init__(self, db_path: str = ":memory:") -> None:
         """
         Initialize SQLite saga storage.
 
@@ -123,12 +125,12 @@ class SQLiteSagaStorage(_SQLiteSagaMaintenanceMixin, SagaStorage):
             raise RuntimeError(msg)
         await init_saga_schema(conn)
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> SQLiteSagaStorage:
         """Async context manager entry."""
         await self._get_connection()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
         """Async context manager exit."""
         await self.close()
 
@@ -348,7 +350,7 @@ class SQLiteSagaStorage(_SQLiteSagaMaintenanceMixin, SagaStorage):
                     step["executed_at"] = executed_at.isoformat()
                 break
 
-    async def export_all(self):
+    async def export_all(self) -> AsyncIterator[dict[str, Any]]:
         """Export all records of the current scope, each with its ``tenant_id``."""
         conn = await self._get_connection()
         clause, params = tenant_filter()

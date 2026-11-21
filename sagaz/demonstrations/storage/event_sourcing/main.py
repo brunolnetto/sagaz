@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
+from typing import Any
 
 from sagaz import Saga, action, compensate
 from sagaz.core.config import SagaConfig
@@ -49,22 +50,22 @@ def order_saga(store: SagaEventStore) -> Saga:
             snapshot_threshold = 4
 
         @action("reserve_stock")
-        async def reserve_stock(self, ctx):
+        async def reserve_stock(self, ctx: dict[str, Any]) -> dict[str, str]:
             return {"reservation": f"rsv-{ctx['order_id']}"}
 
         @compensate("reserve_stock")
-        async def release_stock(self, ctx):
+        async def release_stock(self, ctx: dict[str, Any]) -> None:
             return None
 
         @action("charge_card", depends_on=["reserve_stock"])
-        async def charge_card(self, ctx):
+        async def charge_card(self, ctx: dict[str, Any]) -> dict[str, str]:
             if ctx["amount"] > CARD_LIMIT:
                 msg = "card declined"
                 raise ValueError(msg)
             return {"charge": f"ch-{ctx['order_id']}"}
 
         @action("ship", depends_on=["charge_card"])
-        async def ship(self, ctx):
+        async def ship(self, ctx: dict[str, Any]) -> dict[str, str]:
             return {"tracking": f"trk-{ctx['order_id']}"}
 
     return OrderSaga(config=SagaConfig(metrics=False, logging=False))

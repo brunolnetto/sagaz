@@ -70,7 +70,7 @@ def _domain_command(domain: str) -> click.Command:
 
 @click.group(name="demo", cls=_DemoGroup, invoke_without_command=True)
 @click.pass_context
-def demo_cli(ctx):
+def demo_cli(ctx: click.Context) -> None:
     """
     Explore and run built-in Sagaz demonstrations.
 
@@ -115,14 +115,14 @@ def demo_cli(ctx):
     default=None,
     help="Filter to a specific domain folder name (e.g. core_patterns).",
 )
-def list_demos_cmd(domain: str | None):
+def list_demos_cmd(domain: str | None) -> None:
     """List all available built-in demonstrations."""
     list_demos(filter_domain=domain)
 
 
 @demo_cli.command(name="run")
 @click.argument("name")
-def run_demo_cmd(name: str):
+def run_demo_cmd(name: str) -> None:
     """Run a specific demonstration by name."""
     run_demo(name)
 

@@ -67,7 +67,7 @@ class RedisSnapshotStorage(SnapshotStorage):
         enable_compression: bool = True,
         compression_level: int = 3,  # zstd compression level (1-22)
         **redis_kwargs: Any,
-    ):
+    ) -> None:
         if not REDIS_AVAILABLE:
             msg = "redis"
             raise MissingDependencyError(msg, "Redis snapshot storage backend")
@@ -91,7 +91,7 @@ class RedisSnapshotStorage(SnapshotStorage):
         )
         self._decompressor = zstd.ZstdDecompressor() if self.enable_compression else None
 
-    async def _get_redis(self):
+    async def _get_redis(self) -> Any:
         """Get Redis connection, creating if necessary"""
         if self._redis is None:
             try:
@@ -326,11 +326,11 @@ class RedisSnapshotStorage(SnapshotStorage):
             await self._redis.connection_pool.disconnect()
             self._redis = None
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "RedisSnapshotStorage":
         """Context manager entry"""
         await self._get_redis()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
         """Context manager exit"""
         await self.close()

@@ -1,14 +1,24 @@
 """Metrics listener for saga performance tracking."""
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
-    pass
+    from sagaz.core.types import SagaStatus
 
 from sagaz.core.listeners._base import SagaListener
 from sagaz.core.logger import get_logger
 
 logger = get_logger(__name__)
+
+
+class MetricsBackend(Protocol):
+    """What the listener needs of a metrics backend: ``SagaMetrics``, ``PrometheusMetrics``.
+
+    ``saga_started``, ``saga_finished`` and ``record_step_duration`` are called too when
+    the backend has them.
+    """
+
+    def record_execution(self, saga_name: str, status: "SagaStatus", duration: float) -> None: ...
 
 
 class MetricsSagaListener(SagaListener):
@@ -32,7 +42,7 @@ class MetricsSagaListener(SagaListener):
         ...     listeners = [MetricsSagaListener(metrics=metrics)]
     """
 
-    def __init__(self, metrics=None):
+    def __init__(self, metrics: MetricsBackend | None = None) -> None:
         if metrics is None:
             from sagaz.observability.monitoring.metrics import SagaMetrics
 

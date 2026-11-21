@@ -43,7 +43,7 @@ def _prompt_user_continue() -> bool:
     return response in ("y", "yes")
 
 
-def _display_missing_packages(missing_packages: list[str], requirements_file: Path):
+def _display_missing_packages(missing_packages: list[str], requirements_file: Path) -> None:
     """Display missing packages to user."""
     if console:
         console.print("\n[yellow]⚠️  This example requires additional dependencies:[/yellow]")
@@ -80,7 +80,7 @@ def _check_requirements(requirements_file: Path, script_path: Path) -> None:
         raise KeyboardInterrupt
 
 
-def _execute_example(script_path: Path):
+def _execute_example(script_path: Path) -> None:
     """Execute an example script."""
     # Check for requirements.txt and show installation hint if present
     requirements_file = script_path.parent / "requirements.txt"

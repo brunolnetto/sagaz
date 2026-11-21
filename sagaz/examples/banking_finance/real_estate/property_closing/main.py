@@ -330,7 +330,7 @@ class PropertyClosingSaga(Saga):
 # =============================================================================
 
 
-async def main():
+async def main() -> None:
     """Run the property closing saga demo."""
 
     saga = PropertyClosingSaga()

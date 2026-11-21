@@ -2,13 +2,16 @@
 
 import logging
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from sagaz.core.storage.interfaces.outbox import OutboxStorage
 
 logger = logging.getLogger(__name__)
 
 
 def publish_on_success(
-    storage,
+    storage: "OutboxStorage",
     event_type: str,
     payload_builder: Callable[[dict[str, Any], Any], dict[str, Any]] | None = None,
     aggregate_type: str = "saga",
@@ -39,7 +42,7 @@ def publish_on_success(
     """
     from sagaz.core.outbox.types import OutboxEvent
 
-    async def hook(ctx: dict[str, Any], step_name: str, result: Any):
+    async def hook(ctx: dict[str, Any], step_name: str, result: Any) -> None:
         # Build payload
         if payload_builder:
             payload = payload_builder(ctx, result)
@@ -65,7 +68,7 @@ def publish_on_success(
 
 
 def publish_on_failure(
-    storage,
+    storage: "OutboxStorage",
     event_type: str,
     include_error: bool = True,
     aggregate_type: str = "saga",
@@ -84,7 +87,7 @@ def publish_on_failure(
     """
     from sagaz.core.outbox.types import OutboxEvent
 
-    async def hook(ctx: dict[str, Any], step_name: str, error: Exception):
+    async def hook(ctx: dict[str, Any], step_name: str, error: Exception) -> None:
         payload = {
             "step": step_name,
             "saga_id": ctx.get("saga_id", "unknown"),
@@ -112,7 +115,7 @@ def publish_on_failure(
 
 
 def publish_on_compensate(
-    storage,
+    storage: "OutboxStorage",
     event_type: str,
     aggregate_type: str = "saga",
 ) -> Callable:
@@ -129,7 +132,7 @@ def publish_on_compensate(
     """
     from sagaz.core.outbox.types import OutboxEvent
 
-    async def hook(ctx: dict[str, Any], step_name: str):
+    async def hook(ctx: dict[str, Any], step_name: str) -> None:
         payload = {
             "step": step_name,
             "saga_id": ctx.get("saga_id", "unknown"),

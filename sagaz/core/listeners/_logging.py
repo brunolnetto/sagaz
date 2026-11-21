@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     pass
 
 from sagaz.core.listeners._base import SagaListener
-from sagaz.core.logger import get_logger
+from sagaz.core.logger import LoggerLike, get_logger
 
 logger = get_logger(__name__)
 
@@ -23,7 +23,9 @@ class LoggingSagaListener(SagaListener):
         ...     listeners = [LoggingSagaListener(level=logging.DEBUG)]
     """
 
-    def __init__(self, logger_instance=None, level: int | str = logging.INFO):
+    def __init__(
+        self, logger_instance: LoggerLike | None = None, level: int | str = logging.INFO
+    ) -> None:
         self._logger_instance = logger_instance
         if isinstance(level, str):
             self.level = getattr(logging, level.upper(), logging.INFO)
@@ -31,7 +33,7 @@ class LoggingSagaListener(SagaListener):
             self.level = level
 
     @property
-    def log(self):
+    def log(self) -> LoggerLike:
         """Get logger - uses dynamic get_logger() if no instance provided."""
         if self._logger_instance is not None:
             return self._logger_instance
