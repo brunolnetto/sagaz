@@ -42,7 +42,7 @@ help: ## Show this help message
 	@echo ""
 	@echo "$(YELLOW)Arguments:$(RESET)"
 	@echo "  TYPE=<type>       test: fast|all|integration|performance|watch (default: fast)"
-	@echo "  FORMAT=<format>   coverage: terminal|html|xml (default: terminal)"
+	@echo "  FORMAT=<format>   coverage: terminal|html|xml|json (default: terminal)"
 	@echo "  MISSING=<yes|no>  coverage: show missing lines (default: no)"
 	@echo "  MODE=<mode>       complexity: summary|full|json|mi|raw; clean: all"
 	@echo "  PARALLEL=<yes|no> test/coverage: run with pytest-xdist (default: yes)"
@@ -84,7 +84,7 @@ benchmark: ## Run performance benchmarks (same as make test TYPE=performance)
 
 COV_TERM := $(if $(filter yes,$(MISSING)),--cov-report=term-missing,--cov-report=term)
 
-coverage: ## Run tests with coverage (FORMAT=terminal|html|xml, MISSING=yes, PARALLEL)
+coverage: ## Run tests with coverage (FORMAT=terminal|html|xml|json, MISSING=yes, PARALLEL)
 	@echo "$(GREEN)Running tests with coverage (FORMAT=$(FORMAT), PARALLEL=$(PARALLEL))...$(RESET)"
 ifeq ($(FORMAT),html)
 	$(PYTEST) $(XDIST) --cov=sagaz --cov-report=html $(if $(filter yes,$(MISSING)),--cov-report=term-missing,)
@@ -92,6 +92,9 @@ ifeq ($(FORMAT),html)
 else ifeq ($(FORMAT),xml)
 	$(PYTEST) $(XDIST) --cov=sagaz --cov-report=xml
 	@echo "$(GREEN)✓ XML report at coverage.xml$(RESET)"
+else ifeq ($(FORMAT),json)
+	$(PYTEST) $(XDIST) --cov=sagaz --cov-report=json:coverage.json --cov-report=xml
+	@echo "$(GREEN)✓ coverage.json (read by make quality-gate) and coverage.xml$(RESET)"
 else
 	$(PYTEST) $(XDIST) --cov=sagaz $(COV_TERM)
 endif
@@ -117,8 +120,16 @@ typecheck: ## Type-check with mypy; check the typing budget (it can only go down
 	$(MYPY) sagaz/ --ignore-missing-imports
 	$(PYTHON) scripts/check_typing_budget.py
 
-quality-gate: ## Structural gate (codebase-stats): CC <= 10, modules <= 400 lines, MI >= 20
-	$(RUN) codebase-stats --root sagaz --format summary
+# With a coverage.json (make coverage FORMAT=json), the gate also reports coverage and
+# requires 95%, as CI does; without one, it checks sizes, complexity and maintainability.
+ifneq ($(wildcard coverage.json),)
+GATE_SCOPE := --coverage coverage.json --min-coverage 95
+else
+GATE_SCOPE := --only sizes,cc,mi
+endif
+
+quality-gate: ## Structural gate: CC <= 10, modules <= 400 lines, MI >= 20; coverage >= 95% if coverage.json exists
+	$(RUN) codebase-stats --root sagaz $(GATE_SCOPE) --format summary
 
 security: ## Security scan with bandit
 	$(RUN) bandit -r sagaz/ -c pyproject.toml -ll
@@ -142,8 +153,9 @@ endif
 check: lint format-check typecheck quality-gate test ## Run the CI gates, then the fast tests
 	@echo "$(GREEN)✓ All checks passed$(RESET)"
 
-ci: lint format-check typecheck quality-gate ## Run the CI gates, then coverage as XML
-	@$(MAKE) --no-print-directory coverage FORMAT=xml
+ci: lint format-check typecheck ## Run the CI gates, with coverage (JSON and XML)
+	@$(MAKE) --no-print-directory coverage FORMAT=json
+	@$(MAKE) --no-print-directory quality-gate
 	@echo "$(GREEN)✓ CI checks complete$(RESET)"
 
 # ============================================================================
@@ -166,7 +178,7 @@ clean-containers: ## Remove leftover testcontainers containers (only those label
 	if [ -n "$$ids" ]; then docker rm -f $$ids; else echo "No test containers found."; fi
 
 clean: ## Remove generated files (MODE=all also removes .venv)
-	rm -rf .coverage htmlcov/ coverage.xml .pytest_cache/ complexity-report.json
+	rm -rf .coverage htmlcov/ coverage.xml coverage.json .pytest_cache/ complexity-report.json
 	find . -type d -name "__pycache__" -not -path "./.venv/*" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name "*.egg-info" -not -path "./.venv/*" -exec rm -rf {} + 2>/dev/null || true
 	rm -rf build/ dist/ .ruff_cache/ .mypy_cache/
