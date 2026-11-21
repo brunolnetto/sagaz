@@ -8,16 +8,26 @@ from __future__ import annotations
 
 import functools
 from collections.abc import Callable
-from typing import TYPE_CHECKING, ParamSpec, TypeVar
-
-if TYPE_CHECKING:
-    from sagaz.observability.monitoring.tracing import SagaTracer
+from contextlib import AbstractContextManager
+from typing import ParamSpec, Protocol, TypeVar
 
 P = ParamSpec("P")
 T = TypeVar("T")
 
 
-def trace_saga_action(tracer: SagaTracer) -> Callable[[Callable[P, T]], Callable[P, T]]:
+class StepTracer(Protocol):
+    """What the decorators need from a tracer; ``SagaTracer`` fits.
+
+    A protocol, not an import of ``SagaTracer``: ``tracing`` re-exports this module's
+    decorators, so importing it back from here would be a cycle.
+    """
+
+    def start_step_trace(
+        self, saga_id: str, saga_name: str, step_name: str, step_type: str = ...
+    ) -> AbstractContextManager[object]: ...
+
+
+def trace_saga_action(tracer: StepTracer) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """
     Decorator to automatically trace saga actions
 
@@ -54,7 +64,7 @@ def trace_saga_action(tracer: SagaTracer) -> Callable[[Callable[P, T]], Callable
     return decorator
 
 
-def trace_saga_compensation(tracer: SagaTracer) -> Callable[[Callable[P, T]], Callable[P, T]]:
+def trace_saga_compensation(tracer: StepTracer) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """
     Decorator to automatically trace saga compensations
 
