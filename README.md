@@ -162,7 +162,9 @@ sagaz examples select --category ml
 
 ## Quick Start
 
-Sagaz provides a **unified Saga class** that supports two usage modes. You choose one approach per saga - mixing is not allowed.
+`sagaz.Saga` (`from sagaz import Saga`) is the class to use. It supports two usage modes;
+you choose one approach per saga, since mixing is not allowed. A failed `run()` raises
+`SagaFailedError` (see the [quickstart](docs/quickstart.md#3-when-a-saga-fails)).
 
 ### Mode 1: Declarative (Decorators)
 
@@ -213,6 +215,12 @@ result = await saga.run({"order_id": "123", "amount": 99.99})
 ```
 
 > **Note:** You cannot mix both approaches. Once you use decorators, `add_step()` will raise an error, and vice versa.
+
+> **Which `Saga`?** Use `sagaz.Saga`. Another class, `sagaz.core.saga.Saga`
+> (`await add_step(...)`, `execute()` returning a `SagaResult`), is the engine behind
+> snapshot replay (`SagaReplay`) and `SagaOrchestrator`. Use it only for those; it will be
+> merged into `sagaz.Saga`. Its `add_step` also accepts `sagaz.Saga`'s parameter names
+> (`depends_on`, `timeout_seconds`).
 
 ### Transactional Outbox + Optimistic Sending
 

@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **One public `Saga`** (#537): `sagaz.Saga` is documented as the class to use. The other
+  class, `sagaz.core.saga.Saga`, is the engine behind snapshot replay and
+  `SagaOrchestrator`; it will be merged into `sagaz.Saga` and then deprecated. Its
+  `add_step()` also accepts `sagaz.Saga`'s names, `depends_on`, `timeout_seconds` and
+  `compensation_timeout_seconds`; giving both spellings of one parameter is a
+  `TypeError`. Its `run()` error pointed to a `sagaz.decorators` module that does not
+  exist; it now points to `sagaz.Saga`.
 - **A failed saga raises `SagaFailedError`** (#536). **Breaking:** `Saga.run()` used to
   re-raise the failed step's exception, so a caller could not tell a saga that was rolled
   back from one whose compensation failed. It now raises
