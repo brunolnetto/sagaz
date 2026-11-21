@@ -237,7 +237,13 @@ class TestStepHooksMultiple:
             events.append(f"failure:{step_name}")
 
         class TestSaga(Saga):
-            @step("my_step", on_enter=on_enter, on_success=on_success, on_failure=on_failure)
+            @step(
+                "my_step",
+                on_enter=on_enter,
+                on_success=on_success,
+                on_failure=on_failure,
+                max_retries=0,
+            )
             async def my_step(self, ctx):
                 events.append("execute:my_step")
                 msg = "Boom!"

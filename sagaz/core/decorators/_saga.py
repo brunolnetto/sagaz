@@ -48,9 +48,11 @@ class SagaStepDefinition:
     compensation_type: CompensationType = CompensationType.MECHANICAL
     aggregate_type: str | None = None
     event_type: str | None = None
-    timeout_seconds: float = 60.0
+    timeout_seconds: float | None = None
+    """None: ``SagaConfig.default_timeout`` (60 s unless configured)."""
     compensation_timeout_seconds: float = 30.0
-    max_retries: int = 3
+    max_retries: int | None = None
+    """None: ``SagaConfig.default_max_retries`` (3 unless configured)."""
     description: str | None = None
     # Lifecycle hooks
     on_enter: OnEnterHook | None = None
@@ -104,6 +106,8 @@ class Saga(
     # Class-level attributes (override in subclass)
     saga_name: str | None = None
     listeners: list | None = None  # List of SagaListener instances (None = use config)
+    retry_backoff_base: float = 0.01
+    """Seconds before a step's first retry; doubles on each further retry."""
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -204,9 +208,9 @@ class Saga(
         action: Callable[[dict[str, Any]], Awaitable[dict[str, Any] | None]],
         compensation: Callable[[dict[str, Any]], Awaitable[None]] | None = None,
         depends_on: list[str] | None = None,
-        timeout_seconds: float = 60.0,
+        timeout_seconds: float | None = None,
         compensation_timeout_seconds: float = 30.0,
-        max_retries: int = 3,
+        max_retries: int | None = None,
         description: str | None = None,
         region: str | None = None,
     ) -> "Saga":
@@ -218,9 +222,11 @@ class Saga(
             action: Async function that takes context dict and returns updated context
             compensation: Async function to undo this step on failure
             depends_on: List of step names that must complete before this step
-            timeout_seconds: Step execution timeout (default: 60s)
+            timeout_seconds: Timeout of each attempt (default: ``SagaConfig.default_timeout``,
+                60 s unless configured)
             compensation_timeout_seconds: Compensation timeout (default: 30s)
-            max_retries: Maximum retry attempts (default: 3)
+            max_retries: Retries after the first attempt fails (default:
+                ``SagaConfig.default_max_retries``, 3 unless configured)
             description: Human-readable description
             region: Run the step and its compensation on this region's workers
                 (ADR-034). ``None`` (default) runs it locally.

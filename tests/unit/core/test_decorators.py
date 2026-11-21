@@ -30,8 +30,9 @@ class TestStepDecorator:
         meta = my_action._saga_step_meta
         assert meta.name == "my_step"
         assert meta.depends_on == []
-        assert meta.timeout_seconds == 60.0
-        assert meta.max_retries == 3
+        # Unset: resolved at run time from SagaConfig.default_timeout/default_max_retries.
+        assert meta.timeout_seconds is None
+        assert meta.max_retries is None
 
     def test_step_decorator_with_all_options(self):
         """Test step decorator with all options."""

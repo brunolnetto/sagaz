@@ -45,6 +45,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   about 1 MB again.
 - **Logging** (#532): `import sagaz` no longer calls `logging.basicConfig` on the root
   logger. Only the standalone outbox worker process configures logging.
+- **Declarative steps retry** (#533): `@action(max_retries=...)` and
+  `add_step(max_retries=...)` were ignored for forward steps, so a failing step ran once.
+  A step now runs `max_retries + 1` times at most:
+  - each attempt runs under the step's timeout, so a timed-out attempt is retried;
+  - attempts are separated by exponential backoff (`Saga.retry_backoff_base`, 0.01 s,
+    doubling), as in the imperative engine;
+  - hooks, listeners and the failure event fire once, for the final failure;
+  - the stored `retry_count` is the last attempt;
+  - cancellation is never retried.
+  - **Behavior change:** a failing step with no `max_retries` set is now attempted 4 times
+    (the documented default of 3 retries). Set `max_retries=0` to fail at once.
+- **`SagaConfig.default_timeout` and `default_max_retries`** (#533) now apply to
+  declarative steps that set no `timeout_seconds` or `max_retries`. Before, they were
+  documented but had no effect.
 - **Example pivots** (#529): 12 examples described a pivot step but did not set
   `pivot=True`, so a failure compensated every step: loan origination, wire transfer,
   insurance claim, in-game purchase, tournament match, content publishing, prescription,
