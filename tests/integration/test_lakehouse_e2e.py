@@ -198,15 +198,26 @@ def wait_for_tiering(expected: int, timeout: float = 180) -> list[dict]:
     source = IcebergLogSource(dict(CATALOG), TABLE, catalog_name="iceberg")
     deadline = time.monotonic() + timeout
     rows: list[dict] = []
+    reads = failed_reads = 0
+    last_error: Exception | None = None
     while time.monotonic() < deadline:
+        reads += 1
         try:
             rows = source.read().to_pylist()
-        except Exception:  # the table appears with the first tiering round
-            rows = []
+            last_error = None
+        except Exception as exc:  # the table appears with the first tiering round
+            rows, last_error = [], exc
+            failed_reads += 1
         if len(rows) >= expected:
             return rows
         time.sleep(5)
-    pytest.fail(f"Iceberg holds {len(rows)} of {expected} events after {timeout}s")
+    # A read that keeps failing looks like an empty table: say which it was.
+    detail = (
+        f"; {failed_reads} of {reads} reads failed, the last with {last_error!r}"
+        if failed_reads
+        else f"; all {reads} reads succeeded"
+    )
+    pytest.fail(f"Iceberg holds {len(rows)} of {expected} events after {timeout}s{detail}")
 
 
 @pytest.fixture(scope="module")
