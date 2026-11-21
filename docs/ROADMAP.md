@@ -59,6 +59,8 @@ One release instead of several patch and minor versions
 
 - **Saga forward recovery**: run the `@forward_recovery` handlers, and a
   `PARTIALLY_COMMITTED` final state for sagas that fail after a pivot (ADR-023, ADR-040).
+- **One Saga engine** ([#544](https://github.com/brunolnetto/sagaz/issues/544)): port snapshot replay and `SagaOrchestrator` to `sagaz.Saga`, then
+  deprecate `sagaz.core.saga.Saga` (removal in 3.0).
 - **Python 3.15**: not supported yet. Renovate stays on 3.14.
 
 The planning history before v2.0 (sprint calendars, alternative schedules) is archived in

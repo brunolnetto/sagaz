@@ -32,6 +32,8 @@ Wave 5  ─── v2.0.0 ──────── Core extensions               
 Wave 6  ─── v2.1.0 ─────── Unified saga log                (ADR-041: one OLTP model for both coordination styles)
 Wave 7  ─── v2.2.0 ─────── Streaming & historical analytics (Fluss + Iceberg; reads the unified log)
 Wave 8  ─── v2.3.0 ─────── Maintenance, CDC & ecosystem   (one release: deps, docs, CDC reader, Gradio, schema registry)
+Wave 9  ─── v2.4.0 ─────── Developer experience           (usability review: retries, durability, one error contract, runnable docs)
+Wave 10 ─── v2.5.0 ─────── Mode parity                    (orchestrated and choreographed sagas offer the same capabilities)
 ```
 
 ---
@@ -301,6 +303,36 @@ models and a JSON blob (the stopgap in v2.0.1, #459).
 
 **Backlog**: saga forward recovery (`@forward_recovery` handlers, a `PARTIALLY_COMMITTED` final state).
 
+## Wave 9 — v2.4.0 "Developer Experience"
+
+**GitHub milestone**: [#23](https://github.com/brunolnetto/sagaz/milestone/23)
+**Decided**: 2026-11-20, from a hands-on and an API usability review by a backend engineer's
+perspective, and on 2026-11-21 a feature × saga mode audit (`docs/reference/feature-matrix.md`).
+**Scope**:
+
+| Issue | Feature | Notes |
+|-------|---------|-------|
+| #532 | Packaging and import hygiene | The 2.3.0 wheel carried a 60 MB jar; `import sagaz` set up root logging |
+| #533 | Declarative step retries and config defaults | `max_retries` was ignored |
+| #534, #535 | Durability; a saga id runs once | Progress saves, failures to save raise, duplicate ids refused |
+| #536 | `SagaFailedError` and definition checks | Breaking: one failure contract |
+| #537 | `sagaz.Saga` is the public class | The classic engine's deprecation waits for #544 |
+| #538 | `saga show`, extra listeners, Prometheus registry | |
+| #539 | Documentation that runs | Documented imports checked in CI; first-service guide |
+| #549–#559 | Bugs found by the feature × mode audit | |
+| #578 | `storage_layout="classic"` | `"legacy"` kept as an alias |
+
+## Wave 10 — v2.5.0 "Mode Parity"
+
+**GitHub milestone**: [#24](https://github.com/brunolnetto/sagaz/milestone/24)
+**Scope**: the gaps of `docs/reference/feature-matrix.md`: imperative choreography (#560),
+handler retries and timeouts (#561), a choreographed transaction runs once (#562), tracing
+and listeners for choreography (#563), tenancy for choreography (#564), choreography
+diagrams (#565), schema registry on every bus (#566), parallel failure strategies (#567),
+saga deadlines (#568), per-step idempotency (#569), forward recovery (#570), pivots in
+choreography (#571), one vocabulary (#572), and the classic engine absorbed into
+`sagaz.Saga` (#544).
+
 -------|-----------|--------|---------|
 | #102 | #70 | 🔴 Open | `enable_event_sourcing=True` not wired into `Saga.__init__` |
 | #104 | #72 | 🔴 Open | `region=` param absent from `Saga.add_step()` |
@@ -387,6 +419,8 @@ ADR-041 unified saga log ──────────────────�
 | v2.1.0  | 6    | Unified Saga Log | Released 2026-11-19 |
 | v2.2.0  | 7    | Streaming & Historical Analytics | Released 2026-11-20 |
 | v2.3.0  | 8    | Maintenance, CDC & Ecosystem | Released 2026-11-20 |
+| v2.4.0  | 9    | Developer Experience | Released 2026-11-21 |
+| v2.5.0  | 10   | Mode Parity | Planned |
 
 ---
 

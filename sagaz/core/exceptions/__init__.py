@@ -11,10 +11,14 @@ from sagaz.core.exceptions._idempotency import (
     IdempotencyKeyRequiredError,
 )
 from sagaz.core.exceptions._saga import (
+    SagaAlreadyExistsError,
     SagaCompensationError,
+    SagaDefinitionError,
     SagaDependencyError,
     SagaError,
     SagaExecutionError,
+    SagaFailedError,
+    SagaPersistenceError,
     SagaStepError,
     SagaTimeoutError,
 )
@@ -23,10 +27,14 @@ __all__ = [
     "IdempotencyKeyMissingInPayloadError",
     "IdempotencyKeyRequiredError",
     "MissingDependencyError",
+    "SagaAlreadyExistsError",
     "SagaCompensationError",
+    "SagaDefinitionError",
     "SagaDependencyError",
     "SagaError",
     "SagaExecutionError",
+    "SagaFailedError",
+    "SagaPersistenceError",
     "SagaStepError",
     "SagaTimeoutError",
 ]

@@ -1,9 +1,9 @@
 """Declarative ``Saga`` base class and ``SagaStepDefinition``."""
 
 import inspect
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.decorators._collection import DecoratorCollectionManager
 from sagaz.core.decorators._execution import ExecutionEngine
@@ -27,6 +27,9 @@ from sagaz.core.tenant import (
     tenant_execution,
 )
 
+if TYPE_CHECKING:
+    from sagaz.core.config import SagaConfig
+
 logger = get_logger("sagaz.core.decorators")
 
 
@@ -48,9 +51,13 @@ class SagaStepDefinition:
     compensation_type: CompensationType = CompensationType.MECHANICAL
     aggregate_type: str | None = None
     event_type: str | None = None
-    timeout_seconds: float = 60.0
+    timeout_seconds: float | None = None
+    """None: ``SagaConfig.default_timeout`` (60 s unless configured)."""
     compensation_timeout_seconds: float = 30.0
-    max_retries: int = 3
+    compensation_max_retries: int = 3
+    """Retries of a failing compensation (``@compensate(max_retries=)``), with backoff."""
+    max_retries: int | None = None
+    """None: ``SagaConfig.default_max_retries`` (3 unless configured)."""
     description: str | None = None
     # Lifecycle hooks
     on_enter: OnEnterHook | None = None
@@ -104,8 +111,10 @@ class Saga(
     # Class-level attributes (override in subclass)
     saga_name: str | None = None
     listeners: list | None = None  # List of SagaListener instances (None = use config)
+    retry_backoff_base: float = 0.01
+    """Seconds before a step's first retry; doubles on each further retry."""
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
 
         # Auto-register triggers
@@ -117,8 +126,12 @@ class Saga(
                 TriggerRegistry.register(cls, name, method._trigger_metadata)
 
     def __init__(
-        self, name: str | None = None, config=None, *, use_step_statechart: bool | None = None
-    ):
+        self,
+        name: str | None = None,
+        config: "SagaConfig | None" = None,
+        *,
+        use_step_statechart: bool | None = None,
+    ) -> None:
         """
         Initialize the saga.
 
@@ -204,9 +217,10 @@ class Saga(
         action: Callable[[dict[str, Any]], Awaitable[dict[str, Any] | None]],
         compensation: Callable[[dict[str, Any]], Awaitable[None]] | None = None,
         depends_on: list[str] | None = None,
-        timeout_seconds: float = 60.0,
+        timeout_seconds: float | None = None,
         compensation_timeout_seconds: float = 30.0,
-        max_retries: int = 3,
+        max_retries: int | None = None,
+        compensation_max_retries: int = 3,
         description: str | None = None,
         region: str | None = None,
     ) -> "Saga":
@@ -218,9 +232,11 @@ class Saga(
             action: Async function that takes context dict and returns updated context
             compensation: Async function to undo this step on failure
             depends_on: List of step names that must complete before this step
-            timeout_seconds: Step execution timeout (default: 60s)
+            timeout_seconds: Timeout of each attempt (default: ``SagaConfig.default_timeout``,
+                60 s unless configured)
             compensation_timeout_seconds: Compensation timeout (default: 30s)
-            max_retries: Maximum retry attempts (default: 3)
+            max_retries: Retries after the first attempt fails (default:
+                ``SagaConfig.default_max_retries``, 3 unless configured)
             description: Human-readable description
             region: Run the step and its compensation on this region's workers
                 (ADR-034). ``None`` (default) runs it locally.
@@ -264,6 +280,7 @@ class Saga(
             depends_on=depends_on or [],
             timeout_seconds=timeout_seconds,
             compensation_timeout_seconds=compensation_timeout_seconds,
+            compensation_max_retries=compensation_max_retries,
             max_retries=max_retries,
             description=description or f"Execute {name}",
             region=region,
@@ -273,6 +290,16 @@ class Saga(
         self._step_registry[name] = step_def
 
         return self  # Enable method chaining
+
+    def add_listener(self, listener: Any) -> "Saga":
+        """Add a listener to this saga's, keeping the configured ones (#538).
+
+        The class attribute ``listeners`` replaces the config's logging, metrics and
+        tracing listeners; this adds one to them (as ``SagaConfig.extra_listeners``
+        does for every saga).
+        """
+        self._instance_listeners = [*self._instance_listeners, listener]
+        return self
 
     def get_steps(self) -> list[SagaStepDefinition]:
         """Get all step definitions."""
@@ -288,32 +315,53 @@ class Saga(
         saga_id: str | None = None,
         *,
         tenant_context: TenantContext | str | None = None,
+        allow_rerun: bool = False,
     ) -> dict[str, Any]:
         """
         Execute this saga.
 
         Args:
             initial_context: Initial data for the saga
-            saga_id: Optional saga identifier for tracing
+            saga_id: Identifies the run; a new id is generated when omitted. A saga
+                id runs once: one that already exists in storage raises
+                ``SagaAlreadyExistsError`` before any step runs, so a retried
+                request does not run its steps (charge, ship) twice.
             tenant_context: Run as this tenant (ADR-020). Storage is scoped to
                 it, its quotas apply, and ``ctx["tenant_id"]`` is set. A tenant
                 id is resolved through ``SagaConfig.tenant_registry`` when one
                 is configured.
+            allow_rerun: Run an existing ``saga_id`` again, all its steps included
+                (an event-sourced stream or unified-log transaction continues).
 
         Returns:
             Final context with all step results merged
 
         Raises:
+            SagaAlreadyExistsError: ``saga_id`` already exists and ``allow_rerun`` is False.
+            SagaPersistenceError: the state could not be saved (see
+                ``SagaConfig.tolerate_persistence_errors``).
             Exception: If saga fails (compensations will be attempted first)
         """
+        if not isinstance(initial_context, Mapping):
+            msg = (
+                f"initial_context must be a dict (a mapping of names to values), "
+                f"got {type(initial_context).__name__}"
+            )
+            raise TypeError(msg)
+        initial_context = dict(initial_context)
         if tenant_context is None:
-            return await ExecutionEngine(self).run(initial_context, saga_id)
+            return await self._engine(allow_rerun).run(initial_context, saga_id)
         registry = getattr(self._config, "tenant_registry", None)
         tenant = resolve_tenant(tenant_context, registry)
         ensure_tenant_context_matches(initial_context, tenant.tenant_id)
         async with tenant_execution(tenant):
             context = {**initial_context, "tenant_id": tenant.tenant_id}
-            return await ExecutionEngine(self).run(context, saga_id)
+            return await self._engine(allow_rerun).run(context, saga_id)
+
+    def _engine(self, allow_rerun: bool) -> ExecutionEngine:
+        engine = ExecutionEngine(self)
+        engine.allow_rerun = allow_rerun
+        return engine
 
     # Backward compatibility methods (private methods moved to ExecutionEngine)
     def _initialize_run(self, initial_context: dict[str, Any], saga_id: str | None) -> None:

@@ -35,8 +35,8 @@ class StepMetadata:
     depends_on: list[str] = field(default_factory=list)
     aggregate_type: str | None = None
     event_type: str | None = None
-    timeout_seconds: float = 60.0
-    max_retries: int = 3
+    timeout_seconds: float | None = None
+    max_retries: int | None = None
     description: str | None = None
     # Lifecycle hooks
     on_enter: OnEnterHook | None = None
@@ -69,8 +69,8 @@ def step(
     depends_on: list[str] | None = None,
     aggregate_type: str | None = None,
     event_type: str | None = None,
-    timeout_seconds: float = 60.0,
-    max_retries: int = 3,
+    timeout_seconds: float | None = None,
+    max_retries: int | None = None,
     description: str | None = None,
     on_enter: OnEnterHook | None = None,
     on_success: OnSuccessHook | None = None,
@@ -87,8 +87,10 @@ def step(
         depends_on: List of step names that must complete before this step
         aggregate_type: Event aggregate type (for outbox pattern)
         event_type: Event type (for outbox pattern)
-        timeout_seconds: Step execution timeout (default: 60s)
-        max_retries: Maximum retry attempts (default: 3)
+        timeout_seconds: Timeout of each attempt (default: ``SagaConfig.default_timeout``,
+            60 s unless configured)
+        max_retries: Retries after the first attempt fails, with exponential backoff
+            (default: ``SagaConfig.default_max_retries``, 3 unless configured)
         description: Human-readable description
         on_enter: Hook called before step execution (ctx, step_name) -> None
         on_success: Hook called after success (ctx, step_name, result) -> None

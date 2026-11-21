@@ -1,6 +1,6 @@
 [project]
 name = "sagaz"
-version = "2.3.0"
+version = "2.4.0"
 description = "Production-ready Saga pattern with DAG support"
 readme = "README.md"
 license = "MIT"
@@ -201,6 +201,15 @@ sagaz = [
     "deployment/resources/**/*",
     "deployment/resources/**/.*",
     "visualization/static/*",
+]
+
+# Downloaded or generated files that git ignores must never ship (the 2.3.0 wheel
+# carried a 60 MB Iceberg jar from the local lakehouse). scripts/check_dist.py
+# fails the build if any untracked file reaches the wheel or the sdist.
+[tool.setuptools.exclude-package-data]
+sagaz = [
+    "deployment/resources/local/lakehouse/lib/*",
+    "**/*.jar",
 ]
 
 # ============================================================================

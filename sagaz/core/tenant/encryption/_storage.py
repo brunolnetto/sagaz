@@ -114,6 +114,24 @@ class EncryptedSagaStorage(SagaStorage):
             saga_id, saga_name, status, steps, context, metadata, configuration
         )
 
+    async def create_saga_state(
+        self,
+        saga_id: str,
+        saga_name: str,
+        status: SagaStatus,
+        steps: list[dict[str, Any]],
+        context: dict[str, Any],
+        metadata: dict[str, Any] | None = None,
+        configuration: list[str] | None = None,
+    ) -> bool:
+        if not is_reserved_saga_name(saga_name):
+            tenant = write_tenant()
+            context = await self._seal(tenant, saga_id, CONTEXT_FIELD, context)
+            steps = await self._seal_steps(tenant, saga_id, steps)
+        return await self.inner.create_saga_state(
+            saga_id, saga_name, status, steps, context, metadata, configuration
+        )
+
     async def load_saga_state(self, saga_id: str) -> dict[str, Any] | None:
         record = await self.inner.load_saga_state(saga_id)
         return await self._open_record(record) if record else record

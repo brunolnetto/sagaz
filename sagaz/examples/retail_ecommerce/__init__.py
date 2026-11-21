@@ -1,0 +1,1 @@
+"""Retail & eCommerce examples domain."""

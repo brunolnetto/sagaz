@@ -329,7 +329,7 @@ def create_order():
 
 **Status**: ✅ Implemented
 
-See [`examples/integrations/`](../../../sagaz/examples/platform/integrations/) for working examples:
+See [`examples/integrations/`](../../../sagaz/examples/software_technology/integrations/) for working examples:
 
 ```
 examples/integrations/

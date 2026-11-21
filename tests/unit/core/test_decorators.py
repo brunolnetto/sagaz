@@ -13,6 +13,7 @@ from sagaz.core.decorators import (
     compensate,
     step,
 )
+from sagaz.core.exceptions import SagaFailedError
 from sagaz.core.execution.graph import CompensationType
 
 
@@ -30,8 +31,9 @@ class TestStepDecorator:
         meta = my_action._saga_step_meta
         assert meta.name == "my_step"
         assert meta.depends_on == []
-        assert meta.timeout_seconds == 60.0
-        assert meta.max_retries == 3
+        # Unset: resolved at run time from SagaConfig.default_timeout/default_max_retries.
+        assert meta.timeout_seconds is None
+        assert meta.max_retries is None
 
     def test_step_decorator_with_all_options(self):
         """Test step decorator with all options."""
@@ -294,8 +296,8 @@ class TestSaga:
         assert result["initial"] == "data"
         assert result["step1_done"] is True
         assert result["step2_done"] is True
-        assert result["__step1_completed"] is True
-        assert result["__step2_completed"] is True
+        # The engine's __<step>_completed markers stay internal (#538).
+        assert not any(key.startswith("__") for key in result)
 
     @pytest.mark.asyncio
     async def test_run_with_compensation_on_failure(self):
@@ -322,7 +324,7 @@ class TestSaga:
 
         saga = TestSaga()
 
-        with pytest.raises(ValueError, match="Step 2 failed"):
+        with pytest.raises(SagaFailedError, match="Step 2 failed"):
             await saga.run({"initial": "data"})
 
         # Only step1 was completed, so only step1 should be compensated
@@ -341,7 +343,7 @@ class TestSaga:
 
         saga = TestSaga()
 
-        with pytest.raises(TimeoutError, match="slow_step.*timed out"):
+        with pytest.raises(SagaFailedError, match="slow_step.*timed out"):
             await saga.run({})
 
     @pytest.mark.asyncio
@@ -431,7 +433,7 @@ class TestSagaAdvanced:
 
         saga = TestSaga()
 
-        with pytest.raises(ValueError):
+        with pytest.raises(SagaFailedError):
             await saga.run({})
 
         # step2 should compensate before step1 (reverse order)
@@ -468,7 +470,7 @@ class TestSagaAdvanced:
 
         saga = TestSaga()
 
-        with pytest.raises(ValueError):
+        with pytest.raises(SagaFailedError):
             await saga.run({})
 
         # Both compensations should be attempted even though one failed
@@ -488,7 +490,7 @@ class TestSagaAdvanced:
         result = await saga.run({}, saga_id="custom-saga-123")
 
         # Should complete without error
-        assert result["__step1_completed"] is True
+        assert "__step1_completed" not in result  # internal markers are not returned (#538)
 
 
 class TestImperativeSupport:
@@ -578,8 +580,9 @@ class TestDecoratorsMissingBranches:
 
     # ---- 508: compensation for unknown step returns silently ----
 
-    def test_compensation_for_unknown_step_is_skipped(self):
-        """Line 508: _attach_compensation_to_step returns if step not in registry."""
+    def test_compensation_for_unknown_step_is_refused(self):
+        """A @compensate naming no step is a definition error (#536), not skipped."""
+        from sagaz.core.exceptions import SagaDefinitionError
 
         class BadCompSaga(Saga):
             saga_name = "badcomp"
@@ -592,12 +595,8 @@ class TestDecoratorsMissingBranches:
             async def comp_nonexistent(self, ctx):
                 pass
 
-        # Should not raise, compensation is simply skipped
-        saga = BadCompSaga()
-        # real_step should still be registered
-        assert "real_step" in saga._step_registry
-        # nonexistent_step should NOT be in registry
-        assert "nonexistent_step" not in saga._step_registry
+        with pytest.raises(SagaDefinitionError, match="nonexistent_step.*names no step"):
+            BadCompSaga()
 
     # ---- 563->566: _propagate_taint_from_pivot with empty newly_tainted ----
 
@@ -758,35 +757,49 @@ class TestDecoratorsMissingBranches:
     # ---- 889-890: storage.save_saga_state raises on start ----
 
     @pytest.mark.asyncio
-    async def test_run_storage_exception_on_start_logs_warning(self):
-        """Lines 889-890: exception in save_saga_state on start is swallowed."""
+    @pytest.mark.parametrize("tolerate", [False, True])
+    async def test_run_storage_exception_on_start(self, tolerate):
+        """A failure to create the saga stops it before any step runs (#534)."""
         from unittest.mock import AsyncMock, MagicMock
+
+        from sagaz.core.exceptions import SagaPersistenceError
+
+        ran = []
 
         class TinySaga(Saga):
             saga_name = "tiny2"
 
             @step("only")
             async def only(self, ctx):
+                ran.append(1)
                 return {"done": True}
 
         saga = TinySaga()
         mock_storage = AsyncMock()
-        mock_storage.save_saga_state = AsyncMock(side_effect=RuntimeError("db error"))
+        mock_storage.create_saga_state = AsyncMock(side_effect=RuntimeError("db error"))
         mock_config = MagicMock()
         mock_config.storage = mock_storage
         mock_config.listeners = []
+        mock_config.tolerate_persistence_errors = tolerate
         saga._config = mock_config
         saga._instance_listeners = []
 
-        result = await saga.run({})
-        assert result["done"] is True  # saga still completes
+        if tolerate:  # the behavior before 2.4: logged, and the saga goes on
+            assert (await saga.run({}))["done"] is True
+            assert ran == [1]
+        else:
+            with pytest.raises(SagaPersistenceError, match=r"\(start\): db error"):
+                await saga.run({})
+            assert ran == []
 
-    # ---- 903-904: storage.save_saga_state raises on completion ----
+    # ---- storage.save_saga_state raises on completion ----
 
-    @pytest.mark.asyncio
-    async def test_run_storage_exception_on_completion_logs_warning(self):
-        """Lines 903-904: exception in save_saga_state on completion is swallowed."""
+    @pytest.mark.parametrize("tolerate", [False, True])
+    async def test_run_storage_exception_on_completion(self, tolerate):
+        """A completed saga whose state cannot be saved says so (#534)."""
         from unittest.mock import AsyncMock, MagicMock
+
+        from sagaz.core.exceptions import SagaPersistenceError
 
         class TinySaga(Saga):
             saga_name = "tiny3"
@@ -796,24 +809,20 @@ class TestDecoratorsMissingBranches:
                 return {"done": True}
 
         saga = TinySaga()
-        call_count = [0]
-
-        async def save_state_raiser(*args, **kwargs):
-            call_count[0] += 1
-            if call_count[0] == 2:  # Second call = on completion
-                msg = "completion db error"
-                raise RuntimeError(msg)
-
         mock_storage = AsyncMock()
-        mock_storage.save_saga_state = save_state_raiser
+        mock_storage.save_saga_state = AsyncMock(side_effect=RuntimeError("completion db error"))
         mock_config = MagicMock()
         mock_config.storage = mock_storage
         mock_config.listeners = []
+        mock_config.tolerate_persistence_errors = tolerate
         saga._config = mock_config
         saga._instance_listeners = []
 
-        result = await saga.run({})
-        assert result["done"] is True
+        if tolerate:
+            assert (await saga.run({}))["done"] is True
+        else:
+            with pytest.raises(SagaPersistenceError, match="completed"):
+                await saga.run({})
 
     # ---- 912->922, 917-918: storage handling in failure path ----
 
@@ -832,7 +841,7 @@ class TestDecoratorsMissingBranches:
         saga = FailSaga()
         saga._config = None  # no storage
 
-        with pytest.raises(ValueError, match="intentional failure"):
+        with pytest.raises(SagaFailedError, match="intentional failure"):
             await saga.run({})
 
     @pytest.mark.asyncio
@@ -857,8 +866,11 @@ class TestDecoratorsMissingBranches:
         saga._config = mock_config
         saga._instance_listeners = []
 
-        with pytest.raises(ValueError, match="intentional failure"):
+        with pytest.raises(SagaFailedError, match="intentional failure") as raised:
             await saga.run({})
+        # The step's error is the cause; the failed save is noted on it.
+        assert isinstance(raised.value.__cause__, ValueError)
+        assert any("could not save saga" in note for note in raised.value.__cause__.__notes__)
 
     # ---- 964->961: listener with no handler for event ----
 

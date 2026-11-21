@@ -38,9 +38,9 @@ Core Infrastructure (v1.2.0+):
 
 # Core infrastructure (new in v1.2.0)
 # Implementations
+from typing import TYPE_CHECKING
+
 from .backends.memory import InMemorySagaStorage
-from .backends.postgresql import PostgreSQLSagaStorage
-from .backends.redis import RedisSagaStorage
 from .core import (
     # Base
     BaseStorage,
@@ -144,3 +144,23 @@ __all__ = [
     # Serialization
     "serialize",
 ]
+
+# The PostgreSQL and Redis backends import their drivers (asyncpg, redis), which
+# are slow to import: load them on first use, not with ``import sagaz``.
+_LAZY_BACKENDS = {
+    "PostgreSQLSagaStorage": ".backends.postgresql",
+    "RedisSagaStorage": ".backends.redis",
+}
+
+if TYPE_CHECKING:
+    from .backends.postgresql import PostgreSQLSagaStorage
+    from .backends.redis import RedisSagaStorage
+
+
+def __getattr__(name: str) -> object:
+    if name in _LAZY_BACKENDS:
+        import importlib
+
+        return getattr(importlib.import_module(_LAZY_BACKENDS[name], __name__), name)
+    msg = f"module {__name__!r} has no attribute {name!r}"
+    raise AttributeError(msg)

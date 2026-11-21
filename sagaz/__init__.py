@@ -61,6 +61,7 @@ from sagaz.core.decorators import (
     action,
     compensate,
     forward_recovery,
+    step,
 )
 
 # =============================================================================
@@ -69,9 +70,13 @@ from sagaz.core.decorators import (
 from sagaz.core.exceptions import (
     IdempotencyKeyRequiredError,
     MissingDependencyError,
+    SagaAlreadyExistsError,
     SagaCompensationError,
+    SagaDefinitionError,
     SagaError,
     SagaExecutionError,
+    SagaFailedError,
+    SagaPersistenceError,
     SagaStepError,
     SagaTimeoutError,
 )
@@ -117,11 +122,13 @@ from sagaz.core.listeners import (
     TracingSagaListener,
     default_listeners,
 )
+from sagaz.core.replay import ReplayConfig, SnapshotStrategy
 
 # =============================================================================
 # Core Saga Classes
 # =============================================================================
 from sagaz.core.saga import SagaContext, SagaStep
+from sagaz.core.storage import create_storage_manager
 from sagaz.core.types import ParallelFailureStrategy, SagaResult, SagaStatus, SagaStepStatus
 
 # =============================================================================
@@ -195,20 +202,24 @@ __all__ = [
     # Pivot/Irreversible Steps (v1.3.0)
     # =========================================================================
     "RecoveryAction",
+    "ReplayConfig",
     # =========================================================================
     # Primary Exports (Recommended API)
     # =========================================================================
     "Saga",
+    "SagaAlreadyExistsError",
     "SagaCompensationContext",
     "SagaCompensationError",
     "SagaConfig",
     "SagaContext",
+    "SagaDefinitionError",
     "SagaError",
     "SagaExecutionError",
     # =========================================================================
     # Execution Graph
     # =========================================================================
     "SagaExecutionGraph",
+    "SagaFailedError",
     # =========================================================================
     # Listeners
     # =========================================================================
@@ -217,6 +228,7 @@ __all__ = [
     # Orchestrator
     # =========================================================================
     "SagaOrchestrator",
+    "SagaPersistenceError",
     # =========================================================================
     # Types and Results
     # =========================================================================
@@ -236,20 +248,42 @@ __all__ = [
     "SagaVersionedMixin",
     "SagaZones",
     "SimulationResult",
+    "SnapshotStrategy",
     "StepZone",
     "TaintPropagator",
     "TracingSagaListener",
     "ValidationResult",
     "Version",
     "VersionAlreadyRegisteredError",
+    "__version__",
     "action",
     "compensate",
     "configure",
+    "create_storage_manager",
     "default_listeners",
     "forward_recovery",
     "get_config",
+    "step",
 ]
 
 
-# Re-export cli_examples for backward compatibility
-from sagaz.cli import examples as cli_examples
+def _installed_version() -> str:
+    from importlib.metadata import PackageNotFoundError, version
+
+    try:
+        return version("sagaz")
+    except PackageNotFoundError:  # a source tree without installed metadata
+        return "0+unknown"
+
+
+__version__ = _installed_version()
+
+
+def __getattr__(name: str) -> object:
+    """Names resolved on first access, so ``import sagaz`` stays light."""
+    if name == "cli_examples":  # backward compatibility; the CLI pulls in rich and click
+        from sagaz.cli import examples
+
+        return examples
+    msg = f"module {__name__!r} has no attribute {name!r}"
+    raise AttributeError(msg)

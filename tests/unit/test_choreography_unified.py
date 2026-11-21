@@ -313,6 +313,37 @@ def test_status_from_the_cli(tmp_path):
     assert "--saga-log" in missing.output
 
 
+def test_event_log_reads_a_choreographed_transaction(tmp_path):
+    """sagaz event-log --layout unified shows a choreography's events and status (#557)."""
+    path = tmp_path / "log.db"
+
+    async def record():
+        async with SQLiteSagaLogStore(str(path)) as log:
+            service, orders, _ = shop(log)
+            async with service:
+                await orders.begin(
+                    "order.created", {"order_id": "o", "amount": 500}, correlation_id="bad"
+                )
+                await service.settle()
+
+    asyncio.run(record())
+    url = f"sqlite://{path}"
+    status = CliRunner().invoke(cli, ["choreography", "status", "bad", "--saga-log", url])
+    timeline = CliRunner().invoke(
+        cli, ["event-log", "bad", "--store-url", url, "--layout", "unified"]
+    )
+    assert timeline.exit_code == 0, timeline.output
+    assert "Transaction bad (choreographed flow" in timeline.output
+    assert "UnrecognizedEvent" not in timeline.output
+    assert "order.created" in timeline.output
+    assert "compensated" in status.output
+    assert timeline.output.splitlines()[0].endswith(": compensated")
+    as_json = CliRunner().invoke(
+        cli, ["event-log", "bad", "--store-url", url, "--layout", "unified", "--json"]
+    )
+    assert '"coordination": "choreographed"' in as_json.output
+
+
 def test_a_sqlite_outbox_is_relayed_one_message_at_a_time(tmp_path):
     from sagaz.core.storage.backends.sqlite.outbox import SQLiteOutboxStorage
 

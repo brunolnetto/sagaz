@@ -29,6 +29,7 @@ from dataclasses import dataclass, field
 from sagaz import Saga, action, compensate
 from sagaz.core.config import SagaConfig
 from sagaz.core.events import SagaEvent
+from sagaz.core.exceptions import SagaFailedError
 from sagaz.core.storage.event_store import InMemoryEventStore, SagaEventStore
 from sagaz.projections import SagaSummaryProjection, build_projection, load_projection
 
@@ -81,8 +82,8 @@ async def execute(demo: Demo) -> None:
         try:
             await order_saga(demo.store).run({"order_id": order_id, "amount": amount}, order_id)
             demo.outcomes[order_id] = "completed"
-        except ValueError as error:
-            demo.outcomes[order_id] = f"rolled back ({error})"
+        except SagaFailedError as error:
+            demo.outcomes[order_id] = f"rolled back ({error.__cause__})"
 
 
 def as_of(saga_id: str, events: list[SagaEvent], sequence: int) -> SagaSummaryProjection:

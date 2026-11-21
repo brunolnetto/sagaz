@@ -41,6 +41,11 @@ class SagaListener(ABC):
     ) -> None:
         """Called after compensation completes for a step."""
 
+    async def on_compensation_failed(
+        self, saga_name: str, step_name: str, ctx: dict[str, Any], error: Exception
+    ) -> None:
+        """Called when a step's compensation fails, after its last attempt (#551)."""
+
     async def on_saga_complete(self, saga_name: str, saga_id: str, ctx: dict[str, Any]) -> None:
         """Called when saga completes successfully."""
 

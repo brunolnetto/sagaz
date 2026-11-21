@@ -163,6 +163,39 @@ class RedisSagaStorage(_RedisSagaQueryMixin, _RedisSagaMaintenanceMixin, SagaSto
 
             await pipe.execute()
 
+    async def create_saga_state(
+        self,
+        saga_id: str,
+        saga_name: str,
+        status: SagaStatus,
+        steps: list[dict[str, Any]],
+        context: dict[str, Any],
+        metadata: dict[str, Any] | None = None,
+        configuration: list[str] | None = None,
+    ) -> bool:
+        """Save a new saga's state, atomically (HSETNX); ``False`` if ``saga_id`` exists."""
+        redis_client = await self._get_redis()
+        saga_data = {
+            TENANT_FIELD: write_tenant(),
+            "saga_id": saga_id,
+            "saga_name": saga_name,
+            "status": status.value,
+            "steps": steps,
+            "context": context,
+            "metadata": metadata or {},
+            "configuration": configuration or [status.value],
+            "created_at": datetime.now(UTC).isoformat(),
+            "updated_at": datetime.now(UTC).isoformat(),
+        }
+        saga_key = self._saga_key(saga_id)
+        if not await redis_client.hsetnx(saga_key, "data", json.dumps(saga_data, default=str)):
+            return False
+        async with redis_client.pipeline() as pipe:
+            await pipe.sadd(self._index_key(f"status:{status.value}"), saga_id)
+            await pipe.sadd(self._index_key(f"name:{saga_name}"), saga_id)
+            await pipe.execute()
+        return True
+
     async def load_saga_state(self, saga_id: str) -> dict[str, Any] | None:
         """Load saga state from Redis"""
         if is_system_scope():

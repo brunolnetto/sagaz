@@ -16,7 +16,7 @@ STATUSES = ["", "executing", "compensating", "completed", "compensated", "rolled
 
 
 class AssetSource:
-    """What the monitor reads: a unified saga log, or a legacy saga storage.
+    """What the monitor reads: a unified saga log, or a classic saga storage.
 
     Each is a store instance or a URL, opened lazily on the app's event loop
     (asyncpg pools belong to the loop that creates them).
@@ -41,7 +41,7 @@ class AssetSource:
             self._saga_log = create_saga_log_store(self._saga_log)
         return self._saga_log
 
-    async def _legacy(self) -> Any:
+    async def _classic(self) -> Any:
         if isinstance(self._storage, str):
             from sagaz.core.storage import create_storage_manager
 
@@ -61,14 +61,14 @@ class AssetSource:
                 status=status or None,
                 tenant=tenant.strip() or None,
             )
-        rows = await data.list_sagas(await self._legacy(), status=status or None)
+        rows = await data.list_sagas(await self._classic(), status=status or None)
         flow = flow.strip()
         return [r for r in rows if not flow or r["flow"] == flow]
 
     async def detail(self, tenant: str, transaction_id: str) -> dict[str, Any] | None:
         if self.unified:
             return await data.transaction_detail(await self._log(), tenant, transaction_id)
-        return await data.saga_detail(await self._legacy(), tenant, transaction_id)
+        return await data.saga_detail(await self._classic(), tenant, transaction_id)
 
     async def close(self) -> None:
         if self._manager is not None:

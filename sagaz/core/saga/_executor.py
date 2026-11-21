@@ -5,8 +5,13 @@ extracted from core/saga.py for maintainability. These are internal APIs
 (prefixed with `_`) and should not be used directly by end users.
 """
 
+import asyncio
+import inspect
 import time
 from typing import TYPE_CHECKING, Any
+
+from sagaz.core.exceptions import SagaStepError, SagaTimeoutError
+from sagaz.core.tenant import capped_retries
 
 if TYPE_CHECKING:
     from sagaz.core.context import SagaContext
@@ -58,7 +63,12 @@ class _StepExecutor:
         started = time.monotonic()
         await self._event("start")
         try:
-            result = await self.step.action(self.saga_context)
+            if self.saga is not None:
+                result = await self._attempts()  # retries, timeout, sync steps (#559)
+            else:
+                result = self.step.action(self.saga_context)
+                if inspect.isawaitable(result):
+                    result = await result
             self.duration_ms = (time.monotonic() - started) * 1000
             self.result = result
             self.step.result = result
@@ -72,6 +82,26 @@ class _StepExecutor:
             self.step.error = e
             await self._event("fail")
             raise
+
+    async def _attempts(self) -> Any:
+        """Run the step as the sequential path does: one attempt per try, each under the
+        step's timeout and accepting sync functions, with retries and backoff (#559).
+
+        The DAG executor records the step's events itself, so this calls the single
+        attempt (``execute_step``), not the sequential retry loop that records them too.
+        """
+        attempts = capped_retries(self.step.max_retries) + 1
+        for attempt in range(attempts):
+            self.step.retry_count = attempt
+            try:
+                await self.saga._step_executor.execute_step(self.step)
+                return self.step.result
+            except (SagaStepError, SagaTimeoutError):
+                if attempt == attempts - 1:
+                    raise
+                await asyncio.sleep(self.saga.retry_backoff_base * (2**attempt))
+        msg = "unreachable: the last attempt returns or raises"
+        raise AssertionError(msg)
 
     async def _event(self, event: str) -> None:
         if self.saga is not None:

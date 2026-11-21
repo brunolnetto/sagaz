@@ -25,8 +25,18 @@ logger = logging.getLogger(__name__)
 
 #: The default and the opt-in values of ``Meta.storage_strategy``.
 SNAPSHOT, EVENT_SOURCED = "snapshot", "event_sourced"
-#: The default and the opt-in values of ``Meta.storage_layout`` (ADR-041).
-LEGACY, UNIFIED = "legacy", "unified"
+#: The default and the opt-in values of ``Meta.storage_layout`` (ADR-041): the classic
+#: layout keeps a table per concern; the unified layout records on the saga log.
+CLASSIC, UNIFIED = "classic", "unified"
+#: The classic layout's former name, still accepted (#578).
+LEGACY = "legacy"
+
+
+def normalize_layout(layout: Any) -> Any:
+    """``"classic"`` for the classic layout's former name ``"legacy"``; others as given."""
+    return CLASSIC if layout == LEGACY else layout
+
+
 DEFAULT_SNAPSHOT_THRESHOLD = 50
 
 try:
@@ -174,11 +184,11 @@ def event_sourcing_settings(saga: Any) -> tuple[SagaEventStore, int] | None:
         return value if value is not None else getattr(config, name, default)
 
     threshold = setting("snapshot_threshold", DEFAULT_SNAPSHOT_THRESHOLD)
-    layout = setting("storage_layout", LEGACY)
+    layout = normalize_layout(setting("storage_layout", CLASSIC))
     if layout == UNIFIED:
         return _unified_store(setting("saga_log"), setting("participant")), int(threshold)
-    if isinstance(layout, str) and layout != LEGACY:
-        msg = f"storage_layout must be {LEGACY!r} or {UNIFIED!r}, got {layout!r}"
+    if isinstance(layout, str) and layout != CLASSIC:
+        msg = f"storage_layout must be {CLASSIC!r} or {UNIFIED!r}, got {layout!r}"
         raise ValueError(msg)
 
     strategy = setting("storage_strategy", SNAPSHOT)

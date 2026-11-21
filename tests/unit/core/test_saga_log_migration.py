@@ -11,6 +11,7 @@ from sagaz.choreography import ChoreographyEngine, ChoreographyTracker, EventBus
 from sagaz.choreography.state.sqlite import SQLiteParticipantState
 from sagaz.cli.app import cli
 from sagaz.core.config import SagaConfig
+from sagaz.core.exceptions import SagaFailedError
 from sagaz.core.storage.backends.memory.saga import InMemorySagaStorage
 from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
 from sagaz.core.storage.event_store.sqlite import SQLiteEventStore
@@ -40,7 +41,7 @@ async def fill_old_layout(storage, events, state) -> None:
     await saga.run({"order_id": "o-1"}, saga_id="orch-ok")
     failing = make_saga(events, fail_charge=True)
     failing._config = config
-    with pytest.raises(ValueError):
+    with pytest.raises(SagaFailedError):
         await failing.run({"order_id": "o-2"}, saga_id="orch-bad", tenant_context="acme")
 
     bus = EventBus()

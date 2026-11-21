@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -80,8 +80,9 @@ class SagaConfig:
     snapshot_threshold: int = 50
 
     # Unified saga log (ADR-041): "unified" records every saga on saga_log (a
-    # SagaLogStore or a URL), as participant (the service name).
-    storage_layout: str = "legacy"
+    # SagaLogStore or a URL), as participant (the service name). "classic" (the
+    # default) keeps a table per concern; its former name "legacy" is accepted (#578).
+    storage_layout: str = "classic"
     saga_log: Any | None = None  # SagaLogStore | str
     participant: str | None = None
 
@@ -92,6 +93,14 @@ class SagaConfig:
     default_timeout: float = 60.0
     default_max_retries: int = 3
     failure_strategy: str = "FAIL_FAST_WITH_GRACE"
+
+    # A failure to save the saga state raises SagaPersistenceError (#534); True logs a
+    # warning instead and lets the saga go on (the behavior before 2.4).
+    tolerate_persistence_errors: bool = False
+
+    # Listeners added to the logging, metrics, tracing and outbox ones (#538). A saga
+    # class's ``listeners`` attribute replaces them all instead.
+    extra_listeners: list[Any] = field(default_factory=list)
 
     # StateChart phase 2 (ADR-040, #190): imperative sagas run on a chart with one
     # region per step, whose configuration says where every step is. Off by default.
@@ -104,6 +113,8 @@ class SagaConfig:
 
     def __post_init__(self) -> None:
         """Initialize storage and build listeners list."""
+        if self.storage_layout == "legacy":  # the classic layout's former name (#578)
+            self.storage_layout = "classic"
         # Validate: cannot mix storage_manager with storage/outbox_storage
         if self.storage_manager is not None:
             if self.storage is not None:
@@ -182,6 +193,9 @@ class SagaConfig:
                 f"Outbox listener enabled with {type(self._derived_outbox_storage).__name__}"
             )
 
+        # Listeners added alongside the built-in ones (#538).
+        listeners.extend(self.extra_listeners)
+
         return listeners
 
     @property
@@ -191,47 +205,26 @@ class SagaConfig:
 
     def with_storage(self, storage: SagaStorage) -> SagaConfig:
         """Create a new config with different storage (immutable update)."""
-        return SagaConfig(
-            storage=storage,
-            outbox_storage=self.outbox_storage,
-            broker=self.broker,
-            metrics=self.metrics,
-            tracing=self.tracing,
-            logging=self.logging,
-            default_timeout=self.default_timeout,
-            default_max_retries=self.default_max_retries,
-            failure_strategy=self.failure_strategy,
-            tenant_registry=self.tenant_registry,
-            storage_strategy=self.storage_strategy,
-            event_store=self.event_store,
-            snapshot_threshold=self.snapshot_threshold,
-            storage_layout=self.storage_layout,
-            saga_log=self.saga_log,
-            participant=self.participant,
-            regions=self.regions,
-        )
+        return self._replace(storage=storage)
 
     def with_broker(self, broker: BaseBroker, outbox_storage=None) -> SagaConfig:
         """Create a new config with different broker (immutable update)."""
-        return SagaConfig(
-            storage=self.storage,
-            outbox_storage=outbox_storage or self.outbox_storage,
-            broker=broker,
-            metrics=self.metrics,
-            tracing=self.tracing,
-            logging=self.logging,
-            default_timeout=self.default_timeout,
-            default_max_retries=self.default_max_retries,
-            failure_strategy=self.failure_strategy,
-            tenant_registry=self.tenant_registry,
-            storage_strategy=self.storage_strategy,
-            event_store=self.event_store,
-            snapshot_threshold=self.snapshot_threshold,
-            storage_layout=self.storage_layout,
-            saga_log=self.saga_log,
-            participant=self.participant,
-            regions=self.regions,
-        )
+        return self._replace(broker=broker, outbox_storage=outbox_storage or self.outbox_storage)
+
+    def _replace(self, **changes: Any) -> SagaConfig:
+        """A copy with ``changes``, keeping every other field (#552).
+
+        The copy uses the concrete storage, not the ``storage_manager`` it may have
+        come from (a config cannot take both).
+        """
+        values = {
+            f.name: getattr(self, f.name)
+            for f in fields(self)
+            if f.init and not f.name.startswith("_")
+        }
+        values["storage_manager"] = None
+        values.update(changes)
+        return SagaConfig(**values)
 
     @classmethod
     def _storage_from_env(cls, env: object) -> object:

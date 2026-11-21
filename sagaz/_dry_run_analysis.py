@@ -8,22 +8,30 @@ from sagaz._dry_run_types import ParallelLayerInfo, SimulationResult, _StepIntro
 class _DryRunAnalysisMixin(_StepIntrospection):
     """Simulation phase of :class:`sagaz.dry_run.DryRunEngine`."""
 
-    def _build_dag_from_steps(self, steps: list) -> dict[str, list[str]]:
-        """Build DAG from step dependencies."""
+    def _build_dag_from_steps(self, steps: list, saga: object = None) -> dict[str, list[str]]:
+        """Each step's dependencies, as the saga's engine runs them (#558).
+
+        ``sagaz.Saga`` steps declare ``depends_on``; steps without it run in parallel.
+        The classic engine keeps ``step_dependencies`` on the saga, and runs its steps in
+        sequence unless dependencies were given.
+        """
+        names = [str(getattr(s, "step_id", None) or getattr(s, "name", "unknown")) for s in steps]
+        classic = getattr(saga, "step_dependencies", None)
+        if isinstance(classic, dict):
+            return _classic_dag(names, classic, bool(getattr(saga, "_has_dependencies", False)))
         dag: dict[str, list[str]] = {}
-        for step in steps:
-            step_name: str = str(getattr(step, "step_id", None) or getattr(step, "name", "unknown"))
-            depends_on: Any = getattr(step, "depends_on", set()) or getattr(
-                step, "dependencies", set()
+        for name, step in zip(names, steps, strict=True):
+            depends_on: Any = getattr(step, "depends_on", None) or getattr(
+                step, "dependencies", None
             )
-            dag[step_name] = list(depends_on) if depends_on else []
+            dag[name] = list(depends_on) if depends_on else []
         return dag
 
     def _determine_execution_plan(
         self, dag: dict[str, list[str]], steps_planned: list[str]
     ) -> tuple[list[str], list[list[str]]]:
         """Determine execution order and parallel groups."""
-        if dag and any(deps for deps in dag.values()):
+        if dag:
             execution_order = self._topological_sort(dag)
             parallel_groups = self._identify_parallel_groups(dag)
         else:
@@ -50,7 +58,7 @@ class _DryRunAnalysisMixin(_StepIntrospection):
             str(getattr(step, "step_id", None) or getattr(step, "name", "unknown"))
             for step in steps
         ]
-        dag = self._build_dag_from_steps(steps)
+        dag = self._build_dag_from_steps(steps, saga)
         execution_order, parallel_groups = self._determine_execution_plan(dag, steps_planned)
 
         return SimulationResult(
@@ -150,15 +158,7 @@ class _DryRunAnalysisMixin(_StepIntrospection):
         elif hasattr(saga, "steps"):
             steps = saga.steps
 
-        dag: dict[str, list[str]] = {}
-        for step in steps:
-            step_name: str = str(getattr(step, "step_id", None) or getattr(step, "name", "unknown"))
-            depends_on: Any = getattr(step, "depends_on", set()) or getattr(
-                step, "dependencies", set()
-            )
-            dag[step_name] = list(depends_on) if depends_on else []
-
-        return dag
+        return self._build_dag_from_steps(steps, saga)
 
     def _analyze_parallel_layers(
         self, dag: dict[str, list[str]]
@@ -329,3 +329,10 @@ class _DryRunAnalysisMixin(_StepIntrospection):
                 )
 
         return backward_layers
+
+
+def _classic_dag(names: list[str], dependencies: dict, explicit: bool) -> dict[str, list[str]]:
+    """The classic engine's order: its DAG when dependencies were given, else sequential."""
+    if explicit:
+        return {name: sorted(dependencies.get(name, ())) for name in names}
+    return {name: [names[i - 1]] if i else [] for i, name in enumerate(names)}

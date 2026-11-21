@@ -126,6 +126,16 @@ class TestSagaVersionedMixin:
         result = await OrderSaga().run({"order_id": "o1", "amount": 5.0})
         assert result["charged"] == 5.0
 
+    async def test_run_options_reach_saga_run(self):
+        """tenant_context and allow_rerun pass through the mixin (#554)."""
+        saga = OrderSaga()
+        context = {"order_id": "o1", "amount": 5.0}
+        await saga.run(context, saga_id="v-1")
+        result = await OrderSaga().run(context, saga_id="v-1", allow_rerun=True)
+        assert result["charged"] == 5.0
+        tenant_run = await OrderSaga().run(context, tenant_context="acme")
+        assert tenant_run["tenant_id"] == "acme"
+
     async def test_invalid_context_raises_before_any_step(self):
         saga = OrderSaga()
         with pytest.raises(SagaVersionSchemaError, match="amount"):

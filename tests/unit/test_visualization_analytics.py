@@ -7,6 +7,8 @@ import builtins
 import pytest
 from fastapi.testclient import TestClient
 
+from sagaz.core.exceptions import SagaFailedError
+
 pytest.importorskip("duckdb")
 
 from sagaz import Saga, action, compensate  # noqa: E402
@@ -39,7 +41,7 @@ class PaymentSaga(Saga):
 async def _seed(storage) -> None:
     config = SagaConfig(storage=storage)
     await PaymentSaga(config=config).run({"n": 1})
-    with pytest.raises(RuntimeError):
+    with pytest.raises(SagaFailedError):
         await PaymentSaga(config=config).run({"n": 2, "fail": True})
 
 

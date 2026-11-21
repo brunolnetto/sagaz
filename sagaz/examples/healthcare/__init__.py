@@ -1,1 +1,0 @@
-"""Healthcare examples domain."""

@@ -96,7 +96,7 @@ data:
 ### OutboxConfig
 
 ```python
-from sagaz.outbox.types import OutboxConfig
+from sagaz.core.outbox import OutboxConfig
 
 config = OutboxConfig(
     batch_size=100,              # Events per batch
@@ -109,7 +109,7 @@ config = OutboxConfig(
 ### KafkaBrokerConfig
 
 ```python
-from sagaz.outbox.brokers.kafka import KafkaBrokerConfig
+from sagaz.core.outbox.brokers.kafka import KafkaBrokerConfig
 
 config = KafkaBrokerConfig(
     bootstrap_servers="kafka:9092",
@@ -124,7 +124,7 @@ config = KafkaBrokerConfig(
 ### RabbitMQBrokerConfig
 
 ```python
-from sagaz.outbox.brokers.rabbitmq import RabbitMQBrokerConfig
+from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBrokerConfig
 
 config = RabbitMQBrokerConfig(
     url="amqp://user:pass@localhost:5672/",

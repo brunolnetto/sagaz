@@ -1,6 +1,7 @@
 """Discovery of the bundled Sagaz examples (directories, domains, descriptions)."""
 
 import os
+from collections.abc import Iterable
 from pathlib import Path
 
 
@@ -39,48 +40,33 @@ def get_examples_dir() -> Path:
     return Path.cwd() / "sagaz" / "examples"  # non-existent; caller handles it
 
 
-# Maps display domain names → folder name under sagaz/examples/.
+# Maps display domain names → folder name under sagaz/examples/. The domains are
+# industries (the classification Apache Airflow's user survey uses); sagaz's own
+# integrations and observability demos sit under Software & Technology.
 DOMAIN_FOLDERS = {
-    "Business": "business",
-    "Technology": "technology",
-    "Healthcare": "healthcare",
-    "Infrastructure": "infrastructure",
-    "Public Services": "public_services",
-    "Digital Media": "digital_media",
-    "Platform": "platform",
+    "Banking & Financial Services": "banking_finance",
+    "Retail & eCommerce": "retail_ecommerce",
+    "Manufacturing & Automotive": "manufacturing_automotive",
+    "Healthcare & Life Sciences": "healthcare_life_sciences",
+    "Public Sector & Education": "public_sector_education",
+    "Communications, Media & Entertainment": "communications_media_entertainment",
+    "Consumer Goods": "consumer_goods",
+    "Software & Technology": "software_technology",
+    "Travel & Hospitality": "travel_hospitality",
 }
 
 # Maps display domain names → subdomain folder names within that domain folder.
+# Subdomain names are unique across domains (``sagaz examples list <subdomain>``).
 DOMAIN_MAPPING = {
-    "Business": [
-        "commerce",
-        "finance",
-    ],
-    "Technology": [
-        "ai",
-        "data",
-        "telecom",
-        "iot",
-    ],
-    "Healthcare": [
-        "healthcare",
-    ],
-    "Infrastructure": [
-        "operations",
-    ],
-    "Public Services": [
-        "government",
-        "education",
-    ],
-    "Digital Media": [
-        "media",
-        "gaming",
-    ],
-    "Platform": [
-        "integrations",
-        "monitoring",
-        "visualization",
-    ],
+    "Banking & Financial Services": ["finance", "insurance", "real_estate"],
+    "Retail & eCommerce": ["commerce"],
+    "Manufacturing & Automotive": ["manufacturing"],
+    "Healthcare & Life Sciences": ["healthcare"],
+    "Public Sector & Education": ["government", "education", "energy"],
+    "Communications, Media & Entertainment": ["telecom", "media", "gaming"],
+    "Consumer Goods": ["product", "distribution", "direct_to_consumer", "supply"],
+    "Software & Technology": ["ai", "data", "iot", "integrations", "observability"],
+    "Travel & Hospitality": ["travel", "logistics"],
 }
 
 # Reverse map: subdomain folder → domain folder name (for fast lookup).
@@ -89,6 +75,15 @@ _SUBDOMAIN_TO_DOMAIN_FOLDER: dict[str, str] = {
     for display, subdomains in DOMAIN_MAPPING.items()
     for subdomain in subdomains
 }
+
+
+def resolve_domain(name: str, domains: Iterable[str]) -> str | None:
+    """The display name of a domain given as its display or folder name, any case."""
+    wanted = name.strip().lower()
+    for display in domains:
+        if wanted in (display.lower(), DOMAIN_FOLDERS.get(display, "").lower()):
+            return display
+    return None
 
 
 def _check_subdomain_for_main_file(subdomain_dir: Path) -> bool:

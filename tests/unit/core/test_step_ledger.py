@@ -7,6 +7,7 @@ import pytest
 from sagaz import Saga, action, compensate
 from sagaz.core.config import SagaConfig
 from sagaz.core.decorators._step_ledger import StepLedger
+from sagaz.core.exceptions import SagaFailedError
 from sagaz.core.storage.backends.memory.saga import InMemorySagaStorage
 
 
@@ -58,7 +59,7 @@ class OrderSaga(Saga):
 async def test_executor_persists_step_outcomes_with_durations():
     storage = InMemorySagaStorage()
     saga = OrderSaga(config=SagaConfig(storage=storage))
-    with pytest.raises(RuntimeError):
+    with pytest.raises(SagaFailedError):
         await saga.run({"order": 1})
 
     state = await storage.load_saga_state(saga._saga_id)

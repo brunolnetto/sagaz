@@ -4,91 +4,114 @@ This directory contains self-contained saga examples demonstrating the **declara
 
 ## 📁 Directory Structure
 
-> **Note:** Examples marked with 🔒 use the `pivot=True` feature and `@forward_recovery` decorator
-> to demonstrate irreversible steps with forward-only recovery strategies.
+Examples are grouped by industry, following the domains of the Apache Airflow user survey,
+then by subdomain: `<industry>/<subdomain>/<example>/`. Sagaz's own framework integrations
+and observability demos are under Software & Technology.
+
+> **Note:** Examples marked with 🔒 have a pivot step (`pivot=True`): a point of no return
+> after which the saga only moves forward.
 
 ```
-examples/
-├── integrations/              ← Web Framework Integration
-│   ├── fastapi_app/           ← FastAPI with DI and lifespan
-│   ├── django_app/            ← Django with AppConfig
-│   └── flask_app/             ← Flask extension pattern
+sagaz/examples/
+├── banking_finance/                      ← Banking & Financial Services
+│   ├── finance/
+│   │   ├── crypto_exchange/              ← 🔒 Blockchain pivot
+│   │   ├── loan_origination/             ← 🔒 Loan disbursement pivot
+│   │   ├── payment_processing/           ← Payment gateway integration
+│   │   ├── trade_execution/              ← Stock trading system
+│   │   └── wire_transfer/                ← 🔒 Cross-border SWIFT transfer
+│   ├── insurance/
+│   │   └── insurance_claim/              ← 🔒 Claim payment pivot
+│   └── real_estate/
+│       ├── property_closing/             ← 🔒 Legal commitment pivot
+│       └── rental_application/           ← 🔒 Deposit charge pivot
 │
-├── data_engineering/          ← Data Engineering & ETL
-│   ├── etl_pipeline/          ← Extract-Transform-Load workflow
-│   ├── data_quality_gate/     ← Data validation with quarantine
-│   ├── data_migration/        ← Cross-database migration
-│   └── lakehouse_ingestion/   ← Bronze → Silver → Gold pipeline
+├── retail_ecommerce/                     ← Retail & eCommerce
+│   └── commerce/
+│       └── order_processing/             ← Order fulfillment workflow
 │
-├── ecommerce/                 ← E-commerce & Retail
-│   └── order_processing/      ← Order fulfillment workflow
+├── manufacturing_automotive/             ← Manufacturing & Automotive
+│   └── manufacturing/
+│       ├── chemical_reactor/             ← 🔒 Reaction initiation pivot
+│       ├── production/                   ← 🔒 Physical action pivot
+│       └── three_d_printing/             ← 🔒 Material commitment pivot
 │
-├── fintech/                   ← Financial Services 🔒
-│   ├── payment_processing/    ← Payment gateway integration
-│   ├── trade_execution/       ← Stock trading system
-│   ├── crypto_exchange/       ← 🔒 Blockchain pivot
-│   ├── wire_transfer/         ← 🔒 Cross-border SWIFT transfer
-│   ├── loan_origination/      ← 🔒 Loan disbursement pivot
-│   └── insurance_claim/       ← 🔒 Claim payment pivot
+├── healthcare_life_sciences/             ← Healthcare & Life Sciences
+│   └── healthcare/
+│       ├── lab_processing/               ← 🔒 Consumable resource pivot
+│       ├── patient_onboarding/           ← HIPAA-compliant registration
+│       ├── prescription/                 ← 🔒 DEA/PDMP dispensing pivot
+│       └── procedure_scheduling/         ← 🔒 OR reservation pivot
 │
-├── manufacturing/             ← Manufacturing & Industrial 🔒
-│   ├── production/            ← 🔒 Physical action pivot
-│   ├── 3d_printing/           ← 🔒 Material commitment pivot
-│   └── chemical_reactor/      ← 🔒 Reaction initiation pivot
+├── public_sector_education/              ← Public Sector & Education
+│   ├── government/
+│   │   ├── regulatory_filing/            ← 🔒 SEC/FDA submission pivot
+│   │   └── visa_application/             ← 🔒 Biometric capture pivot
+│   ├── education/
+│   │   ├── course_enrollment/            ← 🔒 Seat confirmation pivot
+│   │   └── exam_proctoring/              ← 🔒 Exam start pivot
+│   └── energy/
+│       ├── power_grid/                   ← 🔒 Breaker close pivot
+│       └── smart_meter/                  ← 🔒 Meter activation pivot
 │
-├── media/                     ← Media & Content 🔒
-│   ├── live_streaming/        ← 🔒 Real-time broadcast pivot
-│   └── content_publishing/    ← 🔒 CDN distribution pivot
+├── communications_media_entertainment/   ← Communications, Media & Entertainment
+│   ├── telecom/
+│   │   ├── number_porting/               ← 🔒 NPAC regulatory pivot
+│   │   └── sim_provisioning/             ← 🔒 SIM activation pivot
+│   ├── media/
+│   │   ├── content_publishing/           ← 🔒 CDN distribution pivot
+│   │   └── live_streaming/               ← 🔒 Real-time broadcast pivot
+│   └── gaming/
+│       ├── in_game_purchase/             ← 🔒 Payment pivot
+│       └── tournament_match/             ← 🔒 Match start pivot
 │
-├── real_estate/               ← Real Estate 🔒
-│   ├── property_closing/      ← 🔒 Legal commitment pivot
-│   └── rental_application/    ← 🔒 Deposit charge pivot
+├── consumer_goods/                       ← Consumer Goods
+│   ├── product/
+│   │   ├── product_launch/               ← 🔒 Shipping to retailers pivot
+│   │   └── product_recall/               ← 🔒 Regulator filing pivot (taints the holds)
+│   ├── distribution/
+│   │   ├── retail_replenishment/         ← 🔒 Truck dispatch pivot (EDI 855/856/810)
+│   │   └── trade_promotion/              ← 🔒 In-store activation pivot
+│   ├── direct_to_consumer/
+│   │   ├── returns_processing/           ← 🔒 Refund pivot
+│   │   └── subscription_box/             ← 🔒 Carrier pickup pivot
+│   └── supply/
+│       ├── co_packer_order/              ← 🔒 Production run pivot
+│       └── packaging_switch/             ← 🔒 Line cut-over pivot (label validation)
 │
-├── telecom/                   ← Telecommunications 🔒
-│   ├── number_porting/        ← 🔒 NPAC regulatory pivot
-│   └── sim_provisioning/      ← 🔒 SIM activation pivot
+├── software_technology/                  ← Software & Technology
+│   ├── ai/
+│   │   ├── ai_content_pipeline/          ← AI content generation with review
+│   │   ├── federated_learning/           ← Distributed edge training
+│   │   ├── langgraph_support_agent/      ← LangGraph support agent with tools
+│   │   ├── pydantic_ai_research/         ← Pydantic AI research workflow
+│   │   └── training/                     ← MLOps training pipeline
+│   ├── data/
+│   │   ├── data_migration/               ← Cross-database migration
+│   │   ├── data_quality_gate/            ← Data validation with quarantine
+│   │   ├── etl_pipeline/                 ← Extract-Transform-Load workflow
+│   │   └── lakehouse_ingestion/          ← Bronze → Silver → Gold pipeline
+│   ├── iot/
+│   │   ├── device_orchestration/         ← Smart home coordinator
+│   │   └── smart_grid/                   ← Energy demand response
+│   ├── integrations/
+│   │   ├── django_app/                   ← Django with AppConfig
+│   │   ├── fastapi_app/                  ← FastAPI with DI and lifespan
+│   │   └── flask_app/                    ← Flask extension pattern
+│   └── observability/
+│       ├── mermaid_visualization/        ← Mermaid diagram generation
+│       ├── metrics_monitoring/           ← Metrics monitoring
+│       ├── order_recovery/               ← Recovering a failed order
+│       ├── simple_demo/                  ← The smallest saga
+│       └── time_travel/                  ← Replay and time travel over snapshots
 │
-├── government/                ← Government & Compliance 🔒
-│   ├── visa_application/      ← 🔒 Biometric capture pivot
-│   └── regulatory_filing/     ← 🔒 SEC/FDA submission pivot
+├── travel_hospitality/                   ← Travel & Hospitality
+│   ├── travel/
+│   │   └── travel_booking/               ← Travel reservation workflow
+│   └── logistics/
+│       └── drone_delivery/               ← Autonomous delivery
 │
-├── gaming/                    ← Gaming & Entertainment 🔒
-│   ├── tournament_match/      ← 🔒 Match start pivot
-│   └── in_game_purchase/      ← 🔒 Payment pivot
-│
-├── energy/                    ← Energy & Utilities 🔒
-│   ├── smart_meter/           ← 🔒 Meter activation pivot
-│   └── power_grid/            ← 🔒 Breaker close pivot
-│
-├── education/                 ← Education 🔒
-│   ├── course_enrollment/     ← 🔒 Seat confirmation pivot
-│   └── exam_proctoring/       ← 🔒 Exam start pivot
-│
-├── travel/                    ← Travel & Hospitality
-│   └── booking/               ← Travel reservation workflow
-│
-├── healthcare/                ← Healthcare & Life Sciences 🔒
-│   ├── patient_onboarding/    ← HIPAA-compliant registration
-│   ├── lab_processing/        ← 🔒 Consumable resource pivot
-│   ├── prescription/          ← 🔒 DEA/PDMP dispensing pivot
-│   └── procedure_scheduling/  ← 🔒 OR reservation pivot
-│
-├── iot/                       ← Internet of Things
-│   ├── device_orchestration/  ← Smart home coordinator
-│   └── smart_grid/            ← Energy demand response
-│
-├── logistics/                 ← Supply Chain
-│   └── drone_delivery/        ← Autonomous delivery
-│
-├── ml/                        ← Machine Learning & AI
-│   ├── training/              ← MLOps training pipeline
-│   └── federated_learning/    ← Distributed edge training
-│
-├── monitoring/                ← Observability
-│   ├── main.py                ← Metrics monitoring
-│   └── mermaid_demo.py        ← Visualization generator
-│
-└── README.md                  ← This file
+└── README.md
 ```
 
 ## 🚀 Quick Start
@@ -97,78 +120,47 @@ Each example is self-contained in its directory and can be run directly.
 
 ### Interactive Example Browser
 
-The CLI provides an organized domain-based navigator (consolidating 19 categories into 7 logical domains):
-
 ```bash
 # Interactive browser (recommended)
 sagaz examples
 
-# Browse specific domain
-sagaz examples --category fintech
-
-# List all examples
+# List all examples, or one industry (display or folder name)
 sagaz examples list
+sagaz examples list --domain consumer_goods
 
-# Run specific example
-sagaz examples run fintech/payment_processing
+# Run a specific example
+sagaz examples run consumer_goods/product/product_launch
 ```
 
-**Domain Organization:**
-- 📁 **Business** (11 examples) - ecommerce, fintech, travel, logistics, real_estate
-- 📁 **Technology** (8 examples) - data_engineering, ml, iot
-- 📁 **Healthcare** (4 examples) - patient care and medical workflows
-- 📁 **Infrastructure** (7 examples) - energy, manufacturing, telecom
-- 📁 **Public Services** (4 examples) - government, education
-- 📁 **Digital Media** (4 examples) - media, gaming
-- 📁 **Platform** (6 examples) - replay, monitoring, integrations
+**Industries** (57 examples):
+- 📁 **Banking & Financial Services** (8) - finance, insurance, real_estate
+- 📁 **Retail & eCommerce** (1) - commerce
+- 📁 **Manufacturing & Automotive** (3) - manufacturing
+- 📁 **Healthcare & Life Sciences** (4) - healthcare
+- 📁 **Public Sector & Education** (6) - government, education, energy
+- 📁 **Communications, Media & Entertainment** (6) - telecom, media, gaming
+- 📁 **Consumer Goods** (8) - product, distribution, direct_to_consumer, supply
+- 📁 **Software & Technology** (19) - ai, data, iot, integrations, observability
+- 📁 **Travel & Hospitality** (2) - travel, logistics
 
 ### Running Examples Directly
 
 ```bash
-# Web Framework Integrations
-cd examples/integrations/fastapi_app && uvicorn main:app --reload
-cd examples/integrations/django_app && python manage.py runserver
-cd examples/integrations/flask_app && python main.py
+# Any example's main.py runs as a module
+python -m sagaz.examples.banking_finance.finance.payment_processing.main
+python -m sagaz.examples.consumer_goods.product.product_recall.main
+python -m sagaz.examples.software_technology.ai.training.main
 
-# Data Engineering
-python examples/data_engineering/etl_pipeline/main.py
-python examples/data_engineering/data_quality_gate/main.py
-python examples/data_engineering/data_migration/main.py
-python examples/data_engineering/lakehouse_ingestion/main.py
-
-# E-commerce
-python examples/ecommerce/order_processing/main.py
-
-# Fintech
-python examples/fintech/payment_processing/main.py
-python examples/fintech/trade_execution/main.py
-
-# Travel
-python examples/travel/booking/main.py
-
-# Healthcare
-python examples/healthcare/patient_onboarding/main.py
-
-# IoT & Energy
-python examples/iot/device_orchestration/main.py
-python examples/iot/smart_grid/main.py
-
-# Logistics
-python examples/logistics/drone_delivery/main.py
-
-# AI & MLOps
-python examples/ml/training/main.py
-python examples/ml/training/model_deployment.py
-python examples/ml/federated_learning/main.py
-
-# Monitoring & Visualization
-python examples/monitoring/mermaid_demo.py
+# Web framework integrations
+cd sagaz/examples/software_technology/integrations/fastapi_app && uvicorn main:app --reload
+cd sagaz/examples/software_technology/integrations/django_app && python manage.py runserver
+cd sagaz/examples/software_technology/integrations/flask_app && python main.py
 ```
 
 ## 📚 Example Details
 
 ### 🌐 Web Framework Integrations
-**Path:** `examples/integrations/`  
+**Path:** `sagaz/examples/software_technology/integrations/`  
 **Use Case:** Integrate Sagaz with popular web frameworks  
 **Frameworks:** FastAPI, Django, Flask  
 **Best For:** Building production-ready web APIs with sagas
@@ -182,14 +174,14 @@ python examples/monitoring/mermaid_demo.py
 See [integrations/README.md](integrations/README.md) for details.
 
 ### 🛒 Order Processing
-**Path:** `examples/ecommerce/order_processing/`  
+**Path:** `sagaz/examples/retail_ecommerce/commerce/order_processing/`  
 **Use Case:** E-commerce order fulfillment  
 **Steps:** Inventory → Payment → Shipment → Email  
 **Best For:** Learning basic saga patterns
 
 Example usage:
 ```python
-from examples.ecommerce.order_processing.main import OrderProcessingSaga
+from sagaz.examples.retail_ecommerce.commerce.order_processing.main import OrderProcessingSaga
 
 # Create a reusable saga instance (stateless)
 saga = OrderProcessingSaga()
@@ -206,14 +198,14 @@ result = await saga.run(
 ```
 
 ### 💳 Payment Processing
-**Path:** `examples/fintech/payment_processing/`  
+**Path:** `sagaz/examples/banking_finance/finance/payment_processing/`  
 **Use Case:** Payment gateway integration  
 **Steps:** Validation → Primary Payment → Transaction Recording  
 **Best For:** Idempotency and retry patterns
 
 Example usage:
 ```python
-from examples.fintech.payment_processing.main import PaymentProcessingSaga
+from sagaz.examples.banking_finance.finance.payment_processing.main import PaymentProcessingSaga
 
 saga = PaymentProcessingSaga()
 
@@ -227,14 +219,14 @@ result = await saga.run(
 ```
 
 ### 📈 Trade Execution
-**Path:** `examples/fintech/trade_execution/`  
+**Path:** `sagaz/examples/banking_finance/finance/trade_execution/`  
 **Use Case:** Financial trading system  
 **Steps:** Reserve Funds → Execute Trade → Update Position  
 **Best For:** Complex business logic with compensations
 
 Example usage:
 ```python
-from examples.fintech.trade_execution.main import TradeExecutionSaga
+from sagaz.examples.banking_finance.finance.trade_execution.main import TradeExecutionSaga
 
 saga = TradeExecutionSaga()
 
@@ -250,14 +242,14 @@ result = await saga.run(
 ```
 
 ### ✈️ Travel Booking
-**Path:** `examples/travel/booking/`  
+**Path:** `sagaz/examples/travel_hospitality/travel/travel_booking/`  
 **Use Case:** Multi-service travel reservation  
 **Steps:** Flight → Hotel → Car → Itinerary  
 **Best For:** Understanding service orchestration
 
 Example usage:
 ```python
-from examples.travel.booking.main import TravelBookingSaga
+from sagaz.examples.travel_hospitality.travel.travel_booking.main import TravelBookingSaga
 
 saga = TravelBookingSaga()
 
@@ -273,14 +265,14 @@ result = await saga.run(
 ```
 
 ### 🏥 Healthcare Patient Onboarding
-**Path:** `examples/healthcare/patient_onboarding/`  
+**Path:** `sagaz/examples/healthcare_life_sciences/healthcare/patient_onboarding/`  
 **Use Case:** HIPAA-compliant patient registration  
 **Steps:** Verify Identity → Create EHR → Assign PCP → Portal Setup → Schedule → Welcome  
 **Best For:** Compliance, audit trails, PHI protection
 
 Example usage:
 ```python
-from examples.healthcare.patient_onboarding.main import HealthcarePatientOnboardingSaga
+from sagaz.examples.healthcare_life_sciences.healthcare.patient_onboarding.main import HealthcarePatientOnboardingSaga
 
 saga = HealthcarePatientOnboardingSaga()
 
@@ -298,14 +290,14 @@ result = await saga.run(
 ```
 
 ### 📱 IoT Device Orchestration
-**Path:** `examples/iot/device_orchestration/`  
+**Path:** `sagaz/examples/software_technology/iot/device_orchestration/`  
 **Use Case:** Smart home device coordination  
 **Steps:** Lock Doors → Thermostat Away → Lights Off → Arm Security → Notify  
 **Best For:** Multi-device coordination with safety rollback
 
 Example usage:
 ```python
-from examples.iot.device_orchestration.main import IoTDeviceOrchestrationSaga
+from sagaz.examples.software_technology.iot.device_orchestration.main import IoTDeviceOrchestrationSaga
 
 saga = IoTDeviceOrchestrationSaga()
 
@@ -320,14 +312,14 @@ result = await saga.run(
 ```
 
 ### ⚡ Smart Grid Energy Management
-**Path:** `examples/iot/smart_grid/`  
+**Path:** `sagaz/examples/software_technology/iot/smart_grid/`  
 **Use Case:** Demand response for grid stabilization  
 **Steps:** Forecast → Identify Participants → Send Requests → Monitor → Verify → Pay  
 **Best For:** Distributed resource coordination, real-time monitoring
 
 Example usage:
 ```python
-from examples.iot.smart_grid.main import SmartGridEnergySaga
+from sagaz.examples.software_technology.iot.smart_grid.main import SmartGridEnergySaga
 
 saga = SmartGridEnergySaga()
 
@@ -343,14 +335,14 @@ result = await saga.run(
 ```
 
 ### 🚁 Supply Chain Drone Delivery
-**Path:** `examples/logistics/drone_delivery/`  
+**Path:** `sagaz/examples/travel_hospitality/logistics/drone_delivery/`  
 **Use Case:** Autonomous drone package delivery  
 **Steps:** Reserve Drone → Plan Path → Get FAA Auth → Pickup → Deliver → Return  
 **Best For:** Regulatory compliance, real-time coordination
 
 Example usage:
 ```python
-from examples.logistics.drone_delivery.main import SupplyChainDroneDeliverySaga
+from sagaz.examples.travel_hospitality.logistics.drone_delivery.main import SupplyChainDroneDeliverySaga
 
 saga = SupplyChainDroneDeliverySaga()
 
@@ -368,19 +360,19 @@ result = await saga.run(
 ```
 
 ### 🤖 ML Training Pipeline
-**Path:** `examples/ml/training/`  
+**Path:** `sagaz/examples/software_technology/ai/training/`  
 **Use Case:** End-to-end ML pipeline with automatic rollback  
 **Steps:** Validation → Feature Engineering → Training → Evaluation → Deployment  
 **Best For:** Understanding MLOps integration patterns
 
-The `examples/ml/training/` directory contains three examples:
+The `sagaz/examples/software_technology/ai/training/` directory contains three examples:
 1. **`main.py`** - Complete training pipeline
 2. **`model_deployment.py`** - Blue/green deployment
 3. **`feature_store.py`** - Feature engineering pipeline
 
 Example usage:
 ```python
-from examples.ml.training.main import MLTrainingPipelineSaga
+from sagaz.examples.software_technology.ai.training.main import MLTrainingPipelineSaga
 
 saga = MLTrainingPipelineSaga()
 
@@ -396,14 +388,14 @@ result = await saga.run(
 ```
 
 ### 🤖 Edge Federated Learning
-**Path:** `examples/ml/federated_learning/`  
+**Path:** `sagaz/examples/software_technology/ai/federated_learning/`  
 **Use Case:** Privacy-preserving distributed ML training  
 **Steps:** Select Nodes → Distribute Weights → Train → Aggregate → Validate → Deploy  
 **Best For:** Privacy-preserving ML, partial participation handling
 
 Example usage:
 ```python
-from examples.ml.federated_learning.main import EdgeFederatedLearningSaga
+from sagaz.examples.software_technology.ai.federated_learning.main import EdgeFederatedLearningSaga
 
 saga = EdgeFederatedLearningSaga()
 
@@ -420,7 +412,7 @@ result = await saga.run(
 ```
 
 ### 📊 Monitoring & Visualization
-**Path:** `examples/monitoring/`  
+**Path:** `sagaz/examples/software_technology/observability/`  
 **Use Case:** Saga metrics and visualization  
 
 - **`mermaid_demo.py`**: Generates Mermaid diagrams via `saga.to_mermaid()`
@@ -586,18 +578,18 @@ These examples demonstrate:
 ## 📚 Learning Path
 
 ### Basic Patterns
-1. **Start:** `examples/ecommerce/order_processing/` - Simplest workflow (4 steps)
-2. **Intermediate:** `examples/fintech/payment_processing/` - Provider fallback patterns
-3. **Advanced:** `examples/travel/booking/` - Multi-service orchestration
-4. **Expert:** `examples/fintech/trade_execution/` - Financial system with strict compensations
+1. **Start:** `sagaz/examples/retail_ecommerce/commerce/order_processing/` - Simplest workflow (4 steps)
+2. **Intermediate:** `sagaz/examples/banking_finance/finance/payment_processing/` - Provider fallback patterns
+3. **Advanced:** `sagaz/examples/travel_hospitality/travel/travel_booking/` - Multi-service orchestration
+4. **Expert:** `sagaz/examples/banking_finance/finance/trade_execution/` - Financial system with strict compensations
 
 ### Production Use Cases
-5. **MLOps:** `examples/ml/training/` - Real-world ML pipeline patterns
-6. **IoT:** `examples/iot/device_orchestration/` - Multi-device coordination (100+ devices)
-7. **Healthcare:** `examples/healthcare/patient_onboarding/` - HIPAA compliance & audit trails
-8. **Supply Chain:** `examples/logistics/drone_delivery/` - Regulatory compliance (FAA)
-9. **Energy:** `examples/iot/smart_grid/` - Distributed resource management
-10. **AI/ML:** `examples/ml/federated_learning/` - Privacy-preserving distributed training
+5. **MLOps:** `sagaz/examples/software_technology/ai/training/` - Real-world ML pipeline patterns
+6. **IoT:** `sagaz/examples/software_technology/iot/device_orchestration/` - Multi-device coordination (100+ devices)
+7. **Healthcare:** `sagaz/examples/healthcare_life_sciences/healthcare/patient_onboarding/` - HIPAA compliance & audit trails
+8. **Supply Chain:** `sagaz/examples/travel_hospitality/logistics/drone_delivery/` - Regulatory compliance (FAA)
+9. **Energy:** `sagaz/examples/software_technology/iot/smart_grid/` - Distributed resource management
+10. **AI/ML:** `sagaz/examples/software_technology/ai/federated_learning/` - Privacy-preserving distributed training
 
 Each example builds on the previous one, introducing new concepts progressively.
 

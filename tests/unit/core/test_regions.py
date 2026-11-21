@@ -13,6 +13,7 @@ from sagaz import Saga, action, compensate
 from sagaz.choreography import Event, EventBus
 from sagaz.cli.app import cli
 from sagaz.core.config import SagaConfig
+from sagaz.core.exceptions import SagaFailedError
 from sagaz.core.regions import (
     MultiRegionCoordinator,
     Region,
@@ -190,13 +191,13 @@ class TestSagas:
 
     async def test_a_remote_failure_compensates(self):
         async with World() as world:
-            with pytest.raises(RemoteStepError, match="ValueError in region eu-west-1: card"):
+            with pytest.raises(SagaFailedError, match="ValueError in region eu-west-1: card"):
                 await world.run(decline=True)
         assert ran == [("release", "local")]  # charge never completed: nothing to refund
 
     async def test_compensation_runs_in_the_steps_region(self):
         async with World() as world:
-            with pytest.raises(RuntimeError, match="no truck"):
+            with pytest.raises(SagaFailedError, match="no truck"):
                 await world.run(no_truck=True)
         assert ("refund", "ch-default") in ran
         assert ran[-1] == ("release", "local")
@@ -226,13 +227,13 @@ class TestSagas:
         async with World() as world:
             world.clock.now += 4  # every region silent
             world.registry.heartbeat("us-east-1")
-            with pytest.raises(RegionUnavailableError):
+            with pytest.raises(SagaFailedError):
                 await world.run()
         assert ran == [("release", "local")]
 
     async def test_a_slow_region_times_out_like_a_local_step(self):
         async with World() as world:
-            with pytest.raises(TimeoutError):
+            with pytest.raises(SagaFailedError):
                 await world.run(slow=True)
             assert world.coordinator._pending == {}
 

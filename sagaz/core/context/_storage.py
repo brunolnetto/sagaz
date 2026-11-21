@@ -5,6 +5,7 @@ access. Includes implementations for filesystem (local) and S3 storage.
 """
 
 import hashlib
+import importlib.util
 import pickle
 import uuid
 from abc import ABC, abstractmethod
@@ -14,12 +15,20 @@ from typing import Any
 
 import aiofiles  # type: ignore[import-untyped]
 
+# aioboto3 takes about a second to import: check it is installed, import it on use.
 try:
-    import aioboto3
-
-    HAS_AIOBOTO3 = True
-except ImportError:
+    HAS_AIOBOTO3 = importlib.util.find_spec("aioboto3") is not None
+except (ImportError, ValueError):
     HAS_AIOBOTO3 = False
+
+
+def _aioboto3() -> Any:
+    """The aioboto3 module, or None when it is not installed."""
+    try:
+        import aioboto3
+    except ImportError:
+        return None
+    return aioboto3
 
 
 class ExternalReference:
@@ -243,7 +252,7 @@ class S3ExternalStorage(ExternalStorage):
         # Structure: saga_id/key-uuid.bin
         object_key = f"{saga_id}/{key}-{uuid.uuid4()}.bin"
 
-        session = aioboto3.Session(**self.session_kwargs)
+        session = _aioboto3().Session(**self.session_kwargs)
         async with session.client(
             "s3",
             region_name=self.region_name,
@@ -292,7 +301,7 @@ class S3ExternalStorage(ExternalStorage):
             msg = f"URI bucket '{bucket}' does not match configured bucket '{self.bucket}'"
             raise ValueError(msg)
 
-        session = aioboto3.Session(**self.session_kwargs)
+        session = _aioboto3().Session(**self.session_kwargs)
         async with session.client(
             "s3",
             region_name=self.region_name,
@@ -327,7 +336,7 @@ class S3ExternalStorage(ExternalStorage):
         if bucket != self.bucket:
             return
 
-        session = aioboto3.Session(**self.session_kwargs)
+        session = _aioboto3().Session(**self.session_kwargs)
         async with session.client(
             "s3",
             region_name=self.region_name,

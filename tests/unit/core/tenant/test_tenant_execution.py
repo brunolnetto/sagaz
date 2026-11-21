@@ -8,6 +8,7 @@ import pytest
 
 from sagaz import Saga, action, compensate
 from sagaz.core.config import SagaConfig
+from sagaz.core.exceptions import SagaFailedError
 from sagaz.core.execution.orchestrator import SagaOrchestrator
 from sagaz.core.saga import Saga as ImperativeSaga
 from sagaz.core.tenant import (
@@ -80,7 +81,7 @@ class TestSagaRunAsTenant:
             TenantContext("acme", quotas=TenantQuotas(max_step_duration_seconds=0.05))
         )
         saga = SlowSaga(config=SagaConfig(tenant_registry=registry))
-        with pytest.raises(TimeoutError, match="timed out after 0.05s"):
+        with pytest.raises(SagaFailedError, match="timed out after 0.05s"):
             await saga.run({"sleep": 0.5}, tenant_context="acme")
 
     async def test_unknown_tenant_with_a_registry_is_rejected(self):
@@ -123,7 +124,7 @@ class TestQuotasDuringExecution:
 
     async def test_step_duration_quota_lowers_the_timeout(self):
         tenant = TenantContext("acme", quotas=TenantQuotas(max_step_duration_seconds=0.05))
-        with pytest.raises(TimeoutError, match="0.05s"):
+        with pytest.raises(SagaFailedError, match="0.05s"):
             await SlowSaga().run({"sleep": 0.5}, tenant_context=tenant)
 
     async def test_retry_quota_caps_imperative_step_attempts(self):

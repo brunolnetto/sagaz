@@ -36,6 +36,12 @@ class StepLedger:
             "retry_count": 0,
         }
 
+    def attempted(self, step_id: str, attempt: int) -> None:
+        """Record that ``attempt`` (0 for the first) of the step is running."""
+        record = self._records.get(step_id)
+        if record is not None:
+            record["retry_count"] = attempt
+
     def finished(self, step_id: str, error: BaseException | None = None) -> None:
         record = self._records.get(step_id)
         if record is None:

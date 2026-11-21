@@ -22,7 +22,7 @@
 
 ```python
 from sagaz import Saga, SagaConfig, ReplayConfig, SnapshotStrategy
-from sagaz.storage.backends import FilesystemSnapshotStorage
+from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
 
 # Create storage instance
 storage = FilesystemSnapshotStorage(
@@ -284,12 +284,12 @@ When moving to production, switch to S3:
 
 ```python
 # Development
-from sagaz.storage.backends import FilesystemSnapshotStorage
+from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
 
 dev_storage = FilesystemSnapshotStorage(base_path="./dev-snapshots")
 
 # Production
-from sagaz.storage.backends import S3SnapshotStorage
+from sagaz.core.storage.backends.s3 import S3SnapshotStorage
 
 prod_storage = S3SnapshotStorage(
     bucket_name="company-saga-snapshots",
@@ -305,7 +305,7 @@ prod_storage = S3SnapshotStorage(
 
 ```python
 from sagaz import Saga, action, compensate
-from sagaz.storage.backends import FilesystemSnapshotStorage
+from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
 from sagaz import SagaConfig, ReplayConfig, SnapshotStrategy
 
 # Setup storage
@@ -379,7 +379,7 @@ await storage.delete_expired_snapshots()
 
 ```python
 # For better performance, use InMemory for tests
-from sagaz.storage.backends import InMemorySnapshotStorage
+from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
 
 test_storage = InMemorySnapshotStorage()  # Much faster
 

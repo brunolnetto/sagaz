@@ -33,9 +33,9 @@ Optimistic Flow (<10ms):
 ### Basic Setup
 
 ```python
-from sagaz.outbox import OptimisticPublisher
-from sagaz.outbox.storage import PostgreSQLOutboxStorage
-from sagaz.outbox.brokers import KafkaBroker
+from sagaz.core.outbox import OptimisticPublisher
+from sagaz.core.storage.backends.postgresql import PostgreSQLOutboxStorage
+from sagaz.core.outbox import KafkaBroker
 
 # Initialize components
 storage = PostgreSQLOutboxStorage("postgresql://localhost/db")
@@ -291,13 +291,13 @@ data:
 
 ```python
 from sagaz import Saga
-from sagaz.outbox import OutboxEvent, OptimisticPublisher
-from sagaz.storage import PostgreSQLStorage
-from sagaz.outbox.storage import PostgreSQLOutboxStorage
-from sagaz.outbox.brokers import KafkaBroker
+from sagaz.core.outbox import OutboxEvent, OptimisticPublisher
+from sagaz.core.storage import PostgreSQLSagaStorage
+from sagaz.core.storage.backends.postgresql import PostgreSQLOutboxStorage
+from sagaz.core.outbox import KafkaBroker
 
 # Setup
-saga_storage = PostgreSQLStorage("postgresql://localhost/db")
+saga_storage = PostgreSQLSagaStorage("postgresql://localhost/db")
 outbox_storage = PostgreSQLOutboxStorage("postgresql://localhost/db")
 broker = KafkaBroker(bootstrap_servers="localhost:9092")
 publisher = OptimisticPublisher(outbox_storage, broker, enabled=True)

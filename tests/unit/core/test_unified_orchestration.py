@@ -11,6 +11,7 @@ from sagaz import Saga, action, compensate
 from sagaz.cli.app import cli
 from sagaz.core.config import SagaConfig
 from sagaz.core.events import SagaStarted, StepExecuted
+from sagaz.core.exceptions import SagaFailedError
 from sagaz.core.saga import Saga as ClassicSaga
 from sagaz.core.storage.event_store.recorder import event_sourcing_settings
 from sagaz.core.storage.saga_log import InMemorySagaLogStore, LogWrite
@@ -101,7 +102,7 @@ class TestDeclarative:
         assert transaction.version == 2
 
     async def test_rolled_back(self, log):
-        with pytest.raises(ValueError, match="declined"):
+        with pytest.raises(SagaFailedError, match="declined"):
             await order_saga(log, fail_charge=True).run({"order_id": "o-2"}, saga_id="s-2")
         transaction, activities, _ = await state(log, "s-2")
         assert transaction.status == "rolled_back"
@@ -112,7 +113,7 @@ class TestDeclarative:
 
     async def test_a_failed_compensation(self, log):
         saga = order_saga(log, fail_charge=True, fail_release=True)
-        with pytest.raises(ValueError):
+        with pytest.raises(SagaFailedError):
             await saga.run({"order_id": "o-3"}, saga_id="s-3")
         transaction, activities, _ = await state(log, "s-3")
         assert transaction.status == "failed"
@@ -120,7 +121,7 @@ class TestDeclarative:
         assert activities["reserve"].error == "RuntimeError: warehouse offline"
 
     async def test_a_timeout(self, log):
-        with pytest.raises(TimeoutError):
+        with pytest.raises(SagaFailedError):
             await order_saga(log, slow=True).run({"order_id": "o-4"}, saga_id="s-4")
         _, activities, _ = await state(log, "s-4")
         assert activities["charge"].error == "TimeoutError: timed out after 0.05s"
@@ -128,7 +129,7 @@ class TestDeclarative:
     async def test_a_rerun_starts_the_transaction_again(self, log):
         saga = order_saga(log)
         await saga.run({"order_id": "o-5"}, saga_id="s-5")
-        await saga.run({"order_id": "o-5"}, saga_id="s-5")
+        await saga.run({"order_id": "o-5"}, saga_id="s-5", allow_rerun=True)
         transaction, _, events = await state(log, "s-5")
         assert (transaction.status, transaction.version) == ("completed", 4)
         assert [e.sequence for e in events] == list(range(1, 9))
@@ -279,7 +280,7 @@ def test_event_log_reads_the_unified_layout(tmp_path):
 
     async def record():
         async with SQLiteSagaLogStore(str(path)) as log:
-            with pytest.raises(ValueError):
+            with pytest.raises(SagaFailedError):
                 await order_saga(log, fail_charge=True).run({"order_id": "o"}, saga_id="bad")
 
     asyncio.run(record())

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 from typing import TYPE_CHECKING, Any
 
 from sagaz.core.regions._protocol import ACTION, COMPENSATION
@@ -40,10 +41,10 @@ class _RegionRoutingMixin:
         assert fn is not None
         coordinator = self._coordinator() if step.region is not None else None
         if coordinator is None or step.region is None:
-            return await fn(self.saga._context)
+            return await _call(fn, self.saga._context)
         target = coordinator.target(step.region)
         if target == coordinator.home:
-            return await fn(self.saga._context)
+            return await _call(fn, self.saga._context)
         return await coordinator.run(
             target,
             saga_name=self.saga.saga_name or type(self.saga).__name__,
@@ -57,5 +58,13 @@ class _RegionRoutingMixin:
     async def _run_compensation(self, step_id: str, fallback: Any) -> Any:
         step = self.saga._step_registry.get(step_id)
         if step is None or step.region is None or step.compensation_fn is None:
-            return await fallback(self.saga._context)
+            return await _call(fallback, self.saga._context)
         return await self._run_step(step, COMPENSATION)
+
+
+async def _call(fn: Any, context: Any) -> Any:
+    """Call a step or compensation; a plain (sync) function works too (#536)."""
+    result = fn(context)
+    if inspect.isawaitable(result):
+        result = await result
+    return result

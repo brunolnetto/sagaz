@@ -220,12 +220,12 @@ run_server(app, host="127.0.0.1", port=7070)
 
 The dashboard above shows runs as they happen, from a listener, and keeps nothing.
 The asset monitor (ADR-039) shows what is **persisted** instead: transactions of a
-unified saga log, or sagas of a legacy saga storage, for both coordination styles.
+unified saga log, or sagas of a classic-layout saga storage, for both coordination styles.
 
 ```bash
 pip install 'sagaz[gradio]'
 sagaz monitor --ui gradio --saga-log postgresql://...      # or sqlite:///log.db
-sagaz monitor --ui gradio --storage-url sqlite:///sagas.db # a legacy saga storage
+sagaz monitor --ui gradio --storage-url sqlite:///sagas.db # a classic-layout saga storage
 ```
 
 The monitor reads only. It has these views:

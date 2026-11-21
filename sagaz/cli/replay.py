@@ -105,13 +105,19 @@ def _handle_exception(e: Exception, verbose: bool):
 @click.option(
     "--storage",
     "-t",
-    default="memory",
-    type=click.Choice(["memory", "redis", "postgres"]),
-    help="Snapshot storage backend",
+    default="filesystem",
+    show_default=True,
+    type=click.Choice(["redis", "postgres", "filesystem", "memory"]),
+    help="Snapshot storage the saga wrote to (memory is per process: unusable here)",
 )
 @click.option(
     "--storage-url",
-    help="Storage connection URL (for redis/postgres)",
+    help="redis://... or postgresql://... URL, or the filesystem directory",
+)
+@click.option(
+    "--saga",
+    "saga_path",
+    help="module:attribute: the saga class, or a factory (saga_name) -> saga, to replay",
 )
 @click.option(
     "--override",
@@ -136,6 +142,7 @@ def replay_command(
     from_step: str,
     storage: str,
     storage_url: str | None,
+    saga_path: str | None,
     override: tuple[str, ...],
     dry_run: bool,
     verbose: bool,
@@ -151,13 +158,20 @@ def replay_command(
         saga_uuid = UUID(saga_id)
     except ValueError:
         click.echo(f"Error: Invalid saga ID: {saga_id}", err=True)
-        return 1
+        raise SystemExit(1)
+
+    if not dry_run and not saga_path:
+        click.echo(
+            "Error: replaying runs the saga again: give --saga module:attribute (or --dry-run)",
+            err=True,
+        )
+        raise SystemExit(1)
 
     # Parse overrides
     try:
         context_override = _parse_overrides(override)
     except ValueError:
-        return 1
+        raise SystemExit(1)
 
     # Show what we're doing
     _display_replay_config(saga_id, from_step, storage, context_override, dry_run)
@@ -173,19 +187,20 @@ def replay_command(
                 context_override,
                 dry_run,
                 verbose,
+                saga_path,
             )
         )
 
         if result:
             _display_success()
-            return 0
+            return
 
         _display_failure()
-        return 1
+        raise SystemExit(1)
 
     except Exception as e:
         _handle_exception(e, verbose)
-        return 1
+        raise SystemExit(1)
 
 
 # ============================================================================
@@ -204,13 +219,14 @@ def replay_command(
 @click.option(
     "--storage",
     "-s",
-    default="memory",
-    type=click.Choice(["memory", "redis", "postgres"]),
-    help="Snapshot storage backend",
+    default="filesystem",
+    show_default=True,
+    type=click.Choice(["redis", "postgres", "filesystem", "memory"]),
+    help="Snapshot storage the saga wrote to (memory is per process: unusable here)",
 )
 @click.option(
     "--storage-url",
-    help="Storage connection URL (for redis/postgres)",
+    help="redis://... or postgresql://... URL, or the filesystem directory",
 )
 @click.option(
     "--key",
@@ -244,7 +260,7 @@ def time_travel_command(
         saga_uuid = UUID(saga_id)
     except ValueError:
         click.echo(f"Error: Invalid saga ID: {saga_id}", err=True)
-        return 1
+        raise SystemExit(1)
 
     # Parse timestamp
     try:
@@ -254,18 +270,18 @@ def time_travel_command(
     except ValueError:
         click.echo(f"Error: Invalid timestamp format: {at}", err=True)
         click.echo("Use ISO format: 2024-01-15T10:30:00Z", err=True)
-        return 1
+        raise SystemExit(1)
 
     # Execute time-travel query
     try:
         result = asyncio.run(
             _execute_time_travel(saga_uuid, timestamp, storage, storage_url, key, format)
         )
-        return 0 if result else 1
+        raise SystemExit(0 if result else 1)
 
     except Exception as e:
         _handle_exception(e, verbose=False)
-        return 1
+        raise SystemExit(1)
 
 
 # ============================================================================
@@ -295,9 +311,14 @@ def time_travel_command(
 @click.option(
     "--storage",
     "-s",
-    default="memory",
-    type=click.Choice(["memory", "redis", "postgres"]),
-    help="Snapshot storage backend",
+    default="filesystem",
+    show_default=True,
+    type=click.Choice(["redis", "postgres", "filesystem", "memory"]),
+    help="Snapshot storage the saga wrote to (memory is per process: unusable here)",
+)
+@click.option(
+    "--storage-url",
+    help="redis://... or postgresql://... URL, or the filesystem directory",
 )
 def list_changes_command(
     saga_id: str,
@@ -305,6 +326,7 @@ def list_changes_command(
     before: str | None,
     limit: int,
     storage: str,
+    storage_url: str | None,
 ):
     """
     List all state changes for a saga.
@@ -318,7 +340,7 @@ def list_changes_command(
         saga_uuid = UUID(saga_id)
     except ValueError:
         click.echo(f"Error: Invalid saga ID: {saga_id}", err=True)
-        return 1
+        raise SystemExit(1)
 
     # Parse timestamps
     after_dt = None
@@ -329,23 +351,25 @@ def list_changes_command(
             after_dt = datetime.fromisoformat(after.replace("Z", "+00:00"))
         except ValueError:
             click.echo(f"Error: Invalid 'after' timestamp: {after}", err=True)
-            return 1
+            raise SystemExit(1)
 
     if before:
         try:
             before_dt = datetime.fromisoformat(before.replace("Z", "+00:00"))
         except ValueError:
             click.echo(f"Error: Invalid 'before' timestamp: {before}", err=True)
-            return 1
+            raise SystemExit(1)
 
     # Execute list changes
     try:
-        asyncio.run(_execute_list_changes(saga_uuid, after_dt, before_dt, limit, storage))
-        return 0
+        asyncio.run(
+            _execute_list_changes(saga_uuid, after_dt, before_dt, limit, storage, storage_url)
+        )
+        return
 
     except Exception as e:
         _handle_exception(e, verbose=False)
-        return 1
+        raise SystemExit(1)
 
 
 __all__ = [

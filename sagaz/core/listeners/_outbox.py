@@ -1,5 +1,6 @@
 """Outbox listener for reliable event delivery."""
 
+import asyncio
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -36,6 +37,26 @@ class OutboxSagaListener(SagaListener):
     def __init__(self, storage, publish_step_events: bool = True):
         self.storage = storage
         self.publish_step_events = publish_step_events
+        self._ready = False
+        self._ready_lock: asyncio.Lock | None = None
+
+    async def _ensure_ready(self) -> None:
+        """Initialize the outbox storage before its first insert (#534).
+
+        A storage derived from ``SagaConfig(storage=..., broker=...)`` was never
+        initialized, so every event was dropped. ``initialize()`` is idempotent on
+        the outbox storages, so a storage the caller already initialized is fine.
+        """
+        if self._ready:
+            return
+        if self._ready_lock is None:
+            self._ready_lock = asyncio.Lock()
+        async with self._ready_lock:
+            if not self._ready:
+                initialize = getattr(self.storage, "initialize", None)
+                if initialize is not None:
+                    await initialize()
+                self._ready = True
 
     async def on_step_success(
         self, saga_name: str, step_name: str, ctx: dict[str, Any], result: Any
@@ -105,6 +126,7 @@ class OutboxSagaListener(SagaListener):
         from sagaz.core.outbox.types import OutboxEvent
 
         try:
+            await self._ensure_ready()
             event = OutboxEvent(
                 saga_id=saga_id,
                 event_type=event_type,
@@ -112,4 +134,4 @@ class OutboxSagaListener(SagaListener):
             )
             await self.storage.insert(event)
         except Exception as e:
-            logger.warning(f"Failed to publish outbox event {event_type}: {e}")
+            logger.error(f"Failed to publish outbox event {event_type} of saga {saga_id}: {e}")

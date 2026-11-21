@@ -125,20 +125,20 @@ async def _run() -> None:
 ### Test Module
 
 ```python
-# tests/unit/demonstrations/observability/test_distributed_tracing.py
+# tests/unit/demonstrations/observability/test_otel_tracing.py
 """Test distributed tracing demo module."""
 
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 
-from sagaz.demonstrations.observability.distributed_tracing.main import _run
+from sagaz.demonstrations.observability.otel_tracing.main import _run
 
 
 @pytest.mark.asyncio
 async def test_distributed_tracing_run_function():
     """Test that tracing demo executes and creates spans."""
     
-    with patch('sagaz.demonstrations.observability.distributed_tracing.main.mock_tracer') as mock:
+    with patch('sagaz.demonstrations.observability.otel_tracing.main.mock_tracer') as mock:
         await _run()
         # Verify tracer was used
         assert mock.start_as_current_span.called
@@ -149,7 +149,7 @@ async def test_distributed_tracing_with_exception_path():
     """Test tracing behavior when step fails."""
     
     # Test the exception handling path if present
-    with patch('sagaz.demonstrations.observability.distributed_tracing.main.Saga') as MockSaga:
+    with patch('sagaz.demonstrations.observability.otel_tracing.main.Saga') as MockSaga:
         mock_saga = AsyncMock()
         mock_saga.execute.return_value = MagicMock(status=MagicMock(value="FAILED"))
         MockSaga.return_value = mock_saga
@@ -181,7 +181,7 @@ Add your demo to the registry in `sagaz/demonstrations/__init__.py`:
 DEMONSTRATIONS = {
     "observability": {
         "distributed_tracing": {
-            "module": "sagaz.demonstrations.observability.distributed_tracing.main",
+            "module": "sagaz.demonstrations.observability.otel_tracing.main",
             "description": "Show distributed tracing with OpenTelemetry",
             "added_version": "0.1.0",
         }

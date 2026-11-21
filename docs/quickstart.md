@@ -59,6 +59,38 @@ if "payment_id" in result:
     print(f"Order processed: {result['payment_id']}")
 ```
 
+### 3. When a Saga Fails
+
+A step that raises is retried (`max_retries`, default 3, with exponential backoff),
+each attempt under its `timeout_seconds`. When it still fails, the completed steps are
+compensated in reverse order, and `run()` raises one exception, `SagaFailedError`:
+
+```python
+from sagaz import SagaFailedError, SagaStatus
+
+try:
+    await OrderSaga().run({"order_id": "ORD-123", "amount": 99.99}, saga_id="ORD-123")
+except SagaFailedError as e:
+    e.failed_step          # "charge_payment"
+    e.__cause__            # the step's own exception, e.g. CardDeclinedError
+    if e.status == SagaStatus.FAILED:
+        # A compensation failed too: these steps could not be undone.
+        alert_on_call(e.saga_id, e.compensation_errors)   # {"reserve_inventory": error}
+    # SagaStatus.ROLLED_BACK: everything was undone.
+```
+
+Before any step runs, `run()` may also raise:
+
+| Exception | When |
+|---|---|
+| `SagaAlreadyExistsError` | The `saga_id` already ran, so the same order is not charged twice. Pass `allow_rerun=True` to run it again on purpose. |
+| `SagaDefinitionError` | A `depends_on` names no step, or the dependencies form a cycle. A `@compensate` of a missing step, or two steps with one name, raise it when the saga is created. |
+| `SagaPersistenceError` | The saga's state could not be saved. Set `SagaConfig(tolerate_persistence_errors=True)` to only log it. |
+
+A step's timeout raises `SagaTimeoutError`, which is also a `TimeoutError`; it is the
+`__cause__` of the `SagaFailedError`. Steps and compensations can be `async def` or
+plain `def`.
+
 ---
 
 ## Step Lifecycle Hooks
@@ -96,6 +128,7 @@ class OrderSaga(Saga):
 | `on_success` | `(ctx, step_name, result)` | After successful completion |
 | `on_failure` | `(ctx, step_name, error)` | When step raises exception |
 | `on_compensate` | `(ctx, step_name)` | When compensation runs |
+| `on_exit` | `(ctx, step_name)` | After the step, whether it succeeded or failed |
 
 ---
 
@@ -105,11 +138,7 @@ For metrics, logging, tracing, or outbox publishing across ALL steps:
 
 ```python
 from sagaz import Saga, action
-from sagaz.listeners import (
-    LoggingSagaListener,
-    MetricsSagaListener,
-    OutboxSagaListener,
-)
+from sagaz import LoggingSagaListener, MetricsSagaListener, OutboxSagaListener
 
 class OrderSaga(Saga):
     saga_name = "order-processing"
@@ -140,7 +169,7 @@ class OrderSaga(Saga):
 ### Custom Listeners
 
 ```python
-from sagaz.listeners import SagaListener
+from sagaz import SagaListener
 
 class SlackNotificationListener(SagaListener):
     async def on_saga_failed(self, saga_name, saga_id, ctx, error):
@@ -161,8 +190,8 @@ Configure storage, broker, and observability in one place:
 
 ```python
 from sagaz import SagaConfig, Saga, configure, action
-from sagaz.storage import PostgreSQLSagaStorage
-from sagaz.outbox.brokers import KafkaBroker
+from sagaz.core.storage import PostgreSQLSagaStorage
+from sagaz.core.outbox import KafkaBroker
 
 # 1. Create unified configuration
 config = SagaConfig(
@@ -210,6 +239,7 @@ configure(config)
 | `logging` | `bool` | `True` | Enable structured logging |
 | `default_timeout` | `float` | `60.0` | Default step timeout (seconds) |
 | `default_max_retries` | `int` | `3` | Default retry count |
+| `tolerate_persistence_errors` | `bool` | `False` | Log, instead of raising `SagaPersistenceError`, when the saga state cannot be saved |
 
 ---
 
@@ -234,9 +264,9 @@ CREATE TABLE saga_outbox (
 ### 2. Configure Storage & Broker
 
 ```python
-from sagaz.outbox import OutboxWorker
-from sagaz.outbox.storage.postgresql import PostgreSQLOutboxStorage
-from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
+from sagaz.core.outbox import OutboxWorker
+from sagaz.core.storage.backends.postgresql import PostgreSQLOutboxStorage
+from sagaz.core.outbox import RabbitMQBroker
 
 # Storage
 storage = PostgreSQLOutboxStorage(
@@ -252,7 +282,7 @@ broker = RabbitMQBroker(
 ### 3. Run Worker
 
 ```python
-from sagaz.outbox import OutboxWorker, OutboxConfig
+from sagaz.core.outbox import OutboxWorker, OutboxConfig
 
 config = OutboxConfig(
     batch_size=100,

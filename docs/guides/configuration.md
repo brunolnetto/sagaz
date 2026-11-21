@@ -44,6 +44,8 @@ class OrderSaga(Saga):
 | `default_timeout` | `float` | `60.0` | Default step timeout in seconds |
 | `default_max_retries` | `int` | `3` | Default retry count for failed steps |
 | `failure_strategy` | `str` | `"FAIL_FAST_WITH_GRACE"` | Parallel failure strategy |
+| `extra_listeners` | `list` | `[]` | Listeners added to the logging, metrics, tracing and outbox ones (a saga class's `listeners` attribute replaces them all instead; `saga.add_listener()` adds to one saga) |
+| `tolerate_persistence_errors` | `bool` | `False` | `False`: a failure to save the saga state raises `SagaPersistenceError` (the saga stops and compensates what ran). `True`: log it and go on |
 
 ---
 
@@ -52,7 +54,7 @@ class OrderSaga(Saga):
 ### PostgreSQL (Recommended for Production)
 
 ```python
-from sagaz.storage import PostgreSQLSagaStorage
+from sagaz.core.storage import PostgreSQLSagaStorage
 
 config = SagaConfig(
     storage=PostgreSQLSagaStorage("postgresql://user:pass@localhost/db")
@@ -62,7 +64,7 @@ config = SagaConfig(
 ### Redis
 
 ```python
-from sagaz.storage import RedisSagaStorage
+from sagaz.core.storage import RedisSagaStorage
 
 config = SagaConfig(
     storage=RedisSagaStorage("redis://localhost:6379/0")
@@ -72,7 +74,7 @@ config = SagaConfig(
 ### In-Memory (Testing Only)
 
 ```python
-from sagaz.storage import InMemorySagaStorage
+from sagaz.core.storage import InMemorySagaStorage
 
 config = SagaConfig(
     storage=InMemorySagaStorage()  # This is the default
@@ -86,7 +88,7 @@ config = SagaConfig(
 ### Kafka
 
 ```python
-from sagaz.outbox.brokers import KafkaBroker
+from sagaz.core.outbox import KafkaBroker
 
 config = SagaConfig(
     storage=storage,
@@ -97,7 +99,7 @@ config = SagaConfig(
 ### RabbitMQ
 
 ```python
-from sagaz.outbox.brokers import RabbitMQBroker
+from sagaz.core.outbox import RabbitMQBroker
 
 config = SagaConfig(
     storage=storage,
@@ -108,7 +110,7 @@ config = SagaConfig(
 ### Redis Streams
 
 ```python
-from sagaz.outbox.brokers import RedisBroker
+from sagaz.core.outbox.brokers import RedisBroker
 
 config = SagaConfig(
     storage=storage,
@@ -216,7 +218,7 @@ saga = SpecialSaga(config=special_config)
 You can pass custom listener instances instead of booleans:
 
 ```python
-from sagaz.listeners import LoggingSagaListener, MetricsSagaListener
+from sagaz import LoggingSagaListener, MetricsSagaListener
 
 config = SagaConfig(
     logging=LoggingSagaListener(level=logging.DEBUG),

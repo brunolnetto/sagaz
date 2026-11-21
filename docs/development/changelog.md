@@ -7,6 +7,208 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-11-21
+
+Developer experience, from a usability review by a backend engineer's perspective and a
+feature × saga mode audit.
+
+- **Promises kept:** declarative steps retry; `SagaConfig` step defaults apply; a saga id
+  runs once; progress is saved after each level; a failure to save is no longer silent;
+  compensations retry.
+- **One failure contract (breaking):** a failed `run()` raises `SagaFailedError`, with the
+  step's exception as its cause. Definition mistakes are reported before anything runs.
+- **Hygiene:** a 1 MB package again (2.3.0 shipped a 60 MB jar); `import sagaz` leaves root
+  logging alone and takes about 0.6 s instead of 3 s.
+- **Docs that run:** every documented import is checked in CI; a "Your First Saga Service"
+  guide; a feature × mode matrix backed by tests.
+- **Tools:** `sagaz saga show`; `sagaz replay` reads real snapshot storage.
+- **Naming:** `storage_layout="classic"` (`"legacy"` still accepted).
+
+### Changed
+- **`storage_layout="classic"`** (#578): the layout with a table per concern, the default,
+  was named `"legacy"`, which read as abandoned. It is now `"classic"` in `SagaConfig`,
+  `Meta` and `sagaz event-log --layout`; `"legacy"` is still accepted and means the same.
+- **`run()` returns the context without the engine's markers** (#538): the
+  `__<step>_completed`, `__<step>_compensated` and `__<step>_compensation_error` keys
+  stay internal. The stored context keeps them.
+- **Typing** (#538): `Saga.__init_subclass__` and `Saga(config=...)` are annotated, so
+  `mypy --strict` no longer reports every subclass.
+- **One public `Saga`** (#537): `sagaz.Saga` is documented as the class to use. The other
+  class, `sagaz.core.saga.Saga`, is the engine behind snapshot replay and
+  `SagaOrchestrator`; it will be merged into `sagaz.Saga` and then deprecated. Its
+  `add_step()` also accepts `sagaz.Saga`'s names, `depends_on`, `timeout_seconds` and
+  `compensation_timeout_seconds`; giving both spellings of one parameter is a
+  `TypeError`. Its `run()` error pointed to a `sagaz.decorators` module that does not
+  exist; it now points to `sagaz.Saga`.
+- **A failed saga raises `SagaFailedError`** (#536). **Breaking:** `Saga.run()` used to
+  re-raise the failed step's exception, so a caller could not tell a saga that was rolled
+  back from one whose compensation failed. It now raises
+  `SagaFailedError(saga_id, saga_name, status, failed_step, compensation_errors)`, with
+  the step's exception as `__cause__` and its message included.
+  - **Migration:** replace `except CardDeclinedError:` around `run()` with
+    `except SagaFailedError as e:` and read `e.__cause__`.
+  - **Not wrapped:** errors raised before the saga starts keep their types: tenant,
+    quota, version, region, a duplicate saga id and definition errors.
+- **Step timeouts raise `SagaTimeoutError`** (#536), which is also a `TimeoutError`.
+- **Import time** (#532): `import sagaz` loads the optional drivers (aioboto3, asyncpg,
+  redis, aiokafka, aio-pika) and the CLI only when they are used. Import time drops from
+  about 3 s to about 0.6 s, and the number of modules from 1234 to 455.
+- **Examples grouped by industry**: `sagaz/examples/` follows the industry domains of the
+  Apache Airflow user survey: Banking & Financial Services, Retail & eCommerce, Manufacturing
+  & Automotive, Healthcare & Life Sciences, Public Sector & Education, Communications, Media
+  & Entertainment, Consumer Goods, Software & Technology, and Travel & Hospitality.
+  - **Software & Technology:** holds AI, data, IoT, the framework integrations and the
+    observability demos, as separate subdomains.
+  - **Energy:** grid and smart-meter examples are under Public Sector.
+  - **Paths changed:** examples moved, so their import paths changed, for example
+    `sagaz.examples.business.finance.payment_processing` →
+    `sagaz.examples.banking_finance.finance.payment_processing`.
+  - **`sagaz examples list --domain`:** accepts the display name or the folder name, in
+    any case (`consumer_goods`).
+
+### Added
+- **Feature × mode matrix** (`docs/reference/feature-matrix.md`): which capability
+  orchestrated sagas (`sagaz.Saga`), the classic engine and choreography have, each cell
+  backed by a test (`scripts/check_feature_matrix.py` checks them in CI), with the gaps
+  linked to their issues (bugs in v2.4.0, parity in v2.5.0).
+- **"Your First Saga Service" guide** (#539): a saga per request, PostgreSQL persistence,
+  one run per request, failures, testing without a database, looking a run up, and a
+  map of which feature fits which need. The quickstart documents what `run()` raises.
+  The multi-tenancy, local development, filesystem snapshot and visualization guides
+  are now in the docs navigation.
+- **`from sagaz import ReplayConfig, SnapshotStrategy, create_storage_manager`** (#539),
+  as the docs used them.
+- **`sagaz saga show <id>`** (#538) prints a stored run: its status, each step's status,
+  retries and error, and its context. Use `--json` for the full record. It reads
+  `--storage-url` (or `SAGAZ_STORAGE_URL`) and `--tenant`.
+- **Adding listeners** (#538): `SagaConfig(extra_listeners=[...])` and
+  `saga.add_listener(...)` add listeners to the logging, metrics and tracing ones. A
+  class's `listeners` attribute, as before, replaces them.
+- **`PrometheusMetrics(registry=...)`** (#538): give each instance its own registry; a
+  second instance in one registry raised `Duplicated timeseries`.
+- **`from sagaz import step`** (#538): `step` is `action`'s other name, used in docstrings.
+- **Definition checks** (#536):
+  - **When the saga is created:** a `@compensate` naming no step, two steps with one name
+    and two compensations for one step raise `SagaDefinitionError` (also a
+    `ValueError`). A `@compensate` of an unknown step used to be ignored silently.
+  - **Before the saga is stored or any step runs:** a `depends_on` naming no step, and a
+    cycle with its path. They used to raise "Circular dependency detected" for both.
+- **Plain functions as steps** (#536): steps and compensations can be `def` as well as
+  `async def`; a sync step used to fail with `TypeError: object dict can't be used in
+  'await' expression`.
+- **Context check** (#536): `run()` refuses a context that is not a mapping, with a
+  clear `TypeError`.
+- **`SagaAlreadyExistsError`, `SagaPersistenceError`**, **`SagaStorage.create_saga_state`**
+  and **`SagaConfig.tolerate_persistence_errors`** (#534, #535).
+- **`sagaz.__version__`** (#532).
+- **Consumer Goods examples**:
+  - product launch (shipping to retailers is the pivot);
+  - product recall (filing with the regulator is the pivot; it taints the production halt
+    and the quarantine);
+  - retail replenishment with EDI 855/856/810 (the truck's dispatch is the pivot);
+  - trade promotion (the in-store activation is the pivot).
+  - subscription box (the carrier pickup is the pivot);
+  - returns processing (the refund is the pivot);
+  - co-packer order, gated by a first-article sample (starting the run is the pivot);
+  - packaging switch, with label validation (the line cut-over is the pivot).
+
+### Fixed
+- **`sagaz replay`** (#556) could not replay anything: `redis` and `postgres` raised
+  `NotImplementedError`, and `memory` built an empty storage with no saga to run. `run`,
+  `time-travel` and `list-changes` now read the snapshot storage the saga wrote to
+  (`--storage redis|postgres|filesystem` with `--storage-url`; `filesystem` is the
+  default), `run` builds the saga from `--saga module:attribute`, `memory` is refused
+  with an explanation, and failures exit non-zero (they exited 0).
+- **`sagaz event-log --layout unified` on a choreographed transaction** (#557) printed
+  `pending` and an `UnrecognizedEvent`; it now shows the transaction's events, with the
+  participant of each, and its status.
+- **Compensation retries in `sagaz.Saga`** (#550): `@compensate(max_retries=...)` was
+  ignored, so a failing compensation ran once. It now runs `max_retries + 1` times (default
+  3 retries), each attempt under its timeout, with the steps' backoff.
+  `add_step(compensation_max_retries=...)` sets it for steps added imperatively.
+  **Behavior change:** a failing compensation is retried before the saga ends `FAILED`.
+- **Tracing status** (#551): a saga whose compensation failed was traced
+  `saga.status=rolled_back`, and the failed compensation's span carried the saga's error.
+  `on_saga_failed` listeners now receive the `SagaFailedError` (status, failed step, cause),
+  and the new `SagaListener.on_compensation_failed` hook closes the compensation's span
+  with its own error.
+- **`SagaConfig.with_storage()` / `with_broker()`** (#552) dropped fields added since they
+  were written (`extra_listeners`, `tolerate_persistence_errors`, `use_step_statechart`);
+  they now copy every field.
+- **Sync choreography handlers** (#553): a plain `def` `@on_event` handler ran its side
+  effect, then raised `TypeError` and triggered compensation. Sync handlers and
+  compensations now work.
+- **Versioned sagas** (#554): `SagaVersionedMixin.run()` dropped `tenant_context` and
+  `allow_rerun`; it now passes every option to `Saga.run()`.
+- **`on_exit` step hook** (#555) was accepted but never called; it now runs after the step,
+  whether it succeeded or failed.
+- **Pivots in the classic engine** (#549): `sagaz.core.saga.Saga.add_step(pivot=True)` was
+  stored and ignored, so a failure after the pivot compensated its ancestors. A completed
+  pivot and its ancestors (the dependency graph's in DAG mode, every earlier step
+  otherwise) are no longer compensated; the ancestors are marked `tainted`.
+- **The classic engine's DAG mode** (#559) ran steps with no retries, no timeout and no sync
+  functions. DAG steps now retry with backoff, time out and may be `def`, like sequential
+  steps. **Behavior change:** a failing DAG step is retried (`max_retries`, default 3).
+- **Dry runs** (#558) planned the classic engine's DAG as one layer (its
+  `step_dependencies` were not read), and planned `sagaz.Saga` steps without `depends_on`
+  as sequential, though they run in parallel. They now follow each engine's order.
+- **Documentation that runs** (#539): 67 of the imports in the README and the usage docs
+  failed. Some modules had moved (`sagaz.outbox` is now `sagaz.core.outbox`;
+  `sagaz.storage`, `sagaz.listeners` and `sagaz.monitoring` moved under `sagaz.core` and
+  `sagaz.observability`), and some documented APIs never existed (the dead-letter
+  guide's `RetryPolicy`, `DLQProcessor` and `KafkaOutboxBroker`). They now import, and
+  the dead-letter guide describes the outbox's real retries and DLQ.
+  `scripts/check_doc_imports.py` runs every documented `sagaz` import in CI. The
+  README's links are absolute, so they work on PyPI.
+- **Timeout logs** (#538): a step timeout reached hooks and listeners as asyncio's
+  message-less `TimeoutError`, so logs read `[STEP] Failed: s.wait - `. They now get the
+  `SagaTimeoutError`, whose message says what timed out.
+- **A saga id runs once** (#535): running an existing `saga_id` again ran every step again,
+  so a retried request charged twice. The saga is now created with an atomic insert
+  (`SagaStorage.create_saga_state`, atomic on the memory, SQLite, PostgreSQL and Redis
+  backends). An existing id raises `SagaAlreadyExistsError` before any step runs,
+  including under concurrent runs.
+  - **Behavior change:** to run an id again on purpose (an event-sourced stream or
+    unified-log transaction continues), pass `run(..., allow_rerun=True)`.
+- **Saga durability** (#534):
+  - **Progress:** the state is saved after each level of steps, not only at start and
+    end, so a crash leaves a record of what ran.
+  - **Failures to save:** these were only logged, so a saga ran its side effects and
+    reported success. They now raise `SagaPersistenceError`, and a saga that cannot
+    save its progress stops and compensates.
+    `SagaConfig(tolerate_persistence_errors=True)` restores logging. On a failed run,
+    the step's exception is still the one raised, with the failed save added as a note.
+  - **Outbox:** an outbox storage derived from `SagaConfig(storage=..., broker=...)`
+    was never initialized, so every event was dropped. `OutboxSagaListener` now
+    initializes it before the first insert, and `PostgreSQLOutboxStorage.initialize()` is
+    idempotent.
+- **Packaging** (#532): the 2.3.0 wheel and sdist were about 56 MiB, because jars that
+  git ignores, downloaded for the local lakehouse, were packaged. Untracked files are now
+  excluded, and `scripts/check_dist.py`, run by `make build` and the release workflow,
+  fails a build that contains any untracked file or an artifact over 10 MiB. The wheel is
+  about 1 MB again.
+- **Logging** (#532): `import sagaz` no longer calls `logging.basicConfig` on the root
+  logger. Only the standalone outbox worker process configures logging.
+- **Declarative steps retry** (#533): `@action(max_retries=...)` and
+  `add_step(max_retries=...)` were ignored for forward steps, so a failing step ran once.
+  A step now runs `max_retries + 1` times at most:
+  - each attempt runs under the step's timeout, so a timed-out attempt is retried;
+  - attempts are separated by exponential backoff (`Saga.retry_backoff_base`, 0.01 s,
+    doubling), as in the imperative engine;
+  - hooks, listeners and the failure event fire once, for the final failure;
+  - the stored `retry_count` is the last attempt;
+  - cancellation is never retried.
+  - **Behavior change:** a failing step with no `max_retries` set is now attempted 4 times
+    (the documented default of 3 retries). Set `max_retries=0` to fail at once.
+- **`SagaConfig.default_timeout` and `default_max_retries`** (#533) now apply to
+  declarative steps that set no `timeout_seconds` or `max_retries`. Before, they were
+  documented but had no effect.
+- **Example pivots** (#529): 12 examples described a pivot step but did not set
+  `pivot=True`, so a failure compensated every step: loan origination, wire transfer,
+  insurance claim, in-game purchase, tournament match, content publishing, prescription,
+  3D printing, course enrollment, smart meter, regulatory filing and visa application. A
+  test now checks that every pivot an example declares is a pivot step.
+
 ## [2.3.0] - 2026-11-20
 
 Maintenance, CDC and ecosystem, plus StateChart phases 2 and 3 (ADR-040).

@@ -9,6 +9,8 @@ from typing import Any
 
 import pytest
 
+from sagaz.core.exceptions import SagaFailedError
+
 # We'll import from sagaz.decorators once implemented
 # from sagaz.core.decorators import Saga, step, compensate, StepHook
 
@@ -83,7 +85,7 @@ class TestStepHooksBasic:
 
         saga = TestSaga()
 
-        with pytest.raises(ValueError):
+        with pytest.raises(SagaFailedError):
             await saga.run({})
 
         assert len(failure_events) == 1
@@ -116,7 +118,7 @@ class TestStepHooksBasic:
 
         saga = TestSaga()
 
-        with pytest.raises(ValueError):
+        with pytest.raises(SagaFailedError):
             await saga.run({})
 
         assert len(compensate_events) == 1
@@ -184,7 +186,7 @@ class TestStepHooksWithOutbox:
 
         saga = OrderSaga()
 
-        with pytest.raises(ValueError):
+        with pytest.raises(SagaFailedError):
             await saga.run({"saga_id": "saga-002"})
 
         events = await storage.get_events_by_saga("saga-002")
@@ -237,7 +239,13 @@ class TestStepHooksMultiple:
             events.append(f"failure:{step_name}")
 
         class TestSaga(Saga):
-            @step("my_step", on_enter=on_enter, on_success=on_success, on_failure=on_failure)
+            @step(
+                "my_step",
+                on_enter=on_enter,
+                on_success=on_success,
+                on_failure=on_failure,
+                max_retries=0,
+            )
             async def my_step(self, ctx):
                 events.append("execute:my_step")
                 msg = "Boom!"
@@ -245,7 +253,7 @@ class TestStepHooksMultiple:
 
         saga = TestSaga()
 
-        with pytest.raises(RuntimeError):
+        with pytest.raises(SagaFailedError):
             await saga.run({})
 
         assert events == [

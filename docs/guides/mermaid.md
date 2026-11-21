@@ -134,7 +134,7 @@ highlight_trail = {
 Instead of manually building `highlight_trail`, fetch it from storage:
 
 ```python
-from sagaz.storage import PostgreSQLSagaStorage
+from sagaz.core.storage import PostgreSQLSagaStorage
 
 storage = PostgreSQLSagaStorage("postgresql://localhost/sagaz")
 

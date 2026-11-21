@@ -3,7 +3,7 @@
 import asyncio
 import logging
 from abc import ABC
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
@@ -116,6 +116,10 @@ class Saga(
         idempotency_key: str | None = None,
         dependencies: set[str] | None = None,
         pivot: bool = False,
+        *,
+        depends_on: Iterable[str] | None = None,
+        timeout_seconds: float | None = None,
+        compensation_timeout_seconds: float | None = None,
     ) -> None:
         """
         Add a step to the saga
@@ -135,7 +139,19 @@ class Saga(
                    Once a pivot step completes, its ancestors become tainted
                    and cannot be rolled back. Use for irreversible actions like
                    payment charges, external API calls with side effects, etc.
+            depends_on: ``sagaz.Saga``'s name for ``dependencies`` (#537).
+            timeout_seconds: ``sagaz.Saga``'s name for ``timeout``.
+            compensation_timeout_seconds: ``sagaz.Saga``'s name for ``compensation_timeout``.
         """
+        dependencies = _alias("dependencies", dependencies, "depends_on", depends_on)
+        timeout = _alias("timeout", timeout, "timeout_seconds", timeout_seconds, default=30.0)
+        compensation_timeout = _alias(
+            "compensation_timeout",
+            compensation_timeout,
+            "compensation_timeout_seconds",
+            compensation_timeout_seconds,
+            default=30.0,
+        )
         self._validate_can_add_step(name)
         step = self._create_step(
             name,
@@ -243,7 +259,7 @@ class Saga(
             await saga.add_step("step1", action_fn, compensation_fn)
             result = await saga.execute()
 
-        For declarative API with decorators, use the Saga class from sagaz.decorators:
+        For the declarative API (decorators, ``run()``), use ``sagaz.Saga``:
             from sagaz import Saga, action, compensate
 
             class MySaga(Saga):
@@ -259,8 +275,18 @@ class Saga(
         msg = (
             "Cannot use run() on imperative Saga. "
             "Use execute() instead for imperative API. "
-            "For declarative API with @action/@compensate decorators, "
-            "use the Saga class from sagaz.decorators. "
-            "See docstring for examples."
+            "sagaz.Saga (from sagaz import Saga) is the class with run(): "
+            "it takes @action/@compensate decorators or add_step(). "
+            "See the docstring for examples."
         )
         raise TypeError(msg)
+
+
+def _alias(name: str, value: Any, alias: str, alias_value: Any, default: Any = None) -> Any:
+    """``value``, or the ``sagaz.Saga`` spelling ``alias_value``; both is a ``TypeError``."""
+    if alias_value is None:
+        return value
+    if value is not None and value != default:
+        msg = f"add_step() got both {name!r} and {alias!r}; use one"
+        raise TypeError(msg)
+    return set(alias_value) if name == "dependencies" else alias_value
