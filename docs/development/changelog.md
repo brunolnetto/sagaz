@@ -113,6 +113,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `allow_rerun`; it now passes every option to `Saga.run()`.
 - **`on_exit` step hook** (#555) was accepted but never called; it now runs after the step,
   whether it succeeded or failed.
+- **Pivots in the classic engine** (#549): `sagaz.core.saga.Saga.add_step(pivot=True)` was
+  stored and ignored, so a failure after the pivot compensated its ancestors. A completed
+  pivot and its ancestors (the dependency graph's in DAG mode, every earlier step
+  otherwise) are no longer compensated; the ancestors are marked `tainted`.
+- **The classic engine's DAG mode** (#559) ran steps with no retries, no timeout and no sync
+  functions. DAG steps now retry with backoff, time out and may be `def`, like sequential
+  steps. **Behavior change:** a failing DAG step is retried (`max_retries`, default 3).
+- **Dry runs** (#558) planned the classic engine's DAG as one layer (its
+  `step_dependencies` were not read), and planned `sagaz.Saga` steps without `depends_on`
+  as sequential, though they run in parallel. They now follow each engine's order.
 - **Documentation that runs** (#539): 67 of the imports in the README and the usage docs
   failed. Some modules had moved (`sagaz.outbox` is now `sagaz.core.outbox`;
   `sagaz.storage`, `sagaz.listeners` and `sagaz.monitoring` moved under `sagaz.core` and
