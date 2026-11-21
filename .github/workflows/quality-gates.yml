@@ -156,7 +156,11 @@ jobs:
       - name: Run pip-audit for vulnerabilities
         # Gates: a dependency with a known advisory fails the build. To accept one that has
         # no fix yet, add --ignore-vuln <ID> here with a comment saying why.
-        run: uv run pip-audit --strict --progress-spinner=off
+        # The locked dependencies are audited, without the project: sagaz itself is not on
+        # PyPI at a version being prepared, and --strict fails on a package it cannot audit.
+        run: |
+          uv export --frozen --no-emit-project --group dev --format requirements-txt -o audit-requirements.txt -q
+          uv run pip-audit --strict --require-hashes --disable-pip -r audit-requirements.txt --progress-spinner=off
 
 # ─── Code Quality (CodeQL + Cyclomatic Complexity) ───────────────────────────
 
