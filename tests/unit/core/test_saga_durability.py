@@ -181,6 +181,19 @@ class TestProgressAndFailures:
         assert calls == ["reserve", "release"]  # charge never ran
         assert (await storage.load_saga_state("f"))["status"] == "rolled_back"
 
+    async def test_a_completed_saga_whose_outcome_cannot_be_saved_is_not_undone(self):
+        class FailsOnCompletion(InMemorySagaStorage):
+            async def save_saga_state(self, saga_id, name, status, *args, **kwargs):
+                if status == SagaStatus.COMPLETED:
+                    msg = "db down"
+                    raise ConnectionError(msg)
+                await super().save_saga_state(saga_id, name, status, *args, **kwargs)
+
+        calls: list[str] = []
+        with pytest.raises(SagaPersistenceError, match="completed"):
+            await order_saga(calls)(config=config(FailsOnCompletion())).run({}, saga_id="d")
+        assert calls == ["reserve", "charge"]  # nothing compensated
+
     async def test_tolerating_storage_errors_keeps_the_old_behavior(self):
         class Down(InMemorySagaStorage):
             async def create_saga_state(self, *args, **kwargs):

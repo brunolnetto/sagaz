@@ -84,13 +84,6 @@ class ExecutionEngine(
                 "on_saga_start", name, self.saga._saga_id, self.saga._context
             )
             await self._execute_all_levels()
-            await self._chart_succeeded()
-            await self._notify_listeners(
-                "on_saga_complete", name, self.saga._saga_id, self.saga._context
-            )
-            await self._record(SagaCompleted, duration_ms=self._elapsed_ms())
-            await self._persist(SagaStatus.COMPLETED)
-            return self.saga._context
         except Exception as e:
             await self._record(
                 CompensationStarted,
@@ -108,6 +101,16 @@ class ExecutionEngine(
             # FAILED when a compensation failed, as the event log records it.
             await self._persist_outcome(self._failure_status(), e)
             raise
+
+        # Every step succeeded: only a step's failure compensates. A failure to save
+        # the outcome raises SagaPersistenceError for a saga that did complete.
+        await self._chart_succeeded()
+        await self._notify_listeners(
+            "on_saga_complete", name, self.saga._saga_id, self.saga._context
+        )
+        await self._record(SagaCompleted, duration_ms=self._elapsed_ms())
+        await self._persist(SagaStatus.COMPLETED)
+        return self.saga._context
 
     def _initialize_run(self, initial_context: dict[str, Any], saga_id: str | None) -> None:
         """Initialize saga run state."""
