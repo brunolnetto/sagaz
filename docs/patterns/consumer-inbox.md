@@ -46,8 +46,8 @@ Inbox Flow (Exactly-Once):
 ### Basic Setup
 
 ```python
-from sagaz.outbox import ConsumerInbox
-from sagaz.outbox.storage import PostgreSQLOutboxStorage
+from sagaz.core.outbox import ConsumerInbox
+from sagaz.core.storage.backends.postgresql import PostgreSQLOutboxStorage
 
 # Initialize storage
 storage = PostgreSQLOutboxStorage("postgresql://localhost/db")
@@ -289,7 +289,7 @@ inbox = ConsumerInbox(storage, "order-service")
 
 ```python
 from aiokafka import AIOKafkaConsumer
-from sagaz.outbox import ConsumerInbox
+from sagaz.core.outbox import ConsumerInbox
 
 consumer = AIOKafkaConsumer(
     'orders',
@@ -322,7 +322,7 @@ async def consume_messages():
 
 ```python
 from aio_pika import connect_robust
-from sagaz.outbox import ConsumerInbox
+from sagaz.core.outbox import ConsumerInbox
 
 inbox = ConsumerInbox(storage, "order-service")
 

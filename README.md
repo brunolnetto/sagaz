@@ -3,7 +3,7 @@
 [![codecov](https://codecov.io/gh/brunolnetto/sagaz/branch/main/graph/badge.svg)](https://codecov.io/gh/brunolnetto/sagaz)
 [![Tests](https://github.com/brunolnetto/sagaz/actions/workflows/test-gates.yml/badge.svg?branch=main)](https://github.com/brunolnetto/sagaz/actions/workflows/test-gates.yml)
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/brunolnetto/sagaz/blob/main/LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/sagaz.svg)](https://pypi.org/project/sagaz/)
 
 **Enterprise-grade distributed transaction orchestration with exactly-once semantics.**
@@ -164,7 +164,7 @@ sagaz examples select --category ml
 
 `sagaz.Saga` (`from sagaz import Saga`) is the class to use. It supports two usage modes;
 you choose one approach per saga, since mixing is not allowed. A failed `run()` raises
-`SagaFailedError` (see the [quickstart](docs/quickstart.md#3-when-a-saga-fails)).
+`SagaFailedError` (see the [quickstart](https://github.com/brunolnetto/sagaz/blob/main/docs/quickstart.md#3-when-a-saga-fails)).
 
 ### Mode 1: Declarative (Decorators)
 
@@ -225,9 +225,9 @@ result = await saga.run({"order_id": "123", "amount": 99.99})
 ### Transactional Outbox + Optimistic Sending
 
 ```python
-from sagaz.outbox import OptimisticPublisher, OutboxWorker
-from sagaz.outbox.storage import PostgreSQLOutboxStorage
-from sagaz.outbox.brokers import KafkaBroker
+from sagaz.core.outbox import OptimisticPublisher, OutboxWorker
+from sagaz.core.storage.backends.postgresql import PostgreSQLOutboxStorage
+from sagaz.core.outbox import KafkaBroker
 
 # Setup
 storage = PostgreSQLOutboxStorage("postgresql://localhost/db")
@@ -248,7 +248,7 @@ await publisher.publish_after_commit(event)
 ### Consumer Inbox (Exactly-Once)
 
 ```python
-from sagaz.outbox import ConsumerInbox
+from sagaz.core.outbox import ConsumerInbox
 
 inbox = ConsumerInbox(storage, consumer_name="order-service")
 
@@ -352,7 +352,7 @@ kubectl apply -f k8s/
 - Production security (non-root, read-only fs)
 - Complete monitoring stack
 
-See [`sagaz/deployment/resources/k8s/README.md`](sagaz/deployment/resources/k8s/README.md) for the detailed deployment guide.
+See [`sagaz/deployment/resources/k8s/README.md`](https://github.com/brunolnetto/sagaz/blob/main/sagaz/deployment/resources/k8s/README.md) for the detailed deployment guide.
 
 ---
 
@@ -377,8 +377,8 @@ consumer_inbox_duplicates_total
 
 Ready-to-import dashboards:
 
-- **Sagas and outbox:** [`main-dashboard.json`](sagaz/deployment/resources/k8s/monitoring/dashboards/main-dashboard.json) and [`outbox-dashboard.json`](sagaz/deployment/resources/k8s/monitoring/dashboards/outbox-dashboard.json).
-- **Saga flows from the Iceberg history:** ["Sagaz - Saga Flows"](sagaz/deployment/resources/local/lakehouse/grafana/dashboards/sagaz-flows.json).
+- **Sagas and outbox:** [`main-dashboard.json`](https://github.com/brunolnetto/sagaz/blob/main/sagaz/deployment/resources/k8s/monitoring/dashboards/main-dashboard.json) and [`outbox-dashboard.json`](https://github.com/brunolnetto/sagaz/blob/main/sagaz/deployment/resources/k8s/monitoring/dashboards/outbox-dashboard.json).
+- **Saga flows from the Iceberg history:** ["Sagaz - Saga Flows"](https://github.com/brunolnetto/sagaz/blob/main/sagaz/deployment/resources/local/lakehouse/grafana/dashboards/sagaz-flows.json).
 
 ### Grafana Alerts
 
@@ -420,7 +420,7 @@ pytest tests/integration/test_chaos_engineering.py::TestWorkerCrashRecovery -v
 - Graceful handling of 50 events under extreme load
 - Automatic recovery with exponential backoff
 
-See [ADR-017](docs/architecture/adr/adr-017-chaos-engineering.md) for the chaos engineering design.
+See [ADR-017](https://github.com/brunolnetto/sagaz/blob/main/docs/architecture/adr/adr-017-chaos-engineering.md) for the chaos engineering design.
 
 ---
 
@@ -428,20 +428,20 @@ See [ADR-017](docs/architecture/adr/adr-017-chaos-engineering.md) for the chaos 
 
 | Topic | Link |
 |-------|------|
-| **Documentation Home** | [docs/README.md](docs/README.md) |
-| **Configuration Guide** | [docs/guides/configuration.md](docs/guides/configuration.md) |
-| **DAG Pattern** | [docs/architecture/deep-dives/compensation-graph-deep-dive.md](docs/architecture/deep-dives/compensation-graph-deep-dive.md) |
-| **Optimistic Sending** | [docs/patterns/optimistic-sending.md](docs/patterns/optimistic-sending.md) |
-| **Consumer Inbox** | [docs/patterns/consumer-inbox.md](docs/patterns/consumer-inbox.md) |
-| **Unified Saga Log** | [docs/guides/unified-saga-log.md](docs/guides/unified-saga-log.md) |
-| **Event Sourcing** | [docs/guides/event-sourcing.md](docs/guides/event-sourcing.md) |
-| **Multi-Tenancy** | [docs/guides/multi-tenancy.md](docs/guides/multi-tenancy.md) |
-| **Multi-Region** | [docs/guides/multi-region.md](docs/guides/multi-region.md) |
-| **Fluss & Iceberg Analytics** | [docs/monitoring/fluss-iceberg-analytics.md](docs/monitoring/fluss-iceberg-analytics.md) |
-| **Kubernetes Deploy** | [sagaz/deployment/resources/k8s/README.md](sagaz/deployment/resources/k8s/README.md) |
-| **Observability Reference** | [docs/monitoring/OBSERVABILITY_REFERENCE.md](docs/monitoring/OBSERVABILITY_REFERENCE.md) |
-| **Architecture Decisions** | [docs/architecture/adr/README.md](docs/architecture/adr/README.md) |
-| **Changelog** | [docs/development/changelog.md](docs/development/changelog.md) |
+| **Documentation Home** | [docs/README.md](https://github.com/brunolnetto/sagaz/blob/main/docs/README.md) |
+| **Configuration Guide** | [docs/guides/configuration.md](https://github.com/brunolnetto/sagaz/blob/main/docs/guides/configuration.md) |
+| **DAG Pattern** | [docs/architecture/deep-dives/compensation-graph-deep-dive.md](https://github.com/brunolnetto/sagaz/blob/main/docs/architecture/deep-dives/compensation-graph-deep-dive.md) |
+| **Optimistic Sending** | [docs/patterns/optimistic-sending.md](https://github.com/brunolnetto/sagaz/blob/main/docs/patterns/optimistic-sending.md) |
+| **Consumer Inbox** | [docs/patterns/consumer-inbox.md](https://github.com/brunolnetto/sagaz/blob/main/docs/patterns/consumer-inbox.md) |
+| **Unified Saga Log** | [docs/guides/unified-saga-log.md](https://github.com/brunolnetto/sagaz/blob/main/docs/guides/unified-saga-log.md) |
+| **Event Sourcing** | [docs/guides/event-sourcing.md](https://github.com/brunolnetto/sagaz/blob/main/docs/guides/event-sourcing.md) |
+| **Multi-Tenancy** | [docs/guides/multi-tenancy.md](https://github.com/brunolnetto/sagaz/blob/main/docs/guides/multi-tenancy.md) |
+| **Multi-Region** | [docs/guides/multi-region.md](https://github.com/brunolnetto/sagaz/blob/main/docs/guides/multi-region.md) |
+| **Fluss & Iceberg Analytics** | [docs/monitoring/fluss-iceberg-analytics.md](https://github.com/brunolnetto/sagaz/blob/main/docs/monitoring/fluss-iceberg-analytics.md) |
+| **Kubernetes Deploy** | [sagaz/deployment/resources/k8s/README.md](https://github.com/brunolnetto/sagaz/blob/main/sagaz/deployment/resources/k8s/README.md) |
+| **Observability Reference** | [docs/monitoring/OBSERVABILITY_REFERENCE.md](https://github.com/brunolnetto/sagaz/blob/main/docs/monitoring/OBSERVABILITY_REFERENCE.md) |
+| **Architecture Decisions** | [docs/architecture/adr/README.md](https://github.com/brunolnetto/sagaz/blob/main/docs/architecture/adr/README.md) |
+| **Changelog** | [docs/development/changelog.md](https://github.com/brunolnetto/sagaz/blob/main/docs/development/changelog.md) |
 
 ---
 
@@ -494,18 +494,19 @@ uv run pytest --cov=sagaz --cov-report=html
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](https://github.com/brunolnetto/sagaz/blob/main/LICENSE) file for details.
 
 ---
 
 ## Project Status
 
-**Current Version**: 2.2.0 (November 2026)
+**Current Version**: 2.3.0 (November 2026)
 
 **Recent releases:**
+- **v2.3.0** - StateChart step charts with pivot/taint states and compensation re-entry, a CDC reader for the saga log export, a Gradio asset monitor and a schema registry for saga events.
 - **v2.2.0** - Streaming and historical analytics on the saga log. The log is exported to Apache Fluss and tiered to Apache Iceberg, with Flink SQL reports, Prometheus metrics and a Grafana dashboard.
 - **v2.1.0** - Unified saga log: one OLTP model for orchestrated and choreographed sagas, with atomic choreography publication and analytics over both coordination styles.
 - **v2.0.0** - Event sourcing and multi-region routing with data residency.
 - **v1.10.0** - Event-driven choreography with delivery guarantees.
 
-See the [changelog](docs/development/changelog.md) for every release and the [release plan](docs/planning/release-plan.md) for what comes next.
+See the [changelog](https://github.com/brunolnetto/sagaz/blob/main/docs/development/changelog.md) for every release and the [release plan](https://github.com/brunolnetto/sagaz/blob/main/docs/planning/release-plan.md) for what comes next.

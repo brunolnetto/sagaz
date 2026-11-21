@@ -75,7 +75,7 @@ All metrics require `prometheus-client` to be installed (`pip install prometheus
 Sagaz provides structured JSON logging with correlation IDs:
 
 ```python
-from sagaz.monitoring import setup_saga_logging
+from sagaz.observability.monitoring import setup_saga_logging
 
 # Configure structured logging
 logger = setup_saga_logging(
@@ -104,7 +104,7 @@ logger = setup_saga_logging(
 
 ```python
 from sagaz import Saga, action
-from sagaz.listeners import LoggingSagaListener
+from sagaz import LoggingSagaListener
 
 class OrderSaga(Saga):
     saga_name = "order"
@@ -132,7 +132,7 @@ class OrderSaga(Saga):
 ### Setup
 
 ```python
-from sagaz.monitoring import setup_tracing, is_tracing_available
+from sagaz.observability.monitoring import setup_tracing, is_tracing_available
 
 if is_tracing_available():
     tracer = setup_tracing(
@@ -145,7 +145,7 @@ if is_tracing_available():
 
 ```python
 from sagaz import Saga, action
-from sagaz.listeners import TracingSagaListener
+from sagaz import TracingSagaListener
 
 class OrderSaga(Saga):
     saga_name = "order"
@@ -227,12 +227,8 @@ Located in: `sagaz/resources/k8s/monitoring/prometheus-alerts.yaml`
 
 ```python
 from sagaz import Saga, action
-from sagaz.listeners import (
-    LoggingSagaListener,
-    MetricsSagaListener,
-    TracingSagaListener,
-)
-from sagaz.monitoring.prometheus import PrometheusMetrics, start_metrics_server
+from sagaz import LoggingSagaListener, MetricsSagaListener, TracingSagaListener
+from sagaz.observability.monitoring.prometheus import PrometheusMetrics, start_metrics_server
 
 # 1. Start Prometheus metrics server
 start_metrics_server(port=8000)

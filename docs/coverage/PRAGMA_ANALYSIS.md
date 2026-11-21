@@ -57,7 +57,7 @@ def _execute_compensation_with_retries(self, ...):
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
-    from sagaz.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
+    from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
 ```
 
 **Justification**:

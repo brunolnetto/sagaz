@@ -122,11 +122,13 @@ from sagaz.core.listeners import (
     TracingSagaListener,
     default_listeners,
 )
+from sagaz.core.replay import ReplayConfig, SnapshotStrategy
 
 # =============================================================================
 # Core Saga Classes
 # =============================================================================
 from sagaz.core.saga import SagaContext, SagaStep
+from sagaz.core.storage import create_storage_manager
 from sagaz.core.types import ParallelFailureStrategy, SagaResult, SagaStatus, SagaStepStatus
 
 # =============================================================================
@@ -200,6 +202,7 @@ __all__ = [
     # Pivot/Irreversible Steps (v1.3.0)
     # =========================================================================
     "RecoveryAction",
+    "ReplayConfig",
     # =========================================================================
     # Primary Exports (Recommended API)
     # =========================================================================
@@ -245,6 +248,7 @@ __all__ = [
     "SagaVersionedMixin",
     "SagaZones",
     "SimulationResult",
+    "SnapshotStrategy",
     "StepZone",
     "TaintPropagator",
     "TracingSagaListener",
@@ -255,6 +259,7 @@ __all__ = [
     "action",
     "compensate",
     "configure",
+    "create_storage_manager",
     "default_listeners",
     "forward_recovery",
     "get_config",

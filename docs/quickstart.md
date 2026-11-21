@@ -137,11 +137,7 @@ For metrics, logging, tracing, or outbox publishing across ALL steps:
 
 ```python
 from sagaz import Saga, action
-from sagaz.listeners import (
-    LoggingSagaListener,
-    MetricsSagaListener,
-    OutboxSagaListener,
-)
+from sagaz import LoggingSagaListener, MetricsSagaListener, OutboxSagaListener
 
 class OrderSaga(Saga):
     saga_name = "order-processing"
@@ -172,7 +168,7 @@ class OrderSaga(Saga):
 ### Custom Listeners
 
 ```python
-from sagaz.listeners import SagaListener
+from sagaz import SagaListener
 
 class SlackNotificationListener(SagaListener):
     async def on_saga_failed(self, saga_name, saga_id, ctx, error):
@@ -193,8 +189,8 @@ Configure storage, broker, and observability in one place:
 
 ```python
 from sagaz import SagaConfig, Saga, configure, action
-from sagaz.storage import PostgreSQLSagaStorage
-from sagaz.outbox.brokers import KafkaBroker
+from sagaz.core.storage import PostgreSQLSagaStorage
+from sagaz.core.outbox import KafkaBroker
 
 # 1. Create unified configuration
 config = SagaConfig(
@@ -267,9 +263,9 @@ CREATE TABLE saga_outbox (
 ### 2. Configure Storage & Broker
 
 ```python
-from sagaz.outbox import OutboxWorker
-from sagaz.outbox.storage.postgresql import PostgreSQLOutboxStorage
-from sagaz.outbox.brokers.rabbitmq import RabbitMQBroker
+from sagaz.core.outbox import OutboxWorker
+from sagaz.core.storage.backends.postgresql import PostgreSQLOutboxStorage
+from sagaz.core.outbox import RabbitMQBroker
 
 # Storage
 storage = PostgreSQLOutboxStorage(
@@ -285,7 +281,7 @@ broker = RabbitMQBroker(
 ### 3. Run Worker
 
 ```python
-from sagaz.outbox import OutboxWorker, OutboxConfig
+from sagaz.core.outbox import OutboxWorker, OutboxConfig
 
 config = OutboxConfig(
     batch_size=100,
