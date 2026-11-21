@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-11-21
+
+Developer experience, from a usability review by a backend engineer's perspective and a
+feature × saga mode audit.
+
+- **Promises kept:** declarative steps retry; `SagaConfig` step defaults apply; a saga id
+  runs once; progress is saved after each level; a failure to save is no longer silent;
+  compensations retry.
+- **One failure contract (breaking):** a failed `run()` raises `SagaFailedError`, with the
+  step's exception as its cause. Definition mistakes are reported before anything runs.
+- **Hygiene:** a 1 MB package again (2.3.0 shipped a 60 MB jar); `import sagaz` leaves root
+  logging alone and takes about 0.6 s instead of 3 s.
+- **Docs that run:** every documented import is checked in CI; a "Your First Saga Service"
+  guide; a feature × mode matrix backed by tests.
+- **Tools:** `sagaz saga show`; `sagaz replay` reads real snapshot storage.
+- **Naming:** `storage_layout="classic"` (`"legacy"` still accepted).
+
 ### Changed
 - **`storage_layout="classic"`** (#578): the layout with a table per concern, the default,
   was named `"legacy"`, which read as abandoned. It is now `"classic"` in `SagaConfig`,
