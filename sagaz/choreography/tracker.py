@@ -126,10 +126,10 @@ class ChoreographyTracker:
     def __init__(
         self,
         bus: AbstractEventBus,
-        storage: Any | None = None,
+        storage: SagaStorage | None = None,
         completion_events: tuple[str, ...] | frozenset[str] = (),
         stall_after: timedelta | float | None = None,
-        saga_log: Any | None = None,
+        saga_log: SagaLogStore | None = None,
     ) -> None:
         self._bus = bus
         self._log = saga_log

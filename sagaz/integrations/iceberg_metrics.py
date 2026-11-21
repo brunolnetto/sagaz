@@ -26,9 +26,12 @@ import threading
 import time
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.exceptions import MissingDependencyError
+
+if TYPE_CHECKING:
+    from pyarrow import Table
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +108,7 @@ _COLUMNS = (
 _STATUSES = ("completed", "compensated", "failed", "in_flight")
 
 
-def flow_summary(log: Any) -> list[dict[str, Any]]:
+def flow_summary(log: Table) -> list[dict[str, Any]]:
     """The flow summary of *log*, an Arrow table of exported saga log rows."""
     try:
         import duckdb

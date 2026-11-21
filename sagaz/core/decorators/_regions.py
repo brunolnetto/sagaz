@@ -62,7 +62,7 @@ class _RegionRoutingMixin:
         return await self._run_step(step, COMPENSATION)
 
 
-async def _call(fn: Any, context: Any) -> Any:
+async def _call(fn: Any, context: object) -> Any:
     """Call a step or compensation; a plain (sync) function works too (#536)."""
     result = fn(context)
     if inspect.isawaitable(result):

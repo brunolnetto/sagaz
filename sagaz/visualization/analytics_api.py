@@ -52,7 +52,7 @@ async def analytics_storage_lifespan(app: FastAPI, url: str | None) -> AsyncIter
         await manager.close()
 
 
-async def build_report(storage: Any, report: str) -> dict[str, Any]:
+async def build_report(storage: object, report: str) -> dict[str, Any]:
     """Run the pipeline over ``storage`` and return one Gold report."""
     try:
         from sagaz.analytics import SagaAnalyticsPipeline, SagaQueries

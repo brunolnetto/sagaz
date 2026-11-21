@@ -29,7 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Every function is annotated (#597).**
   - About 780 missing parameter and return types were added across the library, the examples and `scripts/`. Ruff's `ANN001` and `ANN201`–`ANN206` now reject an unannotated definition (tests excepted).
-  - The typing budget keeps two measures: bare `Any` (312) and `# type: ignore` (47, from 151 at the start of this release).
+  - The typing budget keeps two measures: bare `Any` (291, from 427) and `# type: ignore` (47, from 151 at the start of this release).
+  - mypy runs with `disallow_untyped_defs` and `disallow_incomplete_defs` on.
   - `LoggerLike` gains `log()`, which `LoggingSagaListener` calls; `NullLogger` implements it.
   - `FlaskSagaExtension.register_webhook_blueprint()` raises a clear `RuntimeError` when no app is set, where it raised `AttributeError`.
   - The `postgres_storage` demonstration read `saga.saga_id` on a declarative saga, which has no such attribute, and crashed when Docker was available. It now passes its own `saga_id` to `run()`.

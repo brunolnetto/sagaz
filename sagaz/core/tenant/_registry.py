@@ -7,12 +7,15 @@ any process (including the ``sagaz tenant`` CLI) sharing the storage sees them.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.tenant._context import DEFAULT_TENANT, TenantContext, TenantQuotas
 from sagaz.core.tenant._errors import TenantError, TenantNotFoundError
 from sagaz.core.tenant._scope import tenant_scope
 from sagaz.core.types import SagaStatus
+
+if TYPE_CHECKING:
+    from sagaz.core.storage.interfaces import SagaStorage
 
 #: Saga name under which tenant registrations are stored in saga storage.
 TENANT_RECORD_SAGA_NAME = "__sagaz_tenants__"
@@ -25,14 +28,14 @@ def _record_id(tenant_id: str) -> str:
 class TenantRegistry:
     """Known tenants, their plans, quotas and status."""
 
-    def __init__(self, storage: Any | None = None) -> None:
+    def __init__(self, storage: SagaStorage | None = None) -> None:
         self._tenants: dict[str, TenantContext] = {}
         self._storage = storage
 
     # ── persistence ──
 
     @classmethod
-    async def from_storage(cls, storage: Any) -> TenantRegistry:
+    async def from_storage(cls, storage: SagaStorage) -> TenantRegistry:
         """Create a registry bound to ``storage`` and load its tenants."""
         registry = cls(storage)
         await registry.load()

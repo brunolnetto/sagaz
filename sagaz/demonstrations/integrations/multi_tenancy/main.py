@@ -28,7 +28,7 @@ import json
 import os
 from collections import Counter
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz import Saga, action, compensate
 from sagaz.core.config import SagaConfig
@@ -43,6 +43,9 @@ from sagaz.core.tenant import (
     system_scope,
     tenant_scope,
 )
+
+if TYPE_CHECKING:
+    from sagaz.core.storage.interfaces import SagaStorage
 
 try:  # encryption needs the optional ``cryptography`` package (sagaz[encryption])
     from sagaz.core.tenant.encryption import EncryptedSagaStorage, EnvKeyProvider, is_encrypted
@@ -140,14 +143,14 @@ async def execute(deployment: Deployment) -> None:
     await asyncio.gather(*(_order(deployment, "globex", f"bulk-{i}", hold=0.02) for i in range(3)))
 
 
-async def _visible(storage: Any, tenant: str | None) -> Any:
+async def _visible(storage: SagaStorage, tenant: str | None) -> Any:
     if tenant is None:
         return await storage.load_saga_state(ORDER_ID)
     with tenant_scope(tenant):
         return await storage.load_saga_state(ORDER_ID)
 
 
-async def per_tenant_counts(storage: Any) -> dict[str, Counter[str]]:
+async def per_tenant_counts(storage: SagaStorage) -> dict[str, Counter[str]]:
     """Sagas per tenant and status, from one system-scope listing."""
     counts: dict[str, Counter[str]] = {}
     with system_scope():
@@ -156,7 +159,7 @@ async def per_tenant_counts(storage: Any) -> dict[str, Counter[str]]:
     return counts
 
 
-async def _visibility_problems(storage: Any) -> list[str]:
+async def _visibility_problems(storage: SagaStorage) -> list[str]:
     problems: list[str] = []
     acme = await _visible(storage, "acme")
     globex = await _visible(storage, "globex")

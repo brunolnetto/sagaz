@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import importlib
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.types import SagaStatus
 from sagaz.versioning.exceptions import (
@@ -20,6 +20,9 @@ from sagaz.versioning.exceptions import (
 )
 from sagaz.versioning.saga_version import SagaVersion
 from sagaz.versioning.version import Version
+
+if TYPE_CHECKING:
+    from sagaz.core.storage.interfaces import SagaStorage
 
 #: Saga name under which version registrations are stored in saga storage.
 VERSION_RECORD_SAGA_NAME = "__sagaz_versions__"
@@ -80,7 +83,7 @@ class SagaVersionRegistry:
     restore them with :meth:`load` (or :meth:`from_storage`).
     """
 
-    def __init__(self, storage: Any | None = None) -> None:
+    def __init__(self, storage: SagaStorage | None = None) -> None:
         # { saga_name: { Version: SagaVersion } }
         self._store: dict[str, dict[Version, SagaVersion]] = {}
         self._storage = storage
@@ -88,7 +91,7 @@ class SagaVersionRegistry:
     # ── persistence ──
 
     @classmethod
-    async def from_storage(cls, storage: Any) -> SagaVersionRegistry:
+    async def from_storage(cls, storage: SagaStorage) -> SagaVersionRegistry:
         """Create a registry bound to ``storage`` and load its registrations."""
         registry = cls(storage)
         await registry.load()
