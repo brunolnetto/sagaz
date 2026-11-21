@@ -120,7 +120,7 @@ class ChaosMonkey:
         self,
         step_name: str,
         action: Callable[..., Any],
-        ctx: Any,
+        ctx: object,
     ) -> Any:
         """
         Intercept a saga step and potentially inject a fault.
@@ -212,7 +212,7 @@ class ChaosDisabled:
         self,
         step_name: str,
         action: Callable[..., Any],
-        ctx: Any,
+        ctx: object,
     ) -> Any:
         """Execute action directly, without any fault injection."""
         return await action(ctx)

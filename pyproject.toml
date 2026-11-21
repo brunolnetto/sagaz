@@ -369,8 +369,9 @@ line-ending = "auto"
 python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
+# Every definition is annotated (#597): a new one without types is an error.
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
 check_untyped_defs = true
 no_implicit_optional = true
 warn_redundant_casts = true
@@ -398,7 +399,7 @@ exclude = [
 # when a count differs: above, debt was added; below, lower the number here so the gain
 # is kept. ANN401 is the one annotation rule not enabled yet (#595).
 [tool.sagaz.typing-budget]
-ANN401 = 312        # a bare Any as a whole annotation
+ANN401 = 291        # a bare Any as a whole annotation
 "type-ignore" = 47  # "# type: ignore" comments
 
 # ============================================================================
