@@ -93,7 +93,7 @@ class PackagingSwitchSaga(Saga):
 
 
 async def main() -> None:
-    change = {
+    change: dict[str, Any] = {
         "sku": "SKU-CEREAL-500",
         "old_supplier": "BOXWORKS",
         "new_supplier": "GREENPACK",

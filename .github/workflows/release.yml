@@ -181,6 +181,8 @@ jobs:
       - name: Check package
         run: |
           twine check dist/*
+          # Only git-tracked files, and every artifact under the size limit.
+          python scripts/check_dist.py dist
           echo "Built packages:"
           ls -la dist/
 

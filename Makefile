@@ -287,6 +287,7 @@ build: ## Build distribution packages
 	@$(MAKE) clean
 	@echo "$(GREEN)Building distribution packages...$(RESET)"
 	$(PYTHON) -m build
+	$(PYTHON) scripts/check_dist.py dist
 	@echo "$(GREEN)✓ Build complete$(RESET)"
 
 benchmark: ## Run performance benchmarks

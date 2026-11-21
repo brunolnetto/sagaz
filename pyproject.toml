@@ -203,6 +203,15 @@ sagaz = [
     "visualization/static/*",
 ]
 
+# Downloaded or generated files that git ignores must never ship (the 2.3.0 wheel
+# carried a 60 MB Iceberg jar from the local lakehouse). scripts/check_dist.py
+# fails the build if any untracked file reaches the wheel or the sdist.
+[tool.setuptools.exclude-package-data]
+sagaz = [
+    "deployment/resources/local/lakehouse/lib/*",
+    "**/*.jar",
+]
+
 # ============================================================================
 # Tool Configurations
 # ============================================================================

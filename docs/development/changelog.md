@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Import time** (#532): `import sagaz` loads the optional drivers (aioboto3, asyncpg,
+  redis, aiokafka, aio-pika) and the CLI only when they are used. Import time drops from
+  about 3 s to about 0.6 s, and the number of modules from 1234 to 455.
 - **Examples grouped by industry**: `sagaz/examples/` follows the industry domains of the
   Apache Airflow user survey: Banking & Financial Services, Retail & eCommerce, Manufacturing
   & Automotive, Healthcare & Life Sciences, Public Sector & Education, Communications, Media
@@ -22,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     any case (`consumer_goods`).
 
 ### Added
+- **`sagaz.__version__`** (#532).
 - **Consumer Goods examples**:
   - product launch (shipping to retailers is the pivot);
   - product recall (filing with the regulator is the pivot; it taints the production halt
@@ -34,6 +38,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - packaging switch, with label validation (the line cut-over is the pivot).
 
 ### Fixed
+- **Packaging** (#532): the 2.3.0 wheel and sdist were about 56 MiB, because jars that
+  git ignores, downloaded for the local lakehouse, were packaged. Untracked files are now
+  excluded, and `scripts/check_dist.py`, run by `make build` and the release workflow,
+  fails a build that contains any untracked file or an artifact over 10 MiB. The wheel is
+  about 1 MB again.
+- **Logging** (#532): `import sagaz` no longer calls `logging.basicConfig` on the root
+  logger. Only the standalone outbox worker process configures logging.
 - **Example pivots** (#529): 12 examples described a pivot step but did not set
   `pivot=True`, so a failure compensated every step: loan origination, wire transfer,
   insurance claim, in-game purchase, tournament match, content publishing, prescription,

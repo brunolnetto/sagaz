@@ -242,6 +242,7 @@ __all__ = [
     "ValidationResult",
     "Version",
     "VersionAlreadyRegisteredError",
+    "__version__",
     "action",
     "compensate",
     "configure",
@@ -251,5 +252,23 @@ __all__ = [
 ]
 
 
-# Re-export cli_examples for backward compatibility
-from sagaz.cli import examples as cli_examples
+def _installed_version() -> str:
+    from importlib.metadata import PackageNotFoundError, version
+
+    try:
+        return version("sagaz")
+    except PackageNotFoundError:  # a source tree without installed metadata
+        return "0+unknown"
+
+
+__version__ = _installed_version()
+
+
+def __getattr__(name: str) -> object:
+    """Names resolved on first access, so ``import sagaz`` stays light."""
+    if name == "cli_examples":  # backward compatibility; the CLI pulls in rich and click
+        from sagaz.cli import examples
+
+        return examples
+    msg = f"module {__name__!r} has no attribute {name!r}"
+    raise AttributeError(msg)
