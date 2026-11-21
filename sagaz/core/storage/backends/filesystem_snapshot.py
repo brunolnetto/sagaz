@@ -75,7 +75,7 @@ class FilesystemSnapshotStorage(
         base_path: str = "./saga-snapshots",
         enable_compression: bool = False,
         pretty_json: bool = True,
-    ):
+    ) -> None:
         """
         Initialize filesystem snapshot storage.
 
@@ -320,10 +320,10 @@ class FilesystemSnapshotStorage(
     async def close(self) -> None:
         """Close storage (no-op for filesystem)"""
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "FilesystemSnapshotStorage":
         """Async context manager entry"""
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
         """Async context manager exit"""
         await self.close()

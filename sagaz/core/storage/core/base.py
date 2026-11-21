@@ -38,7 +38,7 @@ class BaseStorage(HealthCheckable, ABC):
         self,
         connection_manager: ConnectionManager | None = None,
         logger: logging.Logger | None = None,
-    ):
+    ) -> None:
         """
         Initialize base storage.
 
@@ -100,7 +100,7 @@ class BaseStorage(HealthCheckable, ABC):
         """Enter async context."""
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+    async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
         """Exit async context, closing the storage."""
         await self.close()
 

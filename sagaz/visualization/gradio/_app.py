@@ -93,11 +93,15 @@ def build_app(source: AssetSource, *, title: str = "Sagaz assets") -> Any:
     """The monitor as ``gr.Blocks`` (call ``.launch()`` on it, or mount it)."""
     import gradio as gr
 
-    async def refresh(coordination: str, flow: str, status: str, tenant: str):
+    async def refresh(
+        coordination: str, flow: str, status: str, tenant: str
+    ) -> tuple[list[list[Any]], str]:
         rows = await source.rows(coordination, flow, status, tenant)
         return _table(rows, data.TRANSACTION_COLUMNS), f"{len(rows)} transaction(s)"
 
-    async def select(table: Any, event: Any):
+    async def select(
+        table: Any, event: Any
+    ) -> tuple[str, str, list[list[Any]], list[list[Any]], dict[str, Any]]:
         values = table.values.tolist() if hasattr(table, "values") else table
         row = values[event.index[0]] if event.index is not None else None
         if not row:

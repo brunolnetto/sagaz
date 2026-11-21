@@ -9,7 +9,7 @@ Provides:
 """
 
 import threading
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.listeners import SagaListener
 from sagaz.core.logger import get_logger
@@ -17,6 +17,9 @@ from sagaz.integrations._base import (
     SagaContextManager,
     generate_correlation_id,
 )
+
+if TYPE_CHECKING:
+    from flask import Flask, Response
 
 logger = get_logger(__name__)
 
@@ -92,12 +95,12 @@ class SagaFlask:
         saga_flask.register_webhook_blueprint("/webhooks")
     """
 
-    def __init__(self, app=None):
+    def __init__(self, app: "Flask | None" = None) -> None:
         self.app = app
         if app is not None:
             self.init_app(app)
 
-    def init_app(self, app):
+    def init_app(self, app: "Flask") -> None:
         """Initialize the extension with a Flask app."""
         from sagaz.core.config import get_config
 
@@ -110,7 +113,7 @@ class SagaFlask:
         logger.info("Sagaz Flask initialized with webhook status tracking")
 
         @app.before_request
-        def before_request():
+        def before_request() -> None:
             """Set up saga context for each request."""
             from flask import g, request
 
@@ -122,7 +125,7 @@ class SagaFlask:
             g.correlation_id = correlation_id
             SagaContextManager.set("correlation_id", correlation_id)
 
-    def register_webhook_blueprint(self, url_prefix: str = "/webhooks"):
+    def register_webhook_blueprint(self, url_prefix: str = "/webhooks") -> None:
         """
         Register a webhook blueprint for event handling (fire-and-forget).
 
@@ -143,7 +146,7 @@ class SagaFlask:
         bp = Blueprint("sagaz_webhooks", __name__, url_prefix=url_prefix)
 
         @bp.route("/<source>", methods=["POST"])
-        def webhook_handler(source: str):
+        def webhook_handler(source: str) -> "tuple[Response, int]":
             """
             Handle incoming webhook events (fire-and-forget).
 
@@ -206,7 +209,7 @@ class SagaFlask:
             }
 
             # Fire event in background thread (fire-and-forget)
-            def process_in_thread():
+            def process_in_thread() -> None:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 try:
@@ -281,7 +284,9 @@ class SagaFlask:
             ), 202  # Accepted
 
         @bp.route("/<source>/status/<correlation_id>", methods=["GET"])
-        def webhook_status_handler(source: str, correlation_id: str):
+        def webhook_status_handler(
+            source: str, correlation_id: str
+        ) -> "Response | tuple[Response, int]":
             """
             Check status of a webhook event.
 
@@ -361,4 +366,7 @@ class SagaFlask:
 
             return jsonify(response_data)
 
+        if self.app is None:
+            msg = "SagaFlask has no app: pass one to SagaFlask(app) or call init_app(app) first"
+            raise RuntimeError(msg)
         self.app.register_blueprint(bp)

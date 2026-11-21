@@ -103,7 +103,7 @@ class PowerGridSwitchingSaga(Saga):
         return {"scada_updated": True}
 
 
-async def main():
+async def main() -> None:
     saga = PowerGridSwitchingSaga()
     await saga.run(
         {

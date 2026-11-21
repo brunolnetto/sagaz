@@ -18,6 +18,8 @@ if TYPE_CHECKING:
     from rich.console import Console as RichConsole
     from rich.table import Table as RichTable
 
+    from sagaz.core.storage.interfaces import OutboxStorage
+
 console: RichConsole | None
 Table: type[RichTable] | None
 
@@ -51,7 +53,7 @@ def _parse_duration(value: str) -> timedelta:
     raise click.BadParameter(msg)
 
 
-def _get_storage():
+def _get_storage() -> OutboxStorage:
     """Resolve outbox storage from environment, with in-memory fallback."""
     from sagaz.core.storage.backends.memory.outbox import InMemoryOutboxStorage
     from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
@@ -82,13 +84,13 @@ def _get_storage():
     raise click.ClickException(msg)
 
 
-async def _initialize_storage(storage) -> None:
+async def _initialize_storage(storage: OutboxStorage) -> None:
     initialize = getattr(storage, "initialize", None)
     if callable(initialize):
         await initialize()
 
 
-async def _close_storage(storage) -> None:
+async def _close_storage(storage: OutboxStorage) -> None:
     close = getattr(storage, "close", None)
     if callable(close):
         await close()
@@ -195,6 +197,8 @@ def dlq_replay(event_id: str | None, replay_all: bool) -> None:
                 click.echo(f"Re-queued {count} event(s).")
                 return
 
+            # Not --all, so the check above guarantees --id was given.
+            assert event_id is not None
             try:
                 requeued = await storage.requeue_dead_letter_event(event_id)
                 click.echo(f"Re-queued event {requeued.event_id} (saga {requeued.saga_id}).")

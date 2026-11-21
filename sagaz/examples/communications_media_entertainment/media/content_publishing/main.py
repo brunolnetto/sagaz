@@ -93,7 +93,7 @@ class ContentPublishingSaga(Saga):
         return {"social_posted": True, "platforms": ["twitter", "linkedin", "facebook"]}
 
 
-async def main():
+async def main() -> None:
     saga = ContentPublishingSaga()
     await saga.run(
         {

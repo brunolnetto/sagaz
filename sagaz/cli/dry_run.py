@@ -100,7 +100,7 @@ __all__ = [
 )
 @click.option("--context", "-c", type=str, default="{}", help="Context JSON (default: {})")
 @click.option("--interactive", "-i", is_flag=True, help="Interactive saga selection")
-def validate_cmd(saga: str | None, context: str, interactive: bool):
+def validate_cmd(saga: str | None, context: str, interactive: bool) -> None:
     """Validate saga configuration for project."""
     ctx = json.loads(context)
     sagas = _discover_and_select_sagas(saga, "validate", interactive)
@@ -139,7 +139,7 @@ def _discover_and_select_sagas(
         return [s for s in sagas if s["name"] == selected_name]
 
     # Default: return all sagas
-    return sagas  # type: ignore[no-any-return]
+    return sagas
 
 
 def _run_validation_for_sagas(sagas: list, ctx: dict) -> list:
@@ -157,7 +157,7 @@ def _run_validation_for_sagas(sagas: list, ctx: dict) -> list:
     return results
 
 
-def _display_validation_results(results: list):
+def _display_validation_results(results: list) -> None:
     """Display validation results."""
     if RICH_AVAILABLE and console:
         _display_project_validation_results_rich(results)
@@ -172,7 +172,7 @@ def _display_validation_results(results: list):
 @click.option("--context", "-c", type=str, default="{}", help="Context JSON (default: {})")
 @click.option("--show-parallel", "-p", is_flag=True, help="Show parallel execution groups")
 @click.option("--interactive", "-i", is_flag=True, help="Interactive saga selection")
-def simulate_cmd(saga: str | None, context: str, show_parallel: bool, interactive: bool):
+def simulate_cmd(saga: str | None, context: str, show_parallel: bool, interactive: bool) -> None:
     """Simulate saga execution and show step order."""
     ctx = json.loads(context)
     sagas = _discover_and_select_sagas(saga, "simulate", interactive)
@@ -198,7 +198,7 @@ def _run_simulation_for_sagas(sagas: list, ctx: dict) -> list:
     return results
 
 
-def _display_simulation_results(results: list, show_parallel: bool):
+def _display_simulation_results(results: list, show_parallel: bool) -> None:
     """Display simulation results."""
     if RICH_AVAILABLE and console:
         _display_project_simulation_results_rich(results, show_parallel)

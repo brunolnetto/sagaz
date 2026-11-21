@@ -36,7 +36,7 @@ else:
         Panel = None
 
 
-def _check_project_exists():
+def _check_project_exists() -> None:
     """Check if we're in a Sagaz project directory."""
     if not Path("sagaz.yaml").exists():
         click.echo("Error: Not in a Sagaz project directory.")
@@ -44,7 +44,7 @@ def _check_project_exists():
         sys.exit(1)
 
 
-def _display_setup_header():
+def _display_setup_header() -> None:
     """Display setup wizard header."""
     if console:
         console.print(
@@ -171,7 +171,7 @@ def _determine_dev_mode(oltp_storage: str, outbox_storage: str) -> bool:
     return click.confirm("  Enable in-memory mode (no external dependencies)?", default=False)
 
 
-def _display_configuration_summary(config: dict):
+def _display_configuration_summary(config: dict) -> None:
     """Display configuration summary."""
     storage_label = config["oltp_storage"]
     if config["oltp_storage"] == "postgresql" and config["with_ha"]:
@@ -202,7 +202,7 @@ def _display_configuration_summary(config: dict):
         )
 
 
-def _execute_setup(config: dict):
+def _execute_setup(config: dict) -> None:
     """Execute setup based on configuration."""
     mode = config["mode"]
 

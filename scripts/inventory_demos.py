@@ -153,7 +153,7 @@ def report_table(demos: dict[str, dict]) -> str:
     return "\n".join(lines)
 
 
-def main():
+def main() -> int:
     """Main entry point."""
     import argparse
 

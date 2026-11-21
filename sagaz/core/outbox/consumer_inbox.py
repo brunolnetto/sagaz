@@ -7,13 +7,26 @@ Ensures exactly-once processing despite at-least-once delivery.
 import logging
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
-from typing import Any, TypeVar
+from typing import Any, Protocol, TypeVar
 
 from sagaz.core.outbox._metrics import PROMETHEUS_AVAILABLE, Counter, Histogram
 
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
+
+
+class InboxStorage(Protocol):
+    """The ``consumer_inbox`` operations of a storage (``PostgreSQLOutboxStorage`` has them)."""
+
+    async def check_and_insert_inbox(
+        self, event_id: str, consumer_name: str, source_topic: str, event_type: str, payload: dict
+    ) -> bool: ...
+
+    async def update_inbox_duration(self, event_id: str, duration_ms: int) -> None: ...
+
+    async def cleanup_inbox(self, consumer_name: str, older_than_days: int) -> int: ...
+
 
 # Metrics (no-op if prometheus not installed)
 INBOX_PROCESSED = Counter(
@@ -47,7 +60,7 @@ class ConsumerInbox:
         )
     """
 
-    def __init__(self, storage, consumer_name: str):
+    def __init__(self, storage: InboxStorage, consumer_name: str) -> None:
         self.storage = storage
         self.consumer_name = consumer_name
 
@@ -107,4 +120,4 @@ class ConsumerInbox:
         )
 
         logger.info(f"Cleaned up {deleted} old inbox entries")
-        return deleted  # type: ignore[no-any-return]
+        return deleted

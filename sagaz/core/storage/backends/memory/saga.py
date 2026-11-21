@@ -6,7 +6,7 @@ Not suitable for production use as state is lost on process restart.
 """
 
 import asyncio
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
 from datetime import UTC, datetime
 from typing import Any
 
@@ -34,7 +34,7 @@ class InMemorySagaStorage(SagaStorage):
     with that id, and ``load_saga_state`` returns the first one found).
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialise an empty in-memory saga store with an async lock."""
         self._partitions: dict[str, _Partition] = {}
         self._lock = asyncio.Lock()
@@ -349,7 +349,7 @@ class InMemorySagaStorage(SagaStorage):
         """Count total sagas."""
         return self._visible_count()
 
-    async def export_all(self):
+    async def export_all(self) -> AsyncIterator[dict[str, Any]]:
         """Export all records of the current scope, each with its ``tenant_id``."""
         async with self._lock:
             records = [

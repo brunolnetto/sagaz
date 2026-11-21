@@ -117,7 +117,7 @@ class ChemicalReactorSaga(Saga):
         return {"purity_percent": 99.2, "quality_grade": "A"}
 
 
-async def main():
+async def main() -> None:
     saga = ChemicalReactorSaga()
     await saga.run(
         {

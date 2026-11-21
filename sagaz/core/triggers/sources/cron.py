@@ -101,7 +101,7 @@ class CronScheduler:
         await scheduler.stop()
     """
 
-    def __init__(self, tick_interval: int = 60):
+    def __init__(self, tick_interval: int = 60) -> None:
         """
         Initialize the scheduler.
 

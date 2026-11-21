@@ -9,7 +9,7 @@ Provides:
 - Webhook status tracking
 """
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.listeners import SagaListener
 from sagaz.core.logger import get_logger
@@ -18,6 +18,9 @@ from sagaz.integrations._base import (
     generate_correlation_id,
     get_correlation_id,
 )
+
+if TYPE_CHECKING:
+    from fastapi import APIRouter
 
 logger = get_logger(__name__)
 
@@ -84,7 +87,7 @@ def get_webhook_status(correlation_id: str) -> dict[str, Any] | None:
     return _webhook_tracking.get(correlation_id)
 
 
-async def sagaz_startup():
+async def sagaz_startup() -> None:
     """
     Sagaz startup hook. Call this in your application's lifespan.
 
@@ -107,14 +110,14 @@ async def sagaz_startup():
     logger.info("Sagaz initialized with webhook status tracking")
 
 
-async def sagaz_shutdown():
+async def sagaz_shutdown() -> None:
     """
     Sagaz shutdown hook. Call this in your application's lifespan.
     """
     logger.info("Sagaz shutdown complete")
 
 
-def create_webhook_router(url_prefix: str = "/webhooks"):
+def create_webhook_router(url_prefix: str = "/webhooks") -> "APIRouter":
     """
     Create a FastAPI router for webhook event handling.
 
@@ -149,7 +152,9 @@ def create_webhook_router(url_prefix: str = "/webhooks"):
     router = APIRouter(prefix=url_prefix, tags=["webhooks"])
 
     @router.post("/{source}")
-    async def webhook_handler(source: str, request: Request, background_tasks: BackgroundTasks):
+    async def webhook_handler(
+        source: str, request: Request, background_tasks: BackgroundTasks
+    ) -> JSONResponse:
         """
         Handle incoming webhook events (fire-and-forget).
 
@@ -218,7 +223,7 @@ def create_webhook_router(url_prefix: str = "/webhooks"):
         }
 
         # Fire event in background (fire-and-forget)
-        async def process_event():
+        async def process_event() -> None:
             try:
                 _webhook_tracking[correlation_id]["status"] = "processing"
                 saga_ids = await fire_event(source, payload)
@@ -283,7 +288,7 @@ def create_webhook_router(url_prefix: str = "/webhooks"):
         )
 
     @router.get("/{source}/status/{correlation_id}")
-    async def webhook_status_handler(source: str, correlation_id: str):
+    async def webhook_status_handler(source: str, correlation_id: str) -> JSONResponse:
         """
         Check status of a webhook event.
 

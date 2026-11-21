@@ -7,11 +7,20 @@ factories are re-exported from :mod:`sagaz.core.outbox.worker`.
 
 import os
 import sys
+from typing import TYPE_CHECKING
 
 from sagaz.core.outbox._worker_logging import logger
 
+if TYPE_CHECKING:
+    from sagaz.core.outbox.brokers.base import BaseBroker
+    from sagaz.core.outbox.brokers.kafka import KafkaBroker
+    from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker
+    from sagaz.core.outbox.brokers.redis import RedisBroker
+    from sagaz.core.storage.backends.postgresql.outbox import PostgreSQLOutboxStorage
+    from sagaz.integrations.cdc import CDCSource
 
-def get_storage():
+
+def get_storage() -> "PostgreSQLOutboxStorage":
     """Create storage backend from environment."""
     database_url = os.getenv("DATABASE_URL")
 
@@ -37,7 +46,7 @@ def _get_broker_url(broker_type: str) -> str:
     return os.getenv(specific, "") or os.getenv("BROKER_URL", "")
 
 
-def _create_kafka_broker(broker_url: str):
+def _create_kafka_broker(broker_url: str) -> "KafkaBroker":
     """Create Kafka broker instance."""
     from sagaz.core.outbox.brokers.kafka import KafkaBroker, KafkaBrokerConfig
 
@@ -45,7 +54,7 @@ def _create_kafka_broker(broker_url: str):
     return KafkaBroker(config=config)
 
 
-def _create_rabbitmq_broker(broker_url: str):
+def _create_rabbitmq_broker(broker_url: str) -> "RabbitMQBroker":
     """Create RabbitMQ broker instance."""
     from sagaz.core.outbox.brokers.rabbitmq import RabbitMQBroker, RabbitMQBrokerConfig
 
@@ -56,7 +65,7 @@ def _create_rabbitmq_broker(broker_url: str):
     return RabbitMQBroker(config=config)
 
 
-def _create_redis_broker(broker_url: str):
+def _create_redis_broker(broker_url: str) -> "RedisBroker":
     """Create Redis Streams broker instance (``REDIS_STREAM`` overrides the stream name)."""
     from sagaz.core.outbox.brokers.redis import RedisBroker, RedisBrokerConfig
 
@@ -73,7 +82,7 @@ _BROKER_FACTORIES = {
 }
 
 
-def get_broker():
+def get_broker() -> "BaseBroker":
     """Create broker from environment."""
     broker_type = os.getenv("BROKER_TYPE", "kafka").lower()
     broker_url = _get_broker_url(broker_type)
@@ -91,7 +100,7 @@ def get_broker():
     return factory(broker_url)
 
 
-def get_cdc_source():
+def get_cdc_source() -> "CDCSource | None":
     """The CDC source selected by the environment, or ``None`` for polling mode.
 
     ``SAGAZ_OUTBOX_MODE=cdc`` enables CDC (ADR-011); ``SAGAZ_CDC_SOURCE`` picks

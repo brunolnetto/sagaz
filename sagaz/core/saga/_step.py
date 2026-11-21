@@ -49,7 +49,7 @@ class SagaStep:
     tainted: bool = False
     """True if this step is locked from rollback (ancestor of completed pivot)."""
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.idempotency_key)
 
     def __eq__(self, other: object) -> bool:

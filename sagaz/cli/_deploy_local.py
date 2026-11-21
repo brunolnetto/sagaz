@@ -22,7 +22,7 @@ def _init_local(
     oltp_storage: str = "postgresql",
     outbox_storage: str = "same",
     dev_mode: bool = False,
-):
+) -> None:
     """Create local Docker Compose setup."""
     _log_local_init_start(broker, with_ha, oltp_storage, dev_mode)
 
@@ -38,7 +38,7 @@ def _init_local(
     _log_local_init_complete(with_observability, with_ha, dev_mode)
 
 
-def _log_local_init_start(broker: str, with_ha: bool, oltp_storage: str, dev_mode: bool):
+def _log_local_init_start(broker: str, with_ha: bool, oltp_storage: str, dev_mode: bool) -> None:
     """Log the start of local initialization."""
     if not console:
         return
@@ -70,7 +70,7 @@ def _init_docker_compose(
     oltp_storage: str = "postgresql",
     outbox_storage: str = "same",
     dev_mode: bool = False,
-):
+) -> None:
     """Initialize docker-compose.yaml with optional overwrite confirmation."""
     target = "docker-compose.yaml"
 
@@ -91,7 +91,7 @@ def _copy_docker_compose_files(
     oltp_storage: str = "postgresql",
     outbox_storage: str = "same",
     dev_mode: bool = False,
-):
+) -> None:
     """Copy the appropriate docker-compose files."""
     if dev_mode:
         # Create minimal in-memory docker-compose
@@ -128,7 +128,7 @@ def _get_broker_config(broker: str) -> tuple[str, int, str]:
     return configs.get(broker, configs["redis"])
 
 
-def _create_inmemory_docker_compose(broker: str):
+def _create_inmemory_docker_compose(broker: str) -> None:
     """Create a minimal docker-compose for in-memory development."""
     image, port, env_config = _get_broker_config(broker)
 
@@ -151,7 +151,7 @@ networks:
     click.echo("  CREATE docker-compose.yaml")
 
 
-def _init_monitoring(broker: str, with_ha: bool):
+def _init_monitoring(broker: str, with_ha: bool) -> None:
     """Copy monitoring configuration."""
     if with_ha:
         _copy_dir_resource("local/postgres-ha/monitoring", "monitoring")
@@ -159,7 +159,7 @@ def _init_monitoring(broker: str, with_ha: bool):
         _copy_dir_resource(f"local/{broker}/monitoring", "monitoring")
 
 
-def _log_local_init_complete(with_observability: bool, with_ha: bool, dev_mode: bool):
+def _log_local_init_complete(with_observability: bool, with_ha: bool, dev_mode: bool) -> None:
     """Log completion message for local initialization."""
     if not console:
         return

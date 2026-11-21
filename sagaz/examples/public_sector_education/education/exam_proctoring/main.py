@@ -106,7 +106,7 @@ class ExamProctoringSaga(Saga):
         return {"exam_submitted": True, "answers_recorded": 50}
 
 
-async def main():
+async def main() -> None:
     saga = ExamProctoringSaga()
     await saga.run(
         {

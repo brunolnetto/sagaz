@@ -1,11 +1,13 @@
 """Saga DAG delegation mixin - forwards DAG planning/execution to ``DAGExecutor``."""
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sagaz.core.types import SagaResult, SagaStatus
 
 if TYPE_CHECKING:
     from sagaz.core.saga._dag import DAGExecutor
+    from sagaz.core.strategies.base import ParallelExecutionStrategy
 
 
 class _SagaDAGDelegationMixin:
@@ -58,26 +60,30 @@ class _SagaDAGDelegationMixin:
         """Delegate to DAGExecutor"""
         return await self._dag_executor.execute_dag()
 
-    def _get_parallel_strategy(self):
+    def _get_parallel_strategy(self) -> "ParallelExecutionStrategy":
         """Delegate to DAGExecutor"""
         return self._dag_executor._get_parallel_strategy()
 
     async def _execute_batch(
-        self, batch_idx: int, batch: set, step_map: dict, strategy
+        self, batch_idx: int, batch: set, step_map: dict, strategy: "ParallelExecutionStrategy"
     ) -> Exception | None:
         """Delegate to DAGExecutor"""
         return await self._dag_executor._execute_batch(batch_idx, batch, step_map, strategy)
 
-    def _mark_batch_completed(self, batch: set, step_map: dict):
+    def _mark_batch_completed(self, batch: set, step_map: dict) -> None:
         """Delegate to DAGExecutor"""
         self._dag_executor._mark_batch_completed(batch, step_map)
 
-    def _mark_completed_executors(self, executors: list):
+    def _mark_completed_executors(self, executors: list) -> None:
         """Delegate to DAGExecutor"""
         self._dag_executor._mark_completed_executors(executors)
 
     def _build_dag_result(
-        self, start_time, success: bool, status: SagaStatus, error: Exception | None = None
+        self,
+        start_time: datetime,
+        success: bool,
+        status: SagaStatus,
+        error: Exception | None = None,
     ) -> SagaResult:
         """Delegate to DAGExecutor"""
         return self._dag_executor._build_dag_result(start_time, success, status, error)

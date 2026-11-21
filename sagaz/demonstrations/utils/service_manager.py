@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import importlib.util
 import logging
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any
@@ -32,7 +33,7 @@ class ServiceURLs:
 
 
 @contextmanager
-def ServiceManager(*, postgres: bool = False, redis: bool = False):
+def ServiceManager(*, postgres: bool = False, redis: bool = False) -> Iterator[ServiceURLs]:
     """
     Context manager that provisions testcontainer services on enter and tears
     them down on exit (including on exceptions).

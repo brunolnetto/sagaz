@@ -19,7 +19,7 @@ import asyncio
 import uuid
 from typing import Any
 
-from flask import Flask, jsonify, request
+from flask import Flask, Response, jsonify, request
 
 from sagaz import Saga, SagaConfig, action, compensate, configure
 from sagaz.core.storage import InMemorySagaStorage
@@ -111,12 +111,12 @@ sagaz.register_webhook_blueprint("/webhooks")
 
 
 @app.route("/health")
-def health_check():
+def health_check() -> Response:
     return jsonify({"status": "healthy"})
 
 
 @app.route("/orders/validate", methods=["POST"])
-def validate_order():
+def validate_order() -> Response | tuple[Response, int]:
     """
     Validate if an order can be processed.
 
@@ -194,7 +194,7 @@ def validate_order():
 
 
 @app.route("/orders/<order_id>/diagram")
-def get_order_diagram(order_id: str):
+def get_order_diagram(order_id: str) -> Response:
     saga = OrderSaga()
     return jsonify(
         {

@@ -45,7 +45,7 @@ class ExecutionEngine(
 ):
     """Orchestrates saga execution and compensation."""
 
-    def __init__(self, saga: "Saga"):
+    def __init__(self, saga: "Saga") -> None:
         """Initialize execution engine with saga instance.
 
         Args:

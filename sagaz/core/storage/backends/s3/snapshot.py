@@ -69,7 +69,7 @@ class S3SnapshotStorage(_S3SagaIndexMixin, _S3ReplayLogMixin, SnapshotStorage):
         enable_encryption: bool = True,  # Server-side encryption (SSE-S3)
         storage_class: str = "STANDARD",  # or "STANDARD_IA", "GLACIER", etc.
         **s3_kwargs: Any,
-    ):
+    ) -> None:
         if not AIOBOTO3_AVAILABLE:
             msg = "aioboto3"
             raise MissingDependencyError(msg, "S3 snapshot storage backend")
@@ -96,7 +96,7 @@ class S3SnapshotStorage(_S3SagaIndexMixin, _S3ReplayLogMixin, SnapshotStorage):
         )
         self._decompressor = zstd.ZstdDecompressor() if self.enable_compression else None
 
-    async def _get_s3_client(self):
+    async def _get_s3_client(self) -> Any:
         """Get S3 client, creating if necessary"""
         if self._s3_client is None:
             try:
@@ -339,11 +339,11 @@ class S3SnapshotStorage(_S3SagaIndexMixin, _S3ReplayLogMixin, SnapshotStorage):
             self._s3_client = None
             self._session = None
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "S3SnapshotStorage":
         """Context manager entry"""
         await self._get_s3_client()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
         """Context manager exit"""
         await self.close()

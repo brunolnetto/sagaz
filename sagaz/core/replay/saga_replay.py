@@ -52,7 +52,7 @@ class SagaReplay:
         snapshot_storage: SnapshotStorage,
         initiated_by: str = "system",
         saga_factory: "Callable[[str], Saga] | None" = None,
-    ):
+    ) -> None:
         self.saga_id = saga_id
         self.snapshot_storage = snapshot_storage
         self.initiated_by = initiated_by

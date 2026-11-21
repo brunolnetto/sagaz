@@ -98,7 +98,7 @@ class SagaLogger:
     Saga-aware logger with automatic context propagation
     """
 
-    def __init__(self, name: str):
+    def __init__(self, name: str) -> None:
         """Create a logger named *name* and attach the saga context filter."""
         self.logger = logging.getLogger(name)
 

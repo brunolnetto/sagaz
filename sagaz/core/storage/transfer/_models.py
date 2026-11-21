@@ -36,7 +36,7 @@ class TransferConfig:
     retry_delay_seconds: float = 1.0
     progress_callback: Callable[[int, int, int], None] | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if isinstance(self.on_error, str):
             self.on_error = TransferErrorPolicy(self.on_error)
 

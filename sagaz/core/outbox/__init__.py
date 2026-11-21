@@ -94,7 +94,7 @@ from sagaz.core.outbox.worker import OutboxWorker
 
 
 # Lazy imports for storage classes to avoid circular imports
-def __getattr__(name: str):
+def __getattr__(name: str) -> object:
     """Lazy import for storage classes to avoid circular imports."""
     if name == "InMemoryOutboxStorage":
         from sagaz.core.storage.backends.memory.outbox import InMemoryOutboxStorage

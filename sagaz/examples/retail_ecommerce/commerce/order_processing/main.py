@@ -144,7 +144,7 @@ class OrderProcessingSaga(Saga):
         return {"email_sent": True, "recipient": user_id}
 
 
-async def main():
+async def main() -> None:
     """Run the order processing saga demo."""
 
     # Create a reusable saga instance

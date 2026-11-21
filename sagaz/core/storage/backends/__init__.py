@@ -77,7 +77,7 @@ _BACKEND_IMPORTS = {
 }
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> object:
     """Lazy import of storage backends."""
     if name in _BACKEND_IMPORTS:
         module_name, class_name = _BACKEND_IMPORTS[name]

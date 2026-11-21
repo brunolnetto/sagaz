@@ -282,7 +282,7 @@ class SagaStorage(ABC):
         """Async context manager entry."""
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+    async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
         """Async context manager exit."""
 
     async def close(self) -> None:
@@ -321,7 +321,7 @@ class SagaStepState:
         executed_at: datetime | None = None,
         compensated_at: datetime | None = None,
         retry_count: int = 0,
-    ):
+    ) -> None:
         self.name = name
         self.status = status
         self.result = result

@@ -5,6 +5,7 @@ Used by storage transfer/migration tooling to move events between backends.
 Both the active and the archive table are covered.
 """
 
+from collections.abc import AsyncIterator
 from typing import Any
 
 from sagaz.core.outbox.types import OutboxEvent
@@ -36,7 +37,7 @@ class PostgreSQLOutboxTransferMixin(PostgreSQLOutboxRowMappingMixin, PostgreSQLO
             )
             return int(count)
 
-    async def export_all(self):
+    async def export_all(self) -> AsyncIterator[dict[str, Any]]:
         """Export active and archived outbox records for transfer."""
         async with scoped_connection(self._pool) as conn:
             async with conn.transaction():

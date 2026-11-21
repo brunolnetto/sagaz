@@ -307,7 +307,7 @@ class LiveStreamingSaga(Saga):
 # =============================================================================
 
 
-async def main():
+async def main() -> None:
     """Run the live streaming saga demo."""
 
     saga = LiveStreamingSaga()

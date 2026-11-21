@@ -4,7 +4,10 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from sagaz.core.storage._reserved import is_reserved_saga_name
-from sagaz.core.storage.backends.redis._saga_tenancy import _RedisSagaTenancyMixin
+from sagaz.core.storage.backends.redis._saga_tenancy import (
+    RedisIndexReader,
+    _RedisSagaTenancyMixin,
+)
 from sagaz.core.tenant import is_system_scope
 from sagaz.core.types import SagaStatus
 
@@ -82,13 +85,15 @@ class _RedisSagaMaintenanceMixin(_RedisSagaTenancyMixin):
         return deleted_count
 
     async def _cleanup_sagas_by_status(
-        self, redis_client, status: SagaStatus, older_than: datetime
+        self, redis_client: RedisIndexReader, status: SagaStatus, older_than: datetime
     ) -> int:
         """Clean up sagas with a specific status."""
         saga_ids = await self._get_saga_ids_by_status(redis_client, status)
         return await self._delete_old_sagas(saga_ids, older_than)
 
-    async def _get_saga_ids_by_status(self, redis_client, status: SagaStatus) -> list[str]:
+    async def _get_saga_ids_by_status(
+        self, redis_client: RedisIndexReader, status: SagaStatus
+    ) -> list[str]:
         """Get decoded saga IDs for a status."""
         status_index = self._index_key(f"status:{status.value}")
         saga_ids = await redis_client.smembers(status_index)

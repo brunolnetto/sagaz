@@ -5,10 +5,14 @@ Holds the in-memory webhook/saga status maps, the listener that updates them,
 and the helpers that build webhook status responses.
 """
 
-from typing import Any
+import asyncio
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.listeners import SagaListener
 from sagaz.core.logger import get_logger
+
+if TYPE_CHECKING:
+    from django.http import JsonResponse
 
 # Log under the public integration module name, as before the split.
 logger = get_logger("sagaz.integrations.django")
@@ -45,7 +49,7 @@ class _WebhookStatusListener(SagaListener):
             _webhook_tracking[correlation_id]["saga_errors"][saga_id] = str(error)
 
 
-def _ensure_listener_registered():
+def _ensure_listener_registered() -> None:
     """Ensure webhook status listener is registered (called lazily on first use)."""
     from sagaz.core.config import get_config
 
@@ -75,7 +79,7 @@ def get_webhook_status(correlation_id: str) -> dict[str, Any] | None:
     return _webhook_tracking.get(correlation_id)
 
 
-def _update_saga_status(correlation_id: str, saga_id: str, status_val, state: dict):
+def _update_saga_status(correlation_id: str, saga_id: str, status_val: object, state: dict) -> None:
     """Update webhook tracking with saga status."""
     if "saga_statuses" not in _webhook_tracking[correlation_id]:
         _webhook_tracking[correlation_id]["saga_statuses"] = {}
@@ -92,7 +96,9 @@ def _update_saga_status(correlation_id: str, saga_id: str, status_val, state: di
             _webhook_tracking[correlation_id]["saga_errors"][saga_id] = state["error"]
 
 
-def _check_existing_saga_status(loop, saga_ids: list[str], correlation_id: str):
+def _check_existing_saga_status(
+    loop: asyncio.AbstractEventLoop, saga_ids: list[str], correlation_id: str
+) -> None:
     """Check if sagas already exist and populate their statuses."""
     from sagaz.core.config import get_config
 
@@ -112,7 +118,7 @@ def _check_existing_saga_status(loop, saga_ids: list[str], correlation_id: str):
             logger.debug(f"Failed to load existing saga status for {saga_id}", exc_info=True)
 
 
-def _webhook_status_not_found_response(correlation_id: str, source: str):
+def _webhook_status_not_found_response(correlation_id: str, source: str) -> "JsonResponse":
     """Build 404 response for webhook status not found."""
     from django.http import JsonResponse
 

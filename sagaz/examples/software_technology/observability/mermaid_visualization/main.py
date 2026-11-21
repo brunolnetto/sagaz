@@ -9,6 +9,7 @@ automatic trail highlighting.
 import asyncio
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 from sagaz import Saga, action, compensate
@@ -24,60 +25,60 @@ class OrderSaga(Saga):
     saga_name = "order_processing"
 
     @action("validate_order")
-    async def validate(self, ctx):
+    async def validate(self, ctx: dict[str, Any]) -> dict[str, Any]:
         return {"valid": True}
 
     @compensate("validate_order")
-    async def undo_validate(self, ctx):
+    async def undo_validate(self, ctx: dict[str, Any]) -> None:
         pass
 
     @action("check_inventory", depends_on=["validate_order"])
-    async def check_inventory(self, ctx):
+    async def check_inventory(self, ctx: dict[str, Any]) -> dict[str, Any]:
         return {"inventory_checked": True}
 
     @compensate("check_inventory")
-    async def release_inventory_check(self, ctx):
+    async def release_inventory_check(self, ctx: dict[str, Any]) -> None:
         pass
 
     @action("fraud_check", depends_on=["validate_order"])
-    async def fraud_check(self, ctx):
+    async def fraud_check(self, ctx: dict[str, Any]) -> dict[str, Any]:
         return {"fraud_score": 0}
 
     @compensate("fraud_check")
-    async def undo_fraud_check(self, ctx):
+    async def undo_fraud_check(self, ctx: dict[str, Any]) -> None:
         pass
 
     @action("reserve_inventory", depends_on=["check_inventory"])
-    async def reserve_inventory(self, ctx):
+    async def reserve_inventory(self, ctx: dict[str, Any]) -> dict[str, Any]:
         return {"reserved": True}
 
     @compensate("reserve_inventory")
-    async def unreserve_inventory(self, ctx):
+    async def unreserve_inventory(self, ctx: dict[str, Any]) -> None:
         pass
 
     @action("calculate_shipping", depends_on=["check_inventory"])
-    async def calculate_shipping(self, ctx):
+    async def calculate_shipping(self, ctx: dict[str, Any]) -> dict[str, Any]:
         return {"cost": 10.0}
 
     @action("process_payment", depends_on=["reserve_inventory", "fraud_check"])
-    async def process_payment(self, ctx):
+    async def process_payment(self, ctx: dict[str, Any]) -> dict[str, Any]:
         # Simulate payment failure logic could be here
         return {"paid": True}
 
     @compensate("process_payment")
-    async def refund_payment(self, ctx):
+    async def refund_payment(self, ctx: dict[str, Any]) -> None:
         pass
 
     @action("ship_order", depends_on=["process_payment", "calculate_shipping"])
-    async def ship_order(self, ctx):
+    async def ship_order(self, ctx: dict[str, Any]) -> dict[str, Any]:
         return {"shipped": True}
 
     @compensate("ship_order")
-    async def cancel_shipment(self, ctx):
+    async def cancel_shipment(self, ctx: dict[str, Any]) -> None:
         pass
 
     @action("send_confirmation", depends_on=["ship_order"])
-    async def send_confirmation(self, ctx):
+    async def send_confirmation(self, ctx: dict[str, Any]) -> dict[str, Any]:
         return {"email_sent": True}
 
 
@@ -86,7 +87,9 @@ class OrderSaga(Saga):
 # -----------------------------------------------------------------------------
 
 
-async def seed_storage_with_scenario(storage: InMemorySagaStorage, saga_id: str, scenario: str):
+async def seed_storage_with_scenario(
+    storage: InMemorySagaStorage, saga_id: str, scenario: str
+) -> None:
     """
     Manually seed the memory storage with a saga execution state.
     This simulates fetching a real execution trace from DB.
@@ -180,7 +183,7 @@ async def seed_storage_with_scenario(storage: InMemorySagaStorage, saga_id: str,
 # -----------------------------------------------------------------------------
 
 
-async def main():
+async def main() -> None:
     saga = OrderSaga()
     storage = InMemorySagaStorage()
 

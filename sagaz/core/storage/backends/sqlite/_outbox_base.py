@@ -26,7 +26,9 @@ class SQLiteOutboxMixinBase:
 
         async def _get_connection(self) -> aiosqlite.Connection: ...
 
-        async def insert(self, event: OutboxEvent, connection=None) -> OutboxEvent: ...
+        async def insert(
+            self, event: OutboxEvent, connection: object | None = None
+        ) -> OutboxEvent: ...
 
         async def get_by_id(self, event_id: str) -> OutboxEvent | None: ...
 
@@ -35,6 +37,6 @@ class SQLiteOutboxMixinBase:
             event_id: str,
             status: OutboxStatus,
             error_message: str | None = None,
-            connection=None,
+            connection: object | None = None,
             event: OutboxEvent | None = None,
         ) -> OutboxEvent: ...

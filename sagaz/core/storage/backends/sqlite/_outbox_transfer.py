@@ -6,13 +6,16 @@ Used by storage transfer/migration tooling to move events between backends.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.outbox.types import OutboxEvent
 from sagaz.core.storage.backends.sqlite._outbox_base import SQLiteOutboxMixinBase
 from sagaz.core.storage.backends.sqlite._outbox_rows import SQLiteOutboxRowMappingMixin
 from sagaz.core.storage.backends.sqlite._outbox_tenancy import TENANT_FILTER, tenant_params
 from sagaz.core.storage.interfaces.outbox import OutboxStorageError
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
 
 
 class SQLiteOutboxTransferMixin(SQLiteOutboxRowMappingMixin, SQLiteOutboxMixinBase):
@@ -28,7 +31,7 @@ class SQLiteOutboxTransferMixin(SQLiteOutboxRowMappingMixin, SQLiteOutboxMixinBa
         row = await cursor.fetchone()
         return row[0] if row else 0
 
-    async def export_all(self):
+    async def export_all(self) -> AsyncIterator[dict[str, Any]]:
         """Export all records for transfer."""
         conn = await self._get_connection()
         cursor = await conn.execute(

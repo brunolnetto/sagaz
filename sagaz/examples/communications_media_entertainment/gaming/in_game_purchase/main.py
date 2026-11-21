@@ -93,7 +93,7 @@ class InGamePurchaseSaga(Saga):
         return {"sync_complete": True}
 
 
-async def main():
+async def main() -> None:
     saga = InGamePurchaseSaga()
     await saga.run(
         {

@@ -125,7 +125,7 @@ class SIMProvisioningSaga(Saga):
         return {"welcome_sent": True}
 
 
-async def main():
+async def main() -> None:
     saga = SIMProvisioningSaga()
     await saga.run(
         {

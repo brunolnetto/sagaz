@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class SimpleWorkflowSaga(Saga):
     """Simple 3-step workflow for time-travel demonstration."""
 
-    async def build(self):
+    async def build(self) -> None:
         await self.add_step("step_1", self.step_1)
         await self.add_step("step_2", self.step_2)
         await self.add_step("step_3", self.step_3)
@@ -36,7 +36,7 @@ class SimpleWorkflowSaga(Saga):
         return {"step_3_result": "completed"}
 
 
-async def main():
+async def main() -> None:
     """Demonstrate time-travel queries."""
 
     snapshot_storage = InMemorySnapshotStorage()

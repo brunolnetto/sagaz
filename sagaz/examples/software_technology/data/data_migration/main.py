@@ -25,7 +25,7 @@ logging.basicConfig(
 )
 
 
-async def successful_migration_demo():
+async def successful_migration_demo() -> None:
     """Demonstrate successful data migration."""
 
     saga = DataMigrationSaga()
@@ -46,7 +46,7 @@ async def successful_migration_demo():
         pass
 
 
-async def failed_migration_demo():
+async def failed_migration_demo() -> None:
     """Demonstrate migration failure with automatic rollback."""
 
     saga = DataMigrationSaga()
@@ -72,7 +72,7 @@ async def failed_migration_demo():
             break
 
 
-async def main():
+async def main() -> None:
     """Run data migration demos."""
     await successful_migration_demo()
     await failed_migration_demo()

@@ -57,7 +57,7 @@ class _SagaExecutionMixin:
 
         async def _es_finish(self, outcome: str) -> None: ...
 
-    async def _execute_inner(self, start_time) -> SagaResult:
+    async def _execute_inner(self, start_time: datetime) -> SagaResult:
         """Inner execution logic."""
         # Handle empty saga
         if not self.steps:
@@ -81,7 +81,7 @@ class _SagaExecutionMixin:
             return await self._execute_dag_mode(start_time)
         return await self._execute_sequential_mode(start_time)
 
-    def _empty_saga_result(self, start_time) -> SagaResult:
+    def _empty_saga_result(self, start_time: datetime) -> SagaResult:
         """Result for saga with no steps."""
         logger.info(f"Saga {self.name} has no steps - completing immediately")
         return SagaResult(
@@ -105,7 +105,7 @@ class _SagaExecutionMixin:
             logger.error(f"Saga {self.name} failed during planning: {ve}")
             return ve
 
-    def _planning_failure_result(self, error, start_time) -> SagaResult:
+    def _planning_failure_result(self, error: Exception, start_time: datetime) -> SagaResult:
         """Result for planning failure."""
         return SagaResult(
             success=False,
@@ -117,7 +117,7 @@ class _SagaExecutionMixin:
             execution_time=(datetime.now() - start_time).total_seconds(),
         )
 
-    async def _execute_dag_mode(self, start_time) -> SagaResult:
+    async def _execute_dag_mode(self, start_time: datetime) -> SagaResult:
         """Execute in DAG/parallel mode."""
         logger.info(f"Executing saga {self.name} in DAG mode")
         result = await self._execute_dag()
@@ -144,7 +144,7 @@ class _SagaExecutionMixin:
         else:  # a compensation failed
             await machine.compensation_failed()
 
-    async def _execute_sequential_mode(self, start_time) -> SagaResult:
+    async def _execute_sequential_mode(self, start_time: datetime) -> SagaResult:
         """Execute in sequential mode."""
         logger.info(f"Executing saga {self.name} in sequential mode")
 
@@ -180,7 +180,7 @@ class _SagaExecutionMixin:
             context=self.context,
         )
 
-    async def _handle_execution_failure(self, error: Exception, start_time) -> SagaResult:
+    async def _handle_execution_failure(self, error: Exception, start_time: datetime) -> SagaResult:
         """Handle execution failure with compensation."""
         self.error = error
         logger.error(f"Saga {self.name} failed: {error}", exc_info=True)
@@ -199,7 +199,7 @@ class _SagaExecutionMixin:
 
         return await self._attempt_compensation(error, start_time)
 
-    def _no_compensation_result(self, error, start_time) -> SagaResult:
+    def _no_compensation_result(self, error: Exception, start_time: datetime) -> SagaResult:
         """Result when no compensation needed."""
         self.status = SagaStatus.ROLLED_BACK
         return SagaResult(
@@ -213,7 +213,7 @@ class _SagaExecutionMixin:
             context=self.context,
         )
 
-    async def _attempt_compensation(self, error, start_time) -> SagaResult:
+    async def _attempt_compensation(self, error: Exception, start_time: datetime) -> SagaResult:
         """Attempt to compensate and return result."""
         try:
             await self._compensate_all()

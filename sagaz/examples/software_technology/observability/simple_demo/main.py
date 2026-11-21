@@ -14,7 +14,7 @@ from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
 class ThreeStepSaga(Saga):
     """Simple saga: step1 → step2 (fails) → step3"""
 
-    async def build(self):
+    async def build(self) -> None:
         await self.add_step("step1", self.step1)
         await self.add_step("step2", self.step2)
         await self.add_step("step3", self.step3)
@@ -32,7 +32,7 @@ class ThreeStepSaga(Saga):
         return {"data": "from_step3"}
 
 
-async def main():
+async def main() -> None:
     """Run simple replay demo."""
 
     # Setup

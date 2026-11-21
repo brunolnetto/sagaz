@@ -41,7 +41,7 @@ def _ui_kwargs() -> dict[str, Any]:
 
 
 @click.group()
-def replay():
+def replay() -> None:
     """Saga replay and time-travel commands"""
 
 
@@ -72,24 +72,24 @@ def _display_replay_config(
     storage: str,
     context_override: dict,
     dry_run: bool,
-):
+) -> None:
     """Display replay configuration."""
     replay_ui.display_replay_config(
         saga_id, from_step, storage, context_override, dry_run, **_ui_kwargs()
     )
 
 
-def _display_success():
+def _display_success() -> None:
     """Display success message."""
     replay_ui.display_success(**_ui_kwargs())
 
 
-def _display_failure():
+def _display_failure() -> None:
     """Display failure message."""
     replay_ui.display_failure(**_ui_kwargs())
 
 
-def _handle_exception(e: Exception, verbose: bool):
+def _handle_exception(e: Exception, verbose: bool) -> None:
     """Handle and display exception."""
     replay_ui.handle_exception(e, verbose, **_ui_kwargs())
 
@@ -146,7 +146,7 @@ def replay_command(
     override: tuple[str, ...],
     dry_run: bool,
     verbose: bool,
-):
+) -> None:
     """
     Replay a saga from a checkpoint.
 
@@ -247,7 +247,7 @@ def time_travel_command(
     storage_url: str | None,
     key: str | None,
     format: str,  # pylint: disable=redefined-builtin
-):
+) -> None:
     """
     Query saga state at a specific point in time.
 
@@ -327,7 +327,7 @@ def list_changes_command(
     limit: int,
     storage: str,
     storage_url: str | None,
-):
+) -> None:
     """
     List all state changes for a saga.
 

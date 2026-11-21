@@ -47,7 +47,7 @@ class _SagaChartBase(StateChart):
     atomic_configuration_update = True
     catch_errors_as_events = False
 
-    def __init__(self, saga: Optional["Saga"] = None, **kwargs: Any):
+    def __init__(self, saga: Optional["Saga"] = None, **kwargs: Any) -> None:
         """
         Initialize the saga state machine.
 
@@ -228,7 +228,7 @@ class SagaStepStateMachine(StateChart):
     compensation_success = compensating.to(compensated)
     compensation_failure = compensating.to(failed)
 
-    def __init__(self, step_name: str = "", **kwargs: Any):
+    def __init__(self, step_name: str = "", **kwargs: Any) -> None:
         """
         Initialize the step state machine.
 

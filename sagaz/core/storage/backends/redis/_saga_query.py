@@ -3,7 +3,11 @@
 from typing import TYPE_CHECKING, Any
 
 from sagaz.core.storage._tenancy import TENANT_FIELD
-from sagaz.core.storage.backends.redis._saga_tenancy import _decode, _RedisSagaTenancyMixin
+from sagaz.core.storage.backends.redis._saga_tenancy import (
+    RedisIndexReader,
+    _decode,
+    _RedisSagaTenancyMixin,
+)
 from sagaz.core.tenant import DEFAULT_TENANT
 from sagaz.core.types import SagaStatus, SagaStepStatus
 
@@ -18,7 +22,7 @@ class _RedisSagaQueryMixin(_RedisSagaTenancyMixin):
         async def load_saga_state(self, saga_id: str) -> dict[str, Any] | None: ...
 
     async def _get_filtered_saga_ids(
-        self, redis_client, status: SagaStatus | None, saga_name: str | None
+        self, redis_client: RedisIndexReader, status: SagaStatus | None, saga_name: str | None
     ) -> set:
         """Get saga IDs matching filters."""
         saga_ids = await self._get_ids_by_status(redis_client, status) if status else set()
@@ -26,7 +30,7 @@ class _RedisSagaQueryMixin(_RedisSagaTenancyMixin):
         return saga_ids or await self._get_all_saga_ids(redis_client)
 
     async def _apply_name_filter(
-        self, redis_client, current_ids: set, saga_name: str | None
+        self, redis_client: RedisIndexReader, current_ids: set, saga_name: str | None
     ) -> set:
         """Apply name filter to saga IDs."""
         if not saga_name:
@@ -34,19 +38,19 @@ class _RedisSagaQueryMixin(_RedisSagaTenancyMixin):
         name_ids = await self._get_ids_by_name(redis_client, saga_name)
         return current_ids.intersection(name_ids) if current_ids else name_ids
 
-    async def _get_ids_by_status(self, redis_client, status: SagaStatus) -> set:
+    async def _get_ids_by_status(self, redis_client: RedisIndexReader, status: SagaStatus) -> set:
         """Get saga IDs by status."""
         status_index = self._index_key(f"status:{status.value}")
         status_ids = await redis_client.smembers(status_index)
         return {s.decode() if isinstance(s, bytes) else s for s in status_ids}
 
-    async def _get_ids_by_name(self, redis_client, saga_name: str) -> set:
+    async def _get_ids_by_name(self, redis_client: RedisIndexReader, saga_name: str) -> set:
         """Get saga IDs by name."""
         name_index = self._index_key(f"name:{saga_name}")
         name_ids = await redis_client.smembers(name_index)
         return {s.decode() if isinstance(s, bytes) else s for s in name_ids}
 
-    async def _get_all_saga_ids(self, redis_client) -> set:
+    async def _get_all_saga_ids(self, redis_client: RedisIndexReader) -> set:
         """Get all saga IDs of the current tenant (no filters)."""
         prefix = self._tenant_prefix()
         foreign = self._foreign_tenant_key() if prefix == self.key_prefix else None

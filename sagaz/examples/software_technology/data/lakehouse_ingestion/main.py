@@ -314,7 +314,7 @@ class LakehouseIngestionSaga(Saga):
         }
 
 
-async def successful_lakehouse_demo():
+async def successful_lakehouse_demo() -> None:
     """Demonstrate successful lakehouse ingestion."""
 
     saga = LakehouseIngestionSaga()
@@ -330,7 +330,7 @@ async def successful_lakehouse_demo():
     )
 
 
-async def failed_lakehouse_demo():
+async def failed_lakehouse_demo() -> None:
     """Demonstrate lakehouse ingestion failure with layer-by-layer rollback."""
 
     saga = LakehouseIngestionSaga()
@@ -350,7 +350,7 @@ async def failed_lakehouse_demo():
             break
 
 
-async def main():
+async def main() -> None:
     """Run lakehouse ingestion demos."""
     await successful_lakehouse_demo()
     await failed_lakehouse_demo()

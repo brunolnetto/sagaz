@@ -1,10 +1,15 @@
 """Convenience factory for common listener combinations."""
 
+from typing import TYPE_CHECKING
+
 from sagaz.core.listeners._base import SagaListener
 from sagaz.core.listeners._logging import LoggingSagaListener
 from sagaz.core.listeners._metrics import MetricsSagaListener
 from sagaz.core.listeners._outbox import OutboxSagaListener
 from sagaz.core.listeners._tracing import TracingSagaListener
+
+if TYPE_CHECKING:
+    from sagaz.core.storage.interfaces.outbox import OutboxStorage
 
 
 # Convenience function to create common listener combinations
@@ -12,7 +17,7 @@ def default_listeners(
     metrics: bool = True,
     logging_enabled: bool = True,
     tracing: bool = False,
-    outbox_storage=None,
+    outbox_storage: "OutboxStorage | None" = None,
 ) -> list[SagaListener]:
     """
     Create a list of commonly used listeners.

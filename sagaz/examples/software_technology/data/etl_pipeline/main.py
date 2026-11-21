@@ -280,7 +280,7 @@ class ETLPipelineSaga(Saga):
         await asyncio.sleep(0.05)
 
 
-async def successful_etl_demo():
+async def successful_etl_demo() -> None:
     """Demonstrate successful ETL pipeline execution."""
 
     saga = ETLPipelineSaga()
@@ -300,7 +300,7 @@ async def successful_etl_demo():
     )
 
 
-async def failed_etl_demo():
+async def failed_etl_demo() -> None:
     """Demonstrate ETL pipeline failure with automatic rollback."""
 
     saga = ETLPipelineSaga()
@@ -319,7 +319,7 @@ async def failed_etl_demo():
             break
 
 
-async def main():
+async def main() -> None:
     """Run ETL pipeline demos."""
     await successful_etl_demo()
     await failed_etl_demo()

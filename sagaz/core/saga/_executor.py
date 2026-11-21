@@ -32,7 +32,7 @@ class _StepExecutor:
         completed: Whether the step completed successfully.
     """
 
-    def __init__(self, step: "SagaStep", saga_context: "SagaContext", saga: Any = None):
+    def __init__(self, step: "SagaStep", saga_context: "SagaContext", saga: Any = None) -> None:
         """Initialize executor for a step and context.
 
         Args:

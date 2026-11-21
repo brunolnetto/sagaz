@@ -28,7 +28,7 @@ def trigger(
     rate_limit: float | None = None,
     idempotency_key: str | Callable[[Any], str] | None = None,
     **kwargs: Any,
-):
+) -> Callable[[F], F]:
     """
     Decorator to mark a Saga method as an event trigger (transformer).
 

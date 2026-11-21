@@ -52,7 +52,7 @@ class PostgreSQLOutboxInboxMixin(PostgreSQLOutboxMixinBase):
             True if duplicate (already processed), False if new
         """
 
-        async def _execute(conn):
+        async def _execute(conn: "asyncpg_types.Connection") -> bool:
             try:
                 await conn.execute(
                     """
@@ -75,9 +75,9 @@ class PostgreSQLOutboxInboxMixin(PostgreSQLOutboxMixinBase):
 
         if connection:
             async with scoped_connection(self._pool, connection) as conn:
-                return await _execute(conn)  # type: ignore[no-any-return]
+                return await _execute(conn)
         async with scoped_connection(self._pool) as conn, conn.transaction():
-            return await _execute(conn)  # type: ignore[no-any-return]
+            return await _execute(conn)
 
     async def update_inbox_duration(self, event_id: str, duration_ms: int) -> None:
         """Update processing duration for an event."""

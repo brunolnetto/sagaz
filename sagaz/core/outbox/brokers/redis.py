@@ -117,7 +117,7 @@ class RedisBroker(BaseBroker):
         >>> await broker.close()
     """
 
-    def __init__(self, config: RedisBrokerConfig | None = None):
+    def __init__(self, config: RedisBrokerConfig | None = None) -> None:
         """
         Initialize Redis broker.
 

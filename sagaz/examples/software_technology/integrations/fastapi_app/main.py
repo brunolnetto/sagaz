@@ -18,6 +18,7 @@ Run with: uvicorn main:app --reload
 
 import asyncio
 import uuid
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -146,7 +147,7 @@ class OrderSaga(Saga):
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Composable lifespan with Sagaz hooks."""
     await sagaz_startup()
     yield
@@ -171,7 +172,7 @@ app.include_router(create_webhook_router("/webhooks"), tags=["webhooks"])
 
 
 @app.get("/health")
-async def health_check():
+async def health_check() -> dict[str, str]:
     """Health check."""
     return {"status": "healthy"}
 
@@ -182,8 +183,8 @@ class ValidateRequest(BaseModel):
     order_id: str
 
 
-@app.post("/orders/validate")
-async def validate_order(request: ValidateRequest):
+@app.post("/orders/validate", response_model=None)
+async def validate_order(request: ValidateRequest) -> JSONResponse | dict[str, Any]:
     """
     Validate if an order can be processed.
 
@@ -254,7 +255,7 @@ async def validate_order(request: ValidateRequest):
 
 
 @app.get("/orders/{order_id}/diagram")
-async def get_order_diagram(order_id: str):
+async def get_order_diagram(order_id: str) -> dict[str, str]:
     """Get Mermaid diagram for the order saga."""
     saga = OrderSaga()
     return {
@@ -265,7 +266,7 @@ async def get_order_diagram(order_id: str):
 
 
 @app.get("/webhooks/{source}/status/{correlation_id}")
-async def get_webhook_status(source: str, correlation_id: str):
+async def get_webhook_status(source: str, correlation_id: str) -> dict[str, str]:
     """
     Check status of event processing.
 

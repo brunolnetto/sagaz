@@ -1,6 +1,7 @@
 import asyncio
 import uuid
-from typing import Any
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.config import get_config
 from sagaz.core.exceptions import (
@@ -8,8 +9,11 @@ from sagaz.core.exceptions import (
 )
 from sagaz.core.logger import get_logger
 from sagaz.core.triggers.decorators import TriggerMetadata
-from sagaz.core.triggers.registry import TriggerRegistry
+from sagaz.core.triggers.registry import RegisteredTrigger, TriggerRegistry
 from sagaz.core.types import SagaStatus
+
+if TYPE_CHECKING:
+    from sagaz.core.storage.base import SagaStorage
 
 logger = get_logger(__name__)
 
@@ -26,11 +30,11 @@ class TriggerEngine:
     - Saga execution
     """
 
-    def __init__(self):
-        self._background_tasks = set()
+    def __init__(self) -> None:
+        self._background_tasks: set[asyncio.Task[Any]] = set()
 
     @property
-    def storage(self):
+    def storage(self) -> "SagaStorage | None":
         return get_config().storage
 
     async def fire(self, source: str, payload: Any) -> list[str]:
@@ -68,7 +72,7 @@ class TriggerEngine:
         # Filter out None and exceptions (only transient errors remain)
         return [r for r in results if isinstance(r, str)]
 
-    async def _process_trigger(self, trigger, payload: Any) -> str | None:
+    async def _process_trigger(self, trigger: RegisteredTrigger, payload: Any) -> str | None:
         """Process a single trigger. Returns saga_id if started or exists, None otherwise."""
         saga_class = trigger.saga_class
         method_name = trigger.method_name
@@ -113,7 +117,7 @@ class TriggerEngine:
             logger.exception(f"Error processing trigger {saga_class.__name__}.{method_name}: {e}")
             return None
 
-    def _is_valid_context(self, context, saga_class, method_name) -> bool:
+    def _is_valid_context(self, context: object, saga_class: type[Any], method_name: str) -> bool:
         """Check if transformer returned valid context."""
         if context is None:
             return False
@@ -157,7 +161,7 @@ class TriggerEngine:
         return detected
 
     async def _resolve_saga_id(
-        self, metadata: TriggerMetadata, payload: Any, saga_class
+        self, metadata: TriggerMetadata, payload: Any, saga_class: type[Any]
     ) -> tuple[str | None, bool]:
         """
         Resolve saga ID with idempotency check.
@@ -180,7 +184,9 @@ class TriggerEngine:
 
         return (saga_id, True)
 
-    async def _is_concurrency_allowed(self, metadata: TriggerMetadata, saga_class) -> bool:
+    async def _is_concurrency_allowed(
+        self, metadata: TriggerMetadata, saga_class: type[Any]
+    ) -> bool:
         """Check if concurrency limit allows execution."""
         if not metadata.max_concurrent:
             return True
@@ -194,7 +200,9 @@ class TriggerEngine:
             )
         return allowed
 
-    async def _run_transformer(self, saga_class, method_name, payload) -> dict | None:
+    async def _run_transformer(
+        self, saga_class: type[Any], method_name: str, payload: object
+    ) -> dict | None:
         """Run the transformer method (sync or async)."""
         saga_instance = saga_class()
         transformer = getattr(saga_instance, method_name)
@@ -205,7 +213,9 @@ class TriggerEngine:
         result = transformer(payload)
         return dict(result) if result is not None else None
 
-    def _derive_saga_id(self, metadata: TriggerMetadata, payload: Any, saga_class) -> str | None:
+    def _derive_saga_id(
+        self, metadata: TriggerMetadata, payload: Any, saga_class: type[Any]
+    ) -> str | None:
         """Derive deterministic Saga ID if idempotency key logic is provided."""
         key_logic = metadata.idempotency_key
 
@@ -229,7 +239,7 @@ class TriggerEngine:
 
         return str(uuid.uuid5(uuid.NAMESPACE_DNS, key_str))
 
-    def _extract_key_value(self, key_logic, payload: Any) -> str | None:
+    def _extract_key_value(self, key_logic: str | Callable[[Any], str], payload: Any) -> str | None:
         """Extract the idempotency key value from payload."""
         if isinstance(key_logic, str):
             return self._extract_string_key(key_logic, payload)
@@ -251,7 +261,7 @@ class TriggerEngine:
 
         return str(value) if value is not None else None
 
-    def _extract_callable_key(self, func, payload: Any) -> str | None:
+    def _extract_callable_key(self, func: Callable[[Any], str], payload: Any) -> str | None:
         """Extract key using callable."""
         try:
             result = func(payload)
@@ -287,7 +297,7 @@ class TriggerEngine:
             logger.warning(f"Storage error during concurrency check: {e}")
             return True
 
-    async def _run_saga(self, saga_class, saga_id: str, context: dict):
+    async def _run_saga(self, saga_class: type[Any], saga_id: str, context: dict) -> None:
         """Create and run saga instance in background.
 
         Uses create_task to run the saga asynchronously so that:
@@ -300,7 +310,7 @@ class TriggerEngine:
         task = asyncio.create_task(saga_instance.run(context, saga_id=saga_id))
         self._background_tasks.add(task)
 
-        def _handle_task_done(t):
+        def _handle_task_done(t: asyncio.Task[Any]) -> None:
             """Handle task completion and cleanup."""
             self._background_tasks.discard(t)
             # Retrieve exception to prevent "Task exception was never retrieved" warning

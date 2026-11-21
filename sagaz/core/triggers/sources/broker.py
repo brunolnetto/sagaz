@@ -46,7 +46,7 @@ class BrokerTriggerConsumer:
         await consumer.stop()   # Stop when done
     """
 
-    def __init__(self, broker: Any):
+    def __init__(self, broker: Any) -> None:
         """
         Initialize the consumer.
 

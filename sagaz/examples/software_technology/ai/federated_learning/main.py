@@ -294,7 +294,7 @@ class EdgeFederatedLearningSaga(Saga):
         return deployment_result
 
 
-async def main():
+async def main() -> None:
     """Run the edge federated learning saga demo."""
 
     # Reusable saga instance
