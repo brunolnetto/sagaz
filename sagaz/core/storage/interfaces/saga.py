@@ -293,6 +293,17 @@ class SagaStorage(ABC):
         """
 
 
+def implements(storage: object, method: str) -> bool:
+    """Whether *storage* really provides *method*, not just ``SagaStorage``'s default.
+
+    ``export_all`` and ``import_record`` have defaults that raise ``NotImplementedError``,
+    so ``hasattr`` is true for every saga storage: this tells a real implementation apart.
+    """
+    found = getattr(storage, method, None)
+    default = getattr(SagaStorage, method, None)
+    return found is not None and getattr(found, "__func__", found) is not default
+
+
 # ==========================================================================
 # Helper Classes
 # ==========================================================================
