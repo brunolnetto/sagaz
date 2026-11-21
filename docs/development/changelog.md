@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **CI reports and gates coverage in the structural summary (#603).** The Code Complexity job ran `codebase-stats` without coverage data, so its "Coverage" and "Low cov" rows always said "skipped". The unit-test job now publishes `coverage.json`, and a new Coverage Gate job after it reports the project coverage and the files to cover first, and requires 95%; a missing coverage file fails it. `make quality-gate` does the same when `coverage.json` exists (`make coverage FORMAT=json`).
 - **There is one `SagaStorage` (#599).** Two unrelated classes had that name. The built-in backends inherited the one in `sagaz.core.storage.base`, while `sagaz.core.storage` exported the one in `interfaces`. So `isinstance(InMemorySagaStorage(), SagaStorage)` was false with the documented import, and a function annotated `storage: SagaStorage` rejected every built-in backend under mypy. `base` now re-exports the single class (and `SagaStepState`); every import path still works.
 
 ### Security
