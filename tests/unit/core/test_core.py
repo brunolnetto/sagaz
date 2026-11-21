@@ -1013,7 +1013,8 @@ class TestParallelFailureStrategies:
 
         await saga.add_step("validate", validate, dependencies=set())
         await saga.add_step("fast_success", fast_success, dependencies={"validate"})
-        await saga.add_step("fast_fail", fast_fail, dependencies={"validate"})
+        # No retries: this test measures how fast FAIL_FAST cancels the other steps.
+        await saga.add_step("fast_fail", fast_fail, dependencies={"validate"}, max_retries=0)
         await saga.add_step("slow_success", slow_success, dependencies={"validate"})
 
         result = await saga.execute()
@@ -1081,7 +1082,8 @@ class TestParallelFailureStrategies:
             return "r"
 
         await saga.add_step("validate", validate, dependencies=set())
-        await saga.add_step("fast_fail", fast_fail, dependencies={"validate"})
+        # No retries: this test measures how fast FAIL_FAST cancels the other steps.
+        await saga.add_step("fast_fail", fast_fail, dependencies={"validate"}, max_retries=0)
         await saga.add_step("slow_success", slow_success, dependencies={"validate"})
 
         result = await saga.execute()
