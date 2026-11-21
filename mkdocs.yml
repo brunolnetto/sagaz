@@ -118,6 +118,7 @@ nav:
   
   - Reference:
     - Configuration API: reference/configuration.md
+    - Feature × Mode Matrix: reference/feature-matrix.md
   
   - Development:
     - Contributing: development/contributing.md

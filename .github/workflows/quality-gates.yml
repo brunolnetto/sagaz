@@ -63,6 +63,9 @@ jobs:
       - name: Install optional dependencies for type checking
         run: uv pip install redis aio-pika aiokafka prometheus_client asyncpg
 
+      - name: Check the feature matrix's cited tests
+        run: uv run python scripts/check_feature_matrix.py
+
       - name: Check documented imports
         # Every `from sagaz... import ...` in README.md and docs/ must import (#539).
         run: uv run python scripts/check_doc_imports.py
