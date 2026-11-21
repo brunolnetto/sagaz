@@ -99,10 +99,11 @@ async def test_consumer_goods_examples_complete_and_compensate(module, cls, fail
         "old_supplier": "D",
         "artwork": {"version": "v1", "allergens": True, "nutrition_panel": True, "barcode": True},
     }
-    context = await saga_cls().run(dict(base))
-    pivots = [s.step_id for s in saga_cls().get_steps() if s.pivot]
+    saga = saga_cls()
+    await saga.run(dict(base))
+    pivots = [s.step_id for s in saga.get_steps() if s.pivot]
     assert len(pivots) == 1
-    assert context[f"__{pivots[0]}_completed"]
+    assert pivots[0] in saga._completed_pivots  # the run went through its pivot
 
     with pytest.raises(SagaFailedError):
         await saga_cls().run({**base, **failure})

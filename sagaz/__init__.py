@@ -61,6 +61,7 @@ from sagaz.core.decorators import (
     action,
     compensate,
     forward_recovery,
+    step,
 )
 
 # =============================================================================
@@ -257,6 +258,7 @@ __all__ = [
     "default_listeners",
     "forward_recovery",
     "get_config",
+    "step",
 ]
 
 
