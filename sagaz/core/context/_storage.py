@@ -13,7 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-import aiofiles  # type: ignore[import-untyped]
+import aiofiles
 
 from sagaz.core.context._signing import resolve_key, seal, unseal
 

@@ -28,7 +28,7 @@ from sagaz.core.storage.event_store._base import SagaEventStore, SagaSnapshot
 try:
     import asyncpg
 except ImportError:  # pragma: no cover - asyncpg is a core dependency
-    asyncpg = None  # type: ignore[assignment]
+    asyncpg = None
 
 SCHEMA = f"""
 CREATE TABLE IF NOT EXISTS saga_events (
@@ -75,7 +75,7 @@ class PostgreSQLEventStore(SagaEventStore):
         pool_max_size: int = 10,
         **pool_kwargs: Any,
     ) -> None:
-        if asyncpg is None:  # pragma: no cover
+        if asyncpg is None:  # pragma: no cover - the driver is installed in tests
             msg = "asyncpg"
             raise MissingDependencyError(msg, "PostgreSQL event store")
         self.connection_string = connection_string

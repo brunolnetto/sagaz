@@ -26,7 +26,7 @@ from sagaz.core.storage.backends.postgresql._tenancy import (
 try:
     import asyncpg
 except ImportError:  # pragma: no cover - asyncpg is a core dependency
-    asyncpg = None  # type: ignore[assignment]
+    asyncpg = None
 
 SCHEMA = f"""
 CREATE TABLE IF NOT EXISTS choreography_actions (
@@ -89,7 +89,7 @@ class PostgreSQLParticipantState(ParticipantState):
         pool_max_size: int = 10,
         **pool_kwargs: Any,
     ) -> None:
-        if asyncpg is None:  # pragma: no cover
+        if asyncpg is None:  # pragma: no cover - the driver is installed in tests
             msg = "asyncpg"
             raise MissingDependencyError(msg, "PostgreSQL participant state")
         self.connection_string = connection_string

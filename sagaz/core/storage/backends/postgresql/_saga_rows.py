@@ -38,7 +38,7 @@ class _PostgreSQLSagaRowMixin:
     def _row_tenant(saga_row) -> str:
         """The tenant of a saga row (rows selected without the column are the default's)."""
         try:
-            return saga_row["tenant_id"] or DEFAULT_TENANT  # type: ignore[no-any-return]
+            return saga_row["tenant_id"] or DEFAULT_TENANT
         except (KeyError, IndexError):
             return DEFAULT_TENANT
 

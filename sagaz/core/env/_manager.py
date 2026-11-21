@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-try:
+# mypy reads the imports alone: no ignore is needed with or without the dependency.
+if TYPE_CHECKING:
     from dotenv import load_dotenv
-except ImportError:
-    load_dotenv = None  # type: ignore[assignment]
+else:
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        load_dotenv = None
 
 from sagaz.core.env._conversion import get_bool, get_int
 from sagaz.core.env._substitution import substitute, substitute_dict

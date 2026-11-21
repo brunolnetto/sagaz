@@ -615,7 +615,7 @@ class TestMonitoringMetricsBranches:
         class FakeStatus:
             pass
 
-        metrics._increment_status_counter(FakeStatus())  # type: ignore
+        metrics._increment_status_counter(FakeStatus())  # type: ignore[arg-type]
         # No error = branch covered
 
 

@@ -20,16 +20,14 @@ import logging
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
+# mypy reads the import alone: no ignore is needed with or without the dependency.
 if TYPE_CHECKING:
-    import aiosqlite as aiosqlite_types
-
-try:
     import aiosqlite
-
-    AIOSQLITE_AVAILABLE = True
-except ImportError:
-    AIOSQLITE_AVAILABLE = False
-    aiosqlite = None  # type: ignore[assignment]
+else:
+    try:
+        import aiosqlite
+    except ImportError:
+        aiosqlite = None
 
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
@@ -50,6 +48,7 @@ from sagaz.core.storage.core import (
 )
 from sagaz.core.storage.interfaces.outbox import OutboxStorage
 
+AIOSQLITE_AVAILABLE = aiosqlite is not None
 logger = logging.getLogger(__name__)
 
 

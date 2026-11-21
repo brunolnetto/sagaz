@@ -70,9 +70,14 @@ jobs:
         # Every `from sagaz... import ...` in README.md and docs/ must import (#539).
         run: uv run python scripts/check_doc_imports.py
 
+      - name: Check suppression comments
+        # "# type: ignore", "# noqa", "# nosec" and "# pragma: no cover" must each name
+        # what they suppress and why (#594).
+        run: uv run python scripts/check_suppressions.py
+
       - name: Run mypy type checker
+        # Gates. Unused ignores fail too (warn_unused_ignores in pyproject.toml).
         run: uv run mypy sagaz/ --ignore-missing-imports
-        continue-on-error: true  # pre-existing type errors tracked separately; fix in follow-up
 
 # ─── Commit Linting ───────────────────────────────────────────────────────────
 

@@ -65,7 +65,7 @@ def _download(url: str, timeout: float) -> bytes:
         raise ValueError(message)
     request = Request(url, headers={"User-Agent": "sagaz-monitor"})
     # Scheme is restricted to https above.
-    with urlopen(request, timeout=timeout) as response:  # nosec B310
+    with urlopen(request, timeout=timeout) as response:  # nosec B310 - the scheme is restricted to https above
         data = response.read(MAX_ASSET_BYTES + 1)
     if len(data) > MAX_ASSET_BYTES:
         message = "Asset exceeds size limit"

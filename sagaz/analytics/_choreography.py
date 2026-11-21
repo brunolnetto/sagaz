@@ -222,7 +222,7 @@ class _ChoreographyLoaderMixin:
                 ("fact_choreography_compensation", compensations),
             ):
                 self._conn.execute(
-                    f"DELETE FROM {table} WHERE tenant_id = ? AND correlation_id = ?",  # nosec B608
+                    f"DELETE FROM {table} WHERE tenant_id = ? AND correlation_id = ?",  # nosec B608 - table is one of two literals; values are bound
                     key,
                 )
                 self._insert(table, rows)

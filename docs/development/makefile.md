@@ -43,11 +43,11 @@ These run the same commands as the CI gates.
 
 | Command | Tool |
 |---|---|
-| `make lint` | `ruff check sagaz/ tests/` |
+| `make lint` | `ruff check sagaz/ tests/`, then `scripts/check_suppressions.py`: each `# type: ignore`, `# noqa`, `# nosec` and `# pragma: no cover` must name what it suppresses and why |
 | `make lint-fix` | `ruff check --fix` |
 | `make format` | `ruff format` (rewrites files) |
 | `make format-check` | `ruff format --check` (changes nothing) |
-| `make typecheck` | `mypy sagaz/ --ignore-missing-imports` |
+| `make typecheck` | `mypy sagaz/ --ignore-missing-imports`. An unused `# type: ignore` is an error |
 | `make quality-gate` | `codebase-stats`: CC ≤ 10 per function, modules ≤ 400 lines, MI ≥ 20 |
 | `make security` | `bandit -ll` (medium severity and up; informational in CI) |
 | `make complexity` | radon metrics, informational: `MODE=summary` (C and worse), `full`, `json`, `mi`, `raw` |

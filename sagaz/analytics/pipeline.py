@@ -41,7 +41,7 @@ from typing import Any
 
 try:
     import duckdb
-except ImportError as exc:  # pragma: no cover
+except ImportError as exc:  # pragma: no cover - the extra is installed in tests
     msg = "DuckDB is required for sagaz analytics. Install with: pip install sagaz[analytics]"
     raise ImportError(msg) from exc
 

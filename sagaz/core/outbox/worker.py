@@ -292,7 +292,7 @@ class OutboxWorker(OutboxWorkerCDCMixin, OutboxWorkerFailureMixin):
 
         try:
             # Publish to broker
-            await self.broker.publish_event(event)  # type: ignore[attr-defined]
+            await self.broker.publish_event(event)
 
             # Mark as sent
             await self.storage.update_status(

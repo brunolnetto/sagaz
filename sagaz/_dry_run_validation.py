@@ -11,7 +11,7 @@ class _DryRunValidationMixin(_StepIntrospection):
     async def _validate(
         self,
         saga: object,
-        context: dict[str, Any],  # type: ignore
+        context: dict[str, Any],
     ) -> ValidationResult:
         """Validate saga configuration."""
         errors = []
@@ -78,7 +78,7 @@ class _DryRunValidationMixin(_StepIntrospection):
         saga: object,
         context: dict[str, Any],
         checks: dict,
-        errors: list,  # type: ignore
+        errors: list,
     ):
         """Validate required context fields."""
         checks["required_context_fields"] = []

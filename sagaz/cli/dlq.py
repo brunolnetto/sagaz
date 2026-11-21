@@ -196,7 +196,7 @@ def dlq_replay(event_id: str | None, replay_all: bool) -> None:
                 return
 
             try:
-                requeued = await storage.requeue_dead_letter_event(event_id)  # type: ignore[arg-type]
+                requeued = await storage.requeue_dead_letter_event(event_id)
                 click.echo(f"Re-queued event {requeued.event_id} (saga {requeued.saga_id}).")
             except KeyError:
                 msg = f"Event '{event_id}' not found in DLQ."

@@ -59,7 +59,7 @@ class _S3ReplayLogMixin:
             )
             body = await response["Body"].read()
             return self._deserialize(body)
-        except s3.exceptions.NoSuchKey:  # type: ignore[attr-defined]
+        except s3.exceptions.NoSuchKey:
             return None
 
     async def list_replays(self, original_saga_id: UUID, limit: int = 100) -> list[dict[str, Any]]:

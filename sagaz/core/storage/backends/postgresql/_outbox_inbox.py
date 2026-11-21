@@ -21,7 +21,7 @@ try:
 except ImportError:  # pragma: no cover - asyncpg is optional
     asyncpg = cast(Any, None)
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:  # pragma: no cover - typing only
     import asyncpg as asyncpg_types
 
 

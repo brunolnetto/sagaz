@@ -33,16 +33,22 @@ if TYPE_CHECKING:
     from sagaz.core.types import SagaStatus
 
 # Check if prometheus_client is installed
-try:
+# mypy reads the imports alone: no ignore is needed with or without the dependency.
+if TYPE_CHECKING:
     from prometheus_client import Counter, Gauge, Histogram, start_http_server
 
     PROMETHEUS_AVAILABLE = True
-except ImportError:
-    PROMETHEUS_AVAILABLE = False
-    Counter: Any = None  # type: ignore[no-redef]
-    Gauge: Any = None  # type: ignore[no-redef]
-    Histogram: Any = None  # type: ignore[no-redef]
-    start_http_server: Any = None  # type: ignore[no-redef]
+else:
+    try:
+        from prometheus_client import Counter, Gauge, Histogram, start_http_server
+
+        PROMETHEUS_AVAILABLE = True
+    except ImportError:
+        PROMETHEUS_AVAILABLE = False
+        Counter = None
+        Gauge = None
+        Histogram = None
+        start_http_server = None
 
 
 logger = logging.getLogger(__name__)

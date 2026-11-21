@@ -25,20 +25,28 @@ Quick Start:
 
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-try:
+# mypy reads the imports alone: no ignore is needed with or without the dependency.
+if TYPE_CHECKING:
     from opentelemetry import context, trace
     from opentelemetry.trace import Status, StatusCode
     from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
     TRACING_AVAILABLE = True
-except ImportError:
-    # Graceful degradation if OpenTelemetry is not installed
-    TRACING_AVAILABLE = False
-    trace = None  # type: ignore[assignment]
-    Status = None  # type: ignore[assignment, misc]
-    StatusCode = None  # type: ignore[assignment, misc]
+else:
+    try:
+        from opentelemetry import context, trace
+        from opentelemetry.trace import Status, StatusCode
+        from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
+        TRACING_AVAILABLE = True
+    except ImportError:
+        # Graceful degradation if OpenTelemetry is not installed
+        TRACING_AVAILABLE = False
+        trace = None
+        Status = None
+        StatusCode = None
 
 
 from sagaz.core.types import SagaStatus, SagaStepStatus

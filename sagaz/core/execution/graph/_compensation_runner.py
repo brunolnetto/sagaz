@@ -265,9 +265,9 @@ class _GraphCompensationMixin:
                 raise
 
         # Should not reach here, but satisfy type checker
-        if last_error:  # pragma: no cover
-            raise last_error  # pragma: no cover
-        return None  # pragma: no cover
+        if last_error:  # pragma: no cover - unreachable: the retry loop returns or raises
+            raise last_error  # pragma: no cover - unreachable: the retry loop returns or raises
+        return None  # pragma: no cover - unreachable: the retry loop returns or raises
 
     def _should_skip_step(
         self,

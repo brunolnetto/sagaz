@@ -100,8 +100,9 @@ endif
 # Code quality (the same commands CI runs)
 # ============================================================================
 
-lint: ## Lint with ruff
+lint: ## Lint with ruff; check that suppression comments say what and why
 	$(RUFF) check sagaz/ tests/
+	$(PYTHON) scripts/check_suppressions.py
 
 lint-fix: ## Lint with ruff and apply its fixes
 	$(RUFF) check --fix sagaz/ tests/
