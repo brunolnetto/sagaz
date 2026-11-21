@@ -29,7 +29,7 @@ class PostgreSQLOutboxDeadLetterMixin(PostgreSQLOutboxRowMappingMixin, PostgreSQ
             WHERE status = 'dead_letter' AND {tenant_predicate(2)}
             ORDER BY created_at DESC
             LIMIT $1
-        """
+        """  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
 
         async with scoped_connection(self._pool) as conn:
             rows = await conn.fetch(query, limit, tenant_param())
@@ -63,7 +63,7 @@ class PostgreSQLOutboxDeadLetterMixin(PostgreSQLOutboxRowMappingMixin, PostgreSQ
         async with scoped_connection(self._pool) as conn:
             if older_than is None:
                 result = await conn.execute(
-                    f"DELETE FROM saga_outbox WHERE status = 'dead_letter' AND {tenant_predicate(1)}",
+                    f"DELETE FROM saga_outbox WHERE status = 'dead_letter' AND {tenant_predicate(1)}",  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                     tenant_param(),
                 )
             else:
@@ -75,7 +75,7 @@ class PostgreSQLOutboxDeadLetterMixin(PostgreSQLOutboxRowMappingMixin, PostgreSQ
                     AND dead_letter_at IS NOT NULL
                     AND dead_letter_at < $1
                     AND {tenant_predicate(2)}
-                    """,
+                    """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                     cutoff,
                     tenant_param(),
                 )

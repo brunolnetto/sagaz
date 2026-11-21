@@ -288,6 +288,9 @@ async def get_webhook_status(source: str, correlation_id: str):
 # =============================================================================
 
 if __name__ == "__main__":
+    import os
+
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # Local only by default; HOST=0.0.0.0 to serve other machines (e.g. in a container).
+    uvicorn.run(app, host=os.getenv("HOST", "127.0.0.1"), port=8000)

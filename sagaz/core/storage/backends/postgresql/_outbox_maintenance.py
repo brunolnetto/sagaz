@@ -33,7 +33,7 @@ class PostgreSQLOutboxMaintenanceMixin(PostgreSQLOutboxRowMappingMixin, PostgreS
             AND claimed_at < $1
             AND {tenant_predicate(2)}
             ORDER BY claimed_at
-        """
+        """  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
 
         async with scoped_connection(self._pool) as conn:
             rows = await conn.fetch(query, cutoff, tenant_param())
@@ -54,7 +54,7 @@ class PostgreSQLOutboxMaintenanceMixin(PostgreSQLOutboxRowMappingMixin, PostgreS
             WHERE status = 'claimed'
             AND claimed_at < $1
             AND {tenant_predicate(2)}
-        """
+        """  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
 
         async with scoped_connection(self._pool) as conn:
             result = await conn.execute(query, cutoff, tenant_param())
@@ -74,13 +74,13 @@ class PostgreSQLOutboxMaintenanceMixin(PostgreSQLOutboxRowMappingMixin, PostgreS
                     INSERT INTO saga_outbox_archive
                     SELECT * FROM saga_outbox
                     WHERE status = 'sent' AND sent_at < $1 AND {tenant_predicate(2)}
-                """
+                """  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             await conn.execute(insert_query, cutoff, tenant_param())
 
             # Delete from main table
             delete_query = f"""
                     DELETE FROM saga_outbox
                     WHERE status = 'sent' AND sent_at < $1 AND {tenant_predicate(2)}
-                """
+                """  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             result = await conn.execute(delete_query, cutoff, tenant_param())
             return int(result.split()[-1])

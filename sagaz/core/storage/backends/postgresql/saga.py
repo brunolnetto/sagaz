@@ -258,7 +258,7 @@ class PostgreSQLSagaStorage(
                        configuration, created_at, updated_at, tenant_id
                 FROM sagas WHERE saga_id = $1 AND {condition}
                 ORDER BY tenant_id LIMIT 1
-            """,
+            """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                 *params,
             )
 
@@ -287,7 +287,8 @@ class PostgreSQLSagaStorage(
         async with acquire_scoped(pool) as conn:
             # Cascade delete will handle steps
             result = await conn.execute(
-                f"DELETE FROM sagas WHERE saga_id = $1 AND {condition}", *params
+                f"DELETE FROM sagas WHERE saga_id = $1 AND {condition}",  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
+                *params,
             )
             return int(result.split()[-1]) > 0  # Extract affected row count
 
@@ -314,7 +315,7 @@ class PostgreSQLSagaStorage(
                     UPDATE saga_steps
                     SET status = $3, result = $4, error = $5, executed_at = $6
                     WHERE saga_id = $1 AND step_name = $2 AND {condition}
-                """,
+                """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                 *params,
             )
 
@@ -328,7 +329,7 @@ class PostgreSQLSagaStorage(
             await conn.execute(
                 f"""
                     UPDATE sagas SET updated_at = NOW() WHERE saga_id = $1 AND {saga_condition}
-                """,
+                """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                 *saga_params,
             )
 

@@ -57,7 +57,7 @@ class ETLPipelineSaga(Saga):
 
         # Simulate extraction
         record_count = random.randint(10000, 100000)
-        extract_path = f"/tmp/extract/{source_table}_{batch_date}.parquet"
+        extract_path = f"staging/extract/{source_table}_{batch_date}.parquet"
 
         # Simulate possible extraction failure
         if random.random() < 0.05:  # 5% failure rate

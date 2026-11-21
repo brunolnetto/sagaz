@@ -87,7 +87,7 @@ class PostgreSQLOutboxInboxMixin(PostgreSQLOutboxMixinBase):
                 UPDATE consumer_inbox
                 SET processing_duration_ms = $1
                 WHERE event_id = $2 AND {tenant_predicate(3)}
-                """,
+                """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                 duration_ms,
                 event_id,
                 tenant_param(),
@@ -107,7 +107,7 @@ class PostgreSQLOutboxInboxMixin(PostgreSQLOutboxMixinBase):
                 WHERE consumer_name = $1
                 AND consumed_at < NOW() - make_interval(days => $2)
                 AND {tenant_predicate(3)}
-                """,
+                """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                 consumer_name,
                 older_than_days,
                 tenant_param(),

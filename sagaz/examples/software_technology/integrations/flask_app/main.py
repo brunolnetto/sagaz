@@ -210,4 +210,12 @@ def get_order_diagram(order_id: str):
 # =============================================================================
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    import os
+
+    # Local only by default. FLASK_DEBUG=1 turns on the Werkzeug debugger, which runs
+    # arbitrary code for whoever reaches the page: never enable it on a shared network.
+    app.run(
+        host=os.getenv("HOST", "127.0.0.1"),
+        port=5000,
+        debug=os.getenv("FLASK_DEBUG") == "1",
+    )

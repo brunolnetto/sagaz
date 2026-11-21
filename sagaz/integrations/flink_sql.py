@@ -22,6 +22,12 @@ ranked durations, as ``PERCENTILE_CONT`` does.
 
 from __future__ import annotations
 
+import re
+
+#: ``table``, ``database.table`` or ``catalog.database.table``: plain identifiers only, since
+#: the name is pasted into the SQL.
+_TABLE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*){0,2}")
+
 _STATUS = """
     CASE
         WHEN `kind` <> 'lifecycle' THEN CAST(NULL AS STRING)
@@ -107,7 +113,7 @@ SELECT c.coordination, c.flow, c.transactions, c.completed, c.compensated, c.fai
 FROM counts c
 LEFT JOIN percentiles p ON p.coordination = c.coordination AND p.flow = c.flow
 ORDER BY c.transactions DESC, c.coordination, c.flow
-"""
+"""  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
 
 THROUGHPUT = """
 SELECT `coordination`, `flow`,
@@ -133,4 +139,7 @@ def report(name: str, table: str = "iceberg.sagaz.saga_log_event") -> str:
     except KeyError:
         msg = f"Unknown report {name!r}: one of {', '.join(sorted(REPORTS))}"
         raise ValueError(msg) from None
+    if not _TABLE.fullmatch(table):
+        msg = f"invalid table {table!r}: use catalog.database.table, with letters, digits and '_'"
+        raise ValueError(msg)
     return sql.replace("{table}", table).strip() + "\n"

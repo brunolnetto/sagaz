@@ -62,6 +62,7 @@ async def _export(
     metrics_port: int | None = None,
     cdc: bool = False,
     cdc_dsn: str | None = None,
+    metrics_host: str = "0.0.0.0",  # nosec B104 - container default; see --metrics-host
 ) -> int:
     from sagaz.core.storage.saga_log import (
         SagaLogExporter,
@@ -77,7 +78,7 @@ async def _export(
             if metrics_port is not None:
                 from sagaz.integrations.iceberg_metrics import ExporterCollector
 
-                _serve(ExporterCollector(exporter), metrics_port, "0.0.0.0")
+                _serve(ExporterCollector(exporter), metrics_port, metrics_host)
             await exporter.start()
             with contextlib.suppress(asyncio.CancelledError):
                 await asyncio.Event().wait()  # until interrupted
@@ -105,6 +106,8 @@ async def _export(
               help="Replication connection for --cdc (a REPLICATION role); the log URL by default.")  # fmt: skip
 @click.option("--metrics-port", type=int, default=None,
               help="Serve the exporter's Prometheus metrics on this port.")  # fmt: skip
+@click.option("--metrics-host", default="0.0.0.0", show_default=True,  # nosec B104 - container default
+              help="Interface for --metrics-port; 127.0.0.1 keeps it local.")  # fmt: skip
 def export_cmd(
     log_url: str,
     target: str,
@@ -116,12 +119,15 @@ def export_cmd(
     cdc: bool,
     cdc_dsn: str | None,
     metrics_port: int | None,
+    metrics_host: str,
 ) -> None:
     """Export committed saga log events, at least once, resuming from the cursor."""
     sink = _sink(target, table, freshness)
     try:
         count = asyncio.run(
-            _export(log_url, sink, name, once, poll_interval, metrics_port, cdc, cdc_dsn)
+            _export(
+                log_url, sink, name, once, poll_interval, metrics_port, cdc, cdc_dsn, metrics_host
+            )
         )
     except KeyboardInterrupt:  # pragma: no cover - interactive
         return
@@ -193,7 +199,8 @@ def _wait_forever() -> None:  # pragma: no cover - interactive
 @click.option("--refresh", default=60.0, show_default=True, type=float,
               help="Seconds a computed report is served before it is recomputed.")  # fmt: skip
 @click.option("--port", default=9464, show_default=True, type=int)
-@click.option("--host", default="0.0.0.0", show_default=True)
+@click.option("--host", default="0.0.0.0", show_default=True,  # nosec B104 - container default
+              help="Interface to serve on; 127.0.0.1 keeps it local.")  # fmt: skip
 def metrics_cmd(
     catalog_uri: str,
     catalog_name: str,

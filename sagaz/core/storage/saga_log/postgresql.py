@@ -51,11 +51,11 @@ def _cast(columns: tuple[str, ...]) -> str:
 
 
 _INSERT_TRANSACTION = (
-    f"INSERT INTO saga_transaction ({', '.join(codec.TRANSACTION_COLUMNS)})"
+    f"INSERT INTO saga_transaction ({', '.join(codec.TRANSACTION_COLUMNS)})"  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
     f" VALUES ({_cast(codec.TRANSACTION_COLUMNS)}) ON CONFLICT DO NOTHING"
 )
 _UPSERT_ACTIVITY = (
-    f"INSERT INTO saga_activity ({', '.join(codec.ACTIVITY_COLUMNS)})"
+    f"INSERT INTO saga_activity ({', '.join(codec.ACTIVITY_COLUMNS)})"  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
     f" VALUES ({_cast(codec.ACTIVITY_COLUMNS)})"
     " ON CONFLICT (tenant_id, transaction_id, activity_id) DO UPDATE SET "
     + ", ".join(f"{c} = EXCLUDED.{c}" for c in codec.ACTIVITY_COLUMNS[3:] if c != "status")
@@ -74,7 +74,7 @@ _INSERT_OUTBOX = (
     " VALUES ($1::uuid, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9, $10)"
 )
 _INSERT_EVENT = (
-    f"INSERT INTO saga_log_event ({', '.join(codec.EVENT_COLUMNS)})"
+    f"INSERT INTO saga_log_event ({', '.join(codec.EVENT_COLUMNS)})"  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
     f" VALUES ({_cast(codec.EVENT_COLUMNS)})"
 )
 
@@ -317,7 +317,7 @@ class PostgreSQLSagaLogStore(PostgreSQLExportMixin, SagaLogStore):
 
     async def get_transaction(self, transaction_id: str) -> Transaction | None:
         rows = await self._fetch(
-            f"SELECT * FROM saga_transaction WHERE {_TENANT} AND transaction_id = $2"
+            f"SELECT * FROM saga_transaction WHERE {_TENANT} AND transaction_id = $2"  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             " ORDER BY tenant_id LIMIT 1",
             transaction_id,
         )
@@ -332,7 +332,7 @@ class PostgreSQLSagaLogStore(PostgreSQLExportMixin, SagaLogStore):
         limit: int = 1000,
     ) -> list[Transaction]:
         rows = await self._fetch(
-            f"SELECT * FROM saga_transaction WHERE {_TENANT}"
+            f"SELECT * FROM saga_transaction WHERE {_TENANT}"  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             " AND ($2::text IS NULL OR flow = $2) AND ($3::text IS NULL OR coordination = $3)"
             " AND ($4::text IS NULL OR status = $4) ORDER BY started_at DESC LIMIT $5",
             flow,
@@ -344,7 +344,7 @@ class PostgreSQLSagaLogStore(PostgreSQLExportMixin, SagaLogStore):
 
     async def activities(self, transaction_id: str) -> list[Activity]:
         rows = await self._fetch(
-            f"SELECT * FROM saga_activity WHERE {_TENANT} AND transaction_id = $2"
+            f"SELECT * FROM saga_activity WHERE {_TENANT} AND transaction_id = $2"  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             " ORDER BY started_at NULLS LAST, activity_id",
             transaction_id,
         )
@@ -352,7 +352,7 @@ class PostgreSQLSagaLogStore(PostgreSQLExportMixin, SagaLogStore):
 
     async def events(self, transaction_id: str, after_sequence: int = 0) -> list[LogEvent]:
         rows = await self._fetch(
-            f"SELECT * FROM saga_log_event WHERE {_TENANT} AND transaction_id = $2"
+            f"SELECT * FROM saga_log_event WHERE {_TENANT} AND transaction_id = $2"  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             " AND sequence > $3 ORDER BY tenant_id, sequence",
             transaction_id,
             after_sequence,
@@ -363,7 +363,7 @@ class PostgreSQLSagaLogStore(PostgreSQLExportMixin, SagaLogStore):
         self, transaction_id: str, kind: SnapshotKind = SnapshotKind.PROJECTION
     ) -> Snapshot | None:
         rows = await self._fetch(
-            f"SELECT * FROM saga_snapshot WHERE {_TENANT} AND transaction_id = $2"
+            f"SELECT * FROM saga_snapshot WHERE {_TENANT} AND transaction_id = $2"  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             " AND kind = $3 ORDER BY sequence DESC LIMIT 1",
             transaction_id,
             str(kind),
@@ -371,7 +371,7 @@ class PostgreSQLSagaLogStore(PostgreSQLExportMixin, SagaLogStore):
         return codec.to_snapshot(rows[0]) if rows else None
 
     async def participants(self) -> list[Participant]:
-        rows = await self._fetch(f"SELECT * FROM saga_participant WHERE {_TENANT} ORDER BY name")
+        rows = await self._fetch(f"SELECT * FROM saga_participant WHERE {_TENANT} ORDER BY name")  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
         return [codec.to_participant(r) for r in rows]
 
     async def close(self) -> None:

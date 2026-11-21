@@ -216,7 +216,7 @@ class PostgreSQLOutboxStorage(
             claimed_at = NOW()
             WHERE event_id IN (SELECT event_id FROM claimed)
             RETURNING *
-        """
+        """  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
 
         async with scoped_connection(self._pool) as conn:
             rows = await conn.fetch(query, cutoff, batch_size, worker_id, tenant_param())
@@ -250,7 +250,7 @@ class PostgreSQLOutboxStorage(
             return 0
         async with scoped_connection(self._pool) as conn:
             result = await conn.execute(
-                "UPDATE saga_outbox SET status = 'sent', sent_at = NOW() "
+                "UPDATE saga_outbox SET status = 'sent', sent_at = NOW() "  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                 f"WHERE event_id = ANY($1::uuid[]) AND {tenant_predicate(2)}",
                 list(event_ids),
                 tenant_param(),
@@ -262,7 +262,7 @@ class PostgreSQLOutboxStorage(
         async with scoped_connection(self._pool) as conn:
             for table in ("saga_outbox", "saga_outbox_archive"):
                 row = await conn.fetchrow(
-                    f"SELECT * FROM {table} WHERE event_id = $1 AND {tenant_predicate(2)}",
+                    f"SELECT * FROM {table} WHERE event_id = $1 AND {tenant_predicate(2)}",  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                     event_id,
                     tenant_param(),
                 )
@@ -273,7 +273,7 @@ class PostgreSQLOutboxStorage(
     async def get_events_by_saga(self, saga_id: str) -> list[OutboxEvent]:
         """Get all events of the current tenant for a saga."""
         query = (
-            f"SELECT * FROM saga_outbox WHERE saga_id = $1 AND {tenant_predicate(2)} "
+            f"SELECT * FROM saga_outbox WHERE saga_id = $1 AND {tenant_predicate(2)} "  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             "ORDER BY created_at"
         )
 
@@ -284,7 +284,7 @@ class PostgreSQLOutboxStorage(
     async def get_pending_count(self) -> int:
         """Get count of pending events of the current tenant."""
         query = (
-            f"SELECT COUNT(*) FROM saga_outbox WHERE status = 'pending' AND {tenant_predicate(1)}"
+            f"SELECT COUNT(*) FROM saga_outbox WHERE status = 'pending' AND {tenant_predicate(1)}"  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
         )
 
         async with scoped_connection(self._pool) as conn:

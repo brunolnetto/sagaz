@@ -180,7 +180,7 @@ class SQLiteOutboxStorage(
         conn = await self._get_connection()
 
         cursor = await conn.execute(
-            f"SELECT * FROM outbox_events WHERE event_id = ? AND {TENANT_FILTER}",
+            f"SELECT * FROM outbox_events WHERE event_id = ? AND {TENANT_FILTER}",  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             (event_id, *tenant_params()),
         )
         row = await cursor.fetchone()
@@ -227,7 +227,7 @@ class SQLiteOutboxStorage(
             SELECT event_id FROM outbox_events
             WHERE status = 'pending' AND {TENANT_FILTER}
             LIMIT ?
-            """,
+            """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             (*tenant_params(), batch_size),
         )
         rows = await cursor.fetchall()
@@ -244,14 +244,14 @@ class SQLiteOutboxStorage(
             UPDATE outbox_events
             SET status = 'claimed', worker_id = ?, claimed_at = ?
             WHERE event_id IN ({placeholders})
-            """,
+            """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             (worker_id, now.isoformat(), *event_ids),
         )
         await conn.commit()
 
         # Fetch the claimed events
         cursor = await conn.execute(
-            f"SELECT * FROM outbox_events WHERE event_id IN ({placeholders})",
+            f"SELECT * FROM outbox_events WHERE event_id IN ({placeholders})",  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             event_ids,
         )
         rows = await cursor.fetchall()
@@ -263,7 +263,7 @@ class SQLiteOutboxStorage(
         conn = await self._get_connection()
 
         cursor = await conn.execute(
-            f"SELECT * FROM outbox_events WHERE saga_id = ? AND {TENANT_FILTER} ORDER BY created_at",
+            f"SELECT * FROM outbox_events WHERE saga_id = ? AND {TENANT_FILTER} ORDER BY created_at",  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             (saga_id, *tenant_params()),
         )
         rows = await cursor.fetchall()
@@ -284,7 +284,7 @@ class SQLiteOutboxStorage(
             AND julianday(claimed_at) < julianday(?)
             AND {TENANT_FILTER}
             ORDER BY claimed_at
-            """,
+            """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             (self._stuck_cutoff(claimed_older_than_seconds), *tenant_params()),
         )
         rows = await cursor.fetchall()
@@ -306,7 +306,7 @@ class SQLiteOutboxStorage(
             WHERE status = 'claimed'
             AND julianday(claimed_at) < julianday(?)
             AND {TENANT_FILTER}
-            """,
+            """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             (self._stuck_cutoff(claimed_older_than_seconds), *tenant_params()),
         )
         await conn.commit()
@@ -333,7 +333,7 @@ class SQLiteOutboxStorage(
         conn = await self._get_connection()
 
         cursor = await conn.execute(
-            f"SELECT COUNT(*) FROM outbox_events WHERE status = 'pending' AND {TENANT_FILTER}",
+            f"SELECT COUNT(*) FROM outbox_events WHERE status = 'pending' AND {TENANT_FILTER}",  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             tenant_params(),
         )
         row = await cursor.fetchone()
@@ -386,7 +386,7 @@ class SQLiteOutboxStorage(
                 SUM(CASE WHEN status = 'dead_letter' THEN 1 ELSE 0 END) as dead_letter
             FROM outbox_events
             WHERE {TENANT_FILTER}
-            """,
+            """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             tenant_params(),
         )
         row = await cursor.fetchone()

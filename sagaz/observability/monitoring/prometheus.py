@@ -194,13 +194,15 @@ class PrometheusMetrics:
         self._active_count.labels(saga_name=saga_name).dec()
 
 
-def start_metrics_server(port: int = 8000, addr: str = "0.0.0.0") -> None:
+def start_metrics_server(port: int = 8000, addr: str = "0.0.0.0") -> None:  # nosec B104 - container default; pass addr="127.0.0.1" to keep it local
     """
     Start a Prometheus HTTP metrics server.
 
     Args:
         port: Port to listen on (default: 8000)
-        addr: Address to bind to (default: 0.0.0.0 for all interfaces)
+        addr: Address to bind to. The default, 0.0.0.0, serves every interface so that
+            Prometheus can scrape a container; use "127.0.0.1" outside one to keep the
+            metrics local.
 
     Example:
         >>> from sagaz.observability.monitoring.prometheus import start_metrics_server
