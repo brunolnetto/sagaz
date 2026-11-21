@@ -38,7 +38,7 @@ infrastructure beyond the store.
 ### Entry points
 
 - **CLI:** `sagaz monitor --ui gradio --saga-log URL`, or `--storage-url URL` for a
-  legacy saga storage.
+  classic-layout saga storage.
 - **Python:** `sagaz.visualization.gradio.launch(saga_log=..., storage=...)`, and
   `build_app(...)` for embedding.
 - **Package:** an extra of its own, `pip install 'sagaz[gradio]'`. `sagaz[monitor]`
@@ -55,7 +55,7 @@ infrastructure beyond the store.
   - the **steps** (activities) with status, attempt, duration and error;
   - the **events** with kind, source and causation;
   - the **context** as JSON.
-- **Legacy storage:** a saga storage shows its sagas, their steps and context the same
+- **Classic storage:** a saga storage shows its sagas, their steps and context the same
   way.
 
 ### Architecture

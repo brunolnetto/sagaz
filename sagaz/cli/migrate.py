@@ -114,7 +114,7 @@ def migrate_status(source: str) -> None:
 
 
 @migrate_cmd.command("unify")
-@click.option("--source", required=True, help="Storage URL holding the old layout.")
+@click.option("--source", required=True, help="Storage URL holding the classic layout.")
 @click.option(
     "--target",
     default=None,
@@ -122,7 +122,7 @@ def migrate_status(source: str) -> None:
 )
 @click.option("--dry-run", is_flag=True, default=False, help="Count, do not write.")
 def migrate_unify(source: str, target: str | None, dry_run: bool) -> None:
-    """Copy the old storage layout into the unified saga log (ADR-041).
+    """Copy the classic storage layout into the unified saga log (ADR-041).
 
     Reads sagas and steps, the tracker's choreography records, the event store,
     choreography participant state, consumer inboxes and snapshots. The old

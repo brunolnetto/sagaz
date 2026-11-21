@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **`storage_layout="classic"`** (#578): the layout with a table per concern, the default,
+  was named `"legacy"`, which read as abandoned. It is now `"classic"` in `SagaConfig`,
+  `Meta` and `sagaz event-log --layout`; `"legacy"` is still accepted and means the same.
 - **`run()` returns the context without the engine's markers** (#538): the
   `__<step>_completed`, `__<step>_compensated` and `__<step>_compensation_error` keys
   stay internal. The stored context keeps them.
@@ -48,7 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Feature × mode matrix** (`docs/reference/feature-matrix.md`): which capability
-  orchestrated sagas (`sagaz.Saga`), the legacy engine and choreography have, each cell
+  orchestrated sagas (`sagaz.Saga`), the classic engine and choreography have, each cell
   backed by a test (`scripts/check_feature_matrix.py` checks them in CI), with the gaps
   linked to their issues (bugs in v2.4.0, parity in v2.5.0).
 - **"Your First Saga Service" guide** (#539): a saga per request, PostgreSQL persistence,

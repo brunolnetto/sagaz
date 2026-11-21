@@ -25,7 +25,7 @@ def _store(url: str, layout: str) -> Any:
 
 
 async def _load(
-    url: str, saga_id: str, tenant: str, layout: str = "legacy"
+    url: str, saga_id: str, tenant: str, layout: str = "classic"
 ) -> tuple[list[SagaEvent], Any]:
     from sagaz.projections import load_projection
 
@@ -94,10 +94,11 @@ def _details(event: SagaEvent) -> str:
 @click.option("--json", "as_json", is_flag=True, help="Print the events and state as JSON.")
 @click.option(
     "--layout",
-    type=click.Choice(["legacy", "unified"]),
-    default="legacy",
+    type=click.Choice(["classic", "unified", "legacy"]),
+    default="classic",
     show_default=True,
-    help="Read the ADR-033 event store (legacy) or the unified saga log (ADR-041).",
+    help="Read the ADR-033 event store (classic; 'legacy' is its former name) or the "
+    "unified saga log (ADR-041).",
 )
 def event_log_cmd(saga_id: str, store_url: str, tenant: str, as_json: bool, layout: str) -> None:
     """Show every recorded event of the saga or choreographed transaction SAGA_ID."""

@@ -51,7 +51,7 @@ Opt in per saga, or for every saga through `SagaConfig`:
 ```python
 class OrderSaga(Saga):
     class Meta:
-        storage_layout = "unified"          # default: "legacy"
+        storage_layout = "unified"          # default: "classic" ("legacy" also accepted)
         saga_log = "postgresql://..."       # or a SagaLogStore
         participant = "orders-service"      # who runs the steps (default: "orchestrator")
         snapshot_threshold = 50
