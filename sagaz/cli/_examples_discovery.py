@@ -64,7 +64,7 @@ DOMAIN_MAPPING = {
     "Healthcare & Life Sciences": ["healthcare"],
     "Public Sector & Education": ["government", "education", "energy"],
     "Communications, Media & Entertainment": ["telecom", "media", "gaming"],
-    "Consumer Goods": ["product", "distribution"],
+    "Consumer Goods": ["product", "distribution", "direct_to_consumer", "supply"],
     "Software & Technology": ["ai", "data", "iot", "integrations", "observability"],
     "Travel & Hospitality": ["travel", "logistics"],
 }

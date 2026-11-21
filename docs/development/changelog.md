@@ -28,6 +28,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     and the quarantine);
   - retail replenishment with EDI 855/856/810 (the truck's dispatch is the pivot);
   - trade promotion (the in-store activation is the pivot).
+  - subscription box (the carrier pickup is the pivot);
+  - returns processing (the refund is the pivot);
+  - co-packer order, gated by a first-article sample (starting the run is the pivot);
+  - packaging switch, with label validation (the line cut-over is the pivot).
+
+### Fixed
+- **Example pivots** (#529): 12 examples described a pivot step but did not set
+  `pivot=True`, so a failure compensated every step: loan origination, wire transfer,
+  insurance claim, in-game purchase, tournament match, content publishing, prescription,
+  3D printing, course enrollment, smart meter, regulatory filing and visa application. A
+  test now checks that every pivot an example declares is a pivot step.
 
 ## [2.3.0] - 2026-11-20
 
