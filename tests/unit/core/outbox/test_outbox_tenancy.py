@@ -293,16 +293,56 @@ class TestEventProducers:
         assert events == {"saga-1": "acme", "saga-2": "default"}
 
     async def test_optimistic_publish_sends_the_tenant_header(self):
-        broker = MagicMock()
-        broker.publish = AsyncMock()
-        storage = MagicMock()
-        storage.mark_sent = AsyncMock()
-        publisher = OptimisticPublisher(storage, broker)
+        broker = InMemoryBroker()
+        await broker.connect()
+        storage = InMemoryOutboxStorage()
+        event = _event(tenant_id="acme", headers={"a": "1"})
+        with tenant_scope("acme"):
+            await storage.insert(event)
+            assert await OptimisticPublisher(storage, broker).publish_after_commit(event)
 
-        assert await publisher.publish_after_commit(_event(tenant_id="acme", headers={"a": "1"}))
-        assert broker.publish.await_args.kwargs["headers"] == {"a": "1", "tenant_id": "acme"}
+        (message,) = broker.get_messages(event.event_type)
+        assert message["headers"]["a"] == "1"
+        assert message["headers"]["tenant_id"] == "acme"
 
 
 async def _all(storage):
     for record in [r async for r in storage.export_all()]:
         yield OutboxEvent.from_dict(record)
+
+
+class TestSQLiteOutboxRefusesACallersConnection:
+    """It writes through its own connection: a caller's would be ignored (#607)."""
+
+    async def test_insert_refuses_a_connection(self, tmp_path):
+        storage = SQLiteOutboxStorage(str(tmp_path / "outbox.db"))
+        other = await aiosqlite.connect(str(tmp_path / "other.db"))
+        try:
+            with pytest.raises(OutboxStorageError, match="cannot join a caller's transaction"):
+                await storage.insert(_event(), connection=other)
+            with system_scope():
+                assert [e async for e in _all(storage)] == []  # nothing was written
+        finally:
+            await other.close()
+            await storage.close()
+
+    async def test_update_status_refuses_a_connection(self, tmp_path):
+        storage = SQLiteOutboxStorage(str(tmp_path / "outbox.db"))
+        event = _event()
+        try:
+            await storage.insert(event)
+            with pytest.raises(OutboxStorageError, match="cannot join a caller's transaction"):
+                await storage.update_status(event.event_id, OutboxStatus.SENT, connection=object())
+            assert (await storage.get_by_id(event.event_id)).status == OutboxStatus.PENDING
+        finally:
+            await storage.close()
+
+    async def test_without_a_connection_it_works_as_before(self, tmp_path):
+        storage = SQLiteOutboxStorage(str(tmp_path / "outbox.db"))
+        event = _event()
+        try:
+            await storage.insert(event)
+            updated = await storage.update_status(event.event_id, OutboxStatus.SENT)
+            assert updated.status == OutboxStatus.SENT
+        finally:
+            await storage.close()

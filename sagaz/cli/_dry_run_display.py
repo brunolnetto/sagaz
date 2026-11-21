@@ -85,21 +85,6 @@ def _display_warnings_rich(warnings: list) -> None:
             console.print(f"  • {warning}")
 
 
-def _display_validation_result_plain(result: DryRunResult) -> None:
-    """Display validation result in plain text."""
-    if result.success:
-        if result.validation_warnings:
-            for _warning in result.validation_warnings:
-                pass
-    else:
-        for _error in result.validation_errors:
-            pass
-
-        if result.validation_warnings:
-            for _warning in result.validation_warnings:
-                pass
-
-
 def _build_parallelization_table(result: DryRunResult) -> Table:
     """Build parallelization analysis table."""
     table = Table(show_header=False)
@@ -152,24 +137,6 @@ def _display_simulation_result_rich(result: DryRunResult, show_parallel: bool) -
         console.print("\n[dim]Legacy Parallel Groups (for reference):[/dim]")
         for idx, group in enumerate(result.parallel_groups):
             console.print(f"[dim]  Group {idx}: {', '.join(group)}[/dim]")
-
-
-def _display_simulation_result_plain(result: DryRunResult, show_parallel: bool) -> None:
-    """Display simulation result in plain text."""
-
-    for layer in result.forward_layers:
-        for _step in layer.steps:
-            pass
-        if layer.dependencies:
-            pass
-
-    if result.critical_path:
-        pass
-
-    if result.backward_layers:
-        for layer in result.backward_layers:
-            for _step in layer.steps:
-                pass
 
 
 def _build_validation_table(checks: dict) -> Table:
@@ -227,29 +194,6 @@ def _display_project_validation_results_rich(results: list[tuple[str, DryRunResu
         _display_single_validation_result_rich(saga_name, result)
 
 
-def _display_project_validation_results_plain(results: list[tuple[str, DryRunResult]]) -> None:
-    """Display validation results for multiple sagas in plain text."""
-    all_success = all(result.success for _, result in results)
-
-    if all_success:
-        pass
-    else:
-        pass
-
-    for _saga_name, result in results:
-        if result.success:
-            if result.validation_warnings:
-                for _warning in result.validation_warnings:
-                    pass
-        else:
-            for _error in result.validation_errors:
-                pass
-
-            if result.validation_warnings:
-                for _warning in result.validation_warnings:
-                    pass
-
-
 def _display_single_simulation_result_rich(
     saga_name: str, result: DryRunResult, show_parallel: bool
 ) -> None:
@@ -298,45 +242,3 @@ def _display_project_simulation_results_rich(
 
     for saga_name, result in results:
         _display_single_simulation_result_rich(saga_name, result, show_parallel)
-
-
-def _print_forward_layers_plain(layers: list) -> None:
-    """Print forward execution layers in plain text."""
-    for layer in layers:
-        for _step in layer.steps:
-            pass
-        if layer.dependencies:
-            pass
-
-
-def _print_parallelization_plain(result: DryRunResult) -> None:
-    """Print parallelization analysis in plain text."""
-
-
-def _display_project_simulation_results_plain(
-    results: list[tuple[str, DryRunResult]], show_parallel: bool
-) -> None:
-    """Display simulation results for multiple sagas in plain text."""
-    all_success = all(result.success for _, result in results)
-
-    if all_success:
-        pass
-    else:
-        pass
-
-    for _saga_name, result in results:
-        if not result.success:
-            for _error in result.validation_errors:
-                pass
-            continue
-
-        _print_forward_layers_plain(result.forward_layers)
-        _print_parallelization_plain(result)
-
-        if result.critical_path:
-            pass
-
-        if result.backward_layers:
-            for layer in result.backward_layers:
-                for _step in layer.steps:
-                    pass
