@@ -32,6 +32,7 @@ else:
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.outbox.types import OutboxEvent, OutboxStatus
 from sagaz.core.storage._outbox_tenancy import resolve_event_tenant
+from sagaz.core.storage.backends.sqlite._outbox_base import own_connection_only
 from sagaz.core.storage.backends.sqlite._outbox_dlq import SQLiteOutboxDeadLetterMixin
 from sagaz.core.storage.backends.sqlite._outbox_rows import SQLiteOutboxRowMappingMixin
 from sagaz.core.storage.backends.sqlite._outbox_schema import SQLiteOutboxSchemaMixin
@@ -129,7 +130,8 @@ class SQLiteOutboxStorage(
             self._initialized = False
 
     async def insert(self, event: OutboxEvent, connection: object | None = None) -> OutboxEvent:
-        """Insert an outbox event."""
+        """Insert an outbox event. A caller's ``connection`` is refused (#607)."""
+        own_connection_only(connection)
         conn = await self._get_connection()
         now = datetime.now(UTC).isoformat()
         tenant_id = resolve_event_tenant(event)
@@ -197,7 +199,8 @@ class SQLiteOutboxStorage(
         connection: object | None = None,
         event: OutboxEvent | None = None,
     ) -> OutboxEvent:
-        """Update event status."""
+        """Update event status. A caller's ``connection`` is refused (#607)."""
+        own_connection_only(connection)
         conn = await self._get_connection()
         now = datetime.now(UTC).isoformat()
         query, params = self._build_update_status_query(event_id, status, error_message, event, now)
@@ -248,7 +251,6 @@ class SQLiteOutboxStorage(
         )
         await conn.commit()
 
-        # Fetch the claimed events
         cursor = await conn.execute(
             f"SELECT * FROM outbox_events WHERE event_id IN ({placeholders})",  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             event_ids,

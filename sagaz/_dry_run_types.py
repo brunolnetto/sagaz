@@ -38,7 +38,8 @@ class DryRunResult:
     # Validation results
     validation_errors: list[str] = field(default_factory=list)
     validation_warnings: list[str] = field(default_factory=list)
-    validation_checks: dict[str, bool] = field(default_factory=dict)  # What was validated
+    # What was validated: flags, plus the step count and names and the context fields
+    validation_checks: dict[str, Any] = field(default_factory=dict)
 
     # Execution plan (SIMULATE mode)
     steps_planned: list[str] = field(default_factory=list)

@@ -29,23 +29,25 @@ from sagaz.cli._dry_run_display import (
     _build_parallelization_table,
     _build_validation_table,
     _display_forward_layers,
-    _display_project_simulation_results_plain,
     _display_project_simulation_results_rich,
-    _display_project_validation_results_plain,
     _display_project_validation_results_rich,
-    _display_simulation_result_plain,
     _display_simulation_result_rich,
     _display_single_simulation_result_rich,
     _display_single_validation_result_rich,
     _display_validation_checks_table,
     _display_validation_failure_rich,
-    _display_validation_result_plain,
     _display_validation_result_rich,
     _display_validation_success_rich,
     _display_warnings_rich,
+    console,
+)
+from sagaz.cli._dry_run_plain import (
+    _display_project_simulation_results_plain,
+    _display_project_validation_results_plain,
+    _display_simulation_result_plain,
+    _display_validation_result_plain,
     _print_forward_layers_plain,
     _print_parallelization_plain,
-    console,
 )
 from sagaz.dry_run import DryRunEngine, DryRunMode
 

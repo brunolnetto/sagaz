@@ -8,6 +8,7 @@ This file targets specific uncovered lines in:
 - sagaz/core.py (lines 449-451) - Status branch coverage
 """
 
+import json
 import sys
 from unittest.mock import MagicMock, patch
 
@@ -94,83 +95,88 @@ class TestConsumerInboxUnit:
 class TestOptimisticPublisherUnit:
     """Unit tests for OptimisticPublisher class."""
 
-    @pytest.mark.asyncio
-    async def test_optimistic_publisher_publish_after_commit_success(self):
-        """Test successful publish with optimistic publisher."""
-        from unittest.mock import AsyncMock
-
-        from sagaz.core.outbox.optimistic_publisher import OptimisticPublisher
+    @staticmethod
+    async def _stored_event(storage):
         from sagaz.core.outbox.types import OutboxEvent
 
-        storage = AsyncMock()
-        storage.mark_sent = AsyncMock()
-
-        broker = AsyncMock()
-        broker.publish = AsyncMock()
-
-        publisher = OptimisticPublisher(storage=storage, broker=broker)
-
         event = OutboxEvent(
-            saga_id="test-saga",
-            event_type="order_created",
-            payload={"order_id": "123"},
+            saga_id="test-saga", event_type="order_created", payload={"order_id": "123"}
         )
+        await storage.insert(event)
+        return event
 
-        # Should publish successfully
-        result = await publisher.publish_after_commit(event)
+    @pytest.mark.asyncio
+    async def test_optimistic_publisher_publish_after_commit_success(self):
+        """A real broker receives the event, and a real storage marks it sent (#605)."""
+        from sagaz.core.outbox.brokers.memory import InMemoryBroker
+        from sagaz.core.outbox.optimistic_publisher import OptimisticPublisher
+        from sagaz.core.outbox.types import OutboxStatus
+        from sagaz.core.storage.backends.memory.outbox import InMemoryOutboxStorage
 
-        assert result is True
-        broker.publish.assert_called_once()
-        storage.mark_sent.assert_called_once_with(event.event_id)
+        storage, broker = InMemoryOutboxStorage(), InMemoryBroker()
+        await broker.connect()
+        event = await self._stored_event(storage)
+
+        assert await OptimisticPublisher(storage=storage, broker=broker).publish_after_commit(event)
+
+        (message,) = broker.get_messages("order_created")
+        assert json.loads(message["message"])["event_id"] == event.event_id
+        assert (await storage.get_by_id(event.event_id)).status == OutboxStatus.SENT
+
+    @pytest.mark.asyncio
+    async def test_optimistic_publisher_publishes_as_the_worker_does(self):
+        """Both paths deliver the same message: same topic, body and headers (#605)."""
+        from sagaz.core.outbox.brokers.memory import InMemoryBroker
+        from sagaz.core.outbox.optimistic_publisher import OptimisticPublisher
+        from sagaz.core.storage.backends.memory.outbox import InMemoryOutboxStorage
+
+        storage, optimistic, worker_path = (
+            InMemoryOutboxStorage(),
+            InMemoryBroker(),
+            InMemoryBroker(),
+        )
+        await optimistic.connect()
+        await worker_path.connect()
+        event = await self._stored_event(storage)
+
+        await OptimisticPublisher(storage=storage, broker=optimistic).publish_after_commit(event)
+        await worker_path.publish_event(event)  # what OutboxWorker calls
+
+        assert optimistic.get_messages("order_created") == worker_path.get_messages("order_created")
 
     @pytest.mark.asyncio
     async def test_optimistic_publisher_disabled(self):
-        """Test that disabled publisher does not publish."""
-        from unittest.mock import AsyncMock
-
+        """A disabled publisher publishes nothing and leaves the event pending."""
+        from sagaz.core.outbox.brokers.memory import InMemoryBroker
         from sagaz.core.outbox.optimistic_publisher import OptimisticPublisher
-        from sagaz.core.outbox.types import OutboxEvent
+        from sagaz.core.outbox.types import OutboxStatus
+        from sagaz.core.storage.backends.memory.outbox import InMemoryOutboxStorage
 
-        storage = AsyncMock()
-        broker = AsyncMock()
-
+        storage, broker = InMemoryOutboxStorage(), InMemoryBroker()
+        await broker.connect()
+        event = await self._stored_event(storage)
         publisher = OptimisticPublisher(storage=storage, broker=broker, enabled=False)
 
-        event = OutboxEvent(
-            saga_id="test-saga",
-            event_type="order_created",
-            payload={"order_id": "123"},
-        )
-
-        result = await publisher.publish_after_commit(event)
-
-        assert result is False
-        broker.publish.assert_not_called()
+        assert await publisher.publish_after_commit(event) is False
+        assert broker.get_messages("order_created") == []
+        assert (await storage.get_by_id(event.event_id)).status == OutboxStatus.PENDING
 
     @pytest.mark.asyncio
     async def test_optimistic_publisher_publish_failure(self):
-        """Test that failed publish returns False."""
-        from unittest.mock import AsyncMock
-
+        """A broker failure returns False and leaves the event for the polling worker."""
+        from sagaz.core.outbox.brokers.memory import InMemoryBroker
         from sagaz.core.outbox.optimistic_publisher import OptimisticPublisher
-        from sagaz.core.outbox.types import OutboxEvent
+        from sagaz.core.outbox.types import OutboxStatus
+        from sagaz.core.storage.backends.memory.outbox import InMemoryOutboxStorage
 
-        storage = AsyncMock()
-        broker = AsyncMock()
-        broker.publish = AsyncMock(side_effect=Exception("Broker error"))
+        storage, broker = InMemoryOutboxStorage(), InMemoryBroker()  # not connected: it raises
+        event = await self._stored_event(storage)
 
-        publisher = OptimisticPublisher(storage=storage, broker=broker)
-
-        event = OutboxEvent(
-            saga_id="test-saga",
-            event_type="order_created",
-            payload={"order_id": "456"},
+        assert (
+            await OptimisticPublisher(storage=storage, broker=broker).publish_after_commit(event)
+            is False
         )
-
-        # Should return False on failure
-        result = await publisher.publish_after_commit(event)
-
-        assert result is False
+        assert (await storage.get_by_id(event.event_id)).status == OutboxStatus.PENDING
 
 
 # ============================================
