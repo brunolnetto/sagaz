@@ -9,7 +9,7 @@ from click.testing import CliRunner
 
 from sagaz.cli.app import cli
 from sagaz.core.replay import ReplayConfig, SnapshotStrategy
-from sagaz.core.saga import Saga as LegacySaga
+from sagaz.core.saga import Saga as ClassicSaga
 from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
 
 REPLAYED: list[str] = []
@@ -24,9 +24,9 @@ async def _charge(ctx):
     return {"charged": ctx.get("amount", 0)}
 
 
-async def make_order_saga(name: str) -> LegacySaga:
+async def make_order_saga(name: str) -> ClassicSaga:
     """The factory `--saga tests.unit.cli.test_replay_real_storage:make_order_saga` loads."""
-    saga = LegacySaga(name)
+    saga = ClassicSaga(name)
     await saga.add_step("reserve", _reserve)
     await saga.add_step("charge", _charge)
     return saga
@@ -35,7 +35,7 @@ async def make_order_saga(name: str) -> LegacySaga:
 def record_run(directory) -> str:
     async def run() -> str:
         storage = FilesystemSnapshotStorage(base_path=str(directory))
-        saga = LegacySaga(
+        saga = ClassicSaga(
             "order",
             replay_config=ReplayConfig(
                 enable_snapshots=True, snapshot_strategy=SnapshotStrategy.BEFORE_EACH_STEP
