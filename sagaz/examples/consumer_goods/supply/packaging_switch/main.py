@@ -20,6 +20,7 @@ import uuid
 from typing import Any
 
 from sagaz import Saga, SagaContext, action, compensate
+from sagaz.core.exceptions import SagaFailedError
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -107,7 +108,7 @@ async def main() -> None:
         await PackagingSwitchSaga().run(
             {**change, "artwork": {**change["artwork"], "allergens": False}}
         )
-    except RuntimeError as e:
+    except SagaFailedError as e:
         logger.info(f"Switch rolled back: {e}")
 
 

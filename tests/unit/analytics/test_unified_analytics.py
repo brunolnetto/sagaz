@@ -6,6 +6,8 @@ import asyncio
 
 import pytest
 
+from sagaz.core.exceptions import SagaFailedError
+
 pytest.importorskip("duckdb")
 pytest.importorskip("sqldim")
 
@@ -25,9 +27,9 @@ from tests.unit.test_choreography_unified import shop  # noqa: E402
 async def fill(log) -> None:
     """Orchestrated and choreographed transactions, all on one saga log."""
     await order_saga(log).run({"order_id": "o-1"}, saga_id="orch-ok")
-    with pytest.raises(ValueError):
+    with pytest.raises(SagaFailedError):
         await order_saga(log, fail_charge=True).run({"order_id": "o-2"}, saga_id="orch-bad")
-    with pytest.raises(ValueError):
+    with pytest.raises(SagaFailedError):
         failing = order_saga(log, fail_charge=True, fail_release=True)
         await failing.run({"order_id": "o-3"}, saga_id="orch-stuck")
     service, orders, _ = shop(log)

@@ -21,7 +21,7 @@ from datetime import datetime
 from typing import Any
 
 from sagaz import Saga, action, compensate
-from sagaz.core.exceptions import SagaStepError
+from sagaz.core.exceptions import SagaFailedError, SagaStepError
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -346,7 +346,7 @@ async def failed_lakehouse_demo():
                     "partition_date": f"2026-01-0{attempt + 1}",
                 }
             )
-        except SagaStepError:
+        except SagaFailedError:
             break
 
 

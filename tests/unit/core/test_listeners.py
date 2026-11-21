@@ -10,6 +10,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from sagaz.core.exceptions import SagaFailedError
+
 
 class TestSagaListenerBasic:
     """Test basic listener functionality."""
@@ -143,7 +145,7 @@ class TestSagaListenerBasic:
 
         saga = TestSaga()
 
-        with pytest.raises(ValueError):
+        with pytest.raises(SagaFailedError):
             await saga.run({})
 
         assert len(received_events) == 1
@@ -208,7 +210,7 @@ class TestSagaListenerBasic:
 
         saga = TestSaga()
 
-        with pytest.raises(RuntimeError):
+        with pytest.raises(SagaFailedError):
             await saga.run({"saga_id": "saga-003"})
 
         assert len(received_events) == 1
@@ -252,7 +254,7 @@ class TestSagaListenerCompensation:
 
         saga = TestSaga()
 
-        with pytest.raises(ValueError):
+        with pytest.raises(SagaFailedError):
             await saga.run({})
 
         # Should have compensation events for create_order

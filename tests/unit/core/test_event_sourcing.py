@@ -20,6 +20,7 @@ from sagaz.core.events import (
     event_class,
     json_safe,
 )
+from sagaz.core.exceptions import SagaFailedError
 from sagaz.core.storage.event_store import (
     InMemoryEventStore,
     SagaEventRecorder,
@@ -181,7 +182,7 @@ class TestEventSourcedSaga:
         }
 
     async def test_rolled_back_run(self, store):
-        with pytest.raises(ValueError, match="declined"):
+        with pytest.raises(SagaFailedError, match="declined"):
             await make_saga(store, fail_charge=True).run({"order_id": "o-2"}, saga_id="s-2")
         events = await store.load_stream("s-2")
         assert types(events) == [
@@ -199,7 +200,7 @@ class TestEventSourcedSaga:
 
     async def test_a_failed_compensation_fails_the_saga(self, store):
         saga = make_saga(store, fail_charge=True, fail_release=True)
-        with pytest.raises(ValueError):
+        with pytest.raises(SagaFailedError):
             await saga.run({"order_id": "o-3"}, saga_id="s-3")
         events = await store.load_stream("s-3")
         assert types(events)[-2:] == ["StepCompensationFailed", "SagaFailed"]
@@ -209,7 +210,7 @@ class TestEventSourcedSaga:
         assert state.error == "ValueError: card declined"
 
     async def test_timeouts_are_recorded(self, store):
-        with pytest.raises(TimeoutError):
+        with pytest.raises(SagaFailedError):
             await make_saga(store, slow=True).run({"order_id": "o-4"}, saga_id="s-4")
         failed = [e for e in await store.load_stream("s-4") if e.event_type == "StepFailed"]
         assert failed[0].error_message == "timed out after 0.05s"

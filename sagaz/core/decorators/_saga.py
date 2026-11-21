@@ -1,7 +1,7 @@
 """Declarative ``Saga`` base class and ``SagaStepDefinition``."""
 
 import inspect
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -321,6 +321,13 @@ class Saga(
                 ``SagaConfig.tolerate_persistence_errors``).
             Exception: If saga fails (compensations will be attempted first)
         """
+        if not isinstance(initial_context, Mapping):
+            msg = (
+                f"initial_context must be a dict (a mapping of names to values), "
+                f"got {type(initial_context).__name__}"
+            )
+            raise TypeError(msg)
+        initial_context = dict(initial_context)
         if tenant_context is None:
             return await self._engine(allow_rerun).run(initial_context, saga_id)
         registry = getattr(self._config, "tenant_registry", None)

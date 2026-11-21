@@ -71,8 +71,10 @@ from sagaz.core.exceptions import (
     MissingDependencyError,
     SagaAlreadyExistsError,
     SagaCompensationError,
+    SagaDefinitionError,
     SagaError,
     SagaExecutionError,
+    SagaFailedError,
     SagaPersistenceError,
     SagaStepError,
     SagaTimeoutError,
@@ -206,12 +208,14 @@ __all__ = [
     "SagaCompensationError",
     "SagaConfig",
     "SagaContext",
+    "SagaDefinitionError",
     "SagaError",
     "SagaExecutionError",
     # =========================================================================
     # Execution Graph
     # =========================================================================
     "SagaExecutionGraph",
+    "SagaFailedError",
     # =========================================================================
     # Listeners
     # =========================================================================

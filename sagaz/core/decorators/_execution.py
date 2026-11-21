@@ -25,6 +25,7 @@ from sagaz.core.events import (
     StepExecuted,
     json_safe,
 )
+from sagaz.core.exceptions import SagaFailedError, SagaTimeoutError
 from sagaz.core.logger import get_logger
 from sagaz.core.tenant import capped_retries, capped_timeout
 from sagaz.core.types import SagaStatus
@@ -52,6 +53,7 @@ class ExecutionEngine(
         """
         self.saga = saga
         self._ledger = StepLedger([])
+        self._compensation_errors: dict[str, BaseException] = {}
         self._init_event_sourcing()
 
     async def run(
@@ -70,6 +72,9 @@ class ExecutionEngine(
             Exception: If saga fails (compensations will be attempted first)
         """
         self._initialize_run(initial_context, saga_id)
+        # Unknown dependencies and cycles raise SagaDefinitionError here, before the
+        # saga is stored or any step runs (#536). Dry runs can still inspect it.
+        self.saga.get_execution_order()
         name = self._get_saga_name()
         self._check_regions()
         self._register_compensations()
@@ -100,7 +105,14 @@ class ExecutionEngine(
             )
             # FAILED when a compensation failed, as the event log records it.
             await self._persist_outcome(self._failure_status(), e)
-            raise
+            raise SagaFailedError(
+                self.saga._saga_id,
+                name,
+                self._failure_status(),
+                self._failed_step,
+                e,
+                self._compensation_errors,
+            ) from e
 
         # Every step succeeded: only a step's failure compensates. A failure to save
         # the outcome raises SagaPersistenceError for a saga that did complete.
@@ -238,7 +250,7 @@ class ExecutionEngine(
                 "on_step_failure", saga_name, step.step_id, self.saga._context, e
             )
             msg = f"Step '{step.step_id}' timed out after {timeout}s"
-            raise TimeoutError(msg) from e
+            raise SagaTimeoutError(msg) from e
         except Exception as e:
             await self._record_step_failure(step.step_id, e)
             # Call on_failure hook
@@ -344,6 +356,7 @@ class ExecutionEngine(
             # Log but don't fail - we want all compensations to attempt
             self.saga._context[f"__{step_id}_compensation_error"] = str(e)
             self._compensation_failed = True
+            self._compensation_errors[step_id] = e
             await self._chart_compensation_failed(step_id)
             await self._record(
                 StepCompensationFailed,

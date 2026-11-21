@@ -19,6 +19,7 @@ import logging
 from typing import Any
 
 from sagaz import Saga, SagaContext, action, compensate
+from sagaz.core.exceptions import SagaFailedError
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -95,7 +96,7 @@ async def main() -> None:
         await ProductRecallSaga().run(
             {"recall_id": "RC-0092", "lot": "L2612", "defect_confirmed": False}
         )
-    except RuntimeError as e:
+    except SagaFailedError as e:
         logger.info(f"No recall: {e}")
 
 

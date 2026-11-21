@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import Any
 
 from sagaz import Saga, action, compensate
-from sagaz.core.exceptions import SagaStepError
+from sagaz.core.exceptions import SagaFailedError, SagaStepError
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -367,7 +367,7 @@ async def failed_deployment_demo():
 
             await saga.run(data)
             break
-        except SagaStepError:
+        except SagaFailedError:
             if attempt < 3:
                 await asyncio.sleep(1)
             else:

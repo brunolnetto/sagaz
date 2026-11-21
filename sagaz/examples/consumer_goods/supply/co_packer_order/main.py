@@ -20,6 +20,7 @@ import uuid
 from typing import Any
 
 from sagaz import Saga, SagaContext, action, compensate
+from sagaz.core.exceptions import SagaFailedError
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -99,7 +100,7 @@ async def main() -> None:
     logger.info("=== The sample is rejected: materials return, run cancelled ===")
     try:
         await CoPackerOrderSaga().run({**order, "sample_rejected": True})
-    except RuntimeError as e:
+    except SagaFailedError as e:
         logger.info(f"Order rolled back: {e}")
 
 

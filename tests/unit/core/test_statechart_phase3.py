@@ -9,6 +9,7 @@ from statemachine.exceptions import TransitionNotAllowed
 
 from sagaz.core.config import SagaConfig
 from sagaz.core.decorators import Saga, compensate, step
+from sagaz.core.exceptions import SagaFailedError
 from sagaz.core.execution.step_statechart import (
     build_step_statechart,
     configuration_values,
@@ -131,7 +132,7 @@ class TestDeclarative:
     async def test_a_compensated_failure_is_stored_with_its_configuration(self):
         storage, calls, seen = InMemorySagaStorage(), [], {}
         saga = order_saga(calls, seen)(config=config(storage))
-        with pytest.raises(ValueError, match="no truck"):
+        with pytest.raises(SagaFailedError, match="no truck"):
             await saga.run({}, saga_id="o-1")
         assert calls[-3:] == ["undo:notify", "undo:charge", "undo:reserve"]
         assert seen["undo:reserve"]["charge"] == "compensated"
@@ -143,7 +144,7 @@ class TestDeclarative:
     async def test_a_failed_compensation_is_stored_as_failed(self, flag):
         storage = InMemorySagaStorage()
         saga = order_saga([], {}, bad_undo=("charge",))(config=config(storage, flag))
-        with pytest.raises(ValueError):
+        with pytest.raises(SagaFailedError):
             await saga.run({}, saga_id="o-2")
         stored = await storage.load_saga_state("o-2")
         assert stored["status"] == "failed"  # was rolled_back
@@ -152,7 +153,7 @@ class TestDeclarative:
     async def test_a_pivot_taints_its_ancestors(self):
         calls, seen = [], {}
         saga = order_saga(calls, seen, pivot=True)(config=config())
-        with pytest.raises(ValueError):
+        with pytest.raises(SagaFailedError):
             await saga.run({})
         assert seen["ship"]["reserve"] == "tainted"
         assert seen["ship"]["charge"] == "completed"  # the pivot itself
@@ -166,7 +167,7 @@ class TestDeclarative:
                 calls = []
                 storage = InMemorySagaStorage()
                 saga = order_saga(calls, {}, pivot=pivot)(config=config(storage, flag))
-                with pytest.raises(ValueError):
+                with pytest.raises(SagaFailedError):
                     await saga.run({}, saga_id="o")
                 stored = await storage.load_saga_state("o")
                 outcomes[flag, pivot] = (calls, stored["status"], stored["steps"][0]["status"])

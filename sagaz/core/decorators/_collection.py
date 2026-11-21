@@ -11,6 +11,7 @@ from sagaz.core.decorators._steps import (
     ForwardRecoveryMetadata,
     StepMetadata,
 )
+from sagaz.core.exceptions import SagaDefinitionError
 from sagaz.core.logger import get_logger
 
 if TYPE_CHECKING:
@@ -79,6 +80,9 @@ class DecoratorCollectionManager:
             pivot=meta.pivot,
             region=meta.region,
         )
+        if meta.name in self.saga._step_registry:
+            msg = f"two steps are named {meta.name!r}: step names must be unique"
+            raise SagaDefinitionError(msg)
         self.saga._steps.append(step_def)
         self.saga._step_registry[meta.name] = step_def
 
@@ -107,8 +111,15 @@ class DecoratorCollectionManager:
         meta: CompensationMetadata = method._saga_compensation_meta
         step_name = meta.for_step
         if step_name not in self.saga._step_registry:
-            return  # compensate for unknown step
+            msg = (
+                f"@compensate({step_name!r}) on {method.__name__}() names no step; "
+                f"steps: {sorted(self.saga._step_registry)}"
+            )
+            raise SagaDefinitionError(msg)
         step = self.saga._step_registry[step_name]
+        if step.compensation_fn is not None:
+            msg = f"step {step_name!r} has two @compensate methods"
+            raise SagaDefinitionError(msg)
         step.compensation_fn = method
         # Compensation dependencies are derived from forward dependencies (step.depends_on)
         # No need to set step.compensation_depends_on - it's ignored

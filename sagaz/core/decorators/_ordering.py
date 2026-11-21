@@ -22,10 +22,14 @@ class _DecoratorOrderingMixin:
             List of levels, where steps in each level can run in parallel
 
         Raises:
-            ValueError: If circular dependencies detected
+            SagaDefinitionError: A step depends on no step, or a dependency cycle
+                (also a ``ValueError``).
         """
         if not self._steps:
             return []
+        from sagaz.core.decorators._validation import check_dependencies
+
+        check_dependencies(self._steps)
 
         step_map = {s.step_id: s for s in self._steps}
         in_degree = {s.step_id: len(s.depends_on) for s in self._steps}

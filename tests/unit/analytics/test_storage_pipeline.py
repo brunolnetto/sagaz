@@ -7,6 +7,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from sagaz.core.exceptions import SagaFailedError
+
 pytest.importorskip("duckdb")
 pytest.importorskip("sqldim")
 
@@ -42,7 +44,7 @@ async def _run_checkouts(storage) -> None:
     config = SagaConfig(storage=storage)
     await CheckoutSaga(config=config).run({"order": 1})
     await CheckoutSaga(config=config).run({"order": 2})
-    with pytest.raises(RuntimeError):
+    with pytest.raises(SagaFailedError):
         await CheckoutSaga(config=config).run({"order": 3, "declined": True})
 
 

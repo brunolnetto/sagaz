@@ -7,6 +7,7 @@ import asyncio
 import pytest
 
 from sagaz import Saga, SagaConfig, action, compensate
+from sagaz.core.exceptions import SagaFailedError
 from sagaz.core.storage.backends.memory.saga import InMemorySagaStorage
 
 
@@ -37,7 +38,7 @@ async def test_a_step_is_attempted_max_retries_plus_one_times(failures, succeeds
     if succeeds:
         assert (await S(config=config()).run({}))["ok"] is True
     else:
-        with pytest.raises(ConnectionError):
+        with pytest.raises(SagaFailedError):
             await S(config=config()).run({})
     assert len(calls) == min(failures + 1, 4)
 
@@ -50,7 +51,7 @@ async def test_the_config_defaults_apply_when_the_step_sets_none():
         retry_backoff_base = 0
         a = action("a")(flaky(10, calls))
 
-    with pytest.raises(ConnectionError):
+    with pytest.raises(SagaFailedError):
         await S(config=config(default_max_retries=1)).run({})
     assert len(calls) == 2
 
@@ -61,7 +62,7 @@ async def test_the_config_defaults_apply_when_the_step_sets_none():
         async def a(self, ctx):
             await asyncio.sleep(1)
 
-    with pytest.raises(TimeoutError):
+    with pytest.raises(SagaFailedError):
         await Slow(config=config(default_timeout=0.05)).run({})
 
 
@@ -115,7 +116,7 @@ async def test_hooks_listeners_and_compensation_see_one_failure():
             msg = "down"
             raise ConnectionError(msg)
 
-    with pytest.raises(ConnectionError):
+    with pytest.raises(SagaFailedError):
         await S(config=config()).run({})
     assert events == [
         "enter",

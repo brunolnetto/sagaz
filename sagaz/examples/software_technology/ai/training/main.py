@@ -10,7 +10,7 @@ Data is passed through the run() method's initial context, not the constructor.
 import asyncio
 import logging
 
-from sagaz.core.exceptions import SagaStepError
+from sagaz.core.exceptions import SagaFailedError, SagaStepError
 from sagaz.examples.software_technology.ai.training.saga import MLTrainingPipelineSaga
 
 logging.basicConfig(
@@ -61,7 +61,7 @@ async def failed_pipeline_demo():
                 },
             }
         )
-    except SagaStepError:
+    except SagaFailedError:
         pass
 
 

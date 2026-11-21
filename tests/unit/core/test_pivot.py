@@ -26,6 +26,7 @@ from sagaz.core.decorators import (
     SagaStepDefinition,
     StepMetadata,
 )
+from sagaz.core.exceptions import SagaFailedError
 from sagaz.core.saga import SagaStep
 
 
@@ -529,7 +530,7 @@ class TestPivotSagaIntegration:
         assert saga.get_pivot_steps() == ["charge_payment"]
 
         # Run the saga (it will fail at ship_order)
-        with pytest.raises(ValueError, match="Shipping failed!"):
+        with pytest.raises(SagaFailedError, match="Shipping failed!"):
             await saga.run({"amount": 100})
 
         # Verify pivot was reached
@@ -610,7 +611,7 @@ class TestPivotSagaIntegration:
         # No pivots
         assert saga.get_pivot_steps() == []
 
-        with pytest.raises(ValueError):
+        with pytest.raises(SagaFailedError):
             await saga.run({})
 
         # All completed steps should be compensated (full rollback)
