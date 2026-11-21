@@ -13,6 +13,7 @@ from sagaz.core.decorators import (
     compensate,
     step,
 )
+from sagaz.core.exceptions import SagaFailedError
 from sagaz.core.execution.graph import CompensationType
 
 
@@ -323,7 +324,7 @@ class TestSaga:
 
         saga = TestSaga()
 
-        with pytest.raises(ValueError, match="Step 2 failed"):
+        with pytest.raises(SagaFailedError, match="Step 2 failed"):
             await saga.run({"initial": "data"})
 
         # Only step1 was completed, so only step1 should be compensated
@@ -342,7 +343,7 @@ class TestSaga:
 
         saga = TestSaga()
 
-        with pytest.raises(TimeoutError, match="slow_step.*timed out"):
+        with pytest.raises(SagaFailedError, match="slow_step.*timed out"):
             await saga.run({})
 
     @pytest.mark.asyncio
@@ -432,7 +433,7 @@ class TestSagaAdvanced:
 
         saga = TestSaga()
 
-        with pytest.raises(ValueError):
+        with pytest.raises(SagaFailedError):
             await saga.run({})
 
         # step2 should compensate before step1 (reverse order)
@@ -469,7 +470,7 @@ class TestSagaAdvanced:
 
         saga = TestSaga()
 
-        with pytest.raises(ValueError):
+        with pytest.raises(SagaFailedError):
             await saga.run({})
 
         # Both compensations should be attempted even though one failed
@@ -579,8 +580,9 @@ class TestDecoratorsMissingBranches:
 
     # ---- 508: compensation for unknown step returns silently ----
 
-    def test_compensation_for_unknown_step_is_skipped(self):
-        """Line 508: _attach_compensation_to_step returns if step not in registry."""
+    def test_compensation_for_unknown_step_is_refused(self):
+        """A @compensate naming no step is a definition error (#536), not skipped."""
+        from sagaz.core.exceptions import SagaDefinitionError
 
         class BadCompSaga(Saga):
             saga_name = "badcomp"
@@ -593,12 +595,8 @@ class TestDecoratorsMissingBranches:
             async def comp_nonexistent(self, ctx):
                 pass
 
-        # Should not raise, compensation is simply skipped
-        saga = BadCompSaga()
-        # real_step should still be registered
-        assert "real_step" in saga._step_registry
-        # nonexistent_step should NOT be in registry
-        assert "nonexistent_step" not in saga._step_registry
+        with pytest.raises(SagaDefinitionError, match="nonexistent_step.*names no step"):
+            BadCompSaga()
 
     # ---- 563->566: _propagate_taint_from_pivot with empty newly_tainted ----
 
@@ -843,7 +841,7 @@ class TestDecoratorsMissingBranches:
         saga = FailSaga()
         saga._config = None  # no storage
 
-        with pytest.raises(ValueError, match="intentional failure"):
+        with pytest.raises(SagaFailedError, match="intentional failure"):
             await saga.run({})
 
     @pytest.mark.asyncio
@@ -868,10 +866,11 @@ class TestDecoratorsMissingBranches:
         saga._config = mock_config
         saga._instance_listeners = []
 
-        with pytest.raises(ValueError, match="intentional failure") as raised:
+        with pytest.raises(SagaFailedError, match="intentional failure") as raised:
             await saga.run({})
-        # The step's error stays the one raised; the failed save is noted on it.
-        assert any("could not save saga" in note for note in raised.value.__notes__)
+        # The step's error is the cause; the failed save is noted on it.
+        assert isinstance(raised.value.__cause__, ValueError)
+        assert any("could not save saga" in note for note in raised.value.__cause__.__notes__)
 
     # ---- 964->961: listener with no handler for event ----
 

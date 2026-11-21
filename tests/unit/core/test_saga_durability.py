@@ -8,7 +8,11 @@ import os
 import pytest
 
 from sagaz import Saga, SagaConfig, action, compensate
-from sagaz.core.exceptions import SagaAlreadyExistsError, SagaPersistenceError
+from sagaz.core.exceptions import (
+    SagaAlreadyExistsError,
+    SagaFailedError,
+    SagaPersistenceError,
+)
 from sagaz.core.storage.backends.memory.saga import InMemorySagaStorage
 from sagaz.core.types import SagaStatus
 from tests.unit.core.storage.backends.test_saga_tenancy_redis_unit import FakeRedis, _b
@@ -176,8 +180,10 @@ class TestProgressAndFailures:
 
         calls: list[str] = []
         storage = FailsOnProgress()
-        with pytest.raises(SagaPersistenceError, match="progress"):
+        with pytest.raises(SagaFailedError) as raised:
             await order_saga(calls)(config=config(storage)).run({}, saga_id="f")
+        assert isinstance(raised.value.__cause__, SagaPersistenceError)
+        assert raised.value.failed_step is None  # no step failed: the save did
         assert calls == ["reserve", "release"]  # charge never ran
         assert (await storage.load_saga_state("f"))["status"] == "rolled_back"
 

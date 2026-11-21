@@ -17,7 +17,7 @@ Data is passed through the run() method's initial context, not the constructor.
 import asyncio
 import logging
 
-from sagaz.core.exceptions import SagaStepError
+from sagaz.core.exceptions import SagaFailedError, SagaStepError
 from sagaz.examples.software_technology.data.data_migration.saga import DataMigrationSaga
 
 logging.basicConfig(
@@ -42,7 +42,7 @@ async def successful_migration_demo():
             }
         )
 
-    except SagaStepError:
+    except SagaFailedError:
         pass
 
 
@@ -68,7 +68,7 @@ async def failed_migration_demo():
                     "verify_checksums": True,
                 }
             )
-        except SagaStepError:
+        except SagaFailedError:
             break
 
 

@@ -12,6 +12,7 @@ from sagaz.cli._examples_discovery import (
     get_examples_dir,
     resolve_domain,
 )
+from sagaz.core.exceptions import SagaFailedError
 
 
 def test_every_mapped_subdomain_exists_and_subdomains_are_unique():
@@ -103,7 +104,7 @@ async def test_consumer_goods_examples_complete_and_compensate(module, cls, fail
     assert len(pivots) == 1
     assert context[f"__{pivots[0]}_completed"]
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(SagaFailedError):
         await saga_cls().run({**base, **failure})
 
 

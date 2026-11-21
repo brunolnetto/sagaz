@@ -21,6 +21,7 @@ import uuid
 from typing import Any
 
 from sagaz import Saga, SagaContext, action, compensate
+from sagaz.core.exceptions import SagaFailedError
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -129,7 +130,7 @@ async def main() -> None:
     logger.info("=== Launch whose carrier booking fails: everything before it is undone ===")
     try:
         await ProductLaunchSaga().run({**order, "fail_at": "book_distribution"})
-    except RuntimeError as e:
+    except SagaFailedError as e:
         logger.info(f"Launch rolled back: {e}")
 
 

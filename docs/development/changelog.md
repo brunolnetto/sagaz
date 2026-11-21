@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **A failed saga raises `SagaFailedError`** (#536). **Breaking:** `Saga.run()` used to
+  re-raise the failed step's exception, so a caller could not tell a saga that was rolled
+  back from one whose compensation failed. It now raises
+  `SagaFailedError(saga_id, saga_name, status, failed_step, compensation_errors)`, with
+  the step's exception as `__cause__` and its message included.
+  - **Migration:** replace `except CardDeclinedError:` around `run()` with
+    `except SagaFailedError as e:` and read `e.__cause__`.
+  - **Not wrapped:** errors raised before the saga starts keep their types: tenant,
+    quota, version, region, a duplicate saga id and definition errors.
+- **Step timeouts raise `SagaTimeoutError`** (#536), which is also a `TimeoutError`.
 - **Import time** (#532): `import sagaz` loads the optional drivers (aioboto3, asyncpg,
   redis, aiokafka, aio-pika) and the CLI only when they are used. Import time drops from
   about 3 s to about 0.6 s, and the number of modules from 1234 to 455.
@@ -25,6 +35,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     any case (`consumer_goods`).
 
 ### Added
+- **Definition checks** (#536):
+  - **When the saga is created:** a `@compensate` naming no step, two steps with one name
+    and two compensations for one step raise `SagaDefinitionError` (also a
+    `ValueError`). A `@compensate` of an unknown step used to be ignored silently.
+  - **Before the saga is stored or any step runs:** a `depends_on` naming no step, and a
+    cycle with its path. They used to raise "Circular dependency detected" for both.
+- **Plain functions as steps** (#536): steps and compensations can be `def` as well as
+  `async def`; a sync step used to fail with `TypeError: object dict can't be used in
+  'await' expression`.
+- **Context check** (#536): `run()` refuses a context that is not a mapping, with a
+  clear `TypeError`.
 - **`SagaAlreadyExistsError`, `SagaPersistenceError`**, **`SagaStorage.create_saga_state`**
   and **`SagaConfig.tolerate_persistence_errors`** (#534, #535).
 - **`sagaz.__version__`** (#532).

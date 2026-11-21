@@ -11,7 +11,7 @@ import asyncio
 import logging
 from datetime import datetime
 
-from sagaz.core.exceptions import SagaStepError
+from sagaz.core.exceptions import SagaFailedError, SagaStepError
 from sagaz.examples.software_technology.ai.training.feature_store_saga import FeatureStoreSaga
 
 logging.basicConfig(
@@ -80,7 +80,7 @@ async def failed_pipeline_demo():
 
     try:
         await saga.run(pipeline_data)
-    except SagaStepError:
+    except SagaFailedError:
         pass
 
 

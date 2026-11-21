@@ -9,6 +9,7 @@ import pytest
 from click.testing import CliRunner
 
 from sagaz.cli.app import cli
+from sagaz.core.exceptions import SagaFailedError
 from sagaz.core.storage.event_store.sqlite import SQLiteEventStore
 from tests.unit.core.test_event_sourcing import make_saga
 
@@ -20,7 +21,7 @@ def store_url(tmp_path):
     async def record() -> None:
         async with SQLiteEventStore(str(path)) as store:
             await make_saga(store).run({"order_id": "o-1"}, saga_id="ok", tenant_context="acme")
-            with pytest.raises(ValueError):
+            with pytest.raises(SagaFailedError):
                 await make_saga(store, fail_charge=True).run({"order_id": "o-2"}, saga_id="bad")
 
     asyncio.run(record())

@@ -21,7 +21,7 @@ from decimal import Decimal
 from typing import Any
 
 from sagaz import Saga, SagaContext, action, compensate, forward_recovery
-from sagaz.core.exceptions import SagaStepError
+from sagaz.core.exceptions import SagaFailedError, SagaStepError
 from sagaz.core.execution.pivot import RecoveryAction
 
 logging.basicConfig(
@@ -371,7 +371,7 @@ async def main():
                 "network": "bitcoin",
             }
         )
-    except SagaStepError:
+    except SagaFailedError:
         pass
 
     # Scenario 3: Description of post-pivot behavior

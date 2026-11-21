@@ -129,11 +129,9 @@ class TestDecoratorsTo100:
             async def step_b(self, ctx):
                 return {}
 
-        saga = BadSaga()
-
-        # Should raise ValueError for circular dependency
-        with pytest.raises(ValueError, match="Circular dependency"):
-            saga.get_execution_order()
+        # A SagaDefinitionError (#536), still a ValueError, raised before any step runs.
+        with pytest.raises(ValueError, match="dependency cycle: step_a -> step_b -> step_a"):
+            BadSaga().get_execution_order()
 
     @pytest.mark.asyncio
     async def test_saga_compensation_error_handling(self):

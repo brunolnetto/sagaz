@@ -21,6 +21,7 @@ from decimal import Decimal
 from typing import Any
 
 from sagaz import Saga, SagaContext, action, compensate
+from sagaz.core.exceptions import SagaFailedError
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -115,7 +116,7 @@ async def main() -> None:
     logger.info("=== The co-packer's line is down: budget, terms and prices are restored ===")
     try:
         await TradePromotionSaga().run({**promo, "line_down": True})
-    except RuntimeError as e:
+    except SagaFailedError as e:
         logger.info(f"Promotion cancelled: {e}")
 
 

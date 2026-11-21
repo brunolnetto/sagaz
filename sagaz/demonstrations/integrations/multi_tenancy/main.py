@@ -32,6 +32,7 @@ from typing import Any
 
 from sagaz import Saga, action, compensate
 from sagaz.core.config import SagaConfig
+from sagaz.core.exceptions import SagaFailedError
 from sagaz.core.storage.backends.memory.saga import InMemorySagaStorage
 from sagaz.core.tenant import (
     QuotaExceededError,
@@ -124,9 +125,9 @@ async def _order(deployment: Deployment, tenant: str, saga_id: str, **ctx: Any) 
             context, saga_id=saga_id, tenant_context=tenant
         )
         deployment.outcomes[f"{tenant}/{saga_id}"] = "completed"
-    except QuotaExceededError as exc:
+    except QuotaExceededError as exc:  # refused before the saga starts
         deployment.refused.append(f"{tenant}/{saga_id}: {exc}")
-    except RuntimeError:
+    except SagaFailedError:
         deployment.outcomes[f"{tenant}/{saga_id}"] = "rolled_back"
 
 
