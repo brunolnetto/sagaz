@@ -15,10 +15,11 @@ Usage:
     >>> await broker.connect()
 """
 
+from collections.abc import Callable
 from typing import Any
 
 from sagaz.core.exceptions import MissingDependencyError
-from sagaz.core.outbox.brokers.base import MessageBroker
+from sagaz.core.outbox.brokers.base import BaseBroker, MessageBroker
 from sagaz.core.outbox.brokers.memory import InMemoryBroker
 
 
@@ -100,7 +101,7 @@ def _print_broker_status(module_path: str, attr: str, name: str, desc: str, inst
         print(f"  ✗ {name:<10} - {desc} (install: {install})")
 
 
-def _create_kafka_broker(kwargs: dict):
+def _create_kafka_broker(kwargs: dict[str, Any]) -> BaseBroker:
     """Create Kafka broker instance."""
     from sagaz.core.outbox.brokers.kafka import KAFKA_AVAILABLE, KafkaBroker, KafkaBrokerConfig
 
@@ -111,7 +112,7 @@ def _create_kafka_broker(kwargs: dict):
     return KafkaBroker(config)
 
 
-def _create_rabbitmq_broker(kwargs: dict):
+def _create_rabbitmq_broker(kwargs: dict[str, Any]) -> BaseBroker:
     """Create RabbitMQ broker instance."""
     from sagaz.core.outbox.brokers.rabbitmq import (
         RABBITMQ_AVAILABLE,
@@ -126,7 +127,7 @@ def _create_rabbitmq_broker(kwargs: dict):
     return RabbitMQBroker(config)
 
 
-def _create_redis_broker(kwargs: dict):
+def _create_redis_broker(kwargs: dict[str, Any]) -> BaseBroker:
     """Create Redis broker instance."""
     from sagaz.core.outbox.brokers.redis import REDIS_AVAILABLE, RedisBroker, RedisBrokerConfig
 
@@ -138,7 +139,7 @@ def _create_redis_broker(kwargs: dict):
 
 
 # Broker registry: type -> (factory_function, dependency_name)
-_BROKER_REGISTRY = {
+_BROKER_REGISTRY: dict[str, tuple[Callable[[dict[str, Any]], BaseBroker], str | None]] = {
     "memory": (lambda _: InMemoryBroker(), None),
     "kafka": (_create_kafka_broker, "aiokafka"),
     "tansu": (_create_kafka_broker, "aiokafka"),  # Tansu is Kafka-compatible
@@ -158,8 +159,12 @@ def create_broker(
 
     Args:
         broker_type: Type of broker ('memory', 'kafka', 'rabbitmq', 'redis')
-        **kwargs: Broker-specific configuration, plus ``serializer``: an
-            ``EventSerializer`` for published events (JSON by default, ADR-014)
+        **kwargs: The fields of the broker's configuration class, plus ``serializer``:
+            an ``EventSerializer`` for published events (JSON by default, ADR-014).
+            The class is ``KafkaBrokerConfig`` for "kafka" and "tansu",
+            ``RabbitMQBrokerConfig`` for "rabbitmq", "rabbit" and "amqp", and
+            ``RedisBrokerConfig`` for "redis"; "memory" takes none. An unknown field
+            raises ``TypeError``.
 
     Returns:
         Configured broker instance
@@ -196,7 +201,7 @@ def create_broker(
         raise
     if serializer is not None:
         broker.serializer = serializer
-    return broker  # type: ignore[no-any-return]
+    return broker
 
 
 def create_broker_from_env() -> MessageBroker:

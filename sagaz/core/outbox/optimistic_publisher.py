@@ -8,40 +8,7 @@ import asyncio
 import logging
 from typing import Any
 
-# Optional prometheus metrics
-try:
-    from prometheus_client import Counter, Histogram
-
-    PROMETHEUS_AVAILABLE = True
-except ImportError:
-    PROMETHEUS_AVAILABLE = False
-    # No-op fallbacks
-    from contextlib import contextmanager
-
-    class _NoOpMetric:
-        def inc(self, *args: Any, **kwargs: Any) -> None:
-            pass
-
-        def observe(self, *args: Any, **kwargs: Any) -> None:
-            pass
-
-        def labels(self, *args: Any, **kwargs: Any) -> "_NoOpMetric":
-            return self
-
-        @contextmanager
-        def time(self):
-            """No-op context manager for timing."""
-            yield
-
-    def _noop_counter(*args: Any, **kwargs: Any) -> _NoOpMetric:
-        return _NoOpMetric()
-
-    def _noop_histogram(*args: Any, **kwargs: Any) -> _NoOpMetric:
-        return _NoOpMetric()
-
-    Counter = _noop_counter  # type: ignore[misc,assignment]
-    Histogram = _noop_histogram  # type: ignore[misc,assignment]
-
+from sagaz.core.outbox._metrics import PROMETHEUS_AVAILABLE, Counter, Histogram
 
 from .types import OutboxEvent
 

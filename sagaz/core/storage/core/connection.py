@@ -185,7 +185,7 @@ class ConnectionManager(ABC, Generic[T]):
         await self.initialize()
         return self
 
-    async def __aexit__(self, *args) -> None:
+    async def __aexit__(self, *args: Any) -> None:
         await self.close()
 
 

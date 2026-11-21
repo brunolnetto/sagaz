@@ -19,7 +19,7 @@ else:
         console = None
 
 
-def echo(message: str, **kwargs):
+def echo(message: str, **kwargs: Any):
     """Safe echo that renders rich markup if available, or falls back to click.echo."""
     if console:
         console.print(message, **kwargs)

@@ -17,35 +17,50 @@ Usage:
 """
 
 import logging
-from typing import Any
+from typing import Any, Protocol
+
+
+class LoggerLike(Protocol):
+    """What Sagaz calls on a logger: ``logging.Logger``, structlog and loguru loggers fit."""
+
+    def debug(self, msg: str, /, *args: Any, exc_info: Any = ...) -> Any: ...
+
+    def info(self, msg: str, /, *args: Any, exc_info: Any = ...) -> Any: ...
+
+    def warning(self, msg: str, /, *args: Any, exc_info: Any = ...) -> Any: ...
+
+    def error(self, msg: str, /, *args: Any, exc_info: Any = ...) -> Any: ...
+
+    def exception(self, msg: str, /, *args: Any, exc_info: Any = ...) -> Any: ...
+
 
 # Global logger instance - defaults to standard logging
-_custom_logger: Any = None
+_custom_logger: LoggerLike | None = None
 
 
 class NullLogger:
     """A logger that does nothing (for when logging is disabled)."""
 
-    def debug(self, *args, **kwargs):
-        pass
+    def debug(self, *args: Any, **kwargs: Any) -> None:
+        """Do nothing."""
 
-    def info(self, *args, **kwargs):
-        pass
+    def info(self, *args: Any, **kwargs: Any) -> None:
+        """Do nothing."""
 
-    def warning(self, *args, **kwargs):
-        pass
+    def warning(self, *args: Any, **kwargs: Any) -> None:
+        """Do nothing."""
 
-    def error(self, *args, **kwargs):
-        pass
+    def error(self, *args: Any, **kwargs: Any) -> None:
+        """Do nothing."""
 
-    def exception(self, *args, **kwargs):
-        pass
+    def exception(self, *args: Any, **kwargs: Any) -> None:
+        """Do nothing."""
 
-    def critical(self, *args, **kwargs):
-        pass
+    def critical(self, *args: Any, **kwargs: Any) -> None:
+        """Do nothing."""
 
 
-def set_logger(logger: Any) -> None:
+def set_logger(logger: LoggerLike | None) -> None:
     """
     Set a custom logger for all Sagaz components.
 
@@ -62,7 +77,7 @@ def set_logger(logger: Any) -> None:
     _custom_logger = logger
 
 
-def get_logger(name: str = "sagaz") -> Any:
+def get_logger(name: str = "sagaz") -> LoggerLike:
     """
     Get a logger instance.
 

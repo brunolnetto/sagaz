@@ -108,7 +108,7 @@ class BaseStorage(HealthCheckable, ABC):
         self,
         operation: str,
         item_id: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Log a storage operation at debug level."""
         extra = {"operation": operation}

@@ -27,7 +27,7 @@ Usage:
     >>> await sm.start()  # Transitions pending -> executing
 """
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from statemachine import State, StateChart
 from statemachine.exceptions import TransitionNotAllowed
@@ -47,7 +47,7 @@ class _SagaChartBase(StateChart):
     atomic_configuration_update = True
     catch_errors_as_events = False
 
-    def __init__(self, saga: Optional["Saga"] = None, **kwargs):
+    def __init__(self, saga: Optional["Saga"] = None, **kwargs: Any):
         """
         Initialize the saga state machine.
 
@@ -228,7 +228,7 @@ class SagaStepStateMachine(StateChart):
     compensation_success = compensating.to(compensated)
     compensation_failure = compensating.to(failed)
 
-    def __init__(self, step_name: str = "", **kwargs):
+    def __init__(self, step_name: str = "", **kwargs: Any):
         """
         Initialize the step state machine.
 

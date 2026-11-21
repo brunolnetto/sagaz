@@ -7,36 +7,9 @@ Ensures exactly-once processing despite at-least-once delivery.
 import logging
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
-from typing import TypeVar
+from typing import Any, TypeVar
 
-# Optional prometheus metrics
-try:
-    from prometheus_client import Counter, Histogram
-
-    PROMETHEUS_AVAILABLE = True
-except ImportError:
-    PROMETHEUS_AVAILABLE = False
-
-    # No-op fallbacks
-    class _NoOpMetric:
-        def inc(self, *args, **kwargs):
-            pass
-
-        def observe(self, *args, **kwargs):
-            pass
-
-        def labels(self, *args, **kwargs):
-            return self
-
-    def _noop_counter(*args, **kwargs) -> _NoOpMetric:
-        return _NoOpMetric()
-
-    def _noop_histogram(*args, **kwargs) -> _NoOpMetric:
-        return _NoOpMetric()
-
-    Counter = _noop_counter  # type: ignore[misc,assignment]
-    Histogram = _noop_histogram  # type: ignore[misc,assignment]
-
+from sagaz.core.outbox._metrics import PROMETHEUS_AVAILABLE, Counter, Histogram
 
 logger = logging.getLogger(__name__)
 

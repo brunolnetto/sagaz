@@ -66,7 +66,7 @@ class RedisSnapshotStorage(SnapshotStorage):
         default_ttl: int | None = None,  # TTL in seconds for snapshots
         enable_compression: bool = True,
         compression_level: int = 3,  # zstd compression level (1-22)
-        **redis_kwargs,
+        **redis_kwargs: Any,
     ):
         if not REDIS_AVAILABLE:
             msg = "redis"
