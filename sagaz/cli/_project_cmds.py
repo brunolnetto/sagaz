@@ -1,6 +1,7 @@
 """Project management commands for the Sagaz CLI: ``sagaz init`` and ``sagaz setup``."""
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
 
@@ -13,14 +14,21 @@ from sagaz.cli._setup_handlers import (
     _gather_setup_configuration,
 )
 
-try:
+# mypy reads the imports alone: no ignore is needed with or without the dependency.
+if TYPE_CHECKING:
     from rich.console import Console
     from rich.panel import Panel
 
     console: Console | None = Console()
-except ImportError:
-    console = None
-    Panel = None  # type: ignore[assignment,misc]
+else:
+    try:
+        from rich.console import Console
+        from rich.panel import Panel
+
+        console: Console | None = Console()
+    except ImportError:
+        console = None
+        Panel = None
 
 
 # ============================================================================

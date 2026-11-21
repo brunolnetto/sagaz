@@ -6,16 +6,27 @@
 # Postponed annotations: ``-> Table`` must not be evaluated when rich is missing.
 from __future__ import annotations
 
-try:
+from typing import TYPE_CHECKING
+
+# mypy reads the imports alone: no ignore is needed with or without the dependency.
+if TYPE_CHECKING:
     from rich.console import Console
     from rich.panel import Panel
     from rich.table import Table
 
     console = Console()
     RICH_AVAILABLE = True
-except ImportError:
-    console = None  # type: ignore[assignment]
-    RICH_AVAILABLE = False
+else:
+    try:
+        from rich.console import Console
+        from rich.panel import Panel
+        from rich.table import Table
+
+        console = Console()
+        RICH_AVAILABLE = True
+    except ImportError:
+        console = None
+        RICH_AVAILABLE = False
 
 
 def _display_validation_result_rich(result):

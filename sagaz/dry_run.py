@@ -49,7 +49,7 @@ class DryRunEngine(_DryRunValidationMixin, _DryRunAnalysisMixin):
         self,
         saga: object,
         context: dict[str, Any],
-        mode: DryRunMode,  # type: ignore
+        mode: DryRunMode,
     ) -> DryRunResult:
         """Run saga in dry-run mode.
 

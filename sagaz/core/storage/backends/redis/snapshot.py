@@ -14,28 +14,37 @@ Requires: pip install redis zstandard
 import asyncio
 import json
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.replay import ReplayResult, SagaSnapshot
 from sagaz.core.storage.interfaces.snapshot import SnapshotStorage
 
-try:
+# mypy reads the imports alone: no ignore is needed with or without the dependency.
+if TYPE_CHECKING:
     import redis.asyncio as redis
 
     REDIS_AVAILABLE = True
-except ImportError:
-    REDIS_AVAILABLE = False
-    redis: Any = None  # type: ignore[assignment, no-redef]
+else:
+    try:
+        import redis.asyncio as redis
 
-try:
+        REDIS_AVAILABLE = True
+    except ImportError:
+        REDIS_AVAILABLE = False
+        redis = None
+
+# mypy reads the import alone, so it needs no ignore whether or not the extra is installed.
+if TYPE_CHECKING:
     import zstandard as zstd
+else:
+    try:
+        import zstandard as zstd
+    except ImportError:
+        zstd = None
 
-    ZSTD_AVAILABLE = True
-except ImportError:
-    ZSTD_AVAILABLE = False
-    zstd = None  # type: ignore[assignment]
+ZSTD_AVAILABLE = zstd is not None
 
 
 class RedisSnapshotStorage(SnapshotStorage):
@@ -88,7 +97,7 @@ class RedisSnapshotStorage(SnapshotStorage):
             try:
                 self._redis = redis.from_url(self.redis_url, **self.redis_kwargs)
                 # Test connection
-                await self._redis.ping()  # type: ignore[attr-defined]
+                await self._redis.ping()
             except Exception as e:
                 msg = f"Failed to connect to Redis: {e}"
                 raise ConnectionError(msg) from e
@@ -116,7 +125,8 @@ class RedisSnapshotStorage(SnapshotStorage):
         json_bytes = json.dumps(data, default=str).encode("utf-8")
 
         if self.enable_compression and self._compressor:
-            return self._compressor.compress(json_bytes)
+            compressed: bytes = self._compressor.compress(json_bytes)
+            return compressed
 
         return json_bytes
 
@@ -139,29 +149,27 @@ class RedisSnapshotStorage(SnapshotStorage):
 
         # Save snapshot
         key = self._snapshot_key(snapshot.snapshot_id)
-        await r.set(key, serialized)  # type: ignore[attr-defined]
+        await r.set(key, serialized)
 
         # Set TTL if retention_until is specified
         if snapshot.retention_until:
             ttl_seconds = int((snapshot.retention_until - datetime.now(UTC)).total_seconds())
             if ttl_seconds > 0:
-                await r.expire(key, ttl_seconds)  # type: ignore[attr-defined]
+                await r.expire(key, ttl_seconds)
         elif self.default_ttl:
-            await r.expire(key, self.default_ttl)  # type: ignore[attr-defined]
+            await r.expire(key, self.default_ttl)
 
         # Add to saga index (sorted set by timestamp)
         saga_index = self._saga_index_key(snapshot.saga_id)
         timestamp_score = snapshot.created_at.timestamp()
-        await r.zadd(  # type: ignore[attr-defined]
-            saga_index, {str(snapshot.snapshot_id): timestamp_score}
-        )
+        await r.zadd(saga_index, {str(snapshot.snapshot_id): timestamp_score})
 
     async def get_snapshot(self, snapshot_id: UUID) -> SagaSnapshot | None:
         """Retrieve snapshot by ID"""
         r = await self._get_redis()
 
         key = self._snapshot_key(snapshot_id)
-        data = await r.get(key)  # type: ignore[attr-defined]
+        data = await r.get(key)
 
         if data is None:
             return None
@@ -177,7 +185,7 @@ class RedisSnapshotStorage(SnapshotStorage):
 
         # Get all snapshot IDs for this saga (sorted by timestamp DESC)
         saga_index = self._saga_index_key(saga_id)
-        snapshot_ids = await r.zrevrange(saga_index, 0, -1)  # type: ignore[attr-defined]
+        snapshot_ids = await r.zrevrange(saga_index, 0, -1)
 
         if not snapshot_ids:
             return None
@@ -205,9 +213,7 @@ class RedisSnapshotStorage(SnapshotStorage):
         timestamp_score = timestamp.timestamp()
 
         # Get all snapshots with score <= timestamp, sorted DESC
-        snapshot_ids = await r.zrevrangebyscore(  # type: ignore[attr-defined]
-            saga_index, timestamp_score, "-inf", start=0, num=1
-        )
+        snapshot_ids = await r.zrevrangebyscore(saga_index, timestamp_score, "-inf", start=0, num=1)
 
         if not snapshot_ids:
             return None
@@ -221,7 +227,7 @@ class RedisSnapshotStorage(SnapshotStorage):
 
         # Get snapshot IDs (sorted by timestamp DESC)
         saga_index = self._saga_index_key(saga_id)
-        snapshot_ids = await r.zrevrange(saga_index, 0, limit - 1)  # type: ignore[attr-defined]
+        snapshot_ids = await r.zrevrange(saga_index, 0, limit - 1)
 
         # Fetch all snapshots
         snapshots = []
@@ -244,11 +250,11 @@ class RedisSnapshotStorage(SnapshotStorage):
 
         # Delete snapshot
         key = self._snapshot_key(snapshot_id)
-        deleted = await r.delete(key)  # type: ignore[attr-defined]
+        deleted = await r.delete(key)
 
         # Remove from saga index
         saga_index = self._saga_index_key(snapshot.saga_id)
-        await r.zrem(saga_index, str(snapshot_id))  # type: ignore[attr-defined]
+        await r.zrem(saga_index, str(snapshot_id))
 
         return bool(deleted > 0)
 
@@ -273,24 +279,22 @@ class RedisSnapshotStorage(SnapshotStorage):
 
         # Save replay log
         key = self._replay_log_key(replay_result.replay_id)
-        await r.set(key, serialized)  # type: ignore[attr-defined]
+        await r.set(key, serialized)
 
         if self.default_ttl:
-            await r.expire(key, self.default_ttl)  # type: ignore[attr-defined]
+            await r.expire(key, self.default_ttl)
 
         # Add to saga replays index
         replays_index = self._saga_replays_key(replay_result.original_saga_id)
         timestamp_score = replay_result.created_at.timestamp()
-        await r.zadd(  # type: ignore[attr-defined]
-            replays_index, {str(replay_result.replay_id): timestamp_score}
-        )
+        await r.zadd(replays_index, {str(replay_result.replay_id): timestamp_score})
 
     async def get_replay_log(self, replay_id: UUID) -> dict[str, Any] | None:
         """Get replay log entry"""
         r = await self._get_redis()
 
         key = self._replay_log_key(replay_id)
-        data = await r.get(key)  # type: ignore[attr-defined]
+        data = await r.get(key)
 
         if data is None:
             return None
@@ -303,7 +307,7 @@ class RedisSnapshotStorage(SnapshotStorage):
 
         # Get replay IDs (sorted by timestamp DESC)
         replays_index = self._saga_replays_key(original_saga_id)
-        replay_ids = await r.zrevrange(replays_index, 0, limit - 1)  # type: ignore[attr-defined]
+        replay_ids = await r.zrevrange(replays_index, 0, limit - 1)
 
         # Fetch all replay logs
         replays = []
@@ -318,8 +322,8 @@ class RedisSnapshotStorage(SnapshotStorage):
     async def close(self) -> None:
         """Close Redis connection"""
         if self._redis:
-            await self._redis.close()  # type: ignore[attr-defined]
-            await self._redis.connection_pool.disconnect()  # type: ignore[attr-defined]
+            await self._redis.close()
+            await self._redis.connection_pool.disconnect()
             self._redis = None
 
     async def __aenter__(self):

@@ -6,17 +6,21 @@ import asyncio
 import json
 from collections.abc import Collection
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.choreography.events import Event
 from sagaz.choreography.state._base import COMPENSATED, COMPLETED, Deadline, ParticipantState
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.storage._tenancy import write_tenant
 
-try:
+# mypy reads the imports alone: no ignore is needed with or without the dependency.
+if TYPE_CHECKING:
     import aiosqlite
-except ImportError:  # pragma: no cover - aiosqlite is a dev dependency
-    aiosqlite = None  # type: ignore[assignment]
+else:
+    try:
+        import aiosqlite
+    except ImportError:  # pragma: no cover - aiosqlite is a dev dependency
+        aiosqlite = None
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS choreography_actions (
@@ -64,7 +68,7 @@ class SQLiteParticipantState(ParticipantState):
     """Participant state in a SQLite file (or ``":memory:"``)."""
 
     def __init__(self, db_path: str = ":memory:") -> None:
-        if aiosqlite is None:  # pragma: no cover
+        if aiosqlite is None:  # pragma: no cover - the driver is installed in tests
             msg = "aiosqlite"
             raise MissingDependencyError(msg, "SQLite participant state")
         self.db_path = db_path

@@ -90,7 +90,7 @@ class Deployment:
 
     def config(self) -> SagaConfig:
         return SagaConfig(
-            storage=self.storage,  # type: ignore[arg-type]
+            storage=self.storage,
             tenant_registry=self.registry,
             metrics=False,
             logging=False,

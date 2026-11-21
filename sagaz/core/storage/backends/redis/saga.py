@@ -10,7 +10,7 @@ Requires: pip install redis
 import asyncio
 import json
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.storage._tenancy import TENANT_FIELD, write_tenant
@@ -26,13 +26,19 @@ from sagaz.core.storage.base import (
 from sagaz.core.tenant import is_system_scope, tenant_scope
 from sagaz.core.types import SagaStatus, SagaStepStatus
 
-try:
+# mypy reads the imports alone: no ignore is needed with or without the dependency.
+if TYPE_CHECKING:
     import redis.asyncio as redis
 
     REDIS_AVAILABLE = True
-except ImportError:
-    REDIS_AVAILABLE = False
-    redis: Any = None  # type: ignore[assignment, no-redef]
+else:
+    try:
+        import redis.asyncio as redis
+
+        REDIS_AVAILABLE = True
+    except ImportError:
+        REDIS_AVAILABLE = False
+        redis = None
 
 
 class RedisSagaStorage(_RedisSagaQueryMixin, _RedisSagaMaintenanceMixin, SagaStorage):
@@ -96,7 +102,7 @@ class RedisSagaStorage(_RedisSagaQueryMixin, _RedisSagaMaintenanceMixin, SagaSto
             try:
                 self._redis = redis.from_url(self.redis_url, **self.redis_kwargs)
                 # Test connection
-                await self._redis.ping()  # type: ignore[attr-defined]
+                await self._redis.ping()
             except Exception as e:
                 msg = f"Failed to connect to Redis: {e}"
                 raise SagaStorageConnectionError(msg) from e

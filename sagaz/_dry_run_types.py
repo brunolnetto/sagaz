@@ -89,7 +89,7 @@ class SimulationResult:
 class _StepIntrospection:
     """Step extraction shared by the validation and analysis mixins."""
 
-    def _extract_steps(self, saga: object) -> list:  # type: ignore
+    def _extract_steps(self, saga: object) -> list:
         """Extract steps from saga instance."""
         if hasattr(saga, "_steps") and saga._steps:
             return list(saga._steps)

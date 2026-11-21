@@ -44,6 +44,12 @@ except ImportError:
     LANGGRAPH_AVAILABLE = False
 
 
+def _text(response: object) -> str:
+    """A model response's content as text (LangChain allows a list of content blocks)."""
+    content = getattr(response, "content", "")
+    return content if isinstance(content, str) else str(content)
+
+
 def create_support_graph():
     """
     Create the LangGraph support agent workflow.
@@ -86,7 +92,7 @@ def create_support_graph():
         ]
 
         response = await llm.ainvoke(messages)
-        parts = response.content.strip().split("|")  # type: ignore[union-attr]
+        parts = _text(response).strip().split("|")
 
         return {
             "category": parts[0] if len(parts) > 0 else "other",
@@ -112,8 +118,8 @@ def create_support_graph():
         response = await llm.ainvoke(messages)
 
         return {
-            "ai_response": response.content,
-            "messages": [{"role": "agent", "content": response.content[:100] + "..."}],  # type: ignore[operator]
+            "ai_response": _text(response),
+            "messages": [{"role": "agent", "content": _text(response)[:100] + "..."}],
         }
 
     async def attempt_resolution_node(state: SupportTicketState) -> dict:
@@ -141,7 +147,7 @@ def create_support_graph():
         ]
 
         response = await llm.ainvoke(messages)
-        can_resolve = "YES" in response.content.upper()  # type: ignore[union-attr]
+        can_resolve = "YES" in _text(response).upper()
 
         return {
             "resolution_attempted": True,

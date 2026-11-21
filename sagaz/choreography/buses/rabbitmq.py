@@ -35,22 +35,29 @@ import os
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.choreography.events import AbstractEventBus, Event, HandlerT
 from sagaz.core.exceptions import MissingDependencyError
 
-try:
-    import aio_pika  # type: ignore[import-untyped]
-    from aio_pika import DeliveryMode, ExchangeType, Message  # type: ignore[import-untyped]
+# mypy reads the imports alone: no ignore is needed with or without the dependency.
+if TYPE_CHECKING:
+    import aio_pika
+    from aio_pika import DeliveryMode, ExchangeType, Message
 
     _RABBITMQ_AVAILABLE = True
-except ImportError:
-    _RABBITMQ_AVAILABLE = False
-    aio_pika: Any = None  # type: ignore[assignment, no-redef]
-    Message: Any = None  # type: ignore[assignment, no-redef]
-    DeliveryMode: Any = None  # type: ignore[assignment, no-redef]
-    ExchangeType: Any = None  # type: ignore[assignment, no-redef]
+else:
+    try:
+        import aio_pika
+        from aio_pika import DeliveryMode, ExchangeType, Message
+
+        _RABBITMQ_AVAILABLE = True
+    except ImportError:
+        _RABBITMQ_AVAILABLE = False
+        aio_pika = None
+        Message = None
+        DeliveryMode = None
+        ExchangeType = None
 
 logger = logging.getLogger(__name__)
 

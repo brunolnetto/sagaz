@@ -42,7 +42,7 @@ class _DryRunAnalysisMixin(_StepIntrospection):
     async def _simulate(
         self,
         saga: object,
-        context: dict[str, Any],  # type: ignore
+        context: dict[str, Any],
     ) -> SimulationResult:
         """Simulate saga execution to preview step order.
 
@@ -141,7 +141,7 @@ class _DryRunAnalysisMixin(_StepIntrospection):
 
         return [g for g in groups if g]  # Remove empty groups
 
-    def _build_dag(self, saga: object) -> dict[str, list[str]]:  # type: ignore
+    def _build_dag(self, saga: object) -> dict[str, list[str]]:
         """Build DAG from saga steps.
 
         Args:
@@ -278,7 +278,7 @@ class _DryRunAnalysisMixin(_StepIntrospection):
 
         return path
 
-    def _get_compensatable_steps(self, saga: object) -> set[str]:  # type: ignore
+    def _get_compensatable_steps(self, saga: object) -> set[str]:
         """Get set of steps that have compensation functions."""
         steps = self._extract_steps(saga)
         compensatable_steps: set[str] = set()
@@ -297,7 +297,7 @@ class _DryRunAnalysisMixin(_StepIntrospection):
 
     def _analyze_backward_layers(
         self,
-        saga: object,  # type: ignore
+        saga: object,
         forward_layers: list[ParallelLayerInfo],
     ) -> list[ParallelLayerInfo]:
         """Analyze compensation (backward) execution layers.

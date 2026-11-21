@@ -31,13 +31,19 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     import aiosqlite as aiosqlite_types
 
-try:
+# mypy reads the imports alone: no ignore is needed with or without the dependency.
+if TYPE_CHECKING:
     import aiosqlite
 
     AIOSQLITE_AVAILABLE = True
-except ImportError:
-    AIOSQLITE_AVAILABLE = False
-    aiosqlite = None  # type: ignore[assignment]
+else:
+    try:
+        import aiosqlite
+
+        AIOSQLITE_AVAILABLE = True
+    except ImportError:
+        AIOSQLITE_AVAILABLE = False
+        aiosqlite = None
 
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.storage._tenancy import TENANT_FIELD, write_tenant

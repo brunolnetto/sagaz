@@ -34,7 +34,7 @@ from sagaz.core.storage.saga_log._pg_schema import SCHEMA_SQL
 try:
     import asyncpg
 except ImportError:  # pragma: no cover - asyncpg is a core dependency
-    asyncpg = None  # type: ignore[assignment]
+    asyncpg = None
 
 _STREAM_LOCK = "SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))"
 _TENANT = "($1::text IS NULL OR tenant_id = $1)"
@@ -87,7 +87,7 @@ class PostgreSQLSagaLogStore(PostgreSQLExportMixin, SagaLogStore):
         pool_max_size: int = 10,
         **pool_kwargs: Any,
     ) -> None:
-        if asyncpg is None:  # pragma: no cover
+        if asyncpg is None:  # pragma: no cover - the driver is installed in tests
             msg = "asyncpg"
             raise MissingDependencyError(msg, "PostgreSQL saga log")
         self.connection_string = connection_string

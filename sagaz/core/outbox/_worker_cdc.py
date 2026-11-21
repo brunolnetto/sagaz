@@ -60,7 +60,9 @@ except ImportError:  # pragma: no cover - prometheus_client is optional
 
 
 def _record_change(source: str, change: CDCChange, now: datetime, failed: bool) -> None:
-    if CDC_EVENTS is None or CDC_LAG is None or CDC_ERRORS is None:  # pragma: no cover
+    if (
+        CDC_EVENTS is None or CDC_LAG is None or CDC_ERRORS is None
+    ):  # pragma: no cover - prometheus_client is installed in tests
         return
     CDC_EVENTS.labels(source=source).inc()
     if failed:

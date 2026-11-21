@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from sagaz.core.outbox.brokers.base import BaseBroker
     from sagaz.core.storage.base import SagaStorage
 
-from sagaz.core.config._broker import BrokerConfigManager
+from sagaz.core.config._broker import BrokerConfigManager, EnvLike
 from sagaz.core.config._storage import StorageConfigManager
 
 logger = logging.getLogger("sagaz.core.config")
@@ -227,12 +227,12 @@ class SagaConfig:
         return SagaConfig(**values)
 
     @classmethod
-    def _storage_from_env(cls, env: object) -> object:
+    def _storage_from_env(cls, env: EnvLike) -> object:
         """Construct a storage backend from an env-dict (backward compat helper)."""
         return StorageConfigManager.from_env(env)
 
     @classmethod
-    def _broker_from_env(cls, env: object) -> object:
+    def _broker_from_env(cls, env: EnvLike) -> object:
         """Construct a broker backend from an env-dict (backward compat helper)."""
         return BrokerConfigManager.from_env(env)
 

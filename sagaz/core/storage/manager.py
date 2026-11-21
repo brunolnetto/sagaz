@@ -181,7 +181,7 @@ class StorageManager(_StorageBackendInitMixin, BaseStorageManager):
         if self._saga_storage:
             try:
                 if hasattr(self._saga_storage, "health_check"):
-                    result = await self._saga_storage.health_check()  # type: ignore[assignment]
+                    result = await self._saga_storage.health_check()
                     saga_health = self._normalize_health_result(result)
                 else:
                     saga_health = {"status": "healthy"}
@@ -229,7 +229,7 @@ class StorageManager(_StorageBackendInitMixin, BaseStorageManager):
             )
             return {"status": status_val}
         if isinstance(result, dict):
-            return result  # type: ignore[return-value]
+            return result
         return {"status": "healthy"}
 
 

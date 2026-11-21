@@ -7,7 +7,7 @@ Contains all interactive prompt and configuration helpers for the
 
 import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import click
 
@@ -19,14 +19,21 @@ from sagaz.cli._init_handlers import (
     _init_selfhost,
 )
 
-try:
+# mypy reads the imports alone: no ignore is needed with or without the dependency.
+if TYPE_CHECKING:
     from rich.console import Console
     from rich.panel import Panel
 
     console: Console | None = Console()
-except ImportError:
-    console = None
-    Panel = None  # type: ignore[assignment,misc]
+else:
+    try:
+        from rich.console import Console
+        from rich.panel import Panel
+
+        console: Console | None = Console()
+    except ImportError:
+        console = None
+        Panel = None
 
 
 def _check_project_exists():

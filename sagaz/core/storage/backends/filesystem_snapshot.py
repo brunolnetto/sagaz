@@ -34,7 +34,7 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
-import aiofiles  # type: ignore[import-untyped]
+import aiofiles
 
 from sagaz.core.replay import SagaSnapshot
 from sagaz.core.storage.backends._filesystem_snapshot_maintenance import (

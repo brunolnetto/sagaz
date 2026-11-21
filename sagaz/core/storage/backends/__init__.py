@@ -34,7 +34,7 @@ __all__ = [
 # via __getattr__. The real implementations are loaded lazily at runtime.
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:  # pragma: no cover - typing only
     from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
     from sagaz.core.storage.backends.memory import (
         InMemoryOutboxStorage,

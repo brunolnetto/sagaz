@@ -140,7 +140,7 @@ def validate_order():
             loop.run_until_complete(config.storage.load_saga_state(saga_id))
             if config.storage
             else None
-        )  # type: ignore[union-attr]
+        )
     finally:
         loop.close()
 

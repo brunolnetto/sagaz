@@ -6,17 +6,21 @@ import asyncio
 import json
 from dataclasses import replace
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.events import SagaEvent
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.storage._tenancy import scoped_tenant, write_tenant
 from sagaz.core.storage.event_store._base import SagaEventStore, SagaSnapshot
 
-try:
+# mypy reads the imports alone: no ignore is needed with or without the dependency.
+if TYPE_CHECKING:
     import aiosqlite
-except ImportError:  # pragma: no cover - aiosqlite is a dev dependency
-    aiosqlite = None  # type: ignore[assignment]
+else:
+    try:
+        import aiosqlite
+    except ImportError:  # pragma: no cover - aiosqlite is a dev dependency
+        aiosqlite = None
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS saga_events (
@@ -49,7 +53,7 @@ class SQLiteEventStore(SagaEventStore):
     """Event store in a SQLite file (or ``":memory:"``)."""
 
     def __init__(self, db_path: str = ":memory:") -> None:
-        if aiosqlite is None:  # pragma: no cover
+        if aiosqlite is None:  # pragma: no cover - the driver is installed in tests
             msg = "aiosqlite"
             raise MissingDependencyError(msg, "SQLite event store")
         self.db_path = db_path

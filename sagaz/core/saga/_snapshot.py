@@ -73,7 +73,7 @@ class _SagaSnapshotMixin:
         if is_step_chart(machine):
             value = lifecycle_state(configuration_values(machine))
             return str(machine.states_map[value].name)
-        return machine.current_state.name  # type: ignore[union-attr, no-any-return]
+        return machine.current_state.name  # type: ignore[union-attr]
 
     @property
     def state_configuration(self) -> list[str]:

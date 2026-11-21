@@ -60,7 +60,7 @@ class HTTPEventPublisher:
         )
 
         # Scheme is restricted to http(s) in __init__.
-        with urlopen(request, timeout=self.timeout_seconds) as response:  # nosec B310
+        with urlopen(request, timeout=self.timeout_seconds) as response:  # nosec B310 - the scheme is restricted to http(s) in __init__
             status = getattr(response, "status", 200)
             if not 200 <= status < 300:
                 message = f"Visualization server returned HTTP {status}"

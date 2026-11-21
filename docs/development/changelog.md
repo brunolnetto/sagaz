@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Suppression comments are specific and explained, and mypy gates CI (#594).**
+  - `# type: ignore` in the library went from 151 to 56: 17 had no error code, 65 silenced nothing, and 40 existed only for optional imports. Optional imports are now read by mypy under `if TYPE_CHECKING:`, so they need no ignore with or without the dependency.
+  - `warn_unused_ignores` is on, and ruff's `PGH` rules reject a blanket `# type: ignore` or `# noqa`.
+  - `scripts/check_suppressions.py` (run by `make lint` and CI) requires an error code on `# type: ignore`, a rule on `# noqa`, a rule and a reason on `# nosec`, and a reason on `# pragma: no cover`.
+  - The CI mypy step no longer has `continue-on-error`: a type error now fails the build.
+
 ### Security
 
 - **External context storage signs its payloads (#589). Breaking change.** `FileSystemExternalStorage` and `S3ExternalStorage` pickle the values they store, and unpickling runs code. Before, anyone who could write to the directory or the bucket could run code in every worker that loaded a payload. Each payload is now stored with an HMAC-SHA256 signature, which is checked before anything is unpickled. A payload that is missing its signature, was modified, was moved to another name or was signed with another key raises `ExternalStorageIntegrityError`.

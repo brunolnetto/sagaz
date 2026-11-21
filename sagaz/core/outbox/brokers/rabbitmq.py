@@ -13,7 +13,7 @@ Usage:
 
 import logging
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.outbox.brokers.base import (
@@ -24,18 +24,26 @@ from sagaz.core.outbox.brokers.base import (
 )
 
 # Check for aio-pika availability
-try:
+# mypy reads the imports alone: no ignore is needed with or without the dependency.
+if TYPE_CHECKING:
     import aio_pika
     from aio_pika import DeliveryMode, ExchangeType, Message
     from aio_pika.abc import AbstractChannel, AbstractConnection, AbstractExchange
 
     RABBITMQ_AVAILABLE = True
-except ImportError:
-    RABBITMQ_AVAILABLE = False
-    aio_pika: Any = None  # type: ignore[no-redef]
-    Message: Any = None  # type: ignore[no-redef]
-    DeliveryMode: Any = None  # type: ignore[no-redef]
-    ExchangeType: Any = None  # type: ignore[no-redef]
+else:
+    try:
+        import aio_pika
+        from aio_pika import DeliveryMode, ExchangeType, Message
+        from aio_pika.abc import AbstractChannel, AbstractConnection, AbstractExchange
+
+        RABBITMQ_AVAILABLE = True
+    except ImportError:
+        RABBITMQ_AVAILABLE = False
+        aio_pika = None
+        Message = None
+        DeliveryMode = None
+        ExchangeType = None
 
 
 logger = logging.getLogger(__name__)

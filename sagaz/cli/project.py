@@ -1,16 +1,22 @@
 import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import click
 import yaml
 
-try:
+# mypy reads the imports alone: no ignore is needed with or without the dependency.
+if TYPE_CHECKING:
     from rich.console import Console
 
     console = Console()
-except ImportError:
-    console = None  # type: ignore[assignment]
+else:
+    try:
+        from rich.console import Console
+
+        console = Console()
+    except ImportError:
+        console = None
 
 
 def echo(message: str, **kwargs):

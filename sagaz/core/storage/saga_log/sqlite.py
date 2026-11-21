@@ -11,7 +11,7 @@ import uuid
 from collections.abc import Collection
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.core.exceptions import MissingDependencyError
 from sagaz.core.storage._tenancy import scoped_tenant, write_tenant
@@ -32,10 +32,14 @@ from sagaz.core.storage.saga_log._model import (
 from sagaz.core.storage.saga_log._sqlite_export import SQLiteExportMixin
 from sagaz.core.storage.saga_log._sqlite_schema import SCHEMA
 
-try:
+# mypy reads the imports alone: no ignore is needed with or without the dependency.
+if TYPE_CHECKING:
     import aiosqlite
-except ImportError:  # pragma: no cover - aiosqlite is a dev dependency
-    aiosqlite = None  # type: ignore[assignment]
+else:
+    try:
+        import aiosqlite
+    except ImportError:  # pragma: no cover - aiosqlite is a dev dependency
+        aiosqlite = None
 
 
 def _iso(value: Any) -> Any:
@@ -125,7 +129,7 @@ def _tenant_clause() -> tuple[str, tuple[str, ...]]:
 
 class SQLiteSagaLogStore(SQLiteExportMixin, SagaLogStore):
     def __init__(self, db_path: str = ":memory:") -> None:
-        if aiosqlite is None:  # pragma: no cover
+        if aiosqlite is None:  # pragma: no cover - the driver is installed in tests
             msg = "aiosqlite"
             raise MissingDependencyError(msg, "SQLite saga log")
         self.db_path = db_path
