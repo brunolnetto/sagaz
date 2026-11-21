@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **`run()` returns the context without the engine's markers** (#538): the
+  `__<step>_completed`, `__<step>_compensated` and `__<step>_compensation_error` keys
+  stay internal. The stored context keeps them.
+- **Typing** (#538): `Saga.__init_subclass__` and `Saga(config=...)` are annotated, so
+  `mypy --strict` no longer reports every subclass.
 - **One public `Saga`** (#537): `sagaz.Saga` is documented as the class to use. The other
   class, `sagaz.core.saga.Saga`, is the engine behind snapshot replay and
   `SagaOrchestrator`; it will be merged into `sagaz.Saga` and then deprecated. Its
@@ -42,6 +47,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     any case (`consumer_goods`).
 
 ### Added
+- **`sagaz saga show <id>`** (#538) prints a stored run: its status, each step's status,
+  retries and error, and its context. Use `--json` for the full record. It reads
+  `--storage-url` (or `SAGAZ_STORAGE_URL`) and `--tenant`.
+- **Adding listeners** (#538): `SagaConfig(extra_listeners=[...])` and
+  `saga.add_listener(...)` add listeners to the logging, metrics and tracing ones. A
+  class's `listeners` attribute, as before, replaces them.
+- **`PrometheusMetrics(registry=...)`** (#538): give each instance its own registry; a
+  second instance in one registry raised `Duplicated timeseries`.
+- **`from sagaz import step`** (#538): `step` is `action`'s other name, used in docstrings.
 - **Definition checks** (#536):
   - **When the saga is created:** a `@compensate` naming no step, two steps with one name
     and two compensations for one step raise `SagaDefinitionError` (also a
@@ -68,6 +82,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - packaging switch, with label validation (the line cut-over is the pivot).
 
 ### Fixed
+- **Timeout logs** (#538): a step timeout reached hooks and listeners as asyncio's
+  message-less `TimeoutError`, so logs read `[STEP] Failed: s.wait - `. They now get the
+  `SagaTimeoutError`, whose message says what timed out.
 - **A saga id runs once** (#535): running an existing `saga_id` again ran every step again,
   so a retried request charged twice. The saga is now created with an atomic insert
   (`SagaStorage.create_saga_state`, atomic on the memory, SQLite, PostgreSQL and Redis

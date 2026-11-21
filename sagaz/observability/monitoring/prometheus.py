@@ -69,12 +69,16 @@ class PrometheusMetrics:
         ...     listeners = [MetricsSagaListener(metrics=metrics)]
     """
 
-    def __init__(self, prefix: str = "saga"):
+    def __init__(self, prefix: str = "saga", registry: Any = None):
         """
         Initialize Prometheus metrics.
 
         Args:
             prefix: Metric name prefix (default: "saga")
+            registry: The ``prometheus_client`` registry to register the metrics in
+                (default: the global ``REGISTRY``). Give each instance its own
+                ``CollectorRegistry`` in tests, or use a distinct ``prefix``: two
+                instances in one registry raise ``Duplicated timeseries``.
         """
         if not PROMETHEUS_AVAILABLE:
             logger.warning(
@@ -92,6 +96,7 @@ class PrometheusMetrics:
             f"{prefix}_execution_total",
             "Total saga executions",
             ["saga_name", "status"],
+            registry=registry,
         )
 
         # Total compensations triggered
@@ -99,6 +104,7 @@ class PrometheusMetrics:
             f"{prefix}_compensations_total",
             "Total saga compensations triggered",
             ["saga_name"],
+            registry=registry,
         )
 
         # Saga execution duration
@@ -107,6 +113,7 @@ class PrometheusMetrics:
             "Saga execution duration in seconds",
             ["saga_name"],
             buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0],
+            registry=registry,
         )
 
         # Step execution duration
@@ -115,6 +122,7 @@ class PrometheusMetrics:
             "Saga step execution duration in seconds",
             ["saga_name", "step_name"],
             buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 5.0],
+            registry=registry,
         )
 
         # Currently active sagas
@@ -122,6 +130,7 @@ class PrometheusMetrics:
             f"{prefix}_active_count",
             "Number of currently running sagas",
             ["saga_name"],
+            registry=registry,
         )
 
     def record_execution(self, saga_name: str, status: "SagaStatus", duration: float) -> None:

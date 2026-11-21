@@ -97,6 +97,10 @@ class SagaConfig:
     # warning instead and lets the saga go on (the behavior before 2.4).
     tolerate_persistence_errors: bool = False
 
+    # Listeners added to the logging, metrics, tracing and outbox ones (#538). A saga
+    # class's ``listeners`` attribute replaces them all instead.
+    extra_listeners: list[Any] = field(default_factory=list)
+
     # StateChart phase 2 (ADR-040, #190): imperative sagas run on a chart with one
     # region per step, whose configuration says where every step is. Off by default.
     use_step_statechart: bool = False
@@ -185,6 +189,9 @@ class SagaConfig:
             logger.debug(
                 f"Outbox listener enabled with {type(self._derived_outbox_storage).__name__}"
             )
+
+        # Listeners added alongside the built-in ones (#538).
+        listeners.extend(self.extra_listeners)
 
         return listeners
 
