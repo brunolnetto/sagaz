@@ -224,7 +224,7 @@ class SQLiteSagaStorage(_SQLiteSagaMaintenanceMixin, SagaStorage):
         conn = await self._get_connection()
         clause, params = tenant_filter()
         cursor = await conn.execute(
-            f"SELECT * FROM sagas WHERE saga_id = ?{clause} ORDER BY tenant_id",
+            f"SELECT * FROM sagas WHERE saga_id = ?{clause} ORDER BY tenant_id",  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             (saga_id, *params),
         )
         return [self._row_to_dict(row) for row in await cursor.fetchall()]
@@ -259,7 +259,7 @@ class SQLiteSagaStorage(_SQLiteSagaMaintenanceMixin, SagaStorage):
         clause, params = tenant_filter()
 
         cursor = await conn.execute(
-            f"DELETE FROM sagas WHERE saga_id = ?{clause}",
+            f"DELETE FROM sagas WHERE saga_id = ?{clause}",  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             (saga_id, *params),
         )
         await conn.commit()
@@ -277,7 +277,7 @@ class SQLiteSagaStorage(_SQLiteSagaMaintenanceMixin, SagaStorage):
         conn = await self._get_connection()
 
         clause, params = tenant_filter()
-        query = f"SELECT * FROM sagas WHERE 1=1{clause}"
+        query = f"SELECT * FROM sagas WHERE 1=1{clause}"  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
 
         if status:
             query += " AND status = ?"
@@ -347,7 +347,8 @@ class SQLiteSagaStorage(_SQLiteSagaMaintenanceMixin, SagaStorage):
         conn = await self._get_connection()
         clause, params = tenant_filter()
         cursor = await conn.execute(
-            f"SELECT * FROM sagas WHERE 1=1{clause} ORDER BY saga_id, tenant_id", params
+            f"SELECT * FROM sagas WHERE 1=1{clause} ORDER BY saga_id, tenant_id",  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
+            params,
         )
 
         async for row in cursor:

@@ -122,7 +122,7 @@ class SQLiteParticipantState(ParticipantState):
             done = [Event.from_dict(json.loads(body)) for (body,) in await cursor.fetchall()]
             for table in ("choreography_actions", "choreography_deadlines"):
                 await conn.execute(
-                    f"DELETE FROM {table}"
+                    f"DELETE FROM {table}"  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                     " WHERE tenant_id = ? AND participant = ? AND correlation_id = ?",
                     key,
                 )
@@ -189,7 +189,7 @@ class SQLiteParticipantState(ParticipantState):
         marks = ", ".join("?" for _ in names)
         async with self._lock:
             cursor = await conn.execute(
-                "SELECT tenant_id, participant, correlation_id, due_at FROM choreography_deadlines"
+                "SELECT tenant_id, participant, correlation_id, due_at FROM choreography_deadlines"  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                 f" WHERE participant IN ({marks}) AND due_at <= ?"
                 " AND (claimed_until IS NULL OR claimed_until <= ?) ORDER BY due_at LIMIT ?",
                 (*names, now.isoformat(), now.isoformat(), limit),

@@ -201,7 +201,7 @@ class SQLiteSagaLogStore(SQLiteExportMixin, SagaLogStore):
             (last,) = await cursor.fetchone()
             columns = codec.EVENT_COLUMNS
             await conn.execute(
-                f"INSERT INTO saga_log_event ({', '.join(columns)})"
+                f"INSERT INTO saga_log_event ({', '.join(columns)})"  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                 f" VALUES ({', '.join('?' for _ in columns)})",
                 _row(codec.event_values(event, tenant, last + 1)),
             )
@@ -287,7 +287,7 @@ class SQLiteSagaLogStore(SQLiteExportMixin, SagaLogStore):
         marks = ", ".join("?" for _ in names)
         async with self._lock:
             cursor = await conn.execute(
-                "SELECT * FROM saga_deadline"
+                "SELECT * FROM saga_deadline"  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                 f" WHERE owner IN ({marks}) AND due_at <= ?"
                 " AND (claimed_until IS NULL OR claimed_until <= ?) ORDER BY due_at LIMIT ?",
                 (*names, _iso(now), _iso(now), limit),

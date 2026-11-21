@@ -79,7 +79,7 @@ class _PostgreSQLSagaQueryMixin:
             GROUP BY s.tenant_id, s.saga_id, s.saga_name, s.status, s.created_at, s.updated_at
             ORDER BY s.created_at DESC
             LIMIT ${len(params) - 1} OFFSET ${len(params)}
-        """
+        """  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
 
         async with acquire_scoped(pool) as conn:
             rows = await conn.fetch(query, *params)
@@ -111,7 +111,8 @@ class _PostgreSQLSagaQueryMixin:
             async with conn.transaction():
                 # Stream sagas
                 cursor = conn.cursor(
-                    f"SELECT * FROM sagas WHERE {condition} ORDER BY saga_id, tenant_id", *params
+                    f"SELECT * FROM sagas WHERE {condition} ORDER BY saga_id, tenant_id",  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
+                    *params,
                 )
 
                 async for row in cursor:

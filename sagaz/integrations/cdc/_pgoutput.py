@@ -266,7 +266,7 @@ class PgOutputDecoder:
         relation = self.relation(insert.relation_id)
         if len(relation.columns) != len(insert.values):
             msg = (
-                f"insert into {relation.qualified_name} has {len(insert.values)} values "
+                f"insert into {relation.qualified_name} has {len(insert.values)} values "  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                 f"for {len(relation.columns)} columns"
             )
             raise PgOutputError(msg)

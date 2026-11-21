@@ -468,6 +468,13 @@ class TestFlinkSql:
             assert f"'{event_type}'" in sql
         assert sql.count("ROW_NUMBER()") == 2  # the last status, and the duration ranks
 
+    def test_a_table_that_is_not_an_identifier_is_refused(self):
+        from sagaz.integrations.flink_sql import report
+
+        for table in ("t; DROP TABLE x", "a.b.c.d", "1t", "cat.db.`t`", ""):
+            with pytest.raises(ValueError, match="invalid table"):
+                report("flow-summary", table)
+
     def test_an_unknown_report(self):
         from sagaz.integrations.flink_sql import report
 

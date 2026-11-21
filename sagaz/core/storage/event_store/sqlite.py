@@ -104,7 +104,7 @@ class SQLiteEventStore(SagaEventStore):
         conn = await self._connection()
         clause, args = _tenant_clause()
         cursor = await conn.execute(
-            "SELECT body FROM saga_events WHERE saga_id = ? AND sequence > ?"
+            "SELECT body FROM saga_events WHERE saga_id = ? AND sequence > ?"  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             f"{clause} ORDER BY tenant_id, sequence",
             (saga_id, after_sequence, *args),
         )
@@ -131,7 +131,7 @@ class SQLiteEventStore(SagaEventStore):
         conn = await self._connection()
         clause, args = _tenant_clause()
         cursor = await conn.execute(
-            "SELECT tenant_id, sequence, state, created_at FROM saga_event_snapshots"
+            "SELECT tenant_id, sequence, state, created_at FROM saga_event_snapshots"  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             f" WHERE saga_id = ?{clause} ORDER BY sequence DESC LIMIT 1",
             (saga_id, *args),
         )

@@ -9,6 +9,7 @@ Data is passed through the run() method's initial context, not the constructor.
 
 import asyncio
 import logging
+import shutil
 
 from sagaz.core.exceptions import SagaFailedError, SagaStepError
 from sagaz.examples.software_technology.ai.training.saga import MLTrainingPipelineSaga
@@ -24,7 +25,7 @@ async def successful_pipeline_demo():
     # Instantiate reusable saga
     saga = MLTrainingPipelineSaga()
 
-    await saga.run(
+    context = await saga.run(
         {
             "experiment_id": "exp-20240115-001",
             "dataset_path": "/data/training/customer_churn.parquet",
@@ -39,6 +40,11 @@ async def successful_pipeline_demo():
             },
         }
     )
+    # A real pipeline keeps these artifacts; the demo removes them so a run leaves nothing
+    # behind in the temp directory.
+    for key in ("temp_dir", "feature_dir", "model_dir"):
+        if context.get(key):
+            shutil.rmtree(context[key], ignore_errors=True)
 
 
 async def failed_pipeline_demo():

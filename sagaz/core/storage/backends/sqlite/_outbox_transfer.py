@@ -22,7 +22,8 @@ class SQLiteOutboxTransferMixin(SQLiteOutboxRowMappingMixin, SQLiteOutboxMixinBa
         """Count total events."""
         conn = await self._get_connection()
         cursor = await conn.execute(
-            f"SELECT COUNT(*) FROM outbox_events WHERE {TENANT_FILTER}", tenant_params()
+            f"SELECT COUNT(*) FROM outbox_events WHERE {TENANT_FILTER}",  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
+            tenant_params(),
         )
         row = await cursor.fetchone()
         return row[0] if row else 0
@@ -31,7 +32,8 @@ class SQLiteOutboxTransferMixin(SQLiteOutboxRowMappingMixin, SQLiteOutboxMixinBa
         """Export all records for transfer."""
         conn = await self._get_connection()
         cursor = await conn.execute(
-            f"SELECT * FROM outbox_events WHERE {TENANT_FILTER} ORDER BY event_id", tenant_params()
+            f"SELECT * FROM outbox_events WHERE {TENANT_FILTER} ORDER BY event_id",  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
+            tenant_params(),
         )
 
         async for row in cursor:

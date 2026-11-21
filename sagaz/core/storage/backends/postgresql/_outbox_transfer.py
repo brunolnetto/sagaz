@@ -31,7 +31,7 @@ class PostgreSQLOutboxTransferMixin(PostgreSQLOutboxRowMappingMixin, PostgreSQLO
                 SELECT
                     (SELECT COUNT(*) FROM saga_outbox WHERE {tenant_predicate(1)})
                     + (SELECT COUNT(*) FROM saga_outbox_archive WHERE {tenant_predicate(1)})
-                """,
+                """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                 tenant_param(),
             )
             return int(count)
@@ -47,7 +47,7 @@ class PostgreSQLOutboxTransferMixin(PostgreSQLOutboxRowMappingMixin, PostgreSQLO
                         UNION ALL
                         SELECT * FROM saga_outbox_archive WHERE {tenant_predicate(1)}
                         ORDER BY event_id
-                        """,
+                        """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                         tenant_param(),
                     )
                     async for row in cursor:
@@ -74,7 +74,7 @@ class PostgreSQLOutboxTransferMixin(PostgreSQLOutboxRowMappingMixin, PostgreSQLO
                     SELECT * FROM saga_outbox
                     WHERE event_id = $1 AND {tenant_predicate(2)}
                     FOR UPDATE
-                    """,
+                    """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                     event.event_id,
                     tenant_param(),
                 )
@@ -85,7 +85,7 @@ class PostgreSQLOutboxTransferMixin(PostgreSQLOutboxRowMappingMixin, PostgreSQLO
                         SELECT * FROM saga_outbox_archive
                         WHERE event_id = $1 AND {tenant_predicate(2)}
                         FOR UPDATE
-                        """,
+                        """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                         event.event_id,
                         tenant_param(),
                     )

@@ -36,7 +36,7 @@ class _PostgreSQLSagaMaintenanceMixin:
                 SELECT status, COUNT(*) as count
                 FROM sagas WHERE {condition}
                 GROUP BY status
-            """,
+            """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                 *params,
             )
 
@@ -72,7 +72,7 @@ class _PostgreSQLSagaMaintenanceMixin:
                 DELETE FROM sagas
                 WHERE status = ANY($1) AND updated_at < $2
                   AND saga_name NOT LIKE $3 ESCAPE '\\' AND {condition}
-            """,
+            """,  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
                 *params,
             )
 
@@ -120,5 +120,5 @@ class _PostgreSQLSagaMaintenanceMixin:
             params: list[Any] = []
             condition = tenant_condition("tenant_id", params)
             return int(
-                await conn.fetchval(f"SELECT COUNT(*) FROM sagas WHERE {condition}", *params)
+                await conn.fetchval(f"SELECT COUNT(*) FROM sagas WHERE {condition}", *params)  # nosec B608 - only constant SQL fragments are interpolated; values are bound parameters
             )
