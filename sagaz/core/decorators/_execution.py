@@ -10,6 +10,7 @@ import time
 import uuid
 from typing import TYPE_CHECKING, Any
 
+from sagaz.core.decorators._attempts import _StepAttemptsMixin
 from sagaz.core.decorators._event_sourcing import _EventSourcingMixin
 from sagaz.core.decorators._regions import _RegionRoutingMixin
 from sagaz.core.decorators._step_chart import _EngineStepChartMixin
@@ -33,7 +34,9 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-class ExecutionEngine(_EventSourcingMixin, _RegionRoutingMixin, _EngineStepChartMixin):
+class ExecutionEngine(
+    _EventSourcingMixin, _RegionRoutingMixin, _EngineStepChartMixin, _StepAttemptsMixin
+):
     """Orchestrates saga execution and compensation."""
 
     def __init__(self, saga: "Saga"):
@@ -121,7 +124,7 @@ class ExecutionEngine(_EventSourcingMixin, _RegionRoutingMixin, _EngineStepChart
                     step_def.compensation_fn,
                     depends_on=step_def.depends_on,  # Auto-reversed dependencies
                     compensation_type=step_def.compensation_type,
-                    max_retries=capped_retries(step_def.max_retries),
+                    max_retries=self._step_retries(step_def),
                     timeout_seconds=capped_timeout(step_def.compensation_timeout_seconds),
                 )
 
@@ -173,13 +176,12 @@ class ExecutionEngine(_EventSourcingMixin, _RegionRoutingMixin, _EngineStepChart
 
         self._ledger.started(step.step_id)
         await self._chart_step(step.step_id, "start")
-        # A tenant quota may lower the step's timeout (ADR-020).
-        timeout = capped_timeout(step.timeout_seconds)
+        # Per attempt; the config's default when the step sets none (ADR-020 caps it).
+        timeout = self._step_timeout(step)
         step_started = time.monotonic()
         try:
-            # Apply timeout
             try:
-                result = await asyncio.wait_for(self._run_step(step), timeout=timeout)
+                result = await self._attempt_step(step)  # retries, backoff, timeouts
             except BaseException as error:
                 self._ledger.finished(step.step_id, error)
                 await self._chart_step(step.step_id, "fail")
