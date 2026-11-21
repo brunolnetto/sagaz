@@ -27,6 +27,8 @@ class _SagaCompensationMixin:
     context: "SagaContext"
 
     steps: list["SagaStep"]
+    step_dependencies: dict[str, set[str]]
+    _has_dependencies: bool
 
     if TYPE_CHECKING:
         # Provided by _SagaStepChartMixin and _SagaSnapshotMixin (StateChart phase 2).
@@ -60,9 +62,17 @@ class _SagaCompensationMixin:
             self._raise_compensation_error(compensation_errors)
 
     async def _run_compensations(self) -> list[SagaCompensationError]:
-        """Execute all compensations, collecting errors."""
+        """Execute all compensations, collecting errors.
+
+        A completed pivot and its ancestors are not compensated (#549): the pivot is a
+        point of no return, and its ancestors are tainted.
+        """
         errors = []
+        locked = self._locked_by_pivots()
         for step in reversed(self.completed_steps):
+            if step.name in locked:
+                logger.info(f"Not compensating '{step.name}': locked by a completed pivot")
+                continue
             if step.compensation:
                 error = await self._try_compensate_step(step)
                 if error:
@@ -85,6 +95,31 @@ class _SagaCompensationMixin:
         if self._step_chart_on:  # a checkpoint to resume the compensation from
             await self._capture_snapshot(step.name, self.steps.index(step), before=False)
         return None
+
+    def _locked_by_pivots(self) -> set[str]:
+        """Completed pivots and their completed ancestors; ancestors are marked tainted."""
+        done = {step.name for step in self.completed_steps}
+        locked: set[str] = set()
+        for pivot in (step for step in self.completed_steps if step.pivot):
+            locked |= {pivot.name} | (self._ancestors(pivot.name) & done)
+        for step in self.completed_steps:
+            if step.name in locked and not step.pivot:
+                step.tainted = True
+        return locked
+
+    def _ancestors(self, name: str) -> set[str]:
+        """Steps ``name`` depends on, transitively (all earlier steps when sequential)."""
+        if not self._has_dependencies:
+            order = [step.name for step in self.steps]
+            return set(order[: order.index(name)])
+        seen: set[str] = set()
+        pending = list(self.step_dependencies.get(name, set()))
+        while pending:
+            dep = pending.pop()
+            if dep not in seen:
+                seen.add(dep)
+                pending.extend(self.step_dependencies.get(dep, set()))
+        return seen
 
     def _raise_compensation_error(self, errors: list[SagaCompensationError]) -> None:
         """Raise aggregate compensation error."""
