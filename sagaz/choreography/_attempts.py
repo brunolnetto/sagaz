@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 from collections.abc import Awaitable, Callable
 
 logger = logging.getLogger("sagaz.choreography")
@@ -28,8 +29,16 @@ async def attempt(
     retry_backoff_base: float,
     what: str,
 ) -> None:
-    """Run *run* until an attempt succeeds; re-raise the last attempt's error."""
-    attempts = max_retries + 1
+    """Run *run* until an attempt succeeds; re-raise the last attempt's error.
+
+    The current tenant's ``max_retries`` and ``max_step_duration_seconds`` cap
+    *max_retries* and *timeout_seconds* (#564), as for orchestrated steps.
+    """
+    from sagaz.core.tenant import capped_retries, capped_timeout
+
+    attempts = capped_retries(max_retries) + 1
+    capped = capped_timeout(math.inf if timeout_seconds is None else timeout_seconds)
+    timeout_seconds = None if capped == math.inf else capped
     for number in range(attempts):
         try:
             await asyncio.wait_for(run(), timeout=timeout_seconds)
