@@ -24,6 +24,7 @@ from sagaz.core.tenant import (
     TenantContext,
     ensure_tenant_context_matches,
     resolve_tenant,
+    tenant_argument,
     tenant_execution,
 )
 
@@ -314,8 +315,9 @@ class Saga(
         initial_context: dict[str, Any],
         saga_id: str | None = None,
         *,
-        tenant_context: TenantContext | str | None = None,
+        tenant: TenantContext | str | None = None,
         allow_rerun: bool = False,
+        tenant_context: TenantContext | str | None = None,
     ) -> dict[str, Any]:
         """
         Execute this saga.
@@ -326,12 +328,13 @@ class Saga(
                 id runs once: one that already exists in storage raises
                 ``SagaAlreadyExistsError`` before any step runs, so a retried
                 request does not run its steps (charge, ship) twice.
-            tenant_context: Run as this tenant (ADR-020). Storage is scoped to
-                it, its quotas apply, and ``ctx["tenant_id"]`` is set. A tenant
-                id is resolved through ``SagaConfig.tenant_registry`` when one
-                is configured.
+            tenant: Run as this tenant (ADR-020): a ``TenantContext`` or a tenant
+                id. Storage is scoped to it, its quotas apply, and
+                ``ctx["tenant_id"]`` is set. A tenant id is resolved through
+                ``SagaConfig.tenant_registry`` when one is configured.
             allow_rerun: Run an existing ``saga_id`` again, all its steps included
                 (an event-sourced stream or unified-log transaction continues).
+            tenant_context: Deprecated name of ``tenant`` (until 3.0).
 
         Returns:
             Final context with all step results merged
@@ -349,13 +352,14 @@ class Saga(
             )
             raise TypeError(msg)
         initial_context = dict(initial_context)
-        if tenant_context is None:
+        given = tenant_argument("Saga.run", tenant, tenant_context=tenant_context)
+        if given is None:
             return await self._engine(allow_rerun).run(initial_context, saga_id)
         registry = getattr(self._config, "tenant_registry", None)
-        tenant = resolve_tenant(tenant_context, registry)
-        ensure_tenant_context_matches(initial_context, tenant.tenant_id)
-        async with tenant_execution(tenant):
-            context = {**initial_context, "tenant_id": tenant.tenant_id}
+        resolved = resolve_tenant(given, registry)
+        ensure_tenant_context_matches(initial_context, resolved.tenant_id)
+        async with tenant_execution(resolved):
+            context = {**initial_context, "tenant_id": resolved.tenant_id}
             return await self._engine(allow_rerun).run(context, saga_id)
 
     def _engine(self, allow_rerun: bool) -> ExecutionEngine:

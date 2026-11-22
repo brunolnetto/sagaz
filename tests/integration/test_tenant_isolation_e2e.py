@@ -79,9 +79,9 @@ async def _run_both(saga_storage, outbox, broker):
         logging=False,
     )
     runs = [
-        OrderSaga(config=config).run({"amount": 10}, saga_id=SAGA_ID, tenant_context="acme"),
+        OrderSaga(config=config).run({"amount": 10}, saga_id=SAGA_ID, tenant="acme"),
         OrderSaga(config=config).run(
-            {"amount": 99, "declined": True}, saga_id=SAGA_ID, tenant_context="globex"
+            {"amount": 99, "declined": True}, saga_id=SAGA_ID, tenant="globex"
         ),
     ]
     return await asyncio.gather(*runs, return_exceptions=True)

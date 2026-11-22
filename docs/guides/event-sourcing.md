@@ -152,7 +152,7 @@ the events stay, and deleting the snapshots only makes loading slower.
   the snapshot storage. The stream of that run then has a gap, so alert on the
   error counter.
 - **Tenants:** events and snapshots belong to the tenant the saga runs as
-  (`Saga.run(tenant_context=...)`, ADR-020). Reads return the current tenant's events
+  (`Saga.run(tenant=...)`, ADR-020). Reads return the current tenant's events
   only. In PostgreSQL, both tables use the same row-level security policy as the saga
   tables, so run the application with a role that is not a superuser.
 

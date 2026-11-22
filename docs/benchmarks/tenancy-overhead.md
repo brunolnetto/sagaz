@@ -31,7 +31,7 @@ The harness lives in [`benchmarks/tenancy/`](https://github.com/brunolnetto/saga
 - **Modes**, on the same storage, with the same number of sagas:
   - `baseline`: every saga in the default tenant (`Saga.run(ctx)`, no `tenant_context`);
   - `multi`: T tenants × S concurrent sagas, each run with
-    `tenant_context=TenantContext(...)` and quotas set to exactly the load
+    `tenant=TenantContext(...)` and quotas set to exactly the load
     (`max_concurrent_sagas=S`, plus step-duration and retry caps), so quota checks run
     on every saga but never reject;
   - `multi-registry`: the same, with tenant ids resolved through a `TenantRegistry`.
@@ -48,7 +48,7 @@ The harness lives in [`benchmarks/tenancy/`](https://github.com/brunolnetto/saga
   each as the median over rounds, and the overhead of a mode over a reference, computed
   per round as `wall(mode) / wall(reference) − 1` and reported as median [min, max].
 - **Load-independent measurements**:
-  - *Tenancy machinery*: the work `Saga.run(..., tenant_context=...)` adds (resolve the
+  - *Tenancy machinery*: the work `Saga.run(..., tenant=...)` adds (resolve the
     tenant, check the context, take a quota slot, enter the scope, copy the context),
     timed alone in a loop, and its share of each backend's time per saga.
   - *Statements per saga* (PostgreSQL): every statement sent through asyncpg is counted

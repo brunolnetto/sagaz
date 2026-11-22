@@ -96,7 +96,7 @@ async def test_saga_events_are_published_within_200ms_of_commit(stack):
     for tenant in ("acme", "globex"):
         before = set(broker.published_at)
         await OrderSaga(config=config).run(
-            {"amount": 10}, saga_id=f"o-{uuid4().hex[:6]}", tenant_context=tenant
+            {"amount": 10}, saga_id=f"o-{uuid4().hex[:6]}", tenant=tenant
         )
         # The listener inserted the events while the saga ran; they are committed now.
         committed[tenant] = (time.monotonic(), before)

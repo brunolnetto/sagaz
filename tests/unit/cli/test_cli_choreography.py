@@ -21,13 +21,13 @@ def storage_url(tmp_path):
         async with SQLiteSagaStorage(str(path)) as storage:
             async with Stack(storage=storage) as stack:
                 await stack.orders.begin(
-                    "order.created", {"order_id": "o-1"}, correlation_id="ok", tenant_id="acme"
+                    "order.created", {"order_id": "o-1"}, correlation_id="ok", tenant="acme"
                 )
                 await stack.orders.begin(
                     "order.created",
                     {"order_id": "o-2", "amount": 500},
                     correlation_id="bad",
-                    tenant_id="acme",
+                    tenant="acme",
                 )
 
     asyncio.run(record())

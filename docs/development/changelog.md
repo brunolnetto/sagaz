@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Every metric is named `sagaz_*` (#572).** `outbox_*` becomes `sagaz_outbox_*`, `consumer_inbox_*` becomes `sagaz_inbox_*`, and `PrometheusMetrics`' default prefix becomes `sagaz_saga` (was `saga`). The old names are still emitted alongside while `SAGAZ_METRICS_OLD_NAMES` is on, the default; set it to `0` once your dashboards use the new names. 3.0 removes them. The dashboards and alert rules in this repository use the new names. See `docs/monitoring/METRICS_COMPATIBILITY.md`.
 
+- **One keyword for the tenant: `tenant=` (#572).** `Saga.run(tenant=)`, `SagaOrchestrator(tenant=)` and `ChoreographedSaga.begin(tenant=)` take a `TenantContext` or a tenant id; `begin()` now accepts a `TenantContext` too. The former names, `run(tenant_context=)`, `SagaOrchestrator(tenant_id=)` and `begin(tenant_id=)`, still work with a `DeprecationWarning` until 3.0; giving both is a `TypeError`.
+
 ### Fixed
 
 - **Kubernetes alert rules queried metrics that do not exist.** `SagaHighFailureRate`, `SagaHighRollbackRate`, `SagaHighLatency` and `SagaHighActiveConcurrency` used `saga_executions_total`, `saga_duration_seconds` and `saga_status_gauge`, which sagaz never emitted, so they could not fire. They now query `sagaz_saga_execution_total`, `sagaz_saga_execution_duration_seconds` and `sagaz_saga_active_count`. Four more rules have no equivalent metric yet (#617).

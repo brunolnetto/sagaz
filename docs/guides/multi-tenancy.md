@@ -16,7 +16,7 @@ class OrderSaga(Saga):
         ...  # ctx["tenant_id"] == "acme"
 
 acme = TenantContext("acme", plan="premium", quotas=TenantQuotas(max_concurrent_sagas=50))
-await OrderSaga().run({"order_id": "o-1"}, tenant_context=acme)
+await OrderSaga().run({"order_id": "o-1"}, tenant=acme)
 ```
 
 While the saga runs, every storage read and write is scoped to `acme`, the tenant's
@@ -28,7 +28,7 @@ Imperative sagas run as a tenant through the orchestrator:
 ```python
 from sagaz.core.execution.orchestrator import SagaOrchestrator
 
-orchestrator = SagaOrchestrator(tenant_id="acme", tenant_registry=registry)
+orchestrator = SagaOrchestrator(tenant="acme", tenant_registry=registry)
 await orchestrator.execute_saga(saga)
 ```
 
@@ -70,7 +70,7 @@ from sagaz.core.tenant import TenantRegistry
 registry = await TenantRegistry.from_storage(storage)
 configure(SagaConfig(storage=storage, tenant_registry=registry))
 
-await OrderSaga().run(ctx, tenant_context="acme")  # resolved through the registry
+await OrderSaga().run(ctx, tenant="acme")  # resolved through the registry
 ```
 
 With a registry configured, an unregistered tenant id raises `TenantNotFoundError`, and a

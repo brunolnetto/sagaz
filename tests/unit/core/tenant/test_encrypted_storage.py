@@ -270,7 +270,7 @@ async def test_declarative_saga_run_as_tenant_is_stored_encrypted(inner):
     storage = EncryptedSagaStorage(inner, EnvKeyProvider(KEYS))
     saga = PatientSaga(config=SagaConfig(storage=storage, metrics=False, logging=False))
 
-    await saga.run({"ssn": SECRET}, saga_id="p-1", tenant_context="acme")
+    await saga.run({"ssn": SECRET}, saga_id="p-1", tenant="acme")
 
     raw = await _raw(inner, "acme", "p-1")
     assert raw["status"] == "completed"

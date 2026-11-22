@@ -71,7 +71,7 @@ A transaction starts with `begin()`, which gives it a new correlation id:
 ```python
 orders = ChoreographedSaga(name="orders")
 engine.register(orders)
-await orders.begin("order.created", {"order_id": "o-1", "amount": 40}, tenant_id="acme")
+await orders.begin("order.created", {"order_id": "o-1", "amount": 40}, tenant="acme")
 ```
 
 ## What travels with an event
