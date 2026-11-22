@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Four Kubernetes alerts queried metrics sagaz never emitted (#617).** `PrometheusMetrics` (and `MetricsSagaListener`) now record `sagaz_saga_step_executions_total{saga_name, step_name, status}` (`succeeded` / `failed`) and `sagaz_saga_compensation_failures_total{saga_name, step_name}`, and `SagaStepHighFailureRate` and `CompensationFailures` use them. `SagaStuckInRunning` and `SagaStorageErrors` are removed until sagaz has a stalled-saga signal and a storage error counter. A test checks that every metric the shipped alerts and dashboards query is one sagaz registers.
 - **Kubernetes alert rules queried metrics that do not exist.** `SagaHighFailureRate`, `SagaHighRollbackRate`, `SagaHighLatency` and `SagaHighActiveConcurrency` used `saga_executions_total`, `saga_duration_seconds` and `saga_status_gauge`, which sagaz never emitted, so they could not fire. They now query `sagaz_saga_execution_total`, `sagaz_saga_execution_duration_seconds` and `sagaz_saga_active_count`. Four more rules have no equivalent metric yet (#617).
 
 ## [2.5.0] - 2026-11-21

@@ -28,33 +28,17 @@ data:
               runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#saga-high-failure-rate"
               dashboard: "https://grafana/d/saga-orchestration"
 
-          # Critical: Saga stuck in running state
-          - alert: SagaStuckInRunning
-            expr: |
-              sum(saga_status_gauge{status="running"}) by (saga_id, saga_name) > 0
-              AND
-              time() - saga_last_updated_timestamp > 3600
-            for: 10m
-            labels:
-              severity: critical
-              component: saga
-              team: platform
-            annotations:
-              summary: "Saga {{ $labels.saga_name }} ({{ $labels.saga_id }}) stuck in running state"
-              description: "Saga has been running for over 1 hour without completion. May indicate timeout or deadlock."
-              runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#saga-stuck"
-
           # Critical: Compensation execution failures
           - alert: CompensationFailures
             expr: |
-              rate(sagaz_saga_compensations_total{status="failed"}[10m]) > 0
+              sum(rate(sagaz_saga_compensation_failures_total[10m])) by (saga_name, step_name) > 0
             for: 5m
             labels:
               severity: critical
               component: saga
               team: platform
             annotations:
-              summary: "Compensation failures detected for {{ $labels.saga_name }}"
+              summary: "Compensation of {{ $labels.step_name }} failing for {{ $labels.saga_name }}"
               description: "Compensations are failing, manual intervention required. Check logs for saga {{ $labels.saga_name }}."
               runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#compensation-failure"
 
@@ -95,8 +79,8 @@ data:
           # Warning: Step execution failures
           - alert: SagaStepHighFailureRate
             expr: |
-              (sum(rate(saga_step_executions_total{status="failed"}[5m])) by (step_name) /
-               sum(rate(saga_step_executions_total[5m])) by (step_name)) > 0.05
+              (sum(rate(sagaz_saga_step_executions_total{status="failed"}[5m])) by (saga_name, step_name) /
+               sum(rate(sagaz_saga_step_executions_total[5m])) by (saga_name, step_name)) > 0.05
             for: 5m
             labels:
               severity: warning
@@ -123,20 +107,6 @@ data:
               summary: "High number of active sagas: {{ $value }}"
               description: "May indicate capacity issues or slow downstream services."
               runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#high-concurrency"
-
-          # Warning: Storage connection issues
-          - alert: SagaStorageErrors
-            expr: |
-              rate(saga_storage_errors_total[5m]) > 1
-            for: 5m
-            labels:
-              severity: warning
-              component: saga
-              team: platform
-            annotations:
-              summary: "Storage errors detected: {{ $value }}/sec"
-              description: "Saga storage experiencing errors. Check database health and connectivity."
-              runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#storage-errors"
 
   outbox-alerts.yaml: |
     groups:
