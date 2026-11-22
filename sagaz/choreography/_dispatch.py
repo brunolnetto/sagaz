@@ -18,6 +18,7 @@ from sagaz.choreography._attempts import (
     DEFAULT_RETRY_BACKOFF_BASE,
     DEFAULT_TIMEOUT,
 )
+from sagaz.choreography._observe import listener_context, notify, span, with_trace_context
 from sagaz.choreography.events import COMPENSATE, COMPENSATED, Event
 from sagaz.choreography.saga import ChoreographedSaga, current_cause
 from sagaz.core.tenant import tenant_scope
@@ -137,7 +138,8 @@ class Dispatcher:
         # Every path below finishes the delivery; only a crash (or cancellation)
         # leaves the reservation to expire, so that a redelivery is handled.
         if event.event_type == COMPENSATE:
-            await self._compensate(saga, event)
+            with span(saga.name, event, "compensate transaction"):
+                await self._compensate(saga, event)
             await saga._state.finish_delivery(saga.name, event.event_id)
             return
         if saga.handles(event.event_type) and not await self._after_compensation(saga, event):
@@ -167,29 +169,46 @@ class Dispatcher:
     async def _handle(self, saga: ChoreographedSaga, event: Event) -> None:
         token = current_cause.set(event)
         started = time.perf_counter()
+        ctx = listener_context(event)
+        await notify(saga._listeners, "on_step_enter", saga.name, event.event_type, ctx)
         try:
-            max_retries, timeout_seconds = self._policy(saga, event)
-            with tenant_scope(event.tenant_id):
-                await saga._run(
-                    event,
-                    max_retries=max_retries,
-                    timeout_seconds=timeout_seconds,
-                    retry_backoff_base=self._defaults.retry_backoff_base,
-                )
-        except Exception as error:
-            _count(saga.name, event.event_type, "failed")
-            logger.exception(
-                "%s failed on %r (saga_id=%s)", saga.name, event.event_type, event.saga_id
-            )
-            await self._publish_failure(saga, event, error)
-        else:
-            _count(saga.name, event.event_type, "handled")
+            # The handler, its follow-on events and its failure report are in one
+            # span, continuing the trace of the span that published *event* (#563).
+            with span(saga.name, event, "handle") as outcome:
+                try:
+                    await self._run(saga, event)
+                except Exception as error:
+                    outcome.failed(error)
+                    await self._failed(saga, event, ctx, error)
+                else:
+                    _count(saga.name, event.event_type, "handled")
+                    await notify(
+                        saga._listeners, "on_step_success", saga.name, event.event_type, ctx, None
+                    )
         finally:
             current_cause.reset(token)
             if CHOREOGRAPHY_HANDLER_SECONDS is not None:
                 CHOREOGRAPHY_HANDLER_SECONDS.labels(saga.name, event.event_type).observe(
                     time.perf_counter() - started
                 )
+
+    async def _run(self, saga: ChoreographedSaga, event: Event) -> None:
+        max_retries, timeout_seconds = self._policy(saga, event)
+        with tenant_scope(event.tenant_id):
+            await saga._run(
+                event,
+                max_retries=max_retries,
+                timeout_seconds=timeout_seconds,
+                retry_backoff_base=self._defaults.retry_backoff_base,
+            )
+
+    async def _failed(
+        self, saga: ChoreographedSaga, event: Event, ctx: dict[str, Any], error: Exception
+    ) -> None:
+        _count(saga.name, event.event_type, "failed")
+        logger.exception("%s failed on %r (saga_id=%s)", saga.name, event.event_type, event.saga_id)
+        await notify(saga._listeners, "on_step_failure", saga.name, event.event_type, ctx, error)
+        await self._publish_failure(saga, event, error)
 
     async def _publish_failure(
         self, saga: ChoreographedSaga, event: Event, error: Exception
@@ -202,7 +221,7 @@ class Dispatcher:
             "failed_event_id": event.event_id,
             "reason": f"{type(error).__name__}: {error}",
         }
-        report = Event(COMPENSATE, data, source=saga.name).caused_by(event)
+        report = with_trace_context(Event(COMPENSATE, data, source=saga.name).caused_by(event))
         await saga._state.publish(saga.name, report, self._publish)
 
     async def _compensate(self, saga: ChoreographedSaga, event: Event) -> None:
@@ -221,5 +240,5 @@ class Dispatcher:
             if failed:
                 CHOREOGRAPHY_COMPENSATIONS.labels(saga.name, "failed").inc(len(failed))
         data = {"participant": saga.name, "undone": undone, "failed": failed}
-        report = Event(COMPENSATED, data, source=saga.name).caused_by(event)
+        report = with_trace_context(Event(COMPENSATED, data, source=saga.name).caused_by(event))
         await saga._state.publish(saga.name, report, self._publish)

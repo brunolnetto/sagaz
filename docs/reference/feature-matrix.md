@@ -53,9 +53,9 @@ Legend: ✅ supported · ⚠️ partial · ❌ missing · — does not apply to 
 | Tenancy: scope | ✅ `tests/unit/core/tenant/test_tenant_execution.py::TestSagaRunAsTenant::test_steps_run_in_the_tenant_scope_and_context_names_it` | ⚠️ trusts `Event.tenant_id` ([#564]) |
 | Tenancy: quotas, registry | ✅ `tests/unit/core/tenant/test_tenant_execution.py::TestQuotasDuringExecution::test_concurrent_sagas_beyond_the_quota_are_refused` | ❌ ([#564]) |
 | Multi-region steps | ✅ `tests/unit/core/test_regions.py::TestSagas::test_a_step_runs_in_its_region` | — a participant runs where it is deployed |
-| Listeners (logging, metrics, custom) | ✅ `tests/unit/test_small_dx_fixes.py::test_extra_listeners_join_the_configured_ones` | ❌ ([#563]) |
+| Listeners (logging, metrics, custom) | ✅ `tests/unit/test_small_dx_fixes.py::test_extra_listeners_join_the_configured_ones` | ✅ steps per participant, sagas once per transaction (tracker) `tests/unit/test_choreography_observability.py::TestTransactionListeners::test_a_rolled_back_transaction_fails_once_with_the_reported_reason` |
 | Prometheus metrics | ✅ `tests/unit/test_small_dx_fixes.py::test_two_prometheus_metrics_in_their_own_registries` | ✅ built in `tests/unit/test_choreography_compensation.py::TestCompensation::test_a_failing_participant_triggers_compensation_of_the_others` |
-| OpenTelemetry tracing | ✅ `tests/unit/core/test_orchestrated_bug_fixes.py::TestTracingStatus::test_failed_compensation_is_traced` | ❌ ([#563]) |
+| OpenTelemetry tracing | ✅ `tests/unit/core/test_orchestrated_bug_fixes.py::TestTracingStatus::test_failed_compensation_is_traced` | ✅ one trace per transaction `tests/unit/test_choreography_observability.py::TestTracing::test_a_transaction_is_one_trace` |
 | Analytics pipeline | ✅ `tests/unit/analytics/test_storage_pipeline.py` | ✅ `tests/unit/analytics/test_choreography_analytics.py::TestPipeline::test_summary_per_flow` |
 | Mermaid diagram | ✅ `tests/unit/core/test_mermaid.py` | ❌ ([#565]) |
 | Gradio monitor | ✅ `tests/unit/visualization/test_gradio_monitor.py` | ✅ causation graph `tests/unit/visualization/test_gradio_monitor.py` |

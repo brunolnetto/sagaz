@@ -54,6 +54,10 @@ class Event:
         ``event_id`` of the event whose handling produced this one, if any.
     source:
         Name of the participant that emitted the event, if known.
+    trace_context:
+        W3C trace context (``traceparent``, ``tracestate``) of the span that
+        published the event, so the handling span continues its trace (#563).
+        Empty when OpenTelemetry is not in use.
     """
 
     event_type: str
@@ -64,6 +68,7 @@ class Event:
     tenant_id: str = "default"
     causation_id: str | None = None
     source: str | None = None
+    trace_context: dict[str, str] = field(default_factory=dict)
 
     @property
     def correlation_id(self) -> str | None:
@@ -75,12 +80,18 @@ class Event:
         return replace(self, data=dict(self.data), saga_id=saga_id)
 
     def caused_by(self, cause: Event) -> Event:
-        """This event continuing *cause*'s transaction: same correlation and tenant."""
+        """This event continuing *cause*'s transaction: same correlation and tenant.
+
+        It also continues *cause*'s trace: a participant without OpenTelemetry passes
+        the trace context on, so the trace is not broken in the middle (#563). A
+        local span replaces it when there is one.
+        """
         return replace(
             self,
             saga_id=self.saga_id or cause.saga_id,
             tenant_id=cause.tenant_id,
             causation_id=cause.event_id,
+            trace_context=self.trace_context or dict(cause.trace_context),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -94,6 +105,7 @@ class Event:
             "tenant_id": self.tenant_id,
             "causation_id": self.causation_id,
             "source": self.source,
+            "trace_context": dict(self.trace_context),
         }
 
     @classmethod
@@ -110,6 +122,7 @@ class Event:
             tenant_id=payload.get("tenant_id") or "default",
             causation_id=payload.get("causation_id") or None,
             source=payload.get("source") or None,
+            trace_context=dict(payload.get("trace_context") or {}),
         )
 
     def __repr__(self) -> str:
@@ -238,10 +251,15 @@ class EventBus(AbstractEventBus):
 
         All handlers are awaited sequentially.  Errors in individual handlers
         are logged but do not prevent other handlers from running.
+
+        Wildcard (``"*"``) subscribers run first. Handlers publish their follow-on
+        events from inside this call, so an observer such as the
+        ``ChoreographyTracker`` sees each event before its effects, in causal order
+        (#563).
         """
         self._published.append(event)
-        handlers = list(self._handlers.get(event.event_type, []))
-        handlers += list(self._handlers.get("*", []))
+        handlers = list(self._handlers.get("*", []))
+        handlers += list(self._handlers.get(event.event_type, []))
 
         for handler in handlers:
             try:
