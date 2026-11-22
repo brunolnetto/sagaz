@@ -4,17 +4,14 @@ from __future__ import annotations
 
 import functools
 import logging
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from dataclasses import replace
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from sagaz.choreography._attempts import attempt
-from sagaz.choreography._observe import listener_context, notify, span
+from sagaz.choreography._observe import Listeners, listener_context, notify, span
 from sagaz.choreography.decorators import call_maybe_async
 from sagaz.choreography.events import Event
-
-if TYPE_CHECKING:
-    from sagaz.core.listeners import SagaListener
 
 logger = logging.getLogger("sagaz.choreography")
 
@@ -23,7 +20,7 @@ async def run_compensation(
     participant: str,
     compensation: Callable[..., Any],
     original: Event,
-    listeners: Sequence[SagaListener],
+    listeners: Listeners,
     *,
     max_retries: int,
     timeout_seconds: float | None,

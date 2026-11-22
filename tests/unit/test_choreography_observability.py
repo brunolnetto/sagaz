@@ -349,3 +349,38 @@ def test_the_schema_envelope_has_an_optional_trace_context():
     assert field["default"] is None  # readers of older messages stay compatible
     as_json = json.loads(envelope_schema("x", {}, format="json", envelope="choreography"))
     assert "trace_context" not in as_json["required"]
+
+
+class TestListenerBounds:
+    """Listeners run on the hot path, so they cannot hold it up (#563)."""
+
+    async def test_a_slow_listener_is_skipped_after_its_timeout(self, caplog):
+        import asyncio
+
+        class Slow(SagaListener):
+            async def on_step_enter(self, *args: Any) -> None:
+                await asyncio.sleep(60)
+
+        recorder = Recorder()
+        engine = ChoreographyEngine(
+            EventBus(), listeners=[Slow(), recorder], listener_timeout=0.01, retry_backoff_base=0
+        )
+        with caplog.at_level(logging.WARNING, logger="sagaz.choreography"):
+            await run(engine, shop())
+        assert ("step_success", "payments", "stock.reserved") in recorder.calls
+        assert "took longer than 0.01s" in caplog.text
+
+    async def test_the_tracker_keeps_no_lock_for_a_transaction_it_is_not_observing(self):
+        engine = engine_with()
+        tracker = tracker_for(engine, Recorder())
+        await run(engine, shop(), tracker)
+        assert tracker._locks == {}
+        assert tracker._in_flight == {}
+
+    def test_listeners_added_to_the_engine_reach_the_participants(self):
+        engine = ChoreographyEngine(EventBus())
+        recorder = Recorder()
+        engine.listeners.append(recorder)
+        participant = ChoreographedSaga(name="inventory")
+        engine.register(participant)
+        assert participant._listeners.items == [recorder]

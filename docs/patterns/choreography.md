@@ -381,8 +381,13 @@ tracker = ChoreographyTracker(bus, completion_events={"order.completed"},
 
 The tracker's hooks use the saga name `choreography`. Their `ctx` holds the correlation
 id, the tenant, `initiators` (the participants that started it), `participants` and
-`status`. Run one tracker: two would each tell their listeners. A listener that raises
-is logged and ignored.
+`status`. Run one tracker: two would each tell their listeners.
+
+Listeners run on the hot path: a handler, or the tracker's observation of an event,
+waits for them. A listener that raises is logged and ignored, and an async listener
+call that takes longer than `listener_timeout` seconds (an engine and tracker
+argument, default 5) is cancelled, logged and skipped. Keep listeners quick, and hand
+slow work (an HTTP call, a write to another system) to a queue of your own.
 
 On the in-memory `EventBus`, wildcard subscribers such as the tracker run before an
 event's handlers, so they see each event before its effects. Across services, events

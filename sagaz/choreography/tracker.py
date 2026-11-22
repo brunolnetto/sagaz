@@ -19,7 +19,8 @@ from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
-from sagaz.choreography._observe import notify
+from sagaz.choreography._observe import DEFAULT_LISTENER_TIMEOUT, Listeners
+from sagaz.choreography._transaction_hooks import Change, announce
 from sagaz.choreography.events import COMPENSATE, COMPENSATED, AbstractEventBus, Event
 from sagaz.core.storage.saga_log._model import LogWrite
 from sagaz.core.tenant import tenant_scope
@@ -30,16 +31,15 @@ if TYPE_CHECKING:
     from sagaz.core.storage.interfaces import SagaStorage
     from sagaz.core.storage.saga_log import SagaLogStore
 
-#: Saga name of the records the tracker writes.
-RECORD_NAME = "choreography"
-
-EXECUTING, COMPLETED, COMPENSATING, ROLLED_BACK, FAILED = (
-    "executing",
-    "completed",
-    "compensating",
-    "rolled_back",
-    "failed",
+from sagaz.choreography._status import (  # re-exported: their public home stays here
+    COMPENSATING,
+    COMPLETED,
+    EXECUTING,
+    FAILED,
+    RECORD_NAME,
+    ROLLED_BACK,
 )
+
 #: A rolled-back transaction's status before 2.6.0, when choreography named it apart
 #: from orchestration (#572). Still read, never written.
 OLD_ROLLED_BACK = "compensated"
@@ -159,6 +159,9 @@ class ChoreographyTracker:
         ``ctx`` holds the correlation id, tenant, ``initiators``, ``participants``
         and ``status``. The participants' own steps are the engine's listeners.
         Run one tracker: two would each tell their listeners.
+    listener_timeout:
+        Seconds an async listener call may take (default 5) before it is
+        cancelled, logged and skipped; ``None`` waits as long as it takes.
     """
 
     def __init__(
@@ -169,9 +172,13 @@ class ChoreographyTracker:
         stall_after: timedelta | float | None = None,
         saga_log: SagaLogStore | None = None,
         listeners: Iterable[SagaListener] = (),
+        listener_timeout: float | None = DEFAULT_LISTENER_TIMEOUT,
     ) -> None:
         self._bus = bus
-        self.listeners: list[SagaListener] = list(listeners)
+        self._listeners = Listeners(listeners, listener_timeout)
+        self.listeners: list[SagaListener] = self._listeners.items
+        # Observations in flight per transaction: its lock is dropped when none is.
+        self._in_flight: dict[str, int] = {}
         # Transactions whose start was announced: a redelivered first event is not.
         self._announced: OrderedDict[str, None] = OrderedDict()
         self._log = saga_log
@@ -187,7 +194,7 @@ class ChoreographyTracker:
     async def stop(self) -> None:
         self._bus.unsubscribe("*", self.observe)
 
-    async def _observe_log(self, event: Event) -> _Change | None:
+    async def _observe_log(self, event: Event) -> Change | None:
         """Unified log (ADR-041): the status is a projection of the log; keep the
         transaction row's status in step with it, and record each change as a
         ``TransactionStatusChanged`` lifecycle event, so that the log alone
@@ -202,7 +209,7 @@ class ChoreographyTracker:
             return None
         started = bool(status.events) and status.events[0]["event_id"] == event.event_id
         if current.status == status.status:
-            return _Change(started, status.status, status)
+            return Change(started, status.status, status)
         ended = status.status in (COMPLETED, ROLLED_BACK, FAILED)
         change = StatusChange(
             current.transaction_id,
@@ -213,56 +220,38 @@ class ChoreographyTracker:
         try:
             await log.write(LogWrite(status=change, events=[_transition(current, status, event)]))
         except ConcurrencyError:  # another tracker moved it (and tells its listeners)
-            return _Change(started, status.status, status)
-        return _Change(started, current.status, status)
+            return Change(started, status.status, status)
+        return Change(started, current.status, status)
 
     async def observe(self, event: Event) -> None:
         """Record *event* in its transaction (events without a correlation id are ignored)."""
         if not event.saga_id:
             return
-        lock = self._locks.setdefault(event.saga_id, asyncio.Lock())
-        async with lock:
-            with tenant_scope(event.tenant_id):
-                if self._log is not None:
-                    change = await self._observe_log(event)
-                else:
-                    change = await self._observe_stored(event)
+        key = event.saga_id
+        lock = self._locks.setdefault(key, asyncio.Lock())
+        self._in_flight[key] = self._in_flight.get(key, 0) + 1
+        try:
+            async with lock:
+                with tenant_scope(event.tenant_id):
+                    if self._log is not None:
+                        change = await self._observe_log(event)
+                    else:
+                        change = await self._observe_stored(event)
+        finally:
+            self._in_flight[key] -= 1
+            if not self._in_flight[key]:  # nobody else waits: the lock is not needed
+                del self._in_flight[key]
+                self._locks.pop(key, None)
         if change is not None and self.listeners:
-            await self._announce(change)
+            await announce(self._listeners, self._announced, change)
 
-    async def _observe_stored(self, event: Event) -> _Change:
+    async def _observe_stored(self, event: Event) -> Change:
         stored = await self._stored(event.saga_id or "")
         status = stored or TransactionStatus(event.saga_id or "", tenant_id=event.tenant_id)
         before = status.status if stored is not None else None
         status.apply(event, self._completion_events)
         await self._save(status)
-        return _Change(stored is None, before, status)
-
-    async def _announce(self, change: _Change) -> None:
-        """Tell the listeners what *change* means for the whole transaction (#563)."""
-        status = change.status
-        ctx: dict[str, Any] = {
-            "saga_id": status.correlation_id,
-            "tenant_id": status.tenant_id,
-            "initiators": status.initiators(),
-            "participants": list(status.participants),
-            "status": status.status,
-        }
-        if change.started and status.correlation_id not in self._announced:
-            self._announced[status.correlation_id] = None
-            while len(self._announced) > _ANNOUNCED_LIMIT:
-                self._announced.popitem(last=False)
-            await notify(self.listeners, "on_saga_start", RECORD_NAME, status.correlation_id, ctx)
-        if change.before == status.status:
-            return
-        if status.status == COMPLETED:
-            await notify(
-                self.listeners, "on_saga_complete", RECORD_NAME, status.correlation_id, ctx
-            )
-        elif status.status in (ROLLED_BACK, FAILED):
-            error = _failure_error(status)
-            args = (RECORD_NAME, status.correlation_id, ctx, error)
-            await notify(self.listeners, "on_saga_failed", *args)
+        return Change(stored is None, before, status)
 
     async def status(self, correlation_id: str) -> TransactionStatus | None:
         """The status of *correlation_id* in the current tenant scope, if known."""
@@ -291,32 +280,6 @@ class ChoreographyTracker:
             [],
             status.to_dict(),
         )
-
-
-#: Transactions remembered as announced, so that a redelivered first event is not.
-_ANNOUNCED_LIMIT = 10_000
-
-
-@dataclass(frozen=True)
-class _Change:
-    """What observing one event did to its transaction."""
-
-    started: bool  # the transaction was first recorded by this event
-    before: str | None  # its status before (None if it was not known)
-    status: TransactionStatus
-
-
-def _failure_error(status: TransactionStatus) -> Exception:
-    """The error an ``on_saga_failed`` listener gets: the failing participant's report."""
-    from sagaz.core.exceptions import SagaExecutionError
-
-    failure = status.failure or {}
-    reason = failure.get("reason") or "the transaction was compensated"
-    where = failure.get("participant")
-    message = f"{where}: {reason}" if where else str(reason)
-    if status.status == FAILED:
-        message += " (and a compensation failed too)"
-    return SagaExecutionError(message)
 
 
 def _transition(current: Any, status: TransactionStatus, event: Event) -> Any:

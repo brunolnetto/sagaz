@@ -10,14 +10,14 @@ from __future__ import annotations
 
 import inspect
 import logging
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable
 from contextvars import ContextVar
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from sagaz.choreography._attempts import DEFAULT_RETRY_BACKOFF_BASE, attempt
 from sagaz.choreography._compensation import run_compensation
-from sagaz.choreography._observe import span, with_trace_context
+from sagaz.choreography._observe import Listeners, span, with_trace_context
 from sagaz.choreography.decorators import (
     RetryPolicy,
     call_maybe_async,
@@ -35,7 +35,6 @@ from sagaz.core.storage._reserved import RESERVED_SAGA_PREFIX
 BEGIN_RECORD = f"{RESERVED_SAGA_PREFIX}begin"
 
 if TYPE_CHECKING:
-    from sagaz.core.listeners import SagaListener
     from sagaz.core.tenant import TenantContext
 
 logger = logging.getLogger(__name__)
@@ -90,7 +89,7 @@ class ChoreographedSaga:
         # Set by the engine: makes sure deadlines are watched once one is set.
         self._watch_deadlines: Callable[[], None] | None = None
         # Set by the engine: its listeners (#563).
-        self._listeners: Sequence[SagaListener] = ()
+        self._listeners: Listeners = Listeners()
         self._discover_handlers()
         self._declarative = bool(self._handlers)
 

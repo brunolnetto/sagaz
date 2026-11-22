@@ -18,6 +18,7 @@ from sagaz.choreography._attempts import (
 )
 from sagaz.choreography._deadlines import DeadlineWatcher
 from sagaz.choreography._dispatch import Dispatcher, RetryDefaults
+from sagaz.choreography._observe import DEFAULT_LISTENER_TIMEOUT, Listeners
 from sagaz.choreography.events import COMPENSATE, AbstractEventBus, Event, HandlerT
 from sagaz.choreography.relay import ChoreographyRelay
 from sagaz.choreography.saga import ChoreographedSaga
@@ -80,6 +81,10 @@ class ChoreographyEngine:
         (``on_compensation_*``). A participant does not see the whole transaction,
         so the ``on_saga_*`` hooks come from a ``ChoreographyTracker``'s listeners,
         once per transaction. A listener that raises is logged and ignored.
+    listener_timeout:
+        Seconds an async listener call may take (default 5): listeners run on the
+        hot path, so a slower one is cancelled, logged and skipped. ``None``
+        waits as long as it takes.
 
     Handlers and compensations also run in OpenTelemetry spans when
     ``opentelemetry`` is installed: an event carries its publisher's trace
@@ -123,9 +128,12 @@ class ChoreographyEngine:
         delivery_lease: float | None = None,
         retry_backoff_base: float = DEFAULT_RETRY_BACKOFF_BASE,
         listeners: Iterable[SagaListener] = (),
+        listener_timeout: float | None = DEFAULT_LISTENER_TIMEOUT,
     ) -> None:
         self._bus = bus
-        self.listeners: list[SagaListener] = list(listeners)
+        self._listeners = Listeners(listeners, listener_timeout)
+        #: The engine's listeners; add to it before registering participants.
+        self.listeners: list[SagaListener] = self._listeners.items
         self._state = create_participant_state(state) if isinstance(state, str) else state
         self.relay: ChoreographyRelay | None = None
         if saga_log is not None:  # ADR-041: state and atomic publishing on the log
@@ -201,7 +209,7 @@ class ChoreographyEngine:
         self._sagas[saga.saga_id] = saga
         saga._publish = self._bus.publish
         saga._watch_deadlines = self._watch_deadlines
-        saga._listeners = self.listeners
+        saga._listeners = self._listeners
         if self._state is not None:
             saga._state = self._state
 
