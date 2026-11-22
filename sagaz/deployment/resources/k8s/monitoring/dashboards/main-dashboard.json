@@ -45,7 +45,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "sum(saga_execution_total{status=\"completed\"})",
+          "expr": "sum(sagaz_saga_execution_total{status=\"completed\"})",
           "legendFormat": "Completed"
         }
       ],
@@ -83,7 +83,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "sum(saga_execution_total{status=\"failed\"})",
+          "expr": "sum(sagaz_saga_execution_total{status=\"failed\"})",
           "legendFormat": "Failed"
         }
       ],
@@ -132,15 +132,15 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, rate(saga_step_duration_seconds_bucket[5m]))",
+          "expr": "histogram_quantile(0.50, rate(sagaz_saga_step_duration_seconds_bucket[5m]))",
           "legendFormat": "p50"
         },
         {
-          "expr": "histogram_quantile(0.95, rate(saga_step_duration_seconds_bucket[5m]))",
+          "expr": "histogram_quantile(0.95, rate(sagaz_saga_step_duration_seconds_bucket[5m]))",
           "legendFormat": "p95"
         },
         {
-          "expr": "histogram_quantile(0.99, rate(saga_step_duration_seconds_bucket[5m]))",
+          "expr": "histogram_quantile(0.99, rate(sagaz_saga_step_duration_seconds_bucket[5m]))",
           "legendFormat": "p99"
         }
       ],
@@ -178,7 +178,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "sum(saga_execution_total{status=\"completed\"}) / sum(saga_execution_total)",
+          "expr": "sum(sagaz_saga_execution_total{status=\"completed\"}) / sum(sagaz_saga_execution_total)",
           "legendFormat": "Success Rate"
         }
       ],
@@ -216,7 +216,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "sum(saga_compensations_total)",
+          "expr": "sum(sagaz_saga_compensations_total)",
           "legendFormat": "Compensations"
         }
       ],
@@ -260,7 +260,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "outbox_pending_events_total",
+          "expr": "sagaz_outbox_pending_events_total",
           "legendFormat": "Pending"
         }
       ],
@@ -309,15 +309,15 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "rate(outbox_published_events_total[5m])",
+          "expr": "rate(sagaz_outbox_published_events_total[5m])",
           "legendFormat": "Published"
         },
         {
-          "expr": "rate(outbox_optimistic_send_success_total[5m])",
+          "expr": "rate(sagaz_outbox_optimistic_send_success_total[5m])",
           "legendFormat": "Optimistic Success"
         },
         {
-          "expr": "rate(outbox_optimistic_send_failures_total[5m])",
+          "expr": "rate(sagaz_outbox_optimistic_send_failures_total[5m])",
           "legendFormat": "Optimistic Failures"
         }
       ],
@@ -355,7 +355,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "sum(outbox_optimistic_send_success_total) / sum(outbox_optimistic_send_attempts_total)",
+          "expr": "sum(sagaz_outbox_optimistic_send_success_total) / sum(sagaz_outbox_optimistic_send_attempts_total)",
           "legendFormat": "Optimistic Success Rate"
         }
       ],
@@ -404,7 +404,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, rate(outbox_optimistic_send_latency_seconds_bucket[5m])) * 1000",
+          "expr": "histogram_quantile(0.95, rate(sagaz_outbox_optimistic_send_latency_seconds_bucket[5m])) * 1000",
           "legendFormat": "p95 Latency"
         }
       ],
@@ -464,11 +464,11 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "sum by (consumer_name) (rate(consumer_inbox_processed_total[5m]))",
+          "expr": "sum by (consumer_name) (rate(sagaz_inbox_processed_total[5m]))",
           "legendFormat": "Processed ({{consumer_name}})"
         },
         {
-          "expr": "sum by (consumer_name) (rate(consumer_inbox_duplicates_total[5m]))",
+          "expr": "sum by (consumer_name) (rate(sagaz_inbox_duplicates_total[5m]))",
           "legendFormat": "Duplicates ({{consumer_name}})"
         }
       ],
@@ -517,15 +517,15 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, rate(consumer_inbox_processing_duration_seconds_bucket[5m])) * 1000",
+          "expr": "histogram_quantile(0.50, rate(sagaz_inbox_processing_duration_seconds_bucket[5m])) * 1000",
           "legendFormat": "p50"
         },
         {
-          "expr": "histogram_quantile(0.95, rate(consumer_inbox_processing_duration_seconds_bucket[5m])) * 1000",
+          "expr": "histogram_quantile(0.95, rate(sagaz_inbox_processing_duration_seconds_bucket[5m])) * 1000",
           "legendFormat": "p95"
         },
         {
-          "expr": "histogram_quantile(0.99, rate(consumer_inbox_processing_duration_seconds_bucket[5m])) * 1000",
+          "expr": "histogram_quantile(0.99, rate(sagaz_inbox_processing_duration_seconds_bucket[5m])) * 1000",
           "legendFormat": "p99"
         }
       ],

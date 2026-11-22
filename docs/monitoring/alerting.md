@@ -60,9 +60,9 @@ Edit the `expr` and `for` fields to match your SLOs:
 - alert: SagazCompensationRateHigh
   expr: |
     (
-      rate(saga_compensations_total[5m])
+      rate(sagaz_saga_compensations_total[5m])
       /
-      rate(saga_execution_total[5m])
+      rate(sagaz_saga_execution_total[5m])
     ) > 0.02   # <-- change here
   for: 5m
 ```

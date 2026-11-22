@@ -329,8 +329,8 @@ The sagaz logging system includes correlation IDs that link logs with metrics an
 
 ```logql
 # In Grafana, you can click on a saga_id in logs and jump to:
-# - Prometheus metrics: saga_execution_total{saga_id="abc-123"}
-# - Duration metrics: saga_duration_seconds{saga_id="abc-123"}
+# - Prometheus metrics: sagaz_saga_execution_total{saga_id="abc-123"}
+# - Duration metrics: sagaz_saga_execution_duration_seconds{saga_id="abc-123"}
 ```
 
 ### Correlating Logs with Traces
@@ -381,29 +381,29 @@ limits_config:
 
 | Metric | Type | Description |
 |--------|------|-------------|
-| `saga_executions_total` | Counter | Total saga executions by status and type |
-| `saga_duration_seconds` | Histogram | Saga execution duration |
+| `sagaz_saga_execution_total` | Counter | Total saga executions by status and type |
+| `sagaz_saga_execution_duration_seconds` | Histogram | Saga execution duration |
 | `saga_status_gauge` | Gauge | Current sagas by status |
 | `saga_step_executions_total` | Counter | Step executions by status |
-| `saga_step_duration_seconds` | Histogram | Step execution duration |
-| `saga_compensations_total` | Counter | Compensation executions |
+| `sagaz_saga_step_duration_seconds` | Histogram | Step execution duration |
+| `sagaz_saga_compensations_total` | Counter | Compensation executions |
 | `saga_storage_errors_total` | Counter | Storage operation errors |
 
 ### Outbox Metrics
 
 | Metric | Type | Description |
 |--------|------|-------------|
-| `outbox_pending_events_total` | Gauge | Events pending publication |
-| `outbox_processing_events_total` | Gauge | Events currently being processed |
-| `outbox_published_events_total` | Counter | Successfully published events |
-| `outbox_failed_events_total` | Counter | Failed publication attempts |
-| `outbox_dead_letter_events_total` | Counter | Events moved to DLQ |
-| `outbox_publish_duration_seconds` | Histogram | Event publication duration |
-| `outbox_retry_attempts_total` | Counter | Retry attempts by count |
-| `outbox_batch_processed_total` | Counter | Processed batches |
-| `outbox_batch_size` | Histogram | Events per batch |
-| `outbox_optimistic_send_attempts_total` | Counter | Optimistic send attempts |
-| `outbox_optimistic_send_failures_total` | Counter | Optimistic send failures |
+| `sagaz_outbox_pending_events_total` | Gauge | Events pending publication |
+| `sagaz_outbox_processing_events_total` | Gauge | Events currently being processed |
+| `sagaz_outbox_published_events_total` | Counter | Successfully published events |
+| `sagaz_outbox_failed_events_total` | Counter | Failed publication attempts |
+| `sagaz_outbox_dead_letter_events_total` | Counter | Events moved to DLQ |
+| `sagaz_outbox_publish_duration_seconds` | Histogram | Event publication duration |
+| `sagaz_outbox_retry_attempts_total` | Counter | Retry attempts by count |
+| `sagaz_outbox_batch_processed_total` | Counter | Processed batches |
+| `sagaz_outbox_batch_size` | Histogram | Events per batch |
+| `sagaz_outbox_optimistic_send_attempts_total` | Counter | Optimistic send attempts |
+| `sagaz_outbox_optimistic_send_failures_total` | Counter | Optimistic send failures |
 
 ## Alert Configuration
 
@@ -604,7 +604,7 @@ curl http://alertmanager:9093/api/v2/alerts | jq '.'
 2. **Verify thresholds:**
    ```bash
    # Query current values
-   curl "http://prometheus:9090/api/v1/query?query=outbox_pending_events_total"
+   curl "http://prometheus:9090/api/v1/query?query=sagaz_outbox_pending_events_total"
    ```
 
 3. **Check Alertmanager config:**

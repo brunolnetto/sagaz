@@ -17,12 +17,12 @@
         "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
         "targets": [
           {
-            "expr": "outbox_pending_events_total",
+            "expr": "sagaz_outbox_pending_events_total",
             "legendFormat": "Pending",
             "refId": "A"
           },
           {
-            "expr": "outbox_processing_events_total",
+            "expr": "sagaz_outbox_processing_events_total",
             "legendFormat": "Processing",
             "refId": "B"
           }
@@ -50,12 +50,12 @@
         "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
         "targets": [
           {
-            "expr": "sum(rate(outbox_published_events_total[5m]))",
+            "expr": "sum(rate(sagaz_outbox_published_events_total[5m]))",
             "legendFormat": "Published (total)",
             "refId": "A"
           },
           {
-            "expr": "sum(rate(outbox_failed_events_total[5m]))",
+            "expr": "sum(rate(sagaz_outbox_failed_events_total[5m]))",
             "legendFormat": "Failed (total)",
             "refId": "B"
           }
@@ -71,7 +71,7 @@
         "gridPos": {"x": 0, "y": 8, "w": 6, "h": 4},
         "targets": [
           {
-            "expr": "sum(rate(outbox_published_events_total[5m])) / (sum(rate(outbox_published_events_total[5m])) + sum(rate(outbox_failed_events_total[5m]))) * 100",
+            "expr": "sum(rate(sagaz_outbox_published_events_total[5m])) / (sum(rate(sagaz_outbox_published_events_total[5m])) + sum(rate(sagaz_outbox_failed_events_total[5m]))) * 100",
             "refId": "A"
           }
         ],
@@ -95,7 +95,7 @@
         "gridPos": {"x": 6, "y": 8, "w": 6, "h": 4},
         "targets": [
           {
-            "expr": "sum(outbox_dead_letter_events_total)",
+            "expr": "sum(sagaz_outbox_dead_letter_events_total)",
             "refId": "A"
           }
         ],
@@ -146,7 +146,7 @@
         "gridPos": {"x": 18, "y": 8, "w": 6, "h": 4},
         "targets": [
           {
-            "expr": "histogram_quantile(0.95, sum(rate(outbox_publish_duration_seconds_bucket[5m])) by (le))",
+            "expr": "histogram_quantile(0.95, sum(rate(sagaz_outbox_publish_duration_seconds_bucket[5m])) by (le))",
             "refId": "A"
           }
         ],
@@ -170,17 +170,17 @@
         "gridPos": {"x": 0, "y": 12, "w": 12, "h": 8},
         "targets": [
           {
-            "expr": "histogram_quantile(0.50, sum(rate(outbox_publish_duration_seconds_bucket[5m])) by (le))",
+            "expr": "histogram_quantile(0.50, sum(rate(sagaz_outbox_publish_duration_seconds_bucket[5m])) by (le))",
             "legendFormat": "p50",
             "refId": "A"
           },
           {
-            "expr": "histogram_quantile(0.95, sum(rate(outbox_publish_duration_seconds_bucket[5m])) by (le))",
+            "expr": "histogram_quantile(0.95, sum(rate(sagaz_outbox_publish_duration_seconds_bucket[5m])) by (le))",
             "legendFormat": "p95",
             "refId": "B"
           },
           {
-            "expr": "histogram_quantile(0.99, sum(rate(outbox_publish_duration_seconds_bucket[5m])) by (le))",
+            "expr": "histogram_quantile(0.99, sum(rate(sagaz_outbox_publish_duration_seconds_bucket[5m])) by (le))",
             "legendFormat": "p99",
             "refId": "C"
           }
@@ -196,7 +196,7 @@
         "gridPos": {"x": 12, "y": 12, "w": 12, "h": 8},
         "targets": [
           {
-            "expr": "sum by (retry_count) (outbox_retry_attempts_total)",
+            "expr": "sum by (retry_count) (sagaz_outbox_retry_attempts_total)",
             "legendFormat": "Retry {{ retry_count }}",
             "refId": "A"
           }
@@ -212,7 +212,7 @@
         "gridPos": {"x": 0, "y": 20, "w": 8, "h": 8},
         "targets": [
           {
-            "expr": "sum by (state) (outbox_events_by_state)",
+            "expr": "sum by (state) (sagaz_outbox_events_by_state)",
             "legendFormat": "{{ state }}",
             "refId": "A"
           }
@@ -224,12 +224,12 @@
         "gridPos": {"x": 8, "y": 20, "w": 8, "h": 8},
         "targets": [
           {
-            "expr": "rate(outbox_optimistic_send_attempts_total[5m])",
+            "expr": "rate(sagaz_outbox_optimistic_send_attempts_total[5m])",
             "legendFormat": "Attempts",
             "refId": "A"
           },
           {
-            "expr": "rate(outbox_optimistic_send_failures_total[5m])",
+            "expr": "rate(sagaz_outbox_optimistic_send_failures_total[5m])",
             "legendFormat": "Failures",
             "refId": "B"
           }
@@ -277,12 +277,12 @@
         "gridPos": {"x": 12, "y": 28, "w": 12, "h": 8},
         "targets": [
           {
-            "expr": "rate(outbox_batch_processed_total[5m])",
+            "expr": "rate(sagaz_outbox_batch_processed_total[5m])",
             "legendFormat": "Batches/sec",
             "refId": "A"
           },
           {
-            "expr": "avg(outbox_batch_size)",
+            "expr": "avg(sagaz_outbox_batch_size)",
             "legendFormat": "Avg Batch Size",
             "refId": "B"
           }

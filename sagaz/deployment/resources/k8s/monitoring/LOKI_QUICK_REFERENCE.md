@@ -168,7 +168,7 @@ Use `saga_id` or `correlation_id` to correlate logs with metrics:
 
 1. Find error in logs: `{level="ERROR"}`
 2. Extract `saga_id` from log entry
-3. Query Prometheus: `saga_execution_total{saga_id="abc-123"}`
+3. Query Prometheus: `sagaz_saga_execution_total{saga_id="abc-123"}`
 
 ## Resources
 

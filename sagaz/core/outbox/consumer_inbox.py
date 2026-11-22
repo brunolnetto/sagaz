@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from typing import Any, Protocol, TypeVar
 
 from sagaz.core.outbox._metrics import PROMETHEUS_AVAILABLE, Counter, Histogram
+from sagaz.observability._renamed import renamed
 
 logger = logging.getLogger(__name__)
 
@@ -29,15 +30,23 @@ class InboxStorage(Protocol):
 
 
 # Metrics (no-op if prometheus not installed)
-INBOX_PROCESSED = Counter(
-    "consumer_inbox_processed_total", "Total events processed", ["consumer_name", "event_type"]
+INBOX_PROCESSED = renamed(
+    Counter,
+    "sagaz_inbox_processed_total",
+    "consumer_inbox_processed_total",
+    "Total events processed",
+    ["consumer_name", "event_type"],
 )
-INBOX_DUPLICATES = Counter(
+INBOX_DUPLICATES = renamed(
+    Counter,
+    "sagaz_inbox_duplicates_total",
     "consumer_inbox_duplicates_total",
     "Total duplicate events skipped",
     ["consumer_name", "event_type"],
 )
-INBOX_PROCESSING_DURATION = Histogram(
+INBOX_PROCESSING_DURATION = renamed(
+    Histogram,
+    "sagaz_inbox_processing_duration_seconds",
     "consumer_inbox_processing_duration_seconds",
     "Time to process event",
     ["consumer_name", "event_type"],
