@@ -74,6 +74,34 @@ engine.register(orders)
 await orders.begin("order.created", {"order_id": "o-1", "amount": 40}, tenant="acme")
 ```
 
+### Without a subclass
+
+The same participants can be built with `on()`, the counterpart of `Saga.add_step()` for
+orchestration. A handler and its compensation receive the event and the participant,
+which is how they publish their result:
+
+```python
+from sagaz.choreography import ChoreographedSaga, Event
+
+
+async def reserve(event: Event, inventory: ChoreographedSaga) -> None:
+    await stock.reserve(event.data["order_id"])
+    await inventory.emit("inventory.reserved", event.data)
+
+
+async def release(event: Event, inventory: ChoreographedSaga) -> None:
+    await stock.release(event.data["order_id"])
+
+
+inventory = ChoreographedSaga(name="inventory").on("order.created", reserve, compensation=release)
+engine.register(inventory)
+```
+
+`on()` returns the participant, so calls chain. Handlers may be sync or async. A
+participant uses one style: `on()` on a class with `@on_event` handlers raises
+`SagaDefinitionError`, as do two handlers for one event type (in either style) and an
+`on()` after `engine.register()`, which subscribes to the event types it knows then.
+
 ## What travels with an event
 
 | Field | Set by | Meaning |

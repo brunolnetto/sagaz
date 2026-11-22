@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Imperative choreography: `participant.on(event_type, handler, compensation=)` (#560).** The counterpart of `Saga.add_step()` for choreography: `ChoreographedSaga(name="payments").on("order.created", charge, compensation=refund)`, without a subclass. The handler and its compensation are called as `fn(event, participant)`, sync or async, and `on()` returns the participant so calls chain.
+
 ### Changed
+
+- **Two handlers for one event type are a `SagaDefinitionError` (#560).** A choreographed participant with two `@on_event` handlers for the same event type logged a warning and kept the last one; it now fails when it is created. `on()` on a participant with `@on_event` handlers, and `on()` after `engine.register()`, are definition errors too.
 
 - **Every metric is named `sagaz_*` (#572).** `outbox_*` becomes `sagaz_outbox_*`, `consumer_inbox_*` becomes `sagaz_inbox_*`, and `PrometheusMetrics`' default prefix becomes `sagaz_saga` (was `saga`). The old names are still emitted alongside while `SAGAZ_METRICS_OLD_NAMES` is on, the default; set it to `0` once your dashboards use the new names. 3.0 removes them. The dashboards and alert rules in this repository use the new names. See `docs/monitoring/METRICS_COMPATIBILITY.md`.
 

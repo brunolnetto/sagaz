@@ -22,6 +22,7 @@ from sagaz.choreography.decorators import (
 )
 from sagaz.choreography.events import Event
 from sagaz.choreography.state import InMemoryParticipantState, ParticipantState
+from sagaz.core.exceptions import SagaDefinitionError
 
 if TYPE_CHECKING:
     from sagaz.core.tenant import TenantContext
@@ -36,9 +37,15 @@ class ChoreographedSaga:
     """
     Base class for saga participants in a choreography.
 
-    Subclasses declare event handlers using the ``@on_event`` decorator.
-    The ``ChoreographyEngine`` subscribes these handlers to the ``EventBus``
-    when ``engine.register(saga)`` is called.
+    Handlers are declared in one of two styles, not both:
+
+    - declarative: a subclass marks methods with ``@on_event`` (and ``@compensate``);
+    - imperative: ``ChoreographedSaga(name=...).on(event_type, handler, compensation=)``,
+      where *handler* and *compensation* are called as ``fn(event, participant)``.
+
+    The ``ChoreographyEngine`` subscribes the handlers to the ``EventBus`` when
+    ``engine.register(saga)`` is called. Two handlers for one event type are a
+    ``SagaDefinitionError``.
 
     Parameters
     ----------
@@ -67,6 +74,7 @@ class ChoreographedSaga:
         # Set by the engine: makes sure deadlines are watched once one is set.
         self._watch_deadlines: Callable[[], None] | None = None
         self._discover_handlers()
+        self._declarative = bool(self._handlers)
 
     # ------------------------------------------------------------------
     # Handler discovery
@@ -82,19 +90,56 @@ class ChoreographedSaga:
                 self._compensators[undone] = method
             event_type = get_event_type(method)
             if event_type is not None:
-                if event_type in self._handlers:
-                    logger.warning(
-                        "%s has multiple handlers for event type %r; last one wins.",
-                        self.name,
-                        event_type,
-                    )
-                self._handlers[event_type] = method
+                self._add_handler(event_type, method, _name)
                 logger.debug(
                     "%s registered handler %r for %r",
                     self.name,
                     _name,
                     event_type,
                 )
+
+    def _add_handler(self, event_type: str, handler: Callable[[Event], Any], what: str) -> None:
+        if event_type in self._handlers:
+            msg = f"{self.name} has two handlers for event type {event_type!r} (the second: {what})"
+            raise SagaDefinitionError(msg)
+        self._handlers[event_type] = handler
+
+    def on(
+        self,
+        event_type: str,
+        handler: Callable[[Event, ChoreographedSaga], Any],
+        compensation: Callable[[Event, ChoreographedSaga], Any] | None = None,
+    ) -> ChoreographedSaga:
+        """Handle *event_type* with *handler*, undone by *compensation* (#560).
+
+        The imperative counterpart of ``@on_event`` / ``@compensate``. Both functions
+        are called as ``fn(event, participant)``, sync or async; the participant is
+        how a handler emits its result (``await participant.emit(...)``). Returns
+        the participant, so calls can be chained.
+
+        Raises:
+            SagaDefinitionError: *event_type* already has a handler, the participant
+                declares ``@on_event`` handlers, or it is already registered with an
+                engine (which subscribed to its event types then).
+        """
+        if self._declarative:
+            msg = f"{self.name} declares @on_event handlers: use one style, not both"
+            raise SagaDefinitionError(msg)
+        if self._publish is not None:
+            msg = f"{self.name} is registered with an engine: add handlers before registering"
+            raise SagaDefinitionError(msg)
+
+        async def run(event: Event) -> object:
+            return await call_maybe_async(handler, event, self)
+
+        self._add_handler(event_type, run, getattr(handler, "__name__", repr(handler)))
+        if compensation is not None:
+
+            async def undo(event: Event) -> object:
+                return await call_maybe_async(compensation, event, self)
+
+            self._compensators[event_type] = undo
+        return self
 
     # ------------------------------------------------------------------
     # Event handling
