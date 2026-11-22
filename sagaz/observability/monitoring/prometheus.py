@@ -74,6 +74,13 @@ class PrometheusMetrics:
         - saga_execution_duration_seconds: Histogram of saga durations
         - saga_step_duration_seconds: Histogram of step durations
         - saga_active_count: Gauge of currently running sagas
+        - saga_step_executions_total: Counter of step outcomes by saga, step and
+          status (``succeeded`` / ``failed``), since 2.6.0 (#617)
+        - saga_compensation_failures_total: Counter of compensations that still
+          raised after their retries, by saga and step, since 2.6.0 (#617)
+
+    (Names are shown with the ``saga`` part of the prefix; the default prefix is
+    ``sagaz_saga``.)
 
     Example:
         >>> from sagaz.observability.monitoring.prometheus import PrometheusMetrics
@@ -166,6 +173,20 @@ class PrometheusMetrics:
             registry=registry,
         )
 
+        # Added in 2.6.0 (#617), so they have no pre-2.6.0 name to keep.
+        self._step_executions = Counter(
+            f"{prefix}_step_executions_total",
+            "Saga step executions by outcome (succeeded or failed after its retries)",
+            ["saga_name", "step_name", "status"],
+            registry=registry,
+        )
+        self._compensation_failures = Counter(
+            f"{prefix}_compensation_failures_total",
+            "Saga step compensations that still raised after their retries",
+            ["saga_name", "step_name"],
+            registry=registry,
+        )
+
     def record_execution(self, saga_name: str, status: "SagaStatus", duration: float) -> None:
         """
         Record a saga execution.
@@ -201,6 +222,20 @@ class PrometheusMetrics:
             return
 
         self._step_duration.labels(saga_name=saga_name, step_name=step_name).observe(duration)
+
+    def record_step(self, saga_name: str, step_name: str, status: str) -> None:
+        """Record a step's outcome: ``"succeeded"``, or ``"failed"`` after its retries."""
+        if not self._enabled:
+            return
+
+        self._step_executions.labels(saga_name=saga_name, step_name=step_name, status=status).inc()
+
+    def record_compensation_failure(self, saga_name: str, step_name: str) -> None:
+        """Record a compensation that still raised after its retries."""
+        if not self._enabled:
+            return
+
+        self._compensation_failures.labels(saga_name=saga_name, step_name=step_name).inc()
 
     def saga_started(self, saga_name: str) -> None:
         """

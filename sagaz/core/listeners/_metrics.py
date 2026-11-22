@@ -14,8 +14,8 @@ logger = get_logger(__name__)
 class MetricsBackend(Protocol):
     """What the listener needs of a metrics backend: ``SagaMetrics``, ``PrometheusMetrics``.
 
-    ``saga_started``, ``saga_finished`` and ``record_step_duration`` are called too when
-    the backend has them.
+    ``saga_started``, ``saga_finished``, ``record_step_duration``, ``record_step`` and
+    ``record_compensation_failure`` are called too when the backend has them.
     """
 
     def record_execution(self, saga_name: str, status: "SagaStatus", duration: float) -> None: ...
@@ -69,11 +69,23 @@ class MetricsSagaListener(SagaListener):
         self, saga_name: str, step_name: str, ctx: dict[str, Any], result: Any
     ) -> None:
         self._record_step_duration(saga_name, step_name, ctx)
+        self._record_step(saga_name, step_name, "succeeded")
 
     async def on_step_failure(
         self, saga_name: str, step_name: str, ctx: dict[str, Any], error: Exception
     ) -> None:
         self._record_step_duration(saga_name, step_name, ctx)
+        self._record_step(saga_name, step_name, "failed")
+
+    async def on_compensation_failed(
+        self, saga_name: str, step_name: str, ctx: dict[str, Any], error: Exception
+    ) -> None:
+        if hasattr(self.metrics, "record_compensation_failure"):
+            self.metrics.record_compensation_failure(saga_name, step_name)
+
+    def _record_step(self, saga_name: str, step_name: str, status: str) -> None:
+        if hasattr(self.metrics, "record_step"):
+            self.metrics.record_step(saga_name, step_name, status)
 
     def _record_step_duration(self, saga_name: str, step_name: str, ctx: dict[str, Any]) -> None:
         import time

@@ -37,7 +37,9 @@ affected.
 | `sagaz_saga_compensations_total` | Counter | `saga_name` | Compensations Executed | - |
 | `sagaz_saga_execution_duration_seconds` | Histogram | `saga_name` | - | SagaSlowExecution |
 | `sagaz_saga_step_duration_seconds` | Histogram | `saga_name`, `step_name` | Saga Step Duration (p50/p95/p99) | - |
-| `sagaz_saga_active_count` | Gauge | `saga_name` | - | - |
+| `sagaz_saga_active_count` | Gauge | `saga_name` | - | SagaHighActiveConcurrency |
+| `sagaz_saga_step_executions_total` | Counter | `saga_name`, `step_name`, `status` | - | SagaStepHighFailureRate |
+| `sagaz_saga_compensation_failures_total` | Counter | `saga_name`, `step_name` | - | CompensationFailures |
 
 **Source:** `sagaz/monitoring/prometheus.py` (PrometheusMetrics class)
 

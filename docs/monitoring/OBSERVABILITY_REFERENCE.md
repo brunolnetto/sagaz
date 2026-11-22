@@ -25,6 +25,8 @@ All metrics require `prometheus-client` to be installed (`pip install prometheus
 | `sagaz_saga_execution_duration_seconds` | Histogram | `saga_name` | Saga execution duration (p50, p95, p99) |
 | `sagaz_saga_step_duration_seconds` | Histogram | `saga_name`, `step_name` | Individual step execution durations |
 | `sagaz_saga_active_count` | Gauge | `saga_name` | Currently running sagas |
+| `sagaz_saga_step_executions_total` | Counter | `saga_name`, `step_name`, `status` | Step outcomes: `succeeded`, or `failed` after its retries (since 2.6.0) |
+| `sagaz_saga_compensation_failures_total` | Counter | `saga_name`, `step_name` | Compensations that still raised after their retries (since 2.6.0) |
 
 **Source:** `sagaz/monitoring/prometheus.py` (PrometheusMetrics class)
 
