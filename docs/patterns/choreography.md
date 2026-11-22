@@ -117,6 +117,7 @@ participant uses one style: `on()` on a class with `@on_event` handlers raises
 | `tenant_id` | `begin()` (default: the current tenant scope), inherited | The tenant (ADR-020). Handlers run in that tenant's scope |
 | `causation_id` | `emit()` | The `event_id` of the event being handled |
 | `source` | `begin()` / `emit()` | The participant that published the event |
+| `trace_context` | `begin()` / `emit()` / the engine's reports | The W3C trace context of the span that published the event (empty without OpenTelemetry) |
 
 `emit()` only works inside a handler, because it continues that handler's
 transaction. Use `begin()` to start one. Events published directly on the bus keep
@@ -333,9 +334,65 @@ serves the same reports at `/api/v1/analytics/choreography*`.
 | `sagaz_choreography_compensations_total` | `participant`, `outcome` (`undone`, `failed`) |
 | `sagaz_choreography_deadlines_expired_total` | `participant` |
 
+## Tracing and listeners
+
+With `opentelemetry` installed, every handler and every compensation runs in a span,
+and each event carries the trace context of the span that published it. So a
+transaction is **one trace**, across participants and services: `begin()` opens it
+(a child of your current span, if any), each handler's span is a child of the span
+that published its event, and the events a handler emits continue from there. A
+failed handler's span is an error, and the compensation it causes is its child:
+
+```text
+orders begin order.created
+└── inventory handle order.created
+    └── payments handle stock.reserved        ✗ card declined
+        └── inventory compensate transaction choreography.compensate
+            └── inventory compensate order.created
+```
+
+Spans are named `<participant> <operation> <event type>` and carry
+`sagaz.participant`, `sagaz.event_type`, `sagaz.event_id`, `sagaz.correlation_id`
+and `sagaz.tenant_id`. Their instrumentation scope is `sagaz.choreography`, and they
+go to the global tracer provider you configure.
+
+The listeners of orchestrated sagas work too, at two levels, because in a
+choreography no participant sees the whole transaction: each one knows its own
+steps, and only an observer of every event knows how the transaction ended.
+
+```python
+from sagaz.choreography.tracker import ChoreographyTracker
+from sagaz.core.listeners import LoggingSagaListener, MetricsSagaListener
+
+# What each participant on this engine does: its steps and compensations.
+engine = ChoreographyEngine(bus, listeners=[LoggingSagaListener()])
+# How each transaction ends: once per transaction, whatever the participants.
+tracker = ChoreographyTracker(bus, completion_events={"order.completed"},
+                              listeners=[MetricsSagaListener()])
+```
+
+| Hook | Called by | When |
+|---|---|---|
+| `on_step_enter` / `_success` / `_failure` | The engine | A handler runs, succeeds, or still raises after its retries. The saga name is the participant, the step is the event type |
+| `on_compensation_start` / `_complete` / `_failed` | The engine | Each of the participant's compensations |
+| `on_saga_start` | The tracker | It first records the transaction |
+| `on_saga_complete` | The tracker | The transaction becomes `completed` |
+| `on_saga_failed` | The tracker | It becomes `rolled_back` or `failed`; the error carries the failing participant's reason |
+
+The tracker's hooks use the saga name `choreography`. Their `ctx` holds the correlation
+id, the tenant, `initiators` (the participants that started it), `participants` and
+`status`. Run one tracker: two would each tell their listeners. A listener that raises
+is logged and ignored.
+
+On the in-memory `EventBus`, wildcard subscribers such as the tracker run before an
+event's handlers, so they see each event before its effects. Across services, events
+of one transaction can still arrive out of causal order ([#628]).
+
 ## Performance
 
 With the in-memory bus on a laptop, the engine dispatched about 24,800 events/s with
 a p99 of 0.07 ms per delivery, including deduplication, tenant scoping and metrics
 (`tests/integration/test_choreography_performance.py`, marker `performance`). Over a
 real broker, the broker's own latency dominates.
+
+[#628]: https://github.com/brunolnetto/sagaz/issues/628

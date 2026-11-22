@@ -8,15 +8,16 @@ a ``ChoreographyEngine`` that subscribes each handler to the ``EventBus``.
 
 from __future__ import annotations
 
-import functools
 import inspect
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from contextvars import ContextVar
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from sagaz.choreography._attempts import DEFAULT_RETRY_BACKOFF_BASE, attempt
+from sagaz.choreography._compensation import run_compensation
+from sagaz.choreography._observe import span, with_trace_context
 from sagaz.choreography.decorators import (
     RetryPolicy,
     call_maybe_async,
@@ -34,6 +35,7 @@ from sagaz.core.storage._reserved import RESERVED_SAGA_PREFIX
 BEGIN_RECORD = f"{RESERVED_SAGA_PREFIX}begin"
 
 if TYPE_CHECKING:
+    from sagaz.core.listeners import SagaListener
     from sagaz.core.tenant import TenantContext
 
 logger = logging.getLogger(__name__)
@@ -87,6 +89,8 @@ class ChoreographedSaga:
         self._publish: Callable[[Event], Awaitable[None]] | None = None
         # Set by the engine: makes sure deadlines are watched once one is set.
         self._watch_deadlines: Callable[[], None] | None = None
+        # Set by the engine: its listeners (#563).
+        self._listeners: Sequence[SagaListener] = ()
         self._discover_handlers()
         self._declarative = bool(self._handlers)
 
@@ -254,6 +258,7 @@ class ChoreographedSaga:
         remember = (
             cause is not None and bool(cause.saga_id) and cause.event_type in self._compensators
         )
+        event = with_trace_context(event)  # its handlers' spans continue this trace (#563)
         await self._state.publish(self.name, event, self._publish, cause=cause, remember=remember)
         return event
 
@@ -306,7 +311,9 @@ class ChoreographedSaga:
             await self._claim_correlation_id(event)
         if deadline is not None:
             await self._set_deadline(event, deadline)
-        await self._state.publish(self.name, event, self._publish, begin=True)
+        with span(self.name, event, "begin", producer=True):  # the transaction's trace
+            event = with_trace_context(event)
+            await self._state.publish(self.name, event, self._publish, begin=True)
         return event
 
     async def _claim_correlation_id(self, event: Event) -> None:
@@ -350,19 +357,16 @@ class ChoreographedSaga:
         done = await self._state.finish(self.name, correlation_id, compensated=True)
         for original in reversed(done):
             own_retries, own_timeout = self._undo_policies.get(original.event_type, (None, None))
-            undo = self._compensators[original.event_type]
-            try:
-                await attempt(
-                    functools.partial(call_maybe_async, undo, original),
-                    max_retries=max_retries if own_retries is None else own_retries,
-                    timeout_seconds=timeout_seconds if own_timeout is None else own_timeout,
-                    retry_backoff_base=retry_backoff_base,
-                    what=f"{self.name} compensating {original.event_type!r}",
-                )
-                undone.append(original.event_type)
-            except Exception:
-                logger.exception("%s failed to compensate %r", self.name, original.event_type)
-                failed.append(original.event_type)
+            ok = await run_compensation(
+                self.name,
+                self._compensators[original.event_type],
+                original,
+                self._listeners,
+                max_retries=max_retries if own_retries is None else own_retries,
+                timeout_seconds=timeout_seconds if own_timeout is None else own_timeout,
+                retry_backoff_base=retry_backoff_base,
+            )
+            (undone if ok else failed).append(original.event_type)
         return undone, failed
 
     async def forget(self, correlation_id: str) -> None:

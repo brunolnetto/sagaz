@@ -126,6 +126,7 @@ def _event_to_fields(event: Event) -> dict[str, str]:
         "tenant_id": event.tenant_id,
         "causation_id": event.causation_id or "",
         "source": event.source or "",
+        "trace_context": json.dumps(event.trace_context),
     }
 
 
@@ -145,6 +146,7 @@ def _fields_to_event(fields: dict[bytes, bytes]) -> Event:
         tenant_id=fields.get(b"tenant_id", b"").decode() or "default",
         causation_id=fields.get(b"causation_id", b"").decode() or None,
         source=fields.get(b"source", b"").decode() or None,
+        trace_context=json.loads(fields.get(b"trace_context", b"") or b"{}"),
     )
 
 

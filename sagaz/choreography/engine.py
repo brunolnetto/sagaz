@@ -24,6 +24,7 @@ from sagaz.choreography.saga import ChoreographedSaga
 from sagaz.choreography.state import ParticipantState, create_participant_state
 
 if TYPE_CHECKING:
+    from sagaz.core.listeners import SagaListener
     from sagaz.core.storage.saga_log import SagaLogStore
 
 logger = logging.getLogger(__name__)
@@ -71,6 +72,18 @@ class ChoreographyEngine:
         ``None``: long enough for all the handler's attempts (``(max_retries + 1)
         * timeout`` plus the backoffs and a minute), or an hour for a handler
         without a timeout. When given, it is the reservation of every delivery.
+    listeners:
+        ``SagaListener`` instances (``LoggingSagaListener``, ``MetricsSagaListener``,
+        your own) told what each registered participant does (#563): its steps
+        (``on_step_*``: the saga name is the participant's name, a step is the event
+        type it handles, the saga id is the correlation id) and its compensations
+        (``on_compensation_*``). A participant does not see the whole transaction,
+        so the ``on_saga_*`` hooks come from a ``ChoreographyTracker``'s listeners,
+        once per transaction. A listener that raises is logged and ignored.
+
+    Handlers and compensations also run in OpenTelemetry spans when
+    ``opentelemetry`` is installed: an event carries its publisher's trace
+    context, so a transaction is one trace across participants and services.
 
     Each delivery is deduplicated by ``event_id`` and runs in the event's tenant
     scope. If a handler still raises after its retries, the engine publishes a
@@ -109,8 +122,10 @@ class ChoreographyEngine:
         default_timeout: float | None = DEFAULT_TIMEOUT,
         delivery_lease: float | None = None,
         retry_backoff_base: float = DEFAULT_RETRY_BACKOFF_BASE,
+        listeners: Iterable[SagaListener] = (),
     ) -> None:
         self._bus = bus
+        self.listeners: list[SagaListener] = list(listeners)
         self._state = create_participant_state(state) if isinstance(state, str) else state
         self.relay: ChoreographyRelay | None = None
         if saga_log is not None:  # ADR-041: state and atomic publishing on the log
@@ -186,6 +201,7 @@ class ChoreographyEngine:
         self._sagas[saga.saga_id] = saga
         saga._publish = self._bus.publish
         saga._watch_deadlines = self._watch_deadlines
+        saga._listeners = self.listeners
         if self._state is not None:
             saga._state = self._state
 
