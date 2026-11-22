@@ -11,8 +11,13 @@ import logging
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
+from sagaz.choreography._attempts import (
+    DEFAULT_MAX_RETRIES,
+    DEFAULT_RETRY_BACKOFF_BASE,
+    DEFAULT_TIMEOUT,
+)
 from sagaz.choreography._deadlines import DeadlineWatcher
-from sagaz.choreography._dispatch import Dispatcher
+from sagaz.choreography._dispatch import Dispatcher, RetryDefaults
 from sagaz.choreography.events import COMPENSATE, AbstractEventBus, Event, HandlerT
 from sagaz.choreography.relay import ChoreographyRelay
 from sagaz.choreography.saga import ChoreographedSaga
@@ -52,10 +57,18 @@ class ChoreographyEngine:
     deadline_poll_interval / deadline_lease:
         How often expired deadlines (``begin(..., deadline=...)``) are checked,
         and for how long a replica's claim on one holds (seconds, #449).
+    default_max_retries / default_timeout / retry_backoff_base:
+        For a handler that does not set ``max_retries`` / ``timeout_seconds``: it runs
+        ``default_max_retries + 1`` times at most (3 retries), each attempt under
+        ``default_timeout`` seconds (60; ``None`` for no limit), waiting
+        ``retry_backoff_base * 2**n`` seconds between attempts (#561), as an
+        orchestrated step does. Since 2.6.0; before, a handler ran once. A handler
+        with a non-idempotent external effect should set ``max_retries=0``.
 
     Each delivery is deduplicated by ``event_id`` and runs in the event's tenant
-    scope. If a handler raises, the engine publishes a ``COMPENSATE`` event and
-    every participant undoes its ``@compensate`` actions for that transaction.
+    scope. If a handler still raises after its retries, the engine publishes a
+    ``COMPENSATE`` event and every participant undoes its ``@compensate`` actions
+    for that transaction.
 
     Example
     -------
@@ -85,6 +98,9 @@ class ChoreographyEngine:
         deadline_lease: float = 60.0,
         saga_log: SagaLogStore | str | None = None,
         relay_interval: float = 0.1,
+        default_max_retries: int = DEFAULT_MAX_RETRIES,
+        default_timeout: float | None = DEFAULT_TIMEOUT,
+        retry_backoff_base: float = DEFAULT_RETRY_BACKOFF_BASE,
     ) -> None:
         self._bus = bus
         self._state = create_participant_state(state) if isinstance(state, str) else state
@@ -101,7 +117,11 @@ class ChoreographyEngine:
                 saga_log.outbox_storage(), bus, poll_interval=relay_interval
             )
         self._completion_events = frozenset(completion_events)
-        self._dispatcher = Dispatcher(bus.publish, self._completion_events)
+        self._dispatcher = Dispatcher(
+            bus.publish,
+            self._completion_events,
+            RetryDefaults(default_max_retries, default_timeout, retry_backoff_base),
+        )
         self._sagas: dict[str, ChoreographedSaga] = {}
         self._running = False
         # Tracks dispatch closures created per saga so they can be properly unsubscribed.

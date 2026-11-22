@@ -8,6 +8,7 @@ a ``ChoreographyEngine`` that subscribes each handler to the ``EventBus``.
 
 from __future__ import annotations
 
+import functools
 import inspect
 import logging
 from collections.abc import Awaitable, Callable
@@ -15,10 +16,13 @@ from contextvars import ContextVar
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
+from sagaz.choreography._attempts import DEFAULT_RETRY_BACKOFF_BASE, attempt
 from sagaz.choreography.decorators import (
+    RetryPolicy,
     call_maybe_async,
     get_compensated_event_type,
     get_event_type,
+    get_retry_policy,
 )
 from sagaz.choreography.events import Event
 from sagaz.choreography.state import InMemoryParticipantState, ParticipantState
@@ -67,6 +71,8 @@ class ChoreographedSaga:
         self._events_handled: list[Event] = []
         self._handlers: dict[str, Any] = {}  # event_type → bound method
         self._compensators: dict[str, Any] = {}  # event_type → bound undo method
+        self._policies: dict[str, RetryPolicy] = {}  # event_type → (max_retries, timeout)
+        self._undo_policies: dict[str, RetryPolicy] = {}  # the same, for compensations
         # Completed actions, finished and compensated transactions, handled
         # deliveries (#448). In memory unless the engine provides a durable state.
         self._state: ParticipantState = InMemoryParticipantState(self.max_tracked_transactions)
@@ -88,9 +94,11 @@ class ChoreographedSaga:
         for _name, method in inspect.getmembers(self, predicate=inspect.ismethod):
             if (undone := get_compensated_event_type(method)) is not None:
                 self._compensators[undone] = method
+                self._undo_policies[undone] = get_retry_policy(method)
             event_type = get_event_type(method)
             if event_type is not None:
                 self._add_handler(event_type, method, _name)
+                self._policies[event_type] = get_retry_policy(method)
                 logger.debug(
                     "%s registered handler %r for %r",
                     self.name,
@@ -109,13 +117,17 @@ class ChoreographedSaga:
         event_type: str,
         handler: Callable[[Event, ChoreographedSaga], Any],
         compensation: Callable[[Event, ChoreographedSaga], Any] | None = None,
+        *,
+        max_retries: int | None = None,
+        timeout_seconds: float | None = None,
     ) -> ChoreographedSaga:
         """Handle *event_type* with *handler*, undone by *compensation* (#560).
 
         The imperative counterpart of ``@on_event`` / ``@compensate``. Both functions
         are called as ``fn(event, participant)``, sync or async; the participant is
         how a handler emits its result (``await participant.emit(...)``). Returns
-        the participant, so calls can be chained.
+        the participant, so calls can be chained. *max_retries* and
+        *timeout_seconds* are those of ``@on_event``.
 
         Raises:
             SagaDefinitionError: *event_type* already has a handler, the participant
@@ -133,6 +145,7 @@ class ChoreographedSaga:
             return await call_maybe_async(handler, event, self)
 
         self._add_handler(event_type, run, getattr(handler, "__name__", repr(handler)))
+        self._policies[event_type] = (max_retries, timeout_seconds)
         if compensation is not None:
 
             async def undo(event: Event) -> object:
@@ -145,17 +158,35 @@ class ChoreographedSaga:
     # Event handling
     # ------------------------------------------------------------------
 
+    def retry_policy(self, event_type: str) -> RetryPolicy:
+        """The handler's ``(max_retries, timeout_seconds)``; ``None`` takes the default."""
+        key = event_type if event_type in self._handlers else "*"
+        return self._policies.get(key, (None, None))
+
     async def handle(self, event: Event) -> None:
         """
-        Dispatch *event* to the appropriate ``@on_event`` handler.
+        Dispatch *event* to the appropriate ``@on_event`` handler, once.
 
-        Looks up by exact event type first, then by ``"*"`` wildcard.
+        Looks up by exact event type first, then by ``"*"`` wildcard. The engine
+        does not call this method (a participant may name a handler ``handle``): it
+        runs the handler with its retries and timeout (#561).
 
         Parameters
         ----------
         event:
             The incoming domain event.
         """
+        await self._run(event)
+
+    async def _run(
+        self,
+        event: Event,
+        *,
+        max_retries: int = 0,
+        timeout_seconds: float | None = None,
+        retry_backoff_base: float = DEFAULT_RETRY_BACKOFF_BASE,
+    ) -> None:
+        """Run *event*'s handler ``max_retries + 1`` times at most (#561)."""
         handler = self._handlers.get(event.event_type) or self._handlers.get("*")
         if handler is None:
             logger.debug("%s has no handler for %r; ignoring", self.name, event.event_type)
@@ -163,7 +194,13 @@ class ChoreographedSaga:
 
         self._events_handled.append(event)
         logger.debug("%s handling %r (saga_id=%s)", self.name, event.event_type, self.saga_id)
-        await handler(event)
+        await attempt(
+            lambda: handler(event),
+            max_retries=max_retries,
+            timeout_seconds=timeout_seconds,
+            retry_backoff_base=retry_backoff_base,
+            what=f"{self.name} handling {event.event_type!r}",
+        )
         await self._remember(event)
 
     # ------------------------------------------------------------------
@@ -264,18 +301,35 @@ class ChoreographedSaga:
         await self._state.publish(self.name, event, self._publish, begin=True)
         return event
 
-    async def compensate_transaction(self, correlation_id: str) -> tuple[list[str], list[str]]:
+    async def compensate_transaction(
+        self,
+        correlation_id: str,
+        *,
+        max_retries: int = 0,
+        timeout_seconds: float | None = None,
+        retry_backoff_base: float = DEFAULT_RETRY_BACKOFF_BASE,
+    ) -> tuple[list[str], list[str]]:
         """Undo, newest first, what this participant did in *correlation_id*.
 
-        Returns the event types whose actions were undone and those whose
-        compensation raised (logged, and the remaining ones still run).
+        Each compensation runs ``max_retries + 1`` times at most (its own
+        ``@compensate`` values take precedence, #561). Returns the event types whose
+        actions were undone and those whose compensation still raised (logged, and
+        the remaining ones still run).
         """
         undone: list[str] = []
         failed: list[str] = []
         done = await self._state.finish(self.name, correlation_id, compensated=True)
         for original in reversed(done):
+            own_retries, own_timeout = self._undo_policies.get(original.event_type, (None, None))
+            undo = self._compensators[original.event_type]
             try:
-                await call_maybe_async(self._compensators[original.event_type], original)
+                await attempt(
+                    functools.partial(call_maybe_async, undo, original),
+                    max_retries=max_retries if own_retries is None else own_retries,
+                    timeout_seconds=timeout_seconds if own_timeout is None else own_timeout,
+                    retry_backoff_base=retry_backoff_base,
+                    what=f"{self.name} compensating {original.event_type!r}",
+                )
                 undone.append(original.event_type)
             except Exception:
                 logger.exception("%s failed to compensate %r", self.name, original.event_type)

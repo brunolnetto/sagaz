@@ -9,8 +9,14 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from sagaz.choreography._attempts import (
+    DEFAULT_MAX_RETRIES,
+    DEFAULT_RETRY_BACKOFF_BASE,
+    DEFAULT_TIMEOUT,
+)
 from sagaz.choreography.events import COMPENSATE, COMPENSATED, Event
 from sagaz.choreography.saga import ChoreographedSaga, current_cause
 from sagaz.core.tenant import tenant_scope
@@ -58,6 +64,15 @@ def _count(participant: str, event_type: str, outcome: str) -> None:
         CHOREOGRAPHY_EVENTS.labels(participant, event_type, outcome).inc()
 
 
+@dataclass(frozen=True)
+class RetryDefaults:
+    """The engine's retry settings for handlers that do not set their own (#561)."""
+
+    max_retries: int = DEFAULT_MAX_RETRIES
+    timeout_seconds: float | None = DEFAULT_TIMEOUT
+    retry_backoff_base: float = DEFAULT_RETRY_BACKOFF_BASE
+
+
 class Dispatcher:
     """Delivers one event to one participant, at most once per ``event_id``.
 
@@ -66,10 +81,14 @@ class Dispatcher:
     """
 
     def __init__(
-        self, publish: Callable[[Event], Awaitable[None]], completion_events: frozenset[str]
+        self,
+        publish: Callable[[Event], Awaitable[None]],
+        completion_events: frozenset[str],
+        defaults: RetryDefaults | None = None,
     ) -> None:
         self._publish = publish
         self._completion_events = completion_events
+        self._defaults = defaults or RetryDefaults()
 
     async def dispatch(self, saga: ChoreographedSaga, event: Event) -> None:
         with tenant_scope(event.tenant_id):
@@ -109,8 +128,18 @@ class Dispatcher:
         token = current_cause.set(event)
         started = time.perf_counter()
         try:
+            max_retries, timeout_seconds = saga.retry_policy(event.event_type)
             with tenant_scope(event.tenant_id):
-                await saga.handle(event)
+                await saga._run(
+                    event,
+                    max_retries=self._defaults.max_retries if max_retries is None else max_retries,
+                    timeout_seconds=(
+                        self._defaults.timeout_seconds
+                        if timeout_seconds is None
+                        else timeout_seconds
+                    ),
+                    retry_backoff_base=self._defaults.retry_backoff_base,
+                )
         except Exception as error:
             _count(saga.name, event.event_type, "failed")
             logger.exception(
@@ -144,7 +173,12 @@ class Dispatcher:
         if not event.saga_id:
             return
         with tenant_scope(event.tenant_id):
-            undone, failed = await saga.compensate_transaction(event.saga_id)
+            undone, failed = await saga.compensate_transaction(
+                event.saga_id,
+                max_retries=self._defaults.max_retries,
+                timeout_seconds=self._defaults.timeout_seconds,
+                retry_backoff_base=self._defaults.retry_backoff_base,
+            )
         if CHOREOGRAPHY_COMPENSATIONS is not None:
             if undone:
                 CHOREOGRAPHY_COMPENSATIONS.labels(saga.name, "undone").inc(len(undone))

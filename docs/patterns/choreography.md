@@ -117,7 +117,31 @@ whatever fields you set.
 
 ## Failure and compensation
 
-When a handler raises, the engine publishes a `choreography.compensate` event with
+### Retries and timeouts
+
+A handler that raises is retried, as an orchestrated step is: it runs up to 4 times
+(3 retries), each attempt limited to 60 seconds, with exponential backoff between
+attempts. Set them per handler, or for every handler on the engine:
+
+```python
+@on_event("inventory.reserved", max_retries=5, timeout_seconds=10)
+async def charge(self, event: Event) -> None: ...
+
+participant.on("inventory.reserved", charge, max_retries=5, timeout_seconds=10)
+engine = ChoreographyEngine(bus, default_max_retries=3, default_timeout=60.0)
+```
+
+> **Since 2.6.0 handlers are retried by default.** Before, a handler ran once. A
+> handler with an external effect that is not idempotent (charging a card without an
+> idempotency key, sending an email) can now run up to 4 times when it fails: make it
+> idempotent, or give it `max_retries=0`.
+
+Compensations are retried the same way; `@compensate(..., max_retries=,
+timeout_seconds=)` overrides the engine's defaults.
+
+### Compensation
+
+When a handler still raises after its retries, the engine publishes a `choreography.compensate` event with
 the failing participant, the event it was handling and the reason. Every
 participant receives it, runs its `@compensate` methods for the actions it
 completed **in that transaction**, newest first, and reports with

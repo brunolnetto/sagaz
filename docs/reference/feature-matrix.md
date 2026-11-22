@@ -21,10 +21,10 @@ Legend: ✅ supported · ⚠️ partial · ❌ missing · — does not apply to 
 | Step / handler definition | ✅ `tests/unit/core/test_decorators.py::TestSaga::test_collect_compensations` | ✅ `tests/unit/test_choreography.py::TestChoreographyEngine::test_duplicate_event_type_is_a_definition_error` |
 | Dependencies and parallel steps | ✅ steps without `depends_on` run in parallel `tests/unit/core/test_decorators.py::TestSaga::test_run_parallel_execution` | — the event topology is the graph |
 | Parallel failure strategy | ⚠️ waits for every step of the level; `failure_strategy` unused ([#567]) | — |
-| Step retries | ✅ `tests/unit/core/test_declarative_retries.py::test_a_step_is_attempted_max_retries_plus_one_times` | ❌ a handler runs once ([#561]) |
-| Step timeouts | ✅ `tests/unit/core/test_declarative_retries.py::test_a_timed_out_attempt_is_retried` | ❌ ([#561]) |
+| Step retries | ✅ `tests/unit/core/test_declarative_retries.py::test_a_step_is_attempted_max_retries_plus_one_times` | ✅ `tests/unit/test_choreography_retries.py::test_a_failing_handler_is_retried_three_times_by_default` |
+| Step timeouts | ✅ `tests/unit/core/test_declarative_retries.py::test_a_timed_out_attempt_is_retried` | ✅ `tests/unit/test_choreography_retries.py::test_each_attempt_has_its_timeout` |
 | Compensation order | ✅ reverse dependency levels `tests/unit/core/test_decorators.py::TestSagaAdvanced::test_compensation_order_respected` | — each participant undoes its own actions, newest first `tests/unit/test_choreography_compensation.py::TestCompensation::test_compensation_runs_newest_first` |
-| Compensation retries | ✅ `tests/unit/core/test_orchestrated_bug_fixes.py::TestCompensationRetries::test_a_flaky_compensation_is_retried` | ❌ ([#561]) |
+| Compensation retries | ✅ `tests/unit/core/test_orchestrated_bug_fixes.py::TestCompensationRetries::test_a_flaky_compensation_is_retried` | ✅ `tests/unit/test_choreography_retries.py::test_a_flaky_compensation_is_retried` |
 | Pivot / taint | ✅ `tests/unit/core/test_pivot.py::TestPivotSagaIntegration::test_pivot_step_taints_ancestors` | ❌ ([#571]) |
 | Forward recovery (`@forward_recovery`) | ❌ collected, never run ([#570]) | ❌ ([#570]) |
 | Failure contract | ✅ raises `SagaFailedError` `tests/unit/core/test_failure_contract.py::TestSagaFailedError::test_a_rolled_back_saga` | ⚠️ outcome only through the tracker `tests/unit/test_choreography_compensation.py::TestCompensation::test_a_failing_participant_triggers_compensation_of_the_others` |
@@ -127,7 +127,7 @@ the parity work. The bugs the audit found (#549–#559) were fixed in v2.4.0.
 
 | Topic | Orchestrated | Choreographed | Issue |
 |---|---|---|---|
-| Step timeout default | `SagaConfig.default_timeout` (60 s) | none | [#544], [#561] |
+| Step timeout default | `SagaConfig.default_timeout` (60 s) | `ChoreographyEngine(default_timeout=)` (60 s) | [#544] |
 | Compensation signature | `undo(ctx)` | `undo(event)` | [#572] |
 | `compensation_errors` | dict | — | [#572] |
 | Status of an undone saga | `rolled_back` | `rolled_back` (`compensated` before 2.6.0, still read) | [#572] |
