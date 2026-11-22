@@ -14,9 +14,7 @@ custom listeners work as they are; a listener that raises is logged and ignored.
 
 from __future__ import annotations
 
-import asyncio
 import functools
-import inspect
 import logging
 from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
@@ -25,6 +23,7 @@ from types import ModuleType
 from typing import TYPE_CHECKING, Any
 
 from sagaz.choreography.events import Event
+from sagaz.core.listeners._notify import DEFAULT_LISTENER_TIMEOUT, Listeners, notify
 
 if TYPE_CHECKING:
     from opentelemetry import trace
@@ -128,44 +127,3 @@ def span(
 def listener_context(event: Event) -> dict[str, Any]:
     """What a listener receives as ``ctx``: the event's data, its correlation and tenant."""
     return {**event.data, "saga_id": event.saga_id, "tenant_id": event.tenant_id}
-
-
-#: Seconds an async listener call may take before it is skipped.
-DEFAULT_LISTENER_TIMEOUT = 5.0
-
-
-class Listeners:
-    """``SagaListener`` instances, and how long each call may take.
-
-    Listeners run on the hot path: a handler (or the tracker's observation of an
-    event) waits for them. So an async listener call that takes longer than
-    *timeout* seconds is cancelled, logged and skipped, as one that raises is.
-    ``None`` waits as long as it takes. A synchronous listener cannot be interrupted.
-    """
-
-    def __init__(
-        self,
-        items: Iterable[SagaListener] = (),
-        timeout: float | None = DEFAULT_LISTENER_TIMEOUT,
-    ) -> None:
-        self.items: list[SagaListener] = list(items)
-        self.timeout = timeout
-
-    def __bool__(self) -> bool:
-        return bool(self.items)
-
-
-async def notify(listeners: Listeners, hook: str, *args: object) -> None:
-    """Call *hook* on every listener; one that raises or is too slow is logged and skipped."""
-    for listener in listeners.items:
-        name = f"{type(listener).__name__}.{hook}"
-        try:
-            method = getattr(listener, hook, None)
-            if method is not None:
-                result = method(*args)
-                if inspect.isawaitable(result):
-                    await asyncio.wait_for(result, listeners.timeout)
-        except TimeoutError:
-            logger.warning("Listener %s took longer than %ss: skipped", name, listeners.timeout)
-        except Exception as error:
-            logger.warning("Listener %s error: %s", name, error)

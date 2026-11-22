@@ -26,6 +26,7 @@ from sagaz.core.events import (
     json_safe,
 )
 from sagaz.core.exceptions import SagaFailedError, SagaTimeoutError
+from sagaz.core.listeners._notify import DEFAULT_LISTENER_TIMEOUT, Listeners, notify
 from sagaz.core.logger import get_logger
 from sagaz.core.tenant import capped_retries, capped_timeout
 from sagaz.core.types import SagaStatus
@@ -164,16 +165,10 @@ class ExecutionEngine(
         return self.saga.saga_name or self.saga.__class__.__name__
 
     async def _notify_listeners(self, event_name: str, *args: Any) -> None:
-        """Notify all listeners of an event."""
-        for listener in self.saga._instance_listeners:
-            try:
-                handler = getattr(listener, event_name, None)
-                if handler:
-                    result = handler(*args)
-                    if inspect.iscoroutine(result):
-                        await result
-            except Exception as e:
-                logger.warning(f"Listener {type(listener).__name__}.{event_name} error: {e}")
+        """Notify all listeners of an event; a slow or failing one is skipped (#633)."""
+        config = getattr(self.saga, "_config", None)
+        timeout = getattr(config, "listener_timeout", DEFAULT_LISTENER_TIMEOUT)
+        await notify(Listeners(self.saga._instance_listeners, timeout), event_name, *args)
 
     async def _execute_level(self, level: list["SagaStepDefinition"]) -> None:
         """Execute all steps in a level concurrently."""
