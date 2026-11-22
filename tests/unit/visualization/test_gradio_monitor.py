@@ -55,7 +55,7 @@ class TestUnifiedLog:
 
     async def test_a_choreographed_transaction_is_a_causation_graph(self, log):
         (row,) = await data.list_transactions(
-            log, coordination="choreographed", status="compensated"
+            log, coordination="choreographed", status="rolled_back"
         )
         detail = await data.transaction_detail(log, row["tenant"], row["transaction"])
         diagram = detail["mermaid"]

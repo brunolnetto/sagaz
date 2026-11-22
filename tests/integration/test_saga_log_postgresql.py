@@ -197,7 +197,7 @@ async def test_unify_migrates_a_postgresql_database(store, database_url):
     with system_scope():
         transactions = {t.transaction_id: t for t in await store.list_transactions()}
         assert transactions["orch-bad"].tenant_id == "acme"
-        assert transactions["c-bad"].status == "compensated"
+        assert transactions["c-bad"].status == "rolled_back"
         assert await store.events("orch-ok")
         before = {tid: len(await store.events(tid)) for tid in transactions}
 

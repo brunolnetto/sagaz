@@ -76,7 +76,7 @@ class TestExpiry:
             assert stuck.inventory.released == ["o-1"]
             with tenant_scope("acme"):
                 status = await stuck.tracker.status(first.saga_id)
-            assert status.status == "compensated"
+            assert status.status == "rolled_back"
             assert status.failure["reason"] == DEADLINE_EXCEEDED
             assert (
                 REGISTRY.get_sample_value(

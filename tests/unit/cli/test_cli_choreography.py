@@ -48,7 +48,7 @@ def test_completed_transaction(storage_url):
 def test_compensated_transaction_shows_failure_and_compensations(storage_url):
     result = _status("bad", "--tenant", "acme", "--storage-url", storage_url, "--events")
     assert result.exit_code == 0, result.output
-    assert "Transaction bad (tenant acme): compensated" in result.output
+    assert "Transaction bad (tenant acme): rolled_back" in result.output
     assert "failed: payments on inventory.reserved (ValueError: card declined)" in result.output
     assert "compensated by inventory: order.created" in result.output
     assert "compensated by shipping: nothing to undo" in result.output
@@ -58,7 +58,7 @@ def test_compensated_transaction_shows_failure_and_compensations(storage_url):
 def test_json_output(storage_url):
     result = _status("bad", "--tenant", "acme", "--storage-url", storage_url, "--json")
     data = json.loads(result.output)
-    assert data["status"] == "compensated"
+    assert data["status"] == "rolled_back"
     assert data["failure"]["participant"] == "payments"
 
 

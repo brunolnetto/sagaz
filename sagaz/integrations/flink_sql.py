@@ -34,9 +34,11 @@ _STATUS = """
         WHEN `event_type` = 'SagaStarted' THEN 'executing'
         WHEN `event_type` = 'CompensationStarted' THEN 'compensating'
         WHEN `event_type` = 'SagaCompleted' THEN 'completed'
-        WHEN `event_type` = 'SagaRolledBack' THEN 'compensated'
+        WHEN `event_type` = 'SagaRolledBack' THEN 'rolled_back'
         WHEN `event_type` = 'SagaFailed' THEN 'failed'
-        WHEN `event_type` = 'TransactionStatusChanged' THEN JSON_VALUE(`payload`, '$.status')
+        WHEN `event_type` = 'TransactionStatusChanged'
+            -- a choreographed rollback was 'compensated' before 2.6.0 (#572)
+            THEN REPLACE(JSON_VALUE(`payload`, '$.status'), 'compensated', 'rolled_back')
     END"""
 
 
@@ -75,9 +77,9 @@ flows AS (
     SELECT t.coordination, t.flow, COALESCE(l.status, 'executing') AS status,
            CASE  -- the embedded pipeline's durations
                WHEN t.coordination = 'choreographed'
-                    AND COALESCE(l.status, 'executing') IN ('completed', 'compensated', 'failed')
+                    AND COALESCE(l.status, 'executing') IN ('completed', 'rolled_back', 'failed')
                    THEN CAST(t.last_event_ms - t.first_event_ms AS DOUBLE)
-               WHEN t.coordination = 'orchestrated' AND l.status IN ('completed', 'compensated')
+               WHEN t.coordination = 'orchestrated' AND l.status IN ('completed', 'rolled_back')
                    THEN CAST(l.status_ms - t.first_ms AS DOUBLE)
            END AS duration_ms
     FROM transactions t
@@ -87,12 +89,13 @@ counts AS (
     SELECT coordination, flow,
            COUNT(*) AS transactions,
            COUNT(*) FILTER (WHERE status = 'completed') AS completed,
-           COUNT(*) FILTER (WHERE status = 'compensated') AS compensated,
+           COUNT(*) FILTER (WHERE status = 'rolled_back') AS rolled_back,
+           COUNT(*) FILTER (WHERE status = 'rolled_back') AS compensated,  -- old name, until 3.0
            COUNT(*) FILTER (WHERE status = 'failed') AS failed,
            COUNT(*) FILTER (WHERE status IN ('executing', 'compensating')) AS in_flight,
-           ROUND(100.0 * COUNT(*) FILTER (WHERE status IN ('compensated', 'failed'))
+           ROUND(100.0 * COUNT(*) FILTER (WHERE status IN ('rolled_back', 'failed'))
                / NULLIF(COUNT(*) FILTER (
-                   WHERE status IN ('completed', 'compensated', 'failed')), 0), 2)
+                   WHERE status IN ('completed', 'rolled_back', 'failed')), 0), 2)
                AS compensation_rate_pct
     FROM flows GROUP BY coordination, flow
 ),
@@ -108,7 +111,7 @@ percentiles AS (
            {_percentile(0.95)} AS p95_duration_ms
     FROM ranked GROUP BY coordination, flow
 )
-SELECT c.coordination, c.flow, c.transactions, c.completed, c.compensated, c.failed,
+SELECT c.coordination, c.flow, c.transactions, c.completed, c.rolled_back, c.compensated, c.failed,
        c.in_flight, c.compensation_rate_pct, p.p50_duration_ms, p.p95_duration_ms
 FROM counts c
 LEFT JOIN percentiles p ON p.coordination = c.coordination AND p.flow = c.flow

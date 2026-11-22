@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **One keyword for the tenant: `tenant=` (#572).** `Saga.run(tenant=)`, `SagaOrchestrator(tenant=)` and `ChoreographedSaga.begin(tenant=)` take a `TenantContext` or a tenant id; `begin()` now accepts a `TenantContext` too. The former names, `run(tenant_context=)`, `SagaOrchestrator(tenant_id=)` and `begin(tenant_id=)`, still work with a `DeprecationWarning` until 3.0; giving both is a `TypeError`.
 - **Data-source options are named `--<thing>-url` (#572).** `--saga-log` becomes `--saga-log-url` (`sagaz analytics export`, `sagaz choreography status`, `sagaz monitor`) and `--store-url` becomes `--event-store-url` (`sagaz event-log`), next to the existing `--storage-url`. The former spellings still work and are no longer shown in `--help`.
+- **An undone saga is `rolled_back` in both coordination styles (#572).** A choreographed transaction that was undone was stored and reported as `compensated`, while an orchestrated saga was `rolled_back`; the same unified log held both. The choreography tracker now writes `rolled_back`. `compensated` stays the status of a step or a participant.
+  - Data written before 2.6.0 still reads as `rolled_back`, and the Flink SQL and Iceberg reports map the old value too.
+  - The flow reports (`SagaQueries.FLOW_SUMMARY`, `CHOREOGRAPHY_SUMMARY`, Flink SQL `flow-summary`, the Iceberg metrics) count a `rolled_back` column. The `compensated` column repeats it until 3.0.
+  - `sagaz_flow_transactions{status}` reports `rolled_back`; while `SAGAZ_METRICS_OLD_NAMES` is on it also reports `compensated`. The lakehouse dashboard excludes that old label so its by-status panels do not count twice.
 
 ### Fixed
 
