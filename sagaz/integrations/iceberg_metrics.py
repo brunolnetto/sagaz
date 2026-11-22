@@ -29,6 +29,7 @@ from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from sagaz.core.exceptions import MissingDependencyError
+from sagaz.observability._renamed import emit_old_names
 
 if TYPE_CHECKING:
     from pyarrow import Table
@@ -45,10 +46,11 @@ WITH events AS (
             WHEN event_type = 'SagaStarted' THEN 'executing'
             WHEN event_type = 'CompensationStarted' THEN 'compensating'
             WHEN event_type = 'SagaCompleted' THEN 'completed'
-            WHEN event_type = 'SagaRolledBack' THEN 'compensated'
+            WHEN event_type = 'SagaRolledBack' THEN 'rolled_back'
             WHEN event_type = 'SagaFailed' THEN 'failed'
             WHEN event_type = 'TransactionStatusChanged'
-                THEN json_extract_string(payload, '$.status')
+                -- a choreographed rollback was 'compensated' before 2.6.0 (#572)
+                THEN replace(json_extract_string(payload, '$.status'), 'compensated', 'rolled_back')
         END AS status
     FROM log
 ),
@@ -70,9 +72,9 @@ flows AS (
     SELECT t.coordination, t.flow, COALESCE(l.status, 'executing') AS status,
            CASE
                WHEN t.coordination = 'choreographed'
-                    AND COALESCE(l.status, 'executing') IN ('completed', 'compensated', 'failed')
+                    AND COALESCE(l.status, 'executing') IN ('completed', 'rolled_back', 'failed')
                    THEN CAST(t.last_event_ms - t.first_event_ms AS DOUBLE)
-               WHEN t.coordination = 'orchestrated' AND l.status IN ('completed', 'compensated')
+               WHEN t.coordination = 'orchestrated' AND l.status IN ('completed', 'rolled_back')
                    THEN CAST(l.status_ms - t.first_ms AS DOUBLE)
            END AS duration_ms
     FROM transactions t
@@ -81,11 +83,12 @@ flows AS (
 SELECT coordination, flow,
        COUNT(*) AS transactions,
        COUNT(*) FILTER (WHERE status = 'completed') AS completed,
-       COUNT(*) FILTER (WHERE status = 'compensated') AS compensated,
+       COUNT(*) FILTER (WHERE status = 'rolled_back') AS rolled_back,
+       COUNT(*) FILTER (WHERE status = 'rolled_back') AS compensated,  -- old name, until 3.0
        COUNT(*) FILTER (WHERE status = 'failed') AS failed,
        COUNT(*) FILTER (WHERE status IN ('executing', 'compensating')) AS in_flight,
-       ROUND(100.0 * COUNT(*) FILTER (WHERE status IN ('compensated', 'failed'))
-           / NULLIF(COUNT(*) FILTER (WHERE status IN ('completed', 'compensated', 'failed')), 0),
+       ROUND(100.0 * COUNT(*) FILTER (WHERE status IN ('rolled_back', 'failed'))
+           / NULLIF(COUNT(*) FILTER (WHERE status IN ('completed', 'rolled_back', 'failed')), 0),
            2) AS compensation_rate_pct,
        ROUND(PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY duration_ms), 2) AS p50_duration_ms,
        ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms), 2) AS p95_duration_ms
@@ -105,7 +108,7 @@ _COLUMNS = (
     "payload",
     "occurred_at_ms",
 )
-_STATUSES = ("completed", "compensated", "failed", "in_flight")
+_STATUSES = ("completed", "rolled_back", "failed", "in_flight")
 
 
 def flow_summary(log: Table) -> list[dict[str, Any]]:
@@ -176,7 +179,9 @@ class IcebergFlowCollector:
 
     Metrics, labelled by ``coordination`` and ``flow``:
 
-    - ``sagaz_flow_transactions{status}``: completed, compensated, failed, in_flight;
+    - ``sagaz_flow_transactions{status}``: completed, rolled_back, failed, in_flight (and
+      ``compensated``, rolled_back's name before 2.6.0, while ``SAGAZ_METRICS_OLD_NAMES``
+      is on);
     - ``sagaz_flow_compensation_rate_percent``;
     - ``sagaz_flow_duration_milliseconds{quantile="0.5"|"0.95"}``;
     - ``sagaz_flow_report_age_seconds``, ``sagaz_flow_report_errors_total``.
@@ -269,6 +274,8 @@ class IcebergFlowCollector:
             key = [str(row["coordination"]), str(row["flow"])]
             for status in _STATUSES:
                 transactions.add_metric([*key, status], float(row[status]))
+            if emit_old_names():  # rolled_back was "compensated" before 2.6.0 (#572)
+                transactions.add_metric([*key, "compensated"], float(row["rolled_back"]))
             if row["compensation_rate_pct"] is not None:
                 rate.add_metric(key, float(row["compensation_rate_pct"]))
             for quantile, column in (("0.5", "p50_duration_ms"), ("0.95", "p95_duration_ms")):

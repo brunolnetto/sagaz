@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from sagaz.core.storage.saga_log import SagaLogStore
 
 COORDINATIONS = ["", "orchestrated", "choreographed"]
-STATUSES = ["", "executing", "compensating", "completed", "compensated", "rolled_back", "failed"]
+STATUSES = ["", "executing", "compensating", "completed", "rolled_back", "failed"]
 
 
 class AssetSource:

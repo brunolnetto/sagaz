@@ -29,20 +29,34 @@ if TYPE_CHECKING:
 #: Saga name of the records the tracker writes.
 RECORD_NAME = "choreography"
 
-EXECUTING, COMPLETED, COMPENSATING, COMPENSATED_STATUS, FAILED = (
+EXECUTING, COMPLETED, COMPENSATING, ROLLED_BACK, FAILED = (
     "executing",
     "completed",
     "compensating",
-    "compensated",
+    "rolled_back",
     "failed",
 )
+#: A rolled-back transaction's status before 2.6.0, when choreography named it apart
+#: from orchestration (#572). Still read, never written.
+OLD_ROLLED_BACK = "compensated"
+
+
+def transaction_status(value: str) -> str:
+    """*value*, with the pre-2.6.0 ``"compensated"`` read as ``"rolled_back"`` (#572).
+
+    A transaction that was undone is ``rolled_back`` in both coordination styles;
+    ``compensated`` is a step's (or a participant's) status.
+    """
+    return ROLLED_BACK if value == OLD_ROLLED_BACK else value
+
+
 #: Reported (never stored) for an executing transaction with no recent event (#449).
 STALLED = "stalled"
 _SAGA_STATUS = {
     EXECUTING: SagaStatus.EXECUTING,
     COMPLETED: SagaStatus.COMPLETED,
     COMPENSATING: SagaStatus.COMPENSATING,
-    COMPENSATED_STATUS: SagaStatus.ROLLED_BACK,
+    ROLLED_BACK: SagaStatus.ROLLED_BACK,
     FAILED: SagaStatus.FAILED,
 }
 
@@ -65,7 +79,9 @@ class TransactionStatus:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> TransactionStatus:
-        return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
+        status = cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
+        status.status = transaction_status(status.status)  # stored before 2.6.0
+        return status
 
     def apply(self, event: Event, completion_events: frozenset[str]) -> None:
         """Fold one event into the status."""
@@ -103,7 +119,7 @@ class TransactionStatus:
         if not expected <= set(self.compensated_by):
             return COMPENSATING
         broken = any(report.get("failed") for report in self.compensated_by.values())
-        return FAILED if broken else COMPENSATED_STATUS
+        return FAILED if broken else ROLLED_BACK
 
 
 class ChoreographyTracker:
@@ -158,7 +174,7 @@ class ChoreographyTracker:
         current = await log.get_transaction(event.saga_id or "")
         if status is None or current is None or current.status == status.status:
             return
-        ended = status.status in (COMPLETED, COMPENSATED_STATUS, FAILED)
+        ended = status.status in (COMPLETED, ROLLED_BACK, FAILED)
         change = StatusChange(
             current.transaction_id,
             status.status,

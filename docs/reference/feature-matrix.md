@@ -130,9 +130,9 @@ the parity work. The bugs the audit found (#549–#559) were fixed in v2.4.0.
 | Step timeout default | `SagaConfig.default_timeout` (60 s) | none | [#544], [#561] |
 | Compensation signature | `undo(ctx)` | `undo(event)` | [#572] |
 | `compensation_errors` | dict | — | [#572] |
-| Status vocabulary | `rolled_back` | `compensated` | [#572] |
+| Status of an undone saga | `rolled_back` | `rolled_back` (`compensated` before 2.6.0, still read) | [#572] |
 | Tenant entry point | `run(tenant=)` | `begin(tenant=)` (the old names work until 3.0) | [#572] |
-| Metric prefixes | `saga_*` | `sagaz_choreography_*` | [#572] |
+| Metric prefixes | `sagaz_saga_*`, `sagaz_outbox_*`, `sagaz_inbox_*` (old names until 3.0) | `sagaz_choreography_*` | [#572] |
 
 ## Other axes
 

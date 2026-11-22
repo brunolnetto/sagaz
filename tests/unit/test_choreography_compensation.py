@@ -177,7 +177,7 @@ class TestCompensation:
             assert set(reports) == {"orders", "inventory", "payments", "shipping"}
 
             status = await stack.tracker.status(first.saga_id)
-            assert status.status == "compensated"
+            assert status.status == "rolled_back"
             assert status.failure["participant"] == "payments"
             assert (
                 _sample(

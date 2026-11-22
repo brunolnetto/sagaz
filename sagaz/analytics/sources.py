@@ -116,13 +116,13 @@ async def _choreography_record(
     log: SagaLogStore, transaction: Transaction
 ) -> dict[str, Any] | None:
     """A choreographed transaction in the tracker-record shape the Silver layer reads."""
-    from sagaz.choreography.tracker import RECORD_NAME, status_from_log
+    from sagaz.choreography.tracker import RECORD_NAME, status_from_log, transaction_status
 
     status = await status_from_log(log, transaction.transaction_id)
     if status is None:
         return None
-    if transaction.status in _CHOREOGRAPHY_STATUSES:
-        status.status = transaction.status
+    if transaction_status(transaction.status) in _CHOREOGRAPHY_STATUSES:
+        status.status = transaction_status(transaction.status)
     return {
         "saga_id": transaction.transaction_id,
         "saga_name": RECORD_NAME,
@@ -134,7 +134,7 @@ async def _choreography_record(
 #: The transaction row's status (kept by the tracker) wins over the projection,
 #: which cannot tell completion without the completion event types.
 _CHOREOGRAPHY_STATUSES = frozenset(
-    {"executing", "completed", "compensating", "compensated", "failed"}
+    {"executing", "completed", "compensating", "rolled_back", "failed"}
 )
 
 
