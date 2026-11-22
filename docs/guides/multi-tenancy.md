@@ -85,6 +85,13 @@ suspended tenant raises `TenantSuspendedError`.
 `None` means unlimited. Concurrency is counted per process; for a global bound across
 workers, put a shared limiter in front of saga submission.
 
+Choreographed participants use the same registry and quotas
+(`ChoreographyEngine(tenant_registry=...)`, default the configured one). A delivered
+event of an unknown or suspended tenant is not handled but compensated. A transaction
+counts as one saga of its tenant in each process handling it, and a delivery over the
+quota waits instead of raising. See
+[Choreography: Tenants](../patterns/choreography.md#tenants).
+
 ## CLI
 
 ```bash

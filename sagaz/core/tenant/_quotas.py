@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections import Counter
+import asyncio
+from collections import Counter, defaultdict
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -20,6 +21,8 @@ class QuotaEnforcer:
 
     def __init__(self) -> None:
         self._running: Counter[str] = Counter()
+        # Tasks waiting for a slot of a tenant (acquire_waiting), woken on release.
+        self._waiters: defaultdict[str, list[asyncio.Future[None]]] = defaultdict(list)
 
     def running(self, tenant_id: str) -> int:
         """Sagas of ``tenant_id`` currently admitted in this process."""
@@ -35,13 +38,37 @@ class QuotaEnforcer:
             raise QuotaExceededError(tenant.tenant_id, "max_concurrent_sagas", limit, current + 1)
         self._running[tenant.tenant_id] = current + 1
 
+    async def acquire_waiting(self, tenant: TenantContext) -> None:
+        """Like :meth:`acquire`, but wait for a free slot instead of raising.
+
+        A suspended tenant still raises ``TenantSuspendedError``. Used by
+        choreography (#564): a delivery over the quota waits, as backpressure.
+        """
+        while True:
+            try:
+                self.acquire(tenant)
+            except QuotaExceededError:
+                waiter: asyncio.Future[None] = asyncio.get_running_loop().create_future()
+                self._waiters[tenant.tenant_id].append(waiter)
+                try:
+                    await waiter
+                finally:
+                    waiters = self._waiters.get(tenant.tenant_id, [])
+                    if waiter in waiters:
+                        waiters.remove(waiter)
+            else:
+                return
+
     def release(self, tenant_id: str) -> None:
-        """Give back a slot taken by :meth:`acquire`."""
+        """Give back a slot taken by :meth:`acquire`, waking whoever waits for one."""
         remaining = self._running[tenant_id] - 1
         if remaining > 0:
             self._running[tenant_id] = remaining
         else:
             del self._running[tenant_id]
+        for waiter in self._waiters.pop(tenant_id, []):
+            if not waiter.done():
+                waiter.set_result(None)
 
     @asynccontextmanager
     async def admit(self, tenant: TenantContext) -> AsyncIterator[None]:

@@ -19,6 +19,7 @@ from sagaz.choreography._attempts import (
     DEFAULT_TIMEOUT,
 )
 from sagaz.choreography._observe import listener_context, notify, span, with_trace_context
+from sagaz.choreography._tenancy import REFUSED, Tenancy
 from sagaz.choreography.events import COMPENSATE, COMPENSATED, Event
 from sagaz.choreography.saga import ChoreographedSaga, current_cause
 from sagaz.core.tenant import tenant_scope
@@ -110,14 +111,44 @@ class Dispatcher:
         publish: Callable[[Event], Awaitable[None]],
         completion_events: frozenset[str],
         defaults: RetryDefaults | None = None,
+        tenancy: Tenancy | None = None,
     ) -> None:
         self._publish = publish
         self._completion_events = completion_events
         self._defaults = defaults or RetryDefaults()
+        self._tenancy = tenancy or Tenancy()
 
     async def dispatch(self, saga: ChoreographedSaga, event: Event) -> None:
-        with tenant_scope(event.tenant_id):
-            await self._dispatch(saga, event)
+        """Deliver *event* to *saga* as its tenant (#564).
+
+        Undoing is never refused nor queued: compensation runs whatever the tenant's
+        state. For the rest, a tenant the registry refuses is not run (the participant
+        asks for compensation instead), and a transaction waits for a quota slot.
+        """
+        if event.event_type in (COMPENSATE, COMPENSATED) or not saga.handles(event.event_type):
+            with tenant_scope(self._tenancy.context(event.tenant_id)):
+                await self._dispatch(saga, event)
+            return
+        try:
+            tenant = self._tenancy.resolve(event.tenant_id)
+        except REFUSED as error:
+            with tenant_scope(event.tenant_id):
+                await self._refuse(saga, event, error)
+            return
+        async with self._tenancy.transaction(tenant, event.saga_id, wait=True):
+            with tenant_scope(tenant):
+                await self._dispatch(saga, event)
+
+    async def _refuse(self, saga: ChoreographedSaga, event: Event, error: Exception) -> None:
+        """Do not run *saga*'s handler for a refused tenant: ask for compensation."""
+        lease = self._defaults.lease(*self._policy(saga, event))
+        if not await saga._state.claim_delivery(saga.name, event.event_id, lease):
+            _count(saga.name, event.event_type, "duplicate")
+            return
+        _count(saga.name, event.event_type, "tenant_refused")
+        logger.warning("%s refuses %r: %s", saga.name, event.event_type, error)
+        await self._publish_failure(saga, event, error)
+        await saga._state.finish_delivery(saga.name, event.event_id)
 
     def _policy(self, saga: ChoreographedSaga, event: Event) -> tuple[int, float | None]:
         """The handler's ``(max_retries, timeout_seconds)``, the engine's where unset."""
@@ -194,13 +225,13 @@ class Dispatcher:
 
     async def _run(self, saga: ChoreographedSaga, event: Event) -> None:
         max_retries, timeout_seconds = self._policy(saga, event)
-        with tenant_scope(event.tenant_id):
-            await saga._run(
-                event,
-                max_retries=max_retries,
-                timeout_seconds=timeout_seconds,
-                retry_backoff_base=self._defaults.retry_backoff_base,
-            )
+        # In the tenant scope dispatch() set, with its TenantContext: its quotas cap these.
+        await saga._run(
+            event,
+            max_retries=max_retries,
+            timeout_seconds=timeout_seconds,
+            retry_backoff_base=self._defaults.retry_backoff_base,
+        )
 
     async def _failed(
         self, saga: ChoreographedSaga, event: Event, ctx: dict[str, Any], error: Exception
@@ -227,13 +258,12 @@ class Dispatcher:
     async def _compensate(self, saga: ChoreographedSaga, event: Event) -> None:
         if not event.saga_id:
             return
-        with tenant_scope(event.tenant_id):
-            undone, failed = await saga.compensate_transaction(
-                event.saga_id,
-                max_retries=self._defaults.max_retries,
-                timeout_seconds=self._defaults.timeout_seconds,
-                retry_backoff_base=self._defaults.retry_backoff_base,
-            )
+        undone, failed = await saga.compensate_transaction(  # in dispatch()'s tenant scope
+            event.saga_id,
+            max_retries=self._defaults.max_retries,
+            timeout_seconds=self._defaults.timeout_seconds,
+            retry_backoff_base=self._defaults.retry_backoff_base,
+        )
         if CHOREOGRAPHY_COMPENSATIONS is not None:
             if undone:
                 CHOREOGRAPHY_COMPENSATIONS.labels(saga.name, "undone").inc(len(undone))

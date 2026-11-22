@@ -187,7 +187,7 @@ a handler without a timeout); set it with `ChoreographyEngine(delivery_lease=sec
 A redelivery before it expires is dropped, so a broker that redelivers only once may
 need a longer redelivery delay or a shorter lease.
 Handlers that call external systems should still be idempotent: a handler that died
-after its external effect runs again. The idempotency only
+after its external effect runs again. Without a durable state, the deduplication only
 holds for the lifetime of the process.
 
 Within one transaction, the buses deliver events in the order they were published:
@@ -266,11 +266,42 @@ engine = ChoreographyEngine(bus, completion_events={"order.shipped"},
 Every replica of a participant (same `name`) shares its state, separated by tenant
 (row-level security in PostgreSQL). In PostgreSQL, recording an action and ending its
 transaction are serialized per transaction, so an action is never recorded after
-compensation started. A delivery is claimed before its handler runs: if the process
-crashes during the handler, the redelivery is skipped. That is at-most-once handling
-per participant, so a handler interrupted by a crash must be retried by your own
-recovery. Finished transactions and handled deliveries accumulate. Delete old ones
+compensation started. A delivery is reserved while its handler runs, so that a replica
+receiving a copy meanwhile drops it; if the process crashes during the handler, the
+reservation expires and the redelivery is handled (see [Delivery guarantees](#delivery-guarantees)).
+Finished transactions and handled deliveries accumulate. Delete old ones
 with `await state.prune(timedelta(days=7))`. The in-memory state bounds itself instead.
+
+## Tenants
+
+A participant handles an event in the tenant the event names (`Event.tenant_id`). With
+a tenant registry, it checks that tenant first, as an orchestrated saga does
+([Multi-tenancy](../guides/multi-tenancy.md#registry-and-quotas)):
+
+```python
+engine = ChoreographyEngine(bus, tenant_registry=registry)  # default: SagaConfig.tenant_registry
+```
+
+| Tenant | `begin()` | A delivered event |
+|---|---|---|
+| Not registered | Raises `TenantNotFoundError` | Not handled: the participant publishes `choreography.compensate` with the reason |
+| Suspended | Raises `TenantSuspendedError` | Not handled, compensated the same way |
+| Over `max_concurrent_sagas` | Raises `QuotaExceededError` | Waits for a slot |
+
+- **Before anything else:** `begin()` checks the tenant before it claims the correlation
+  id or publishes, so a refused call can be retried with the same id.
+- **Compensation always runs:** compensation events are never refused nor queued, even
+  for a tenant suspended meanwhile, so a transaction can always be undone.
+- **What `max_concurrent_sagas` counts:** the tenant's transactions this process is
+  handling at once. All the deliveries of one transaction in a process share one slot,
+  so nested in-process handlers cannot deadlock. The slots are those of orchestrated
+  sagas, so one quota covers both modes.
+- **Caps:** `max_retries` and `max_step_duration_seconds` cap handlers and
+  compensations, as they cap orchestrated steps.
+
+Without a registry, an event runs for the tenant it names, with no quotas. A registry
+checks that a tenant exists and may run; it does not authenticate the publisher. Who may
+publish an event for a tenant is the bus's access control.
 
 ## Status of a transaction
 

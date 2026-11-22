@@ -19,6 +19,7 @@ from sagaz.choreography._attempts import (
 from sagaz.choreography._deadlines import DeadlineWatcher
 from sagaz.choreography._dispatch import Dispatcher, RetryDefaults
 from sagaz.choreography._observe import DEFAULT_LISTENER_TIMEOUT, Listeners
+from sagaz.choreography._tenancy import Tenancy
 from sagaz.choreography.events import COMPENSATE, AbstractEventBus, Event, HandlerT
 from sagaz.choreography.relay import ChoreographyRelay
 from sagaz.choreography.saga import ChoreographedSaga
@@ -27,6 +28,7 @@ from sagaz.choreography.state import ParticipantState, create_participant_state
 if TYPE_CHECKING:
     from sagaz.core.listeners import SagaListener
     from sagaz.core.storage.saga_log import SagaLogStore
+    from sagaz.core.tenant import TenantRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +83,15 @@ class ChoreographyEngine:
         (``on_compensation_*``). A participant does not see the whole transaction,
         so the ``on_saga_*`` hooks come from a ``ChoreographyTracker``'s listeners,
         once per transaction. A listener that raises is logged and ignored.
+    tenant_registry:
+        The ``TenantRegistry`` an event's tenant is checked against (#564); default,
+        the global configuration's (``SagaConfig.tenant_registry``). With one, a
+        participant runs a handler only for a registered, active tenant (otherwise
+        it asks for compensation), within its quotas: ``max_concurrent_sagas``
+        counts this process's transactions of the tenant, shared with orchestrated
+        sagas, and a delivery over it waits; ``max_retries`` and
+        ``max_step_duration_seconds`` cap handlers and compensations. ``begin()``
+        raises for a refused tenant or over the quota.
     listener_timeout:
         Seconds an async listener call may take (default 5): listeners run on the
         hot path, so a slower one is cancelled, logged and skipped. ``None``
@@ -129,8 +140,10 @@ class ChoreographyEngine:
         retry_backoff_base: float = DEFAULT_RETRY_BACKOFF_BASE,
         listeners: Iterable[SagaListener] = (),
         listener_timeout: float | None = DEFAULT_LISTENER_TIMEOUT,
+        tenant_registry: TenantRegistry | None = None,
     ) -> None:
         self._bus = bus
+        self._tenancy = Tenancy(tenant_registry)
         self._listeners = Listeners(listeners, listener_timeout)
         #: The engine's listeners; add to it before registering participants.
         self.listeners: list[SagaListener] = self._listeners.items
@@ -152,6 +165,7 @@ class ChoreographyEngine:
             bus.publish,
             self._completion_events,
             RetryDefaults(default_max_retries, default_timeout, retry_backoff_base, delivery_lease),
+            self._tenancy,
         )
         self._sagas: dict[str, ChoreographedSaga] = {}
         self._running = False
@@ -210,6 +224,7 @@ class ChoreographyEngine:
         saga._publish = self._bus.publish
         saga._watch_deadlines = self._watch_deadlines
         saga._listeners = self._listeners
+        saga._tenancy = self._tenancy
         if self._state is not None:
             saga._state = self._state
 
