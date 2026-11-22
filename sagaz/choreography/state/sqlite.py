@@ -56,13 +56,43 @@ CREATE TABLE IF NOT EXISTS choreography_deliveries (
     participant TEXT NOT NULL,
     event_id    TEXT NOT NULL,
     handled_at  TEXT NOT NULL,
+    claimed_until TEXT,
     PRIMARY KEY (tenant_id, participant, event_id)
 );
 """
 
+# A delivery being handled is reserved until claimed_until; NULL means handled
+# for good (every row written before #561). The claim takes the row only if it
+# is new or its reservation expired.
+_CLAIM = (
+    "INSERT INTO choreography_deliveries"
+    " (tenant_id, participant, event_id, handled_at, claimed_until) VALUES (?, ?, ?, ?, ?)"
+    " ON CONFLICT (tenant_id, participant, event_id) DO UPDATE SET"
+    " handled_at = excluded.handled_at, claimed_until = excluded.claimed_until"
+    " WHERE choreography_deliveries.claimed_until <= ?"
+)
+_FINISH = (
+    "INSERT INTO choreography_deliveries"
+    " (tenant_id, participant, event_id, handled_at, claimed_until) VALUES (?, ?, ?, ?, NULL)"
+    " ON CONFLICT (tenant_id, participant, event_id) DO UPDATE SET"
+    " handled_at = excluded.handled_at, claimed_until = NULL"
+)
+
 
 def _now() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def _at(moment: datetime) -> str:
+    # A fixed width, so reservation times compare as text.
+    return moment.astimezone(UTC).isoformat(timespec="microseconds")
+
+
+async def _migrate(conn: Connection) -> None:
+    """Add the #561 reservation column to a delivery table created before it."""
+    cursor = await conn.execute("PRAGMA table_info(choreography_deliveries)")
+    if "claimed_until" not in {row[1] for row in await cursor.fetchall()}:
+        await conn.execute("ALTER TABLE choreography_deliveries ADD COLUMN claimed_until TEXT")
 
 
 class SQLiteParticipantState(ParticipantState):
@@ -87,6 +117,7 @@ class SQLiteParticipantState(ParticipantState):
                 if conn is None:
                     conn = await aiosqlite.connect(self.db_path)
                     await conn.executescript(SCHEMA)
+                    await _migrate(conn)
                     await conn.commit()
                     self._conn = conn
         return conn
@@ -164,6 +195,23 @@ class SQLiteParticipantState(ParticipantState):
             )
             await conn.commit()
         return bool(cursor.rowcount == 1)
+
+    async def claim_delivery(self, participant: str, event_id: str, lease: timedelta) -> bool:
+        conn = await self._connection()
+        now = datetime.now(UTC)
+        async with self._lock:
+            cursor = await conn.execute(
+                _CLAIM,
+                (write_tenant(), participant, event_id, _at(now), _at(now + lease), _at(now)),
+            )
+            await conn.commit()
+        return bool(cursor.rowcount == 1)
+
+    async def finish_delivery(self, participant: str, event_id: str) -> None:
+        conn = await self._connection()
+        async with self._lock:
+            await conn.execute(_FINISH, (write_tenant(), participant, event_id, _now()))
+            await conn.commit()
 
     async def set_deadline(self, participant: str, correlation_id: str, due_at: datetime) -> None:
         conn = await self._connection()

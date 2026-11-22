@@ -167,10 +167,19 @@ unexpected errors.
 
 ## Delivery guarantees
 
-Buses deliver at least once, so the engine drops a second delivery of the same
-`event_id` to the same participant (in memory, bounded to the last 100,000 deliveries, unless a durable state is
-configured).
-Handlers that call external systems should still be idempotent. The idempotency only
+Buses deliver at least once, so the engine deduplicates deliveries by `event_id`, per
+participant (in memory, bounded to the last 100,000 deliveries, unless a durable state is
+configured). While a handler runs, its delivery is reserved: a duplicate arriving
+meanwhile is dropped. Once the handler succeeded, or failed and the compensation
+request was published, the delivery is done for good and every later copy is dropped.
+If the process dies in the handler, the reservation expires and the broker's
+redelivery is handled then. A reservation lasts long enough for all the handler's
+attempts (`(max_retries + 1) * timeout_seconds`, the backoffs and a minute; an hour for
+a handler without a timeout); set it with `ChoreographyEngine(delivery_lease=seconds)`.
+A redelivery before it expires is dropped, so a broker that redelivers only once may
+need a longer redelivery delay or a shorter lease.
+Handlers that call external systems should still be idempotent: a handler that died
+after its external effect runs again. The idempotency only
 holds for the lifetime of the process.
 
 Within one transaction, the buses deliver events in the order they were published:

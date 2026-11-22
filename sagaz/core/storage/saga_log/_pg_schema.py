@@ -117,8 +117,10 @@ CREATE TABLE IF NOT EXISTS saga_delivery (
     participant  TEXT        NOT NULL,
     event_id     TEXT        NOT NULL,
     consumed_at  TIMESTAMPTZ NOT NULL,
+    claimed_until TIMESTAMPTZ,  -- reserved while handled; NULL: consumed for good (#561)
     PRIMARY KEY (tenant_id, participant, event_id)
 );
+ALTER TABLE saga_delivery ADD COLUMN IF NOT EXISTS claimed_until TIMESTAMPTZ;
 
 CREATE TABLE IF NOT EXISTS saga_deadline (
     tenant_id       TEXT        NOT NULL DEFAULT 'default',
