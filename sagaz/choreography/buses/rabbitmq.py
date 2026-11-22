@@ -35,7 +35,7 @@ import os
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 from sagaz.choreography.events import AbstractEventBus, Event, HandlerT
 from sagaz.core.exceptions import MissingDependencyError
@@ -61,6 +61,19 @@ else:
 
 logger = logging.getLogger(__name__)
 
+_JSON = "application/json"
+
+
+class _Body(Protocol):
+    """What :meth:`RabbitMQEventBus._decode` reads of an incoming aio-pika message."""
+
+    body: bytes
+    content_type: str | None
+
+
+#: Content type of a body encoded by a serializer (schema registry wire format).
+_SERIALIZED = "application/octet-stream"
+
 
 @dataclass
 class RabbitMQEventBusConfig:
@@ -83,6 +96,11 @@ class RabbitMQEventBusConfig:
         QoS prefetch count (limits concurrent in-flight messages).
     heartbeat:
         AMQP heartbeat interval in seconds.
+    serializer:
+        How events become message bodies (#566): JSON when ``None``, else an
+        ``EventSerializer`` such as ``SchemaRegistrySerializer(envelope="choreography")``,
+        which encodes the whole event (``event.to_dict()``) under the exchange name as
+        topic. JSON bodies are still read, so a bus can switch with messages in flight.
     """
 
     url: str = "amqp://guest:guest@localhost/"
@@ -92,6 +110,7 @@ class RabbitMQEventBusConfig:
     queue_durable: bool = True
     prefetch_count: int = 100
     heartbeat: int = 60
+    serializer: Any = None
 
     @classmethod
     def from_env(cls) -> RabbitMQEventBusConfig:
@@ -219,12 +238,14 @@ class RabbitMQEventBus(AbstractEventBus):
         if self._exchange is None:
             msg = "Call start() before publish()"
             raise RuntimeError(msg)
-        payload = json.dumps(event.to_dict()).encode()
-        message = Message(
-            payload,
-            delivery_mode=DeliveryMode.PERSISTENT,
-            content_type="application/json",
-        )
+        serializer = self._config.serializer
+        if serializer is None:
+            payload, content_type = json.dumps(event.to_dict()).encode(), _JSON
+        else:
+            topic = self._config.exchange_name
+            payload = await serializer.serialize(topic, event.to_dict(), event.event_type)
+            content_type = _SERIALIZED
+        message = Message(payload, delivery_mode=DeliveryMode.PERSISTENT, content_type=content_type)
         await self._exchange.publish(message, routing_key=event.event_type)
         self._published.append(event)
         logger.debug(
@@ -242,7 +263,7 @@ class RabbitMQEventBus(AbstractEventBus):
         """Deserialise an incoming AMQP message and dispatch to handlers."""
         async with message.process():
             try:
-                event = Event.from_dict(json.loads(message.body.decode()))
+                event = await self._decode(message)
             except Exception:
                 logger.exception("Failed to deserialise RabbitMQ message")
                 return
@@ -254,6 +275,14 @@ class RabbitMQEventBus(AbstractEventBus):
                     await handler(event)
                 except Exception:
                     logger.exception("Handler %s raised on event %r", handler, event.event_type)
+
+    async def _decode(self, message: _Body) -> Event:
+        """The event in *message*: JSON, or encoded by the configured serializer."""
+        serializer = self._config.serializer
+        if serializer is None or message.content_type == _JSON:
+            return Event.from_dict(json.loads(message.body.decode()))
+        payload = await serializer.deserialize(self._config.exchange_name, message.body)
+        return Event.from_dict(payload)
 
     # ------------------------------------------------------------------
     # Introspection
