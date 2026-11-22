@@ -61,7 +61,7 @@ def _reset():
 
 class TestSagaRunAsTenant:
     async def test_steps_run_in_the_tenant_scope_and_context_names_it(self):
-        result = await ProbeSaga().run({"order": 1}, tenant_context=TenantContext("acme"))
+        result = await ProbeSaga().run({"order": 1}, tenant=TenantContext("acme"))
         assert SEEN == ["acme"]
         assert result["tenant_id"] == "acme"
         assert current_tenant_id() == "default"
@@ -72,7 +72,7 @@ class TestSagaRunAsTenant:
         assert "tenant_id" not in result
 
     async def test_tenant_id_string_without_registry(self):
-        result = await ProbeSaga().run({}, tenant_context="beta")
+        result = await ProbeSaga().run({}, tenant="beta")
         assert result["tenant_id"] == "beta"
 
     async def test_tenant_id_is_resolved_through_the_configured_registry(self):
@@ -82,50 +82,50 @@ class TestSagaRunAsTenant:
         )
         saga = SlowSaga(config=SagaConfig(tenant_registry=registry))
         with pytest.raises(SagaFailedError, match="timed out after 0.05s"):
-            await saga.run({"sleep": 0.5}, tenant_context="acme")
+            await saga.run({"sleep": 0.5}, tenant="acme")
 
     async def test_unknown_tenant_with_a_registry_is_rejected(self):
         saga = ProbeSaga(config=SagaConfig(tenant_registry=TenantRegistry()))
         with pytest.raises(TenantNotFoundError):
-            await saga.run({}, tenant_context="ghost")
+            await saga.run({}, tenant="ghost")
         assert SEEN == []
 
     async def test_context_claiming_another_tenant_is_rejected(self):
         with pytest.raises(CrossTenantAccessError):
-            await ProbeSaga().run({"tenant_id": "beta"}, tenant_context="acme")
+            await ProbeSaga().run({"tenant_id": "beta"}, tenant="acme")
         assert SEEN == []
 
     async def test_matching_context_tenant_is_accepted(self):
-        result = await ProbeSaga().run({"tenant_id": "acme"}, tenant_context="acme")
+        result = await ProbeSaga().run({"tenant_id": "acme"}, tenant="acme")
         assert result["tenant_id"] == "acme"
 
     async def test_suspended_tenant_cannot_run(self):
         with pytest.raises(TenantSuspendedError):
-            await ProbeSaga().run({}, tenant_context=TenantContext("acme", active=False))
+            await ProbeSaga().run({}, tenant=TenantContext("acme", active=False))
         assert SEEN == []
 
 
 class TestQuotasDuringExecution:
     async def test_concurrent_sagas_beyond_the_quota_are_refused(self):
         tenant = TenantContext("acme", quotas=TenantQuotas(max_concurrent_sagas=1))
-        first = asyncio.create_task(SlowSaga().run({"sleep": 0.2}, tenant_context=tenant))
+        first = asyncio.create_task(SlowSaga().run({"sleep": 0.2}, tenant=tenant))
         await asyncio.sleep(0.05)
         with pytest.raises(QuotaExceededError, match="max_concurrent_sagas"):
-            await SlowSaga().run({"sleep": 0}, tenant_context=tenant)
+            await SlowSaga().run({"sleep": 0}, tenant=tenant)
         await first
-        await SlowSaga().run({"sleep": 0}, tenant_context=tenant)  # slot released
+        await SlowSaga().run({"sleep": 0}, tenant=tenant)  # slot released
 
     async def test_other_tenants_are_not_limited_by_it(self):
         acme = TenantContext("acme", quotas=TenantQuotas(max_concurrent_sagas=1))
-        first = asyncio.create_task(SlowSaga().run({"sleep": 0.2}, tenant_context=acme))
+        first = asyncio.create_task(SlowSaga().run({"sleep": 0.2}, tenant=acme))
         await asyncio.sleep(0.05)
-        await SlowSaga().run({"sleep": 0}, tenant_context="beta")
+        await SlowSaga().run({"sleep": 0}, tenant="beta")
         await first
 
     async def test_step_duration_quota_lowers_the_timeout(self):
         tenant = TenantContext("acme", quotas=TenantQuotas(max_step_duration_seconds=0.05))
         with pytest.raises(SagaFailedError, match="0.05s"):
-            await SlowSaga().run({"sleep": 0.5}, tenant_context=tenant)
+            await SlowSaga().run({"sleep": 0.5}, tenant=tenant)
 
     async def test_retry_quota_caps_imperative_step_attempts(self):
         attempts = {"n": 0}
@@ -139,7 +139,7 @@ class TestQuotasDuringExecution:
         await saga.add_step("charge", flaky, max_retries=5)
         tenant = TenantContext("acme", quotas=TenantQuotas(max_retries=1))
 
-        result = await SagaOrchestrator(tenant_id=tenant).execute_saga(saga)
+        result = await SagaOrchestrator(tenant=tenant).execute_saga(saga)
 
         assert not result.success
         assert result.status == SagaStatus.ROLLED_BACK
@@ -154,7 +154,7 @@ class TestQuotasDuringExecution:
         tenant = TenantContext("acme", quotas=TenantQuotas(max_step_duration_seconds=0.05))
 
         started = asyncio.get_running_loop().time()
-        result = await SagaOrchestrator(tenant_id=tenant).execute_saga(saga)
+        result = await SagaOrchestrator(tenant=tenant).execute_saga(saga)
 
         assert not result.success
         assert asyncio.get_running_loop().time() - started < 0.4  # 0.05s cap, not 30s
@@ -168,7 +168,7 @@ class TestOrchestrator:
         saga = ImperativeSaga("observe")
         await saga.add_step("observe", observe)
 
-        result = await SagaOrchestrator(tenant_id="acme").execute_saga(saga)
+        result = await SagaOrchestrator(tenant="acme").execute_saga(saga)
 
         assert result.success
         assert SEEN == ["acme"]
@@ -176,10 +176,10 @@ class TestOrchestrator:
     async def test_tenant_ids_are_resolved_through_the_registry(self):
         registry = TenantRegistry()
         registry.register(TenantContext("acme", plan="premium"))
-        orchestrator = SagaOrchestrator(tenant_id="acme", tenant_registry=registry)
+        orchestrator = SagaOrchestrator(tenant="acme", tenant_registry=registry)
         assert orchestrator.tenant.plan == "premium"
         with pytest.raises(TenantNotFoundError):
-            SagaOrchestrator(tenant_id="ghost", tenant_registry=registry)
+            SagaOrchestrator(tenant="ghost", tenant_registry=registry)
 
     async def test_without_tenant_the_orchestrator_is_unchanged(self):
         async def observe(ctx):
@@ -215,7 +215,7 @@ async def test_retry_quota_caps_imperative_compensation_attempts():
     await saga.add_step("charge", charge, max_retries=0)
     tenant = TenantContext("acme", quotas=TenantQuotas(max_retries=0))
 
-    await SagaOrchestrator(tenant_id=tenant).execute_saga(saga)
+    await SagaOrchestrator(tenant=tenant).execute_saga(saga)
 
     assert attempts["n"] == 1  # 3 attempts by default, 1 with max_retries=0
 

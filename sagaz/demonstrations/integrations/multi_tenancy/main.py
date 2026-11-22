@@ -124,9 +124,7 @@ def setup(encryption: bool | None = None) -> Deployment:
 async def _order(deployment: Deployment, tenant: str, saga_id: str, **ctx: Any) -> None:
     context = {"amount": 100, "card": CARD, **ctx}
     try:
-        await OrderSaga(config=deployment.config()).run(
-            context, saga_id=saga_id, tenant_context=tenant
-        )
+        await OrderSaga(config=deployment.config()).run(context, saga_id=saga_id, tenant=tenant)
         deployment.outcomes[f"{tenant}/{saga_id}"] = "completed"
     except QuotaExceededError as exc:  # refused before the saga starts
         deployment.refused.append(f"{tenant}/{saga_id}: {exc}")

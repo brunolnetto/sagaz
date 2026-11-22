@@ -107,7 +107,7 @@ def make_bus(request):
 async def test_order_completes_across_three_services(make_bus):
     async with Deployment(make_bus) as deployment:
         start = await deployment.orders.begin(
-            "order.created", {"order_id": "o-1", "amount": 40}, tenant_id="acme"
+            "order.created", {"order_id": "o-1", "amount": 40}, tenant="acme"
         )
         status = await deployment.settled(start.saga_id)
 

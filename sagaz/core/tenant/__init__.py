@@ -27,6 +27,7 @@ from sagaz.core.tenant._errors import (
 from sagaz.core.tenant._execution import (
     ensure_tenant_context_matches,
     resolve_tenant,
+    tenant_argument,
     tenant_execution,
 )
 from sagaz.core.tenant._quotas import QuotaEnforcer, capped_retries, capped_timeout, quota_enforcer

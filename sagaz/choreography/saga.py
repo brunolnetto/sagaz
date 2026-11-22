@@ -13,7 +13,7 @@ import logging
 from collections.abc import Awaitable, Callable
 from contextvars import ContextVar
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sagaz.choreography.decorators import (
     call_maybe_async,
@@ -22,6 +22,9 @@ from sagaz.choreography.decorators import (
 )
 from sagaz.choreography.events import Event
 from sagaz.choreography.state import InMemoryParticipantState, ParticipantState
+
+if TYPE_CHECKING:
+    from sagaz.core.tenant import TenantContext
 
 logger = logging.getLogger(__name__)
 
@@ -170,13 +173,16 @@ class ChoreographedSaga:
         data: dict[str, Any] | None = None,
         *,
         correlation_id: str | None = None,
-        tenant_id: str | None = None,
+        tenant: TenantContext | str | None = None,
         deadline: timedelta | float | None = None,
+        tenant_id: str | None = None,
     ) -> Event:
         """Start a new transaction by publishing its first event.
 
         The event gets a new correlation id (or *correlation_id*), the given
-        tenant (default: the current tenant scope) and this participant as source.
+        *tenant*, a ``TenantContext`` or a tenant id (default: the current tenant
+        scope), and this participant as source. ``tenant_id=`` is the deprecated
+        name of ``tenant`` (until 3.0).
 
         With a *deadline* (a ``timedelta`` or seconds), this participant owns
         the transaction's time limit: if no completion event arrives in time,
@@ -184,8 +190,14 @@ class ChoreographedSaga:
         """
         from uuid import uuid4
 
-        from sagaz.core.tenant import current_tenant_id, tenant_scope
+        from sagaz.core.tenant import (
+            TenantContext,
+            current_tenant_id,
+            tenant_argument,
+            tenant_scope,
+        )
 
+        given = tenant_argument(f"{type(self).__name__}.begin", tenant, tenant_id=tenant_id)
         if self._publish is None:
             msg = f"{self.name} is not registered with a ChoreographyEngine"
             raise RuntimeError(msg)
@@ -193,7 +205,8 @@ class ChoreographedSaga:
             event_type,
             dict(data or {}),
             saga_id=correlation_id or str(uuid4()),
-            tenant_id=tenant_id or current_tenant_id(),
+            tenant_id=(given.tenant_id if isinstance(given, TenantContext) else given)
+            or current_tenant_id(),
             source=self.name,
         )
         if deadline is not None:

@@ -143,7 +143,7 @@ class TestHappyPath:
     async def test_begin_accepts_an_explicit_correlation_and_tenant(self):
         async with Stack() as stack:
             event = await stack.orders.begin(
-                "order.created", {"order_id": "o-9"}, correlation_id="ord-9", tenant_id="globex"
+                "order.created", {"order_id": "o-9"}, correlation_id="ord-9", tenant="globex"
             )
         assert (event.saga_id, event.tenant_id) == ("ord-9", "globex")
 
@@ -298,7 +298,7 @@ class TestTracker:
         async with SQLiteSagaStorage(str(tmp_path / "c.db")) as storage:
             async with Stack(storage=storage) as stack:
                 first = await stack.orders.begin(
-                    "order.created", {"order_id": "o-5"}, tenant_id="acme"
+                    "order.created", {"order_id": "o-5"}, tenant="acme"
                 )
             with tenant_scope("acme"):
                 status = await load_status(storage, first.saga_id)

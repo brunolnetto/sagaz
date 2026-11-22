@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from contextlib import AbstractAsyncContextManager
 from typing import TYPE_CHECKING, Any
 
@@ -12,6 +13,30 @@ from sagaz.core.tenant._scope import _enter_tenant, _exit_tenant
 
 if TYPE_CHECKING:
     from sagaz.core.tenant._registry import TenantRegistry
+
+
+def tenant_argument(
+    where: str, tenant: TenantContext | str | None, **old: TenantContext | str | None
+) -> TenantContext | str | None:
+    """The tenant given as ``tenant=``, or under its pre-2.6.0 keyword (#572).
+
+    Every entry point that runs work as a tenant takes ``tenant=``. Its former name
+    (``tenant_context=`` or ``tenant_id=``) still works until 3.0, with a
+    ``DeprecationWarning``; giving both is an error.
+    """
+    given = {name: value for name, value in old.items() if value is not None}
+    if not given:
+        return tenant
+    (name, value), *_ = given.items()
+    if tenant is not None:
+        msg = f"{where}: pass the tenant once, as tenant= (not also {name}=)"
+        raise TypeError(msg)
+    warnings.warn(
+        f"{where}({name}=...) is deprecated and will be removed in 3.0: use tenant=",
+        DeprecationWarning,
+        stacklevel=3,
+    )
+    return value
 
 
 def resolve_tenant(

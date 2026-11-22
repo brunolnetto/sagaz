@@ -133,7 +133,7 @@ class TestSagaVersionedMixin:
         await saga.run(context, saga_id="v-1")
         result = await OrderSaga().run(context, saga_id="v-1", allow_rerun=True)
         assert result["charged"] == 5.0
-        tenant_run = await OrderSaga().run(context, tenant_context="acme")
+        tenant_run = await OrderSaga().run(context, tenant="acme")
         assert tenant_run["tenant_id"] == "acme"
 
     async def test_invalid_context_raises_before_any_step(self):

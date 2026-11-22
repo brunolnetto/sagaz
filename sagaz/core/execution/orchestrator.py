@@ -3,7 +3,13 @@ import logging
 from typing import Any
 
 from sagaz.core.saga import Saga, SagaResult
-from sagaz.core.tenant import TenantContext, TenantRegistry, resolve_tenant, tenant_execution
+from sagaz.core.tenant import (
+    TenantContext,
+    TenantRegistry,
+    resolve_tenant,
+    tenant_argument,
+    tenant_execution,
+)
 from sagaz.core.types import SagaStatus
 
 # ============================================
@@ -22,24 +28,27 @@ class SagaOrchestrator:
         logger: logging.Logger | None = None,
         verbose: bool = False,
         *,
-        tenant_id: TenantContext | str | None = None,
+        tenant: TenantContext | str | None = None,
         tenant_registry: TenantRegistry | None = None,
+        tenant_id: TenantContext | str | None = None,
     ) -> None:
         """Create an empty orchestrator.
 
         Args:
             logger: Optional pre-configured logger; defaults to module logger.
             verbose: Emit INFO log on every saga completion when ``True``.
-            tenant_id: Run every saga as this tenant (ADR-020): storage is
-                scoped to it and its quotas apply. A tenant id is resolved
-                through ``tenant_registry`` when one is given.
+            tenant: Run every saga as this tenant (ADR-020), a ``TenantContext`` or
+                a tenant id: storage is scoped to it and its quotas apply. A tenant
+                id is resolved through ``tenant_registry`` when one is given.
             tenant_registry: Registry used to resolve tenant ids.
+            tenant_id: Deprecated name of ``tenant`` (until 3.0).
         """
         self.sagas: dict[str, Saga] = {}
         self._lock = asyncio.Lock()
         self.logger = logger or logging.getLogger(__name__)
         self.verbose = verbose
-        self.tenant = resolve_tenant(tenant_id, tenant_registry) if tenant_id is not None else None
+        given = tenant_argument("SagaOrchestrator", tenant, tenant_id=tenant_id)
+        self.tenant = resolve_tenant(given, tenant_registry) if given is not None else None
 
     async def execute_saga(self, saga: Saga) -> SagaResult:
         """Execute a saga and track it"""

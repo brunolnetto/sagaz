@@ -142,7 +142,7 @@ class TestDeclarative:
         assert (projection.status, projection.last_sequence) == ("completed", 4)
 
     async def test_tenants(self, log):
-        await order_saga(log).run({"order_id": "o"}, saga_id="s-7", tenant_context="acme")
+        await order_saga(log).run({"order_id": "o"}, saga_id="s-7", tenant="acme")
         assert await log.get_transaction("s-7") is None
         with tenant_scope("acme"):
             assert (await log.get_transaction("s-7")).status == "completed"

@@ -42,7 +42,7 @@ async def fill_old_layout(storage, events, state) -> None:
     failing = make_saga(events, fail_charge=True)
     failing._config = config
     with pytest.raises(SagaFailedError):
-        await failing.run({"order_id": "o-2"}, saga_id="orch-bad", tenant_context="acme")
+        await failing.run({"order_id": "o-2"}, saga_id="orch-bad", tenant="acme")
 
     bus = EventBus()
     engine = ChoreographyEngine(bus, completion_events={"order.shipped"}, state=state)

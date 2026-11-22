@@ -107,7 +107,7 @@ Orchestration has one more implementation, `sagaz.core.saga.Saga` (`await add_st
 | No dependencies declared | steps run in parallel | steps run in sequence |
 | Compensation signature | `undo(ctx)` | `undo(result, ctx)` |
 | `compensation_errors` | dict | list |
-| Tenant entry point | `run(tenant_context=)` | `SagaOrchestrator(tenant_id=)` |
+| Tenant entry point | `run(tenant=)` | `SagaOrchestrator(tenant=)` |
 | Metric prefixes | `saga_*` | `sagaz_event_store_*` |
 
 ## Intrinsic to a mode, or a gap
@@ -131,7 +131,7 @@ the parity work. The bugs the audit found (#549–#559) were fixed in v2.4.0.
 | Compensation signature | `undo(ctx)` | `undo(event)` | [#572] |
 | `compensation_errors` | dict | — | [#572] |
 | Status vocabulary | `rolled_back` | `compensated` | [#572] |
-| Tenant entry point | `run(tenant_context=)` | `begin(tenant_id=)` | [#572] |
+| Tenant entry point | `run(tenant=)` | `begin(tenant=)` (the old names work until 3.0) | [#572] |
 | Metric prefixes | `saga_*` | `sagaz_choreography_*` | [#572] |
 
 ## Other axes
