@@ -90,7 +90,7 @@ class Deployment:
         deadline = asyncio.get_running_loop().time() + timeout
         while asyncio.get_running_loop().time() < deadline:
             status = await self.tracker.status(correlation_id)
-            if status and status.status in ("completed", "compensated", "failed"):
+            if status and status.status in ("completed", "rolled_back", "failed"):
                 return status
             await asyncio.sleep(0.2)
         return await self.tracker.status(correlation_id)
@@ -128,7 +128,7 @@ async def test_declined_payment_is_compensated_across_services(make_bus):
         status = await deployment.settled(start.saga_id)
 
     assert status is not None
-    assert status.status == "compensated"
+    assert status.status == "rolled_back"
     assert status.failure["participant"] == "payments"
     assert deployment.inventory.released == ["o-2"]
     assert deployment.payments.charged == []
