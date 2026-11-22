@@ -362,15 +362,15 @@ See [`sagaz/deployment/resources/k8s/README.md`](https://github.com/brunolnetto/
 
 ```python
 # Saga metrics
-saga_execution_total{status}
-saga_execution_duration_seconds
-saga_step_duration_seconds{step_name}
+sagaz_saga_execution_total{status}
+sagaz_saga_execution_duration_seconds
+sagaz_saga_step_duration_seconds{step_name}
 
 # Outbox metrics
-outbox_pending_events_total
-outbox_published_events_total
-outbox_optimistic_send_success_total
-consumer_inbox_duplicates_total
+sagaz_outbox_pending_events_total
+sagaz_outbox_published_events_total
+sagaz_outbox_optimistic_send_success_total
+sagaz_inbox_duplicates_total
 ```
 
 ### Grafana Dashboard

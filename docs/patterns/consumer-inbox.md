@@ -157,30 +157,30 @@ event_id = message.offset                 # Changes on rebalance
 
 ```python
 # Total events processed (first time)
-consumer_inbox_processed_total{consumer_name, event_type}
+sagaz_inbox_processed_total{consumer_name, event_type}
 
 # Total duplicates skipped
-consumer_inbox_duplicates_total{consumer_name, event_type}
+sagaz_inbox_duplicates_total{consumer_name, event_type}
 
 # Processing duration histogram
-consumer_inbox_processing_duration_seconds{consumer_name, event_type}
+sagaz_inbox_processing_duration_seconds{consumer_name, event_type}
 ```
 
 ### Grafana Queries
 
 ```promql
 # Duplicate rate
-rate(consumer_inbox_duplicates_total[5m]) /
-(rate(consumer_inbox_processed_total[5m]) + 
- rate(consumer_inbox_duplicates_total[5m]))
+rate(sagaz_inbox_duplicates_total[5m]) /
+(rate(sagaz_inbox_processed_total[5m]) + 
+ rate(sagaz_inbox_duplicates_total[5m]))
 
 # Average processing time
-avg(rate(consumer_inbox_processing_duration_seconds_sum[5m]) /
-    rate(consumer_inbox_processing_duration_seconds_count[5m]))
+avg(rate(sagaz_inbox_processing_duration_seconds_sum[5m]) /
+    rate(sagaz_inbox_processing_duration_seconds_count[5m]))
 
 # Events by consumer
 sum by (consumer_name) (
-  rate(consumer_inbox_processed_total[5m])
+  rate(sagaz_inbox_processed_total[5m])
 )
 ```
 

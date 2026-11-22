@@ -18,9 +18,9 @@ groups:
       - alert: SagazCompensationRateHigh
         expr: |
           (
-            rate(saga_compensations_total[5m])
+            rate(sagaz_saga_compensations_total[5m])
             /
-            rate(saga_execution_total[5m])
+            rate(sagaz_saga_execution_total[5m])
           ) > 0.05
         for: 5m
         labels:
@@ -37,9 +37,9 @@ groups:
       - alert: SagazSagaFailureRateHigh
         expr: |
           (
-            rate(saga_execution_total{status="failed"}[15m])
+            rate(sagaz_saga_execution_total{status="failed"}[15m])
             /
-            rate(saga_execution_total[15m])
+            rate(sagaz_saga_execution_total[15m])
           ) > 0.01
         for: 15m
         labels:
@@ -54,7 +54,7 @@ groups:
 
       - alert: SagazExecutionLatencyHigh
         expr: |
-          histogram_quantile(0.99, rate(saga_execution_duration_seconds_bucket[5m])) > 5
+          histogram_quantile(0.99, rate(sagaz_saga_execution_duration_seconds_bucket[5m])) > 5
         for: 5m
         labels:
           severity: warning
@@ -88,7 +88,7 @@ groups:
           runbook_url: "https://brunolnetto.github.io/sagaz/monitoring/alerting/#SagazDLQDepthHigh"
 
       - alert: SagazOutboxLagHigh
-        expr: outbox_pending_events_total > 500
+        expr: sagaz_outbox_pending_events_total > 500
         for: 10m
         labels:
           severity: warning

@@ -144,7 +144,7 @@ kubectl apply -f outbox-worker-cdc.yaml
 ```bash
 # Check CDC metrics
 kubectl port-forward svc/prometheus 9090:9090
-# Query: rate(outbox_published_events_total{mode="cdc"}[5m])
+# Query: rate(sagaz_outbox_published_events_total{mode="cdc"}[5m])
 ```
 
 ### Stage 3: Scale Down Polling

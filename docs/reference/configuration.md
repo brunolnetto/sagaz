@@ -199,8 +199,8 @@ Exposed at `/metrics`:
 | `outbox_events_processed_total` | Counter | Total events processed |
 | `outbox_events_failed_total` | Counter | Total events failed |
 | `outbox_events_dead_lettered_total` | Counter | Events in dead letter |
-| `outbox_batch_size` | Histogram | Batch sizes |
-| `outbox_publish_duration_seconds` | Histogram | Publish latency |
+| `sagaz_outbox_batch_size` | Histogram | Batch sizes |
+| `sagaz_outbox_publish_duration_seconds` | Histogram | Publish latency |
 | `outbox_pending_events` | Gauge | Current pending count |
 
 ---

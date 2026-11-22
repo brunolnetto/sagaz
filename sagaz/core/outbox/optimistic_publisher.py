@@ -11,6 +11,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from sagaz.core.outbox._metrics import PROMETHEUS_AVAILABLE, Counter, Histogram
+from sagaz.observability._renamed import renamed
 
 from .types import OutboxEvent, OutboxStatus
 
@@ -22,18 +23,28 @@ logger = logging.getLogger(__name__)
 
 
 # Metrics (no-op if prometheus not installed)
-OPTIMISTIC_SEND_ATTEMPTS = Counter(
-    "outbox_optimistic_send_attempts_total", "Total optimistic send attempts"
+OPTIMISTIC_SEND_ATTEMPTS = renamed(
+    Counter,
+    "sagaz_outbox_optimistic_send_attempts_total",
+    "outbox_optimistic_send_attempts_total",
+    "Total optimistic send attempts",
 )
-OPTIMISTIC_SEND_SUCCESS = Counter(
-    "outbox_optimistic_send_success_total", "Successful optimistic sends"
+OPTIMISTIC_SEND_SUCCESS = renamed(
+    Counter,
+    "sagaz_outbox_optimistic_send_success_total",
+    "outbox_optimistic_send_success_total",
+    "Successful optimistic sends",
 )
-OPTIMISTIC_SEND_FAILURES = Counter(
+OPTIMISTIC_SEND_FAILURES = renamed(
+    Counter,
+    "sagaz_outbox_optimistic_send_failures_total",
     "outbox_optimistic_send_failures_total",
     "Failed optimistic sends (will fallback to polling)",
     ["reason"],
 )
-OPTIMISTIC_SEND_LATENCY = Histogram(
+OPTIMISTIC_SEND_LATENCY = renamed(
+    Histogram,
+    "sagaz_outbox_optimistic_send_latency_seconds",
     "outbox_optimistic_send_latency_seconds",
     "Latency of optimistic send operation",
     buckets=(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0),

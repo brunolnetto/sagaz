@@ -12,6 +12,7 @@ import time
 from typing import TYPE_CHECKING
 
 from sagaz.core.outbox._worker_logging import logger
+from sagaz.observability._renamed import renamed
 
 if TYPE_CHECKING:
     import prometheus_client
@@ -43,61 +44,81 @@ try:
     PROMETHEUS_AVAILABLE = True
 
     # Counters
-    OUTBOX_BATCH_PROCESSED = Counter(
+    OUTBOX_BATCH_PROCESSED = renamed(
+        Counter,
+        "sagaz_outbox_batch_processed_total",
         "outbox_batch_processed_total",
         "Total batches processed by outbox worker",
         ["worker_id"],
     )
 
-    OUTBOX_PUBLISHED_EVENTS = Counter(
+    OUTBOX_PUBLISHED_EVENTS = renamed(
+        Counter,
+        "sagaz_outbox_published_events_total",
         "outbox_published_events_total",
         "Total events successfully published",
         ["worker_id", "event_type"],
     )
 
-    OUTBOX_FAILED_EVENTS = Counter(
+    OUTBOX_FAILED_EVENTS = renamed(
+        Counter,
+        "sagaz_outbox_failed_events_total",
         "outbox_failed_events_total",
         "Total events that failed to publish",
         ["worker_id", "event_type"],
     )
 
-    OUTBOX_DEAD_LETTER_EVENTS = Counter(
+    OUTBOX_DEAD_LETTER_EVENTS = renamed(
+        Counter,
+        "sagaz_outbox_dead_letter_events_total",
         "outbox_dead_letter_events_total",
         "Total events moved to dead letter queue",
         ["worker_id", "event_type", "error_type"],
     )
 
-    OUTBOX_REPLAY_LOOP_DETECTED = Counter(
+    OUTBOX_REPLAY_LOOP_DETECTED = renamed(
+        Counter,
+        "sagaz_outbox_replay_loop_detected_total",
         "outbox_replay_loop_detected_total",
         "Total replay loop guard activations (event blocked from further replay)",
         ["worker_id"],
     )
 
-    OUTBOX_RETRY_ATTEMPTS = Counter(
+    OUTBOX_RETRY_ATTEMPTS = renamed(
+        Counter,
+        "sagaz_outbox_retry_attempts_total",
         "outbox_retry_attempts_total",
         "Total retry attempts",
         ["worker_id"],
     )
 
     # Gauges
-    OUTBOX_PENDING_EVENTS = Gauge(
+    OUTBOX_PENDING_EVENTS = renamed(
+        Gauge,
+        "sagaz_outbox_pending_events_total",
         "outbox_pending_events_total",
         "Current number of pending events in outbox",
     )
 
-    OUTBOX_PROCESSING_EVENTS = Gauge(
+    OUTBOX_PROCESSING_EVENTS = renamed(
+        Gauge,
+        "sagaz_outbox_processing_events_total",
         "outbox_processing_events_total",
         "Current number of events being processed",
         ["worker_id"],
     )
 
-    OUTBOX_BATCH_SIZE = Gauge(
+    OUTBOX_BATCH_SIZE = renamed(
+        Gauge,
+        "sagaz_outbox_batch_size",
         "outbox_batch_size",
         "Size of last processed batch",
         ["worker_id"],
     )
 
-    OUTBOX_EVENTS_BY_STATE = Gauge(
+    OUTBOX_EVENTS_BY_STATE = renamed(
+        Gauge,
+        "sagaz_outbox_events_by_state",
         "outbox_events_by_state",
         "Number of events per state",
         ["state"],
@@ -109,7 +130,9 @@ try:
     )
 
     # Histograms
-    OUTBOX_PUBLISH_DURATION = Histogram(
+    OUTBOX_PUBLISH_DURATION = renamed(
+        Histogram,
+        "sagaz_outbox_publish_duration_seconds",
         "outbox_publish_duration_seconds",
         "Time to publish an event to the broker",
         ["worker_id", "event_type"],

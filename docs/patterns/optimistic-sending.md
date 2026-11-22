@@ -106,33 +106,33 @@ publisher = OptimisticPublisher(
 
 ```python
 # Total attempts
-outbox_optimistic_send_attempts_total
+sagaz_outbox_optimistic_send_attempts_total
 
 # Successful immediate publishes
-outbox_optimistic_send_success_total
+sagaz_outbox_optimistic_send_success_total
 
 # Failures (will fallback to polling)
-outbox_optimistic_send_failures_total{reason="timeout|BrokerError"}
+sagaz_outbox_optimistic_send_failures_total{reason="timeout|BrokerError"}
 
 # Latency distribution
-outbox_optimistic_send_latency_seconds
+sagaz_outbox_optimistic_send_latency_seconds
 ```
 
 ### Grafana Queries
 
 ```promql
 # Success rate
-rate(outbox_optimistic_send_success_total[5m]) / 
-rate(outbox_optimistic_send_attempts_total[5m])
+rate(sagaz_outbox_optimistic_send_success_total[5m]) / 
+rate(sagaz_outbox_optimistic_send_attempts_total[5m])
 
 # P99 latency
 histogram_quantile(0.99, 
-  rate(outbox_optimistic_send_latency_seconds_bucket[5m])
+  rate(sagaz_outbox_optimistic_send_latency_seconds_bucket[5m])
 )
 
 # Failure rate by reason
 sum by (reason) (
-  rate(outbox_optimistic_send_failures_total[5m])
+  rate(sagaz_outbox_optimistic_send_failures_total[5m])
 )
 ```
 
@@ -260,7 +260,7 @@ export OPTIMISTIC_SEND_ENABLED=false
 
 ```bash
 # 1. Check if optimistic send succeeded
-# Look for outbox_optimistic_send_success_total
+# Look for sagaz_outbox_optimistic_send_success_total
 
 # 2. If not, check if worker is running
 kubectl get pods -l app=outbox-worker
