@@ -277,6 +277,27 @@ class ChoreographyEngine:
         """List of all currently registered sagas."""
         return list(self._sagas.values())
 
+    def to_mermaid(self, direction: str = "LR", show_compensation: bool = True) -> str:
+        """A Mermaid flowchart of the registered participants and their events (#565).
+
+        Each participant is drawn with the event types it handles (marked
+        ``compensable`` when it can undo them) and, for handlers that declared
+        ``emits=``, the events they publish. Completion events are final nodes. See
+        :func:`sagaz.choreography.choreography_mermaid`.
+        """
+        from sagaz.choreography._diagram import choreography_mermaid
+
+        return choreography_mermaid(
+            self._sagas.values(),
+            completion_events=self._completion_events,
+            direction=direction,
+            show_compensation=show_compensation,
+        )
+
+    def to_mermaid_markdown(self, direction: str = "LR", show_compensation: bool = True) -> str:
+        """:meth:`to_mermaid`, in a fenced ``mermaid`` block."""
+        return f"```mermaid\n{self.to_mermaid(direction, show_compensation)}\n```"
+
     @property
     def is_running(self) -> bool:
         return self._running
