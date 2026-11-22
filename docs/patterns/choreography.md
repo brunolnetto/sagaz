@@ -74,6 +74,13 @@ engine.register(orders)
 await orders.begin("order.created", {"order_id": "o-1", "amount": 40}, tenant="acme")
 ```
 
+Give your own `correlation_id` (a request id, an order id) to make `begin` safe to
+retry: a correlation id runs once per tenant, as a saga id does with `Saga.run`. A
+second `begin` with it raises `SagaAlreadyExistsError` before anything is published;
+`allow_rerun=True` starts the transaction anyway. The record is kept with the
+participant state's handled deliveries, so it lasts as long as they do (see `prune`).
+Participant names starting with `__sagaz_` are reserved.
+
 ### Without a subclass
 
 The same participants can be built with `on()`, the counterpart of `Saga.add_step()` for

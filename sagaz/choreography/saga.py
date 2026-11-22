@@ -26,7 +26,12 @@ from sagaz.choreography.decorators import (
 )
 from sagaz.choreography.events import Event
 from sagaz.choreography.state import InMemoryParticipantState, ParticipantState
-from sagaz.core.exceptions import SagaDefinitionError
+from sagaz.core.exceptions import SagaAlreadyExistsError, SagaDefinitionError
+from sagaz.core.storage._reserved import RESERVED_SAGA_PREFIX
+
+#: The participant name under which ``begin`` records a correlation id it started, in
+#: the participant state's delivery records (#562). Reserved: no participant uses it.
+BEGIN_RECORD = f"{RESERVED_SAGA_PREFIX}begin"
 
 if TYPE_CHECKING:
     from sagaz.core.tenant import TenantContext
@@ -68,6 +73,9 @@ class ChoreographedSaga:
 
         self.saga_id: str = saga_id or str(uuid4())
         self.name: str = name or type(self).__name__
+        if self.name.startswith(RESERVED_SAGA_PREFIX):
+            msg = f"participant names starting with {RESERVED_SAGA_PREFIX!r} are reserved"
+            raise SagaDefinitionError(msg)
         self._events_handled: list[Event] = []
         self._handlers: dict[str, Any] = {}  # event_type → bound method
         self._compensators: dict[str, Any] = {}  # event_type → bound undo method
@@ -258,8 +266,16 @@ class ChoreographedSaga:
         tenant: TenantContext | str | None = None,
         deadline: timedelta | float | None = None,
         tenant_id: str | None = None,
+        allow_rerun: bool = False,
     ) -> Event:
         """Start a new transaction by publishing its first event.
+
+        A *correlation_id* runs once per tenant (#562), as a saga id does for
+        ``Saga.run``: a second ``begin`` with it raises ``SagaAlreadyExistsError``
+        before anything is published, so a retried request does not start the
+        transaction (and its effects) again. ``allow_rerun=True`` starts it anyway.
+        A generated correlation id is new, so it is not checked. The record lives
+        with the participant state's handled deliveries, and is pruned with them.
 
         The event gets a new correlation id (or *correlation_id*), the given
         *tenant*, a ``TenantContext`` or a tenant id (default: the current tenant
@@ -272,12 +288,7 @@ class ChoreographedSaga:
         """
         from uuid import uuid4
 
-        from sagaz.core.tenant import (
-            TenantContext,
-            current_tenant_id,
-            tenant_argument,
-            tenant_scope,
-        )
+        from sagaz.core.tenant import TenantContext, current_tenant_id, tenant_argument
 
         given = tenant_argument(f"{type(self).__name__}.begin", tenant, tenant_id=tenant_id)
         if self._publish is None:
@@ -291,15 +302,33 @@ class ChoreographedSaga:
             or current_tenant_id(),
             source=self.name,
         )
+        if correlation_id is not None and not allow_rerun:
+            await self._claim_correlation_id(event)
         if deadline is not None:
-            seconds = deadline.total_seconds() if isinstance(deadline, timedelta) else deadline
-            due_at = datetime.now(UTC) + timedelta(seconds=seconds)
-            with tenant_scope(event.tenant_id):  # set before the transaction can finish
-                await self._state.set_deadline(self.name, event.saga_id or "", due_at)
-            if self._watch_deadlines is not None:
-                self._watch_deadlines()
+            await self._set_deadline(event, deadline)
         await self._state.publish(self.name, event, self._publish, begin=True)
         return event
+
+    async def _claim_correlation_id(self, event: Event) -> None:
+        """Record *event*'s correlation id as started; raise if it already was (#562)."""
+        from sagaz.core.tenant import tenant_scope
+
+        correlation_id = event.saga_id or ""
+        with tenant_scope(event.tenant_id):
+            first = await self._state.first_delivery(BEGIN_RECORD, correlation_id)
+        if not first:
+            raise SagaAlreadyExistsError(correlation_id)
+
+    async def _set_deadline(self, event: Event, deadline: timedelta | float) -> None:
+        """Make this participant own *event*'s transaction deadline (#449)."""
+        from sagaz.core.tenant import tenant_scope
+
+        seconds = deadline.total_seconds() if isinstance(deadline, timedelta) else deadline
+        due_at = datetime.now(UTC) + timedelta(seconds=seconds)
+        with tenant_scope(event.tenant_id):  # set before the transaction can finish
+            await self._state.set_deadline(self.name, event.saga_id or "", due_at)
+        if self._watch_deadlines is not None:
+            self._watch_deadlines()
 
     async def compensate_transaction(
         self,
