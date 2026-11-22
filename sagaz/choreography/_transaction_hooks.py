@@ -9,13 +9,23 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import Any, Protocol
 
 from sagaz.choreography._observe import Listeners, notify
 from sagaz.choreography._status import COMPLETED, FAILED, RECORD_NAME, ROLLED_BACK
 
-if TYPE_CHECKING:
-    from sagaz.choreography.tracker import TransactionStatus
+
+class TransactionStatus(Protocol):
+    """What the hooks read of a ``tracker.TransactionStatus`` (no import: no cycle)."""
+
+    correlation_id: str
+    tenant_id: str
+    status: str
+    participants: list[str]
+    failure: dict[str, Any] | None
+
+    def initiators(self) -> list[str]: ...
+
 
 #: Transactions remembered as announced, so that a redelivered first event is not.
 ANNOUNCED_LIMIT = 10_000
