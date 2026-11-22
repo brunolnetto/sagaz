@@ -47,6 +47,18 @@ class SagaLogStore(ABC):
     async def claim_delivery(self, participant: str, event_id: str) -> bool:
         """Record that *participant* consumed *event_id*: True the first time only."""
 
+    async def lease_delivery(self, participant: str, event_id: str, lease: timedelta) -> bool:
+        """Reserve *event_id* for *participant* for *lease* while it is handled (#561).
+
+        True if it was never seen or an earlier reservation expired; False if it
+        is reserved or finished. This default never expires a reservation: it is
+        :meth:`claim_delivery` (at most once).
+        """
+        return await self.claim_delivery(participant, event_id)
+
+    async def finish_delivery(self, participant: str, event_id: str) -> None:
+        """Mark *event_id* consumed by *participant* for good."""
+
     @abstractmethod
     async def save_snapshot(self, snapshot: Snapshot) -> None:
         """Store *snapshot* (replacing one at the same sequence and kind)."""

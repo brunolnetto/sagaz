@@ -33,7 +33,8 @@ CREATE TABLE IF NOT EXISTS saga_snapshot (
 );
 CREATE TABLE IF NOT EXISTS saga_delivery (
     tenant_id TEXT NOT NULL, participant TEXT NOT NULL, event_id TEXT NOT NULL,
-    consumed_at TEXT NOT NULL, PRIMARY KEY (tenant_id, participant, event_id)
+    consumed_at TEXT NOT NULL, claimed_until TEXT,
+    PRIMARY KEY (tenant_id, participant, event_id)
 );
 CREATE TABLE IF NOT EXISTS saga_deadline (
     tenant_id TEXT NOT NULL, transaction_id TEXT NOT NULL, owner TEXT NOT NULL,

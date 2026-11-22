@@ -65,8 +65,10 @@ CREATE TABLE IF NOT EXISTS choreography_deliveries (
     participant TEXT        NOT NULL,
     event_id    TEXT        NOT NULL,
     handled_at  TIMESTAMPTZ NOT NULL,
+    claimed_until TIMESTAMPTZ,
     PRIMARY KEY (tenant_id, participant, event_id)
 );
+ALTER TABLE choreography_deliveries ADD COLUMN IF NOT EXISTS claimed_until TIMESTAMPTZ;
 {tenant_isolation_sql("choreography_actions")}
 {tenant_isolation_sql("choreography_transactions")}
 {tenant_isolation_sql("choreography_deliveries")}
@@ -76,6 +78,23 @@ CREATE TABLE IF NOT EXISTS choreography_deliveries (
 # Serializes record_action and finish of one transaction, so an action is
 # never recorded after the transaction ended.
 _TX_LOCK = "SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2 || '/' || $3))"
+
+# A delivery being handled is reserved until claimed_until; NULL means handled
+# for good (every row written before #561). The claim takes the row only if it
+# is new or its reservation expired; the row lock of ON CONFLICT makes it atomic.
+_CLAIM = (
+    "INSERT INTO choreography_deliveries"
+    " (tenant_id, participant, event_id, handled_at, claimed_until) VALUES ($1, $2, $3, $4, $5)"
+    " ON CONFLICT (tenant_id, participant, event_id) DO UPDATE SET"
+    " handled_at = EXCLUDED.handled_at, claimed_until = EXCLUDED.claimed_until"
+    " WHERE choreography_deliveries.claimed_until <= $4 RETURNING 1"
+)
+_FINISH = (
+    "INSERT INTO choreography_deliveries"
+    " (tenant_id, participant, event_id, handled_at, claimed_until) VALUES ($1, $2, $3, $4, NULL)"
+    " ON CONFLICT (tenant_id, participant, event_id) DO UPDATE SET"
+    " handled_at = EXCLUDED.handled_at, claimed_until = NULL"
+)
 
 
 def _json(value: Any) -> Any:
@@ -200,6 +219,20 @@ class PostgreSQLParticipantState(ParticipantState):
                 datetime.now(UTC),
             )
         return bool(status == "INSERT 0 1")
+
+    async def claim_delivery(self, participant: str, event_id: str, lease: timedelta) -> bool:
+        now = datetime.now(UTC)
+        pool = await self._get_pool()
+        async with acquire_scoped(pool) as conn:
+            claimed = await conn.fetchval(
+                _CLAIM, write_tenant(), participant, event_id, now, now + lease
+            )
+        return claimed is not None
+
+    async def finish_delivery(self, participant: str, event_id: str) -> None:
+        pool = await self._get_pool()
+        async with acquire_scoped(pool) as conn:
+            await conn.execute(_FINISH, write_tenant(), participant, event_id, datetime.now(UTC))
 
     async def set_deadline(self, participant: str, correlation_id: str, due_at: datetime) -> None:
         tenant = write_tenant()

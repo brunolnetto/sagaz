@@ -69,7 +69,8 @@ class InMemorySagaLogStore(SagaLogStore):
         self._cursors: dict[str, str] = {}
         self._snapshots: dict[tuple[str, str, str], dict[int, Snapshot]] = {}
         self._participants: dict[Key, Participant] = {}
-        self._deliveries: set[tuple[str, str, str]] = set()
+        self._deliveries: set[tuple[str, str, str]] = set()  # consumed for good
+        self._leases: dict[tuple[str, str, str], datetime] = {}  # reserved until (#561)
         self._deadlines: dict[tuple[str, str, str], Deadline] = {}
         self._lock = asyncio.Lock()
         from sagaz.core.storage.backends.memory.outbox import InMemoryOutboxStorage
@@ -173,10 +174,23 @@ class InMemorySagaLogStore(SagaLogStore):
 
     async def claim_delivery(self, participant: str, event_id: str) -> bool:
         key = (write_tenant(), participant, event_id)
-        if key in self._deliveries:
+        if key in self._deliveries or key in self._leases:
             return False
         self._deliveries.add(key)
         return True
+
+    async def lease_delivery(self, participant: str, event_id: str, lease: timedelta) -> bool:
+        key = (write_tenant(), participant, event_id)
+        now = datetime.now(UTC)
+        if key in self._deliveries or self._leases.get(key, now) > now:
+            return False
+        self._leases[key] = now + lease
+        return True
+
+    async def finish_delivery(self, participant: str, event_id: str) -> None:
+        key = (write_tenant(), participant, event_id)
+        self._leases.pop(key, None)
+        self._deliveries.add(key)
 
     async def save_snapshot(self, snapshot: Snapshot) -> None:
         tenant = write_tenant()

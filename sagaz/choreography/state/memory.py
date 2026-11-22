@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from collections.abc import Collection
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from sagaz.choreography.events import Event
 from sagaz.choreography.state._base import COMPENSATED, COMPLETED, Deadline, ParticipantState
@@ -26,7 +26,9 @@ class InMemoryParticipantState(ParticipantState):
         self.max_deliveries = max_deliveries
         self._actions: OrderedDict[tuple[str, str, str], list[Event]] = OrderedDict()
         self._ended: OrderedDict[tuple[str, str, str], str] = OrderedDict()
-        self._seen: OrderedDict[tuple[str, str, str], None] = OrderedDict()
+        self._seen: OrderedDict[tuple[str, str, str], None] = OrderedDict()  # done for good
+        # key -> reserved until (a delivery being handled, #561)
+        self._leases: OrderedDict[tuple[str, str, str], datetime] = OrderedDict()
         # key -> (due_at, claimed_until)
         self._deadlines: dict[tuple[str, str, str], tuple[datetime, datetime | None]] = {}
 
@@ -58,10 +60,23 @@ class InMemoryParticipantState(ParticipantState):
 
     async def first_delivery(self, participant: str, event_id: str) -> bool:
         key = self._key(participant, event_id)
-        if key in self._seen:
+        if key in self._seen or key in self._leases:
             return False
         _bounded_set(self._seen, key, None, self.max_deliveries)
         return True
+
+    async def claim_delivery(self, participant: str, event_id: str, lease: timedelta) -> bool:
+        key = self._key(participant, event_id)
+        now = datetime.now(UTC)
+        if key in self._seen or self._leases.get(key, now) > now:
+            return False
+        _bounded_set(self._leases, key, now + lease, self.max_deliveries)
+        return True
+
+    async def finish_delivery(self, participant: str, event_id: str) -> None:
+        key = self._key(participant, event_id)
+        self._leases.pop(key, None)
+        _bounded_set(self._seen, key, None, self.max_deliveries)
 
     async def set_deadline(self, participant: str, correlation_id: str, due_at: datetime) -> None:
         key = self._key(participant, correlation_id)

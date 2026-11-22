@@ -64,6 +64,13 @@ class ChoreographyEngine:
         ``retry_backoff_base * 2**n`` seconds between attempts (#561), as an
         orchestrated step does. Since 2.6.0; before, a handler ran once. A handler
         with a non-idempotent external effect should set ``max_retries=0``.
+    delivery_lease:
+        How long a delivery stays reserved while its handler runs (seconds, #561).
+        If the process dies meanwhile, the broker's redelivery is handled once
+        the reservation expired; a duplicate arriving before is dropped. Default
+        ``None``: long enough for all the handler's attempts (``(max_retries + 1)
+        * timeout`` plus the backoffs and a minute), or an hour for a handler
+        without a timeout. When given, it is the reservation of every delivery.
 
     Each delivery is deduplicated by ``event_id`` and runs in the event's tenant
     scope. If a handler still raises after its retries, the engine publishes a
@@ -100,6 +107,7 @@ class ChoreographyEngine:
         relay_interval: float = 0.1,
         default_max_retries: int = DEFAULT_MAX_RETRIES,
         default_timeout: float | None = DEFAULT_TIMEOUT,
+        delivery_lease: float | None = None,
         retry_backoff_base: float = DEFAULT_RETRY_BACKOFF_BASE,
     ) -> None:
         self._bus = bus
@@ -120,7 +128,7 @@ class ChoreographyEngine:
         self._dispatcher = Dispatcher(
             bus.publish,
             self._completion_events,
-            RetryDefaults(default_max_retries, default_timeout, retry_backoff_base),
+            RetryDefaults(default_max_retries, default_timeout, retry_backoff_base, delivery_lease),
         )
         self._sagas: dict[str, ChoreographedSaga] = {}
         self._running = False

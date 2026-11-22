@@ -10,6 +10,7 @@ import logging
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 from sagaz.choreography._attempts import (
@@ -64,20 +65,43 @@ def _count(participant: str, event_type: str, outcome: str) -> None:
         CHOREOGRAPHY_EVENTS.labels(participant, event_type, outcome).inc()
 
 
+#: Added to the time all attempts of a handler may take, for its delivery's lease.
+LEASE_MARGIN = 60.0
+#: The lease of a delivery whose handler has no timeout.
+UNBOUNDED_LEASE = 3600.0
+
+
 @dataclass(frozen=True)
 class RetryDefaults:
-    """The engine's retry settings for handlers that do not set their own (#561)."""
+    """The engine's retry settings for handlers that do not set their own (#561).
+
+    *delivery_lease*, when set, is the reservation of every delivery (seconds);
+    otherwise :meth:`lease` derives it from the handler's retries and timeout.
+    """
 
     max_retries: int = DEFAULT_MAX_RETRIES
     timeout_seconds: float | None = DEFAULT_TIMEOUT
     retry_backoff_base: float = DEFAULT_RETRY_BACKOFF_BASE
+    delivery_lease: float | None = None
+
+    def lease(self, max_retries: int, timeout_seconds: float | None) -> timedelta:
+        """How long a delivery stays reserved: long enough for all its attempts."""
+        if self.delivery_lease is not None:
+            return timedelta(seconds=self.delivery_lease)
+        if timeout_seconds is None:
+            return timedelta(seconds=UNBOUNDED_LEASE)
+        backoffs = sum(self.retry_backoff_base * 2**n for n in range(max_retries))
+        return timedelta(seconds=(max_retries + 1) * timeout_seconds + backoffs + LEASE_MARGIN)
 
 
 class Dispatcher:
-    """Delivers one event to one participant, at most once per ``event_id``.
+    """Delivers one event to one participant, once per ``event_id``.
 
-    Deduplication, completed actions and tombstones live in the participant's
-    state (#448), in the event's tenant scope.
+    A delivery is reserved while it is handled (a lease, #561): a duplicate
+    arriving meanwhile is dropped, and a redelivery after a crash is handled
+    once the reservation expired. When handled (or its failure reported), it
+    is done for good. Deduplication, completed actions and tombstones live in
+    the participant's state (#448), in the event's tenant scope.
     """
 
     def __init__(
@@ -94,15 +118,31 @@ class Dispatcher:
         with tenant_scope(event.tenant_id):
             await self._dispatch(saga, event)
 
+    def _policy(self, saga: ChoreographedSaga, event: Event) -> tuple[int, float | None]:
+        """The handler's ``(max_retries, timeout_seconds)``, the engine's where unset."""
+        max_retries, timeout_seconds = saga.retry_policy(event.event_type)
+        return (
+            self._defaults.max_retries if max_retries is None else max_retries,
+            self._defaults.timeout_seconds if timeout_seconds is None else timeout_seconds,
+        )
+
     async def _dispatch(self, saga: ChoreographedSaga, event: Event) -> None:
-        if not await saga._state.first_delivery(saga.name, event.event_id):
+        if event.event_type == COMPENSATE:
+            lease = self._defaults.lease(self._defaults.max_retries, self._defaults.timeout_seconds)
+        else:
+            lease = self._defaults.lease(*self._policy(saga, event))
+        if not await saga._state.claim_delivery(saga.name, event.event_id, lease):
             _count(saga.name, event.event_type, "duplicate")
             return
+        # Every path below finishes the delivery; only a crash (or cancellation)
+        # leaves the reservation to expire, so that a redelivery is handled.
         if event.event_type == COMPENSATE:
             await self._compensate(saga, event)
+            await saga._state.finish_delivery(saga.name, event.event_id)
             return
         if saga.handles(event.event_type) and not await self._after_compensation(saga, event):
-            await self._handle(saga, event)
+            await self._handle(saga, event)  # raises only if its failure was not reported
+        await saga._state.finish_delivery(saga.name, event.event_id)
         if event.event_type in self._completion_events and event.saga_id:
             await saga.forget(event.saga_id)
 
@@ -128,16 +168,12 @@ class Dispatcher:
         token = current_cause.set(event)
         started = time.perf_counter()
         try:
-            max_retries, timeout_seconds = saga.retry_policy(event.event_type)
+            max_retries, timeout_seconds = self._policy(saga, event)
             with tenant_scope(event.tenant_id):
                 await saga._run(
                     event,
-                    max_retries=self._defaults.max_retries if max_retries is None else max_retries,
-                    timeout_seconds=(
-                        self._defaults.timeout_seconds
-                        if timeout_seconds is None
-                        else timeout_seconds
-                    ),
+                    max_retries=max_retries,
+                    timeout_seconds=timeout_seconds,
                     retry_backoff_base=self._defaults.retry_backoff_base,
                 )
         except Exception as error:
