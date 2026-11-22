@@ -10,7 +10,7 @@ choreographed (participants react to events). Each cell is backed by a test
 | Mode | What | Definition styles |
 |---|---|---|
 | **Orchestrated** | `sagaz.Saga`: a coordinator runs the steps and compensates them | declarative (`@action`/`@compensate`) and imperative (`add_step()`): same engine, same behavior |
-| **Choreographed** | `sagaz.choreography`: participants react to events, no coordinator | declarative only (`@on_event`); imperative in [#560] |
+| **Choreographed** | `sagaz.choreography`: participants react to events, no coordinator | declarative (`@on_event`/`@compensate`) and imperative (`on()`): same engine, same behavior |
 
 Legend: ✅ supported · ⚠️ partial · ❌ missing · — does not apply to the mode.
 
@@ -18,7 +18,7 @@ Legend: ✅ supported · ⚠️ partial · ❌ missing · — does not apply to 
 
 | Feature | Orchestrated | Choreographed |
 |---|---|---|
-| Step / handler definition | ✅ `tests/unit/core/test_decorators.py::TestSaga::test_collect_compensations` | ✅ `tests/unit/test_choreography.py::TestChoreographyEngine::test_duplicate_event_type_logs_warning` |
+| Step / handler definition | ✅ `tests/unit/core/test_decorators.py::TestSaga::test_collect_compensations` | ✅ `tests/unit/test_choreography.py::TestChoreographyEngine::test_duplicate_event_type_is_a_definition_error` |
 | Dependencies and parallel steps | ✅ steps without `depends_on` run in parallel `tests/unit/core/test_decorators.py::TestSaga::test_run_parallel_execution` | — the event topology is the graph |
 | Parallel failure strategy | ⚠️ waits for every step of the level; `failure_strategy` unused ([#567]) | — |
 | Step retries | ✅ `tests/unit/core/test_declarative_retries.py::test_a_step_is_attempted_max_retries_plus_one_times` | ❌ a handler runs once ([#561]) |
@@ -32,7 +32,7 @@ Legend: ✅ supported · ⚠️ partial · ❌ missing · — does not apply to 
 | A saga id runs once | ✅ `tests/unit/core/test_saga_durability.py::TestSagaIdRunsOnce::test_a_second_run_is_refused_before_any_step` | ❌ ([#562]) |
 | Idempotency per step / delivery | ❌ ([#569]) | ✅ per `event_id` `tests/unit/test_choreography_compensation.py::TestIdempotency::test_redelivered_events_are_handled_once` |
 | Whole-transaction deadline | ❌ ([#568]) | ✅ `tests/unit/test_choreography_deadlines.py::TestExpiry::test_an_expired_deadline_compensates_once` |
-| Definition checks | ✅ `tests/unit/core/test_failure_contract.py::TestDefinitionErrors::test_a_cycle_shows_its_path` | ⚠️ duplicate handler only warns ([#560]) |
+| Definition checks | ✅ `tests/unit/core/test_failure_contract.py::TestDefinitionErrors::test_a_cycle_shows_its_path` | ✅ duplicate handlers, mixed styles `tests/unit/test_choreography_imperative.py::test_two_handlers_for_one_event_type_are_a_definition_error` |
 | Dry run / `sagaz validate` | ✅ `tests/unit/cli/test_dry_run.py::TestValidationMode::test_validate_detects_cycles` | ❌ |
 | Compensation resume | ✅ `tests/unit/core/test_statechart_phase3.py::TestResume::test_a_compensation_resumes_from_its_last_checkpoint` | ✅ `tests/unit/test_choreography_state.py::TestAcrossProcesses::test_a_restarted_participant_compensates_earlier_actions` |
 | StateChart | ✅ step chart with pivot/taint states `tests/unit/core/test_statechart_phase3.py::TestDeclarative::test_a_pivot_taints_its_ancestors` | — a status projection, not a chart |

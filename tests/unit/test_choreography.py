@@ -15,6 +15,7 @@ from sagaz.choreography import (
     on_event,
 )
 from sagaz.choreography.decorators import get_event_type
+from sagaz.core.exceptions import SagaDefinitionError
 
 # ---------------------------------------------------------------------------
 # Event
@@ -471,11 +472,8 @@ class TestChoreographyEngine:
         engine = ChoreographyEngine(bus)
         engine.unregister("does-not-exist")  # must not raise
 
-    def test_duplicate_event_type_logs_warning(self):
-        """Two @on_event handlers for the same event type trigger a warning."""
-        import logging
-
-        import sagaz.choreography.saga as saga_mod
+    def test_duplicate_event_type_is_a_definition_error(self):
+        """Two @on_event handlers for the same event type are a definition error (#560)."""
 
         class DuplicateSaga(ChoreographedSaga):
             @on_event("same.event")
@@ -486,18 +484,6 @@ class TestChoreographyEngine:
             async def handler_two(self, event: Event) -> None:
                 pass
 
-        records: list[logging.LogRecord] = []
-
-        class _Capture(logging.Handler):
-            def emit(self, record: logging.LogRecord) -> None:
-                records.append(record)
-
-        cap = _Capture()
-        saga_mod.logger.addHandler(cap)
-        try:
+        # Since #560, a definition error instead of a "last one wins" warning.
+        with pytest.raises(SagaDefinitionError, match="two handlers for event type 'same.event'"):
             DuplicateSaga(saga_id="dup-1")
-        finally:
-            saga_mod.logger.removeHandler(cap)
-
-        warning_records = [r for r in records if r.levelno == logging.WARNING]
-        assert any("multiple handlers" in r.getMessage() for r in warning_records)
