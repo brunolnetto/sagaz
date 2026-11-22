@@ -57,7 +57,7 @@ Legend: ✅ supported · ⚠️ partial · ❌ missing · — does not apply to 
 | Prometheus metrics | ✅ `tests/unit/test_small_dx_fixes.py::test_two_prometheus_metrics_in_their_own_registries` | ✅ built in `tests/unit/test_choreography_compensation.py::TestCompensation::test_a_failing_participant_triggers_compensation_of_the_others` |
 | OpenTelemetry tracing | ✅ `tests/unit/core/test_orchestrated_bug_fixes.py::TestTracingStatus::test_failed_compensation_is_traced` | ✅ one trace per transaction `tests/unit/test_choreography_observability.py::TestTracing::test_a_transaction_is_one_trace` |
 | Analytics pipeline | ✅ `tests/unit/analytics/test_storage_pipeline.py` | ✅ `tests/unit/analytics/test_choreography_analytics.py::TestPipeline::test_summary_per_flow` |
-| Mermaid diagram | ✅ `tests/unit/core/test_mermaid.py` | ❌ ([#565]) |
+| Mermaid diagram | ✅ `tests/unit/core/test_mermaid.py` | ✅ from declared `emits=` `tests/unit/test_choreography_diagram.py::TestTheGraph::test_events_flow_through_the_participants_that_handle_and_emit_them` |
 | Gradio monitor | ✅ `tests/unit/visualization/test_gradio_monitor.py` | ✅ causation graph `tests/unit/visualization/test_gradio_monitor.py` |
 | `sagaz saga show` | ✅ `tests/unit/test_small_dx_fixes.py::test_saga_show` | ⚠️ tracker records only |
 | `sagaz event-log` | ✅ `tests/unit/cli/test_cli_event_log.py::test_timeline` | ✅ `tests/unit/test_choreography_unified.py::test_event_log_reads_a_choreographed_transaction`; also `sagaz choreography status` |

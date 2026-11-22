@@ -333,6 +333,61 @@ sagaz choreography status <correlation-id> --events      # every event seen
 sagaz choreography status <correlation-id> --json
 ```
 
+## Diagram
+
+`engine.to_mermaid()` draws the registered participants as a Mermaid flowchart, as
+`to_mermaid()` does for an orchestrated saga. `to_mermaid_markdown()` wraps it in a
+fenced block, and `choreography_mermaid(participants, completion_events=...)` draws
+participants without an engine.
+
+The graph has these nodes and edges:
+- **Handling:** an edge from each event type to the participants that handle it, marked
+  `compensable` when the participant can undo it.
+- **Emitting:** an edge from a participant to each event type its handler declared it
+  emits.
+- **Completion:** completion events are final nodes.
+- **Compensation:** `choreography.compensate` reaches every participant that can undo
+  something (`show_compensation=False` hides it).
+
+What a handler emits is only known at run time unless it is declared, with `emits=`:
+
+```python
+inventory.on("order.created", reserve, release, emits={"stock.reserved"})
+
+@on_event("stock.reserved", emits={"order.completed"})
+async def pay(self, event): ...
+```
+
+A handler without `emits=` is drawn with the note `emits undeclared on <event>`. Once
+every handler declared what it emits, the events nobody emits are drawn as entry
+points. A handler that emits a type it did not declare still publishes it, and the
+participant logs a warning, because the diagram is then wrong.
+
+```mermaid
+flowchart LR
+    e0((("order.completed"))):::completion
+    e1(["order.created"]):::entry
+    e2(["stock.reserved"]):::event
+    p0["inventory"]:::participant
+    p1["orders"]:::participant
+    p2["payments"]:::participant
+    e1 -->|"compensable"| p0
+    p0 --> e2
+    e2 --> p2
+    p2 --> e0
+    compensate(["choreography.compensate"]):::compensate
+    compensate -.->|"undo order.created"| p0
+    classDef participant fill:#e8f0fe,stroke:#4a6fa5,color:#1a2b4a
+    classDef event fill:#f6f8fa,stroke:#8c959f,color:#24292f
+    classDef entry fill:#e6f4ea,stroke:#2e7d32,color:#1b4d20
+    classDef completion fill:#e6f4ea,stroke:#2e7d32,stroke-width:3px,color:#1b4d20
+    classDef compensate fill:#fff4e5,stroke:#b26a00,color:#5c3700
+    classDef undeclared stroke-dasharray:4 3
+```
+
+The diagram shows one engine's participants. A choreography spread across services is
+drawn whole from its shared definition and map ([#626], [#627], in 2.7.0).
+
 ## Analytics
 
 With `sagaz[analytics]`, the analytics pipeline reads the tracker's records from the
@@ -432,3 +487,5 @@ a p99 of 0.07 ms per delivery, including deduplication, tenant scoping and metri
 real broker, the broker's own latency dominates.
 
 [#628]: https://github.com/brunolnetto/sagaz/issues/628
+[#626]: https://github.com/brunolnetto/sagaz/issues/626
+[#627]: https://github.com/brunolnetto/sagaz/issues/627

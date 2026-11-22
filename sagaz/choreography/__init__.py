@@ -53,6 +53,7 @@ Selecting a broker at runtime::
 
 from typing import TYPE_CHECKING
 
+from sagaz.choreography._diagram import choreography_mermaid
 from sagaz.choreography.buses import BusBackend, create_event_bus
 from sagaz.choreography.decorators import compensate, on_event
 from sagaz.choreography.engine import ChoreographyEngine
@@ -85,6 +86,7 @@ __all__ = [
     "RedisStreamsBusConfig",
     "RedisStreamsEventBus",
     "TransactionStatus",
+    "choreography_mermaid",
     "compensate",
     "create_event_bus",
     "load_status",

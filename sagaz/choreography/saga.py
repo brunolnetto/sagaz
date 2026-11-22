@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import inspect
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterable
 from contextvars import ContextVar
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
@@ -24,6 +24,7 @@ from sagaz.choreography.decorators import (
     RetryPolicy,
     call_maybe_async,
     get_compensated_event_type,
+    get_emits,
     get_event_type,
     get_retry_policy,
 )
@@ -80,6 +81,7 @@ class ChoreographedSaga:
         self._compensators: dict[str, Any] = {}  # event_type → bound undo method
         self._policies: dict[str, RetryPolicy] = {}  # event_type → (max_retries, timeout)
         self._undo_policies: dict[str, RetryPolicy] = {}  # the same, for compensations
+        self._emits: dict[str, frozenset[str]] = {}  # event_type → what it declared it emits
         # Completed actions, finished and compensated transactions, handled
         # deliveries (#448). In memory unless the engine provides a durable state.
         self._state: ParticipantState = InMemoryParticipantState(self.max_tracked_transactions)
@@ -109,6 +111,8 @@ class ChoreographedSaga:
             if event_type is not None:
                 self._add_handler(event_type, method, _name)
                 self._policies[event_type] = get_retry_policy(method)
+                if (declared := get_emits(method)) is not None:
+                    self._emits[event_type] = declared
                 logger.debug(
                     "%s registered handler %r for %r",
                     self.name,
@@ -130,14 +134,15 @@ class ChoreographedSaga:
         *,
         max_retries: int | None = None,
         timeout_seconds: float | None = None,
+        emits: Iterable[str] | None = None,
     ) -> ChoreographedSaga:
         """Handle *event_type* with *handler*, undone by *compensation* (#560).
 
         The imperative counterpart of ``@on_event`` / ``@compensate``. Both functions
         are called as ``fn(event, participant)``, sync or async; the participant is
         how a handler emits its result (``await participant.emit(...)``). Returns
-        the participant, so calls can be chained. *max_retries* and
-        *timeout_seconds* are those of ``@on_event``.
+        the participant, so calls can be chained. *max_retries*, *timeout_seconds*
+        and *emits* are those of ``@on_event``.
 
         Raises:
             SagaDefinitionError: *event_type* already has a handler, the participant
@@ -156,6 +161,8 @@ class ChoreographedSaga:
 
         self._add_handler(event_type, run, getattr(handler, "__name__", repr(handler)))
         self._policies[event_type] = (max_retries, timeout_seconds)
+        if emits is not None:
+            self._emits[event_type] = frozenset(emits)
         if compensation is not None:
 
             async def undo(event: Event) -> object:
@@ -251,6 +258,11 @@ class ChoreographedSaga:
         cause = current_cause.get()
         if cause is not None:
             event = event.caused_by(cause)
+            declared = self._emits.get(cause.event_type)
+            if declared is not None and event_type not in declared:  # the diagram is wrong
+                logger.warning(
+                    "%s emits undeclared %r on %r", self.name, event_type, cause.event_type
+                )
         # Announcing the result: the local action is done, so it is recorded
         # (atomically with the event on the unified saga log).
         remember = (
@@ -373,6 +385,10 @@ class ChoreographedSaga:
     def events_handled(self) -> list[Event]:
         """All events dispatched to this saga since construction."""
         return list(self._events_handled)
+
+    def emits(self, event_type: str) -> frozenset[str] | None:
+        """What the handler of *event_type* declared it emits (``emits=``), or None."""
+        return self._emits.get(event_type)
 
     def handles(self, event_type: str) -> bool:
         """Return *True* if this saga has a handler for *event_type*."""

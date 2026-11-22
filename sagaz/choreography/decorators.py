@@ -6,18 +6,23 @@ from __future__ import annotations
 
 import functools
 import inspect
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import Any
 
 _HANDLER_ATTR = "_choreography_event_type"
 _POLICY_ATTR = "_choreography_retry_policy"
+_EMITS_ATTR = "_choreography_emits"
 
 #: A handler's ``(max_retries, timeout_seconds)``; ``None`` takes the engine's default.
 RetryPolicy = tuple[int | None, float | None]
 
 
 def on_event(
-    event_type: str, *, max_retries: int | None = None, timeout_seconds: float | None = None
+    event_type: str,
+    *,
+    max_retries: int | None = None,
+    timeout_seconds: float | None = None,
+    emits: Iterable[str] | None = None,
 ) -> Callable:
     """
     Mark an async method as an event handler for *event_type*.
@@ -34,6 +39,10 @@ def on_event(
         backoff (#561). Default: the engine's ``default_max_retries`` (3).
     timeout_seconds:
         Time limit of one attempt. Default: the engine's ``default_timeout`` (60 s).
+    emits:
+        The event types the handler publishes with ``emit()`` (#565). Optional: it
+        draws the handler's edges in ``ChoreographyEngine.to_mermaid()``, and an
+        ``emit()`` of an undeclared type logs a warning.
 
     Example
     -------
@@ -54,6 +63,8 @@ def on_event(
 
         setattr(wrapper, _HANDLER_ATTR, event_type)
         setattr(wrapper, _POLICY_ATTR, (max_retries, timeout_seconds))
+        if emits is not None:
+            setattr(wrapper, _EMITS_ATTR, frozenset(emits))
         return wrapper
 
     return decorator
@@ -62,6 +73,12 @@ def on_event(
 def get_event_type(method: Callable) -> str | None:
     """Return the event type associated with *method*, or *None*."""
     return getattr(method, _HANDLER_ATTR, None)
+
+
+def get_emits(method: Callable) -> frozenset[str] | None:
+    """The event types ``@on_event(emits=...)`` declared for *method*, or *None*."""
+    declared: frozenset[str] | None = getattr(method, _EMITS_ATTR, None)
+    return declared
 
 
 def get_retry_policy(method: Callable) -> RetryPolicy:
