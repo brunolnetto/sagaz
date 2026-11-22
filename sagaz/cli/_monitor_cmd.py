@@ -2,6 +2,8 @@
 
 import click
 
+from sagaz.cli._url_option import RenamedOption
+
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
 _WILDCARD_HOSTS = frozenset({"0.0.0.0", "::"})  # nosec B104 - used to detect wildcard binds
 
@@ -25,7 +27,7 @@ def _url_host(host: str) -> str:
     show_default=True,
     help=(
         "Dashboard backend: web (live runs, ADR-035), grafana, or gradio (persisted "
-        "saga assets from --saga-log or --storage-url, ADR-039; needs sagaz[gradio])."
+        "saga assets from --saga-log-url or --storage-url, ADR-039; needs sagaz[gradio])."
     ),
 )
 @click.option(
@@ -67,8 +69,10 @@ def _url_host(host: str) -> str:
     ),
 )
 @click.option(
+    "--saga-log-url",
     "--saga-log",
     "saga_log",
+    cls=RenamedOption,
     envvar="SAGAZ_SAGA_LOG_URL",
     default=None,
     metavar="URL",
@@ -187,7 +191,7 @@ def _gradio_monitor(
 ) -> None:
     """Serve the Gradio asset monitor (ADR-039) over a saga log or a saga storage."""
     if not saga_log and not storage_url:
-        msg = "the gradio monitor reads --saga-log URL (or --storage-url URL)"
+        msg = "the gradio monitor reads --saga-log-url URL (or --storage-url URL)"
         raise click.UsageError(msg)
     _require_safe_bind(host, unsafe_expose)
     import importlib.util

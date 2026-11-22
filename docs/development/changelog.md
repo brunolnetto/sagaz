@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Every metric is named `sagaz_*` (#572).** `outbox_*` becomes `sagaz_outbox_*`, `consumer_inbox_*` becomes `sagaz_inbox_*`, and `PrometheusMetrics`' default prefix becomes `sagaz_saga` (was `saga`). The old names are still emitted alongside while `SAGAZ_METRICS_OLD_NAMES` is on, the default; set it to `0` once your dashboards use the new names. 3.0 removes them. The dashboards and alert rules in this repository use the new names. See `docs/monitoring/METRICS_COMPATIBILITY.md`.
 
 - **One keyword for the tenant: `tenant=` (#572).** `Saga.run(tenant=)`, `SagaOrchestrator(tenant=)` and `ChoreographedSaga.begin(tenant=)` take a `TenantContext` or a tenant id; `begin()` now accepts a `TenantContext` too. The former names, `run(tenant_context=)`, `SagaOrchestrator(tenant_id=)` and `begin(tenant_id=)`, still work with a `DeprecationWarning` until 3.0; giving both is a `TypeError`.
+- **Data-source options are named `--<thing>-url` (#572).** `--saga-log` becomes `--saga-log-url` (`sagaz analytics export`, `sagaz choreography status`, `sagaz monitor`) and `--store-url` becomes `--event-store-url` (`sagaz event-log`), next to the existing `--storage-url`. The former spellings still work and are no longer shown in `--help`.
 
 ### Fixed
 
