@@ -81,6 +81,18 @@ pytest tests/performance/
 pytest tests/unit/test_core.py::test_saga_execute_success -v
 ```
 
+### Which CI job runs a test
+
+The marker decides, not the directory:
+
+- the **unit job** runs `-m "not integration"`, under the coverage gate;
+- the **integration job** runs `-m integration`, with Docker.
+
+Everything under `tests/integration/` is marked `integration` by its `conftest.py`, so a
+test there never runs in the unit job, even if it forgets the marker. A test elsewhere
+that needs a service (a backend's tests next to its unit tests, for example) marks itself
+with `pytestmark = pytest.mark.integration`.
+
 ---
 
 ## Integration & E2E Tests
