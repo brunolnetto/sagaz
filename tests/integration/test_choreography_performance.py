@@ -212,14 +212,14 @@ async def test_engine_dispatch_throughput() -> None:
 
     dispatched: list[str] = []
     saga = NoopSaga(saga_id="bench-saga")
-    # Override handle to record dispatches.
-    original_handle = saga.handle
+    # Record dispatches: the engine runs handlers through _run (#561).
+    original_run = saga._run
 
-    async def recording_handle(event: Event) -> None:
+    async def recording_run(event: Event, **options: object) -> None:
         dispatched.append(event.event_type)
-        await original_handle(event)
+        await original_run(event, **options)  # type: ignore[arg-type]
 
-    saga.handle = recording_handle  # type: ignore[method-assign]
+    saga._run = recording_run  # type: ignore[method-assign]
 
     engine.register(saga)
     await engine.start()
