@@ -45,6 +45,7 @@ class OrderSaga(Saga):
 | `default_max_retries` | `int` | `3` | Default retry count for failed steps |
 | `failure_strategy` | `str` | `"FAIL_FAST_WITH_GRACE"` | Parallel failure strategy |
 | `extra_listeners` | `list` | `[]` | Listeners added to the logging, metrics, tracing and outbox ones (a saga class's `listeners` attribute replaces them all instead; `saga.add_listener()` adds to one saga) |
+| `listener_timeout` | `float \| None` | `5.0` | Seconds an async listener call may take before it is cancelled, logged and skipped; `None` waits as long as it takes |
 | `tolerate_persistence_errors` | `bool` | `False` | `False`: a failure to save the saga state raises `SagaPersistenceError` (the saga stops and compensates what ran). `True`: log it and go on |
 
 ---
@@ -226,6 +227,14 @@ config = SagaConfig(
     tracing=False,
 )
 ```
+
+Listeners run on the hot path: each step waits for them. A listener that raises is
+logged and ignored, and an async listener call that takes longer than
+`listener_timeout` seconds (default 5) is cancelled, logged and skipped, so a slow
+listener cannot hold up the saga. Keep listeners quick and hand slow work (an HTTP
+call, a write to another system) to a queue of your own. `listener_timeout=None` waits
+as long as each call takes. A synchronous listener cannot be interrupted.
+Choreography applies the same bound (`ChoreographyEngine(listener_timeout=...)`).
 
 ---
 

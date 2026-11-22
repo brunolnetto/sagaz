@@ -103,6 +103,10 @@ class SagaConfig:
     # class's ``listeners`` attribute replaces them all instead.
     extra_listeners: list[Any] = field(default_factory=list)
 
+    # Seconds an async listener call may take before it is cancelled, logged and
+    # skipped (#633): listeners run on the hot path. None waits as long as it takes.
+    listener_timeout: float | None = 5.0
+
     # StateChart phase 2 (ADR-040, #190): imperative sagas run on a chart with one
     # region per step, whose configuration says where every step is. Off by default.
     use_step_statechart: bool = False
