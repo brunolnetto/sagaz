@@ -66,6 +66,7 @@ _FIELD_DATA = b"data"
 _FIELD_EVENT_ID = b"event_id"
 _FIELD_SAGA_ID = b"saga_id"
 _FIELD_CREATED_AT = b"created_at"
+_FIELD_ENVELOPE = b"envelope"
 
 _LAST_DELIVERED = ">"  # consume only new messages per consumer group
 
@@ -93,6 +94,14 @@ class RedisStreamsBusConfig:
         Maximum stream length; older entries are trimmed automatically.
     read_count:
         Number of messages to fetch per ``XREADGROUP`` call.
+    serializer:
+        How events are encoded (#566): one field per event attribute when ``None``,
+        else an ``EventSerializer`` such as
+        ``SchemaRegistrySerializer(envelope="choreography")``. It encodes the whole
+        event (``event.to_dict()``) under the stream name as topic into an
+        ``envelope`` field, next to plain ``event_type`` and ``saga_id`` fields for
+        inspection. Entries without ``envelope`` are still read, so a stream can
+        switch with entries in flight.
     """
 
     url: str = "redis://localhost:6379/0"
@@ -102,6 +111,7 @@ class RedisStreamsBusConfig:
     block_timeout_ms: int = 1000
     max_stream_length: int = 50_000
     read_count: int = 100
+    serializer: Any = None
 
     @classmethod
     def from_env(cls) -> RedisStreamsBusConfig:
@@ -252,7 +262,7 @@ class RedisStreamsEventBus(AbstractEventBus):
         if self._client is None:
             msg = "Call start() before publish()"
             raise RuntimeError(msg)
-        fields = _event_to_fields(event)
+        fields = await self._encode(event)
         await self._client.xadd(
             self._config.stream_name,
             fields,
@@ -261,6 +271,30 @@ class RedisStreamsEventBus(AbstractEventBus):
         )
         self._published.append(event)
         logger.debug("Published %r to stream %s", event, self._config.stream_name)
+
+    async def _encode(self, event: Event) -> dict[str, str | bytes]:
+        """*event* as stream fields: one per attribute, or a serializer's envelope."""
+        serializer = self._config.serializer
+        if serializer is None:
+            return dict(_event_to_fields(event))
+        topic = self._config.stream_name
+        envelope: bytes = await serializer.serialize(topic, event.to_dict(), event.event_type)
+        return {
+            "envelope": envelope,
+            "event_type": event.event_type,
+            "saga_id": event.saga_id or "",
+        }
+
+    async def _decode(self, fields: dict[bytes, bytes]) -> Event:
+        """The event in *fields*; entries without an envelope use the field mapping."""
+        envelope = fields.get(_FIELD_ENVELOPE)
+        if envelope is None:
+            return _fields_to_event(fields)
+        serializer = self._config.serializer
+        if serializer is None:
+            msg = "an encoded envelope needs RedisStreamsBusConfig(serializer=...) to be read"
+            raise ValueError(msg)
+        return Event.from_dict(await serializer.deserialize(self._config.stream_name, envelope))
 
     # ------------------------------------------------------------------
     # Reader loop (internal)
@@ -296,7 +330,7 @@ class RedisStreamsEventBus(AbstractEventBus):
     async def _dispatch(self, fields: dict[bytes, bytes]) -> None:
         """Deserialise one stream message and invoke matching handlers."""
         try:
-            event = _fields_to_event(fields)
+            event = await self._decode(fields)
         except Exception:
             logger.exception("Failed to deserialise event fields: %s", fields)
             return
