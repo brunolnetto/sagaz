@@ -50,7 +50,7 @@ scripts/lakehouse/lakehouse.sh fetch && scripts/lakehouse/lakehouse.sh start
 scripts/lakehouse/lakehouse.sh tiering
 
 pip install 'sagaz[fluss]'   # pyfluss: wheels up to Python 3.12
-sagaz analytics export --saga-log postgresql://... --to fluss://localhost:9123 --freshness 30s
+sagaz analytics export --saga-log-url postgresql://... --to fluss://localhost:9123 --freshness 30s
 ```
 
 The exporter keeps its position in the log's `saga_export_cursor` table, so a
@@ -63,7 +63,7 @@ It needs `pip install 'sagaz[cdc]'`, `wal_level = logical` and a role with
 `REPLICATION`:
 
 ```bash
-sagaz analytics export --saga-log postgresql://... --to fluss://localhost:9123 --cdc
+sagaz analytics export --saga-log-url postgresql://... --to fluss://localhost:9123 --cdc
 ```
 
 - **Order and timing:** changes arrive in commit order, as soon as their transaction
@@ -89,7 +89,7 @@ cd sagaz/deployment/resources/local/lakehouse
 ./fetch-jars.sh && docker compose up -d
 docker compose exec jobmanager /opt/flink/tiering.sh
 
-sagaz analytics export --saga-log ... --to fluss://localhost:9124
+sagaz analytics export --saga-log-url ... --to fluss://localhost:9124
 sagaz analytics metrics --catalog-uri postgresql://iceberg:iceberg@localhost:15433/iceberg \
     --catalog-property s3.endpoint=http://localhost:9000 \
     --catalog-property s3.access-key-id=rustfsadmin \

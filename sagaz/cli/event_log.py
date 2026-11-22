@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 import click
 
+from sagaz.cli._url_option import RenamedOption
 from sagaz.core.events import SagaEvent
 from sagaz.core.tenant import DEFAULT_TENANT, tenant_scope
 
@@ -88,7 +89,10 @@ def _details(event: SagaEvent) -> str:
 @click.command("event-log")
 @click.argument("saga_id")
 @click.option(
+    "--event-store-url",
     "--store-url",
+    "store_url",
+    cls=RenamedOption,
     envvar="SAGAZ_EVENT_STORE_URL",
     required=True,
     metavar="URL",

@@ -12,6 +12,7 @@ import json
 import click
 
 from sagaz.choreography.tracker import TransactionStatus, load_status, stalled_view
+from sagaz.cli._url_option import RenamedOption
 from sagaz.core.tenant import DEFAULT_TENANT, tenant_scope
 
 
@@ -68,8 +69,10 @@ def choreography_cli() -> None:
     help="Saga storage the ChoreographyTracker writes to (env: SAGAZ_STORAGE_URL).",
 )
 @click.option(
+    "--saga-log-url",
     "--saga-log",
     "saga_log",
+    cls=RenamedOption,
     envvar="SAGAZ_SAGA_LOG_URL",
     metavar="URL",
     help="Read the status from the unified saga log instead (ADR-041).",
@@ -78,7 +81,7 @@ def choreography_cli() -> None:
     "--completion-event",
     "completion_events",
     multiple=True,
-    help="With --saga-log: an event type that completes the transaction (repeatable).",
+    help="With --saga-log-url: an event type that completes the transaction (repeatable).",
 )
 @click.option(
     "--tenant", default=DEFAULT_TENANT, show_default=True, help="Tenant of the transaction."
@@ -107,7 +110,7 @@ def status_cmd(
     elif storage_url:
         loaded = asyncio.run(_load(storage_url, correlation_id, tenant))
     else:
-        msg = "Give --storage-url (tracker records) or --saga-log (unified saga log)"
+        msg = "Give --storage-url (tracker records) or --saga-log-url (unified saga log)"
         raise click.UsageError(msg)
     status = stalled_view(loaded, stall_after)
     if status is None:

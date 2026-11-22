@@ -110,7 +110,7 @@ tracker = ChoreographyTracker(bus, completion_events={"order.shipped"},
   compensate what another did.
 - **The tracker is a projection.** With `saga_log`, `ChoreographyTracker` derives a
   transaction's status from its log entries (no JSON record) and keeps the
-  transaction row's `status` in step. `sagaz choreography status <id> --saga-log
+  transaction row's `status` in step. `sagaz choreography status <id> --saga-log-url
   postgresql://...` reads the same projection.
 
 ## Analytics
@@ -172,8 +172,8 @@ await exporter.start()           # exporter.metrics(): exported, errors, lag_sec
 From the command line:
 
 ```bash
-sagaz analytics export --saga-log postgresql://... --to fluss://fluss:9123   # continuous
-sagaz analytics export --saga-log ... --to fluss://... --once                # catch up, exit
+sagaz analytics export --saga-log-url postgresql://... --to fluss://fluss:9123   # continuous
+sagaz analytics export --saga-log-url ... --to fluss://... --once                # catch up, exit
 sagaz analytics fluss-ddl                                                    # Flink SQL DDL
 ```
 

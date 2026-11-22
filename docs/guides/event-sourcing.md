@@ -102,7 +102,7 @@ then reflects the latest run, and `runs` counts the runs.
 From the command line:
 
 ```bash
-sagaz event-log <saga-id> --store-url postgresql://...
+sagaz event-log <saga-id> --event-store-url postgresql://...
 sagaz event-log <saga-id> --tenant acme --json     # events and state as JSON
 ```
 

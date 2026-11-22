@@ -224,7 +224,7 @@ unified saga log, or sagas of a classic-layout saga storage, for both coordinati
 
 ```bash
 pip install 'sagaz[gradio]'
-sagaz monitor --ui gradio --saga-log postgresql://...      # or sqlite:///log.db
+sagaz monitor --ui gradio --saga-log-url postgresql://...      # or sqlite:///log.db
 sagaz monitor --ui gradio --storage-url sqlite:///sagas.db # a classic-layout saga storage
 ```
 
