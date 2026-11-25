@@ -9,6 +9,7 @@ from sagaz.core.decorators._collection import DecoratorCollectionManager
 from sagaz.core.decorators._execution import ExecutionEngine
 from sagaz.core.decorators._ordering import _DecoratorOrderingMixin
 from sagaz.core.decorators._pivot import _DecoratorPivotMixin
+from sagaz.core.decorators._snapshots import _DecoratorSnapshotMixin
 from sagaz.core.decorators._step_chart import _DecoratorStepChartMixin
 from sagaz.core.decorators._steps import (
     OnCompensateHook,
@@ -82,6 +83,7 @@ class Saga(
     _DecoratorOrderingMixin,
     _DecoratorVisualizationMixin,
     _DecoratorStepChartMixin,
+    _DecoratorSnapshotMixin,
 ):
     """
     Base class for declarative saga definitions.
