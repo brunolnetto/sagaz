@@ -68,9 +68,11 @@ Legend: ✅ supported · ⚠️ partial · ❌ missing · — does not apply to 
 
 Orchestration has one more implementation, `sagaz.core.saga.Saga` (`await add_step()`,
 `execute() -> SagaResult`). It came before `sagaz.Saga` and stays because snapshot replay
-and the phase 2 compensation resume run on it; [#544] moves them to
+runs on it; [#544] moves it to
 `sagaz.Saga` and removes this section. `SagaOrchestrator` runs both kinds
-(`tests/unit/test_orchestrator_runs_sagaz_saga.py::TestBothKinds::test_statistics_and_counts_cover_classic_and_sagaz_sagas`). Where it differs from `sagaz.Saga`:
+(`tests/unit/test_orchestrator_runs_sagaz_saga.py::TestBothKinds::test_statistics_and_counts_cover_classic_and_sagaz_sagas`),
+and `sagaz.Saga` resumes a compensation and lists what is pending
+(`tests/unit/core/test_statechart_phase3.py::TestResume::test_pending_compensations_are_what_a_resume_would_undo`). Where it differs from `sagaz.Saga`:
 
 **Only in the classic engine** (each is a gap of `sagaz.Saga`):
 

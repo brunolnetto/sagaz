@@ -60,43 +60,53 @@ compensation. It is the checkpoint to resume from.
 
 ## Resuming a compensation
 
-If the process running a compensation dies, another one can finish it from the last
-snapshot:
+A saga stores its configuration with the saga state (`SagaConfig.storage`), and again
+after each compensated step. If the process running a compensation dies, another one can
+finish it from that state:
+
+```python
+saga = OrderSaga(config=config)                      # the same step definitions
+
+await saga.pending_compensations(saga_id)   # ["reserve"]: charge was already compensated
+saga.in_doubt_steps()                       # steps that were executing: check them yourself
+status = await saga.resume_compensation(saga_id)     # ROLLED_BACK, or FAILED
+```
+
+- **What is pending:** `pending_compensations` reads the stored state and compensates
+  nothing. It lists the steps `resume_compensation` would undo, in its order.
+- **Order:** it compensates in the compensation graph's order. Compensations that had
+  succeeded are not run again, and no list of completed steps is needed.
+- **Locked steps:** tainted and pivot steps are left as they are.
+- **In-doubt steps:** a step that was **executing** when the run stopped is not
+  compensated, because whether its action took effect is unknown. It is logged, and
+  listed by `in_doubt_steps()`.
+- **Idempotency:** a step that was **compensating** has its compensation run again, so
+  compensations should be idempotent.
+- **Event log:** if the saga is event-sourced, the outcome is recorded there too.
+- **Forward re-execution:** resuming forward execution is `SagaReplay`'s job
+  ([saga replay](saga-replay.md)).
+
+### Classic engine
+
+The classic `sagaz.core.saga.Saga` does not store its state, so you give it the
+configuration and the completed steps yourself, from a snapshot:
 
 ```python
 snapshot = await storage.get_latest_snapshot(saga_id)
 
 saga = build_order_saga(use_step_statechart=True)       # the same step definitions
 await saga.restore_state(snapshot.configuration, snapshot.completed_steps)
-
-saga.pending_compensations()   # ["reserve"]: charge was already compensated
-saga.in_doubt_steps()          # steps that were executing: check them yourself
-result = await saga.resume_compensation()   # ROLLED_BACK, or FAILED
+saga.pending_compensations()
+result = await saga.resume_compensation()   # a SagaResult: ROLLED_BACK, or FAILED
 ```
 
-- **Order:** compensations run in reverse completion order. Those that had succeeded are
-  not run again.
-- **In-doubt steps:** a step that was **executing** when the run stopped is not
-  compensated automatically, because whether its action took effect is unknown.
-- **Idempotency:** a step that was **compensating** has its compensation run again, so
-  compensations should be idempotent.
-- **Validation:** `restore_state` refuses a configuration that is not one of this saga's
-  chart, and steps it does not define.
-- **Forward re-execution:** resuming forward execution is `SagaReplay`'s job
-  ([saga replay](saga-replay.md)).
+`restore_state` refuses a configuration that is not one of this saga's chart, and steps
+it does not define. Moving to `sagaz.Saga`:
 
-### Declarative sagas
-
-A declarative saga stores its configuration with the saga state (`SagaConfig.storage`),
-and again after each compensated step. To finish an interrupted compensation:
-
-```python
-saga = OrderSaga(config=config)                      # the same step definitions
-status = await saga.resume_compensation(saga_id)     # ROLLED_BACK, or FAILED
-```
-
-- **Order:** it compensates in the compensation graph's order. No list of completed
-  steps is needed.
-- **Locked steps:** tainted and pivot steps are left as they are.
-- **In-doubt steps:** steps that were executing are logged, not compensated.
-- **Event log:** if the saga is event-sourced, the outcome is recorded there too.
+| Classic engine | `sagaz.Saga` |
+|---|---|
+| `await saga.restore_state(configuration, completed_steps)` | Not needed: the state is loaded from `SagaConfig.storage` |
+| `saga.pending_compensations()` | `await saga.pending_compensations(saga_id)` |
+| `saga.in_doubt_steps()` | `saga.in_doubt_steps()`, after either call above |
+| `await saga.resume_compensation()` → `SagaResult` | `await saga.resume_compensation(saga_id)` → `SagaStatus` |
+| Reverse completion order | The compensation graph's order |
