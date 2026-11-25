@@ -82,7 +82,7 @@ class SagaReplay:
         saga_id: UUID | str,
         snapshot_storage: SnapshotStorage,
         initiated_by: str = "system",
-        saga_factory: "Callable[[str], Saga] | None" = None,
+        saga_factory: "Callable[[str], Any] | None" = None,  # -> a saga, or an awaitable of one
     ) -> None:
         self.saga_id = snapshot_saga_id(saga_id)  # any saga id string, or its UUID
         self.snapshot_storage = snapshot_storage

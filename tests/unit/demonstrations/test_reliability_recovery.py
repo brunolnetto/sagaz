@@ -95,7 +95,13 @@ async def test_saga_factory_returns_saga_instance():
     from sagaz.demonstrations.reliability_recovery.saga_replay.main import saga_factory
 
     saga = saga_factory("my-saga")
-    assert saga.name == "my-saga"
+    assert saga.saga_name == "my-saga"
+    assert [step.step_id for step in saga.get_steps()] == [
+        "validate_order",
+        "reserve_inventory",
+        "charge_payment",
+        "send_notification",
+    ]
 
 
 @pytest.mark.asyncio
@@ -504,9 +510,12 @@ async def test_build_saga_and_execute():
     from sagaz.demonstrations.reliability_recovery.saga_replay.main import build_saga
 
     snapshot_storage = InMemorySnapshotStorage()
-    saga = await build_saga(snapshot_storage)
-    result = await saga.execute()
-    assert result.completed_steps > 0
+    from sagaz.core.decorators._snapshots import snapshot_saga_id
+
+    context = await build_saga(snapshot_storage).run({"order_id": "ORD-1"})
+    assert context["notified"] is True
+    taken = await snapshot_storage.list_snapshots(snapshot_saga_id(context["saga_id"]))
+    assert len(taken) == 4  # one before each step
 
 
 @pytest.mark.asyncio
