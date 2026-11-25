@@ -16,6 +16,7 @@ from sagaz.core.decorators._event_sourcing import _EventSourcingMixin
 from sagaz.core.decorators._idempotency import StepKeys
 from sagaz.core.decorators._parallel import failure_strategy, grace_period, run_level
 from sagaz.core.decorators._regions import _RegionRoutingMixin
+from sagaz.core.decorators._snapshots import Snapshots, _EngineSnapshotMixin
 from sagaz.core.decorators._step_chart import _EngineStepChartMixin
 from sagaz.core.decorators._step_ledger import StepLedger
 from sagaz.core.events import (
@@ -43,6 +44,7 @@ class ExecutionEngine(
     _EventSourcingMixin,
     _RegionRoutingMixin,
     _EngineStepChartMixin,
+    _EngineSnapshotMixin,
     _StepAttemptsMixin,
     _DurabilityMixin,
 ):
@@ -57,6 +59,8 @@ class ExecutionEngine(
         self.saga = saga
         self._ledger = StepLedger([])
         self._step_keys = StepKeys(None, "")
+        self._snapshots = Snapshots()
+        self.adopted: frozenset[str] = frozenset()  # set by Saga.run_from_snapshot
         self._compensation_errors: dict[str, BaseException] = {}
         self._init_event_sourcing()
 
@@ -100,6 +104,7 @@ class ExecutionEngine(
                 error_type=type(e).__name__,
                 error_message=str(e),
             )
+            await self._snapshot("failed", self._failed_step or "")  # before compensating
             await self._chart_failed()
             await self._compensate()
             await self._chart_compensation_done()
@@ -123,6 +128,7 @@ class ExecutionEngine(
         # Every step succeeded: only a step's failure compensates. A failure to save
         # the outcome raises SagaPersistenceError for a saga that did complete.
         await self._chart_succeeded()
+        await self._snapshot("completed")
         await self._notify_listeners(
             "on_saga_complete", name, self.saga._saga_id, self.saga._context
         )
@@ -138,6 +144,8 @@ class ExecutionEngine(
         self.saga._compensation_graph.reset_execution()
         self._ledger = StepLedger([step.step_id for step in self.saga._steps])
         self._step_keys = StepKeys(self._storage(), self.saga._saga_id)  # idempotency (#569)
+        name, saga_id = self._get_saga_name(), self.saga._saga_id
+        self._snapshots = Snapshots(self.saga._config, name, saga_id, self.adopted)  # replay
 
     def _register_compensations(self) -> None:
         """Register all compensations in the graph.
@@ -189,6 +197,8 @@ class ExecutionEngine(
 
     async def _execute_step(self, step: "SagaStepDefinition") -> None:
         """Execute a single step; ``on_exit`` runs after it, whatever the outcome (#555)."""
+        if step.step_id in self._snapshots.adopted:  # a replay: the snapshot completed it
+            return await self._adopt(step)
         try:
             await self._execute_step_body(step)
         finally:
@@ -206,6 +216,7 @@ class ExecutionEngine(
 
         self._ledger.started(step.step_id)
         await self._chart_step(step.step_id, "start")
+        await self._snapshot("before", step.step_id)
         # Per attempt; the config's default when the step sets none (ADR-020 caps it).
         timeout = self._step_timeout(step)
         step_started = time.monotonic()
@@ -231,6 +242,7 @@ class ExecutionEngine(
             # Mark step as executed for compensation tracking
             self.saga._context[f"__{step.step_id}_completed"] = True
             self.saga._compensation_graph.mark_step_executed(step.step_id)
+            await self._snapshot("after", step.step_id)
 
             # Handle pivot step completion - propagate taint to ancestors
             if step.pivot:

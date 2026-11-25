@@ -36,7 +36,7 @@ Legend: ✅ supported · ⚠️ partial · ❌ missing · — does not apply to 
 | Dry run / `sagaz validate` | ✅ `tests/unit/cli/test_dry_run.py::TestValidationMode::test_validate_detects_cycles` | ❌ |
 | Compensation resume | ✅ `tests/unit/core/test_statechart_phase3.py::TestResume::test_a_compensation_resumes_from_its_last_checkpoint` | ✅ `tests/unit/test_choreography_state.py::TestAcrossProcesses::test_a_restarted_participant_compensates_earlier_actions` |
 | StateChart | ✅ step chart with pivot/taint states `tests/unit/core/test_statechart_phase3.py::TestDeclarative::test_a_pivot_taints_its_ancestors` | — a status projection, not a chart |
-| Snapshots, replay, time travel | ❌ ([#544]) | ❌ |
+| Snapshots, replay, time travel | ✅ `tests/unit/core/test_saga_snapshot_replay.py::TestRunFromSnapshot::test_completed_steps_are_adopted_and_the_rest_run` | ❌ |
 | Versioning | ✅ `tests/unit/versioning/test_schema_and_persistence.py::TestSagaVersionedMixin::test_run_options_reach_saga_run` | ❌ |
 | Sync (`def`) steps / handlers | ✅ `tests/unit/core/test_failure_contract.py::TestRunInputs::test_sync_steps_and_compensations_work` | ✅ `tests/unit/test_choreography_compensation.py::TestCompensation::test_sync_handlers_and_compensations_work` |
 | Step hooks (`on_enter`, …) | ✅ `tests/unit/core/test_orchestrated_bug_fixes.py::TestOnExit::test_on_exit_runs_after_success_and_failure` | — a handler is the hook |
@@ -67,16 +67,12 @@ Legend: ✅ supported · ⚠️ partial · ❌ missing · — does not apply to 
 ## Classic engine (until [#544])
 
 Orchestration has one more implementation, `sagaz.core.saga.Saga` (`await add_step()`,
-`execute() -> SagaResult`). It came before `sagaz.Saga` and stays because snapshot replay
-runs on it; [#544] moves it to
-`sagaz.Saga` and removes this section. `SagaOrchestrator` runs both kinds
-(`tests/unit/test_orchestrator_runs_sagaz_saga.py::TestBothKinds::test_statistics_and_counts_cover_classic_and_sagaz_sagas`),
-and `sagaz.Saga` resumes a compensation and lists what is pending
-(`tests/unit/core/test_statechart_phase3.py::TestResume::test_pending_compensations_are_what_a_resume_would_undo`). Where it differs from `sagaz.Saga`:
+`execute() -> SagaResult`). It came before `sagaz.Saga`. Nothing runs only on it any more:
+`sagaz.Saga` has what it had, so [#544] deprecates it and 3.0 removes it with this section.
 
-**Only in the classic engine** (each is a gap of `sagaz.Saga`):
-
-- **Snapshots, replay, time travel**: library `tests/unit/core/test_replay.py::TestSagaReplay::test_replay_from_checkpoint_success`, CLI `tests/unit/cli/test_replay_real_storage.py::test_replay_runs_the_saga_again_from_a_checkpoint`
+- **`SagaOrchestrator`** runs both kinds: `tests/unit/test_orchestrator_runs_sagaz_saga.py::TestBothKinds::test_statistics_and_counts_cover_classic_and_sagaz_sagas`
+- **Compensation resume:** `sagaz.Saga` resumes and lists what is pending: `tests/unit/core/test_statechart_phase3.py::TestResume::test_pending_compensations_are_what_a_resume_would_undo`
+- **Snapshots and replay:** `SagaReplay` runs both kinds: `tests/unit/core/test_saga_snapshot_replay.py::TestSagaReplay::test_from_checkpoint_runs_a_sagaz_saga` (classic: `tests/unit/core/test_replay.py::TestSagaReplay::test_replay_from_checkpoint_success`, CLI `tests/unit/cli/test_replay_real_storage.py::test_replay_runs_the_saga_again_from_a_checkpoint`)
 
 **Missing or partial in the classic engine** (all gone once [#544] lands):
 
