@@ -195,18 +195,20 @@ def test_event_triggers_main():
 async def test_create_saga_success():
     from sagaz.demonstrations.orchestration_config.orchestrator.main import create_saga
 
-    saga = await create_saga("ITEM-001", should_fail=False)
-    result = await saga.execute()
-    assert result.status.value in ("completed",)
+    saga, context = create_saga("ITEM-001", should_fail=False)
+    result = await saga.run(context)
+    assert (result["processed"], result["shipped"]) == (True, True)
 
 
 @pytest.mark.asyncio
 async def test_create_saga_failure():
+    from sagaz import SagaFailedError
     from sagaz.demonstrations.orchestration_config.orchestrator.main import create_saga
 
-    saga = await create_saga("ITEM-002", should_fail=True)
-    result = await saga.execute()
-    assert result.status.value in ("rolled_back", "failed", "compensated")
+    saga, context = create_saga("ITEM-002", should_fail=True)
+    with pytest.raises(SagaFailedError) as failure:
+        await saga.run(context)
+    assert failure.value.status.value == "rolled_back"
 
 
 @pytest.mark.asyncio
@@ -218,23 +220,20 @@ async def test_orchestrator_run_function():
 
 @pytest.mark.asyncio
 async def test_orchestrator_cancel_shipment_directly():
-    """Covers L56 — cancel_shipment logger.info body (compensation for ship step)."""
-    from sagaz.core.saga import SagaContext
+    """cancel_shipment is never called by the demo: ship is the step that fails."""
     from sagaz.demonstrations.orchestration_config.orchestrator.main import cancel_shipment
 
-    ctx = SagaContext()
-    ctx.set("item_id", "ITEM-001")
-    await cancel_shipment({"shipped": True}, ctx)
+    await cancel_shipment({"item_id": "ITEM-001", "shipped": True})
 
 
 @pytest.mark.asyncio
 async def test_orchestrator_exception_in_results():
-    """Covers L103 — exception branch when execute_saga raises an exception."""
+    """The branch that reports an exception that is not a saga failure."""
     from unittest.mock import AsyncMock, patch
 
     from sagaz.demonstrations.orchestration_config.orchestrator.main import _run
 
-    async def fake_execute_saga_raises(saga):
+    async def fake_run_raises(saga, context):
         msg = "Orchestrator internal failure"
         raise RuntimeError(msg)
 
@@ -251,7 +250,7 @@ async def test_orchestrator_exception_in_results():
         "sagaz.demonstrations.orchestration_config.orchestrator.main.SagaOrchestrator"
     ) as MockOrch:
         instance = MockOrch.return_value
-        instance.execute_saga = fake_execute_saga_raises
+        instance.run = fake_run_raises
         instance.get_statistics = AsyncMock(return_value=fake_stats)
         await _run()
 

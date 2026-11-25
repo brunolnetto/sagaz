@@ -17,8 +17,8 @@ import asyncio
 import logging
 import random
 
+from sagaz import Saga, SagaFailedError
 from sagaz.core.execution.orchestrator import SagaOrchestrator
-from sagaz.core.saga import Saga, SagaContext
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
@@ -31,18 +31,18 @@ logger = logging.getLogger("sagaz.demo.orchestrator")
 # ============================================================================
 
 
-async def process_item(ctx: SagaContext) -> dict:
+async def process_item(ctx: dict) -> dict:
     item_id = ctx.get("item_id", "?")
     delay = random.uniform(0.02, 0.08)
     await asyncio.sleep(delay)
     return {"item_id": item_id, "processed": True}
 
 
-async def undo_process(result: dict, ctx: SagaContext) -> None:
+async def undo_process(ctx: dict) -> None:
     logger.info(f"  ↩ Undoing item {ctx.get('item_id')}")
 
 
-async def ship_item(ctx: SagaContext) -> dict:
+async def ship_item(ctx: dict) -> dict:
     item_id = ctx.get("item_id", "?")
     should_fail = ctx.get("should_fail", False)
     await asyncio.sleep(random.uniform(0.01, 0.04))
@@ -52,7 +52,7 @@ async def ship_item(ctx: SagaContext) -> dict:
     return {"shipped": True}
 
 
-async def cancel_shipment(result: dict, ctx: SagaContext) -> None:
+async def cancel_shipment(ctx: dict) -> None:
     logger.info(f"  ↩ Cancelling shipment for {ctx.get('item_id')}")
 
 
@@ -61,13 +61,13 @@ async def cancel_shipment(result: dict, ctx: SagaContext) -> None:
 # ============================================================================
 
 
-async def create_saga(item_id: str, should_fail: bool = False) -> Saga:
-    saga = Saga(name=f"order-{item_id}")
-    await saga.add_step("process", process_item, undo_process)
-    await saga.add_step("ship", ship_item, cancel_shipment)
-    saga.context.set("item_id", item_id)
-    saga.context.set("should_fail", should_fail)
-    return saga
+def create_saga(item_id: str, should_fail: bool = False) -> tuple[Saga, dict]:
+    """An order saga and the context to run it with."""
+    saga = Saga()
+    saga.saga_name = f"order-{item_id}"
+    saga.add_step("process", process_item, undo_process)
+    saga.add_step("ship", ship_item, cancel_shipment, depends_on=["process"])
+    return saga, {"item_id": item_id, "should_fail": should_fail}
 
 
 # ============================================================================
@@ -88,8 +88,8 @@ async def _run() -> None:
 
     tasks = []
     for i in range(num_sagas):
-        saga = await create_saga(f"ITEM-{i:03d}", should_fail=(i in fail_indices))
-        tasks.append(orchestrator.execute_saga(saga))
+        saga, context = create_saga(f"ITEM-{i:03d}", should_fail=(i in fail_indices))
+        tasks.append(orchestrator.run(saga, context))
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -99,10 +99,12 @@ async def _run() -> None:
     print("=" * 60)
 
     for i, res in enumerate(results):
-        if isinstance(res, BaseException):
+        if isinstance(res, SagaFailedError):  # the saga failed and was compensated
+            print(f"  ITEM-{i:03d}: {res.status.value}")
+        elif isinstance(res, BaseException):
             print(f"  ITEM-{i:03d}: EXCEPTION — {res}")
         else:
-            print(f"  ITEM-{i:03d}: {res.status.value}")
+            print(f"  ITEM-{i:03d}: completed")
 
     # --- Phase 3: Orchestrator statistics ------------------------------------
     print("\n" + "=" * 60)
