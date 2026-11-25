@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 from sagaz.core.decorators._attempts import _StepAttemptsMixin
 from sagaz.core.decorators._durability import _DurabilityMixin
 from sagaz.core.decorators._event_sourcing import _EventSourcingMixin
+from sagaz.core.decorators._idempotency import StepKeys
 from sagaz.core.decorators._parallel import failure_strategy, grace_period, run_level
 from sagaz.core.decorators._regions import _RegionRoutingMixin
 from sagaz.core.decorators._step_chart import _EngineStepChartMixin
@@ -55,6 +56,7 @@ class ExecutionEngine(
         """
         self.saga = saga
         self._ledger = StepLedger([])
+        self._step_keys = StepKeys(None, "")
         self._compensation_errors: dict[str, BaseException] = {}
         self._init_event_sourcing()
 
@@ -135,6 +137,7 @@ class ExecutionEngine(
         self.saga._context["saga_id"] = self.saga._saga_id
         self.saga._compensation_graph.reset_execution()
         self._ledger = StepLedger([step.step_id for step in self.saga._steps])
+        self._step_keys = StepKeys(self._storage(), self.saga._saga_id)  # idempotency (#569)
 
     def _register_compensations(self) -> None:
         """Register all compensations in the graph.
@@ -208,7 +211,12 @@ class ExecutionEngine(
         step_started = time.monotonic()
         try:
             try:
-                result = await self._attempt_step(step)  # retries, backoff, timeouts
+                result = await self._step_keys.run(  # once per idempotency key (#569)
+                    step.step_id,
+                    step.idempotency_key,
+                    self.saga._context,
+                    lambda: self._attempt_step(step),  # retries, backoff, timeouts
+                )
             except BaseException as error:
                 self._ledger.finished(step.step_id, error)
                 await self._chart_step(step.step_id, "fail")
@@ -344,6 +352,7 @@ class ExecutionEngine(
             await self._chart_compensating(step_id)
             await self._attempt_compensation(step_id, node)  # retries, backoff (#550)
             self.saga._context[f"__{step_id}_compensated"] = True
+            await self._step_keys.compensated(step_id)
             self._ledger.compensated(step_id)
             await self._chart_step(step_id, "compensated")
             await self._checkpoint()
