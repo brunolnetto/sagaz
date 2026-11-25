@@ -63,6 +63,7 @@ from sagaz.core.decorators import (
     forward_recovery,
     step,
 )
+from sagaz.core.decorators._idempotency import release_step_key
 
 # =============================================================================
 # Exceptions
@@ -79,6 +80,7 @@ from sagaz.core.exceptions import (
     SagaPersistenceError,
     SagaStepError,
     SagaTimeoutError,
+    StepInDoubtError,
 )
 
 # =============================================================================
@@ -249,6 +251,7 @@ __all__ = [
     "SagaZones",
     "SimulationResult",
     "SnapshotStrategy",
+    "StepInDoubtError",
     "StepZone",
     "TaintPropagator",
     "TracingSagaListener",
@@ -263,6 +266,7 @@ __all__ = [
     "default_listeners",
     "forward_recovery",
     "get_config",
+    "release_step_key",
     "step",
 ]
 

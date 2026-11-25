@@ -97,6 +97,7 @@ class DecoratorCollectionManager:
             on_exit=meta.on_exit,
             pivot=meta.pivot,
             region=meta.region,
+            idempotency_key=meta.idempotency_key,
         )
         if meta.name in self.saga._step_registry:
             msg = f"two steps are named {meta.name!r}: step names must be unique"

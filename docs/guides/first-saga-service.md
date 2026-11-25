@@ -78,6 +78,35 @@ except SagaAlreadyExistsError as e:
 
 To run an id again on purpose, pass `allow_rerun=True`.
 
+### One effect, one run
+
+A saga id protects one request. Two *different* sagas can still call the same API that
+is not idempotent: a checkout and a retry flow both charging order 42. Give such a step
+an idempotency key, built from the saga context:
+
+```python
+@action("charge", idempotency_key="charge-{order_id}")   # or a function of the context
+async def charge(self, ctx):
+    return {"charge_id": await self.payments.charge(ctx["order_id"], ctx["amount"])}
+```
+
+A key runs once per tenant, across sagas of any class:
+
+| The key | What the step does |
+|---|---|
+| Is new | Runs, and stores its result with the key |
+| Already completed | Does not run: the stored result goes into the context, and the saga goes on. If this saga fails later, the step is compensated |
+| Is held by a run that did not finish the step | Fails with `StepInDoubtError`, without running |
+
+- **In doubt:** a key is left held when a process dies inside the step, the step is
+  cancelled, or another saga is running it right now. The effect may or may not have
+  happened, and sagaz does not guess: check it, then free the key in that tenant's scope
+  with `await sagaz.release_step_key("charge-42", storage)`.
+- **Freed keys:** a step that raises frees its key (it took no effect), and so does
+  compensating the step, so a later run executes it again.
+- **Where keys live:** in the saga storage, as reserved records, for as long as that
+  storage lasts. The result must be JSON data.
+
 ## 4. When it fails
 
 A failed run compensates what completed, in reverse order, and raises

@@ -16,6 +16,7 @@ from sagaz.core.decorators._steps import (
     OnExitHook,
     OnFailureHook,
     OnSuccessHook,
+    StepKey,
 )
 from sagaz.core.decorators._visualization import _DecoratorVisualizationMixin
 from sagaz.core.execution.graph import CompensationType, SagaExecutionGraph
@@ -72,6 +73,8 @@ class SagaStepDefinition:
     # v2.0.0: Region affinity (ADR-034)
     region: str | None = None
     """Region whose workers run this step and its compensation; None = local."""
+    idempotency_key: StepKey | None = None
+    """What makes the step's effect unique per tenant, across sagas (#569)."""
 
 
 class Saga(
@@ -224,6 +227,7 @@ class Saga(
         compensation_max_retries: int = 3,
         description: str | None = None,
         region: str | None = None,
+        idempotency_key: StepKey | None = None,
     ) -> "Saga":
         """
         Add a step programmatically (imperative mode).
@@ -241,6 +245,7 @@ class Saga(
             description: Human-readable description
             region: Run the step and its compensation on this region's workers
                 (ADR-034). ``None`` (default) runs it locally.
+            idempotency_key: As for ``@action``: the step runs once per key (#569).
 
         Returns:
             Self for method chaining
@@ -285,6 +290,7 @@ class Saga(
             max_retries=max_retries,
             description=description or f"Execute {name}",
             region=region,
+            idempotency_key=idempotency_key,
         )
 
         self._steps.append(step_def)

@@ -21,6 +21,7 @@ from sagaz.core.exceptions._saga import (
     SagaPersistenceError,
     SagaStepError,
     SagaTimeoutError,
+    StepInDoubtError,
 )
 
 __all__ = [
@@ -37,4 +38,5 @@ __all__ = [
     "SagaPersistenceError",
     "SagaStepError",
     "SagaTimeoutError",
+    "StepInDoubtError",
 ]

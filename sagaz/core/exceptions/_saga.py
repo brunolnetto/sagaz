@@ -94,6 +94,27 @@ class SagaAlreadyExistsError(SagaError):
         )
 
 
+class StepInDoubtError(SagaStepError):
+    """A step's idempotency key is held by a run that did not finish the step (#569).
+
+    The first run crashed inside the step, was cancelled, or is running right now, so
+    nobody knows whether the step's effect happened. The step is not run again: it
+    guards an API that is not idempotent. Check the effect, then release the key with
+    :func:`sagaz.release_step_key` to let a later run execute the step.
+    """
+
+    def __init__(self, key: str, step_name: str, held_by: str | None = None) -> None:
+        self.key = key
+        self.step_name = step_name
+        self.held_by = held_by
+        holder = f" by saga {held_by!r}" if held_by else ""
+        super().__init__(
+            f"step {step_name!r}: idempotency key {key!r} is held{holder}, and that run did "
+            "not finish the step. Its effect may or may not have happened: check it, then "
+            "call sagaz.release_step_key() to let the step run again."
+        )
+
+
 class SagaPersistenceError(SagaError):
     """The saga's state could not be saved (#534).
 
