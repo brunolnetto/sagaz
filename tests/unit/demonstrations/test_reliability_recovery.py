@@ -122,37 +122,32 @@ async def test_saga_replay_compensation_bodies_directly():
 
 @pytest.mark.asyncio
 async def test_sqlite_storage_refund_compensation_directly():
-    """Covers refund pass body (L58) by calling the inner function shape directly."""
-    from sagaz.core.saga import Saga
+    """A charge that succeeded is refunded when a later step fails."""
+    from sagaz import Saga, SagaFailedError
 
     refund_called = []
 
     async def validate(ctx):
         return {"valid": True}
 
-    async def cancel_validate(result, ctx):
-        pass
-
     async def charge(ctx):
         return {"charge_id": "CHG-test"}
 
-    async def refund(result, ctx):
+    async def refund(ctx):
         refund_called.append("refund")
 
     async def fail_step(ctx):
         msg = "fail to trigger compensation"
         raise RuntimeError(msg)
 
-    async def cancel_fail(result, ctx):
-        pass
-
-    saga = Saga(name="order")
-    await saga.add_step("validate", validate, cancel_validate)
-    await saga.add_step("charge", charge, refund)
-    await saga.add_step("fail_step", fail_step, cancel_fail)
-    result = await saga.execute()
-    assert result.status.value == "rolled_back"
-    # refund ran because charge succeeded but a later step failed
+    saga = Saga()
+    saga.saga_name = "order"
+    saga.add_step("validate", validate)
+    saga.add_step("charge", charge, refund, depends_on=["validate"])
+    saga.add_step("fail_step", fail_step, depends_on=["charge"], max_retries=0)
+    with pytest.raises(SagaFailedError) as failure:
+        await saga.run({})
+    assert failure.value.status.value == "rolled_back"
     assert "refund" in refund_called
 
 
@@ -585,20 +580,24 @@ def test_saga_replay_main():
 
 @pytest.mark.asyncio
 async def test_run_order_success():
+    from sagaz.core.storage.backends.memory.saga import InMemorySagaStorage
     from sagaz.demonstrations.reliability_recovery.sqlite_storage.main import _run_order
 
-    saga_id, result = await _run_order("ORD-1", fail=False)
-    assert saga_id
-    assert result.status.value == "completed"
+    storage = InMemorySagaStorage()
+    saga_id, status = await _run_order("ORD-1", storage, fail=False)
+    assert status.value == "completed"
+    assert (await storage.load_saga_state(saga_id))["context"]["charge_id"] == "CHG-ORD-1"
 
 
 @pytest.mark.asyncio
 async def test_run_order_failure():
+    from sagaz.core.storage.backends.memory.saga import InMemorySagaStorage
     from sagaz.demonstrations.reliability_recovery.sqlite_storage.main import _run_order
 
-    saga_id, result = await _run_order("ORD-ERR", fail=True)
-    assert saga_id
-    assert result.status.value in ("rolled_back", "failed", "compensated")
+    storage = InMemorySagaStorage()
+    saga_id, status = await _run_order("ORD-ERR", storage, fail=True)
+    assert status.value == "rolled_back"
+    assert str((await storage.load_saga_state(saga_id))["status"]).endswith("rolled_back")
 
 
 @pytest.mark.asyncio
