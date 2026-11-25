@@ -67,13 +67,13 @@ Legend: ✅ supported · ⚠️ partial · ❌ missing · — does not apply to 
 ## Classic engine (until [#544])
 
 Orchestration has one more implementation, `sagaz.core.saga.Saga` (`await add_step()`,
-`execute() -> SagaResult`). It came before `sagaz.Saga` and stays because snapshot replay,
-`SagaOrchestrator` and the phase 2 compensation resume run on it; [#544] moves them to
-`sagaz.Saga` and removes this section. Where it differs from `sagaz.Saga`:
+`execute() -> SagaResult`). It came before `sagaz.Saga` and stays because snapshot replay
+and the phase 2 compensation resume run on it; [#544] moves them to
+`sagaz.Saga` and removes this section. `SagaOrchestrator` runs both kinds
+(`tests/unit/test_orchestrator_runs_sagaz_saga.py::TestBothKinds::test_statistics_and_counts_cover_classic_and_sagaz_sagas`). Where it differs from `sagaz.Saga`:
 
 **Only in the classic engine** (each is a gap of `sagaz.Saga`):
 
-- **Parallel failure strategy**: `tests/unit/core/test_core.py::TestParallelFailureStrategies::test_fail_fast_cancels_other_tasks`
 - **Snapshots, replay, time travel**: library `tests/unit/core/test_replay.py::TestSagaReplay::test_replay_from_checkpoint_success`, CLI `tests/unit/cli/test_replay_real_storage.py::test_replay_runs_the_saga_again_from_a_checkpoint`
 
 **Missing or partial in the classic engine** (all gone once [#544] lands):

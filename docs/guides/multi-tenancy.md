@@ -23,13 +23,16 @@ While the saga runs, every storage read and write is scoped to `acme`, the tenan
 quotas apply, and `ctx["tenant_id"]` is set. An initial context that already names a
 *different* tenant is rejected.
 
-Imperative sagas run as a tenant through the orchestrator:
+A `SagaOrchestrator` runs every saga it is given as its tenant, and tracks their
+outcome:
 
 ```python
 from sagaz.core.execution.orchestrator import SagaOrchestrator
 
 orchestrator = SagaOrchestrator(tenant="acme", tenant_registry=registry)
-await orchestrator.execute_saga(saga)
+await orchestrator.run(OrderSaga(), {"order_id": "o-1"})   # a sagaz.Saga
+await orchestrator.execute_saga(saga)                       # a classic sagaz.core.saga.Saga
+await orchestrator.get_statistics()                         # both kinds
 ```
 
 Any other code (for example a request handler querying storage) can open a scope
