@@ -127,3 +127,22 @@ class TestBothKinds:
 
     async def test_an_unknown_saga_has_no_status(self):
         assert await SagaOrchestrator().get_saga_status("nope") is None
+
+
+async def test_the_orchestrator_passes_a_deadline_on():
+    import asyncio
+
+    from sagaz import SagaTimeoutError
+
+    class Slow(Saga):
+        saga_name = "slow"
+
+        @action("wait")
+        async def wait(self, ctx):
+            await asyncio.sleep(5)
+
+    orchestrator = SagaOrchestrator()
+    with pytest.raises(SagaFailedError) as raised:
+        await orchestrator.run(Slow(config=config()), {}, saga_id="s-1", deadline=0.05)
+    assert isinstance(raised.value.__cause__, SagaTimeoutError)
+    assert (await orchestrator.get_saga_status("s-1"))["status"] == "rolled_back"

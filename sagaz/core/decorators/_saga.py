@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from sagaz.core.decorators._collection import DecoratorCollectionManager
+from sagaz.core.decorators._compat import _DecoratorCompatMixin
+from sagaz.core.decorators._deadline import Deadline, deadline_seconds
 from sagaz.core.decorators._execution import ExecutionEngine
 from sagaz.core.decorators._ordering import _DecoratorOrderingMixin
 from sagaz.core.decorators._pivot import _DecoratorPivotMixin
@@ -84,6 +86,7 @@ class Saga(
     _DecoratorVisualizationMixin,
     _DecoratorStepChartMixin,
     _DecoratorSnapshotMixin,
+    _DecoratorCompatMixin,
 ):
     """
     Base class for declarative saga definitions.
@@ -116,6 +119,8 @@ class Saga(
 
     # Class-level attributes (override in subclass)
     saga_name: str | None = None
+    #: Seconds (or a timedelta) for all the steps of a run; ``run(deadline=)`` overrides it.
+    deadline: Deadline = None
     listeners: list | None = None  # List of SagaListener instances (None = use config)
     retry_backoff_base: float = 0.01
     """Seconds before a step's first retry; doubles on each further retry."""
@@ -325,6 +330,7 @@ class Saga(
         *,
         tenant: TenantContext | str | None = None,
         allow_rerun: bool = False,
+        deadline: Deadline = None,
         tenant_context: TenantContext | str | None = None,
     ) -> dict[str, Any]:
         """
@@ -342,6 +348,10 @@ class Saga(
                 ``SagaConfig.tenant_registry`` when one is configured.
             allow_rerun: Run an existing ``saga_id`` again, all its steps included
                 (an event-sourced stream or unified-log transaction continues).
+            deadline: Seconds (or a ``timedelta``) for all the steps together (#568);
+                default, the class's ``deadline``. Past it, the steps still running
+                are cancelled and the saga compensates and fails, caused by a
+                ``SagaTimeoutError``. Compensation is not bounded by it.
             tenant_context: Deprecated name of ``tenant`` (until 3.0).
 
         Returns:
@@ -362,39 +372,19 @@ class Saga(
         initial_context = dict(initial_context)
         given = tenant_argument("Saga.run", tenant, tenant_context=tenant_context)
         if given is None:
-            return await self._engine(allow_rerun).run(initial_context, saga_id)
+            return await self._engine(allow_rerun, deadline).run(initial_context, saga_id)
         registry = getattr(self._config, "tenant_registry", None)
         resolved = resolve_tenant(given, registry)
         ensure_tenant_context_matches(initial_context, resolved.tenant_id)
         async with tenant_execution(resolved):
             context = {**initial_context, "tenant_id": resolved.tenant_id}
-            return await self._engine(allow_rerun).run(context, saga_id)
+            return await self._engine(allow_rerun, deadline).run(context, saga_id)
 
-    def _engine(self, allow_rerun: bool) -> ExecutionEngine:
+    def _engine(self, allow_rerun: bool, deadline: Deadline = None) -> ExecutionEngine:
         engine = ExecutionEngine(self)
         engine.allow_rerun = allow_rerun
+        engine.deadline = deadline_seconds(self.deadline if deadline is None else deadline)
         return engine
-
-    # Backward compatibility methods (private methods moved to ExecutionEngine)
-    def _initialize_run(self, initial_context: dict[str, Any], saga_id: str | None) -> None:
-        """Backward compatible: Initialize saga run state."""
-        engine = ExecutionEngine(self)
-        engine._initialize_run(initial_context, saga_id)
-
-    def _register_compensations(self) -> None:
-        """Backward compatible: Register all compensations in the graph."""
-        engine = ExecutionEngine(self)
-        engine._register_compensations()
-
-    async def _execute_level(self, level_steps: list) -> None:
-        """Backward compatible: Execute all steps in a level."""
-        engine = ExecutionEngine(self)
-        await engine._execute_level(level_steps)
-
-    async def _execute_compensation(self, step_id: str) -> None:
-        """Backward compatible: Execute compensation for a specific step."""
-        engine = ExecutionEngine(self)
-        await engine._execute_compensation(step_id)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(steps={len(self._steps)})"

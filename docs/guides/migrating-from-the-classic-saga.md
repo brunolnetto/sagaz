@@ -63,6 +63,7 @@ Most sagas read better declared as a class, with `@action` and `@compensate`: se
 | Resuming a compensation | `restore_state(...)`, then `resume_compensation()` | `await saga.resume_compensation(saga_id)` ([step charts](step-statechart.md#resuming-a-compensation)) |
 | Step chart | `Saga(use_step_statechart=True)` | `SagaConfig(use_step_statechart=True)` |
 | Orchestrator | `await orchestrator.execute_saga(saga)` | `await orchestrator.run(saga, context)` |
+| A deadline for the whole saga | Not available | `await saga.run(ctx, deadline=30)` ([a deadline for the whole saga](first-saga-service.md#a-deadline-for-the-whole-saga)) |
 | Tenancy, listeners, multi-region, `sagaz saga show` | Not available | Available |
 
 ## Things to check when you migrate

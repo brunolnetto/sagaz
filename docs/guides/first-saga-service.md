@@ -128,6 +128,28 @@ For steps that cannot be undone (a payment captured, a parcel shipped), mark the
 `pivot=True`: once it completes, its ancestors are not compensated, and the saga only
 moves forward.
 
+### A deadline for the whole saga
+
+Each step has a timeout. A deadline bounds all the steps together, so a caller that waits
+30 seconds gets its answer within them:
+
+```python
+await OrderSaga(payments, inventory).run(order, deadline=30)   # seconds, or a timedelta
+
+class OrderSaga(Saga):
+    deadline = 30          # the default for every run; run(deadline=) overrides it
+```
+
+- **Past the deadline:** the steps still running are cancelled, and the saga fails as when
+  a step fails. It compensates what completed and raises `SagaFailedError`, whose
+  `__cause__` is a `SagaTimeoutError`.
+- **Compensation is not bounded by it.** It runs to its end under its own timeouts, so a
+  saga is never left half undone.
+- **A cancelled step is not compensated,** because it did not complete. If it can leave an
+  external effect half done, give the step its own shorter timeout, or an idempotency key
+  (the key then stays held, in doubt, until you check).
+- **Without one,** a saga has no time limit of its own, as before.
+
 ## 5. Test it without a database
 
 Give each test its own config with in-memory storage, and inject fakes:

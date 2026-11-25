@@ -19,6 +19,7 @@ from sagaz.core.types import SagaStatus
 
 if TYPE_CHECKING:
     from sagaz.core.decorators import Saga as DeclarativeSaga
+    from sagaz.core.decorators._deadline import Deadline
 
 # ============================================
 # SAGA ORCHESTRATOR
@@ -87,6 +88,7 @@ class SagaOrchestrator:
         saga_id: str | None = None,
         *,
         allow_rerun: bool = False,
+        deadline: Deadline = None,
     ) -> dict[str, Any]:
         """Run a ``sagaz.Saga`` and track it (#544).
 
@@ -100,7 +102,11 @@ class SagaOrchestrator:
         await self._track(saga_id, saga, name, SagaStatus.EXECUTING)
         try:
             context = await saga.run(
-                initial_context, saga_id, tenant=self.tenant, allow_rerun=allow_rerun
+                initial_context,
+                saga_id,
+                tenant=self.tenant,
+                allow_rerun=allow_rerun,
+                deadline=deadline,
             )
         except SagaFailedError as failure:
             await self._track(saga_id, saga, name, failure.status, error=str(failure))
