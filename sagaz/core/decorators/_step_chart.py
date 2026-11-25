@@ -12,7 +12,7 @@ With the flag off nothing is sent or stored, as before.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 from sagaz.core.events import SagaFailed, SagaRolledBack
 from sagaz.core.exceptions import SagaPersistenceError
@@ -28,12 +28,18 @@ from sagaz.core.types import SagaStatus
 
 if TYPE_CHECKING:
     from sagaz.core.decorators import Saga, SagaStepDefinition
-    from sagaz.core.decorators._execution import ExecutionEngine
     from sagaz.core.decorators._step_ledger import StepLedger
 
 logger = get_logger("sagaz.core.decorators")
 
 _UNDOABLE = ("completed", "compensating")  # what a resumed compensation may still undo
+
+
+class _ResumeEngine(Protocol):
+    """What the saga uses of its ``ExecutionEngine`` to resume (no import: no cycle)."""
+
+    async def resume_compensation(self, saga_id: str) -> SagaStatus: ...
+    async def pending_compensations(self, saga_id: str) -> list[str]: ...
 
 
 def _chart_class(steps: list[SagaStepDefinition]) -> Any:
@@ -95,7 +101,7 @@ class _DecoratorStepChartMixin:
         """
         return await self._resume_engine().pending_compensations(saga_id)
 
-    def _resume_engine(self) -> ExecutionEngine:
+    def _resume_engine(self) -> _ResumeEngine:
         from sagaz.core.decorators._execution import ExecutionEngine
 
         return ExecutionEngine(self)  # type: ignore[arg-type]
@@ -116,7 +122,6 @@ class _EngineStepChartMixin:
         async def _open_recorder(self, saga_name: str) -> None: ...
         async def _record(self, event_type: Any, **fields: Any) -> None: ...
         async def _compensate(self) -> None: ...
-        def _compensable(self, step_id: str) -> bool: ...
         async def _persist(self, status: SagaStatus, phase: str | None = None) -> None: ...
         def _elapsed_ms(self, since: float | None = None) -> float: ...
 
@@ -237,6 +242,17 @@ class _EngineStepChartMixin:
             await self._record(SagaRolledBack, duration_ms=self._elapsed_ms())
         await self._persist(status)
         return status
+
+    def _compensable(self, step_id: str) -> bool:
+        """Whether an executed step is undone: not tainted, and not a completed pivot (v1.3.0)."""
+        if self.saga._is_step_tainted(step_id):
+            logger.info(f"Skipping compensation for tainted step: {step_id}")
+            return False
+        step = self.saga._step_registry.get(step_id)
+        if step and step.pivot and step_id in self.saga._completed_pivots:
+            logger.info(f"Reached pivot boundary, stopping compensation: {step_id}")
+            return False
+        return True
 
     async def pending_compensations(self, saga_id: str) -> list[str]:
         state = await self._load_resumable(saga_id)
