@@ -198,6 +198,8 @@ class SagaOrchestrator:
         return {
             "completed": counts.get(SagaStatus.COMPLETED, 0),
             "rolled_back": counts.get(SagaStatus.ROLLED_BACK, 0),
+            "partially_committed": counts.get(SagaStatus.PARTIALLY_COMMITTED, 0),
+            "forward_recovery": counts.get(SagaStatus.FORWARD_RECOVERY, 0),
             "failed": counts.get(SagaStatus.FAILED, 0),
             "executing": counts.get(SagaStatus.EXECUTING, 0),
             "pending": counts.get(SagaStatus.PENDING, 0),

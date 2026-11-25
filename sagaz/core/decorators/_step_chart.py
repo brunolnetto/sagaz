@@ -113,6 +113,8 @@ class _EngineStepChartMixin:
     saga: Saga
     _ledger: StepLedger
     _compensation_failed: bool
+    _needs_forward_recovery: str | None
+    _compensate_pivots: bool
 
     if TYPE_CHECKING:
 
@@ -186,7 +188,9 @@ class _EngineStepChartMixin:
         """The run failed: compensate what completed, or end with nothing to undo."""
         if self._lifecycle() != "executing":
             return
-        if self.completed_steps:
+        if self._needs_forward_recovery is not None:  # nothing is compensated (#570)
+            await self._chart.fail_unrecoverable()
+        elif self.completed_steps:
             await self._chart.fail()
         else:
             await self._chart.nothing_to_compensate()
@@ -200,7 +204,14 @@ class _EngineStepChartMixin:
             await self._chart.finish_compensation()
 
     def _failure_status(self) -> SagaStatus:
-        return SagaStatus.FAILED if self._compensation_failed else SagaStatus.ROLLED_BACK
+        """How a failed run ended (#570 for the two statuses a pivot adds)."""
+        if self._needs_forward_recovery is not None:
+            return SagaStatus.FORWARD_RECOVERY  # stopped after a pivot: waits for a person
+        if self._compensation_failed:
+            return SagaStatus.FAILED
+        if self.saga._completed_pivots and not self._compensate_pivots:
+            return SagaStatus.PARTIALLY_COMMITTED  # the pivot and its ancestors stay done
+        return SagaStatus.ROLLED_BACK
 
     def _configuration_to_store(self) -> list[str] | None:
         """The chart configuration stored with the saga state (None without a chart)."""
@@ -245,6 +256,8 @@ class _EngineStepChartMixin:
 
     def _compensable(self, step_id: str) -> bool:
         """Whether an executed step is undone: not tainted, and not a completed pivot (v1.3.0)."""
+        if self._compensate_pivots:  # forward recovery chose COMPENSATE_PIVOT (#570)
+            return True
         if self.saga._is_step_tainted(step_id):
             logger.info(f"Skipping compensation for tainted step: {step_id}")
             return False

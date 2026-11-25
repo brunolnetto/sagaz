@@ -242,7 +242,8 @@ class TestResume:
         )
         calls = []
         saga = order_saga(calls, {}, pivot=True)(config=config(storage))
-        assert await saga.resume_compensation("o-5") == SagaStatus.ROLLED_BACK
+        # reserve is tainted and charge is the pivot: they stay done (#570).
+        assert await saga.resume_compensation("o-5") == SagaStatus.PARTIALLY_COMMITTED
         assert calls == ["undo:notify"]  # reserve tainted, charge the pivot, ship in doubt
 
     async def test_pending_compensations_are_what_a_resume_would_undo(self):
