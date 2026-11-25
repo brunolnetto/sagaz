@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 from sagaz.core.decorators._attempts import _StepAttemptsMixin
 from sagaz.core.decorators._durability import _DurabilityMixin
 from sagaz.core.decorators._event_sourcing import _EventSourcingMixin
+from sagaz.core.decorators._parallel import failure_strategy, grace_period, run_level
 from sagaz.core.decorators._regions import _RegionRoutingMixin
 from sagaz.core.decorators._step_chart import _EngineStepChartMixin
 from sagaz.core.decorators._step_ledger import StepLedger
@@ -175,15 +176,13 @@ class ExecutionEngine(
         if not level:
             return
 
-        tasks = [self._execute_step(step) for step in level]
-
-        # Execute in parallel
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        # Check for exceptions
-        for result in results:
-            if isinstance(result, Exception):
-                raise result
+        # If one fails, SagaConfig.failure_strategy says what the others do (#567).
+        config = getattr(self.saga, "_config", None)
+        await run_level(
+            [self._execute_step(step) for step in level],
+            failure_strategy(getattr(config, "failure_strategy", None)),
+            grace_period(getattr(config, "failure_grace_period", None)),
+        )
 
     async def _execute_step(self, step: "SagaStepDefinition") -> None:
         """Execute a single step; ``on_exit`` runs after it, whatever the outcome (#555)."""

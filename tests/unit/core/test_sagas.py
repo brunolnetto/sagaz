@@ -117,7 +117,9 @@ class TestFailFastStrategy:
 
         await saga.add_step("validate", validate, dependencies=set())
         await saga.add_step("slow", slow_task, dependencies={"validate"})
-        await saga.add_step("fail", fast_fail, dependencies={"validate"})
+        # No retries: with the default 3, the last attempt fails after the slow step
+        # has finished, and there is nothing left to cancel.
+        await saga.add_step("fail", fast_fail, dependencies={"validate"}, max_retries=0)
 
         await saga.execute()
 

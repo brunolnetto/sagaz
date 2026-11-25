@@ -20,7 +20,7 @@ Legend: ✅ supported · ⚠️ partial · ❌ missing · — does not apply to 
 |---|---|---|
 | Step / handler definition | ✅ `tests/unit/core/test_decorators.py::TestSaga::test_collect_compensations` | ✅ `tests/unit/test_choreography.py::TestChoreographyEngine::test_duplicate_event_type_is_a_definition_error` |
 | Dependencies and parallel steps | ✅ steps without `depends_on` run in parallel `tests/unit/core/test_decorators.py::TestSaga::test_run_parallel_execution` | — the event topology is the graph |
-| Parallel failure strategy | ⚠️ waits for every step of the level; `failure_strategy` unused ([#567]) | — |
+| Parallel failure strategy | ✅ `WAIT_ALL`, `FAIL_FAST`, `FAIL_FAST_WITH_GRACE` `tests/unit/core/test_parallel_failure_strategies.py::TestStrategies::test_fail_fast_cancels_the_steps_still_running` | — |
 | Step retries | ✅ `tests/unit/core/test_declarative_retries.py::test_a_step_is_attempted_max_retries_plus_one_times` | ✅ `tests/unit/test_choreography_retries.py::test_a_failing_handler_is_retried_three_times_by_default` |
 | Step timeouts | ✅ `tests/unit/core/test_declarative_retries.py::test_a_timed_out_attempt_is_retried` | ✅ `tests/unit/test_choreography_retries.py::test_each_attempt_has_its_timeout` |
 | Compensation order | ✅ reverse dependency levels `tests/unit/core/test_decorators.py::TestSagaAdvanced::test_compensation_order_respected` | — each participant undoes its own actions, newest first `tests/unit/test_choreography_compensation.py::TestCompensation::test_compensation_runs_newest_first` |
