@@ -92,8 +92,8 @@ else:
   bookkeeping keys.
 - **Without `SagaReplay`:** `await saga.run_from_snapshot(snapshot, context_override)`
   does the same from a snapshot you loaded, and returns and raises what `run()` does.
-- **The classic engine:** a factory may also return a classic `sagaz.core.saga.Saga`,
-  replayed with its `execute_from_snapshot`.
+- **The classic engine:** a factory may also return a classic `sagaz.core.saga.Saga`
+  (deprecated since 2.6.0), replayed with its `execute_from_snapshot`.
 
 ### 3. Query Historical State
 

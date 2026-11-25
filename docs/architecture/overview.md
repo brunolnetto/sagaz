@@ -111,7 +111,7 @@ sequenceDiagram
     participant Worker as Outbox Worker
     participant Broker as RabbitMQ
     
-    App->>Sagaz: saga.execute()
+    App->>Sagaz: saga.run()
     Sagaz->>PG: BEGIN TRANSACTION
     Sagaz->>Sagaz: Execute step.action()
     Sagaz->>PG: Write to saga_outbox

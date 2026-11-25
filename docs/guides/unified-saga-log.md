@@ -57,8 +57,10 @@ class OrderSaga(Saga):
         snapshot_threshold = 50
 
 configure(SagaConfig(storage_layout="unified", saga_log="postgresql://..."))  # all sagas
-legacy = sagaz.core.saga.Saga(name="billing", saga_log="postgresql://...", participant="billing")
 ```
+
+The classic `sagaz.core.saga.Saga` (deprecated since 2.6.0) takes `saga_log=` and
+`participant=` as constructor arguments.
 
 Each lifecycle transition is **one** atomic write: the event (`SagaStarted`,
 `StepExecuted`, `StepFailed`, `CompensationStarted`, `StepCompensated`,
