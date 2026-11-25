@@ -182,20 +182,21 @@ async def test_build_success_saga_all_strategies():
     from sagaz.demonstrations.core_patterns.parallel_steps.main import build_success_saga
 
     for strategy in ParallelFailureStrategy:
-        saga = await build_success_saga(strategy)
-        result = await saga.execute()
-        assert result.completed_steps > 0
+        context = await build_success_saga(strategy).run({})
+        assert context["finalized"] is True
 
 
 @pytest.mark.asyncio
 async def test_build_failing_saga():
+    from sagaz import SagaFailedError
     from sagaz.core.types import ParallelFailureStrategy
     from sagaz.demonstrations.core_patterns.parallel_steps.main import build_failing_saga
 
-    saga = await build_failing_saga(ParallelFailureStrategy.FAIL_FAST)
-    result = await saga.execute()
-    # Fraud check fails so saga should not be COMPLETED
-    assert result.completed_steps < result.total_steps or result.status.value != "completed"
+    for strategy in ParallelFailureStrategy:  # the fraud check fails under every strategy
+        with pytest.raises(SagaFailedError) as failure:
+            await build_failing_saga(strategy).run({})
+        assert failure.value.failed_step == "check_fraud"
+        assert failure.value.status.value == "rolled_back"
 
 
 @pytest.mark.asyncio
