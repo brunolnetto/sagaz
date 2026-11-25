@@ -18,7 +18,7 @@ Usage:
 import asyncio
 import logging
 
-from sagaz.core.saga import Saga, SagaContext
+from sagaz import Saga, SagaConfig
 from sagaz.core.storage.backends.memory.saga import InMemorySagaStorage
 from sagaz.core.storage.base import SagaStorage
 
@@ -33,19 +33,19 @@ logger = logging.getLogger("sagaz.demo.storage_backends")
 # ============================================================================
 
 
-async def create_order(ctx: SagaContext) -> dict:
+async def create_order(ctx: dict) -> dict:
     return {"order_id": ctx.get("order_id", "ORD-1"), "created": True}
 
 
-async def cancel_order(ctx: SagaContext) -> None:
+async def cancel_order(ctx: dict) -> None:
     pass
 
 
-async def charge_payment(ctx: SagaContext) -> dict:
+async def charge_payment(ctx: dict) -> dict:
     return {"charge_id": "CHG-1", "amount": 42.00}
 
 
-async def refund_payment(ctx: SagaContext) -> None:
+async def refund_payment(ctx: dict) -> None:
     pass
 
 
@@ -55,26 +55,17 @@ async def refund_payment(ctx: SagaContext) -> None:
 
 
 async def test_storage(label: str, storage: SagaStorage) -> None:
-    """Run a saga, persist state, and verify retrieval."""
+    """Run a saga on *storage* (it saves its own state) and read the state back."""
     print(f"\n  [{label}] Building and executing saga ...")
 
-    saga = Saga(name="storage-test")
-    await saga.add_step("create_order", create_order, cancel_order)
-    await saga.add_step("charge_payment", charge_payment, refund_payment)
-    result = await saga.execute()
+    saga = Saga(config=SagaConfig(storage=storage, metrics=False, logging=False))
+    saga.saga_name = "storage-test"
+    saga.add_step("create_order", create_order, cancel_order)
+    saga.add_step("charge_payment", charge_payment, refund_payment, depends_on=["create_order"])
+    context = await saga.run({"order_id": "ORD-1"})
 
-    saga_id = saga.saga_id
-    print(f"  [{label}] Saga {saga_id} → {result.status.value}")
-
-    # Persist
-    await storage.save_saga_state(
-        saga_id=saga_id,
-        saga_name=saga.name,
-        status=result.status,
-        steps=[],
-        context=dict(saga.context) if hasattr(saga.context, "__iter__") else {},
-    )
-    print(f"  [{label}] State saved.")
+    saga_id = context["saga_id"]
+    print(f"  [{label}] Saga {saga_id} → completed, state saved by the saga.")
 
     # Retrieve
     loaded = await storage.load_saga_state(saga_id)
