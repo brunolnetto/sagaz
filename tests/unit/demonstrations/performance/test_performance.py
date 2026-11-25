@@ -44,7 +44,11 @@ class TestExperiments:
     async def test_backoff_recovers_from_transient_failures(self):
         result = await demo.backoff_experiment()
         assert result.all_completed
-        assert result.speedup > 1
+        # Each variant waited at least its two backoffs (base + 2 * base). Which one was
+        # faster overall depends on the machine's load: a loaded CI runner measured the
+        # 2 ms variant slower. The guide's claim is checked on fixed numbers in TestVerify.
+        assert result.baseline_ms >= 60 * 0.9
+        assert result.optimized_ms >= 6 * 0.9
 
     async def test_flaky_step_fails_then_succeeds(self):
         step = demo._flaky(failures=1)
