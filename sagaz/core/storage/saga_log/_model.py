@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Any
 
@@ -136,6 +136,21 @@ class Deadline:
     due_at: datetime
     claimed_until: datetime | None = None
     tenant_id: str = "default"
+
+
+def ended_at(
+    started_at: datetime, observed: datetime, duration_ms: float | None = None
+) -> datetime:
+    """When a transaction that started at *started_at* ended: never before it started (#653).
+
+    *observed* is the wall-clock time of the event that ended it. Wall clocks are not
+    monotonic (NTP and hypervisors step them back), and a choreographed transaction's
+    events come from different services' clocks, so *observed* can be earlier than
+    *started_at*. The transaction then ends ``duration_ms`` after it started, the
+    duration its saga measured on a monotonic clock, or at ``started_at`` without one.
+    """
+    floor = started_at + timedelta(milliseconds=max(duration_ms or 0.0, 0.0))
+    return max(observed, floor)
 
 
 @dataclass(frozen=True)
