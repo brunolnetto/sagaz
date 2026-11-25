@@ -23,47 +23,63 @@ Usage:
     python -m sagaz.demonstrations.reliability_recovery.sqlite_storage.main
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from sagaz.core.types import SagaResult
+if TYPE_CHECKING:
+    from sagaz.core.storage.interfaces import SagaStorage
+    from sagaz.core.types import SagaStatus
 
 logging.basicConfig(level=logging.WARNING, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("sagaz.demo.sqlite_storage")
 
 
 # ---------------------------------------------------------------------------
-# Minimal saga helpers (imperative API to avoid re-importing SagaConfig)
+# Minimal saga helpers
 # ---------------------------------------------------------------------------
 
 
-async def _run_order(order_id: str, fail: bool = False) -> tuple[str, SagaResult]:
-    """Execute an order saga and return (saga_id, result)."""
-    from sagaz.core.saga import Saga, SagaContext
+async def _run_order(
+    order_id: str, storage: SagaStorage, fail: bool = False
+) -> tuple[str, SagaStatus]:
+    """Run an order saga on *storage*, which it saves its state to; (saga_id, status)."""
+    from uuid import uuid4
+
+    from sagaz import Saga, SagaConfig, SagaFailedError
     from sagaz.core.types import SagaStatus
 
-    async def validate(ctx: SagaContext) -> dict[str, bool]:
+    async def validate(ctx: dict) -> dict[str, bool]:
         return {"valid": True}
 
-    async def cancel_validate(result: dict, ctx: SagaContext) -> None:
+    async def cancel_validate(ctx: dict) -> None:
         pass
 
-    async def charge(ctx: SagaContext) -> dict[str, str]:
+    async def charge(ctx: dict) -> dict[str, str]:
         if fail:
             msg = "Card declined"
             raise RuntimeError(msg)
         return {"charge_id": f"CHG-{order_id}"}
 
-    async def refund(result: dict, ctx: SagaContext) -> None:
+    async def refund(ctx: dict) -> None:
         pass  # pragma: no cover - the demo never compensates this step
 
-    saga = Saga(name="order")
-    await saga.add_step("validate", validate, cancel_validate)
-    await saga.add_step("charge", charge, refund)
-    result = await saga.execute()
-    return saga.saga_id, result
+    config = SagaConfig(storage=storage, default_max_retries=0, metrics=False, logging=False)
+    saga = Saga(config=config)
+    saga.saga_name = "order"
+    saga.add_step("validate", validate, cancel_validate)
+    saga.add_step("charge", charge, refund, depends_on=["validate"])
+    saga_id = str(uuid4())
+    try:
+        await saga.run({"order_id": order_id}, saga_id=saga_id)
+    except SagaFailedError as failure:
+        status: SagaStatus = failure.status
+        return saga_id, status
+    return saga_id, SagaStatus.COMPLETED
 
 
 # ---------------------------------------------------------------------------
@@ -94,18 +110,9 @@ async def _run() -> None:
 
         async with SQLiteSagaStorage(db_path) as storage:
             for order_id, should_fail in [("ORD-1", False), ("ORD-2", False), ("ORD-3", True)]:
-                saga_id, result = await _run_order(order_id, fail=should_fail)
-                status = result.status
+                saga_id, status = await _run_order(order_id, storage, fail=should_fail)
                 print(f"\n  {order_id}  saga_id={saga_id[:8]}…  status={status.value}")
-
-                await storage.save_saga_state(
-                    saga_id=saga_id,
-                    saga_name="order",
-                    status=status,
-                    steps=[],
-                    context={"order_id": order_id},
-                )
-                saved_ids.append((saga_id, order_id, status))
+                saved_ids.append((saga_id, order_id, status))  # the saga saved its own state
 
             print(f"\n  {len(saved_ids)} sagas written to {db_path}")
 

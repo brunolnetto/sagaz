@@ -19,12 +19,11 @@ Usage:
 import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
-from uuid import UUID
 
-from sagaz.core.replay import ReplayConfig, SnapshotStrategy
+from sagaz import ReplayConfig, Saga, SagaConfig, SnapshotStrategy
+from sagaz.core.decorators._snapshots import snapshot_saga_id
 from sagaz.core.replay.saga_replay import SagaReplay
 from sagaz.core.replay.time_travel import SagaTimeTravel
-from sagaz.core.saga import Saga, SagaContext
 from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
 
 logging.basicConfig(
@@ -38,43 +37,43 @@ logger = logging.getLogger("sagaz.demo.saga_replay")
 # ============================================================================
 
 
-async def validate_order(ctx: SagaContext) -> dict:
+async def validate_order(ctx: dict) -> dict:
     logger.info("  ✓ Validating order")
     await asyncio.sleep(0.02)
     return {"validated": True, "order_id": ctx.get("order_id", "ORD-1")}
 
 
-async def undo_validate(ctx: SagaContext) -> None:
+async def undo_validate(ctx: dict) -> None:
     logger.info("  ↩ Undoing validation")
 
 
-async def reserve_inventory(ctx: SagaContext) -> dict:
+async def reserve_inventory(ctx: dict) -> dict:
     logger.info("  ✓ Reserving inventory")
     await asyncio.sleep(0.02)
     return {"reservation_id": "RSRV-1"}
 
 
-async def release_inventory(ctx: SagaContext) -> None:
+async def release_inventory(ctx: dict) -> None:
     logger.info("  ↩ Releasing inventory")
 
 
-async def charge_payment(ctx: SagaContext) -> dict:
+async def charge_payment(ctx: dict) -> dict:
     logger.info("  ✓ Charging payment")
     await asyncio.sleep(0.02)
     return {"charge_id": "CHG-1"}
 
 
-async def refund_payment(ctx: SagaContext) -> None:
+async def refund_payment(ctx: dict) -> None:
     logger.info("  ↩ Refunding payment")
 
 
-async def send_notification(ctx: SagaContext) -> dict:
+async def send_notification(ctx: dict) -> dict:
     logger.info("  ✓ Sending notification")
     await asyncio.sleep(0.02)
     return {"notified": True}
 
 
-async def cancel_notification(ctx: SagaContext) -> None:
+async def cancel_notification(ctx: dict) -> None:
     logger.info("  ↩ Cancelling notification")
 
 
@@ -83,27 +82,35 @@ async def cancel_notification(ctx: SagaContext) -> None:
 # ============================================================================
 
 
-async def build_saga(snapshot_storage: InMemorySnapshotStorage) -> Saga:
-    replay_config = ReplayConfig(
-        enable_snapshots=True,
-        snapshot_strategy=SnapshotStrategy.BEFORE_EACH_STEP,
-    )
-    saga = Saga(
-        name="order-replay",
-        replay_config=replay_config,
+def build_saga(snapshot_storage: InMemorySnapshotStorage, name: str = "order-replay") -> Saga:
+    """The order saga, saving a snapshot before each step to *snapshot_storage*."""
+    config = SagaConfig(
+        replay_config=ReplayConfig(
+            enable_snapshots=True,
+            snapshot_strategy=SnapshotStrategy.BEFORE_EACH_STEP,
+        ),
         snapshot_storage=snapshot_storage,
+        metrics=False,
+        logging=False,
     )
-    await saga.add_step("validate_order", validate_order, undo_validate)
-    await saga.add_step("reserve_inventory", reserve_inventory, release_inventory)
-    await saga.add_step("charge_payment", charge_payment, refund_payment)
-    await saga.add_step("send_notification", send_notification, cancel_notification)
+    saga = Saga(config=config)
+    saga.saga_name = name
+    saga.add_step("validate_order", validate_order, undo_validate)
+    saga.add_step(
+        "reserve_inventory", reserve_inventory, release_inventory, depends_on=["validate_order"]
+    )
+    saga.add_step(
+        "charge_payment", charge_payment, refund_payment, depends_on=["reserve_inventory"]
+    )
+    saga.add_step(
+        "send_notification", send_notification, cancel_notification, depends_on=["charge_payment"]
+    )
     return saga
 
 
-def saga_factory(saga_name: str) -> Saga:
-    """Factory used by SagaReplay to create a fresh saga instance."""
-    # Steps will be added during replay setup (replay engine re-adds them)
-    return Saga(name=saga_name)
+def saga_factory(saga_name: str, snapshot_storage: InMemorySnapshotStorage | None = None) -> Saga:
+    """Factory used by SagaReplay: the same saga, with the same steps, to run again."""
+    return build_saga(snapshot_storage or InMemorySnapshotStorage(), saga_name)
 
 
 # ============================================================================
@@ -119,12 +126,11 @@ async def _run() -> None:
     print("Phase 1 — Execute saga with snapshot capture")
     print("=" * 60)
 
-    saga = await build_saga(snapshot_storage)
-    saga_id = UUID(saga.saga_id)
-    result = await saga.execute()
+    context = await build_saga(snapshot_storage).run({"order_id": "ORD-1"})
+    saga_id = snapshot_saga_id(context["saga_id"])  # snapshots are stored under a UUID
 
-    print(f"\n  Status:          {result.status.value}")
-    print(f"  Completed steps: {result.completed_steps}/{result.total_steps}")
+    print("\n  Status:          completed")
+    print(f"  Notified:        {context['notified']}")
     print(f"  Saga ID:         {saga_id}")
 
     # --- Phase 2: List captured snapshots ------------------------------------
@@ -180,7 +186,7 @@ async def _run() -> None:
         replay = SagaReplay(
             saga_id=saga_id,
             snapshot_storage=snapshot_storage,
-            saga_factory=saga_factory,
+            saga_factory=lambda name: saga_factory(name, snapshot_storage),
         )
         try:
             replay_result = await replay.from_checkpoint(

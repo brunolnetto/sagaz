@@ -27,7 +27,7 @@ from dataclasses import dataclass
 from functools import partial
 from typing import TYPE_CHECKING, Any
 
-from sagaz.core.saga import Saga
+from sagaz import Saga, SagaConfig
 from sagaz.core.storage.backends.memory.saga import InMemorySagaStorage
 from sagaz.core.storage.backends.sqlite.saga import SQLiteSagaStorage
 from sagaz.core.types import SagaStatus
@@ -84,15 +84,24 @@ async def _io_step(ctx: Any) -> dict[str, bool]:
     return {"ok": True}
 
 
+def _checkout() -> Saga:
+    """An empty Checkout saga that neither logs nor records metrics (they would be timed)."""
+    saga = Saga(config=SagaConfig(metrics=False, logging=False))
+    saga.saga_name = "Checkout"
+    return saga
+
+
 async def _run_checkout(*, parallel: bool) -> SagaStatus:
-    saga = Saga("Checkout")
-    await saga.add_step("validate_order", _validate)
+    saga = _checkout()
+    saga.add_step("validate_order", _validate)
+    previous = "validate_order"
     for name in INDEPENDENT_STEPS:
-        # dependencies=None chains each step after the previous one. Depending only
-        # on validate_order lets the I/O steps fan out concurrently; a saga must stay
-        # connected, so the fan-out hangs off that shared root step.
-        await saga.add_step(name, _io_step, dependencies={"validate_order"} if parallel else None)
-    return (await saga.execute()).status
+        # Depending on the previous step chains them. Depending only on validate_order
+        # lets the I/O steps fan out concurrently, off that shared root step.
+        saga.add_step(name, _io_step, depends_on=["validate_order" if parallel else previous])
+        previous = name
+    await saga.run({})  # raises if the saga fails
+    return SagaStatus.COMPLETED
 
 
 async def parallelism_experiment() -> Comparison:
@@ -170,9 +179,11 @@ def _flaky(failures: int) -> Callable[[Any], Awaitable[dict[str, int]]]:
 
 
 async def _run_with_backoff(base: float) -> SagaStatus:
-    saga = Saga("Checkout", retry_backoff_base=base)
-    await saga.add_step("call_payment_gateway", _flaky(failures=2), max_retries=3)
-    return (await saga.execute()).status
+    saga = _checkout()
+    saga.retry_backoff_base = base
+    saga.add_step("call_payment_gateway", _flaky(failures=2), max_retries=3)
+    await saga.run({})  # raises if the retries run out
+    return SagaStatus.COMPLETED
 
 
 async def backoff_experiment() -> Comparison:

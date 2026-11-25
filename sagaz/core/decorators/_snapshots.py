@@ -177,7 +177,8 @@ class _EngineSnapshotMixin:
             step_name,
             names.index(step_name) if step_name in names else len(names),
             status,
-            context,
+            # Without the engine's own "__..." markers: a replay sets them again.
+            {key: value for key, value in context.items() if not key.startswith("__")},
             [name for name in names if context.get(f"__{name}_completed")],
             self.saga.state_configuration,
         )

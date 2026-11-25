@@ -5,13 +5,19 @@ import asyncio
 import logging
 from datetime import datetime
 from typing import Any
-from uuid import UUID
 
-from sagaz.core.context import SagaContext
-from sagaz.core.exceptions import SagaStepError
-from sagaz.core.replay import ReplayConfig, SnapshotStrategy
+from sagaz import (
+    ReplayConfig,
+    Saga,
+    SagaConfig,
+    SagaFailedError,
+    SagaStepError,
+    SnapshotStrategy,
+    action,
+    compensate,
+)
+from sagaz.core.decorators._snapshots import snapshot_saga_id
 from sagaz.core.replay.saga_replay import SagaReplay
-from sagaz.core.saga import Saga
 from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
 
 logging.basicConfig(
@@ -23,16 +29,10 @@ logger = logging.getLogger(__name__)
 class OrderSaga(Saga):
     """Order processing saga with potential payment failure."""
 
-    def __init__(self, fail_at_step: str | None = None, **kwargs: Any) -> None:
-        super().__init__(name="order-processing", **kwargs)
-        self.fail_at_step = fail_at_step
+    saga_name = "order-processing"
 
-    async def build(self) -> None:
-        await self.add_step("reserve_inventory", self.reserve_inventory, self.release_inventory)
-        await self.add_step("process_payment", self.process_payment, self.refund_payment)
-        await self.add_step("ship_order", self.ship_order, self.cancel_shipment)
-
-    async def reserve_inventory(self, ctx: SagaContext) -> dict:
+    @action("reserve_inventory")
+    async def reserve_inventory(self, ctx: dict[str, Any]) -> dict:
         """Reserve inventory for order."""
         order_id = ctx.get("order_id")
         items = ctx.get("items", [])
@@ -52,15 +52,17 @@ class OrderSaga(Saga):
         logger.info(f"[ORDER {order_id}] ✓ Reserved {len(reservations)} items")
         return {"reservations": reservations}
 
-    async def release_inventory(self, result: dict[str, Any] | None, ctx: SagaContext) -> None:
+    @compensate("reserve_inventory")
+    async def release_inventory(self, ctx: dict[str, Any]) -> None:
         """Release reserved inventory."""
         order_id = ctx.get("order_id")
-        reservations = result.get("reservations", []) if result else []
+        reservations = ctx.get("reservations", [])  # the step's result is in the context
 
         logger.warning(f"[ORDER {order_id}] ✗ Releasing {len(reservations)} reservations")
         await asyncio.sleep(0.1)
 
-    async def process_payment(self, ctx: SagaContext) -> dict:
+    @action("process_payment", depends_on=["reserve_inventory"], max_retries=0)
+    async def process_payment(self, ctx: dict[str, Any]) -> dict:
         """Process payment - may fail on first attempt."""
         order_id = ctx.get("order_id")
         total_amount = ctx.get("total_amount", 0)
@@ -85,16 +87,18 @@ class OrderSaga(Saga):
             "amount": total_amount,
         }
 
-    async def refund_payment(self, result: dict[str, Any] | None, ctx: SagaContext) -> None:
+    @compensate("process_payment")
+    async def refund_payment(self, ctx: dict[str, Any]) -> None:
         """Refund payment."""
         order_id = ctx.get("order_id")
-        transaction_id = result.get("transaction_id") if result else None
+        transaction_id = ctx.get("transaction_id")
 
         if transaction_id:
             logger.warning(f"[ORDER {order_id}] ✗ Refunding payment {transaction_id}")
             await asyncio.sleep(0.1)
 
-    async def ship_order(self, ctx: SagaContext) -> dict:
+    @action("ship_order", depends_on=["process_payment"])
+    async def ship_order(self, ctx: dict[str, Any]) -> dict:
         """Ship order to customer."""
         order_id = ctx.get("order_id")
 
@@ -106,10 +110,11 @@ class OrderSaga(Saga):
 
         return {"tracking_number": tracking_number}
 
-    async def cancel_shipment(self, result: dict[str, Any] | None, ctx: SagaContext) -> None:
+    @compensate("ship_order")
+    async def cancel_shipment(self, ctx: dict[str, Any]) -> None:
         """Cancel shipment."""
         order_id = ctx.get("order_id")
-        tracking_number = result.get("tracking_number") if result else None
+        tracking_number = ctx.get("tracking_number")
 
         if tracking_number:
             logger.warning(f"[ORDER {order_id}] ✗ Cancelling shipment {tracking_number}")
@@ -122,11 +127,16 @@ async def main() -> None:
     # Setup snapshot storage
     snapshot_storage = InMemorySnapshotStorage()
 
-    # Configure replay settings
-    replay_config = ReplayConfig(
-        enable_snapshots=True,
-        snapshot_strategy=SnapshotStrategy.BEFORE_EACH_STEP,
-        retention_days=30,
+    # A snapshot before each step, kept for 30 days
+    config = SagaConfig(
+        replay_config=ReplayConfig(
+            enable_snapshots=True,
+            snapshot_strategy=SnapshotStrategy.BEFORE_EACH_STEP,
+            retention_days=30,
+        ),
+        snapshot_storage=snapshot_storage,
+        metrics=False,
+        logging=False,
     )
 
     # Initial order data
@@ -145,29 +155,21 @@ async def main() -> None:
     # PHASE 1: Initial saga execution (FAILS at payment step)
     # ========================================================================
 
-    saga = OrderSaga(replay_config=replay_config, snapshot_storage=snapshot_storage)
-
-    # Set context data
-    for key, value in order_context.items():
-        saga.context.set(key, value)
-
-    await saga.build()
-
-    failed_saga_id = str(saga.saga_id)  # Store saga ID before execution
+    failed_saga_id = "order-ORD-12345"
 
     try:
-        await saga.execute()
-    except Exception:
-        pass
+        await OrderSaga(config=config).run(order_context, saga_id=failed_saga_id)
+    except SagaFailedError as failure:
+        logger.info(f"Saga failed at {failure.failed_step!r}: {failure.status.value}")
 
     # ========================================================================
     # PHASE 2: Inspect available checkpoints
     # ========================================================================
 
-    snapshots = await snapshot_storage.list_snapshots(saga_id=UUID(failed_saga_id))
+    snapshots = await snapshot_storage.list_snapshots(saga_id=snapshot_saga_id(failed_saga_id))
 
-    for _i, _snapshot in enumerate(snapshots, 1):
-        pass
+    for snapshot in sorted(snapshots, key=lambda s: s.step_index):
+        logger.info(f"Checkpoint before {snapshot.step_name}: done={snapshot.completed_steps}")
 
     # ========================================================================
     # PHASE 3: Replay from checkpoint with corrected data
@@ -175,16 +177,17 @@ async def main() -> None:
 
     # Create replay instance
     replay = SagaReplay(
-        saga_id=UUID(failed_saga_id),
+        saga_id=failed_saga_id,
         snapshot_storage=snapshot_storage,
         initiated_by="admin@example.com",
-        saga_factory=lambda saga_name: OrderSaga(
-            replay_config=replay_config, snapshot_storage=snapshot_storage
-        ),
+        saga_factory=lambda saga_name: OrderSaga(config=config),
     )
 
-    # Replay from payment step with corrected gateway
-    await replay.from_checkpoint(
+    # Replay from the payment step with the corrected gateway. A replay adopts the steps
+    # its snapshot completed (here reserve_inventory) without running them again. The
+    # failed run released that reservation when it compensated, so in a real system
+    # replay from "reserve_inventory" instead, unless the reservation still holds.
+    result = await replay.from_checkpoint(
         step_name="process_payment",
         context_override={
             "payment_gateway": "backup"  # Use backup gateway
@@ -194,6 +197,8 @@ async def main() -> None:
     # ========================================================================
     # PHASE 4: Verify final state
     # ========================================================================
+
+    logger.info(f"Replay {result.replay_status.value}: new saga {result.new_saga_id}")
 
 
 if __name__ == "__main__":

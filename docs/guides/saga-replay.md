@@ -84,6 +84,12 @@ else:
 - **A new run:** the replay runs under a new saga id; the original run is not changed.
 - **Adopted steps:** the steps the snapshot completed are not run again. If the replay
   fails later, they are compensated with the others.
+- **After a rollback:** a run that failed compensated its completed steps, so their
+  effects are gone, while the snapshot still lists them as completed. Replaying from the
+  failed step adopts them as done. Do that only if those effects still hold; otherwise
+  replay from the first step whose effect was undone.
+- **What a snapshot holds:** the saga's public context, without the engine's own
+  bookkeeping keys.
 - **Without `SagaReplay`:** `await saga.run_from_snapshot(snapshot, context_override)`
   does the same from a snapshot you loaded, and returns and raises what `run()` does.
 - **The classic engine:** a factory may also return a classic `sagaz.core.saga.Saga`,
