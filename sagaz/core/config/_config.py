@@ -35,7 +35,9 @@ class SagaConfig:
         logging: Enable saga logging (True/False or LoggingSagaListener instance)
         default_timeout: Default step timeout in seconds
         default_max_retries: Default retry count for failed steps
-        failure_strategy: Default parallel failure strategy
+        failure_strategy: What the other steps of a parallel level do when one fails:
+            ``"WAIT_ALL"``, ``"FAIL_FAST"`` or ``"FAIL_FAST_WITH_GRACE"`` (default)
+        failure_grace_period: Seconds ``FAIL_FAST_WITH_GRACE`` gives them to finish
 
     Example:
         >>> # Minimal config (in-memory, for development)
@@ -93,7 +95,10 @@ class SagaConfig:
 
     default_timeout: float = 60.0
     default_max_retries: int = 3
+    # What the other steps of a parallel level do when one fails (#567): WAIT_ALL,
+    # FAIL_FAST, or FAIL_FAST_WITH_GRACE, which gives them failure_grace_period seconds.
     failure_strategy: str = "FAIL_FAST_WITH_GRACE"
+    failure_grace_period: float = 2.0
 
     # A failure to save the saga state raises SagaPersistenceError (#534); True logs a
     # warning instead and lets the saga go on (the behavior before 2.4).
@@ -120,6 +125,9 @@ class SagaConfig:
         """Initialize storage and build listeners list."""
         if self.storage_layout == "legacy":  # the classic layout's former name (#578)
             self.storage_layout = "classic"
+        from sagaz.core.decorators._parallel import failure_strategy
+
+        failure_strategy(self.failure_strategy)  # a name that is no strategy fails here
         # Validate: cannot mix storage_manager with storage/outbox_storage
         if self.storage_manager is not None:
             if self.storage is not None:
