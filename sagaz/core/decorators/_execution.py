@@ -299,21 +299,8 @@ class ExecutionEngine(
         skipped_count = 0
 
         for level in comp_levels:
-            # v1.3.0: Filter out tainted steps and pivot steps
-            compensable_steps = []
-            for step_id in level:
-                if self.saga._is_step_tainted(step_id):
-                    logger.info(f"Skipping compensation for tainted step: {step_id}")
-                    skipped_count += 1
-                    continue
-
-                step = self.saga._step_registry.get(step_id)
-                if step and step.pivot and step_id in self.saga._completed_pivots:
-                    logger.info(f"Reached pivot boundary, stopping compensation: {step_id}")
-                    skipped_count += 1
-                    continue
-
-                compensable_steps.append(step_id)
+            compensable_steps = [step_id for step_id in level if self._compensable(step_id)]
+            skipped_count += len(level) - len(compensable_steps)
 
             if compensable_steps:
                 tasks = [self._execute_compensation(step_id) for step_id in compensable_steps]
@@ -322,6 +309,17 @@ class ExecutionEngine(
 
         if skipped_count > 0:
             logger.info(f"Pivot-aware compensation: skipped {skipped_count} tainted/pivot steps")
+
+    def _compensable(self, step_id: str) -> bool:
+        """Whether an executed step is undone: not tainted, and not a completed pivot (v1.3.0)."""
+        if self.saga._is_step_tainted(step_id):
+            logger.info(f"Skipping compensation for tainted step: {step_id}")
+            return False
+        step = self.saga._step_registry.get(step_id)
+        if step and step.pivot and step_id in self.saga._completed_pivots:
+            logger.info(f"Reached pivot boundary, stopping compensation: {step_id}")
+            return False
+        return True
 
     async def _execute_compensation(self, step_id: str) -> None:
         """Execute a single compensation with lifecycle hook and listeners."""

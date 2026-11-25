@@ -28,6 +28,7 @@ from sagaz.core.types import SagaStatus
 
 if TYPE_CHECKING:
     from sagaz.core.decorators import Saga, SagaStepDefinition
+    from sagaz.core.decorators._execution import ExecutionEngine
     from sagaz.core.decorators._step_ledger import StepLedger
 
 logger = get_logger("sagaz.core.decorators")
@@ -83,9 +84,21 @@ class _DecoratorStepChartMixin:
         executing are logged as in doubt, never compensated. Returns the final
         status, ``ROLLED_BACK`` or ``FAILED``.
         """
+        return await self._resume_engine().resume_compensation(saga_id)
+
+    async def pending_compensations(self, saga_id: str) -> list[str]:
+        """The steps ``resume_compensation(saga_id)`` would undo, in its order (#544).
+
+        Read from the run's stored state, without compensating anything: the steps
+        still ``completed`` or ``compensating``, except tainted and pivot steps.
+        Steps that were executing are in ``in_doubt_steps()`` afterwards.
+        """
+        return await self._resume_engine().pending_compensations(saga_id)
+
+    def _resume_engine(self) -> ExecutionEngine:
         from sagaz.core.decorators._execution import ExecutionEngine
 
-        return await ExecutionEngine(self).resume_compensation(saga_id)  # type: ignore[arg-type]
+        return ExecutionEngine(self)  # type: ignore[arg-type]
 
 
 class _EngineStepChartMixin:
@@ -103,6 +116,7 @@ class _EngineStepChartMixin:
         async def _open_recorder(self, saga_name: str) -> None: ...
         async def _record(self, event_type: Any, **fields: Any) -> None: ...
         async def _compensate(self) -> None: ...
+        def _compensable(self, step_id: str) -> bool: ...
         async def _persist(self, status: SagaStatus, phase: str | None = None) -> None: ...
         def _elapsed_ms(self, since: float | None = None) -> float: ...
 
@@ -223,6 +237,14 @@ class _EngineStepChartMixin:
             await self._record(SagaRolledBack, duration_ms=self._elapsed_ms())
         await self._persist(status)
         return status
+
+    async def pending_compensations(self, saga_id: str) -> list[str]:
+        state = await self._load_resumable(saga_id)
+        self._initialize_run(state.get("context") or {}, saga_id)
+        self._register_compensations()
+        await self._restore_chart(list(state["configuration"]))
+        levels = self.saga._compensation_graph.get_compensation_order()
+        return [step_id for level in levels for step_id in level if self._compensable(step_id)]
 
     async def _load_resumable(self, saga_id: str) -> dict[str, Any]:
         if not self.saga.use_step_statechart:
