@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import warnings
 from abc import ABC
 from collections.abc import Callable, Iterable
 from datetime import datetime
@@ -68,6 +69,12 @@ class Saga(
         participant: str | None = None,
         use_step_statechart: bool | None = None,
     ) -> None:
+        warnings.warn(
+            "sagaz.core.saga.Saga is deprecated and will be removed in 3.0: use sagaz.Saga, "
+            "which has everything it had (see docs/guides/migrating-from-the-classic-saga.md)",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.name = name
         self.version = version
         self.saga_id = str(uuid4())

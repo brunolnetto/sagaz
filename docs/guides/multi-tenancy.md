@@ -31,7 +31,7 @@ from sagaz.core.execution.orchestrator import SagaOrchestrator
 
 orchestrator = SagaOrchestrator(tenant="acme", tenant_registry=registry)
 await orchestrator.run(OrderSaga(), {"order_id": "o-1"})   # a sagaz.Saga
-await orchestrator.execute_saga(saga)                       # a classic sagaz.core.saga.Saga
+await orchestrator.execute_saga(saga)                       # a classic saga (deprecated)
 await orchestrator.get_statistics()                         # both kinds
 ```
 

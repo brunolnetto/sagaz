@@ -21,7 +21,7 @@
 ### Basic Usage
 
 ```python
-from sagaz import Saga, SagaConfig, ReplayConfig, SnapshotStrategy
+from sagaz import ReplayConfig, Saga, SagaConfig, SnapshotStrategy, action, compensate
 from sagaz.core.storage.backends.filesystem_snapshot import FilesystemSnapshotStorage
 
 # Create storage instance
@@ -33,26 +33,26 @@ storage = FilesystemSnapshotStorage(
 
 # Use in saga
 class PaymentSaga(Saga):
-    async def build(self):
-        await self.add_step(
-            name="authorize_payment",
-            action=self._authorize,
-            compensation=self._cancel_authorization
-        )
+    saga_name = "payment"
+
+    @action("authorize_payment")
+    async def authorize(self, ctx): ...
+
+    @compensate("authorize_payment")
+    async def cancel_authorization(self, ctx): ...
 
 # Execute with snapshots
 saga = PaymentSaga(
-    context={"amount": 100.0, "currency": "USD"},
     config=SagaConfig(
         replay_config=ReplayConfig(
             enable_snapshots=True,
-            snapshot_strategy=SnapshotStrategy.BEFORE_EACH_STEP
-        )
-    ),
-    snapshot_storage=storage
+            snapshot_strategy=SnapshotStrategy.BEFORE_EACH_STEP,
+        ),
+        snapshot_storage=storage,
+    )
 )
 
-result = await saga.execute()
+context = await saga.run({"amount": 100.0, "currency": "USD"})
 ```
 
 ### 📚 Live Example
@@ -317,28 +317,29 @@ storage = FilesystemSnapshotStorage(
 
 # Define saga
 class ResearchSaga(Saga):
-    @action(name="step1")
+    saga_name = "research"
+
+    @action("step1")
     async def process_data(self, ctx):
         return {"processed": True}
-    
-    @compensate(for_step="step1")
-    async def rollback_processing(self, result, ctx):
+
+    @compensate("step1")
+    async def rollback_processing(self, ctx):
         pass
 
 # Execute with full snapshots
 saga = ResearchSaga(
-    context={"experiment_id": "exp-001"},
     config=SagaConfig(
         replay_config=ReplayConfig(
             enable_snapshots=True,
             snapshot_strategy=SnapshotStrategy.BEFORE_EACH_STEP,
-            retention_days=30
-        )
-    ),
-    snapshot_storage=storage
+            retention_days=30,
+        ),
+        snapshot_storage=storage,
+    )
 )
 
-result = await saga.execute()
+context = await saga.run({"experiment_id": "exp-001"})
 
 # Analyze snapshots
 info = storage.get_storage_info()

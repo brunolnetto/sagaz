@@ -216,11 +216,11 @@ result = await saga.run({"order_id": "123", "amount": 99.99})
 
 > **Note:** You cannot mix both approaches. Once you use decorators, `add_step()` will raise an error, and vice versa.
 
-> **Which `Saga`?** Use `sagaz.Saga`. Another class, `sagaz.core.saga.Saga`
-> (`await add_step(...)`, `execute()` returning a `SagaResult`), is the engine behind
-> snapshot replay (`SagaReplay`) and `SagaOrchestrator`. Use it only for those; it will be
-> merged into `sagaz.Saga`. Its `add_step` also accepts `sagaz.Saga`'s parameter names
-> (`depends_on`, `timeout_seconds`).
+> **Which `Saga`?** Use `sagaz.Saga`. The older `sagaz.core.saga.Saga`
+> (`await add_step(...)`, `execute()` returning a `SagaResult`) is deprecated since 2.6.0
+> and will be removed in 3.0: `sagaz.Saga` has everything it had, snapshot replay and
+> `SagaOrchestrator` included. See
+> [Migrating from the classic Saga](docs/guides/migrating-from-the-classic-saga.md).
 
 ### Transactional Outbox + Optimistic Sending
 

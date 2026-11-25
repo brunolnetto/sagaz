@@ -64,11 +64,14 @@ Legend: ✅ supported · ⚠️ partial · ❌ missing · — does not apply to 
 | Triggers and web framework helpers | ✅ `tests/unit/core/triggers/test_triggers.py` | — `@on_event` and `begin()` are its triggers |
 | Storage for its state | memory, SQLite, PostgreSQL, Redis `tests/unit/core/test_saga_durability.py` | memory, SQLite, PostgreSQL, unified log `tests/unit/test_choreography_state.py::TestFactory::test_urls` |
 
-## Classic engine (until [#544])
+## Classic engine (deprecated, removed in 3.0)
 
 Orchestration has one more implementation, `sagaz.core.saga.Saga` (`await add_step()`,
 `execute() -> SagaResult`). It came before `sagaz.Saga`. Nothing runs only on it any more:
-`sagaz.Saga` has what it had, so [#544] deprecates it and 3.0 removes it with this section.
+`sagaz.Saga` has what it had, so creating one emits a `DeprecationWarning` since 2.6.0
+(`tests/unit/core/test_classic_saga_deprecation.py::test_creating_a_classic_saga_warns_and_names_the_replacement`, [#544]),
+and 3.0 removes it with this section. [Migrating from the classic Saga](../guides/migrating-from-the-classic-saga.md)
+maps one to the other.
 
 - **`SagaOrchestrator`** runs both kinds: `tests/unit/test_orchestrator_runs_sagaz_saga.py::TestBothKinds::test_statistics_and_counts_cover_classic_and_sagaz_sagas`
 - **Compensation resume:** `sagaz.Saga` resumes and lists what is pending: `tests/unit/core/test_statechart_phase3.py::TestResume::test_pending_compensations_are_what_a_resume_would_undo`

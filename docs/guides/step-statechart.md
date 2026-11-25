@@ -88,7 +88,8 @@ status = await saga.resume_compensation(saga_id)     # ROLLED_BACK, or FAILED
 
 ### Classic engine
 
-The classic `sagaz.core.saga.Saga` does not store its state, so you give it the
+The classic `sagaz.core.saga.Saga` (deprecated since 2.6.0: see
+[Migrating from the classic Saga](migrating-from-the-classic-saga.md)) does not store its state, so you give it the
 configuration and the completed steps yourself, from a snapshot:
 
 ```python
