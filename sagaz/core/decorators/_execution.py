@@ -11,6 +11,7 @@ import uuid
 from typing import TYPE_CHECKING, Any
 
 from sagaz.core.decorators._attempts import _StepAttemptsMixin
+from sagaz.core.decorators._deadline import within
 from sagaz.core.decorators._durability import _DurabilityMixin
 from sagaz.core.decorators._event_sourcing import _EventSourcingMixin
 from sagaz.core.decorators._idempotency import StepKeys
@@ -61,6 +62,7 @@ class ExecutionEngine(
         self._step_keys = StepKeys(None, "")
         self._snapshots = Snapshots()
         self.adopted: frozenset[str] = frozenset()  # set by Saga.run_from_snapshot
+        self.deadline: float | None = None  # seconds for all the steps (#568)
         self._compensation_errors: dict[str, BaseException] = {}
         self._init_event_sourcing()
 
@@ -96,7 +98,7 @@ class ExecutionEngine(
             await self._notify_listeners(
                 "on_saga_start", name, self.saga._saga_id, self.saga._context
             )
-            await self._execute_all_levels()
+            await within(self.deadline, name, self._execute_all_levels)
         except Exception as e:
             await self._record(
                 CompensationStarted,
