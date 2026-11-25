@@ -19,14 +19,13 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
+from sagaz import ReplayConfig, Saga, SagaConfig, SnapshotStrategy, action, compensate
 from sagaz.core.compliance import (
     AccessLevel,
     ComplianceConfig,
     ComplianceManager,
 )
-from sagaz.core.context import SagaContext
-from sagaz.core.replay import ReplayConfig, SnapshotStrategy
-from sagaz.core.saga import Saga
+from sagaz.core.decorators._snapshots import snapshot_saga_id
 from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
 
 logging.basicConfig(
@@ -47,40 +46,38 @@ class WireTransferSaga(Saga):
     Demonstrates compliance features for regulated industries.
     """
 
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(name="wire-transfer", **kwargs)
+    saga_name = "wire-transfer"
 
-    async def build(self) -> None:
-        await self.add_step("validate_sender", self._validate_sender, self._cancel_validation)
-        await self.add_step("check_compliance", self._check_compliance, self._flag_compliance)
-        await self.add_step("execute_transfer", self._execute_transfer, self._reverse_transfer)
-        await self.add_step("notify_recipient", self._notify_recipient, None)
-
-    async def _validate_sender(self, ctx: SagaContext) -> dict:
+    @action("validate_sender")
+    async def validate_sender(self, ctx: dict[str, Any]) -> dict:
         transfer_id = ctx.get("transfer_id")
         # PII fields (SSN, account numbers) are never written to logs
         logger.info(f"[TRANSFER {transfer_id}] Validating sender identity")
         await asyncio.sleep(0.05)
         return {"sender_validated": True, "validation_time": datetime.now().isoformat()}
 
-    async def _cancel_validation(self, result: dict[str, Any] | None, ctx: SagaContext) -> None:
+    @compensate("validate_sender")
+    async def cancel_validation(self, ctx: dict[str, Any]) -> None:
         transfer_id = ctx.get("transfer_id")
         logger.warning(f"[TRANSFER {transfer_id}] Invalidating sender")
         await asyncio.sleep(0.05)
 
-    async def _check_compliance(self, ctx: SagaContext) -> dict:
+    @action("check_compliance", depends_on=["validate_sender"])
+    async def check_compliance(self, ctx: dict[str, Any]) -> dict:
         transfer_id = ctx.get("transfer_id")
         amount = ctx.get("amount", 0)
         logger.info(f"[TRANSFER {transfer_id}] Checking AML/KYC for ${amount:,.2f}")
         await asyncio.sleep(0.05)
         return {"compliance_check": "passed", "aml_score": 95, "kyc_verified": True}
 
-    async def _flag_compliance(self, result: dict[str, Any] | None, ctx: SagaContext) -> None:
+    @compensate("check_compliance")
+    async def flag_compliance(self, ctx: dict[str, Any]) -> None:
         transfer_id = ctx.get("transfer_id")
         logger.warning(f"[TRANSFER {transfer_id}] Flagging compliance check")
         await asyncio.sleep(0.05)
 
-    async def _execute_transfer(self, ctx: SagaContext) -> dict:
+    @action("execute_transfer", depends_on=["check_compliance"])
+    async def execute_transfer(self, ctx: dict[str, Any]) -> dict:
         transfer_id = ctx.get("transfer_id")
         amount = ctx.get("amount", 0)
         logger.info(f"[TRANSFER {transfer_id}] Executing ${amount:,.2f} transfer")
@@ -91,14 +88,16 @@ class WireTransferSaga(Saga):
             "executed_at": datetime.now().isoformat(),
         }
 
-    async def _reverse_transfer(self, result: dict[str, Any] | None, ctx: SagaContext) -> None:
+    @compensate("execute_transfer")
+    async def reverse_transfer(self, ctx: dict[str, Any]) -> None:
         transfer_id = ctx.get("transfer_id")
-        swift_code = result.get("swift_code") if result else None
+        swift_code = ctx.get("swift_code")  # the step's result is in the context
         if swift_code:
             logger.warning(f"[TRANSFER {transfer_id}] Reversing transfer {swift_code}")
             await asyncio.sleep(0.05)
 
-    async def _notify_recipient(self, ctx: SagaContext) -> dict:
+    @action("notify_recipient", depends_on=["execute_transfer"])
+    async def notify_recipient(self, ctx: dict[str, Any]) -> dict:
         transfer_id = ctx.get("transfer_id")
         logger.info(f"[TRANSFER {transfer_id}] Notifying parties")
         await asyncio.sleep(0.05)
@@ -150,19 +149,20 @@ async def _run() -> None:
     print("💳 PHASE 1: Wire Transfer Execution")
     print("-" * 70)
 
-    saga = WireTransferSaga(replay_config=replay_config, snapshot_storage=snapshot_storage)
-    for key, value in transfer_context.items():
-        saga.context.set(key, value)
-    await saga.build()
-    await saga.execute()
+    config = SagaConfig(
+        replay_config=replay_config,
+        snapshot_storage=snapshot_storage,
+        metrics=False,
+        logging=False,
+    )
+    final_context = await WireTransferSaga(config=config).run(transfer_context)
+    saga_id = final_context["saga_id"]
 
     print("✓ Transfer completed")
-    print(f"  Saga ID:       {saga.saga_id}")
+    print(f"  Saga ID:       {saga_id}")
     print(f"  Transfer ID:   {transfer_context['transfer_id']}")
     print(f"  Amount:        ${transfer_context['amount']:,.2f} {transfer_context['currency']}")
     print()
-
-    saga_id = saga.saga_id
 
     # PHASE 2: Encrypt sensitive fields
     print("🔐 PHASE 2: Context Encryption (PII Protection)")
@@ -217,7 +217,7 @@ async def _run() -> None:
         compliance_mgr.create_audit_log(
             operation="check_access",
             user_id=user,
-            saga_id=UUID(saga_id),
+            saga_id=snapshot_saga_id(saga_id),
             details={"level": level.value, "allowed": has_access},
         )
 

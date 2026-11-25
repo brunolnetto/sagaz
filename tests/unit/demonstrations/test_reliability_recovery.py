@@ -67,20 +67,16 @@ async def test_idempotency_run_function_covers_exception_branches():
 
 @pytest.mark.asyncio
 async def test_wire_transfer_saga_compensation_bodies_directly():
-    """Covers _cancel_validation (L66-68), _flag_compliance (L78-80), _reverse_transfer (L94-98)."""
-    from sagaz import SagaConfig, configure
+    """The compensations, which the demonstration's successful transfer never runs."""
     from sagaz.demonstrations.reliability_recovery.replay_compliance.main import WireTransferSaga
 
-    configure(SagaConfig())
     saga = WireTransferSaga()
     ctx = {"transfer_id": "TFR-001", "amount": 100.0}
 
-    await saga._cancel_validation(None, ctx)
-    await saga._flag_compliance(None, ctx)
-    # with swift_code — covers L96-98
-    await saga._reverse_transfer({"swift_code": "SWIFT-TFR-001"}, ctx)
-    # without swift_code — covers L95 false branch
-    await saga._reverse_transfer(None, ctx)
+    await saga.cancel_validation(ctx)
+    await saga.flag_compliance(ctx)
+    await saga.reverse_transfer({**ctx, "swift_code": "SWIFT-TFR-001"})  # a transfer to reverse
+    await saga.reverse_transfer(ctx)  # none was made
 
 
 # ===========================================================================
@@ -473,12 +469,17 @@ async def test_wire_transfer_saga_runs_successfully():
         enable_snapshots=True,
         snapshot_strategy=SnapshotStrategy.BEFORE_EACH_STEP,
     )
-    saga = WireTransferSaga(replay_config=replay_config, snapshot_storage=snapshot_storage)
-    saga.context.set("transfer_id", "TXN-001")
-    saga.context.set("amount", 1000.0)
-    await saga.build()
-    result = await saga.execute()
-    assert result is not None
+    from sagaz import SagaConfig
+    from sagaz.core.decorators._snapshots import snapshot_saga_id
+
+    config = SagaConfig(
+        replay_config=replay_config, snapshot_storage=snapshot_storage, metrics=False, logging=False
+    )
+    result = await WireTransferSaga(config=config).run({"transfer_id": "TXN-001", "amount": 1000.0})
+    assert result["notification_sent"] is True
+    assert result["swift_code"] == "SWIFT-TXN-001"
+    taken = await snapshot_storage.list_snapshots(snapshot_saga_id(result["saga_id"]))
+    assert len(taken) == 4  # one before each step
 
 
 @pytest.mark.asyncio
