@@ -46,6 +46,7 @@ def event() -> Event:
         tenant_id="acme",
         source="orders",
         trace_context=TRACEPARENT,
+        lineage=(("e-0", "checkout"), ("e-1", None)),
     )
 
 
@@ -55,6 +56,7 @@ def same(received: Event, sent: Event) -> None:
     assert received.saga_id == sent.saga_id
     assert received.tenant_id == sent.tenant_id
     assert received.trace_context == sent.trace_context
+    assert received.lineage == sent.lineage
 
 
 class TestRabbitMQ:

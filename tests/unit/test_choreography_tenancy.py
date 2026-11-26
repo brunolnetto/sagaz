@@ -143,7 +143,7 @@ class TestDeliveries:
                 raise RuntimeError(msg)
 
             shop.engine.register(
-                ChoreographedSaga(name="payments").on("stock.reserved", suspend_then_fail)
+                ChoreographedSaga(name="risk").on("stock.reserved", suspend_then_fail)
             )
             await shop.orders.begin("order.created", tenant=acme.tenant_id, correlation_id="o-1")
             assert shop.reserved == ["o-1"]
@@ -190,7 +190,7 @@ class TestCaps:
             async def slow(event: Event, me: ChoreographedSaga) -> None:
                 await asyncio.sleep(5)
 
-            shop.engine.register(ChoreographedSaga(name="payments").on("stock.reserved", slow))
+            shop.engine.register(ChoreographedSaga(name="risk").on("stock.reserved", slow))
             await asyncio.wait_for(
                 shop.orders.begin("order.created", tenant=acme.tenant_id, correlation_id="o-1"), 3
             )

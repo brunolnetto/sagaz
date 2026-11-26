@@ -18,6 +18,7 @@ from sagaz.choreography._attempts import (
 )
 from sagaz.choreography._deadlines import DeadlineWatcher
 from sagaz.choreography._dispatch import Dispatcher, RetryDefaults
+from sagaz.choreography._identity import Identity, claim
 from sagaz.choreography._observe import DEFAULT_LISTENER_TIMEOUT, Listeners
 from sagaz.choreography._tenancy import Tenancy
 from sagaz.choreography.events import COMPENSATE, PIVOTED, AbstractEventBus, Event, HandlerT
@@ -83,6 +84,11 @@ class ChoreographyEngine:
         (``on_compensation_*``). A participant does not see the whole transaction,
         so the ``on_saga_*`` hooks come from a ``ChoreographyTracker``'s listeners,
         once per transaction. A listener that raises is logged and ignored.
+    service:
+        The service this engine runs in, the same for all its replicas (#571). With it,
+        the engine announces its participants on the bus when it starts, and reports
+        (an error log, and ``engine.identity.conflicts``) a participant name that
+        another service announced too. Without it nothing is announced.
     tenant_registry:
         The ``TenantRegistry`` an event's tenant is checked against (#564); default,
         the global configuration's (``SagaConfig.tenant_registry``). With one, a
@@ -141,6 +147,7 @@ class ChoreographyEngine:
         listeners: Iterable[SagaListener] = (),
         listener_timeout: float | None = DEFAULT_LISTENER_TIMEOUT,
         tenant_registry: TenantRegistry | None = None,
+        service: str | None = None,
     ) -> None:
         self._bus = bus
         self._tenancy = Tenancy(tenant_registry)
@@ -168,6 +175,7 @@ class ChoreographyEngine:
             self._tenancy,
         )
         self._sagas: dict[str, ChoreographedSaga] = {}
+        self.identity = Identity(bus, service, lambda: self._sagas.values())
         self._running = False
         # Tracks dispatch closures created per saga so they can be properly unsubscribed.
         self._closures: dict[str, dict[str, HandlerT]] = {}
@@ -189,11 +197,13 @@ class ChoreographyEngine:
             self.deadlines.start()
         if self.relay is not None:
             await self.relay.start()
+        await self.identity.start()
         logger.info("ChoreographyEngine started with %d saga(s)", len(self._sagas))
 
     async def stop(self) -> None:
         """Deregister all sagas and shut down the engine."""
         await self.deadlines.stop()
+        await self.identity.stop()
         if self.relay is not None:
             await self.relay.close()
         for saga in list(self._sagas.values()):
@@ -219,6 +229,8 @@ class ChoreographyEngine:
         if saga.saga_id in self._sagas:
             logger.warning("Saga %r is already registered; replacing.", saga.saga_id)
             self._deregister(self._sagas[saga.saga_id])
+        # One name, one participant (#571); the instance being replaced does not count.
+        claim(saga, [s for s in self._sagas.values() if s.saga_id != saga.saga_id])
 
         self._sagas[saga.saga_id] = saga
         saga._publish = self._bus.publish

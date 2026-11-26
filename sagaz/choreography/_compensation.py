@@ -9,6 +9,7 @@ from dataclasses import replace
 from typing import Any
 
 from sagaz.choreography._attempts import attempt
+from sagaz.choreography._identity import finish
 from sagaz.choreography._observe import Listeners, listener_context, notify, span
 from sagaz.choreography._pivot import Participant, split
 from sagaz.choreography.decorators import call_maybe_async
@@ -32,7 +33,7 @@ async def compensate_all(
     """
     undone: list[str] = []
     failed: list[str] = []
-    done = await saga._state.finish(saga.name, correlation_id, compensated=True)
+    done = await finish(saga, correlation_id, compensated=True)
     undo, kept = split(saga, done)
     for original in reversed(undo):
         own_retries, own_timeout = saga._undo_policies.get(original.event_type, (None, None))

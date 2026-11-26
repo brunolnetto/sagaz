@@ -63,6 +63,17 @@ _FIELDS: dict[str, list[tuple[str, Any, Any, bool]]] = {
             {"type": ["object", "null"], "additionalProperties": {"type": "string"}},
             False,
         ),
+        # The actions this event descends from, as [event_id, participant] hops (#571);
+        # optional, like the above.
+        (
+            "lineage",
+            ["null", {"type": "array", "items": {"type": "array", "items": ["null", "string"]}}],
+            {
+                "type": ["array", "null"],
+                "items": {"type": "array", "items": {"type": ["string", "null"]}},
+            },
+            False,
+        ),
     ],
 }
 

@@ -74,7 +74,7 @@ def from_log_event(entry: LogEvent) -> Event:
         tenant_id=entry.tenant_id,
         causation_id=entry.causation_id,
         source=entry.source,
-    )
+    )  # the log keeps the cause, not the lineage: the outbox message carries that
 
 
 def _action(participant: str, event: Event) -> Activity:
@@ -127,9 +127,6 @@ class UnifiedParticipantState(ParticipantState):
             )
         )
         return actions
-
-    async def actions(self, participant: str, correlation_id: str) -> list[Event]:
-        return await self._actions(participant, correlation_id)
 
     async def _actions(self, participant: str, correlation_id: str) -> list[Event]:
         rows = [

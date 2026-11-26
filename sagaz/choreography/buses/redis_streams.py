@@ -137,6 +137,7 @@ def _event_to_fields(event: Event) -> dict[str, str]:
         "causation_id": event.causation_id or "",
         "source": event.source or "",
         "trace_context": json.dumps(event.trace_context),
+        "lineage": json.dumps([list(hop) for hop in event.lineage]),
     }
 
 
@@ -157,6 +158,7 @@ def _fields_to_event(fields: dict[bytes, bytes]) -> Event:
         causation_id=fields.get(b"causation_id", b"").decode() or None,
         source=fields.get(b"source", b"").decode() or None,
         trace_context=json.loads(fields.get(b"trace_context", b"") or b"{}"),
+        lineage=tuple((h[0], h[1]) for h in json.loads(fields.get(b"lineage", b"") or b"[]")),
     )
 
 

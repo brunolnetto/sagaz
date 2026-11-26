@@ -143,7 +143,7 @@ class FanOutSaga(ChoreographedSaga):
     """Receives fan-out events and records arrival."""
 
     def __init__(self, saga_id: str, collector: list[str]) -> None:
-        super().__init__(saga_id=saga_id)
+        super().__init__(saga_id=saga_id, name=saga_id)  # one name per participant
         self._collector = collector
 
     @on_event("fanout.event")
@@ -162,7 +162,7 @@ class ChainStep(ChoreographedSaga):
         bus: EventBus,
         trace: list[str],
     ) -> None:
-        super().__init__(saga_id=saga_id)
+        super().__init__(saga_id=saga_id, name=saga_id)  # one name per participant
         self._emit_event = emit
         self._bus = bus
         self._trace = trace
