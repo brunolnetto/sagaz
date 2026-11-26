@@ -216,6 +216,8 @@ What to know:
   completed (another branch failed at the same moment, or a deadline expired) may have
   undone an earlier action already: nothing coordinates the participants. Give the
   pivot's transaction a deadline that leaves it time to finish.
+- **A participant is its `name`, not a process.** The lineage names participants by
+  `name`, the key their state uses too: see [Who a participant is](#who-a-participant-is).
 - **Every service must carry the lineage.** It travels in the event envelope
   (see [What travels with an event](#what-travels-with-an-event)). An event from a
   producer older than 2.6.0, or one built by hand without `caused_by`, has none, and
@@ -319,6 +321,52 @@ receiving a copy meanwhile drops it; if the process crashes during the handler, 
 reservation expires and the redelivery is handled (see [Delivery guarantees](#delivery-guarantees)).
 Finished transactions and handled deliveries accumulate. Delete old ones
 with `await state.prune(timedelta(days=7))`. The in-memory state bounds itself instead.
+
+## Who a participant is
+
+A participant is its **`name`**, not a process, a host or an address. Its state is kept
+under the name, and the `lineage` of events names it. So replicas of a service share the
+name, and scaling out, restarts, load balancers and changing addresses do not matter, as
+long as the replicas share a [durable state](#durable-participant-state): the replica
+that receives a request to compensate is rarely the one that acted.
+
+That makes two rules, and sagaz guards each:
+
+**A name stays.** A participant renamed while transactions are in flight would no longer
+find its actions, nor recognise itself in a lineage. Tell it the names it had:
+
+```python
+ChoreographedSaga(name="billing", formerly=["payments"])
+```
+
+It compensates what it did under any of these names, and remembers the transactions it
+compensated under them. New actions are recorded under the current name. Drop a former
+name in a later deploy, once no transaction that started under it is still open.
+Handled deliveries and deadlines are kept under the name of the moment: an event
+redelivered across the rename may be handled again.
+
+**A name belongs to one service.** Two services using one name would share their state
+and be taken for each other.
+
+- An engine refuses a second participant that answers to a name already registered
+  (`SagaDefinitionError`).
+- Across services, give each engine the `service` it runs in, the same for all its
+  replicas:
+
+  ```python
+  engine = ChoreographyEngine(bus, service="billing")
+  ```
+
+  When it starts, the engine announces its participants on the bus
+  (`choreography.participant`). An engine that hosts one of these names for another
+  service logs an error, lists it in `engine.identity.conflicts`, and announces its own
+  again, so both sides learn of it whichever started first. Replicas of one service do
+  not conflict. The check is a report, not a lock: the engines keep running, and it
+  only sees engines connected to the bus at the same time.
+
+Names and lineages are what each participant declares: sagaz does not sign events.
+Whoever can publish on the bus can publish a `choreography.compensate` or a
+`choreography.pivoted`. Restrict who can publish with the broker's own access control.
 
 ## Tenants
 

@@ -19,6 +19,7 @@ from uuid import uuid4
 from sagaz.choreography._attempts import DEFAULT_RETRY_BACKOFF_BASE, attempt
 from sagaz.choreography._begin import claim_correlation_id, set_deadline
 from sagaz.choreography._compensation import compensate_all
+from sagaz.choreography._identity import finish, identify, was_compensated
 from sagaz.choreography._observe import Listeners, span, with_trace_context
 from sagaz.choreography._pivot import announce
 from sagaz.choreography._tenancy import Tenancy
@@ -64,19 +65,17 @@ class ChoreographedSaga:
     saga_id:
         Optional correlation ID.  Auto-assigned if omitted.
     name:
-        Human-readable saga name for logging.
+        Who the participant is: its state and the lineage of events are kept under it.
+        Unique among services, shared by a service's replicas. Default: the class name.
+    formerly:
+        The names it had before a rename: it still answers to them (#571).
     """
 
     def __init__(
-        self,
-        saga_id: str | None = None,
-        name: str | None = None,
+        self, saga_id: str | None = None, name: str | None = None, formerly: Iterable[str] = ()
     ) -> None:
         self.saga_id: str = saga_id or str(uuid4())
-        self.name: str = name or type(self).__name__
-        if self.name.startswith(RESERVED_SAGA_PREFIX):
-            msg = f"participant names starting with {RESERVED_SAGA_PREFIX!r} are reserved"
-            raise SagaDefinitionError(msg)
+        self.name, self.formerly = identify(name or type(self).__name__, formerly)
         self._events_handled: list[Event] = []
         self._handlers: dict[str, Any] = {}  # event_type → bound method
         self._compensators: dict[str, Any] = {}  # event_type → bound undo method
@@ -252,9 +251,7 @@ class ChoreographedSaga:
 
     async def was_compensated(self, correlation_id: str | None) -> bool:
         """True if this participant compensated *correlation_id* (a tombstone, #446)."""
-        if correlation_id is None:
-            return False
-        return await self._state.was_compensated(self.name, correlation_id)
+        return correlation_id is not None and await was_compensated(self, correlation_id)
 
     async def emit(self, event_type: str, data: dict[str, Any] | None = None) -> Event:
         """Publish a follow-on event in the transaction of the event being handled.
@@ -378,7 +375,7 @@ class ChoreographedSaga:
 
     async def forget(self, correlation_id: str) -> None:
         """Drop what is remembered for a transaction that completed."""
-        await self._state.finish(self.name, correlation_id, compensated=False)
+        await finish(self, correlation_id, compensated=False)
 
     # ------------------------------------------------------------------
     # Introspection helpers

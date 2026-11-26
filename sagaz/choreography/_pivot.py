@@ -14,6 +14,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from typing import Any, Protocol
 
+from sagaz.choreography._identity import names
 from sagaz.choreography._observe import Listeners, with_trace_context
 from sagaz.choreography.events import PIVOTED, Event
 from sagaz.choreography.state import ParticipantState
@@ -23,6 +24,7 @@ class Participant(Protocol):
     """What pivots and compensation read of a ``ChoreographedSaga`` (no import: no cycle)."""
 
     name: str
+    formerly: tuple[str, ...]
     _pivots: set[str]
     _pivoting: set[str]
     _state: ParticipantState
@@ -73,7 +75,8 @@ def split(saga: Participant, done: list[Event]) -> tuple[list[Event], list[str]]
     for event in done:
         if event.event_type == PIVOTED:
             continue
-        if (event.event_id, saga.name) in committed or event.event_type in saga._pivots:
+        mine = any((event.event_id, name) in committed for name in names(saga))
+        if mine or event.event_type in saga._pivots:
             kept.append(event.event_type)
         else:
             undo.append(event)

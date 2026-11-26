@@ -377,8 +377,8 @@ class TestChoreographyEngine:
     async def test_registered_sagas_list(self):
         bus = EventBus()
         engine = ChoreographyEngine(bus)
-        engine.register(ChoreographedSaga(saga_id="s1"))
-        engine.register(ChoreographedSaga(saga_id="s2"))
+        engine.register(ChoreographedSaga(saga_id="s1", name="one"))
+        engine.register(ChoreographedSaga(saga_id="s2", name="two"))
         assert len(engine.registered_sagas) == 2
 
     @pytest.mark.asyncio

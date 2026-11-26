@@ -31,6 +31,9 @@ COMPENSATED = "choreography.compensated"
 #: Published by a participant whose pivot handler completed: every participant then
 #: keeps what it had done in that transaction, whatever fails later (#571).
 PIVOTED = "choreography.pivoted"
+#: Published by an engine with ``service=`` for each of its participants when it starts:
+#: another service that claims the same name reports it (#571).
+PARTICIPANT = "choreography.participant"
 
 
 @dataclass(frozen=True)
