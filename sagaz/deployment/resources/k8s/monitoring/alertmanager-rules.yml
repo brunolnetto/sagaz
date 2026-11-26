@@ -18,7 +18,7 @@ groups:
       - alert: SagaHighFailureRate
         expr: |
           (
-            sum(rate(sagaz_saga_execution_total{status="failed"}[5m]))
+            sum(rate(sagaz_saga_execution_total{status!="completed"}[5m]))
             /
             sum(rate(sagaz_saga_execution_total[5m]))
           ) > 0.05
@@ -56,7 +56,7 @@ groups:
       - alert: SagaCriticalFailureRate
         expr: |
           (
-            sum(rate(sagaz_saga_execution_total{status="failed"}[5m]))
+            sum(rate(sagaz_saga_execution_total{status!="completed"}[5m]))
             /
             sum(rate(sagaz_saga_execution_total[5m]))
           ) > 0.20

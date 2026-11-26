@@ -22,7 +22,9 @@ class Recorded:
         self.executions.append((saga_name, status.value))
 
 
-def order_saga(metrics: Recorded, *, pivot: bool, manual: bool = False) -> Saga:
+def order_saga(
+    metrics: Recorded, *, pivot: bool, manual: bool = False, broken_undo: bool = False
+) -> Saga:
     class OrderSaga(Saga):
         saga_name = "order"
         listeners = [MetricsSagaListener(metrics)]
@@ -31,7 +33,10 @@ def order_saga(metrics: Recorded, *, pivot: bool, manual: bool = False) -> Saga:
         async def reserve(self, ctx: dict[str, Any]) -> None: ...
 
         @compensate("reserve")
-        async def release(self, ctx: dict[str, Any]) -> None: ...
+        async def release(self, ctx: dict[str, Any]) -> None:
+            if broken_undo:
+                msg = "warehouse offline"
+                raise RuntimeError(msg)
 
         @action("charge", depends_on=["reserve"], pivot=pivot)
         async def charge(self, ctx: dict[str, Any]) -> None: ...
@@ -63,11 +68,32 @@ class TestOrchestrated:
             await order_saga(metrics, pivot=True, manual=True).run({})
         assert metrics.executions == [("order", "forward_recovery")]
 
-    async def test_a_rolled_back_saga_stays_failed_as_before(self):
+    async def test_a_rolled_back_saga_is_rolled_back_not_failed(self):
         metrics = Recorded()
         with pytest.raises(SagaFailedError):
             await order_saga(metrics, pivot=False).run({})
+        assert metrics.executions == [("order", "rolled_back")]
+
+    async def test_a_saga_whose_compensation_failed_is_failed(self):
+        metrics = Recorded()
+        with pytest.raises(SagaFailedError):
+            await order_saga(metrics, pivot=False, broken_undo=True).run({})
         assert metrics.executions == [("order", "failed")]
+
+    async def test_the_in_memory_metrics_tell_them_apart(self):
+        from sagaz.observability.monitoring.metrics import SagaMetrics
+
+        metrics = SagaMetrics()
+        for status in (
+            SagaStatus.ROLLED_BACK,
+            SagaStatus.PARTIALLY_COMMITTED,
+            SagaStatus.FORWARD_RECOVERY,
+            SagaStatus.FAILED,
+        ):
+            metrics.record_execution("order", status, 0.1)
+        totals = metrics.get_metrics()
+        assert totals["total_rolled_back"] == totals["total_failed"] == 1
+        assert totals["total_partially_committed"] == totals["total_forward_recovery"] == 1
 
 
 class TestChoreographed:
@@ -105,10 +131,10 @@ class TestChoreographed:
         await self.run(metrics, pivot=True)
         assert metrics.executions == [("choreography", "partially_committed")]
 
-    async def test_a_rolled_back_transaction_stays_failed_as_before(self):
+    async def test_a_rolled_back_transaction_is_rolled_back_not_failed(self):
         metrics = Recorded()
         await self.run(metrics, pivot=False)
-        assert metrics.executions == [("choreography", "failed")]
+        assert metrics.executions == [("choreography", "rolled_back")]
 
 
 def test_prometheus_counts_a_partially_committed_saga_as_one_that_compensated():

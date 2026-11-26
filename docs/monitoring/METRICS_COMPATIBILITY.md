@@ -96,7 +96,7 @@ affected.
 | Panel | Metrics Used | Query |
 |-------|--------------|-------|
 | Sagas Completed | `sagaz_saga_execution_total` | `sum(sagaz_saga_execution_total{status="completed"})` |
-| Sagas Failed | `sagaz_saga_execution_total` | `sum(sagaz_saga_execution_total{status="failed"})` |
+| Sagas Failed | `sagaz_saga_execution_total` | `sum(sagaz_saga_execution_total{status!="completed"})` |
 | Saga Success Rate | `sagaz_saga_execution_total` | `sum(sagaz_saga_execution_total{status="completed"}) / sum(sagaz_saga_execution_total)` |
 | Compensations Executed | `sagaz_saga_compensations_total` | `sum(sagaz_saga_compensations_total)` |
 | Saga Step Duration | `sagaz_saga_step_duration_seconds` | `histogram_quantile(0.50/0.95/0.99, rate(...[5m]))` |

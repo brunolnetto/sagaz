@@ -37,7 +37,7 @@ groups:
       - alert: SagazSagaFailureRateHigh
         expr: |
           (
-            rate(sagaz_saga_execution_total{status="failed"}[15m])
+            rate(sagaz_saga_execution_total{status!="completed"}[15m])
             /
             rate(sagaz_saga_execution_total[15m])
           ) > 0.01

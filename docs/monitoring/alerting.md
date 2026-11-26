@@ -77,9 +77,24 @@ rolled back: it ends `partially_committed` (what could be undone was) or
 `forward_recovery` (it stopped without undoing anything). Nothing recovers it on its
 own, so `SagazSagaNeedsAttention` fires as soon as one happens.
 
-`MetricsSagaListener` counts these sagas under their own `status` in
-`sagaz_saga_execution_total`; every other failure stays `failed`. Attach it where the
-whole saga is seen:
+`MetricsSagaListener` counts every saga under what happened to it, in the `status`
+label of `sagaz_saga_execution_total`:
+
+| `status` | The saga |
+|---|---|
+| `completed` | Completed |
+| `rolled_back` | Failed, and everything it had done was undone |
+| `partially_committed` | Failed after a pivot: what could be undone was |
+| `forward_recovery` | Stopped after a pivot without undoing anything |
+| `failed` | Failed, and a compensation failed too |
+
+Before 2.6.0 every saga that did not complete was `failed`. The shipped failure-rate
+alerts and the "Sagas Failed" panel now query `status!="completed"`, which is what
+they meant. If you have rules of your own on `status="failed"`, they now see only the
+sagas whose compensation failed: change them the same way, or keep them as a stricter
+signal.
+
+Attach the listener where the whole saga is seen:
 
 ```python
 class OrderSaga(Saga):                       # an orchestrated saga

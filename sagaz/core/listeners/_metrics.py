@@ -22,19 +22,23 @@ class MetricsBackend(Protocol):
 
 
 def _failure_status(ctx: dict[str, Any], error: Exception) -> "SagaStatus":
-    """The status a failed saga is counted under.
+    """The status a saga that did not complete is counted under: what happened to it.
 
-    A saga that stopped after a pivot needs a person, so it is counted apart (#662):
-    ``partially_committed`` or ``forward_recovery``. An orchestrated saga's error carries
-    the status; a choreography tracker's context does. Every other failure, rolled back
-    or not, stays ``failed``, as before.
+    ``rolled_back`` (everything was undone), ``partially_committed`` or
+    ``forward_recovery`` (it stopped after a pivot and needs a person, #662), or
+    ``failed`` (a compensation failed too). An orchestrated saga's error carries the
+    status; a choreography tracker's context does. Anything else is ``failed``.
     """
     from sagaz.core.types import SagaStatus
 
     found = getattr(error, "status", None) or ctx.get("status")
     value = found.value if isinstance(found, SagaStatus) else str(found or "")
-    apart = {s.value: s for s in (SagaStatus.PARTIALLY_COMMITTED, SagaStatus.FORWARD_RECOVERY)}
-    return apart.get(value, SagaStatus.FAILED)
+    ended = (
+        SagaStatus.ROLLED_BACK,
+        SagaStatus.PARTIALLY_COMMITTED,
+        SagaStatus.FORWARD_RECOVERY,
+    )
+    return {s.value: s for s in ended}.get(value, SagaStatus.FAILED)
 
 
 class MetricsSagaListener(SagaListener):

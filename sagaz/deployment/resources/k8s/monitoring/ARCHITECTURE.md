@@ -192,7 +192,7 @@ Grafana Saga/Outbox Dashboards
 User investigates issue:
   │
   ├─ 1. Notice spike in Prometheus:
-  │     sagaz_saga_execution_total{status="failed"}
+  │     sagaz_saga_execution_total{status!="completed"}
   │
   ├─ 2. Click saga_id link in metric
   │
