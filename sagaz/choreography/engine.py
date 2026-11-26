@@ -20,6 +20,7 @@ from sagaz.choreography._deadlines import DeadlineWatcher
 from sagaz.choreography._dispatch import Dispatcher, RetryDefaults
 from sagaz.choreography._identity import Identity, claim
 from sagaz.choreography._observe import DEFAULT_LISTENER_TIMEOUT, Listeners
+from sagaz.choreography._pivot import fragile
 from sagaz.choreography._tenancy import Tenancy
 from sagaz.choreography.events import COMPENSATE, PIVOTED, AbstractEventBus, Event, HandlerT
 from sagaz.choreography.relay import ChoreographyRelay
@@ -198,6 +199,9 @@ class ChoreographyEngine:
         if self.relay is not None:
             await self.relay.start()
         await self.identity.start()
+        for saga in self._sagas.values():  # set-ups a pivot cannot rely on (#571)
+            if (why := fragile(saga, durable=self._state is not None)) is not None:
+                logger.warning(why)
         logger.info("ChoreographyEngine started with %d saga(s)", len(self._sagas))
 
     async def stop(self) -> None:

@@ -37,7 +37,7 @@ groups:
       - alert: SagazSagaFailureRateHigh
         expr: |
           (
-            rate(sagaz_saga_execution_total{status="failed"}[15m])
+            rate(sagaz_saga_execution_total{status!="completed"}[15m])
             /
             rate(sagaz_saga_execution_total[15m])
           ) > 0.01
@@ -51,6 +51,24 @@ groups:
             More than 1 % of saga executions have failed over the last 15 minutes.
             Investigate recent deployments, third-party service health, and saga logs.
           runbook_url: "https://brunolnetto.github.io/sagaz/monitoring/alerting/#SagazSagaFailureRateHigh"
+
+      - alert: SagazSagaNeedsAttention
+        expr: |
+          sum by (saga_name, status) (
+            increase(sagaz_saga_execution_total{status=~"partially_committed|forward_recovery"}[15m])
+          ) > 0
+        for: 0m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "A saga stopped after a point of no return and needs a person"
+          description: >
+            Sagas of {{ $labels.saga_name }} ended {{ $labels.status }} in the last 15
+            minutes. A pivot step completed and a later step failed: what could be undone
+            was (partially_committed), or the saga stopped without undoing anything
+            (forward_recovery). Nothing recovers them on its own.
+          runbook_url: "https://brunolnetto.github.io/sagaz/monitoring/alerting/#SagazSagaNeedsAttention"
 
       - alert: SagazExecutionLatencyHigh
         expr: |

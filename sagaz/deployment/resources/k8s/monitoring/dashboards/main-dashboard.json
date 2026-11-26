@@ -83,7 +83,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "sum(sagaz_saga_execution_total{status=\"failed\"})",
+          "expr": "sum(sagaz_saga_execution_total{status!=\"completed\"})",
           "legendFormat": "Failed"
         }
       ],

@@ -20,7 +20,7 @@ All metrics require `prometheus-client` to be installed (`pip install prometheus
 
 | Metric Name | Type | Labels | Description |
 |-------------|------|--------|-------------|
-| `sagaz_saga_execution_total` | Counter | `saga_name`, `status` | Total saga executions by name and status (completed/failed/rolled_back) |
+| `sagaz_saga_execution_total` | Counter | `saga_name`, `status` | Total saga executions by name and status: `completed`, `rolled_back`, `partially_committed`, `forward_recovery`, or `failed` (a compensation failed too) |
 | `sagaz_saga_compensations_total` | Counter | `saga_name` | Total compensations triggered |
 | `sagaz_saga_execution_duration_seconds` | Histogram | `saga_name` | Saga execution duration (p50, p95, p99) |
 | `sagaz_saga_step_duration_seconds` | Histogram | `saga_name`, `step_name` | Individual step execution durations |

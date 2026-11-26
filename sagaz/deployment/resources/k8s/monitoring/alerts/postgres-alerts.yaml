@@ -15,7 +15,7 @@ data:
           # Critical: Saga execution failure spike
           - alert: SagaHighFailureRate
             expr: |
-              (sum(rate(sagaz_saga_execution_total{status="failed"}[5m])) /
+              (sum(rate(sagaz_saga_execution_total{status!="completed"}[5m])) /
                sum(rate(sagaz_saga_execution_total[5m]))) > 0.05
             for: 5m
             labels:

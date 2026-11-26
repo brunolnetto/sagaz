@@ -36,6 +36,7 @@ All alert names follow the `Sagaz<Condition>` convention.
 |-------|----------|-----------|--------|
 | `SagazCompensationRateHigh` | warning | > 5 % of executions | 5 min |
 | `SagazSagaFailureRateHigh` | critical | > 1 % failure rate | 15 min |
+| `SagazSagaNeedsAttention` | warning | any saga ended `partially_committed` or `forward_recovery` in 15 min | at once |
 | `SagazExecutionLatencyHigh` | warning | p99 > 5 s | 5 min |
 | `SagazDLQDepthHigh` | warning | DLQ depth > 100 | 2 min |
 | `SagazOutboxLagHigh` | warning | pending events > 500 | 10 min |
@@ -66,6 +67,45 @@ Edit the `expr` and `for` fields to match your SLOs:
     ) > 0.02   # <-- change here
   for: 5m
 ```
+
+---
+
+## Sagas that need a person
+
+A saga that fails after a [pivot](../guides/pivots-and-forward-recovery.md) is not
+rolled back: it ends `partially_committed` (what could be undone was) or
+`forward_recovery` (it stopped without undoing anything). Nothing recovers it on its
+own, so `SagazSagaNeedsAttention` fires as soon as one happens.
+
+`MetricsSagaListener` counts every saga under what happened to it, in the `status`
+label of `sagaz_saga_execution_total`:
+
+| `status` | The saga |
+|---|---|
+| `completed` | Completed |
+| `rolled_back` | Failed, and everything it had done was undone |
+| `partially_committed` | Failed after a pivot: what could be undone was |
+| `forward_recovery` | Stopped after a pivot without undoing anything |
+| `failed` | Failed, and a compensation failed too |
+
+Before 2.6.0 every saga that did not complete was `failed`. The shipped failure-rate
+alerts and the "Sagas Failed" panel now query `status!="completed"`, which is what
+they meant. If you have rules of your own on `status="failed"`, they now see only the
+sagas whose compensation failed: change them the same way, or keep them as a stricter
+signal.
+
+Attach the listener where the whole saga is seen:
+
+```python
+class OrderSaga(Saga):                       # an orchestrated saga
+    listeners = [MetricsSagaListener()]
+
+tracker = ChoreographyTracker(bus, listeners=[MetricsSagaListener()], ...)   # a choreography
+```
+
+For a choreography the `saga_name` label is `choreography`. The alert tells that it
+happened and in which saga; finding the transactions is still a query on your storage
+([#662](https://github.com/brunolnetto/sagaz/issues/662)).
 
 ---
 

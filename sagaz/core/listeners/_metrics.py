@@ -21,6 +21,26 @@ class MetricsBackend(Protocol):
     def record_execution(self, saga_name: str, status: "SagaStatus", duration: float) -> None: ...
 
 
+def _failure_status(ctx: dict[str, Any], error: Exception) -> "SagaStatus":
+    """The status a saga that did not complete is counted under: what happened to it.
+
+    ``rolled_back`` (everything was undone), ``partially_committed`` or
+    ``forward_recovery`` (it stopped after a pivot and needs a person, #662), or
+    ``failed`` (a compensation failed too). An orchestrated saga's error carries the
+    status; a choreography tracker's context does. Anything else is ``failed``.
+    """
+    from sagaz.core.types import SagaStatus
+
+    found = getattr(error, "status", None) or ctx.get("status")
+    value = found.value if isinstance(found, SagaStatus) else str(found or "")
+    ended = (
+        SagaStatus.ROLLED_BACK,
+        SagaStatus.PARTIALLY_COMMITTED,
+        SagaStatus.FORWARD_RECOVERY,
+    )
+    return {s.value: s for s in ended}.get(value, SagaStatus.FAILED)
+
+
 class MetricsSagaListener(SagaListener):
     """
     Records saga metrics using a metrics backend.
@@ -119,7 +139,8 @@ class MetricsSagaListener(SagaListener):
 
         start_time = self._saga_start_times.pop(saga_id, time.time())
         duration = time.time() - start_time
-        self.metrics.record_execution(saga_name, SagaStatus.FAILED, duration)
+        outcome = _failure_status(ctx, error)
+        self.metrics.record_execution(saga_name, outcome, duration)
         # Track active sagas if metrics backend supports it
         if hasattr(self.metrics, "saga_finished"):
             self.metrics.saga_finished(saga_name)
