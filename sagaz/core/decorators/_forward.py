@@ -28,12 +28,18 @@ from sagaz.core.execution._pivot_types import RecoveryAction
 from sagaz.core.logger import get_logger
 
 if TYPE_CHECKING:
-    from sagaz.core.decorators._saga import SagaStepDefinition
     from sagaz.core.decorators._steps import ForwardRecoveryMetadata
 
 logger = get_logger("sagaz.core.decorators")
 
 _RETRY = (RecoveryAction.RETRY, RecoveryAction.RETRY_WITH_ALTERNATE)
+
+
+class _Step(Protocol):
+    """What forward recovery reads of a step's definition (no import of it: no cycle)."""
+
+    step_id: str
+    depends_on: list[str]
 
 
 class _Handler(Protocol):
@@ -64,10 +70,10 @@ class _ForwardRecoveryMixin:
         saga: Any
         _failed_step: str | None
 
-        async def _attempt_step(self, step: SagaStepDefinition) -> object: ...
+        async def _attempt_step(self, step: _Step) -> object: ...
         async def _compensate(self) -> None: ...
 
-    def _after_completed_pivot(self, step: SagaStepDefinition) -> bool:
+    def _after_completed_pivot(self, step: _Step) -> bool:
         """Whether *step* is downstream of a pivot that completed."""
         pivots, registry = self.saga._completed_pivots, self.saga._step_registry
         pending, seen = list(step.depends_on), set()
@@ -80,7 +86,7 @@ class _ForwardRecoveryMixin:
                 pending.extend(registry[name].depends_on)
         return False
 
-    async def _recover_forward(self, step: SagaStepDefinition) -> object:
+    async def _recover_forward(self, step: _Step) -> object:
         """Run *step*'s attempts; if they fail after a pivot, let its handler decide."""
         handler = self.saga._forward_recovery_handlers.get(step.step_id)
         retries = 0
