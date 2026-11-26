@@ -32,7 +32,7 @@ groups:
             The ratio of compensations to total executions has exceeded 5 % over
             the last 5 minutes, which may indicate a systemic failure in downstream
             services or a recent deployment regression.
-          runbook_url: "https://brunolnetto.github.io/sagaz/monitoring/alerting/#SagazCompensationRateHigh"
+          runbook_url: "https://sagaz.readthedocs.io/en/latest/monitoring/alerting/#SagazCompensationRateHigh"
 
       - alert: SagazSagaFailureRateHigh
         expr: |
@@ -50,7 +50,7 @@ groups:
           description: >
             More than 1 % of saga executions have failed over the last 15 minutes.
             Investigate recent deployments, third-party service health, and saga logs.
-          runbook_url: "https://brunolnetto.github.io/sagaz/monitoring/alerting/#SagazSagaFailureRateHigh"
+          runbook_url: "https://sagaz.readthedocs.io/en/latest/monitoring/alerting/#SagazSagaFailureRateHigh"
 
       - alert: SagazSagaNeedsAttention
         expr: |
@@ -68,7 +68,7 @@ groups:
             minutes. A pivot step completed and a later step failed: what could be undone
             was (partially_committed), or the saga stopped without undoing anything
             (forward_recovery). Nothing recovers them on its own.
-          runbook_url: "https://brunolnetto.github.io/sagaz/monitoring/alerting/#SagazSagaNeedsAttention"
+          runbook_url: "https://sagaz.readthedocs.io/en/latest/monitoring/alerting/#SagazSagaNeedsAttention"
 
       - alert: SagazExecutionLatencyHigh
         expr: |
@@ -83,7 +83,7 @@ groups:
             The 99th-percentile saga execution duration has exceeded 5 seconds for
             the last 5 minutes.  Check for slow compensations, network latency spikes,
             or resource contention.
-          runbook_url: "https://brunolnetto.github.io/sagaz/monitoring/alerting/#SagazExecutionLatencyHigh"
+          runbook_url: "https://sagaz.readthedocs.io/en/latest/monitoring/alerting/#SagazExecutionLatencyHigh"
 
   # ---------------------------------------------------------------------------
   # Outbox / Dead Letter Queue
@@ -103,7 +103,7 @@ groups:
             The DLQ currently contains more than 100 events.  Use
             `sagaz dlq list` to inspect them and `sagaz dlq replay --all`
             to re-queue after the root cause has been resolved.
-          runbook_url: "https://brunolnetto.github.io/sagaz/monitoring/alerting/#SagazDLQDepthHigh"
+          runbook_url: "https://sagaz.readthedocs.io/en/latest/monitoring/alerting/#SagazDLQDepthHigh"
 
       - alert: SagazOutboxLagHigh
         expr: sagaz_outbox_pending_events_total > 500
@@ -116,4 +116,4 @@ groups:
           description: >
             The outbox pending-events gauge has been above 500 for 10 minutes.
             Check outbox worker health (`sagaz status`) and broker connectivity.
-          runbook_url: "https://brunolnetto.github.io/sagaz/monitoring/alerting/#SagazOutboxLagHigh"
+          runbook_url: "https://sagaz.readthedocs.io/en/latest/monitoring/alerting/#SagazOutboxLagHigh"

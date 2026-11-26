@@ -1,0 +1,5 @@
+attempt 1: gateway unavailable
+attempt 2: gateway unavailable
+attempt 3: charged
+--- a deadline for the whole saga ---
+stopped by SagaTimeoutError -> rolled_back

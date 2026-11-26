@@ -270,6 +270,37 @@ class TestRunExampleCmd:
 
         mock_execute.assert_called_once()
 
+    @patch("sagaz.cli.examples.discover_examples_by_domain")
+    @patch("sagaz.cli.examples._execute_example")
+    @patch("click.echo")
+    def test_the_short_name_the_list_shows_is_accepted(
+        self, mock_echo, mock_execute, mock_discover
+    ):
+        script = Path("/tmp/banking/finance/wire_transfer/main.py")
+        mock_discover.return_value = {"Banking": {"banking/finance/wire_transfer": script}}
+
+        run_example_cmd("wire_transfer")
+
+        mock_execute.assert_called_once_with(script)
+
+    @patch("sagaz.cli.examples.discover_examples_by_domain")
+    @patch("sagaz.cli.examples._execute_example")
+    @patch("click.echo")
+    def test_a_short_name_shared_by_two_examples_lists_them(
+        self, mock_echo, mock_execute, mock_discover
+    ):
+        mock_discover.return_value = {
+            "A": {"a/x/orders": Path("/tmp/a/main.py")},
+            "B": {"b/y/orders": Path("/tmp/b/main.py")},
+        }
+
+        run_example_cmd("orders")
+
+        mock_execute.assert_not_called()
+        said = " ".join(str(call.args[0]) for call in mock_echo.call_args_list)
+        assert "a/x/orders" in said
+        assert "b/y/orders" in said
+
 
 class TestExecuteExample:
     """Tests for _execute_example function."""

@@ -1,31 +1,20 @@
-# Read the Docs configuration file for Sagaz
+# Read the Docs configuration for sagaz: https://sagaz.readthedocs.io
 # See https://docs.readthedocs.io/en/stable/config-file/v2.html
 
 version: 2
 
-# Build documentation with MkDocs
+build:
+  os: ubuntu-24.04
+  tools:
+    python: "3.12"
+
+# The site is plain MkDocs: pages, and example files included with pymdownx.snippets.
+# It does not import sagaz, so the package is not installed here. The examples are run,
+# and their outputs checked, by tests/unit/docs/ in CI.
 mkdocs:
   configuration: mkdocs.yml
-  fail_on_warning: false
+  fail_on_warning: true
 
-# Python environment
-build:
-  os: ubuntu-22.04
-  tools:
-    python: "3.11"
-  jobs:
-    post_checkout:
-      # Ensure docs directory is present
-      - ls -la docs/
-    post_build:
-      # Optional: validate no archive files leaked
-      - "! grep -r 'archive' site/ || true"
-
-# Python requirements for building docs
 python:
   install:
-    - method: pip
-      path: .
-      extra_requirements:
-        - dev
     - requirements: docs/requirements.txt

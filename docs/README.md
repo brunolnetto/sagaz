@@ -1,126 +1,130 @@
-# Sagaz Documentation
+# sagaz
 
-> Production-ready Saga Pattern library with Transactional Outbox support
+**Business transactions that span several steps or services, and undo themselves when one fails.**
 
----
+A *saga* is a transaction made of steps, where each step knows how to undo itself. When
+a step fails, sagaz undoes the ones already done, in reverse order, and tells you how it
+ended. You write the steps; sagaz does the bookkeeping: ordering, retries, timeouts,
+compensation, persistence, and telling apart "everything was undone" from "someone must
+look at this".
 
-## 📖 Quick Navigation
-
-### By Role
-
-| I am a... | Start Here |
-|-----------|-----------|
-| **New User** | [Quickstart](quickstart.md) |
-| **Developer** | [Architecture](architecture/overview.md) |
-| **Operator** | [Kubernetes Guide](guides/kubernetes.md) |
-| **Architect** | [ADR Index](architecture/adr/README.md) |
-
-### By Topic
-
-| Topic | Docs |
-|-------|------|
-| **Getting Started** | [Quickstart](quickstart.md), [Configuration](guides/configuration.md) |
-| **Patterns** | [Consumer Inbox](patterns/consumer-inbox.md), [DLQ](patterns/dead-letter-queue.md) |
-| **Operations** | [Kubernetes](guides/kubernetes.md), [Benchmarking](guides/benchmarking.md) |
-| **Examples** | [Runnable Examples](../examples/) |
-| **Contributing** | [Contributing Guide](development/contributing.md), [Testing Guide](development/testing.md) |
-| **Strategy** | [Roadmap](ROADMAP.md) |
-
----
-
-## Quick Links
-
-| I want to... | Go to |
-|-------------|-------|
-| **Get started quickly** | [Quickstart Guide](quickstart.md) |
-| **Configure storage/broker/observability** | [Configuration Guide](guides/configuration.md) |
-| **See runnable examples** | [Examples](../examples/) |
-| **Understand the architecture** | [Architecture Overview](architecture/overview.md) |
-| **See how data flows** | [Dataflow & Events](architecture/dataflow.md) |
-| **Deploy to Kubernetes** | [Kubernetes Guide](guides/kubernetes.md) |
-| **Run benchmarks** | [Benchmarking Guide](guides/benchmarking.md) |
-| **See what's planned** | [Roadmap & Strategy](ROADMAP.md) |
-| **Contribute** | [Contributing Guide](development/contributing.md) |
-
----
-
-## Documentation Structure
-
-```
-docs/
-├── quickstart.md              # 5-minute setup
-├── ROADMAP.md                 # Roadmap & Strategy 2026
-├── architecture/              # System design
-│   ├── overview.md
-│   ├── components.md
-│   ├── dataflow.md
-│   ├── decisions.md
-│   ├── adr/                   # Architecture Decision Records
-│   └── diagrams/
-├── guides/                    # How-to guides
-├── patterns/                  # Implementation patterns
-├── integrations/              # External integrations
-├── monitoring/                # Observability reference
-├── reference/                 # API reference
-├── development/               # Contributing, testing, changelog
-│   ├── contributing.md        # Branching, commits, TDD policy
-│   ├── testing.md
-│   ├── makefile.md
-│   └── changelog.md
-└── archive/                   # Historical documentation
+```bash
+pip install sagaz
 ```
 
-For details on where to add new content, see [STRUCTURE.md](STRUCTURE.md).
+## A saga in thirty lines
 
----
+```python title="first_saga.py"
+"""A saga: steps that each know how to undo themselves."""
 
-## Key Concepts
+import asyncio
 
-### The Saga Pattern
+from sagaz import Saga, SagaFailedError, action, compensate
 
-A Saga is a sequence of local transactions where each step has a compensating action. If any step fails, the saga executes compensations in reverse order.
 
-```mermaid
-graph LR
-    S1[Step 1] --> S2[Step 2]
-    S2 --> S3[Step 3]
-    S3 --> Complete[Complete]
-    
-    S1 -.->|Failure| C1[Comp 1]
-    S2 -.->|Failure| C2[Comp 2]
-    S3 -.->|Failure| C3[Comp 3]
-    C3 --> C2
-    C2 --> C1
+class OrderSaga(Saga):
+    saga_name = "order"
+
+    @action("reserve_stock")
+    async def reserve_stock(self, ctx):
+        print("reserving stock for", ctx["order_id"])
+        return {"reservation": "r-1"}  # merged into the context
+
+    @compensate("reserve_stock")
+    async def release_stock(self, ctx):
+        print("releasing", ctx["reservation"])
+
+    @action("charge", depends_on=["reserve_stock"])
+    async def charge(self, ctx):
+        if ctx["amount"] > 100:
+            raise ValueError("card declined")
+        print("charging", ctx["amount"])
+        return {"payment": "p-1"}
+
+    @compensate("charge")
+    async def refund(self, ctx):
+        print("refunding", ctx["payment"])
+
+
+async def main():
+    result = await OrderSaga().run({"order_id": "o-1", "amount": 40})
+    print("done:", result["reservation"], result["payment"])
+
+    print("--- an order that fails ---")
+    try:
+        await OrderSaga().run({"order_id": "o-2", "amount": 500})
+    except SagaFailedError as failure:
+        print("failed at", failure.failed_step, "->", failure.status.value)
+
+
+asyncio.run(main())
 ```
 
-### Transactional Outbox
+Run it with `python first_saga.py`:
 
-Ensures exactly-once event delivery by storing events in the database within the same transaction as business data, then publishing asynchronously.
-
-```mermaid
-graph LR
-    BL[Business Logic] --> DBT[DB Transaction]
-    DBT --> OT[Outbox Table]
-    OT --> W[Worker]
-    W --> B[Broker]
+```text
+reserving stock for o-1
+charging 40
+done: r-1 p-1
+--- an order that fails ---
+reserving stock for o-2
+releasing r-1
+failed at charge -> rolled_back
 ```
 
----
+The second order's card is declined, so sagaz releases the stock it had reserved and
+raises `SagaFailedError`. [The tour explains it line by line](tour/first-saga.md).
 
-## Performance
+## Two ways to coordinate
 
-| Metric | Local (kind) | Production Target |
-|--------|-------------|-------------------|
-| Insert Rate | 1,800/sec | 10,000+/sec |
-| Process Rate | 1,265/sec | 5,000+/sec |
-| Latency (p99) | <100ms | <50ms |
+| | Orchestrated saga | Choreographed saga |
+|---|---|---|
+| **Who knows the steps** | One saga object | Nobody: each service reacts to events |
+| **Fits** | A workflow inside one service | A flow across services that should not know each other |
+| **Start with** | [Your first saga](tour/first-saga.md) | [Your first choreography](tour/choreography.md) |
 
-See [Benchmarking Guide](guides/benchmarking.md) for details.
+Both offer the same capabilities: retries and timeouts, running once, deadlines, points
+of no return, listeners, tenants, diagrams. The [feature matrix](reference/feature-matrix.md)
+lists them side by side.
 
----
+## Where to go
 
-## Related
+<div class="grid cards" markdown>
 
-- [GitHub Repository](https://github.com/brunolnetto/sagaz)
-- [PyPI Package](https://pypi.org/project/sagaz/)
-- [Roadmap & Strategy](ROADMAP.md)
+- **[Tour](tour/index.md)**
+
+    One feature per page, each with a script of about twenty lines that runs as shown.
+    Start here.
+
+- **[Examples](examples/index.md)**
+
+    Whole scenarios: two explained step by step, and 57 shipped with the package.
+
+- **[Guides](guides/first-saga-service.md)**
+
+    How to do one thing well: a saga behind an HTTP endpoint, configuration, multi-tenancy,
+    replay, deployment.
+
+- **[Reference](reference/feature-matrix.md)**
+
+    Every feature by coordination style, the configuration, the metrics.
+
+</div>
+
+## What is in the box
+
+- **Steps and compensation,** declared with decorators or added one by one.
+- **Parallel steps** from their dependencies, with a choice of what to do when one fails.
+- **Retries, timeouts and deadlines.**
+- **Run-once** saga ids and per-step idempotency keys.
+- **Points of no return** and forward recovery.
+- **Choreography** on an in-process bus, Kafka, RabbitMQ or Redis Streams, with compensation, pivots and diagrams.
+- **Storage** in memory, SQLite, PostgreSQL or Redis; a transactional outbox; event sourcing and replay.
+- **Observability:** listeners, Prometheus metrics, OpenTelemetry tracing, ready-made alerts and dashboards.
+- **Multi-tenancy,** a CLI, Kubernetes manifests and a Helm chart.
+
+## Project
+
+- Source and issues: [github.com/brunolnetto/sagaz](https://github.com/brunolnetto/sagaz)
+- Package: [pypi.org/project/sagaz](https://pypi.org/project/sagaz/)
+- [Changelog](development/changelog.md) · [Roadmap](ROADMAP.md) · [Contributing](development/contributing.md)

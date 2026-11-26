@@ -1,0 +1,3 @@
+charging order o-1
+refused: saga 'checkout-1' already exists (status: completed): a saga id runs once. Use a new saga_id, or look the run up with storage.load_saga_state().
+second saga got p-o-1 without charging again

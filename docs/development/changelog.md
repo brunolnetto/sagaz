@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **A tour of the features, and the examples apart (#680).** The documentation at [sagaz.readthedocs.io](https://sagaz.readthedocs.io) opens with what sagaz does and a saga in thirty lines, instead of an index of links. A **Tour** has one short page per feature (a first saga, parallel steps, retries and deadlines, running once, points of no return, listeners, storage, a first choreography, pivots and diagrams), each with a script that needs nothing but `pip install sagaz`. An **Examples** section holds the whole scenarios: two walkthroughs (a choreographed order fulfilment, new, and the shipped wire transfer) and a catalogue of the 57 shipped examples. The scripts are files included in the pages with their recorded output, and `tests/unit/docs/` runs each one, so a page cannot show code that fails. The navigation is grouped by what the reader wants: tour, examples, guides, operations, reference, architecture.
+- **`sagaz examples run` accepts the name the list shows (#680).** `sagaz examples list` prints `wire_transfer`, but `run` only took `banking_finance/finance/wire_transfer`. The short name now works when it is unique.
+
+### Fixed
+
+- **The alert rules' runbook links (#680)** pointed to `brunolnetto.github.io/sagaz`, which does not exist; they point to the alerting guide on Read the Docs. The alerting guide is now in the navigation.
+
 ## [2.6.0] - 2026-11-26
 
 Mode parity: orchestrated and choreographed sagas offer the same capabilities, under one
