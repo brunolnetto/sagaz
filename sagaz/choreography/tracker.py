@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any
 from sagaz.choreography._observe import DEFAULT_LISTENER_TIMEOUT, Listeners
 from sagaz.choreography._transaction_hooks import Change, announce
 from sagaz.choreography.events import COMPENSATE, COMPENSATED, AbstractEventBus, Event
-from sagaz.core.storage.saga_log._model import LogWrite
+from sagaz.core.storage.saga_log._model import LogWrite, ended_at
 from sagaz.core.tenant import tenant_scope
 from sagaz.core.types import SagaStatus
 
@@ -215,7 +215,8 @@ class ChoreographyTracker:
             current.transaction_id,
             status.status,
             current.version,
-            ended_at=event.created_at if ended else None,
+            # Events come from different services' clocks: never before it started (#653).
+            ended_at=ended_at(current.started_at, event.created_at) if ended else None,
         )
         try:
             await log.write(LogWrite(status=change, events=[_transition(current, status, event)]))
