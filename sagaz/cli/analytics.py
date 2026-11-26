@@ -16,6 +16,8 @@ from typing import TYPE_CHECKING, Any
 
 import click
 
+from sagaz.cli._url_option import RenamedOption
+
 if TYPE_CHECKING:
     from sagaz.core.storage.saga_log import SagaLogStore
 
@@ -49,7 +51,7 @@ def _reader(log: SagaLogStore, log_url: str, name: str, cdc: bool, cdc_dsn: str 
     if not cdc:
         return SagaLogReader(log, name)
     if not log_url.startswith(("postgresql://", "postgres://")):
-        msg = "CDC reads a PostgreSQL saga log: use a postgresql:// --saga-log"
+        msg = "CDC reads a PostgreSQL saga log: use a postgresql:// --saga-log-url"
         raise click.BadParameter(msg, param_hint="--cdc")
     from sagaz.integrations.cdc.saga_log import SagaLogCDCReader
 
@@ -91,7 +93,7 @@ async def _export(
 
 
 @analytics_cli.command("export")
-@click.option("--saga-log", "log_url", envvar="SAGAZ_SAGA_LOG_URL", required=True,
+@click.option("--saga-log-url", "--saga-log", "log_url", cls=RenamedOption, envvar="SAGAZ_SAGA_LOG_URL", required=True,
               help="Saga log URL (or SAGAZ_SAGA_LOG_URL).")  # fmt: skip
 @click.option("--to", "target", required=True, help="Destination: fluss://host:port.")
 @click.option("--table", default="sagaz.saga_log_event", show_default=True,

@@ -186,7 +186,7 @@ class TestSagas:
 
     async def test_tenant_travels_with_the_request(self):
         async with World() as world:
-            result = await Checkout(config=world.config).run({}, tenant_context="acme")
+            result = await Checkout(config=world.config).run({}, tenant="acme")
         assert result["charge"] == "ch-acme"
 
     async def test_a_remote_failure_compensates(self):

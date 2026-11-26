@@ -109,15 +109,15 @@ class TestFlows:
             status = await service.tracker.status(start.saga_id)
 
         assert inventory.released == ["o-2"]
-        assert status.status == "compensated"
+        assert status.status == "rolled_back"
         assert status.failure["participant"] == "payments"
-        assert (await log.get_transaction(start.saga_id)).status == "compensated"
+        assert (await log.get_transaction(start.saga_id)).status == "rolled_back"
         logged = await log.events(start.saga_id)
         kinds = [e.kind for e in logged]
         assert "compensate" in kinds
         assert kinds.count("compensated") == 4
         changes = [e.payload["status"] for e in logged if e.kind == "lifecycle"]
-        assert changes == ["compensating", "compensated"]
+        assert changes == ["compensating", "rolled_back"]
         markers = {
             a.participant: a.status
             for a in await log.activities(start.saga_id)
@@ -305,7 +305,7 @@ def test_status_from_the_cli(tmp_path):
     args = ["choreography", "status", "bad", "--saga-log", f"sqlite://{path}"]
     result = CliRunner().invoke(cli, args)
     assert result.exit_code == 0, result.output
-    assert "Transaction bad (tenant default): compensated" in result.output
+    assert "Transaction bad (tenant default): rolled_back" in result.output
     assert "failed: payments" in result.output
     unset = {"SAGAZ_STORAGE_URL": None, "SAGAZ_SAGA_LOG_URL": None}
     missing = CliRunner().invoke(cli, ["choreography", "status", "bad"], env=unset)
@@ -337,7 +337,7 @@ def test_event_log_reads_a_choreographed_transaction(tmp_path):
     assert "UnrecognizedEvent" not in timeline.output
     assert "order.created" in timeline.output
     assert "compensated" in status.output
-    assert timeline.output.splitlines()[0].endswith(": compensated")
+    assert timeline.output.splitlines()[0].endswith(": rolled_back")
     as_json = CliRunner().invoke(
         cli, ["event-log", "bad", "--store-url", url, "--layout", "unified", "--json"]
     )

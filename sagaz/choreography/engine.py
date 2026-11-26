@@ -11,15 +11,26 @@ import logging
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
+from sagaz.choreography._attempts import (
+    DEFAULT_MAX_RETRIES,
+    DEFAULT_RETRY_BACKOFF_BASE,
+    DEFAULT_TIMEOUT,
+)
 from sagaz.choreography._deadlines import DeadlineWatcher
-from sagaz.choreography._dispatch import Dispatcher
-from sagaz.choreography.events import COMPENSATE, AbstractEventBus, Event, HandlerT
+from sagaz.choreography._dispatch import Dispatcher, RetryDefaults
+from sagaz.choreography._identity import Identity, claim
+from sagaz.choreography._observe import DEFAULT_LISTENER_TIMEOUT, Listeners
+from sagaz.choreography._pivot import fragile
+from sagaz.choreography._tenancy import Tenancy
+from sagaz.choreography.events import COMPENSATE, PIVOTED, AbstractEventBus, Event, HandlerT
 from sagaz.choreography.relay import ChoreographyRelay
 from sagaz.choreography.saga import ChoreographedSaga
 from sagaz.choreography.state import ParticipantState, create_participant_state
 
 if TYPE_CHECKING:
+    from sagaz.core.listeners import SagaListener
     from sagaz.core.storage.saga_log import SagaLogStore
+    from sagaz.core.tenant import TenantRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -52,10 +63,55 @@ class ChoreographyEngine:
     deadline_poll_interval / deadline_lease:
         How often expired deadlines (``begin(..., deadline=...)``) are checked,
         and for how long a replica's claim on one holds (seconds, #449).
+    default_max_retries / default_timeout / retry_backoff_base:
+        For a handler that does not set ``max_retries`` / ``timeout_seconds``: it runs
+        ``default_max_retries + 1`` times at most (3 retries), each attempt under
+        ``default_timeout`` seconds (60; ``None`` for no limit), waiting
+        ``retry_backoff_base * 2**n`` seconds between attempts (#561), as an
+        orchestrated step does. Since 2.6.0; before, a handler ran once. A handler
+        with a non-idempotent external effect should set ``max_retries=0``.
+    delivery_lease:
+        How long a delivery stays reserved while its handler runs (seconds, #561).
+        If the process dies meanwhile, the broker's redelivery is handled once
+        the reservation expired; a duplicate arriving before is dropped. Default
+        ``None``: long enough for all the handler's attempts (``(max_retries + 1)
+        * timeout`` plus the backoffs and a minute), or an hour for a handler
+        without a timeout. When given, it is the reservation of every delivery.
+    listeners:
+        ``SagaListener`` instances (``LoggingSagaListener``, ``MetricsSagaListener``,
+        your own) told what each registered participant does (#563): its steps
+        (``on_step_*``: the saga name is the participant's name, a step is the event
+        type it handles, the saga id is the correlation id) and its compensations
+        (``on_compensation_*``). A participant does not see the whole transaction,
+        so the ``on_saga_*`` hooks come from a ``ChoreographyTracker``'s listeners,
+        once per transaction. A listener that raises is logged and ignored.
+    service:
+        The service this engine runs in, the same for all its replicas (#571). With it,
+        the engine announces its participants on the bus when it starts, and reports
+        (an error log, and ``engine.identity.conflicts``) a participant name that
+        another service announced too. Without it nothing is announced.
+    tenant_registry:
+        The ``TenantRegistry`` an event's tenant is checked against (#564); default,
+        the global configuration's (``SagaConfig.tenant_registry``). With one, a
+        participant runs a handler only for a registered, active tenant (otherwise
+        it asks for compensation), within its quotas: ``max_concurrent_sagas``
+        counts this process's transactions of the tenant, shared with orchestrated
+        sagas, and a delivery over it waits; ``max_retries`` and
+        ``max_step_duration_seconds`` cap handlers and compensations. ``begin()``
+        raises for a refused tenant or over the quota.
+    listener_timeout:
+        Seconds an async listener call may take (default 5): listeners run on the
+        hot path, so a slower one is cancelled, logged and skipped. ``None``
+        waits as long as it takes.
+
+    Handlers and compensations also run in OpenTelemetry spans when
+    ``opentelemetry`` is installed: an event carries its publisher's trace
+    context, so a transaction is one trace across participants and services.
 
     Each delivery is deduplicated by ``event_id`` and runs in the event's tenant
-    scope. If a handler raises, the engine publishes a ``COMPENSATE`` event and
-    every participant undoes its ``@compensate`` actions for that transaction.
+    scope. If a handler still raises after its retries, the engine publishes a
+    ``COMPENSATE`` event and every participant undoes its ``@compensate`` actions
+    for that transaction.
 
     Example
     -------
@@ -85,8 +141,20 @@ class ChoreographyEngine:
         deadline_lease: float = 60.0,
         saga_log: SagaLogStore | str | None = None,
         relay_interval: float = 0.1,
+        default_max_retries: int = DEFAULT_MAX_RETRIES,
+        default_timeout: float | None = DEFAULT_TIMEOUT,
+        delivery_lease: float | None = None,
+        retry_backoff_base: float = DEFAULT_RETRY_BACKOFF_BASE,
+        listeners: Iterable[SagaListener] = (),
+        listener_timeout: float | None = DEFAULT_LISTENER_TIMEOUT,
+        tenant_registry: TenantRegistry | None = None,
+        service: str | None = None,
     ) -> None:
         self._bus = bus
+        self._tenancy = Tenancy(tenant_registry)
+        self._listeners = Listeners(listeners, listener_timeout)
+        #: The engine's listeners; add to it before registering participants.
+        self.listeners: list[SagaListener] = self._listeners.items
         self._state = create_participant_state(state) if isinstance(state, str) else state
         self.relay: ChoreographyRelay | None = None
         if saga_log is not None:  # ADR-041: state and atomic publishing on the log
@@ -101,8 +169,14 @@ class ChoreographyEngine:
                 saga_log.outbox_storage(), bus, poll_interval=relay_interval
             )
         self._completion_events = frozenset(completion_events)
-        self._dispatcher = Dispatcher(bus.publish, self._completion_events)
+        self._dispatcher = Dispatcher(
+            bus.publish,
+            self._completion_events,
+            RetryDefaults(default_max_retries, default_timeout, retry_backoff_base, delivery_lease),
+            self._tenancy,
+        )
         self._sagas: dict[str, ChoreographedSaga] = {}
+        self.identity = Identity(bus, service, lambda: self._sagas.values())
         self._running = False
         # Tracks dispatch closures created per saga so they can be properly unsubscribed.
         self._closures: dict[str, dict[str, HandlerT]] = {}
@@ -124,11 +198,16 @@ class ChoreographyEngine:
             self.deadlines.start()
         if self.relay is not None:
             await self.relay.start()
+        await self.identity.start()
+        for saga in self._sagas.values():  # set-ups a pivot cannot rely on (#571)
+            if (why := fragile(saga, durable=self._state is not None)) is not None:
+                logger.warning(why)
         logger.info("ChoreographyEngine started with %d saga(s)", len(self._sagas))
 
     async def stop(self) -> None:
         """Deregister all sagas and shut down the engine."""
         await self.deadlines.stop()
+        await self.identity.stop()
         if self.relay is not None:
             await self.relay.close()
         for saga in list(self._sagas.values()):
@@ -154,10 +233,14 @@ class ChoreographyEngine:
         if saga.saga_id in self._sagas:
             logger.warning("Saga %r is already registered; replacing.", saga.saga_id)
             self._deregister(self._sagas[saga.saga_id])
+        # One name, one participant (#571); the instance being replaced does not count.
+        claim(saga, [s for s in self._sagas.values() if s.saga_id != saga.saga_id])
 
         self._sagas[saga.saga_id] = saga
         saga._publish = self._bus.publish
         saga._watch_deadlines = self._watch_deadlines
+        saga._listeners = self._listeners
+        saga._tenancy = self._tenancy
         if self._state is not None:
             saga._state = self._state
 
@@ -185,7 +268,8 @@ class ChoreographyEngine:
         """
         # Completion events also clear the deadline of the participant that began
         # the transaction, so every participant receives them.
-        types = [*saga._handlers, COMPENSATE, *sorted(self._completion_events)]
+        # A pivot's notice too: each participant then keeps what it had done (#571).
+        types = [*saga._handlers, COMPENSATE, PIVOTED, *sorted(self._completion_events)]
         return list(dict.fromkeys(types))
 
     def _deregister(self, saga: ChoreographedSaga) -> None:
@@ -209,6 +293,27 @@ class ChoreographyEngine:
     def registered_sagas(self) -> list[ChoreographedSaga]:
         """List of all currently registered sagas."""
         return list(self._sagas.values())
+
+    def to_mermaid(self, direction: str = "LR", show_compensation: bool = True) -> str:
+        """A Mermaid flowchart of the registered participants and their events (#565).
+
+        Each participant is drawn with the event types it handles (marked
+        ``compensable`` when it can undo them) and, for handlers that declared
+        ``emits=``, the events they publish. Completion events are final nodes. See
+        :func:`sagaz.choreography.choreography_mermaid`.
+        """
+        from sagaz.choreography._diagram import choreography_mermaid
+
+        return choreography_mermaid(
+            self._sagas.values(),
+            completion_events=self._completion_events,
+            direction=direction,
+            show_compensation=show_compensation,
+        )
+
+    def to_mermaid_markdown(self, direction: str = "LR", show_compensation: bool = True) -> str:
+        """:meth:`to_mermaid`, in a fenced ``mermaid`` block."""
+        return f"```mermaid\n{self.to_mermaid(direction, show_compensation)}\n```"
 
     @property
     def is_running(self) -> bool:

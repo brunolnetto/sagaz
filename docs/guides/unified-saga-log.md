@@ -57,8 +57,10 @@ class OrderSaga(Saga):
         snapshot_threshold = 50
 
 configure(SagaConfig(storage_layout="unified", saga_log="postgresql://..."))  # all sagas
-legacy = sagaz.core.saga.Saga(name="billing", saga_log="postgresql://...", participant="billing")
 ```
+
+The classic `sagaz.core.saga.Saga` (deprecated since 2.6.0) takes `saga_log=` and
+`participant=` as constructor arguments.
 
 Each lifecycle transition is **one** atomic write: the event (`SagaStarted`,
 `StepExecuted`, `StepFailed`, `CompensationStarted`, `StepCompensated`,
@@ -110,7 +112,7 @@ tracker = ChoreographyTracker(bus, completion_events={"order.shipped"},
   compensate what another did.
 - **The tracker is a projection.** With `saga_log`, `ChoreographyTracker` derives a
   transaction's status from its log entries (no JSON record) and keeps the
-  transaction row's `status` in step. `sagaz choreography status <id> --saga-log
+  transaction row's `status` in step. `sagaz choreography status <id> --saga-log-url
   postgresql://...` reads the same projection.
 
 ## Analytics
@@ -172,8 +174,8 @@ await exporter.start()           # exporter.metrics(): exported, errors, lag_sec
 From the command line:
 
 ```bash
-sagaz analytics export --saga-log postgresql://... --to fluss://fluss:9123   # continuous
-sagaz analytics export --saga-log ... --to fluss://... --once                # catch up, exit
+sagaz analytics export --saga-log-url postgresql://... --to fluss://fluss:9123   # continuous
+sagaz analytics export --saga-log-url ... --to fluss://... --once                # catch up, exit
 sagaz analytics fluss-ddl                                                    # Flink SQL DDL
 ```
 

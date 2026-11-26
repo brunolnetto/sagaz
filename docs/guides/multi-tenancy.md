@@ -16,20 +16,23 @@ class OrderSaga(Saga):
         ...  # ctx["tenant_id"] == "acme"
 
 acme = TenantContext("acme", plan="premium", quotas=TenantQuotas(max_concurrent_sagas=50))
-await OrderSaga().run({"order_id": "o-1"}, tenant_context=acme)
+await OrderSaga().run({"order_id": "o-1"}, tenant=acme)
 ```
 
 While the saga runs, every storage read and write is scoped to `acme`, the tenant's
 quotas apply, and `ctx["tenant_id"]` is set. An initial context that already names a
 *different* tenant is rejected.
 
-Imperative sagas run as a tenant through the orchestrator:
+A `SagaOrchestrator` runs every saga it is given as its tenant, and tracks their
+outcome:
 
 ```python
 from sagaz.core.execution.orchestrator import SagaOrchestrator
 
-orchestrator = SagaOrchestrator(tenant_id="acme", tenant_registry=registry)
-await orchestrator.execute_saga(saga)
+orchestrator = SagaOrchestrator(tenant="acme", tenant_registry=registry)
+await orchestrator.run(OrderSaga(), {"order_id": "o-1"})   # a sagaz.Saga
+await orchestrator.execute_saga(saga)                       # a classic saga (deprecated)
+await orchestrator.get_statistics()                         # both kinds
 ```
 
 Any other code (for example a request handler querying storage) can open a scope
@@ -70,7 +73,7 @@ from sagaz.core.tenant import TenantRegistry
 registry = await TenantRegistry.from_storage(storage)
 configure(SagaConfig(storage=storage, tenant_registry=registry))
 
-await OrderSaga().run(ctx, tenant_context="acme")  # resolved through the registry
+await OrderSaga().run(ctx, tenant="acme")  # resolved through the registry
 ```
 
 With a registry configured, an unregistered tenant id raises `TenantNotFoundError`, and a
@@ -84,6 +87,13 @@ suspended tenant raises `TenantSuspendedError`.
 
 `None` means unlimited. Concurrency is counted per process; for a global bound across
 workers, put a shared limiter in front of saga submission.
+
+Choreographed participants use the same registry and quotas
+(`ChoreographyEngine(tenant_registry=...)`, default the configured one). A delivered
+event of an unknown or suspended tenant is not handled but compensated. A transaction
+counts as one saga of its tenant in each process handling it, and a delivery over the
+quota waits instead of raising. See
+[Choreography: Tenants](../patterns/choreography.md#tenants).
 
 ## CLI
 

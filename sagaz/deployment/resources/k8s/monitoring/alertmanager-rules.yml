@@ -18,9 +18,9 @@ groups:
       - alert: SagaHighFailureRate
         expr: |
           (
-            sum(rate(sagaz_saga_completed_total{status="failed"}[5m]))
+            sum(rate(sagaz_saga_execution_total{status!="completed"}[5m]))
             /
-            sum(rate(sagaz_saga_completed_total[5m]))
+            sum(rate(sagaz_saga_execution_total[5m]))
           ) > 0.05
         for: 5m
         labels:
@@ -34,13 +34,31 @@ groups:
           runbook_url: "https://docs.example.com/runbooks/saga-failures"
           dashboard_url: "https://grafana.example.com/d/sagaz-overview"
 
+      # A saga stopped after a pivot: nothing recovers it on its own
+      - alert: SagaNeedsAttention
+        expr: |
+          sum by (saga_name, status) (
+            increase(sagaz_saga_execution_total{status=~"partially_committed|forward_recovery"}[15m])
+          ) > 0
+        for: 0m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "A saga stopped after a point of no return and needs a person"
+          description: |
+            Sagas of {{ $labels.saga_name }} ended {{ $labels.status }} in the last 15 minutes.
+            A pivot step completed and a later step failed. Someone must act on them.
+          runbook_url: "https://docs.example.com/runbooks/saga-needs-attention"
+          dashboard_url: "https://grafana.example.com/d/sagaz-overview"
+
       # Critical saga failure rate
       - alert: SagaCriticalFailureRate
         expr: |
           (
-            sum(rate(sagaz_saga_completed_total{status="failed"}[5m]))
+            sum(rate(sagaz_saga_execution_total{status!="completed"}[5m]))
             /
-            sum(rate(sagaz_saga_completed_total[5m]))
+            sum(rate(sagaz_saga_execution_total[5m]))
           ) > 0.20
         for: 2m
         labels:
@@ -92,9 +110,9 @@ groups:
       - alert: StepConsistentlyFailing
         expr: |
           (
-            sum by (saga_name, step_name) (rate(sagaz_step_completed_total{status="failed"}[15m]))
+            sum by (saga_name, step_name) (rate(sagaz_saga_step_executions_total{status="failed"}[15m]))
             /
-            sum by (saga_name, step_name) (rate(sagaz_step_completed_total[15m]))
+            sum by (saga_name, step_name) (rate(sagaz_saga_step_executions_total[15m]))
           ) > 0.50
         for: 10m
         labels:
@@ -111,7 +129,7 @@ groups:
         expr: |
           histogram_quantile(0.95, 
             sum by (saga_name, step_name, le) (
-              rate(sagaz_step_duration_seconds_bucket[5m])
+              rate(sagaz_saga_step_duration_seconds_bucket[5m])
             )
           ) > 5
         for: 5m
@@ -133,9 +151,9 @@ groups:
       - alert: HighCompensationRate
         expr: |
           (
-            sum(rate(sagaz_compensation_total[5m]))
+            sum(rate(sagaz_saga_compensations_total[5m]))
             /
-            sum(rate(sagaz_saga_completed_total[5m]))
+            sum(rate(sagaz_saga_execution_total[5m]))
           ) > 0.10
         for: 10m
         labels:
@@ -150,7 +168,7 @@ groups:
       # Compensation failure
       - alert: CompensationFailure
         expr: |
-          increase(sagaz_compensation_total{status="failed"}[5m]) > 0
+          increase(sagaz_saga_compensation_failures_total[5m]) > 0
         labels:
           severity: critical
           team: platform
@@ -171,7 +189,7 @@ groups:
       # DLQ has messages
       - alert: DLQMessagesPresent
         expr: |
-          sagaz_dlq_queue_depth > 0
+          sagaz_dlq_depth > 0
         for: 5m
         labels:
           severity: warning
@@ -185,7 +203,7 @@ groups:
       # DLQ growing rapidly
       - alert: DLQGrowingRapidly
         expr: |
-          rate(sagaz_dlq_messages_total[5m]) > 1
+          rate(sagaz_outbox_dead_letter_events_total[5m]) > 1
         for: 5m
         labels:
           severity: critical
@@ -217,7 +235,7 @@ groups:
       # Outbox backlog growing
       - alert: OutboxBacklogGrowing
         expr: |
-          sagaz_outbox_pending_count > 1000
+          sagaz_outbox_pending_events_total > 1000
         for: 5m
         labels:
           severity: warning
@@ -231,9 +249,9 @@ groups:
       # Outbox worker not processing
       - alert: OutboxWorkerStalled
         expr: |
-          rate(sagaz_outbox_processed_total[5m]) == 0 
+          rate(sagaz_outbox_published_events_total[5m]) == 0 
           and 
-          sagaz_outbox_pending_count > 0
+          sagaz_outbox_pending_events_total > 0
         for: 5m
         labels:
           severity: critical
@@ -280,7 +298,7 @@ groups:
       # CDC replication lag
       - alert: CDCReplicationLag
         expr: |
-          sagaz_cdc_replication_lag_seconds > 30
+          histogram_quantile(0.95, sum by (le, source) (rate(sagaz_cdc_lag_seconds_bucket[5m]))) > 30
         for: 5m
         labels:
           severity: warning

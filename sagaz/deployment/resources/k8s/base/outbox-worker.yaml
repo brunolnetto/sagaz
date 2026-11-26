@@ -215,7 +215,7 @@ spec:
     - type: Pods
       pods:
         metric:
-          name: outbox_pending_events_total
+          name: sagaz_outbox_pending_events_total
         target:
           type: AverageValue
           averageValue: "1000"  # Scale when >1000 pending per pod

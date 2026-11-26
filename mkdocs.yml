@@ -77,6 +77,8 @@ nav:
     - Unified Saga Log: guides/unified-saga-log.md
     - Saga Replay: guides/saga-replay.md
     - Step Charts: guides/step-statechart.md
+    - Pivots and Forward Recovery: guides/pivots-and-forward-recovery.md
+    - Migrating from the classic Saga: guides/migrating-from-the-classic-saga.md
     - Replay Storage Backends: guides/replay-storage-backends.md
     - Filesystem Snapshot Storage: guides/filesystem-snapshot-storage.md
     - Visualization UI: guides/visualization-ui.md

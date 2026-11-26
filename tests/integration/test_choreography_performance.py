@@ -143,7 +143,7 @@ class FanOutSaga(ChoreographedSaga):
     """Receives fan-out events and records arrival."""
 
     def __init__(self, saga_id: str, collector: list[str]) -> None:
-        super().__init__(saga_id=saga_id)
+        super().__init__(saga_id=saga_id, name=saga_id)  # one name per participant
         self._collector = collector
 
     @on_event("fanout.event")
@@ -162,7 +162,7 @@ class ChainStep(ChoreographedSaga):
         bus: EventBus,
         trace: list[str],
     ) -> None:
-        super().__init__(saga_id=saga_id)
+        super().__init__(saga_id=saga_id, name=saga_id)  # one name per participant
         self._emit_event = emit
         self._bus = bus
         self._trace = trace
@@ -212,14 +212,14 @@ async def test_engine_dispatch_throughput() -> None:
 
     dispatched: list[str] = []
     saga = NoopSaga(saga_id="bench-saga")
-    # Override handle to record dispatches.
-    original_handle = saga.handle
+    # Record dispatches: the engine runs handlers through _run (#561).
+    original_run = saga._run
 
-    async def recording_handle(event: Event) -> None:
+    async def recording_run(event: Event, **options: object) -> None:
         dispatched.append(event.event_type)
-        await original_handle(event)
+        await original_run(event, **options)  # type: ignore[arg-type]
 
-    saga.handle = recording_handle  # type: ignore[method-assign]
+    saga._run = recording_run  # type: ignore[method-assign]
 
     engine.register(saga)
     await engine.start()

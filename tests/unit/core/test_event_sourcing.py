@@ -233,7 +233,7 @@ class TestEventSourcedSaga:
         assert (state.status, state.last_sequence, state.event_count) == ("completed", 4, 4)
 
     async def test_runs_in_the_tenant_scope(self, store):
-        await make_saga(store).run({"order_id": "o"}, saga_id="s-7", tenant_context="acme")
+        await make_saga(store).run({"order_id": "o"}, saga_id="s-7", tenant="acme")
         assert await store.load_stream("s-7") == []
         with tenant_scope("acme"):
             events = await store.load_stream("s-7")

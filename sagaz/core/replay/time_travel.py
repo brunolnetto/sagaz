@@ -68,10 +68,12 @@ class SagaTimeTravel:
 
     def __init__(
         self,
-        saga_id: UUID,
+        saga_id: UUID | str,
         snapshot_storage: SnapshotStorage,
     ) -> None:
-        self.saga_id = saga_id
+        from sagaz.core.decorators._snapshots import snapshot_saga_id
+
+        self.saga_id = snapshot_saga_id(saga_id)  # any saga id string, or its UUID
         self.snapshot_storage = snapshot_storage
 
     async def get_state_at(

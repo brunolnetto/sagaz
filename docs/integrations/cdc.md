@@ -88,7 +88,7 @@ Exported with the worker's other Prometheus metrics (`prometheus-client` install
 | `sagaz_cdc_errors_total` | counter | `source`, `kind` | `kind="event"`: an event's processing raised; `kind="stream"`: the source failed and the worker stopped |
 
 Publish failures themselves are counted by the existing
-`outbox_failed_events_total` and retried by the sweep. The outbox Grafana dashboards
+`sagaz_outbox_failed_events_total` and retried by the sweep. The outbox Grafana dashboards
 (Kubernetes and local) have a **CDC** row with lag p50/p95/p99, throughput and errors
 per source. Useful alerts:
 

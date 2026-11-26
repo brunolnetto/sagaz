@@ -12,7 +12,7 @@ With the flag off nothing is sent or stored, as before.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 from sagaz.core.events import SagaFailed, SagaRolledBack
 from sagaz.core.exceptions import SagaPersistenceError
@@ -33,6 +33,13 @@ if TYPE_CHECKING:
 logger = get_logger("sagaz.core.decorators")
 
 _UNDOABLE = ("completed", "compensating")  # what a resumed compensation may still undo
+
+
+class _ResumeEngine(Protocol):
+    """What the saga uses of its ``ExecutionEngine`` to resume (no import: no cycle)."""
+
+    async def resume_compensation(self, saga_id: str) -> SagaStatus: ...
+    async def pending_compensations(self, saga_id: str) -> list[str]: ...
 
 
 def _chart_class(steps: list[SagaStepDefinition]) -> Any:
@@ -83,9 +90,21 @@ class _DecoratorStepChartMixin:
         executing are logged as in doubt, never compensated. Returns the final
         status, ``ROLLED_BACK`` or ``FAILED``.
         """
+        return await self._resume_engine().resume_compensation(saga_id)
+
+    async def pending_compensations(self, saga_id: str) -> list[str]:
+        """The steps ``resume_compensation(saga_id)`` would undo, in its order (#544).
+
+        Read from the run's stored state, without compensating anything: the steps
+        still ``completed`` or ``compensating``, except tainted and pivot steps.
+        Steps that were executing are in ``in_doubt_steps()`` afterwards.
+        """
+        return await self._resume_engine().pending_compensations(saga_id)
+
+    def _resume_engine(self) -> _ResumeEngine:
         from sagaz.core.decorators._execution import ExecutionEngine
 
-        return await ExecutionEngine(self).resume_compensation(saga_id)  # type: ignore[arg-type]
+        return ExecutionEngine(self)  # type: ignore[arg-type]
 
 
 class _EngineStepChartMixin:
@@ -94,6 +113,8 @@ class _EngineStepChartMixin:
     saga: Saga
     _ledger: StepLedger
     _compensation_failed: bool
+    _needs_forward_recovery: str | None
+    _compensate_pivots: bool
 
     if TYPE_CHECKING:
 
@@ -167,7 +188,9 @@ class _EngineStepChartMixin:
         """The run failed: compensate what completed, or end with nothing to undo."""
         if self._lifecycle() != "executing":
             return
-        if self.completed_steps:
+        if self._needs_forward_recovery is not None:  # nothing is compensated (#570)
+            await self._chart.fail_unrecoverable()
+        elif self.completed_steps:
             await self._chart.fail()
         else:
             await self._chart.nothing_to_compensate()
@@ -181,7 +204,14 @@ class _EngineStepChartMixin:
             await self._chart.finish_compensation()
 
     def _failure_status(self) -> SagaStatus:
-        return SagaStatus.FAILED if self._compensation_failed else SagaStatus.ROLLED_BACK
+        """How a failed run ended (#570 for the two statuses a pivot adds)."""
+        if self._needs_forward_recovery is not None:
+            return SagaStatus.FORWARD_RECOVERY  # stopped after a pivot: waits for a person
+        if self._compensation_failed:
+            return SagaStatus.FAILED
+        if self.saga._completed_pivots and not self._compensate_pivots:
+            return SagaStatus.PARTIALLY_COMMITTED  # the pivot and its ancestors stay done
+        return SagaStatus.ROLLED_BACK
 
     def _configuration_to_store(self) -> list[str] | None:
         """The chart configuration stored with the saga state (None without a chart)."""
@@ -223,6 +253,27 @@ class _EngineStepChartMixin:
             await self._record(SagaRolledBack, duration_ms=self._elapsed_ms())
         await self._persist(status)
         return status
+
+    def _compensable(self, step_id: str) -> bool:
+        """Whether an executed step is undone: not tainted, and not a completed pivot (v1.3.0)."""
+        if self._compensate_pivots:  # forward recovery chose COMPENSATE_PIVOT (#570)
+            return True
+        if self.saga._is_step_tainted(step_id):
+            logger.info(f"Skipping compensation for tainted step: {step_id}")
+            return False
+        step = self.saga._step_registry.get(step_id)
+        if step and step.pivot and step_id in self.saga._completed_pivots:
+            logger.info(f"Reached pivot boundary, stopping compensation: {step_id}")
+            return False
+        return True
+
+    async def pending_compensations(self, saga_id: str) -> list[str]:
+        state = await self._load_resumable(saga_id)
+        self._initialize_run(state.get("context") or {}, saga_id)
+        self._register_compensations()
+        await self._restore_chart(list(state["configuration"]))
+        levels = self.saga._compensation_graph.get_compensation_order()
+        return [step_id for level in levels for step_id in level if self._compensable(step_id)]
 
     async def _load_resumable(self, saga_id: str) -> dict[str, Any]:
         if not self.saga.use_step_statechart:

@@ -3,35 +3,34 @@
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
-from uuid import UUID
+from datetime import UTC, datetime
 
-from sagaz.core.context import SagaContext
-from sagaz.core.replay import ReplayConfig, SnapshotStrategy
-from sagaz.core.saga import Saga
+from sagaz import ReplayConfig, Saga, SagaConfig, SnapshotStrategy, action
+from sagaz.core.decorators._snapshots import snapshot_saga_id
+from sagaz.core.replay.time_travel import SagaTimeTravel
 from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
 
-logging.basicConfig(level=logging.WARNING)
+logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
 
 
 class SimpleWorkflowSaga(Saga):
     """Simple 3-step workflow for time-travel demonstration."""
 
-    async def build(self) -> None:
-        await self.add_step("step_1", self.step_1)
-        await self.add_step("step_2", self.step_2)
-        await self.add_step("step_3", self.step_3)
+    saga_name = "workflow"
 
-    async def step_1(self, ctx: SagaContext) -> dict:
+    @action("step_1")
+    async def step_1(self, ctx: dict) -> dict:
         await asyncio.sleep(0.05)
         return {"step_1_result": "completed"}
 
-    async def step_2(self, ctx: SagaContext) -> dict:
+    @action("step_2", depends_on=["step_1"])
+    async def step_2(self, ctx: dict) -> dict:
         await asyncio.sleep(0.05)
         return {"step_2_result": "completed"}
 
-    async def step_3(self, ctx: SagaContext) -> dict:
+    @action("step_3", depends_on=["step_2"])
+    async def step_3(self, ctx: dict) -> dict:
         await asyncio.sleep(0.05)
         return {"step_3_result": "completed"}
 
@@ -40,43 +39,38 @@ async def main() -> None:
     """Demonstrate time-travel queries."""
 
     snapshot_storage = InMemorySnapshotStorage()
-
-    replay_config = ReplayConfig(
-        enable_snapshots=True, snapshot_strategy=SnapshotStrategy.AFTER_EACH_STEP, retention_days=30
+    config = SagaConfig(
+        replay_config=ReplayConfig(
+            enable_snapshots=True,
+            snapshot_strategy=SnapshotStrategy.AFTER_EACH_STEP,
+            retention_days=30,
+        ),
+        snapshot_storage=snapshot_storage,
+        metrics=False,
+        logging=False,
     )
 
     # Execute saga with snapshot capture
-    saga = SimpleWorkflowSaga(
-        name="workflow", replay_config=replay_config, snapshot_storage=snapshot_storage
+    start_time = datetime.now(UTC)
+    context = await SimpleWorkflowSaga(config=config).run(
+        {"workflow_id": "WF-12345", "initiated_by": "user@example.com"}, saga_id="WF-12345"
     )
+    end_time = datetime.now(UTC)
 
-    saga.context.set("workflow_id", "WF-12345")
-    saga.context.set("initiated_by", "user@example.com")
-
-    await saga.build()
-    start_time = datetime.now()
-    await saga.execute()
-    end_time = datetime.now()
-
-    saga_id = UUID(saga.saga_id)
-
-    # Query snapshots
-
+    # Query snapshots: they are stored under the saga id's UUID
+    saga_id = snapshot_saga_id(context["saga_id"])
     snapshots = await snapshot_storage.list_snapshots(saga_id=saga_id)
+    logger.info(f"{len(snapshots)} snapshots of saga {context['saga_id']!r}:")
+    for snapshot in sorted(snapshots, key=lambda s: s.created_at):
+        logger.info(f"  after {snapshot.step_name}: completed={snapshot.completed_steps}")
 
-    for _i, _snapshot in enumerate(snapshots, 1):
-        pass
-
-    # Query state at specific time
-    start_time + (end_time - start_time) / 2
-
-    midpoint_snapshot = await snapshot_storage.get_latest_snapshot(
-        saga_id=saga_id,
-        before_step=None,  # Get latest before midpoint_time
-    )
-
-    if midpoint_snapshot:
-        pass
+    # Query state at a specific time: halfway through the run
+    midpoint = start_time + (end_time - start_time) / 2
+    state = await SagaTimeTravel("WF-12345", snapshot_storage).get_state_at(midpoint)
+    if state:
+        logger.info(f"At the midpoint, the saga had completed {state.completed_steps}")
+    else:
+        logger.info("At the midpoint, no step had completed yet")
 
 
 if __name__ == "__main__":

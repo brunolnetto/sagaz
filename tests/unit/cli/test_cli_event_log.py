@@ -20,7 +20,7 @@ def store_url(tmp_path):
 
     async def record() -> None:
         async with SQLiteEventStore(str(path)) as store:
-            await make_saga(store).run({"order_id": "o-1"}, saga_id="ok", tenant_context="acme")
+            await make_saga(store).run({"order_id": "o-1"}, saga_id="ok", tenant="acme")
             with pytest.raises(SagaFailedError):
                 await make_saga(store, fail_charge=True).run({"order_id": "o-2"}, saga_id="bad")
 

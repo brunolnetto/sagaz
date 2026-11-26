@@ -143,7 +143,7 @@ function call per step. That is about 1 µs on a 3-step run of about 250 µs, or
 
 ## Limits
 
-- The lower-level `sagaz.core.saga.Saga` does not route steps to regions.
+- The classic `sagaz.core.saga.Saga` (deprecated since 2.6.0) does not route steps to regions.
 - Each coordinator process has its own consumer group on every region bus, so it
   sees replies and heartbeats. Clean up groups of decommissioned processes on your
   broker.

@@ -2,69 +2,76 @@
 """Simple Replay Demo - Minimal Example"""
 
 import asyncio
+import logging
 
-from sagaz.core.context import SagaContext
-from sagaz.core.exceptions import SagaStepError
-from sagaz.core.replay import ReplayConfig, SnapshotStrategy
+from sagaz import (
+    ReplayConfig,
+    Saga,
+    SagaConfig,
+    SagaFailedError,
+    SagaStepError,
+    SnapshotStrategy,
+    action,
+)
 from sagaz.core.replay.saga_replay import SagaReplay
-from sagaz.core.saga import Saga
 from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
+
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+logger = logging.getLogger(__name__)
 
 
 class ThreeStepSaga(Saga):
     """Simple saga: step1 → step2 (fails) → step3"""
 
-    async def build(self) -> None:
-        await self.add_step("step1", self.step1)
-        await self.add_step("step2", self.step2)
-        await self.add_step("step3", self.step3)
+    saga_name = "three-steps"
 
-    async def step1(self, ctx: SagaContext) -> dict:
-        return {"data": "from_step1"}
+    @action("step1")
+    async def step1(self, ctx: dict) -> dict:
+        return {"from_step1": "done"}
 
-    async def step2(self, ctx: SagaContext) -> dict:
+    @action("step2", depends_on=["step1"], max_retries=0)
+    async def step2(self, ctx: dict) -> dict:
         if ctx.get("should_fail", True):
             msg = "Step 2 intentional failure"
             raise SagaStepError(msg)
-        return {"data": "from_step2"}
+        return {"from_step2": "done"}
 
-    async def step3(self, ctx: SagaContext) -> dict:
-        return {"data": "from_step3"}
+    @action("step3", depends_on=["step2"])
+    async def step3(self, ctx: dict) -> dict:
+        return {"from_step3": "done"}
 
 
 async def main() -> None:
     """Run simple replay demo."""
 
-    # Setup
+    # Setup: a snapshot before each step, kept in memory
     storage = InMemorySnapshotStorage()
-    config = ReplayConfig(
-        enable_snapshots=True, snapshot_strategy=SnapshotStrategy.BEFORE_EACH_STEP
+    config = SagaConfig(
+        replay_config=ReplayConfig(
+            enable_snapshots=True, snapshot_strategy=SnapshotStrategy.BEFORE_EACH_STEP
+        ),
+        snapshot_storage=storage,
+        metrics=False,
+        logging=False,
     )
 
     # Phase 1: Initial failure
-    saga = ThreeStepSaga(replay_config=config, snapshot_storage=storage)
-    saga.context.set("should_fail", True)
-    await saga.build()
-
-    failed_id = saga.saga_id
     try:
-        await saga.execute()
-    except Exception:
-        pass
+        await ThreeStepSaga(config=config).run({"should_fail": True}, saga_id="demo-run")
+    except SagaFailedError as failure:
+        logger.info(f"Phase 1: the saga failed at {failure.failed_step!r} ({failure.status.value})")
 
-    # Phase 2: Replay with fix
-    from uuid import UUID
-
+    # Phase 2: Replay from the failed step, with the cause fixed
     replay = SagaReplay(
-        saga_id=UUID(failed_id),  # Convert string to UUID
-        snapshot_storage=storage,
-        saga_factory=lambda name: ThreeStepSaga(replay_config=config, snapshot_storage=storage),
+        "demo-run",  # the run that failed
+        storage,
+        saga_factory=lambda name: ThreeStepSaga(config=config),
     )
-
-    await replay.from_checkpoint(
-        step_name="step1",  # Replay from step1 (last successful snapshot)
+    result = await replay.from_checkpoint(
+        step_name="step2",  # step1 completed: it is adopted, not run again
         context_override={"should_fail": False},
     )
+    logger.info(f"Phase 2: replay {result.replay_status.value} as new saga {result.new_saga_id}")
 
 
 if __name__ == "__main__":

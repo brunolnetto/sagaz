@@ -44,6 +44,7 @@ from sagaz.core.storage.saga_log._model import (
     SnapshotKind,
     StatusChange,
     Transaction,
+    ended_at,
 )
 
 #: Transaction status after each saga-level event.
@@ -155,15 +156,17 @@ class SagaLogEventStore(SagaEventStore):
                 initiator=self.participant,
                 started_at=event.occurred_at,
             )
-            version = 1
+            version, started = 1, event.occurred_at
         else:
-            version = current.version
+            version, started = current.version, current.started_at
         ended = status in ("completed", "rolled_back", "failed")
+        # Never before the transaction started, whatever the wall clock did (#653).
+        end = ended_at(started, event.occurred_at, getattr(event, "duration_ms", None))
         batch.status = StatusChange(
             event.saga_id,
             status,
             version,
-            ended_at=event.occurred_at if ended else None,
+            ended_at=end if ended else None,
             context=self._contexts.pop(event.saga_id, None) if ended else None,
         )
 

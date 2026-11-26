@@ -14,11 +14,31 @@ logger = get_logger(__name__)
 class MetricsBackend(Protocol):
     """What the listener needs of a metrics backend: ``SagaMetrics``, ``PrometheusMetrics``.
 
-    ``saga_started``, ``saga_finished`` and ``record_step_duration`` are called too when
-    the backend has them.
+    ``saga_started``, ``saga_finished``, ``record_step_duration``, ``record_step`` and
+    ``record_compensation_failure`` are called too when the backend has them.
     """
 
     def record_execution(self, saga_name: str, status: "SagaStatus", duration: float) -> None: ...
+
+
+def _failure_status(ctx: dict[str, Any], error: Exception) -> "SagaStatus":
+    """The status a saga that did not complete is counted under: what happened to it.
+
+    ``rolled_back`` (everything was undone), ``partially_committed`` or
+    ``forward_recovery`` (it stopped after a pivot and needs a person, #662), or
+    ``failed`` (a compensation failed too). An orchestrated saga's error carries the
+    status; a choreography tracker's context does. Anything else is ``failed``.
+    """
+    from sagaz.core.types import SagaStatus
+
+    found = getattr(error, "status", None) or ctx.get("status")
+    value = found.value if isinstance(found, SagaStatus) else str(found or "")
+    ended = (
+        SagaStatus.ROLLED_BACK,
+        SagaStatus.PARTIALLY_COMMITTED,
+        SagaStatus.FORWARD_RECOVERY,
+    )
+    return {s.value: s for s in ended}.get(value, SagaStatus.FAILED)
 
 
 class MetricsSagaListener(SagaListener):
@@ -69,11 +89,23 @@ class MetricsSagaListener(SagaListener):
         self, saga_name: str, step_name: str, ctx: dict[str, Any], result: Any
     ) -> None:
         self._record_step_duration(saga_name, step_name, ctx)
+        self._record_step(saga_name, step_name, "succeeded")
 
     async def on_step_failure(
         self, saga_name: str, step_name: str, ctx: dict[str, Any], error: Exception
     ) -> None:
         self._record_step_duration(saga_name, step_name, ctx)
+        self._record_step(saga_name, step_name, "failed")
+
+    async def on_compensation_failed(
+        self, saga_name: str, step_name: str, ctx: dict[str, Any], error: Exception
+    ) -> None:
+        if hasattr(self.metrics, "record_compensation_failure"):
+            self.metrics.record_compensation_failure(saga_name, step_name)
+
+    def _record_step(self, saga_name: str, step_name: str, status: str) -> None:
+        if hasattr(self.metrics, "record_step"):
+            self.metrics.record_step(saga_name, step_name, status)
 
     def _record_step_duration(self, saga_name: str, step_name: str, ctx: dict[str, Any]) -> None:
         import time
@@ -107,7 +139,8 @@ class MetricsSagaListener(SagaListener):
 
         start_time = self._saga_start_times.pop(saga_id, time.time())
         duration = time.time() - start_time
-        self.metrics.record_execution(saga_name, SagaStatus.FAILED, duration)
+        outcome = _failure_status(ctx, error)
+        self.metrics.record_execution(saga_name, outcome, duration)
         # Track active sagas if metrics backend supports it
         if hasattr(self.metrics, "saga_finished"):
             self.metrics.saga_finished(saga_name)

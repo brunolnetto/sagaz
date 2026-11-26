@@ -11,9 +11,14 @@ import uuid
 from typing import TYPE_CHECKING, Any
 
 from sagaz.core.decorators._attempts import _StepAttemptsMixin
+from sagaz.core.decorators._deadline import within
 from sagaz.core.decorators._durability import _DurabilityMixin
 from sagaz.core.decorators._event_sourcing import _EventSourcingMixin
+from sagaz.core.decorators._forward import StepSkippedError, _ForwardRecoveryMixin
+from sagaz.core.decorators._idempotency import StepKeys
+from sagaz.core.decorators._parallel import failure_strategy, grace_period, run_level
 from sagaz.core.decorators._regions import _RegionRoutingMixin
+from sagaz.core.decorators._snapshots import Snapshots, _EngineSnapshotMixin
 from sagaz.core.decorators._step_chart import _EngineStepChartMixin
 from sagaz.core.decorators._step_ledger import StepLedger
 from sagaz.core.events import (
@@ -26,6 +31,7 @@ from sagaz.core.events import (
     json_safe,
 )
 from sagaz.core.exceptions import SagaFailedError, SagaTimeoutError
+from sagaz.core.listeners._notify import DEFAULT_LISTENER_TIMEOUT, Listeners, notify
 from sagaz.core.logger import get_logger
 from sagaz.core.tenant import capped_retries, capped_timeout
 from sagaz.core.types import SagaStatus
@@ -40,6 +46,8 @@ class ExecutionEngine(
     _EventSourcingMixin,
     _RegionRoutingMixin,
     _EngineStepChartMixin,
+    _EngineSnapshotMixin,
+    _ForwardRecoveryMixin,
     _StepAttemptsMixin,
     _DurabilityMixin,
 ):
@@ -53,6 +61,10 @@ class ExecutionEngine(
         """
         self.saga = saga
         self._ledger = StepLedger([])
+        self._step_keys = StepKeys(None, "")
+        self._snapshots = Snapshots()
+        self.adopted: frozenset[str] = frozenset()  # set by Saga.run_from_snapshot
+        self.deadline: float | None = None  # seconds for all the steps (#568)
         self._compensation_errors: dict[str, BaseException] = {}
         self._init_event_sourcing()
 
@@ -88,7 +100,7 @@ class ExecutionEngine(
             await self._notify_listeners(
                 "on_saga_start", name, self.saga._saga_id, self.saga._context
             )
-            await self._execute_all_levels()
+            await within(self.deadline, name, self._execute_all_levels)
         except Exception as e:
             await self._record(
                 CompensationStarted,
@@ -96,8 +108,9 @@ class ExecutionEngine(
                 error_type=type(e).__name__,
                 error_message=str(e),
             )
+            await self._snapshot("failed", self._failed_step or "")  # before compensating
             await self._chart_failed()
-            await self._compensate()
+            await self._roll_back()  # not when the saga waits to be recovered forward (#570)
             await self._chart_compensation_done()
             await self._record_outcome(e)
             failure = SagaFailedError(
@@ -119,6 +132,7 @@ class ExecutionEngine(
         # Every step succeeded: only a step's failure compensates. A failure to save
         # the outcome raises SagaPersistenceError for a saga that did complete.
         await self._chart_succeeded()
+        await self._snapshot("completed")
         await self._notify_listeners(
             "on_saga_complete", name, self.saga._saga_id, self.saga._context
         )
@@ -133,6 +147,9 @@ class ExecutionEngine(
         self.saga._context["saga_id"] = self.saga._saga_id
         self.saga._compensation_graph.reset_execution()
         self._ledger = StepLedger([step.step_id for step in self.saga._steps])
+        self._step_keys = StepKeys(self._storage(), self.saga._saga_id)  # idempotency (#569)
+        name, saga_id = self._get_saga_name(), self.saga._saga_id
+        self._snapshots = Snapshots(self.saga._config, name, saga_id, self.adopted)  # replay
 
     def _register_compensations(self) -> None:
         """Register all compensations in the graph.
@@ -164,36 +181,32 @@ class ExecutionEngine(
         return self.saga.saga_name or self.saga.__class__.__name__
 
     async def _notify_listeners(self, event_name: str, *args: Any) -> None:
-        """Notify all listeners of an event."""
-        for listener in self.saga._instance_listeners:
-            try:
-                handler = getattr(listener, event_name, None)
-                if handler:
-                    result = handler(*args)
-                    if inspect.iscoroutine(result):
-                        await result
-            except Exception as e:
-                logger.warning(f"Listener {type(listener).__name__}.{event_name} error: {e}")
+        """Notify all listeners of an event; a slow or failing one is skipped (#633)."""
+        config = getattr(self.saga, "_config", None)
+        timeout = getattr(config, "listener_timeout", DEFAULT_LISTENER_TIMEOUT)
+        await notify(Listeners(self.saga._instance_listeners, timeout), event_name, *args)
 
     async def _execute_level(self, level: list["SagaStepDefinition"]) -> None:
         """Execute all steps in a level concurrently."""
         if not level:
             return
 
-        tasks = [self._execute_step(step) for step in level]
-
-        # Execute in parallel
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        # Check for exceptions
-        for result in results:
-            if isinstance(result, Exception):
-                raise result
+        # If one fails, SagaConfig.failure_strategy says what the others do (#567).
+        config = getattr(self.saga, "_config", None)
+        await run_level(
+            [self._execute_step(step) for step in level],
+            failure_strategy(getattr(config, "failure_strategy", None)),
+            grace_period(getattr(config, "failure_grace_period", None)),
+        )
 
     async def _execute_step(self, step: "SagaStepDefinition") -> None:
         """Execute a single step; ``on_exit`` runs after it, whatever the outcome (#555)."""
+        if step.step_id in self._snapshots.adopted:  # a replay: the snapshot completed it
+            return await self._adopt(step)
         try:
             await self._execute_step_body(step)
+        except StepSkippedError:  # forward recovery chose SKIP: the step failed, the saga goes on
+            self._failed_step = None
         finally:
             await self._call_hook(step.on_exit, self.saga._context, step.step_id)
 
@@ -209,12 +222,18 @@ class ExecutionEngine(
 
         self._ledger.started(step.step_id)
         await self._chart_step(step.step_id, "start")
+        await self._snapshot("before", step.step_id)
         # Per attempt; the config's default when the step sets none (ADR-020 caps it).
         timeout = self._step_timeout(step)
         step_started = time.monotonic()
         try:
             try:
-                result = await self._attempt_step(step)  # retries, backoff, timeouts
+                result = await self._step_keys.run(  # once per idempotency key (#569)
+                    step.step_id,
+                    step.idempotency_key,
+                    self.saga._context,
+                    lambda: self._recover_forward(step),  # retries, timeouts, recovery (#570)
+                )
             except BaseException as error:
                 self._ledger.finished(step.step_id, error)
                 await self._chart_step(step.step_id, "fail")
@@ -229,6 +248,7 @@ class ExecutionEngine(
             # Mark step as executed for compensation tracking
             self.saga._context[f"__{step.step_id}_completed"] = True
             self.saga._compensation_graph.mark_step_executed(step.step_id)
+            await self._snapshot("after", step.step_id)
 
             # Handle pivot step completion - propagate taint to ancestors
             if step.pivot:
@@ -297,21 +317,8 @@ class ExecutionEngine(
         skipped_count = 0
 
         for level in comp_levels:
-            # v1.3.0: Filter out tainted steps and pivot steps
-            compensable_steps = []
-            for step_id in level:
-                if self.saga._is_step_tainted(step_id):
-                    logger.info(f"Skipping compensation for tainted step: {step_id}")
-                    skipped_count += 1
-                    continue
-
-                step = self.saga._step_registry.get(step_id)
-                if step and step.pivot and step_id in self.saga._completed_pivots:
-                    logger.info(f"Reached pivot boundary, stopping compensation: {step_id}")
-                    skipped_count += 1
-                    continue
-
-                compensable_steps.append(step_id)
+            compensable_steps = [step_id for step_id in level if self._compensable(step_id)]
+            skipped_count += len(level) - len(compensable_steps)
 
             if compensable_steps:
                 tasks = [self._execute_compensation(step_id) for step_id in compensable_steps]
@@ -327,9 +334,7 @@ class ExecutionEngine(
         if not node:
             return
 
-        # v1.3.0: Double-check taint status (in case it changed)
-        if self.saga._is_step_tainted(step_id):
-            logger.debug(f"Skipping compensation for tainted step: {step_id}")
+        if not self._compensable(step_id):  # taint may have changed since the level was built
             return
 
         saga_name = self._get_saga_name()
@@ -350,6 +355,7 @@ class ExecutionEngine(
             await self._chart_compensating(step_id)
             await self._attempt_compensation(step_id, node)  # retries, backoff (#550)
             self.saga._context[f"__{step_id}_compensated"] = True
+            await self._step_keys.compensated(step_id)
             self._ledger.compensated(step_id)
             await self._chart_step(step_id, "compensated")
             await self._checkpoint()

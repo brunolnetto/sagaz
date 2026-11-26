@@ -7,7 +7,8 @@ per transaction (correlation id):
 - whether the transaction is finished (completed or compensated), so late
   actions are not remembered, and whether it was compensated (a tombstone:
   later business events are not acted on, #446);
-- which deliveries (``event_id``) it already handled.
+- which deliveries (``event_id``) it already handled, and which it is
+  handling now (a reservation that expires if the handler dies, #561).
 
 :class:`ParticipantState` stores this. The in-memory implementation is the
 default; the SQL ones survive restarts and are shared by every replica of a
@@ -64,6 +65,22 @@ class ParticipantState(ABC):
     @abstractmethod
     async def first_delivery(self, participant: str, event_id: str) -> bool:
         """Claim *event_id* for *participant*: True the first time only."""
+
+    async def claim_delivery(self, participant: str, event_id: str, lease: timedelta) -> bool:
+        """Reserve *event_id* for *participant* while its handler runs (#561).
+
+        True if the caller may handle the delivery now: it was never seen, or
+        an earlier reservation expired (its handler died). The reservation
+        holds for *lease*; :meth:`finish_delivery` makes it final. A delivery
+        reserved and not expired, or finished, returns False.
+
+        This default never expires a reservation (at most once): a state that
+        does not implement leases keeps the behaviour of :meth:`first_delivery`.
+        """
+        return await self.first_delivery(participant, event_id)
+
+    async def finish_delivery(self, participant: str, event_id: str) -> None:
+        """Mark *event_id* handled by *participant* for good: it is never claimed again."""
 
     @abstractmethod
     async def set_deadline(self, participant: str, correlation_id: str, due_at: datetime) -> None:

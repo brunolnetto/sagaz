@@ -53,10 +53,18 @@ Selecting a broker at runtime::
 
 from typing import TYPE_CHECKING
 
+from sagaz.choreography._diagram import choreography_mermaid
 from sagaz.choreography.buses import BusBackend, create_event_bus
 from sagaz.choreography.decorators import compensate, on_event
 from sagaz.choreography.engine import ChoreographyEngine
-from sagaz.choreography.events import COMPENSATE, COMPENSATED, AbstractEventBus, Event, EventBus
+from sagaz.choreography.events import (
+    COMPENSATE,
+    COMPENSATED,
+    PIVOTED,
+    AbstractEventBus,
+    Event,
+    EventBus,
+)
 from sagaz.choreography.saga import ChoreographedSaga
 from sagaz.choreography.tracker import ChoreographyTracker, TransactionStatus, load_status
 
@@ -71,6 +79,7 @@ if TYPE_CHECKING:
 __all__ = [
     "COMPENSATE",
     "COMPENSATED",
+    "PIVOTED",
     "AbstractEventBus",
     "BusBackend",
     "ChoreographedSaga",
@@ -85,6 +94,7 @@ __all__ = [
     "RedisStreamsBusConfig",
     "RedisStreamsEventBus",
     "TransactionStatus",
+    "choreography_mermaid",
     "compensate",
     "create_event_bus",
     "load_status",

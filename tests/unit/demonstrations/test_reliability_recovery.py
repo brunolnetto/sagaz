@@ -67,20 +67,16 @@ async def test_idempotency_run_function_covers_exception_branches():
 
 @pytest.mark.asyncio
 async def test_wire_transfer_saga_compensation_bodies_directly():
-    """Covers _cancel_validation (L66-68), _flag_compliance (L78-80), _reverse_transfer (L94-98)."""
-    from sagaz import SagaConfig, configure
+    """The compensations, which the demonstration's successful transfer never runs."""
     from sagaz.demonstrations.reliability_recovery.replay_compliance.main import WireTransferSaga
 
-    configure(SagaConfig())
     saga = WireTransferSaga()
     ctx = {"transfer_id": "TFR-001", "amount": 100.0}
 
-    await saga._cancel_validation(None, ctx)
-    await saga._flag_compliance(None, ctx)
-    # with swift_code — covers L96-98
-    await saga._reverse_transfer({"swift_code": "SWIFT-TFR-001"}, ctx)
-    # without swift_code — covers L95 false branch
-    await saga._reverse_transfer(None, ctx)
+    await saga.cancel_validation(ctx)
+    await saga.flag_compliance(ctx)
+    await saga.reverse_transfer({**ctx, "swift_code": "SWIFT-TFR-001"})  # a transfer to reverse
+    await saga.reverse_transfer(ctx)  # none was made
 
 
 # ===========================================================================
@@ -95,7 +91,13 @@ async def test_saga_factory_returns_saga_instance():
     from sagaz.demonstrations.reliability_recovery.saga_replay.main import saga_factory
 
     saga = saga_factory("my-saga")
-    assert saga.name == "my-saga"
+    assert saga.saga_name == "my-saga"
+    assert [step.step_id for step in saga.get_steps()] == [
+        "validate_order",
+        "reserve_inventory",
+        "charge_payment",
+        "send_notification",
+    ]
 
 
 @pytest.mark.asyncio
@@ -122,37 +124,32 @@ async def test_saga_replay_compensation_bodies_directly():
 
 @pytest.mark.asyncio
 async def test_sqlite_storage_refund_compensation_directly():
-    """Covers refund pass body (L58) by calling the inner function shape directly."""
-    from sagaz.core.saga import Saga
+    """A charge that succeeded is refunded when a later step fails."""
+    from sagaz import Saga, SagaFailedError
 
     refund_called = []
 
     async def validate(ctx):
         return {"valid": True}
 
-    async def cancel_validate(result, ctx):
-        pass
-
     async def charge(ctx):
         return {"charge_id": "CHG-test"}
 
-    async def refund(result, ctx):
+    async def refund(ctx):
         refund_called.append("refund")
 
     async def fail_step(ctx):
         msg = "fail to trigger compensation"
         raise RuntimeError(msg)
 
-    async def cancel_fail(result, ctx):
-        pass
-
-    saga = Saga(name="order")
-    await saga.add_step("validate", validate, cancel_validate)
-    await saga.add_step("charge", charge, refund)
-    await saga.add_step("fail_step", fail_step, cancel_fail)
-    result = await saga.execute()
-    assert result.status.value == "rolled_back"
-    # refund ran because charge succeeded but a later step failed
+    saga = Saga()
+    saga.saga_name = "order"
+    saga.add_step("validate", validate)
+    saga.add_step("charge", charge, refund, depends_on=["validate"])
+    saga.add_step("fail_step", fail_step, depends_on=["charge"], max_retries=0)
+    with pytest.raises(SagaFailedError) as failure:
+        await saga.run({})
+    assert failure.value.status.value == "rolled_back"
     assert "refund" in refund_called
 
 
@@ -472,12 +469,17 @@ async def test_wire_transfer_saga_runs_successfully():
         enable_snapshots=True,
         snapshot_strategy=SnapshotStrategy.BEFORE_EACH_STEP,
     )
-    saga = WireTransferSaga(replay_config=replay_config, snapshot_storage=snapshot_storage)
-    saga.context.set("transfer_id", "TXN-001")
-    saga.context.set("amount", 1000.0)
-    await saga.build()
-    result = await saga.execute()
-    assert result is not None
+    from sagaz import SagaConfig
+    from sagaz.core.decorators._snapshots import snapshot_saga_id
+
+    config = SagaConfig(
+        replay_config=replay_config, snapshot_storage=snapshot_storage, metrics=False, logging=False
+    )
+    result = await WireTransferSaga(config=config).run({"transfer_id": "TXN-001", "amount": 1000.0})
+    assert result["notification_sent"] is True
+    assert result["swift_code"] == "SWIFT-TXN-001"
+    taken = await snapshot_storage.list_snapshots(snapshot_saga_id(result["saga_id"]))
+    assert len(taken) == 4  # one before each step
 
 
 @pytest.mark.asyncio
@@ -509,9 +511,12 @@ async def test_build_saga_and_execute():
     from sagaz.demonstrations.reliability_recovery.saga_replay.main import build_saga
 
     snapshot_storage = InMemorySnapshotStorage()
-    saga = await build_saga(snapshot_storage)
-    result = await saga.execute()
-    assert result.completed_steps > 0
+    from sagaz.core.decorators._snapshots import snapshot_saga_id
+
+    context = await build_saga(snapshot_storage).run({"order_id": "ORD-1"})
+    assert context["notified"] is True
+    taken = await snapshot_storage.list_snapshots(snapshot_saga_id(context["saga_id"]))
+    assert len(taken) == 4  # one before each step
 
 
 @pytest.mark.asyncio
@@ -585,20 +590,24 @@ def test_saga_replay_main():
 
 @pytest.mark.asyncio
 async def test_run_order_success():
+    from sagaz.core.storage.backends.memory.saga import InMemorySagaStorage
     from sagaz.demonstrations.reliability_recovery.sqlite_storage.main import _run_order
 
-    saga_id, result = await _run_order("ORD-1", fail=False)
-    assert saga_id
-    assert result.status.value == "completed"
+    storage = InMemorySagaStorage()
+    saga_id, status = await _run_order("ORD-1", storage, fail=False)
+    assert status.value == "completed"
+    assert (await storage.load_saga_state(saga_id))["context"]["charge_id"] == "CHG-ORD-1"
 
 
 @pytest.mark.asyncio
 async def test_run_order_failure():
+    from sagaz.core.storage.backends.memory.saga import InMemorySagaStorage
     from sagaz.demonstrations.reliability_recovery.sqlite_storage.main import _run_order
 
-    saga_id, result = await _run_order("ORD-ERR", fail=True)
-    assert saga_id
-    assert result.status.value in ("rolled_back", "failed", "compensated")
+    storage = InMemorySagaStorage()
+    saga_id, status = await _run_order("ORD-ERR", storage, fail=True)
+    assert status.value == "rolled_back"
+    assert str((await storage.load_saga_state(saga_id))["status"]).endswith("rolled_back")
 
 
 @pytest.mark.asyncio

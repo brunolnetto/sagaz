@@ -20,11 +20,13 @@ All metrics require `prometheus-client` to be installed (`pip install prometheus
 
 | Metric Name | Type | Labels | Description |
 |-------------|------|--------|-------------|
-| `saga_execution_total` | Counter | `saga_name`, `status` | Total saga executions by name and status (completed/failed/rolled_back) |
-| `saga_compensations_total` | Counter | `saga_name` | Total compensations triggered |
-| `saga_execution_duration_seconds` | Histogram | `saga_name` | Saga execution duration (p50, p95, p99) |
-| `saga_step_duration_seconds` | Histogram | `saga_name`, `step_name` | Individual step execution durations |
-| `saga_active_count` | Gauge | `saga_name` | Currently running sagas |
+| `sagaz_saga_execution_total` | Counter | `saga_name`, `status` | Total saga executions by name and status: `completed`, `rolled_back`, `partially_committed`, `forward_recovery`, or `failed` (a compensation failed too) |
+| `sagaz_saga_compensations_total` | Counter | `saga_name` | Total compensations triggered |
+| `sagaz_saga_execution_duration_seconds` | Histogram | `saga_name` | Saga execution duration (p50, p95, p99) |
+| `sagaz_saga_step_duration_seconds` | Histogram | `saga_name`, `step_name` | Individual step execution durations |
+| `sagaz_saga_active_count` | Gauge | `saga_name` | Currently running sagas |
+| `sagaz_saga_step_executions_total` | Counter | `saga_name`, `step_name`, `status` | Step outcomes: `succeeded`, or `failed` after its retries (since 2.6.0) |
+| `sagaz_saga_compensation_failures_total` | Counter | `saga_name`, `step_name` | Compensations that still raised after their retries (since 2.6.0) |
 
 **Source:** `sagaz/monitoring/prometheus.py` (PrometheusMetrics class)
 
@@ -32,16 +34,16 @@ All metrics require `prometheus-client` to be installed (`pip install prometheus
 
 | Metric Name | Type | Labels | Description |
 |-------------|------|--------|-------------|
-| `outbox_batch_processed_total` | Counter | `worker_id` | Total batches processed |
-| `outbox_published_events_total` | Counter | `worker_id`, `event_type` | Events successfully published to broker |
-| `outbox_failed_events_total` | Counter | `worker_id`, `event_type` | Events that failed to publish |
-| `outbox_dead_letter_events_total` | Counter | `worker_id`, `event_type` | Events moved to dead letter queue |
-| `outbox_retry_attempts_total` | Counter | `worker_id` | Total retry attempts |
-| `outbox_pending_events_total` | Gauge | - | Current pending events in outbox |
-| `outbox_processing_events_total` | Gauge | `worker_id` | Events currently being processed |
-| `outbox_batch_size` | Gauge | `worker_id` | Size of last processed batch |
-| `outbox_events_by_state` | Gauge | `state` | Events per state (pending/processing/sent/failed) |
-| `outbox_publish_duration_seconds` | Histogram | `worker_id`, `event_type` | Time to publish event to broker |
+| `sagaz_outbox_batch_processed_total` | Counter | `worker_id` | Total batches processed |
+| `sagaz_outbox_published_events_total` | Counter | `worker_id`, `event_type` | Events successfully published to broker |
+| `sagaz_outbox_failed_events_total` | Counter | `worker_id`, `event_type` | Events that failed to publish |
+| `sagaz_outbox_dead_letter_events_total` | Counter | `worker_id`, `event_type` | Events moved to dead letter queue |
+| `sagaz_outbox_retry_attempts_total` | Counter | `worker_id` | Total retry attempts |
+| `sagaz_outbox_pending_events_total` | Gauge | - | Current pending events in outbox |
+| `sagaz_outbox_processing_events_total` | Gauge | `worker_id` | Events currently being processed |
+| `sagaz_outbox_batch_size` | Gauge | `worker_id` | Size of last processed batch |
+| `sagaz_outbox_events_by_state` | Gauge | `state` | Events per state (pending/processing/sent/failed) |
+| `sagaz_outbox_publish_duration_seconds` | Histogram | `worker_id`, `event_type` | Time to publish event to broker |
 
 **Source:** `sagaz/outbox/worker.py`
 
@@ -49,10 +51,10 @@ All metrics require `prometheus-client` to be installed (`pip install prometheus
 
 | Metric Name | Type | Labels | Description |
 |-------------|------|--------|-------------|
-| `outbox_optimistic_send_attempts_total` | Counter | - | Total optimistic send attempts |
-| `outbox_optimistic_send_success_total` | Counter | - | Successful optimistic sends |
-| `outbox_optimistic_send_failures_total` | Counter | `reason` | Failed optimistic sends by reason (timeout, exception) |
-| `outbox_optimistic_send_latency_seconds` | Histogram | - | Latency of optimistic send operation |
+| `sagaz_outbox_optimistic_send_attempts_total` | Counter | - | Total optimistic send attempts |
+| `sagaz_outbox_optimistic_send_success_total` | Counter | - | Successful optimistic sends |
+| `sagaz_outbox_optimistic_send_failures_total` | Counter | `reason` | Failed optimistic sends by reason (timeout, exception) |
+| `sagaz_outbox_optimistic_send_latency_seconds` | Histogram | - | Latency of optimistic send operation |
 
 **Source:** `sagaz/outbox/optimistic_publisher.py`
 
@@ -60,9 +62,9 @@ All metrics require `prometheus-client` to be installed (`pip install prometheus
 
 | Metric Name | Type | Labels | Description |
 |-------------|------|--------|-------------|
-| `consumer_inbox_processed_total` | Counter | `consumer_name`, `event_type` | Total events processed |
-| `consumer_inbox_duplicates_total` | Counter | `consumer_name`, `event_type` | Duplicate events skipped |
-| `consumer_inbox_processing_duration_seconds` | Histogram | `consumer_name`, `event_type` | Time to process event |
+| `sagaz_inbox_processed_total` | Counter | `consumer_name`, `event_type` | Total events processed |
+| `sagaz_inbox_duplicates_total` | Counter | `consumer_name`, `event_type` | Duplicate events skipped |
+| `sagaz_inbox_processing_duration_seconds` | Histogram | `consumer_name`, `event_type` | Time to process event |
 
 **Source:** `sagaz/outbox/consumer_inbox.py`
 
@@ -268,9 +270,9 @@ Use this checklist to verify observability is working:
 
 ### Metrics
 - [ ] Prometheus server accessible at `/metrics` endpoint
-- [ ] `saga_execution_total` incrementing on saga runs
-- [ ] `saga_step_duration_seconds` showing latency buckets
-- [ ] `outbox_published_events_total` tracking event publishing
+- [ ] `sagaz_saga_execution_total` incrementing on saga runs
+- [ ] `sagaz_saga_step_duration_seconds` showing latency buckets
+- [ ] `sagaz_outbox_published_events_total` tracking event publishing
 - [ ] Grafana dashboards displaying data
 
 ### Logging

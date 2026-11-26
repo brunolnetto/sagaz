@@ -24,12 +24,12 @@ from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from sagaz.core.saga import Saga
+from sagaz import Saga, SagaConfig, SagaFailedError
 from sagaz.core.types import SagaStatus
 from sagaz.testing import ChaosMonkey, FaultType
 
 Action = Callable[[Any], Awaitable[Any]]
-Compensation = Callable[[Any, Any], Awaitable[None]]
+Compensation = Callable[[Any], Awaitable[None]]
 
 
 @dataclass
@@ -59,7 +59,7 @@ class OrderSystem:
         return run
 
     def compensation(self, name: str) -> Compensation:
-        async def undo(result: Any, ctx: Any) -> None:
+        async def undo(ctx: Any) -> None:
             self.compensated.append(name)
 
         return undo
@@ -74,37 +74,60 @@ def _with_chaos(monkey: ChaosMonkey, name: str, action: Action) -> Action:
     return wrapped
 
 
-async def _build_saga(
+def _order_saga() -> Saga:
+    """An empty ChaosOrderSaga: quick retries, and parallel steps that all finish."""
+    config = SagaConfig(failure_strategy="WAIT_ALL", metrics=False, logging=False)
+    saga = Saga(config=config)
+    saga.saga_name = "ChaosOrderSaga"
+    saga.retry_backoff_base = 0.001
+    return saga
+
+
+def _build_saga(
     monkey: ChaosMonkey,
     system: OrderSystem,
-    steps: Sequence[tuple[str, set[str] | None]],
+    steps: Sequence[tuple[str, list[str]]],
     *,
     timeout: float = 1.0,
     max_retries: int = 0,
 ) -> Saga:
-    saga = Saga("ChaosOrderSaga", retry_backoff_base=0.001)
-    for name, dependencies in steps:
-        await saga.add_step(
+    saga = _order_saga()
+    for name, depends_on in steps:
+        saga.add_step(
             name,
             _with_chaos(monkey, name, system.action(name)),
             system.compensation(name),
-            timeout=timeout,
+            depends_on=depends_on,
+            timeout_seconds=timeout,
             max_retries=max_retries,
-            dependencies=dependencies,
         )
     return saga
 
 
-SEQUENTIAL = [("reserve_stock", None), ("charge_card", None), ("ship_order", None)]
+async def _status(saga: Saga) -> SagaStatus:
+    """Run *saga*; how it ended."""
+    try:
+        await saga.run({})
+    except SagaFailedError as failure:
+        status: SagaStatus = failure.status
+        return status
+    return SagaStatus.COMPLETED
+
+
+SEQUENTIAL: list[tuple[str, list[str]]] = [
+    ("reserve_stock", []),
+    ("charge_card", ["reserve_stock"]),
+    ("ship_order", ["charge_card"]),
+]
 
 
 async def random_failure_experiment() -> ExperimentResult:
     """A failure in ``charge_card`` must undo ``reserve_stock`` and skip shipping."""
     monkey = ChaosMonkey(failure_rate=1.0, target_steps=["charge_card"], seed=42)
     system = OrderSystem()
-    result = await (await _build_saga(monkey, system, SEQUENTIAL)).execute()
+    status = await _status(_build_saga(monkey, system, SEQUENTIAL))
     return ExperimentResult(
-        "random failure", result.status, system.executed, system.compensated, monkey.injections
+        "random failure", status, system.executed, system.compensated, monkey.injections
     )
 
 
@@ -118,21 +141,22 @@ async def timeout_experiment(max_retries: int = 2) -> ExperimentResult:
         attempts["charge_card"] += 1
         return await monkey.intercept_step("charge_card", system.action("charge_card"), ctx)
 
-    saga = Saga("ChaosOrderSaga", retry_backoff_base=0.001)
-    await saga.add_step(
+    saga = _order_saga()
+    saga.add_step(
         "reserve_stock", system.action("reserve_stock"), system.compensation("reserve_stock")
     )
-    await saga.add_step(
+    saga.add_step(
         "charge_card",
         count_attempts,
         system.compensation("charge_card"),
+        depends_on=["reserve_stock"],
         max_retries=max_retries,
     )
-    await saga.add_step("ship_order", system.action("ship_order"))
-    result = await saga.execute()
+    saga.add_step("ship_order", system.action("ship_order"), depends_on=["charge_card"])
+    status = await _status(saga)
     return ExperimentResult(
         "timeout + retry",
-        result.status,
+        status,
         system.executed,
         system.compensated,
         monkey.injections,
@@ -149,15 +173,15 @@ async def parallel_failure_experiment() -> ExperimentResult:
     monkey = ChaosMonkey(failure_rate=1.0, target_steps=["charge_card"], seed=42)
     system = OrderSystem()
     dag = [
-        ("validate_order", None),
-        ("reserve_stock", {"validate_order"}),
-        ("charge_card", {"validate_order"}),
-        ("ship_order", {"reserve_stock", "charge_card"}),
+        ("validate_order", []),
+        ("reserve_stock", ["validate_order"]),
+        ("charge_card", ["validate_order"]),
+        ("ship_order", ["reserve_stock", "charge_card"]),
     ]
-    result = await (await _build_saga(monkey, system, dag)).execute()
+    status = await _status(_build_saga(monkey, system, dag))
     return ExperimentResult(
         "parallel DAG failure",
-        result.status,
+        status,
         system.executed,
         system.compensated,
         monkey.injections,

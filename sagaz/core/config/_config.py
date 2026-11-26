@@ -35,7 +35,9 @@ class SagaConfig:
         logging: Enable saga logging (True/False or LoggingSagaListener instance)
         default_timeout: Default step timeout in seconds
         default_max_retries: Default retry count for failed steps
-        failure_strategy: Default parallel failure strategy
+        failure_strategy: What the other steps of a parallel level do when one fails:
+            ``"WAIT_ALL"``, ``"FAIL_FAST"`` or ``"FAIL_FAST_WITH_GRACE"`` (default)
+        failure_grace_period: Seconds ``FAIL_FAST_WITH_GRACE`` gives them to finish
 
     Example:
         >>> # Minimal config (in-memory, for development)
@@ -93,7 +95,15 @@ class SagaConfig:
 
     default_timeout: float = 60.0
     default_max_retries: int = 3
+    # What the other steps of a parallel level do when one fails (#567): WAIT_ALL,
+    # FAIL_FAST, or FAIL_FAST_WITH_GRACE, which gives them failure_grace_period seconds.
     failure_strategy: str = "FAIL_FAST_WITH_GRACE"
+    failure_grace_period: float = 2.0
+
+    # Snapshots for replay and time travel (#544): a ReplayConfig, and the
+    # SnapshotStorage its snapshots go to.
+    replay_config: Any | None = None
+    snapshot_storage: Any | None = None
 
     # A failure to save the saga state raises SagaPersistenceError (#534); True logs a
     # warning instead and lets the saga go on (the behavior before 2.4).
@@ -102,6 +112,10 @@ class SagaConfig:
     # Listeners added to the logging, metrics, tracing and outbox ones (#538). A saga
     # class's ``listeners`` attribute replaces them all instead.
     extra_listeners: list[Any] = field(default_factory=list)
+
+    # Seconds an async listener call may take before it is cancelled, logged and
+    # skipped (#633): listeners run on the hot path. None waits as long as it takes.
+    listener_timeout: float | None = 5.0
 
     # StateChart phase 2 (ADR-040, #190): imperative sagas run on a chart with one
     # region per step, whose configuration says where every step is. Off by default.
@@ -116,22 +130,19 @@ class SagaConfig:
         """Initialize storage and build listeners list."""
         if self.storage_layout == "legacy":  # the classic layout's former name (#578)
             self.storage_layout = "classic"
+        from sagaz.core.decorators._parallel import failure_strategy
+
+        failure_strategy(self.failure_strategy)  # a name that is no strategy fails here
         # Validate: cannot mix storage_manager with storage/outbox_storage
         if self.storage_manager is not None:
-            if self.storage is not None:
-                msg = (
-                    "Cannot specify both 'storage_manager' and 'storage'. "
-                    "Use storage_manager for unified storage, or "
-                    "storage/outbox_storage separately."
-                )
-                raise ValueError(msg)
-            if self.outbox_storage is not None:
-                msg = (
-                    "Cannot specify both 'storage_manager' and 'outbox_storage'. "
-                    "Use storage_manager for unified storage, or "
-                    "storage/outbox_storage separately."
-                )
-                raise ValueError(msg)
+            for other in ("storage", "outbox_storage"):
+                if getattr(self, other) is not None:
+                    msg = (
+                        f"Cannot specify both 'storage_manager' and '{other}'. "
+                        "Use storage_manager for unified storage, or "
+                        "storage/outbox_storage separately."
+                    )
+                    raise ValueError(msg)
             self.storage, self._storage_manager = StorageConfigManager.setup_from_manager(
                 self.storage, self.storage_manager
             )

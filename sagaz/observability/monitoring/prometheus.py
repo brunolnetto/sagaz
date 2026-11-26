@@ -27,7 +27,10 @@ Requirements:
 """
 
 import logging
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
+
+from sagaz.observability._renamed import M, renamed
 
 if TYPE_CHECKING:
     from prometheus_client import CollectorRegistry
@@ -55,6 +58,11 @@ else:
 
 logger = logging.getLogger(__name__)
 
+#: ``PrometheusMetrics``'s default metric name prefix since 2.6.0 (#572).
+DEFAULT_PREFIX = "sagaz_saga"
+#: The default prefix before 2.6.0, still emitted while ``SAGAZ_METRICS_OLD_NAMES`` is on.
+OLD_DEFAULT_PREFIX = "saga"
+
 
 class PrometheusMetrics:
     """
@@ -66,6 +74,13 @@ class PrometheusMetrics:
         - saga_execution_duration_seconds: Histogram of saga durations
         - saga_step_duration_seconds: Histogram of step durations
         - saga_active_count: Gauge of currently running sagas
+        - saga_step_executions_total: Counter of step outcomes by saga, step and
+          status (``succeeded`` / ``failed``), since 2.6.0 (#617)
+        - saga_compensation_failures_total: Counter of compensations that still
+          raised after their retries, by saga and step, since 2.6.0 (#617)
+
+    (Names are shown with the ``saga`` part of the prefix; the default prefix is
+    ``sagaz_saga``.)
 
     Example:
         >>> from sagaz.observability.monitoring.prometheus import PrometheusMetrics
@@ -77,12 +92,16 @@ class PrometheusMetrics:
         ...     listeners = [MetricsSagaListener(metrics=metrics)]
     """
 
-    def __init__(self, prefix: str = "saga", registry: "CollectorRegistry | None" = None) -> None:
+    def __init__(
+        self, prefix: str = DEFAULT_PREFIX, registry: "CollectorRegistry | None" = None
+    ) -> None:
         """
         Initialize Prometheus metrics.
 
         Args:
-            prefix: Metric name prefix (default: "saga")
+            prefix: Metric name prefix (default: ``"sagaz_saga"``; it was ``"saga"`` before
+                2.6.0). With the default prefix the metrics are also recorded under their
+                old ``saga_*`` names while ``SAGAZ_METRICS_OLD_NAMES`` is on (#572).
             registry: The ``prometheus_client`` registry to register the metrics in
                 (default: the global ``REGISTRY``). Give each instance its own
                 ``CollectorRegistry`` in tests, or use a distinct ``prefix``: two
@@ -99,25 +118,36 @@ class PrometheusMetrics:
         self._enabled = True
         self._prefix = prefix
 
+        def metric(metric_class: Callable[..., M], suffix: str, *args: Any, **kwargs: Any) -> M:
+            name = f"{prefix}_{suffix}"
+            if prefix == DEFAULT_PREFIX:
+                return renamed(
+                    metric_class, name, f"{OLD_DEFAULT_PREFIX}_{suffix}", *args, **kwargs
+                )
+            return metric_class(name, *args, **kwargs)
+
         # Total saga executions by status
-        self._execution_total = Counter(
-            f"{prefix}_execution_total",
+        self._execution_total = metric(
+            Counter,
+            "execution_total",
             "Total saga executions",
             ["saga_name", "status"],
             registry=registry,
         )
 
         # Total compensations triggered
-        self._compensations_total = Counter(
-            f"{prefix}_compensations_total",
+        self._compensations_total = metric(
+            Counter,
+            "compensations_total",
             "Total saga compensations triggered",
             ["saga_name"],
             registry=registry,
         )
 
         # Saga execution duration
-        self._execution_duration = Histogram(
-            f"{prefix}_execution_duration_seconds",
+        self._execution_duration = metric(
+            Histogram,
+            "execution_duration_seconds",
             "Saga execution duration in seconds",
             ["saga_name"],
             buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0],
@@ -125,8 +155,9 @@ class PrometheusMetrics:
         )
 
         # Step execution duration
-        self._step_duration = Histogram(
-            f"{prefix}_step_duration_seconds",
+        self._step_duration = metric(
+            Histogram,
+            "step_duration_seconds",
             "Saga step execution duration in seconds",
             ["saga_name", "step_name"],
             buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 5.0],
@@ -134,10 +165,25 @@ class PrometheusMetrics:
         )
 
         # Currently active sagas
-        self._active_count = Gauge(
-            f"{prefix}_active_count",
+        self._active_count = metric(
+            Gauge,
+            "active_count",
             "Number of currently running sagas",
             ["saga_name"],
+            registry=registry,
+        )
+
+        # Added in 2.6.0 (#617), so they have no pre-2.6.0 name to keep.
+        self._step_executions = Counter(
+            f"{prefix}_step_executions_total",
+            "Saga step executions by outcome (succeeded or failed after its retries)",
+            ["saga_name", "step_name", "status"],
+            registry=registry,
+        )
+        self._compensation_failures = Counter(
+            f"{prefix}_compensation_failures_total",
+            "Saga step compensations that still raised after their retries",
+            ["saga_name", "step_name"],
             registry=registry,
         )
 
@@ -159,8 +205,8 @@ class PrometheusMetrics:
         self._execution_total.labels(saga_name=saga_name, status=status_str).inc()
         self._execution_duration.labels(saga_name=saga_name).observe(duration)
 
-        # Track compensations for failed/rolled_back sagas
-        if status_str in ("failed", "rolled_back"):
+        # Track compensations for sagas that undid something
+        if status_str in ("failed", "rolled_back", "partially_committed"):
             self._compensations_total.labels(saga_name=saga_name).inc()
 
     def record_step_duration(self, saga_name: str, step_name: str, duration: float) -> None:
@@ -176,6 +222,20 @@ class PrometheusMetrics:
             return
 
         self._step_duration.labels(saga_name=saga_name, step_name=step_name).observe(duration)
+
+    def record_step(self, saga_name: str, step_name: str, status: str) -> None:
+        """Record a step's outcome: ``"succeeded"``, or ``"failed"`` after its retries."""
+        if not self._enabled:
+            return
+
+        self._step_executions.labels(saga_name=saga_name, step_name=step_name, status=status).inc()
+
+    def record_compensation_failure(self, saga_name: str, step_name: str) -> None:
+        """Record a compensation that still raised after its retries."""
+        if not self._enabled:
+            return
+
+        self._compensation_failures.labels(saga_name=saga_name, step_name=step_name).inc()
 
     def saga_started(self, saga_name: str) -> None:
         """

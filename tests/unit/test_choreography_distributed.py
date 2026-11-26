@@ -35,7 +35,7 @@ def make_bus():
 async def test_order_completes_across_services(make_bus):
     async with Deployment(make_bus) as deployment:
         start = await deployment.orders.begin(
-            "order.created", {"order_id": "o-1", "amount": 40}, tenant_id="acme"
+            "order.created", {"order_id": "o-1", "amount": 40}, tenant="acme"
         )
         status = await deployment.settled(start.saga_id, timeout=10)
 
@@ -49,6 +49,6 @@ async def test_declined_payment_is_compensated_across_services(make_bus):
         start = await deployment.orders.begin("order.created", {"order_id": "o-2", "amount": 500})
         status = await deployment.settled(start.saga_id, timeout=10)
 
-    assert status.status == "compensated"
+    assert status.status == "rolled_back"
     assert status.failure["participant"] == "payments"
     assert deployment.inventory.released == ["o-2"]

@@ -29,6 +29,7 @@ from sagaz.core.storage.saga_log._model import (
     SnapshotKind,
     Transaction,
 )
+from sagaz.core.storage.saga_log._sqlite_delivery import SQLiteDeliveryMixin, migrate_deliveries
 from sagaz.core.storage.saga_log._sqlite_export import SQLiteExportMixin
 from sagaz.core.storage.saga_log._sqlite_schema import SCHEMA
 
@@ -130,7 +131,7 @@ def _tenant_clause() -> tuple[str, tuple[str, ...]]:
     return ("1 = 1", ()) if tenant is None else ("tenant_id = ?", (tenant,))
 
 
-class SQLiteSagaLogStore(SQLiteExportMixin, SagaLogStore):
+class SQLiteSagaLogStore(SQLiteDeliveryMixin, SQLiteExportMixin, SagaLogStore):
     def __init__(self, db_path: str = ":memory:") -> None:
         if aiosqlite is None:  # pragma: no cover - the driver is installed in tests
             msg = "aiosqlite"
@@ -152,6 +153,7 @@ class SQLiteSagaLogStore(SQLiteExportMixin, SagaLogStore):
                     conn = await aiosqlite.connect(self.db_path)
                     conn.row_factory = aiosqlite.Row
                     await conn.executescript(SCHEMA)
+                    await migrate_deliveries(conn)
                     await conn.commit()
                     await self._init_outbox(conn)
                     self._conn = conn

@@ -22,13 +22,13 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from sagaz.choreography.events import COMPENSATE, COMPENSATED
-from sagaz.choreography.tracker import RECORD_NAME
+from sagaz.choreography.tracker import RECORD_NAME, transaction_status
 
 if TYPE_CHECKING:
     import duckdb
 
 #: Transaction statuses that end a transaction.
-FINISHED = frozenset({"completed", "compensated", "failed"})
+FINISHED = frozenset({"completed", "rolled_back", "failed"})
 
 TABLES_SQL = (
     """
@@ -125,7 +125,7 @@ def _transaction_row(
 ) -> dict[str, Any]:
     times = [e["at"] for e in events if e["at"] is not None]
     started_at = min(times, default=None)
-    state = status.get("status") or "executing"
+    state = transaction_status(status.get("status") or "executing")
     ended_at = max(times, default=None) if state in FINISHED else None
     return {
         **key,

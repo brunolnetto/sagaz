@@ -31,7 +31,7 @@ async def record(storage) -> None:
             "order.created", {"order_id": "declined", "amount": 500}, correlation_id="declined"
         )
         await stack.orders.begin(
-            "order.created", {"order_id": "acme-1", "amount": 40}, tenant_id="acme"
+            "order.created", {"order_id": "acme-1", "amount": 40}, tenant="acme"
         )
         # In flight: only the first event, nobody reacts to this type.
         await stack.bus.publish(Event("refund.requested", saga_id="in-flight", source="orders"))

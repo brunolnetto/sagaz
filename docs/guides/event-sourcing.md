@@ -55,14 +55,9 @@ from sagaz import SagaConfig, configure
 configure(SagaConfig(storage_strategy="event_sourced", event_store="postgresql://..."))
 ```
 
-The lower-level `sagaz.core.saga.Saga` takes the same settings as arguments, in
-sequential and DAG mode:
-
-```python
-from sagaz.core.saga import Saga
-
-saga = Saga(name="order", event_store="postgresql://...", snapshot_threshold=50)
-```
+The classic `sagaz.core.saga.Saga` (deprecated since 2.6.0, see
+[Migrating from the classic Saga](migrating-from-the-classic-saga.md)) takes the same
+settings as constructor arguments.
 
 `Meta` settings take precedence over `SagaConfig`. An event-sourced saga without an
 event store fails before it starts, with an error saying so.
@@ -102,7 +97,7 @@ then reflects the latest run, and `runs` counts the runs.
 From the command line:
 
 ```bash
-sagaz event-log <saga-id> --store-url postgresql://...
+sagaz event-log <saga-id> --event-store-url postgresql://...
 sagaz event-log <saga-id> --tenant acme --json     # events and state as JSON
 ```
 
@@ -152,7 +147,7 @@ the events stay, and deleting the snapshots only makes loading slower.
   the snapshot storage. The stream of that run then has a gap, so alert on the
   error counter.
 - **Tenants:** events and snapshots belong to the tenant the saga runs as
-  (`Saga.run(tenant_context=...)`, ADR-020). Reads return the current tenant's events
+  (`Saga.run(tenant=...)`, ADR-020). Reads return the current tenant's events
   only. In PostgreSQL, both tables use the same row-level security policy as the saga
   tables, so run the application with a role that is not a superuser.
 

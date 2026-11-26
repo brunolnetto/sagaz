@@ -6,7 +6,8 @@ Replaces the ``choreography_*`` tables with the unified ones:
   event kept as the activity's ``result``, for compensation);
 - the end of a participant's part of a transaction is its ``__transaction__``
   marker activity (``completed`` or ``compensated``: the #446 tombstone);
-- handled deliveries are ``saga_delivery`` rows, deadlines ``saga_deadline`` rows.
+- handled deliveries are ``saga_delivery`` rows (reserved, with ``claimed_until``,
+  while handled: #561), deadlines ``saga_deadline`` rows.
 
 And it makes publishing atomic: :meth:`publish` writes the published event to
 the log, the triggering action it completes, the transaction (for the first
@@ -73,7 +74,7 @@ def from_log_event(entry: LogEvent) -> Event:
         tenant_id=entry.tenant_id,
         causation_id=entry.causation_id,
         source=entry.source,
-    )
+    )  # the log keeps the cause, not the lineage: the outbox message carries that
 
 
 def _action(participant: str, event: Event) -> Activity:
@@ -149,6 +150,12 @@ class UnifiedParticipantState(ParticipantState):
 
     async def first_delivery(self, participant: str, event_id: str) -> bool:
         return await self.log.claim_delivery(participant, event_id)
+
+    async def claim_delivery(self, participant: str, event_id: str, lease: timedelta) -> bool:
+        return await self.log.lease_delivery(participant, event_id, lease)
+
+    async def finish_delivery(self, participant: str, event_id: str) -> None:
+        await self.log.finish_delivery(participant, event_id)
 
     async def set_deadline(self, participant: str, correlation_id: str, due_at: datetime) -> None:
         await self.log.write(

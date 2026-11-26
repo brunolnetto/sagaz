@@ -131,7 +131,7 @@ data:
             - datasourceName: Prometheus
               matcherRegex: "saga_id=(\\w+)"
               name: saga_id
-              url: "/explore?left=[\"now-1h\",\"now\",\"Prometheus\",{\"expr\":\"saga_execution_total{saga_id=\\\"$${__value.raw}\\\"}\"},{\"ui\":[true,true,true,\"none\"]}]"
+              url: "/explore?left=[\"now-1h\",\"now\",\"Prometheus\",{\"expr\":\"sagaz_saga_execution_total{saga_id=\\\"$${__value.raw}\\\"}\"},{\"ui\":[true,true,true,\"none\"]}]"
 
 ---
 apiVersion: v1
@@ -261,7 +261,7 @@ spec:
     - type: Pods
       pods:
         metric:
-          name: outbox_pending_events_total
+          name: sagaz_outbox_pending_events_total
         target:
           type: AverageValue
           averageValue: "1000"

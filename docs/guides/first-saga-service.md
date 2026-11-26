@@ -78,6 +78,35 @@ except SagaAlreadyExistsError as e:
 
 To run an id again on purpose, pass `allow_rerun=True`.
 
+### One effect, one run
+
+A saga id protects one request. Two *different* sagas can still call the same API that
+is not idempotent: a checkout and a retry flow both charging order 42. Give such a step
+an idempotency key, built from the saga context:
+
+```python
+@action("charge", idempotency_key="charge-{order_id}")   # or a function of the context
+async def charge(self, ctx):
+    return {"charge_id": await self.payments.charge(ctx["order_id"], ctx["amount"])}
+```
+
+A key runs once per tenant, across sagas of any class:
+
+| The key | What the step does |
+|---|---|
+| Is new | Runs, and stores its result with the key |
+| Already completed | Does not run: the stored result goes into the context, and the saga goes on. If this saga fails later, the step is compensated |
+| Is held by a run that did not finish the step | Fails with `StepInDoubtError`, without running |
+
+- **In doubt:** a key is left held when a process dies inside the step, the step is
+  cancelled, or another saga is running it right now. The effect may or may not have
+  happened, and sagaz does not guess: check it, then free the key in that tenant's scope
+  with `await sagaz.release_step_key("charge-42", storage)`.
+- **Freed keys:** a step that raises frees its key (it took no effect), and so does
+  compensating the step, so a later run executes it again.
+- **Where keys live:** in the saga storage, as reserved records, for as long as that
+  storage lasts. The result must be JSON data.
+
 ## 4. When it fails
 
 A failed run compensates what completed, in reverse order, and raises
@@ -97,7 +126,31 @@ except SagaFailedError as e:
 
 For steps that cannot be undone (a payment captured, a parcel shipped), mark the step
 `pivot=True`: once it completes, its ancestors are not compensated, and the saga only
-moves forward.
+moves forward. A saga that fails after its pivot reports `PARTIALLY_COMMITTED`, and a
+`@forward_recovery` handler can retry or skip the failed step instead: see
+[Pivots and forward recovery](pivots-and-forward-recovery.md).
+
+### A deadline for the whole saga
+
+Each step has a timeout. A deadline bounds all the steps together, so a caller that waits
+30 seconds gets its answer within them:
+
+```python
+await OrderSaga(payments, inventory).run(order, deadline=30)   # seconds, or a timedelta
+
+class OrderSaga(Saga):
+    deadline = 30          # the default for every run; run(deadline=) overrides it
+```
+
+- **Past the deadline:** the steps still running are cancelled, and the saga fails as when
+  a step fails. It compensates what completed and raises `SagaFailedError`, whose
+  `__cause__` is a `SagaTimeoutError`.
+- **Compensation is not bounded by it.** It runs to its end under its own timeouts, so a
+  saga is never left half undone.
+- **A cancelled step is not compensated,** because it did not complete. If it can leave an
+  external effect half done, give the step its own shorter timeout, or an idempotency key
+  (the key then stays held, in doubt, until you check).
+- **Without one,** a saga has no time limit of its own, as before.
 
 ## 5. Test it without a database
 

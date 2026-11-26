@@ -15,8 +15,8 @@ data:
           # Critical: Saga execution failure spike
           - alert: SagaHighFailureRate
             expr: |
-              (sum(rate(saga_executions_total{status="failed"}[5m])) /
-               sum(rate(saga_executions_total[5m]))) > 0.05
+              (sum(rate(sagaz_saga_execution_total{status!="completed"}[5m])) /
+               sum(rate(sagaz_saga_execution_total[5m]))) > 0.05
             for: 5m
             labels:
               severity: critical
@@ -28,33 +28,17 @@ data:
               runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#saga-high-failure-rate"
               dashboard: "https://grafana/d/saga-orchestration"
 
-          # Critical: Saga stuck in running state
-          - alert: SagaStuckInRunning
-            expr: |
-              sum(saga_status_gauge{status="running"}) by (saga_id, saga_name) > 0
-              AND
-              time() - saga_last_updated_timestamp > 3600
-            for: 10m
-            labels:
-              severity: critical
-              component: saga
-              team: platform
-            annotations:
-              summary: "Saga {{ $labels.saga_name }} ({{ $labels.saga_id }}) stuck in running state"
-              description: "Saga has been running for over 1 hour without completion. May indicate timeout or deadlock."
-              runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#saga-stuck"
-
           # Critical: Compensation execution failures
           - alert: CompensationFailures
             expr: |
-              rate(saga_compensations_total{status="failed"}[10m]) > 0
+              sum(rate(sagaz_saga_compensation_failures_total[10m])) by (saga_name, step_name) > 0
             for: 5m
             labels:
               severity: critical
               component: saga
               team: platform
             annotations:
-              summary: "Compensation failures detected for {{ $labels.saga_name }}"
+              summary: "Compensation of {{ $labels.step_name }} failing for {{ $labels.saga_name }}"
               description: "Compensations are failing, manual intervention required. Check logs for saga {{ $labels.saga_name }}."
               runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#compensation-failure"
 
@@ -65,7 +49,7 @@ data:
           - alert: SagaHighLatency
             expr: |
               histogram_quantile(0.95,
-                sum(rate(saga_duration_seconds_bucket[5m])) by (le, saga_name)
+                sum(rate(sagaz_saga_execution_duration_seconds_bucket[5m])) by (le, saga_name)
               ) > 30
             for: 10m
             labels:
@@ -80,8 +64,8 @@ data:
           # Warning: Increasing rollback rate
           - alert: SagaHighRollbackRate
             expr: |
-              (sum(rate(saga_executions_total{status="rolled_back"}[10m])) /
-               sum(rate(saga_executions_total[10m]))) > 0.10
+              (sum(rate(sagaz_saga_execution_total{status="rolled_back"}[10m])) /
+               sum(rate(sagaz_saga_execution_total[10m]))) > 0.10
             for: 10m
             labels:
               severity: warning
@@ -95,8 +79,8 @@ data:
           # Warning: Step execution failures
           - alert: SagaStepHighFailureRate
             expr: |
-              (sum(rate(saga_step_executions_total{status="failed"}[5m])) by (step_name) /
-               sum(rate(saga_step_executions_total[5m])) by (step_name)) > 0.05
+              (sum(rate(sagaz_saga_step_executions_total{status="failed"}[5m])) by (saga_name, step_name) /
+               sum(rate(sagaz_saga_step_executions_total[5m])) by (saga_name, step_name)) > 0.05
             for: 5m
             labels:
               severity: warning
@@ -113,7 +97,7 @@ data:
           # Warning: High active saga count
           - alert: SagaHighActiveConcurrency
             expr: |
-              sum(saga_status_gauge{status="running"}) > 1000
+              sum(sagaz_saga_active_count) > 1000
             for: 5m
             labels:
               severity: warning
@@ -123,20 +107,6 @@ data:
               summary: "High number of active sagas: {{ $value }}"
               description: "May indicate capacity issues or slow downstream services."
               runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#high-concurrency"
-
-          # Warning: Storage connection issues
-          - alert: SagaStorageErrors
-            expr: |
-              rate(saga_storage_errors_total[5m]) > 1
-            for: 5m
-            labels:
-              severity: warning
-              component: saga
-              team: platform
-            annotations:
-              summary: "Storage errors detected: {{ $value }}/sec"
-              description: "Saga storage experiencing errors. Check database health and connectivity."
-              runbook_url: "https://github.com/yourorg/sage/wiki/Runbooks#storage-errors"
 
   outbox-alerts.yaml: |
     groups:
@@ -162,7 +132,7 @@ data:
           # Critical: High outbox lag
           - alert: OutboxHighLag
             expr: |
-              outbox_pending_events_total > 10000
+              sagaz_outbox_pending_events_total > 10000
             for: 10m
             labels:
               severity: critical
@@ -177,7 +147,7 @@ data:
           # Critical: Dead letter queue activity
           - alert: OutboxDeadLetterQueue
             expr: |
-              increase(outbox_dead_letter_events_total[10m]) > 5
+              increase(sagaz_outbox_dead_letter_events_total[10m]) > 5
             for: 1m
             labels:
               severity: critical
@@ -192,8 +162,8 @@ data:
           # Critical: Publish failure spike
           - alert: OutboxPublishFailureSpike
             expr: |
-              (rate(outbox_failed_events_total[5m]) /
-               (rate(outbox_published_events_total[5m]) + rate(outbox_failed_events_total[5m]))) > 0.10
+              (rate(sagaz_outbox_failed_events_total[5m]) /
+               (rate(sagaz_outbox_published_events_total[5m]) + rate(sagaz_outbox_failed_events_total[5m]))) > 0.10
             for: 5m
             labels:
               severity: critical
@@ -210,7 +180,7 @@ data:
           # Warning: Elevated outbox lag
           - alert: OutboxElevatedLag
             expr: |
-              outbox_pending_events_total > 5000
+              sagaz_outbox_pending_events_total > 5000
             for: 10m
             labels:
               severity: warning
@@ -225,7 +195,7 @@ data:
           - alert: OutboxHighLatency
             expr: |
               histogram_quantile(0.95,
-                rate(outbox_publish_duration_seconds_bucket[5m])
+                rate(sagaz_outbox_publish_duration_seconds_bucket[5m])
               ) > 1.0
             for: 10m
             labels:
@@ -255,8 +225,8 @@ data:
           # Warning: High retry rate
           - alert: OutboxHighRetryRate
             expr: |
-              sum(rate(outbox_retry_attempts_total[5m])) /
-              sum(rate(outbox_published_events_total[5m])) > 0.20
+              sum(rate(sagaz_outbox_retry_attempts_total[5m])) /
+              sum(rate(sagaz_outbox_published_events_total[5m])) > 0.20
             for: 10m
             labels:
               severity: warning
@@ -270,8 +240,8 @@ data:
           # Warning: Worker idle with pending events
           - alert: OutboxWorkerIdle
             expr: |
-              rate(outbox_published_events_total[5m]) == 0
-              AND outbox_pending_events_total > 0
+              rate(sagaz_outbox_published_events_total[5m]) == 0
+              AND sagaz_outbox_pending_events_total > 0
             for: 15m
             labels:
               severity: warning
@@ -285,8 +255,8 @@ data:
           # Warning: Optimistic send failures
           - alert: OptimisticSendHighFailureRate
             expr: |
-              (rate(outbox_optimistic_send_failures_total[5m]) /
-               rate(outbox_optimistic_send_attempts_total[5m])) > 0.10
+              (rate(sagaz_outbox_optimistic_send_failures_total[5m]) /
+               rate(sagaz_outbox_optimistic_send_attempts_total[5m])) > 0.10
             for: 10m
             labels:
               severity: warning

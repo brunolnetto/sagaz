@@ -169,9 +169,9 @@ Grafana Logs Dashboard
 ```
 Saga Pod (/metrics endpoint)
   │
-  ├─ saga_execution_total{status="completed"}
-  ├─ saga_duration_seconds{saga_name="OrderProcessing"}
-  ├─ saga_step_duration_seconds{step="reserve_inventory"}
+  ├─ sagaz_saga_execution_total{status="completed"}
+  ├─ sagaz_saga_execution_duration_seconds{saga_name="OrderProcessing"}
+  ├─ sagaz_saga_step_duration_seconds{step="reserve_inventory"}
   │
   ▼
 Prometheus (Port 9090)
@@ -192,7 +192,7 @@ Grafana Saga/Outbox Dashboards
 User investigates issue:
   │
   ├─ 1. Notice spike in Prometheus:
-  │     saga_execution_total{status="failed"}
+  │     sagaz_saga_execution_total{status!="completed"}
   │
   ├─ 2. Click saga_id link in metric
   │

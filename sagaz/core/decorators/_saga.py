@@ -6,9 +6,12 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from sagaz.core.decorators._collection import DecoratorCollectionManager
+from sagaz.core.decorators._compat import _DecoratorCompatMixin
+from sagaz.core.decorators._deadline import Deadline, deadline_seconds
 from sagaz.core.decorators._execution import ExecutionEngine
 from sagaz.core.decorators._ordering import _DecoratorOrderingMixin
 from sagaz.core.decorators._pivot import _DecoratorPivotMixin
+from sagaz.core.decorators._snapshots import _DecoratorSnapshotMixin
 from sagaz.core.decorators._step_chart import _DecoratorStepChartMixin
 from sagaz.core.decorators._steps import (
     OnCompensateHook,
@@ -16,6 +19,7 @@ from sagaz.core.decorators._steps import (
     OnExitHook,
     OnFailureHook,
     OnSuccessHook,
+    StepKey,
 )
 from sagaz.core.decorators._visualization import _DecoratorVisualizationMixin
 from sagaz.core.execution.graph import CompensationType, SagaExecutionGraph
@@ -24,6 +28,7 @@ from sagaz.core.tenant import (
     TenantContext,
     ensure_tenant_context_matches,
     resolve_tenant,
+    tenant_argument,
     tenant_execution,
 )
 
@@ -71,6 +76,8 @@ class SagaStepDefinition:
     # v2.0.0: Region affinity (ADR-034)
     region: str | None = None
     """Region whose workers run this step and its compensation; None = local."""
+    idempotency_key: StepKey | None = None
+    """What makes the step's effect unique per tenant, across sagas (#569)."""
 
 
 class Saga(
@@ -78,6 +85,8 @@ class Saga(
     _DecoratorOrderingMixin,
     _DecoratorVisualizationMixin,
     _DecoratorStepChartMixin,
+    _DecoratorSnapshotMixin,
+    _DecoratorCompatMixin,
 ):
     """
     Base class for declarative saga definitions.
@@ -110,6 +119,8 @@ class Saga(
 
     # Class-level attributes (override in subclass)
     saga_name: str | None = None
+    #: Seconds (or a timedelta) for all the steps of a run; ``run(deadline=)`` overrides it.
+    deadline: Deadline = None
     listeners: list | None = None  # List of SagaListener instances (None = use config)
     retry_backoff_base: float = 0.01
     """Seconds before a step's first retry; doubles on each further retry."""
@@ -223,6 +234,7 @@ class Saga(
         compensation_max_retries: int = 3,
         description: str | None = None,
         region: str | None = None,
+        idempotency_key: StepKey | None = None,
     ) -> "Saga":
         """
         Add a step programmatically (imperative mode).
@@ -240,6 +252,7 @@ class Saga(
             description: Human-readable description
             region: Run the step and its compensation on this region's workers
                 (ADR-034). ``None`` (default) runs it locally.
+            idempotency_key: As for ``@action``: the step runs once per key (#569).
 
         Returns:
             Self for method chaining
@@ -284,6 +297,7 @@ class Saga(
             max_retries=max_retries,
             description=description or f"Execute {name}",
             region=region,
+            idempotency_key=idempotency_key,
         )
 
         self._steps.append(step_def)
@@ -314,8 +328,10 @@ class Saga(
         initial_context: dict[str, Any],
         saga_id: str | None = None,
         *,
-        tenant_context: TenantContext | str | None = None,
+        tenant: TenantContext | str | None = None,
         allow_rerun: bool = False,
+        deadline: Deadline = None,
+        tenant_context: TenantContext | str | None = None,
     ) -> dict[str, Any]:
         """
         Execute this saga.
@@ -326,12 +342,17 @@ class Saga(
                 id runs once: one that already exists in storage raises
                 ``SagaAlreadyExistsError`` before any step runs, so a retried
                 request does not run its steps (charge, ship) twice.
-            tenant_context: Run as this tenant (ADR-020). Storage is scoped to
-                it, its quotas apply, and ``ctx["tenant_id"]`` is set. A tenant
-                id is resolved through ``SagaConfig.tenant_registry`` when one
-                is configured.
+            tenant: Run as this tenant (ADR-020): a ``TenantContext`` or a tenant
+                id. Storage is scoped to it, its quotas apply, and
+                ``ctx["tenant_id"]`` is set. A tenant id is resolved through
+                ``SagaConfig.tenant_registry`` when one is configured.
             allow_rerun: Run an existing ``saga_id`` again, all its steps included
                 (an event-sourced stream or unified-log transaction continues).
+            deadline: Seconds (or a ``timedelta``) for all the steps together (#568);
+                default, the class's ``deadline``. Past it, the steps still running
+                are cancelled and the saga compensates and fails, caused by a
+                ``SagaTimeoutError``. Compensation is not bounded by it.
+            tenant_context: Deprecated name of ``tenant`` (until 3.0).
 
         Returns:
             Final context with all step results merged
@@ -349,40 +370,21 @@ class Saga(
             )
             raise TypeError(msg)
         initial_context = dict(initial_context)
-        if tenant_context is None:
-            return await self._engine(allow_rerun).run(initial_context, saga_id)
+        given = tenant_argument("Saga.run", tenant, tenant_context=tenant_context)
+        if given is None:
+            return await self._engine(allow_rerun, deadline).run(initial_context, saga_id)
         registry = getattr(self._config, "tenant_registry", None)
-        tenant = resolve_tenant(tenant_context, registry)
-        ensure_tenant_context_matches(initial_context, tenant.tenant_id)
-        async with tenant_execution(tenant):
-            context = {**initial_context, "tenant_id": tenant.tenant_id}
-            return await self._engine(allow_rerun).run(context, saga_id)
+        resolved = resolve_tenant(given, registry)
+        ensure_tenant_context_matches(initial_context, resolved.tenant_id)
+        async with tenant_execution(resolved):
+            context = {**initial_context, "tenant_id": resolved.tenant_id}
+            return await self._engine(allow_rerun, deadline).run(context, saga_id)
 
-    def _engine(self, allow_rerun: bool) -> ExecutionEngine:
+    def _engine(self, allow_rerun: bool, deadline: Deadline = None) -> ExecutionEngine:
         engine = ExecutionEngine(self)
         engine.allow_rerun = allow_rerun
+        engine.deadline = deadline_seconds(self.deadline if deadline is None else deadline)
         return engine
-
-    # Backward compatibility methods (private methods moved to ExecutionEngine)
-    def _initialize_run(self, initial_context: dict[str, Any], saga_id: str | None) -> None:
-        """Backward compatible: Initialize saga run state."""
-        engine = ExecutionEngine(self)
-        engine._initialize_run(initial_context, saga_id)
-
-    def _register_compensations(self) -> None:
-        """Backward compatible: Register all compensations in the graph."""
-        engine = ExecutionEngine(self)
-        engine._register_compensations()
-
-    async def _execute_level(self, level_steps: list) -> None:
-        """Backward compatible: Execute all steps in a level."""
-        engine = ExecutionEngine(self)
-        await engine._execute_level(level_steps)
-
-    async def _execute_compensation(self, step_id: str) -> None:
-        """Backward compatible: Execute compensation for a specific step."""
-        engine = ExecutionEngine(self)
-        await engine._execute_compensation(step_id)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(steps={len(self._steps)})"

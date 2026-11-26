@@ -445,7 +445,7 @@ ADR-041 unified saga log ──────────────────�
 | v2.3.0  | 8    | Maintenance, CDC & Ecosystem | Released 2026-11-20 |
 | v2.4.0  | 9    | Developer Experience | Released 2026-11-21 |
 | v2.5.0  | 10   | Security & Typing | Released 2026-11-21 |
-| v2.6.0  | 11   | Mode Parity | Planned |
+| v2.6.0  | 11   | Mode Parity | Released 2026-11-26 |
 
 ---
 

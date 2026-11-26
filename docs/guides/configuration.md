@@ -43,11 +43,40 @@ class OrderSaga(Saga):
 | `logging` | `bool \| LoggingSagaListener` | `True` | Enable structured logging |
 | `default_timeout` | `float` | `60.0` | Default step timeout in seconds |
 | `default_max_retries` | `int` | `3` | Default retry count for failed steps |
-| `failure_strategy` | `str` | `"FAIL_FAST_WITH_GRACE"` | Parallel failure strategy |
+| `failure_strategy` | `str` | `"FAIL_FAST_WITH_GRACE"` | What the other steps of a parallel level do when one fails: see [Parallel failure strategies](#parallel-failure-strategies) |
+| `failure_grace_period` | `float` | `2.0` | Seconds `FAIL_FAST_WITH_GRACE` gives the steps still running to finish |
 | `extra_listeners` | `list` | `[]` | Listeners added to the logging, metrics, tracing and outbox ones (a saga class's `listeners` attribute replaces them all instead; `saga.add_listener()` adds to one saga) |
+| `listener_timeout` | `float \| None` | `5.0` | Seconds an async listener call may take before it is cancelled, logged and skipped; `None` waits as long as it takes |
 | `tolerate_persistence_errors` | `bool` | `False` | `False`: a failure to save the saga state raises `SagaPersistenceError` (the saga stops and compensates what ran). `True`: log it and go on |
 
 ---
+
+### Parallel failure strategies
+
+Steps with no dependency between them run at the same time. When one of them fails, the
+saga is going to compensate; `failure_strategy` decides what happens first to the others
+that are still running:
+
+| Strategy | The steps still running | Use it when |
+|---|---|---|
+| `WAIT_ALL` | Run to their end | A step must never be interrupted halfway |
+| `FAIL_FAST` | Are cancelled at once | Steps are safe to interrupt and failing quickly matters |
+| `FAIL_FAST_WITH_GRACE` (default) | Get `failure_grace_period` seconds (2 by default) to finish; those still running after it are cancelled | You want a bounded wait |
+
+```python
+configure(SagaConfig(failure_strategy="WAIT_ALL"))
+```
+
+In every case the saga then fails with the error of the first step of the level that
+failed, and compensates the steps that completed.
+
+!!! warning "A cancelled step is not compensated"
+    A cancelled step did not complete, so its compensation does not run. If the step was
+    interrupted after an external effect (a charge sent, a message published), that effect
+    stays. Choose `WAIT_ALL` for sagas with such steps, or make the step safe to interrupt.
+
+Before 2.6.0, `sagaz.Saga` always waited for every step (`WAIT_ALL`) and ignored this
+setting. Set `failure_strategy="WAIT_ALL"` to keep that behaviour.
 
 ## Storage Backends
 
@@ -226,6 +255,14 @@ config = SagaConfig(
     tracing=False,
 )
 ```
+
+Listeners run on the hot path: each step waits for them. A listener that raises is
+logged and ignored, and an async listener call that takes longer than
+`listener_timeout` seconds (default 5) is cancelled, logged and skipped, so a slow
+listener cannot hold up the saga. Keep listeners quick and hand slow work (an HTTP
+call, a write to another system) to a queue of your own. `listener_timeout=None` waits
+as long as each call takes. A synchronous listener cannot be interrupted.
+Choreography applies the same bound (`ChoreographyEngine(listener_timeout=...)`).
 
 ---
 

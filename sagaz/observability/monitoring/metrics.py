@@ -21,6 +21,8 @@ class SagaMetrics:
             "total_successful": 0,
             "total_failed": 0,
             "total_rolled_back": 0,
+            "total_partially_committed": 0,
+            "total_forward_recovery": 0,
             "average_execution_time": 0.0,
             "by_saga_name": {},
         }
@@ -38,6 +40,8 @@ class SagaMetrics:
             SagaStatus.COMPLETED: "total_successful",
             SagaStatus.FAILED: "total_failed",
             SagaStatus.ROLLED_BACK: "total_rolled_back",
+            SagaStatus.PARTIALLY_COMMITTED: "total_partially_committed",
+            SagaStatus.FORWARD_RECOVERY: "total_forward_recovery",
         }
         counter = status_map.get(status)
         if counter:

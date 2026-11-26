@@ -47,20 +47,34 @@ serializer = SchemaRegistrySerializer(
 broker = create_broker("kafka", bootstrap_servers="kafka:9092", serializer=serializer)
 ```
 
-## Choreography events on Kafka
+## Choreography events on a bus
+
+Every choreography bus takes a `serializer` in its config. It encodes the whole event
+(`event.to_dict()`: data, ids, tenant and trace context), and the bus deserializes what it
+consumes with the same serializer:
 
 ```python
 from sagaz.choreography.buses.kafka import KafkaEventBus, KafkaEventBusConfig
 
-bus = KafkaEventBus(KafkaEventBusConfig(
-    serializer=SchemaRegistrySerializer(
-        "http://registry:8081", {"order.created": ORDER_CREATED}, envelope="choreography"
-    ),
-))
+serializer = SchemaRegistrySerializer(
+    "http://registry:8081", {"order.created": ORDER_CREATED}, envelope="choreography"
+)
+bus = KafkaEventBus(KafkaEventBusConfig(serializer=serializer))
+# or RabbitMQEventBus(RabbitMQEventBusConfig(serializer=serializer))
+# or RedisStreamsEventBus(RedisStreamsBusConfig(serializer=serializer))
 ```
 
-The bus deserializes what it consumes with the same serializer. The RabbitMQ and Redis
-Streams buses still use JSON.
+| Bus | Topic (for the subject) | Where the encoded event goes |
+|---|---|---|
+| Kafka | `topic` | The message value |
+| RabbitMQ | `exchange_name` | The message body, with content type `application/octet-stream` |
+| Redis Streams | `stream_name` | An `envelope` field, next to plain `event_type` and `saga_id` fields for inspection |
+
+Without a serializer each bus keeps its own format (JSON, or one Redis field per
+attribute). A RabbitMQ or Redis Streams bus with a serializer still reads messages in
+that format (JSON bodies, entries without `envelope`), so a bus can switch while messages
+are in flight. A Redis entry with an `envelope` needs a serializer to be read; without
+one it is logged and skipped.
 
 ## Behavior
 

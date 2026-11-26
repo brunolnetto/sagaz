@@ -50,7 +50,7 @@ scripts/lakehouse/lakehouse.sh fetch && scripts/lakehouse/lakehouse.sh start
 scripts/lakehouse/lakehouse.sh tiering
 
 pip install 'sagaz[fluss]'   # pyfluss: wheels up to Python 3.12
-sagaz analytics export --saga-log postgresql://... --to fluss://localhost:9123 --freshness 30s
+sagaz analytics export --saga-log-url postgresql://... --to fluss://localhost:9123 --freshness 30s
 ```
 
 The exporter keeps its position in the log's `saga_export_cursor` table, so a
@@ -63,7 +63,7 @@ It needs `pip install 'sagaz[cdc]'`, `wal_level = logical` and a role with
 `REPLICATION`:
 
 ```bash
-sagaz analytics export --saga-log postgresql://... --to fluss://localhost:9123 --cdc
+sagaz analytics export --saga-log-url postgresql://... --to fluss://localhost:9123 --cdc
 ```
 
 - **Order and timing:** changes arrive in commit order, as soon as their transaction
@@ -89,7 +89,7 @@ cd sagaz/deployment/resources/local/lakehouse
 ./fetch-jars.sh && docker compose up -d
 docker compose exec jobmanager /opt/flink/tiering.sh
 
-sagaz analytics export --saga-log ... --to fluss://localhost:9124
+sagaz analytics export --saga-log-url ... --to fluss://localhost:9124
 sagaz analytics metrics --catalog-uri postgresql://iceberg:iceberg@localhost:15433/iceberg \
     --catalog-property s3.endpoint=http://localhost:9000 \
     --catalog-property s3.access-key-id=rustfsadmin \
@@ -131,7 +131,7 @@ scripts/lakehouse/lakehouse.sh sql     # then: SET 'execution.runtime-mode' = 'b
 
 | Report | |
 |--------|-|
-| `flow-summary` | Per coordination style and flow: transactions, completed, compensated, failed and in flight; the compensation rate; p50 and p95 durations. Same semantics as the embedded `SagaQueries.FLOW_SUMMARY`. |
+| `flow-summary` | Per coordination style and flow: transactions, completed, rolled back (`rolled_back`; the `compensated` column repeats it until 3.0), failed and in flight; the compensation rate; p50 and p95 durations. Same semantics as the embedded `SagaQueries.FLOW_SUMMARY`. |
 | `throughput` | Per minute, coordination style and flow: transactions, events and compensations requested. |
 
 On the same log, `flow-summary` in Flink and in the embedded DuckDB pipeline
@@ -158,7 +158,7 @@ to recent day partitions. `--catalog-name` must equal Fluss's
 
 | Metric | Labels |
 |--------|--------|
-| `sagaz_flow_transactions` | `coordination`, `flow`, `status`: completed, compensated, failed, in_flight |
+| `sagaz_flow_transactions` | `coordination`, `flow`, `status`: completed, rolled_back, failed, in_flight (and `compensated`, rolled_back's name before 2.6.0, while `SAGAZ_METRICS_OLD_NAMES` is on) |
 | `sagaz_flow_compensation_rate_percent` | `coordination`, `flow` |
 | `sagaz_flow_duration_milliseconds` | `coordination`, `flow`, `quantile`: 0.5, 0.95 |
 | `sagaz_flow_report_age_seconds`, `sagaz_flow_report_errors_total` | none |

@@ -242,8 +242,48 @@ class TestResume:
         )
         calls = []
         saga = order_saga(calls, {}, pivot=True)(config=config(storage))
-        assert await saga.resume_compensation("o-5") == SagaStatus.ROLLED_BACK
+        # reserve is tainted and charge is the pivot: they stay done (#570).
+        assert await saga.resume_compensation("o-5") == SagaStatus.PARTIALLY_COMMITTED
         assert calls == ["undo:notify"]  # reserve tainted, charge the pivot, ship in doubt
+
+    async def test_pending_compensations_are_what_a_resume_would_undo(self):
+        storage = await self.interrupted()
+        calls = []
+        saga = order_saga(calls, {})(config=config(storage))
+        assert await saga.pending_compensations("o-9") == ["reserve"]
+        assert calls == []  # nothing was compensated by asking
+        assert (await storage.load_saga_state("o-9"))["status"] == "compensating"
+        assert await saga.resume_compensation("o-9") == SagaStatus.ROLLED_BACK
+        assert calls == ["undo:reserve"]
+
+    async def test_pending_compensations_leave_out_tainted_pivot_and_in_doubt_steps(self):
+        storage = InMemorySagaStorage()
+        names = ("reserve", "charge", "notify", "ship")
+        states = {"reserve": "tainted", "charge": "completed", "notify": "completed"}
+        states["ship"] = "executing"
+        configuration = [
+            "active",
+            "lifecycle",
+            "executing",
+            "steps",
+            *(step_state_value(n) for n in names),
+            *(step_state_value(n, s) for n, s in states.items()),
+        ]
+        await storage.save_saga_state(
+            "o-5", "order", SagaStatus.EXECUTING, [], {}, configuration=configuration
+        )
+        saga = order_saga([], {}, pivot=True)(config=config(storage))
+        assert await saga.pending_compensations("o-5") == ["notify"]
+        assert saga.in_doubt_steps() == ["ship"]
+
+    async def test_pending_compensations_need_a_resumable_run(self):
+        storage = await self.interrupted()
+        cls = order_saga([], {})
+        with pytest.raises(ValueError, match="no stored state"):
+            await cls(config=config(storage)).pending_compensations("nope")
+        await cls(config=config(storage)).resume_compensation("o-9")
+        with pytest.raises(ValueError, match="already ended"):
+            await cls(config=config(storage)).pending_compensations("o-9")
 
     async def test_a_resumed_compensation_that_fails(self):
         storage = await self.interrupted()

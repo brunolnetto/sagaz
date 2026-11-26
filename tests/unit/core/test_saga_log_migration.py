@@ -42,7 +42,7 @@ async def fill_old_layout(storage, events, state) -> None:
     failing = make_saga(events, fail_charge=True)
     failing._config = config
     with pytest.raises(SagaFailedError):
-        await failing.run({"order_id": "o-2"}, saga_id="orch-bad", tenant_context="acme")
+        await failing.run({"order_id": "o-2"}, saga_id="orch-bad", tenant="acme")
 
     bus = EventBus()
     engine = ChoreographyEngine(bus, completion_events={"order.shipped"}, state=state)
@@ -125,7 +125,7 @@ def test_unify_copies_every_old_table_once(old_db):
         "completed",
         "order.created",
     )
-    assert (c_ok.initiator, c_bad.status) == ("orders", "compensated")
+    assert (c_ok.initiator, c_bad.status) == ("orders", "rolled_back")
     kinds = [e.kind for e in events["c-bad"]]
     assert {"compensate", "compensated"} <= set(kinds)
     caused = [e for e in events["c-ok"] if e.causation_id]
@@ -141,7 +141,7 @@ def test_unify_copies_every_old_table_once(old_db):
         "lifecycle",
         "orders",
     )
-    assert last.payload == {"status": "compensated", "previous": "executing"}
+    assert last.payload == {"status": "rolled_back", "previous": "executing"}
     assert not [e for e in events["c-late"] if e.kind == "lifecycle"]  # still executing
 
     again = migrate(old_db)

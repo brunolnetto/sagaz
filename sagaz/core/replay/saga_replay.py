@@ -16,8 +16,12 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 if TYPE_CHECKING:
+    from sagaz.core.decorators import Saga as DeclarativeSaga
+    from sagaz.core.replay import SagaSnapshot
     from sagaz.core.saga import Saga
 
+from sagaz.core.decorators._snapshots import snapshot_saga_id
+from sagaz.core.exceptions import SagaFailedError
 from sagaz.core.replay import (
     ReplayError,
     ReplayRequest,
@@ -28,6 +32,33 @@ from sagaz.core.replay import (
 from sagaz.core.storage.interfaces.snapshot import SnapshotStorage
 
 logger = logging.getLogger(__name__)
+
+
+async def _run_from_snapshot(
+    saga: "Saga | DeclarativeSaga",
+    snapshot: "SagaSnapshot",
+    context_override: dict[str, Any] | None,
+    new_id: str,
+) -> str | None:
+    """Run *saga* from *snapshot* as run *new_id*; the error message if it failed.
+
+    *saga* is a ``sagaz.Saga`` (``run_from_snapshot``) or a classic
+    ``sagaz.core.saga.Saga`` (``execute_from_snapshot``).
+    """
+    from sagaz.core.decorators import Saga as _Declarative
+
+    if isinstance(saga, _Declarative):
+        try:
+            await saga.run_from_snapshot(snapshot, context_override, saga_id=new_id)
+        except SagaFailedError as failure:
+            return str(failure)
+        return None
+    saga.saga_id = new_id
+    build = getattr(saga, "build", None)  # a subclass's own method, by convention
+    if not saga.steps and build is not None:  # build its steps, if not built yet
+        await build()
+    result = await saga.execute_from_snapshot(snapshot, context_override)
+    return None if result.success else str(result.error)
 
 
 class SagaReplay:
@@ -48,12 +79,12 @@ class SagaReplay:
 
     def __init__(
         self,
-        saga_id: UUID,
+        saga_id: UUID | str,
         snapshot_storage: SnapshotStorage,
         initiated_by: str = "system",
-        saga_factory: "Callable[[str], Saga] | None" = None,
+        saga_factory: "Callable[[str], Any] | None" = None,  # -> a saga, or an awaitable of one
     ) -> None:
-        self.saga_id = saga_id
+        self.saga_id = snapshot_saga_id(saga_id)  # any saga id string, or its UUID
         self.snapshot_storage = snapshot_storage
         self.initiated_by = initiated_by
         self.saga_factory = saga_factory
@@ -150,24 +181,18 @@ class SagaReplay:
             else:
                 saga_instance = self.saga_factory(snapshot.saga_name)
 
-            saga_instance.saga_id = str(result.new_saga_id)
-
-            # Build saga steps (if not already built)
-            if not saga_instance.steps:
-                await saga_instance.build()
-
-            # Execute from snapshot
-            saga_result = await saga_instance.execute_from_snapshot(snapshot, context_override)
-
-            if saga_result.success:
+            error = await _run_from_snapshot(
+                saga_instance, snapshot, context_override, str(result.new_saga_id)
+            )
+            if error is None:
                 result.mark_success()
                 logger.info(
                     f"Replay successful: new_saga_id={result.new_saga_id}, "
                     f"original_saga_id={result.original_saga_id}"
                 )
             else:
-                result.mark_failed(str(saga_result.error))
-                logger.error(f"Replay failed: {saga_result.error}")
+                result.mark_failed(error)
+                logger.error(f"Replay failed: {error}")
 
             # 5. Log replay
             await self.snapshot_storage.save_replay_log(result)

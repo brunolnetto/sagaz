@@ -16,6 +16,9 @@ from typing import Any, TypeVar
 
 from sagaz.core.execution.graph import CompensationType
 
+#: A step's idempotency key (#569): a format string over the saga context, or a function of it.
+StepKey = str | Callable[[dict[str, Any]], str]
+
 # Type for saga step functions
 F = TypeVar("F", bound=Callable[..., Awaitable[Any]])
 
@@ -47,6 +50,7 @@ class StepMetadata:
     pivot: bool = False
     """If True, marks this step as a point of no return (irreversible)."""
     region: str | None = None
+    idempotency_key: StepKey | None = None
     """Region whose workers run this step and its compensation (ADR-034); None = local."""
 
 
@@ -78,6 +82,7 @@ def step(
     on_exit: OnExitHook | None = None,
     pivot: bool = False,
     region: str | None = None,
+    idempotency_key: StepKey | None = None,
 ) -> Callable[[F], F]:
     """
     Decorator to mark a method as a saga step.
@@ -100,6 +105,12 @@ def step(
                rolled back. Use for irreversible actions like payment charges.
         region: Run the step and its compensation on the workers of this region
                (ADR-034), for data residency or latency. ``None`` runs it locally.
+        idempotency_key: What makes the step's effect unique, for a step that calls an
+               API that is not idempotent (#569): a format string filled from the saga
+               context (``"charge-{order_id}"``) or a function of the context. Per
+               tenant, a key runs once across sagas: a later step with it reuses the
+               stored result, and one held by an unfinished run fails with
+               ``StepInDoubtError``.
 
     Example:
         >>> class OrderSaga(Saga):
@@ -129,6 +140,7 @@ def step(
             on_exit=on_exit,
             pivot=pivot,
             region=region,
+            idempotency_key=idempotency_key,
         )
         return func
 

@@ -39,14 +39,15 @@ class SagaDefinitionError(SagaError, ValueError):
 class SagaFailedError(SagaExecutionError):
     """A saga run failed (#536): the one exception a failed ``Saga.run()`` raises.
 
-    The step's (or storage's) exception is ``__cause__``. ``status`` tells whether
-    the saga was rolled back (``ROLLED_BACK``) or a compensation failed too
-    (``FAILED``), which needs a person to look.
+    The step's (or storage's) exception is ``__cause__``. ``status`` tells how the
+    saga ended: rolled back (``ROLLED_BACK``); undone up to a pivot that stays done
+    (``PARTIALLY_COMMITTED``, #570); stopped after a pivot, waiting for a person
+    (``FORWARD_RECOVERY``); or with a compensation that failed too (``FAILED``).
 
     Attributes:
         saga_id: The run's id.
         saga_name: The saga's name.
-        status: ``SagaStatus.ROLLED_BACK`` or ``SagaStatus.FAILED``.
+        status: ``ROLLED_BACK``, ``PARTIALLY_COMMITTED``, ``FORWARD_RECOVERY`` or ``FAILED``.
         failed_step: The step that failed, or None (e.g. the state could not be saved).
         compensation_errors: Step name -> the exception its compensation raised.
     """
@@ -91,6 +92,27 @@ class SagaAlreadyExistsError(SagaError):
         super().__init__(
             f"saga {saga_id!r} already exists{state}: a saga id runs once. "
             "Use a new saga_id, or look the run up with storage.load_saga_state()."
+        )
+
+
+class StepInDoubtError(SagaStepError):
+    """A step's idempotency key is held by a run that did not finish the step (#569).
+
+    The first run crashed inside the step, was cancelled, or is running right now, so
+    nobody knows whether the step's effect happened. The step is not run again: it
+    guards an API that is not idempotent. Check the effect, then release the key with
+    :func:`sagaz.release_step_key` to let a later run execute the step.
+    """
+
+    def __init__(self, key: str, step_name: str, held_by: str | None = None) -> None:
+        self.key = key
+        self.step_name = step_name
+        self.held_by = held_by
+        holder = f" by saga {held_by!r}" if held_by else ""
+        super().__init__(
+            f"step {step_name!r}: idempotency key {key!r} is held{holder}, and that run did "
+            "not finish the step. Its effect may or may not have happened: check it, then "
+            "call sagaz.release_step_key() to let the step run again."
         )
 
 

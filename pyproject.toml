@@ -1,6 +1,6 @@
 [project]
 name = "sagaz"
-version = "2.5.0"
+version = "2.6.0"
 description = "Production-ready Saga pattern with DAG support"
 readme = "README.md"
 license = "MIT"
@@ -399,7 +399,7 @@ exclude = [
 # when a count differs: above, debt was added; below, lower the number here so the gain
 # is kept. ANN401 is the one annotation rule not enabled yet (#595).
 [tool.sagaz.typing-budget]
-ANN401 = 291        # a bare Any as a whole annotation
+ANN401 = 290        # a bare Any as a whole annotation
 "type-ignore" = 47  # "# type: ignore" comments
 
 # ============================================================================

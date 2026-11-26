@@ -28,6 +28,7 @@ from sagaz.core.storage.saga_log._model import (
     SnapshotKind,
     Transaction,
 )
+from sagaz.core.storage.saga_log._pg_delivery import PostgreSQLDeliveryMixin
 from sagaz.core.storage.saga_log._pg_export import PostgreSQLExportMixin
 from sagaz.core.storage.saga_log._pg_schema import SCHEMA_SQL
 
@@ -84,7 +85,7 @@ _INSERT_EVENT = (
 )
 
 
-class PostgreSQLSagaLogStore(PostgreSQLExportMixin, SagaLogStore):
+class PostgreSQLSagaLogStore(PostgreSQLDeliveryMixin, PostgreSQLExportMixin, SagaLogStore):
     def __init__(
         self,
         connection_string: str,

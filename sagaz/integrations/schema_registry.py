@@ -55,6 +55,25 @@ _FIELDS: dict[str, list[tuple[str, Any, Any, bool]]] = {
         ("tenant_id", *_NULLABLE, False),
         ("causation_id", *_NULLABLE, False),
         ("source", *_NULLABLE, False),
+        # W3C trace context of the publishing span (#563); optional, so older
+        # messages and readers stay compatible.
+        (
+            "trace_context",
+            ["null", {"type": "map", "values": "string"}],
+            {"type": ["object", "null"], "additionalProperties": {"type": "string"}},
+            False,
+        ),
+        # The actions this event descends from, as [event_id, participant] hops (#571);
+        # optional, like the above.
+        (
+            "lineage",
+            ["null", {"type": "array", "items": {"type": "array", "items": ["null", "string"]}}],
+            {
+                "type": ["array", "null"],
+                "items": {"type": "array", "items": {"type": ["string", "null"]}},
+            },
+            False,
+        ),
     ],
 }
 

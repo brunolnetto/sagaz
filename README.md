@@ -216,11 +216,11 @@ result = await saga.run({"order_id": "123", "amount": 99.99})
 
 > **Note:** You cannot mix both approaches. Once you use decorators, `add_step()` will raise an error, and vice versa.
 
-> **Which `Saga`?** Use `sagaz.Saga`. Another class, `sagaz.core.saga.Saga`
-> (`await add_step(...)`, `execute()` returning a `SagaResult`), is the engine behind
-> snapshot replay (`SagaReplay`) and `SagaOrchestrator`. Use it only for those; it will be
-> merged into `sagaz.Saga`. Its `add_step` also accepts `sagaz.Saga`'s parameter names
-> (`depends_on`, `timeout_seconds`).
+> **Which `Saga`?** Use `sagaz.Saga`. The older `sagaz.core.saga.Saga`
+> (`await add_step(...)`, `execute()` returning a `SagaResult`) is deprecated since 2.6.0
+> and will be removed in 3.0: `sagaz.Saga` has everything it had, snapshot replay and
+> `SagaOrchestrator` included. See
+> [Migrating from the classic Saga](docs/guides/migrating-from-the-classic-saga.md).
 
 ### Transactional Outbox + Optimistic Sending
 
@@ -362,15 +362,15 @@ See [`sagaz/deployment/resources/k8s/README.md`](https://github.com/brunolnetto/
 
 ```python
 # Saga metrics
-saga_execution_total{status}
-saga_execution_duration_seconds
-saga_step_duration_seconds{step_name}
+sagaz_saga_execution_total{status}
+sagaz_saga_execution_duration_seconds
+sagaz_saga_step_duration_seconds{step_name}
 
 # Outbox metrics
-outbox_pending_events_total
-outbox_published_events_total
-outbox_optimistic_send_success_total
-consumer_inbox_duplicates_total
+sagaz_outbox_pending_events_total
+sagaz_outbox_published_events_total
+sagaz_outbox_optimistic_send_success_total
+sagaz_inbox_duplicates_total
 ```
 
 ### Grafana Dashboard
@@ -500,9 +500,10 @@ MIT License - see [LICENSE](https://github.com/brunolnetto/sagaz/blob/main/LICEN
 
 ## Project Status
 
-**Current Version**: 2.5.0 (November 2026)
+**Current Version**: 2.6.0 (November 2026)
 
 **Recent releases:**
+- **v2.6.0** - Mode parity: orchestrated and choreographed sagas offer the same capabilities. Choreography gains an imperative API, retries, run-once correlation ids, tracing and listeners, tenancy, diagrams and pivots; `sagaz.Saga` gains parallel failure strategies, deadlines, per-step idempotency keys, snapshots and forward recovery, and replaces the classic engine. Several behaviour changes; see the changelog.
 - **v2.5.0** - Security and typing: signed external context storage, dependencies without known advisories, CI gates on mypy, bandit, pip-audit and coverage, every function annotated, and three outbox and CLI bugs the types exposed. Two breaking changes; see the changelog.
 - **v2.4.0** - Developer experience: retries, durability and a run-once saga id that keep their promises, one failure contract (`SagaFailedError`), a 1 MB package, documentation that runs, and a feature × mode matrix.
 - **v2.3.0** - StateChart step charts with pivot/taint states and compensation re-entry, a CDC reader for the saga log export, a Gradio asset monitor and a schema registry for saga events.

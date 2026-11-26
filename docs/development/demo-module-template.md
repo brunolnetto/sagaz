@@ -72,7 +72,7 @@ import logging
 from uuid import uuid4
 from unittest.mock import AsyncMock, patch, MagicMock
 
-from sagaz.core.saga import Saga, SagaContext
+from sagaz import Saga, SagaConfig, action
 
 logger = logging.getLogger(__name__)
 
@@ -95,28 +95,23 @@ async def _run() -> None:
     # Phase 2: Execute
     # Build a simple saga that will be traced
     class TracedSaga(Saga):
-        async def build(self):
-            await self.add_step(
-                name="step1",
-                action=self._do_step1,
-                timeout=5.0
-            )
-        
-        async def _do_step1(self, ctx: SagaContext):
-            logger.info(f"Executing step1 in saga {ctx.saga_id}")
+        saga_name = "traced"
+
+        @action("step1", timeout_seconds=5.0)
+        async def do_step1(self, ctx: dict):  # a public name: "_" methods are not collected
+            logger.info(f"Executing step1 in saga {ctx['saga_id']}")
             # Simulate traced operation
             with mock_tracer.start_as_current_span("step1") as span:
                 await asyncio.sleep(0.01)
-                span.set_attribute("saga.id", ctx.saga_id)
+                span.set_attribute("saga.id", ctx["saga_id"])
             return {"result": "success"}
-    
-    saga = TracedSaga(saga_id=saga_id)
-    await saga.build()
-    result = await saga.execute()
-    
+
+    saga = TracedSaga(config=SagaConfig(metrics=False, logging=False))
+    context = await saga.run({}, saga_id=saga_id)  # raises SagaFailedError if it fails
+
     # Phase 3: Verify
     # Check that tracing happened
-    assert result.status.value == "COMPLETED"
+    assert context["result"] == "success"
     assert mock_tracer.start_as_current_span.called
     logger.info(f"✅ Distributed tracing demo: {saga_id}")
     logger.info(f"   Spans created: {mock_tracer.start_as_current_span.call_count}")

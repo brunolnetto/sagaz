@@ -77,18 +77,27 @@ async def list_transactions(
     limit: int = 200,
 ) -> list[dict[str, Any]]:
     """Transactions of every tenant (or *tenant*), newest first."""
+    from sagaz.choreography.tracker import OLD_ROLLED_BACK, ROLLED_BACK, transaction_status
+
+    wanted = transaction_status(status) if status else None
+    # A choreographed rollback stored before 2.6.0 says "compensated" (#572).
+    statuses = [ROLLED_BACK, OLD_ROLLED_BACK] if wanted == ROLLED_BACK else [wanted]
     scope = system_scope() if not tenant else tenant_scope(tenant)
+    transactions = []
     with scope:
-        transactions = await log.list_transactions(
-            flow=flow or None, coordination=coordination or None, status=status or None, limit=limit
-        )
+        for one in statuses:
+            transactions += await log.list_transactions(
+                flow=flow or None, coordination=coordination or None, status=one, limit=limit
+            )
+    transactions.sort(key=lambda t: t.started_at, reverse=True)
+    del transactions[limit:]
     return [
         {
             "tenant": t.tenant_id,
             "transaction": t.transaction_id,
             "coordination": str(t.coordination),
             "flow": t.flow,
-            "status": t.status,
+            "status": transaction_status(t.status),
             "initiator": t.initiator or "",
             "started": _time(t.started_at),
             "duration_ms": _ms(t.started_at, t.ended_at),

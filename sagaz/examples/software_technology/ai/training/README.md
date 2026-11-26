@@ -623,8 +623,8 @@ configure(config)
 
 # Metrics automatically exported:
 # - saga_executions_total{saga_name="ml-training-pipeline", status="completed"}
-# - saga_execution_duration_seconds{saga_name="ml-training-pipeline"}
-# - saga_step_duration_seconds{saga_name="ml-training-pipeline", step="train_model"}
+# - sagaz_saga_execution_duration_seconds{saga_name="ml-training-pipeline"}
+# - sagaz_saga_step_duration_seconds{saga_name="ml-training-pipeline", step="train_model"}
 # - saga_compensation_total{saga_name="ml-training-pipeline"}
 ```
 
@@ -636,7 +636,7 @@ rate(saga_executions_total{status="completed"}[5m])
 rate(saga_executions_total[5m])
 
 # P95 execution time
-histogram_quantile(0.95, saga_execution_duration_seconds)
+histogram_quantile(0.95, sagaz_saga_execution_duration_seconds)
 
 # Compensation rate (rollback rate)
 rate(saga_compensation_total[5m])

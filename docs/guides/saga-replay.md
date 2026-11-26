@@ -8,97 +8,107 @@ Saga Replay enables you to reproduce failed sagas, test compensation logic, and 
 
 ### 1. Enable Snapshots
 
-Configure your saga to capture snapshots:
+Give the saga's configuration a `ReplayConfig` and a snapshot storage:
 
 ```python
-from sagaz import Saga, SagaConfig, ReplayConfig
+from sagaz import ReplayConfig, Saga, SagaConfig, SnapshotStrategy, action, compensate
 from sagaz.core.storage.backends.memory_snapshot import InMemorySnapshotStorage
 
-# Configure replay
+snapshots = InMemorySnapshotStorage()
 config = SagaConfig(
     replay_config=ReplayConfig(
         enable_snapshots=True,
-        snapshot_strategy="before_each_step",  # Capture before each step
-        retention_days=30
-    )
+        snapshot_strategy=SnapshotStrategy.BEFORE_EACH_STEP,
+        retention_days=30,
+    ),
+    snapshot_storage=snapshots,
 )
 
-# Create snapshot storage
-snapshot_storage = InMemorySnapshotStorage()
 
-# Use in saga
 class OrderSaga(Saga):
-    async def build(self):
-        await self.add_step(
-            name="reserve_inventory",
-            action=self._reserve,
-            compensation=self._release
-        )
-        await self.add_step(
-            name="charge_payment",
-            action=self._charge,
-            compensation=self._refund
-        )
-        await self.add_step(
-            name="ship_order",
-            action=self._ship
-        )
+    saga_name = "order"
 
-# Execute with snapshot capture
-async with snapshot_storage:
-    saga = OrderSaga(
-        context={"order_id": "123", "amount": 99.99},
-        config=config,
-        snapshot_storage=snapshot_storage
-    )
-    await saga.execute()
+    @action("reserve_inventory")
+    async def reserve(self, ctx): ...
+
+    @compensate("reserve_inventory")
+    async def release(self, ctx): ...
+
+    @action("charge_payment", depends_on=["reserve_inventory"])
+    async def charge(self, ctx): ...
+
+    @action("ship_order", depends_on=["charge_payment"])
+    async def ship(self, ctx): ...
+
+
+await OrderSaga(config=config).run({"order_id": "123", "amount": 99.99}, saga_id="order-123")
 ```
+
+A snapshot holds the saga's context and the steps completed so far, in execution order.
+The strategy says when one is taken:
+
+| `snapshot_strategy` | A snapshot is taken |
+|---|---|
+| `BEFORE_EACH_STEP` | Before each step runs |
+| `AFTER_EACH_STEP` | After each step completes |
+| `ON_FAILURE` (default) | When a step fails, before compensation |
+| `ON_COMPLETION` | When the saga completes |
+
+A snapshot that cannot be saved is logged, and the run goes on. Snapshot storage
+identifies a saga by a UUID: a saga id that is not one (`"order-123"`) gets a stable
+UUID, and `SagaReplay` and `SagaTimeTravel` take either form.
 
 ### 2. Replay from Checkpoint
 
-If the saga fails, replay from any step:
+If the saga fails, replay it from a step, with a corrected context:
 
 ```python
-from sagaz.core import SagaReplay
+from sagaz.core.replay.saga_replay import SagaReplay
 
-# Create replay instance
 replay = SagaReplay(
-    saga_id="original-saga-id-that-failed",
-    snapshot_storage=snapshot_storage
+    "order-123",                                         # the run that failed
+    snapshots,
+    saga_factory=lambda saga_name: OrderSaga(config=config),
 )
-
-# Replay from failed step with corrected data
 result = await replay.from_checkpoint(
     step_name="charge_payment",
-    context_override={
-        "payment_token": "corrected_token_xyz",
-        "retry_attempt": 2
-    }
+    context_override={"payment_token": "corrected_token_xyz"},
 )
 
-if result.status == "success":
+if result.replay_status == "success":
     print(f"Replay succeeded! New saga ID: {result.new_saga_id}")
 else:
     print(f"Replay failed: {result.error_message}")
 ```
 
+- **A new run:** the replay runs under a new saga id; the original run is not changed.
+- **Adopted steps:** the steps the snapshot completed are not run again. If the replay
+  fails later, they are compensated with the others.
+- **After a rollback:** a run that failed compensated its completed steps, so their
+  effects are gone, while the snapshot still lists them as completed. Replaying from the
+  failed step adopts them as done. Do that only if those effects still hold; otherwise
+  replay from the first step whose effect was undone.
+- **What a snapshot holds:** the saga's public context, without the engine's own
+  bookkeeping keys.
+- **Without `SagaReplay`:** `await saga.run_from_snapshot(snapshot, context_override)`
+  does the same from a snapshot you loaded, and returns and raises what `run()` does.
+- **The classic engine:** a factory may also return a classic `sagaz.core.saga.Saga`
+  (deprecated since 2.6.0), replayed with its `execute_from_snapshot`.
+
 ### 3. Query Historical State
 
-Retrieve saga state at any point in time:
+Read the saga's state at a point in time:
 
 ```python
-from sagaz.core import SagaTimeTravel
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-# Query state at specific timestamp
-state = await SagaTimeTravel.get_state_at(
-    saga_id="abc-123",
-    timestamp=datetime(2024, 12, 15, 10, 30, tzinfo=timezone.utc),
-    snapshot_storage=snapshot_storage
-)
+from sagaz.core.replay.time_travel import SagaTimeTravel
+
+travel = SagaTimeTravel("order-123", snapshots)
+state = await travel.get_state_at(datetime(2024, 12, 15, 10, 30, tzinfo=UTC))
 
 if state:
-    print(f"Status: {state.status}")
+    print(f"Step: {state.current_step}")
     print(f"Completed steps: {state.completed_steps}")
     print(f"Context at that time: {state.context}")
 ```
