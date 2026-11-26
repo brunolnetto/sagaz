@@ -500,9 +500,10 @@ MIT License - see [LICENSE](https://github.com/brunolnetto/sagaz/blob/main/LICEN
 
 ## Project Status
 
-**Current Version**: 2.5.0 (November 2026)
+**Current Version**: 2.6.0 (November 2026)
 
 **Recent releases:**
+- **v2.6.0** - Mode parity: orchestrated and choreographed sagas offer the same capabilities. Choreography gains an imperative API, retries, run-once correlation ids, tracing and listeners, tenancy, diagrams and pivots; `sagaz.Saga` gains parallel failure strategies, deadlines, per-step idempotency keys, snapshots and forward recovery, and replaces the classic engine. Several behaviour changes; see the changelog.
 - **v2.5.0** - Security and typing: signed external context storage, dependencies without known advisories, CI gates on mypy, bandit, pip-audit and coverage, every function annotated, and three outbox and CLI bugs the types exposed. Two breaking changes; see the changelog.
 - **v2.4.0** - Developer experience: retries, durability and a run-once saga id that keep their promises, one failure contract (`SagaFailedError`), a 1 MB package, documentation that runs, and a feature × mode matrix.
 - **v2.3.0** - StateChart step charts with pivot/taint states and compensation re-entry, a CDC reader for the saga log export, a Gradio asset monitor and a schema registry for saga events.
