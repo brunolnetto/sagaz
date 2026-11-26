@@ -176,16 +176,6 @@ class SQLiteParticipantState(ParticipantState):
             await conn.commit()
         return done
 
-    async def actions(self, participant: str, correlation_id: str) -> list[Event]:
-        conn = await self._connection()
-        async with self._lock:
-            cursor = await conn.execute(
-                "SELECT body FROM choreography_actions"
-                " WHERE tenant_id = ? AND participant = ? AND correlation_id = ? ORDER BY id",
-                (write_tenant(), participant, correlation_id),
-            )
-            return [Event.from_dict(json.loads(body)) for (body,) in await cursor.fetchall()]
-
     async def was_compensated(self, participant: str, correlation_id: str) -> bool:
         conn = await self._connection()
         cursor = await conn.execute(

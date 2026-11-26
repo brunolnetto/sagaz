@@ -61,6 +61,12 @@ class Event:
         W3C trace context (``traceparent``, ``tracestate``) of the span that
         published the event, so the handling span continues its trace (#563).
         Empty when OpenTelemetry is not in use.
+    lineage:
+        The actions this event descends from, the first one first: one
+        ``(event_id, participant)`` per hop, the event that was handled and the
+        participant that handled it and emitted the next one (the last hop is
+        ``(causation_id, source)``). ``caused_by`` builds it. It tells a participant
+        which of its actions led to a pivot (#571); it grows by one hop per step.
     """
 
     event_type: str
@@ -72,6 +78,7 @@ class Event:
     causation_id: str | None = None
     source: str | None = None
     trace_context: dict[str, str] = field(default_factory=dict)
+    lineage: tuple[tuple[str, str | None], ...] = ()
 
     @property
     def correlation_id(self) -> str | None:
@@ -95,6 +102,7 @@ class Event:
             tenant_id=cause.tenant_id,
             causation_id=cause.event_id,
             trace_context=self.trace_context or dict(cause.trace_context),
+            lineage=(*cause.lineage, (cause.event_id, self.source)),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -109,6 +117,7 @@ class Event:
             "causation_id": self.causation_id,
             "source": self.source,
             "trace_context": dict(self.trace_context),
+            "lineage": [list(hop) for hop in self.lineage],
         }
 
     @classmethod
@@ -126,6 +135,7 @@ class Event:
             causation_id=payload.get("causation_id") or None,
             source=payload.get("source") or None,
             trace_context=dict(payload.get("trace_context") or {}),
+            lineage=tuple((hop[0], hop[1]) for hop in payload.get("lineage") or ()),
         )
 
     def __repr__(self) -> str:

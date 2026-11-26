@@ -118,6 +118,7 @@ participant uses one style: `on()` on a class with `@on_event` handlers raises
 | `causation_id` | `emit()` | The `event_id` of the event being handled |
 | `source` | `begin()` / `emit()` | The participant that published the event |
 | `trace_context` | `begin()` / `emit()` / the engine's reports | The W3C trace context of the span that published the event (empty without OpenTelemetry) |
+| `lineage` | `emit()` | The actions the event descends from: one `(event_id, participant)` per hop, the event handled and the participant that handled it. The last hop is `(causation_id, source)`. It tells which actions led to a [pivot](#pivots), and grows by one hop per step |
 
 `emit()` only works inside a handler, because it continues that handler's
 transaction. Use `begin()` to start one. Events published directly on the bus keep
@@ -192,10 +193,13 @@ Once a pivot handler completes, a later failure no longer undoes what led to it:
 
 1. The participant publishes `choreography.pivoted` when the handler emits its result,
    or returns. That is before anything the pivot causes.
-2. Every participant receives it and **commits** the actions it had completed in that
-   transaction. A later `choreography.compensate` leaves them done.
-3. Actions completed after the notice are undone as usual. The pivot's own action is
-   never compensated, even if it has a `@compensate` method.
+2. Every participant receives it and remembers it. The notice's `lineage` names every
+   action the pivot descends from: which participant handled which event.
+3. A later `choreography.compensate` leaves those actions done: the pivot's
+   **ancestors**, exactly as in an orchestrated saga. Everything else is undone as
+   usual: what followed the pivot, and a branch beside it, even one that handled the
+   same event as the pivot. The pivot's own action is never compensated, even if it
+   has a `@compensate` method.
 4. Each `choreography.compensated` report lists what was kept (`kept`), next to `undone`
    and `failed`, and the tracker reports the transaction as `partially_committed`.
 
@@ -206,19 +210,16 @@ forward on its own ([#665](https://github.com/brunolnetto/sagaz/issues/665)).
 
 What to know:
 
-- **A participant knows only its own actions**, so "what led to the pivot" is "what I had
-  done when I learned of it". For a chain of steps that is exactly the pivot's
-  ancestors, as in an orchestrated saga. An action of a branch that runs in parallel
-  with the pivot is kept too if it was already done by then. Make such a branch follow
-  the pivot if it must be undone.
 - **The notice must arrive before the request to compensate.** It is published before
   anything the pivot causes, so a bus that delivers a transaction's events in order
   keeps the rule. A request to compensate that was already under way when the pivot
   completed (another branch failed at the same moment, or a deadline expired) may have
   undone an earlier action already: nothing coordinates the participants. Give the
   pivot's transaction a deadline that leaves it time to finish.
-- **A participant state of your own** needs `actions(participant, correlation_id)`. The
-  states sagaz ships have it.
+- **Every service must carry the lineage.** It travels in the event envelope
+  (see [What travels with an event](#what-travels-with-an-event)). An event from a
+  producer older than 2.6.0, or one built by hand without `caused_by`, has none, and
+  the actions before it are not recognised as ancestors: they are undone.
 
 ## Delivery guarantees
 

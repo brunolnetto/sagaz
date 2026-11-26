@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import pytest
@@ -17,8 +18,7 @@ from sagaz.choreography import (
     EventBus,
     on_event,
 )
-from sagaz.choreography._pivot import commit
-from sagaz.choreography.state import ParticipantState
+from sagaz.choreography._pivot import commit, split
 from sagaz.choreography.state.sqlite import SQLiteParticipantState
 from sagaz.core.listeners import SagaListener
 from sagaz.core.storage.saga_log import InMemorySagaLogStore
@@ -27,7 +27,8 @@ COMPLETIONS = ["order.shipped"]
 
 
 class Shop:
-    """inventory reserves, payments charges (the pivot), labels prints, shipping ships."""
+    """inventory reserves; gifts wraps beside the pivot; payments charges (the pivot);
+    labels prints and shipping ships after it."""
 
     def __init__(self, *, fails: str | None = None, pivot: bool = True) -> None:
         self.fails = fails
@@ -37,6 +38,10 @@ class Shop:
             self.orders,
             ChoreographedSaga(name="inventory").on(
                 "order.created", self.step("reserve", "stock.reserved"), self.undo("reserve")
+            ),
+            # Beside the pivot, not before it; registered first, so it is done by then.
+            ChoreographedSaga(name="gifts").on(
+                "stock.reserved", self.step("wrap", None), self.undo("wrap")
             ),
             ChoreographedSaga(name="payments").on(
                 "stock.reserved",
@@ -138,8 +143,15 @@ class TestAFailureAfterThePivot:
         shop = Shop(fails="ship")
         run = Run(shop, **backend)
         assert await run.go() == "partially_committed"
-        # reserve led to the pivot, charge is the pivot: kept. label came after: undone.
-        assert shop.undone == ["label"]
+        # reserve led to the pivot, charge is the pivot: kept. label came after it and
+        # wrap ran beside it (done before the pivot was): both undone.
+        assert sorted(shop.undone) == ["label", "wrap"]
+        assert run.reports()["gifts"] == {
+            "participant": "gifts",
+            "undone": ["stock.reserved"],
+            "failed": [],
+            "kept": [],
+        }
         reports = run.reports()
         assert reports["inventory"]["kept"] == ["order.created"]
         assert reports["payments"]["kept"] == ["stock.reserved"]
@@ -176,13 +188,13 @@ class TestWithoutACompletedPivot:
         shop = Shop(fails="charge")
         run = Run(shop, **backend)
         assert await run.go() == "rolled_back"
-        assert shop.undone == ["reserve"]
+        assert sorted(shop.undone) == ["reserve", "wrap"]
         assert run.status.pivots == []
 
     async def test_without_a_pivot_everything_is_undone(self, backend):
         shop = Shop(fails="ship", pivot=False)
         assert await Run(shop, **backend).go() == "rolled_back"
-        assert sorted(shop.undone) == ["charge", "label", "reserve"]
+        assert sorted(shop.undone) == ["charge", "label", "reserve", "wrap"]
 
     async def test_a_transaction_that_completes_is_completed(self, backend):
         shop = Shop()
@@ -198,14 +210,14 @@ class TestCompensationAskedFromOutside:
         async def charge(event: Event, me: ChoreographedSaga) -> None:
             return None
 
-        shop.participants[2] = quiet.on("stock.reserved", charge, pivot=True)
+        shop.participants[3] = quiet.on("stock.reserved", charge, pivot=True)
 
         async def give_up(run: Run) -> None:  # e.g. an expired deadline
             await run.bus.publish(Event(COMPENSATE, {"reason": "too late"}, saga_id="t-1"))
 
         run = Run(shop)
         assert await run.go(then=give_up) == "partially_committed"
-        assert shop.undone == []
+        assert shop.undone == ["wrap"]
         assert [e.source for e in run.seen if e.event_type == PIVOTED] == ["payments"]
 
 
@@ -220,31 +232,68 @@ class TestThePieces:
 
         assert Payments()._pivots == {"stock.reserved"}
 
-    async def test_a_pivot_announced_again_does_not_commit_what_came_after(self):
-        """A retried pivot handler announces twice: only the first one commits."""
-        saga = ChoreographedSaga(name="labels").on("a", lambda e, me: None, lambda e, me: None)
-        before = Event("a", saga_id="t-1")
-        after = Event("a", saga_id="t-1")
-        await saga._state.record_action("labels", before)
-        await commit(saga, Event(PIVOTED, {"pivot_event_id": "p-1"}, saga_id="t-1"))
-        await saga._state.record_action("labels", after)
-        await commit(saga, Event(PIVOTED, {"pivot_event_id": "p-1"}, saga_id="t-1"))
-        undone, failed = await saga.compensate_transaction("t-1")
-        assert (undone, failed) == (["a"], [])  # only *after*
+    async def test_only_what_the_pivot_descends_from_is_kept(self):
+        """Whenever the notice arrives: an action is kept by its place in the lineage."""
+        saga = ChoreographedSaga(name="x").on("a", lambda e, me: None, lambda e, me: None)
+        root = Event("a", saga_id="t-1", source="orders")
+        mine = Event("a", source="orders").caused_by(root)  # x handles it, and emits:
+        trigger = Event("pay", source="x").caused_by(mine)
+        beside = Event("a", source="orders").caused_by(root)  # x handles it; leads nowhere
+        shared = Event("a", source="other").caused_by(root)  # someone else continued it
+        notice = Event(PIVOTED, source="payments").caused_by(
+            Event("x", source="other").caused_by(shared).caused_by(trigger)
+        )
+        late = Event("a", source="payments").caused_by(notice)
+        await saga._state.record_action("x", mine)
+        await commit(saga, notice)
+        for event in (beside, shared, late):  # recorded after the notice
+            await saga._state.record_action("x", event)
+        undone, kept = split(saga, await saga._state.finish("x", "t-1", compensated=True))
+        assert [e.event_id for e in undone] == [beside.event_id, shared.event_id, late.event_id]
+        assert kept == ["a"]
 
     async def test_a_notice_without_a_transaction_is_ignored(self):
         saga = ChoreographedSaga(name="labels")
-        await commit(saga, Event(PIVOTED, {"pivot_event_id": "p-1"}))
-        assert await saga._state.actions("labels", "t-1") == []
-
-    async def test_a_state_of_your_own_must_implement_actions_for_pivots(self):
-        class Mine:
-            actions = ParticipantState.actions
-
-        with pytest.raises(NotImplementedError, match="pivots need"):
-            await Mine().actions("p", "t-1")
+        await commit(saga, Event(PIVOTED))
+        assert await saga._state.finish("labels", "t-1", compensated=True) == []
 
     def test_the_diagram_draws_the_pivot(self):
         run = Run(Shop())
         chart = run.engine.to_mermaid()
         assert '==>|"pivot"|' in chart
+
+
+class TestLineage:
+    """Every event names the events it descends from, on every bus."""
+
+    def test_caused_by_extends_the_lineage(self):
+        first = Event("a", saga_id="t-1")
+        second = Event("b", source="inventory").caused_by(first)
+        third = Event("c", source="payments").caused_by(second)
+        assert first.lineage == ()
+        assert second.lineage == ((first.event_id, "inventory"),)
+        assert third.lineage == ((first.event_id, "inventory"), (second.event_id, "payments"))
+        assert third.lineage[-1] == (third.causation_id, third.source)
+
+    def test_it_survives_the_json_envelope(self):
+        event = Event("c", source="p").caused_by(Event("b").caused_by(Event("a", saga_id="t-1")))
+        assert Event.from_dict(json.loads(json.dumps(event.to_dict()))) == event
+
+    def test_an_envelope_written_before_it_existed_has_none(self):
+        body = Event("a", saga_id="t-1").to_dict()
+        del body["lineage"]
+        assert Event.from_dict(body).lineage == ()
+
+    def test_it_survives_the_redis_stream_fields(self):
+        from sagaz.choreography.buses.redis_streams import _event_to_fields, _fields_to_event
+
+        event = Event("b", source="inventory").caused_by(Event("a", saga_id="t-1"))
+        fields = {k.encode(): v.encode() for k, v in _event_to_fields(event).items()}
+        assert _fields_to_event(fields).lineage == event.lineage
+        del fields[b"lineage"]  # a message from an older producer
+        assert _fields_to_event(fields).lineage == ()
+
+    def test_the_schema_registry_envelope_has_it(self):
+        from sagaz.integrations.schema_registry import _FIELDS
+
+        assert "lineage" in [name for name, *_ in _FIELDS["choreography"]]

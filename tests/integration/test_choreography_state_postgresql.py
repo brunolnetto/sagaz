@@ -130,16 +130,3 @@ async def test_replicas_claim_each_due_deadline_once(database_url, state):
     claimed = [d.correlation_id for batch in batches for d in batch]
     assert len(claimed) == len(set(claimed)) == 20
     assert {d.tenant_id for batch in batches for d in batch} == {"acme", "globex"}
-
-
-async def test_the_recorded_actions_can_be_read_without_ending_the_transaction(state):
-    """What a pivot's notice reads (#571): oldest first, and nothing is forgotten."""
-    first, second = created("t-read", "1"), created("t-read", "2")
-    await state.record_action("inventory", first)
-    await state.record_action("inventory", second)
-    assert [e.event_id for e in await state.actions("inventory", "t-read")] == [
-        first.event_id,
-        second.event_id,
-    ]
-    assert await state.actions("payments", "t-read") == []
-    assert len(await state.finish("inventory", "t-read", compensated=True)) == 2
