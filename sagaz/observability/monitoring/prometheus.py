@@ -205,8 +205,8 @@ class PrometheusMetrics:
         self._execution_total.labels(saga_name=saga_name, status=status_str).inc()
         self._execution_duration.labels(saga_name=saga_name).observe(duration)
 
-        # Track compensations for failed/rolled_back sagas
-        if status_str in ("failed", "rolled_back"):
+        # Track compensations for sagas that undid something
+        if status_str in ("failed", "rolled_back", "partially_committed"):
             self._compensations_total.labels(saga_name=saga_name).inc()
 
     def record_step_duration(self, saga_name: str, step_name: str, duration: float) -> None:

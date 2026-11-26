@@ -34,6 +34,24 @@ groups:
           runbook_url: "https://docs.example.com/runbooks/saga-failures"
           dashboard_url: "https://grafana.example.com/d/sagaz-overview"
 
+      # A saga stopped after a pivot: nothing recovers it on its own
+      - alert: SagaNeedsAttention
+        expr: |
+          sum by (saga_name, status) (
+            increase(sagaz_saga_execution_total{status=~"partially_committed|forward_recovery"}[15m])
+          ) > 0
+        for: 0m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "A saga stopped after a point of no return and needs a person"
+          description: |
+            Sagas of {{ $labels.saga_name }} ended {{ $labels.status }} in the last 15 minutes.
+            A pivot step completed and a later step failed. Someone must act on them.
+          runbook_url: "https://docs.example.com/runbooks/saga-needs-attention"
+          dashboard_url: "https://grafana.example.com/d/sagaz-overview"
+
       # Critical saga failure rate
       - alert: SagaCriticalFailureRate
         expr: |
