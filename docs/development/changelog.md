@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-11-26
+
+Mode parity: orchestrated and choreographed sagas offer the same capabilities, under one
+vocabulary. Choreography gains an imperative API, handler retries and timeouts, run-once
+correlation ids, tracing and listeners, tenancy, diagrams and pivots. `sagaz.Saga` gains
+parallel failure strategies, a deadline, per-step idempotency keys, snapshots and replay,
+and forward recovery, and replaces the classic `sagaz.core.saga.Saga`, now deprecated.
+
+**Behaviour changes to check before upgrading**
+
+- **The saga metrics tell how a saga ended (#662).** The `status` label of `sagaz_saga_execution_total` is `rolled_back`, `partially_committed`, `forward_recovery` or `failed` (only when a compensation failed too); every saga that did not complete was `failed` before. Rules and dashboards of your own on `status="failed"` need the change the shipped ones got: `status!="completed"`.
+- **Every metric is named `sagaz_*` (#572).** The old names are still emitted alongside, until 3.0 or until you set `SAGAZ_METRICS_OLD_NAMES=0`.
+- **A saga that fails after a pivot is `PARTIALLY_COMMITTED`, not `ROLLED_BACK` (#570),** and `@forward_recovery` handlers, never called before, now run.
+- **Choreography handlers are retried by default (#561),** up to 3 times, each attempt limited to 60 s: make them idempotent, or pass `max_retries=0`.
+- **A choreographed correlation id runs once (#562),** and an undone transaction is `rolled_back`, no longer `compensated` (#572).
+- **A choreography engine refuses two participants with one name (#571),** and two handlers for one event type (#560).
+- **Parallel steps stop waiting for each other when one fails (#567):** the default is `FAIL_FAST_WITH_GRACE`.
+- **Options and keywords were renamed (#572):** `tenant=` for the tenant, `--<thing>-url` for data sources. The old names still work; the keywords warn until 3.0.
+
+Upgrade the services of a choreography together where you can: events from a producer
+older than 2.6.0 carry no lineage, so a pivot does not recognise the actions before them
+(`sagaz_choreography_events_without_lineage_total` counts them).
+
 ### Added
 
 - **Pivots in a choreography (#571).** `@on_event(..., pivot=True)` and `participant.on(..., pivot=True)` mark a handler as a point of no return. When it completes, its participant publishes `choreography.pivoted` (`sagaz.choreography.PIVOTED`), and a later `choreography.compensate` leaves done the actions the pivot descends from, its ancestors, exactly as in an orchestrated saga; what followed the pivot and branches beside it are undone. The `choreography.compensated` report gains `kept`, the compensations metric an outcome `kept`, `TransactionStatus` a `pivots` list, and the tracker reports a transaction compensated after a pivot as `partially_committed` (listeners get `on_saga_failed` with that status). `to_mermaid()` draws a pivot as a thick arrow.
