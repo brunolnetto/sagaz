@@ -62,8 +62,7 @@
     "run({}, saga_id=12345)",
     "sagaz.yaml with misspelled keys",
     "snapshots enabled without a snapshot storage",
-    "storage.list_sagas(limit=-1)",
-    "two participants registered with the same name"
+    "storage.list_sagas(limit=-1)"
   ],
   "configuration_fields": [
     "BrokerConfig.connection_timeout_seconds='x'",
