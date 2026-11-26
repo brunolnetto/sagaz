@@ -173,6 +173,53 @@ You can still model failures as domain events, for example a `payment.failed`
 handled with `@on_event` as in ADR-029. The engine adds the generic path for
 unexpected errors.
 
+### Pivots
+
+Some actions cannot be undone: a payment captured, a parcel handed to a carrier. Mark
+their handler as a **pivot**, a point of no return:
+
+```python
+class Payments(ChoreographedSaga):
+    @on_event("stock.reserved", pivot=True)
+    async def charge(self, event: Event) -> None:
+        await capture(event.data["order_id"])
+        await self.emit("payment.captured")
+
+payments.on("stock.reserved", charge, pivot=True)      # without a subclass
+```
+
+Once a pivot handler completes, a later failure no longer undoes what led to it:
+
+1. The participant publishes `choreography.pivoted` when the handler emits its result,
+   or returns. That is before anything the pivot causes.
+2. Every participant receives it and **commits** the actions it had completed in that
+   transaction. A later `choreography.compensate` leaves them done.
+3. Actions completed after the notice are undone as usual. The pivot's own action is
+   never compensated, even if it has a `@compensate` method.
+4. Each `choreography.compensated` report lists what was kept (`kept`), next to `undone`
+   and `failed`, and the tracker reports the transaction as `partially_committed`.
+
+In the order example, if shipping fails after `charge`: the stock stays reserved, the
+payment stays captured, a label printed after the payment is cancelled, and the
+transaction ends `partially_committed`. Someone must act on it: nothing recovers it
+forward on its own ([#665](https://github.com/brunolnetto/sagaz/issues/665)).
+
+What to know:
+
+- **A participant knows only its own actions**, so "what led to the pivot" is "what I had
+  done when I learned of it". For a chain of steps that is exactly the pivot's
+  ancestors, as in an orchestrated saga. An action of a branch that runs in parallel
+  with the pivot is kept too if it was already done by then. Make such a branch follow
+  the pivot if it must be undone.
+- **The notice must arrive before the request to compensate.** It is published before
+  anything the pivot causes, so a bus that delivers a transaction's events in order
+  keeps the rule. A request to compensate that was already under way when the pivot
+  completed (another branch failed at the same moment, or a deadline expired) may have
+  undone an earlier action already: nothing coordinates the participants. Give the
+  pivot's transaction a deadline that leaves it time to finish.
+- **A participant state of your own** needs `actions(participant, correlation_id)`. The
+  states sagaz ships have it.
+
 ## Delivery guarantees
 
 Buses deliver at least once, so the engine deduplicates deliveries by `event_id`, per
@@ -314,7 +361,8 @@ from the events alone:
 | `stalled` | Executing, but no event for `stall_after` (reported only when the tracker has `stall_after`) |
 | `completed` | A completion event was seen |
 | `compensating` | A participant failed; not every participant that emitted events has reported compensation |
-| `compensated` | Every participant that emitted events (other than the failed one) reported compensation |
+| `rolled_back` | Every participant that emitted events (other than the failed one) reported compensation |
+| `partially_committed` | The same, after a [pivot](#pivots) completed: what led to the pivot stays done |
 | `failed` | A compensation itself raised |
 
 The status does not depend on the order events arrive in. Run **one** tracker with a
@@ -417,7 +465,7 @@ serves the same reports at `/api/v1/analytics/choreography*`.
 |---|---|
 | `sagaz_choreography_events_total` | `participant`, `event_type`, `outcome` (`handled`, `failed`, `duplicate`, `after_compensation`) |
 | `sagaz_choreography_handler_seconds` | `participant`, `event_type` |
-| `sagaz_choreography_compensations_total` | `participant`, `outcome` (`undone`, `failed`) |
+| `sagaz_choreography_compensations_total` | `participant`, `outcome` (`undone`, `failed`, `kept` by a pivot) |
 | `sagaz_choreography_deadlines_expired_total` | `participant` |
 
 ## Tracing and listeners

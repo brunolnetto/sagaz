@@ -55,6 +55,9 @@ class InMemoryParticipantState(ParticipantState):
         _bounded_set(self._ended, key, state, self.max_transactions)
         return done
 
+    async def actions(self, participant: str, correlation_id: str) -> list[Event]:
+        return list(self._actions.get(self._key(participant, correlation_id), []))
+
     async def was_compensated(self, participant: str, correlation_id: str) -> bool:
         return self._ended.get(self._key(participant, correlation_id)) == COMPENSATED
 

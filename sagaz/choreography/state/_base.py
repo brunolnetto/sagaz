@@ -58,6 +58,15 @@ class ParticipantState(ABC):
         with its deadline. Once compensated, a transaction stays compensated.
         """
 
+    async def actions(self, participant: str, correlation_id: str) -> list[Event]:
+        """The actions recorded for *participant* in *correlation_id*, oldest first.
+
+        Read when a pivot completes (#571). The states sagaz ships implement it; a
+        state of your own needs it only if a participant has a pivot.
+        """
+        msg = f"{type(self).__name__} does not implement actions(), which pivots need"
+        raise NotImplementedError(msg)
+
     @abstractmethod
     async def was_compensated(self, participant: str, correlation_id: str) -> bool:
         """True if *participant* compensated *correlation_id*."""

@@ -193,6 +193,18 @@ class PostgreSQLParticipantState(ParticipantState):
             )
         return [Event.from_dict(_json(r["body"])) for r in sorted(rows, key=lambda r: r["id"])]
 
+    async def actions(self, participant: str, correlation_id: str) -> list[Event]:
+        pool = await self._get_pool()
+        async with acquire_scoped(pool) as conn:
+            rows = await conn.fetch(
+                "SELECT body FROM choreography_actions"
+                " WHERE tenant_id = $1 AND participant = $2 AND correlation_id = $3 ORDER BY id",
+                write_tenant(),
+                participant,
+                correlation_id,
+            )
+        return [Event.from_dict(_json(r["body"])) for r in rows]
+
     async def was_compensated(self, participant: str, correlation_id: str) -> bool:
         pool = await self._get_pool()
         async with acquire_scoped(pool) as conn:

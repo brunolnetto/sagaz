@@ -122,6 +122,8 @@ class _Diagram:
             node = self.participant_id[p.name]
             for event, emits in self.declared[p.name].items():
                 arrow = '-->|"compensable"|' if event in p._compensators else "-->"
+                if event in p._pivots:  # a point of no return (#571)
+                    arrow = '==>|"pivot"|'
                 lines.append(f"{self.event_id[event]} {arrow} {node}")
                 lines += [f"{node} --> {self.event_id[out]}" for out in sorted(emits or ())]
         return lines

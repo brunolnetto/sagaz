@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any
 
 from sagaz.choreography._observe import DEFAULT_LISTENER_TIMEOUT, Listeners
 from sagaz.choreography._transaction_hooks import Change, announce
-from sagaz.choreography.events import COMPENSATE, COMPENSATED, AbstractEventBus, Event
+from sagaz.choreography.events import COMPENSATE, COMPENSATED, PIVOTED, AbstractEventBus, Event
 from sagaz.core.storage.saga_log._model import LogWrite, ended_at
 from sagaz.core.tenant import tenant_scope
 from sagaz.core.types import SagaStatus
@@ -34,8 +34,10 @@ if TYPE_CHECKING:
 from sagaz.choreography._status import (  # re-exported: their public home stays here
     COMPENSATING,
     COMPLETED,
+    ENDED,
     EXECUTING,
     FAILED,
+    PARTIALLY_COMMITTED,
     RECORD_NAME,
     ROLLED_BACK,
 )
@@ -61,6 +63,7 @@ _SAGA_STATUS = {
     COMPLETED: SagaStatus.COMPLETED,
     COMPENSATING: SagaStatus.COMPENSATING,
     ROLLED_BACK: SagaStatus.ROLLED_BACK,
+    PARTIALLY_COMMITTED: SagaStatus.PARTIALLY_COMMITTED,
     FAILED: SagaStatus.FAILED,
 }
 
@@ -77,6 +80,8 @@ class TransactionStatus:
     failure: dict[str, Any] | None = None
     compensated_by: dict[str, dict[str, Any]] = field(default_factory=dict)
     completion_seen: bool = False
+    #: The pivots that completed, as their participants announced them (#571).
+    pivots: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -104,6 +109,9 @@ class TransactionStatus:
         elif event.event_type == COMPENSATED:
             participant = event.data.get("participant") or event.source or "?"
             self.compensated_by[participant] = dict(event.data)
+        elif event.event_type == PIVOTED:
+            if dict(event.data) not in self.pivots:
+                self.pivots.append(dict(event.data))
         elif event.event_type in completion_events:
             self.completion_seen = True
         self.status = self._derive()
@@ -120,7 +128,7 @@ class TransactionStatus:
 
     def _note_participant(self, event: Event) -> None:
         """Participants are the sources of business events (not compensation reports)."""
-        business = event.event_type not in (COMPENSATE, COMPENSATED)
+        business = event.event_type not in (COMPENSATE, COMPENSATED, PIVOTED)
         if business and event.source and event.source not in self.participants:
             self.participants.append(event.source)
 
@@ -132,8 +140,10 @@ class TransactionStatus:
         expected = {p for p in self.participants if p != failed_participant}
         if not expected <= set(self.compensated_by):
             return COMPENSATING
-        broken = any(report.get("failed") for report in self.compensated_by.values())
-        return FAILED if broken else ROLLED_BACK
+        if any(report.get("failed") for report in self.compensated_by.values()):
+            return FAILED
+        # A pivot stays done: the transaction was undone only up to it (#571, ADR-023).
+        return PARTIALLY_COMMITTED if self.pivots else ROLLED_BACK
 
 
 class ChoreographyTracker:
@@ -210,7 +220,7 @@ class ChoreographyTracker:
         started = bool(status.events) and status.events[0]["event_id"] == event.event_id
         if current.status == status.status:
             return Change(started, status.status, status)
-        ended = status.status in (COMPLETED, ROLLED_BACK, FAILED)
+        ended = status.status in ENDED
         change = StatusChange(
             current.transaction_id,
             status.status,

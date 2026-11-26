@@ -93,6 +93,15 @@ class OrderSaga(Saga):
   takes snapshots, replay it from that step once the cause is fixed
   ([saga replay](saga-replay.md)).
 
+## In a choreography
+
+A handler can be a pivot too: `@on_event("stock.reserved", pivot=True)`. Once it
+completes, every participant keeps what it had done in the transaction, and a
+transaction compensated after it ends `partially_committed`, as here. See
+[Pivots in a choreography](../patterns/choreography.md#pivots). There is no forward
+recovery for a choreography yet
+([#665](https://github.com/brunolnetto/sagaz/issues/665)).
+
 ## What the statuses mean elsewhere
 
 - **The saga's stored state**, `SagaFailedError.status`, listeners (`on_saga_failed`) and
