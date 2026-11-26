@@ -5,6 +5,7 @@
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/brunolnetto/sagaz/blob/main/LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/sagaz.svg)](https://pypi.org/project/sagaz/)
+[![Docs](https://readthedocs.org/projects/sagaz/badge/?version=latest)](https://sagaz.readthedocs.io/en/latest/)
 
 **Enterprise-grade distributed transaction orchestration with exactly-once semantics.**
 
@@ -425,6 +426,8 @@ See [ADR-017](https://github.com/brunolnetto/sagaz/blob/main/docs/architecture/a
 ---
 
 ## Documentation
+
+**Read it at [sagaz.readthedocs.io](https://sagaz.readthedocs.io/en/latest/).** Start with the [tour](https://sagaz.readthedocs.io/en/latest/tour/): one feature per page, each with a short script that runs as shown. The [examples](https://sagaz.readthedocs.io/en/latest/examples/) are whole scenarios.
 
 | Topic | Link |
 |-------|------|

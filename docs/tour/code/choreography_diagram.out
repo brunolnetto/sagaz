@@ -1,0 +1,23 @@
+flowchart LR
+    e0(["order.created"]):::entry
+    e1((("order.shipped"))):::completion
+    e2(["payment.captured"]):::event
+    e3(["stock.reserved"]):::event
+    p0["inventory"]:::participant
+    p1["orders"]:::participant
+    p2["payments"]:::participant
+    p3["shipping"]:::participant
+    e0 -->|"compensable"| p0
+    p0 --> e3
+    e3 ==>|"pivot"| p2
+    p2 --> e2
+    e2 --> p3
+    p3 --> e1
+    compensate(["choreography.compensate"]):::compensate
+    compensate -.->|"undo order.created"| p0
+    classDef participant fill:#e8f0fe,stroke:#4a6fa5,color:#1a2b4a
+    classDef event fill:#f6f8fa,stroke:#8c959f,color:#24292f
+    classDef entry fill:#e6f4ea,stroke:#2e7d32,color:#1b4d20
+    classDef completion fill:#e6f4ea,stroke:#2e7d32,stroke-width:3px,color:#1b4d20
+    classDef compensate fill:#fff4e5,stroke:#b26a00,color:#5c3700
+    classDef undeclared stroke-dasharray:4 3

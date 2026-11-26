@@ -61,6 +61,33 @@ grep -r "archive" site/ | grep -v "GLACIER_DEEP_ARCHIVE"
    - ReadTheDocs will auto-build and deploy
    - Documentation will be available at: https://sagaz.readthedocs.io
 
+## ✍️ A tour page, or an example
+
+The pages under `docs/tour/` and `docs/examples/` show code that runs. The code is a
+file, included in the page with its recorded output, and `tests/unit/docs/` runs it:
+
+1. Write the script in `docs/tour/code/<name>.py` (or `docs/examples/code/`). It must
+   run with `python <file>` alone, need no database or broker, and print the same thing
+   every time.
+2. Record its output: `python docs/tour/code/<name>.py > docs/tour/code/<name>.out`.
+3. Include both in the page:
+
+    ````markdown
+    ```python title="<name>.py"
+    ;--8<-- "docs/tour/code/<name>.py"
+    ```
+
+    ```text
+    ;--8<-- "docs/tour/code/<name>.out"
+    ```
+    ````
+
+4. Add the page to `nav:` in `mkdocs.yml`, and run `uv run pytest tests/unit/docs`.
+
+Keep a tour script to about twenty lines and one idea. A scenario that combines several
+features belongs in `docs/examples/`. `docs/examples/shipped.md` lists the examples of
+`sagaz/examples/`; the test fails when one is added without a row there.
+
 ## 📝 Adding New Documentation
 
 1. Create markdown file in appropriate `docs/` subdirectory

@@ -258,9 +258,18 @@ def run_example_cmd(name: str) -> None:
         all_examples.update(examples)
 
     if name not in all_examples:
-        click.echo(f"Error: Example '{name}' not found.")
-        click.echo("Use 'sagaz examples list' to see available examples.")
-        return
+        # The list shows the short name (``wire_transfer``): accept it when it is unique.
+        matches = sorted(full for full in all_examples if full.rsplit("/", 1)[-1] == name)
+        if len(matches) > 1:
+            click.echo(f"Error: '{name}' names several examples. Use one of:")
+            for full in matches:
+                click.echo(f"  {full}")
+            return
+        if not matches:
+            click.echo(f"Error: Example '{name}' not found.")
+            click.echo("Use 'sagaz examples list' to see available examples.")
+            return
+        name = matches[0]
 
     script_path = all_examples[name]
     click.echo(f"Running example: {name}...")

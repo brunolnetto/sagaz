@@ -1,0 +1,7 @@
+reserving stock for o-1
+charging 40
+done: r-1 p-1
+--- an order that fails ---
+reserving stock for o-2
+releasing r-1
+failed at charge -> rolled_back

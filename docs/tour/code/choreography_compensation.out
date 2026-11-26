@@ -1,0 +1,6 @@
+inventory: reserving book
+payments: charging 40
+o-1 -> completed
+inventory: reserving book
+inventory: releasing book
+o-2 -> rolled_back

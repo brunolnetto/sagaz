@@ -1,0 +1,14 @@
+o-1: book for 30.00 to 12 Main St
+  -> completed
+o-2: book for 900.00 to 12 Main St
+  inventory: released the book of o-2
+  -> rolled_back
+  failed at payments: ValueError: card declined
+o-3: lamp for 45.00 to unknown
+  -> partially_committed
+  failed at shipping: RuntimeError: no carrier serves this address
+  inventory kept ['order.created']: a pivot followed it
+
+stock left: {'book': 4, 'lamp': 0}
+payments captured: {'o-1': 30.0, 'o-3': 45.0}
+outcomes: {'completed': 1, 'partially_committed': 1, 'rolled_back': 1}

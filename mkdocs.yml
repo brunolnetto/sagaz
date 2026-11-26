@@ -1,5 +1,5 @@
 site_name: Sagaz Documentation
-site_description: Production-ready Saga pattern with DAG support and Transactional Outbox
+site_description: Business transactions that span several steps or services, and undo themselves when one fails
 site_author: Bruno Lnetto
 site_url: https://sagaz.readthedocs.io
 
@@ -28,13 +28,13 @@ theme:
   features:
     - navigation.tabs
     - navigation.sections
-    - navigation.expand
     - navigation.top
     - navigation.tracking
     - search.suggest
     - search.highlight
     - content.code.copy
     - content.code.annotate
+    - navigation.footer
 
 # Extensions
 markdown_extensions:
@@ -48,7 +48,8 @@ markdown_extensions:
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.inlinehilite
-  - pymdownx.snippets
+  - pymdownx.snippets:
+      check_paths: true  # an include that points to no file fails the build
   - pymdownx.tabbed:
       alternate_style: true
   - tables
@@ -57,34 +58,83 @@ markdown_extensions:
   - toc:
       permalink: true
 
-# Navigation structure (explicitly exclude archive)
+# Navigation: learn (tour), see (examples), do (guides), operate, look up, understand.
 nav:
   - Home: README.md
-  - Quickstart: quickstart.md
-  
+
+  - Tour:
+    - Overview: tour/index.md
+    - Orchestrated sagas:
+      - Your first saga: tour/first-saga.md
+      - Parallel steps: tour/parallel-steps.md
+      - Retries, timeouts and deadlines: tour/retries-timeouts-deadlines.md
+      - Running once: tour/run-once.md
+      - Points of no return: tour/pivots.md
+      - Listeners: tour/listeners.md
+      - Storage: tour/storage.md
+    - Choreographed sagas:
+      - Your first choreography: tour/choreography.md
+      - Pivots and diagrams: tour/choreography-pivots-and-diagrams.md
+
+  - Examples:
+    - Overview: examples/index.md
+    - Order fulfilment (choreography): examples/order-fulfilment.md
+    - Cross-border wire transfer: examples/wire-transfer.md
+    - Shipped examples: examples/shipped.md
+
   - Guides:
-    - Your First Saga Service: guides/first-saga-service.md
-    - Configuration: guides/configuration.md
-    - Local Development: guides/local-development.md
-    - Multi-tenancy: guides/multi-tenancy.md
-    - Kubernetes Deployment: guides/kubernetes.md
-    - Cloud Deployment (sagaz deploy): guides/cloud-deployment.md
-    - Benchmarking: guides/benchmarking.md
-    - Multi-tenancy Overhead: benchmarks/tenancy-overhead.md
-    - CDC outbox throughput and lag: benchmarks/cdc-outbox.md
-    - Event-Sourced Sagas: guides/event-sourcing.md
-    - Multi-Region Sagas: guides/multi-region.md
-    - Unified Saga Log: guides/unified-saga-log.md
-    - Saga Replay: guides/saga-replay.md
-    - Step Charts: guides/step-statechart.md
-    - Pivots and Forward Recovery: guides/pivots-and-forward-recovery.md
-    - Migrating from the classic Saga: guides/migrating-from-the-classic-saga.md
-    - Replay Storage Backends: guides/replay-storage-backends.md
-    - Filesystem Snapshot Storage: guides/filesystem-snapshot-storage.md
-    - Visualization UI: guides/visualization-ui.md
-    - HA PostgreSQL Quick Reference: guides/ha-postgres-quickref.md
-    - Mermaid Diagrams: guides/mermaid.md
-  
+    - Getting started:
+      - Quickstart: quickstart.md
+      - Your First Saga Service: guides/first-saga-service.md
+      - Configuration: guides/configuration.md
+      - Local Development: guides/local-development.md
+      - Migrating from the classic Saga: guides/migrating-from-the-classic-saga.md
+    - Sagas in depth:
+      - Pivots and Forward Recovery: guides/pivots-and-forward-recovery.md
+      - Step Charts: guides/step-statechart.md
+      - Multi-tenancy: guides/multi-tenancy.md
+      - Multi-Region Sagas: guides/multi-region.md
+      - Mermaid Diagrams: guides/mermaid.md
+    - Choreography and messaging:
+      - Saga Choreography: patterns/choreography.md
+      - Consumer Inbox: patterns/consumer-inbox.md
+      - Dead Letter Queue: patterns/dead-letter-queue.md
+      - Multi-Sink Fanout: patterns/multi-sink-fanout.md
+      - Optimistic Sending: patterns/optimistic-sending.md
+    - State, events and replay:
+      - Unified Saga Log: guides/unified-saga-log.md
+      - Event-Sourced Sagas: guides/event-sourcing.md
+      - Saga Replay: guides/saga-replay.md
+      - Replay Storage Backends: guides/replay-storage-backends.md
+      - Filesystem Snapshot Storage: guides/filesystem-snapshot-storage.md
+    - Integrations:
+      - Webhook Status Tracking: integrations/webhook-status-tracking.md
+      - Change Data Capture: integrations/cdc.md
+      - CDC with Debezium: integrations/cdc-debezium.md
+
+  - Operations:
+    - Deployment:
+      - Kubernetes Deployment: guides/kubernetes.md
+      - Cloud Deployment (sagaz deploy): guides/cloud-deployment.md
+      - HA PostgreSQL Quick Reference: guides/ha-postgres-quickref.md
+    - Monitoring:
+      - Alerting: monitoring/alerting.md
+      - Observability Reference: monitoring/OBSERVABILITY_REFERENCE.md
+      - Metrics Compatibility: monitoring/METRICS_COMPATIBILITY.md
+      - Visualization UI: guides/visualization-ui.md
+      - Visualization UI (monitoring): monitoring/visualization-ui.md
+      - Fluss and Iceberg Analytics: monitoring/fluss-iceberg-analytics.md
+    - Performance:
+      - Benchmarking: guides/benchmarking.md
+      - Multi-tenancy Overhead: benchmarks/tenancy-overhead.md
+      - CDC outbox throughput and lag: benchmarks/cdc-outbox.md
+
+  - Reference:
+    - Feature × Mode Matrix: reference/feature-matrix.md
+    - Configuration API: reference/configuration.md
+    - Changelog: development/changelog.md
+    - Roadmap: ROADMAP.md
+
   - Architecture:
     - Overview: architecture/overview.md
     - Components: architecture/components.md
@@ -99,29 +149,7 @@ nav:
       - Outbox Flow: architecture/diagrams/outbox-flow.md
       - K8s Topology: architecture/diagrams/k8s-topology.md
       - Saga State Machine: architecture/diagrams/saga-state-machine.md
-  
-  - Patterns:
-    - Saga Choreography: patterns/choreography.md
-    - Consumer Inbox: patterns/consumer-inbox.md
-    - Dead Letter Queue: patterns/dead-letter-queue.md
-    - Multi-Sink Fanout: patterns/multi-sink-fanout.md
-    - Optimistic Sending: patterns/optimistic-sending.md
-  
-  - Integrations:
-    - Webhook Status Tracking: integrations/webhook-status-tracking.md
-    - Change Data Capture: integrations/cdc.md
-    - CDC with Debezium: integrations/cdc-debezium.md
-  
-  - Monitoring:
-    - Observability Reference: monitoring/OBSERVABILITY_REFERENCE.md
-    - Metrics Compatibility: monitoring/METRICS_COMPATIBILITY.md
-    - Visualization UI: monitoring/visualization-ui.md
-    - Fluss and Iceberg Analytics: monitoring/fluss-iceberg-analytics.md
-  
-  - Reference:
-    - Configuration API: reference/configuration.md
-    - Feature × Mode Matrix: reference/feature-matrix.md
-  
+
   - Development:
     - Contributing: development/contributing.md
     - Engineering Policies: development/engineering-policies.md
@@ -129,9 +157,6 @@ nav:
     - Testing Guide: development/testing.md
     - Makefile Reference: development/makefile.md
     - MkDocs Setup: development/mkdocs.md
-    - Changelog: development/changelog.md
-  
-  - Roadmap: ROADMAP.md
 
 # Plugins
 plugins:

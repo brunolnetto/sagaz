@@ -1,0 +1,5 @@
+[audit] order started
+[audit] reserve ok
+[audit] charge failed: card declined
+[audit] reserve undone
+[audit] order ended rolled_back

@@ -313,6 +313,8 @@ allow-star-arg-any = true
 "examples/*.py" = ["T20", "I001", "F541"]
 "examples/*/*.py" = ["T20", "I001", "F541"]
 "examples/*/*/*.py" = ["T20", "I001", "F541"]
+# Documentation examples print their output and stay free of annotations, to read easily
+"docs/*/code/*.py" = ["T20", "ANN", "EM"]
 "sagaz/examples/*/demo.py" = ["T20"]
 "sagaz/examples/*/*/demo.py" = ["T20"]
 # Allow print statements in built-in demonstration modules
