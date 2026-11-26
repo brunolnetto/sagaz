@@ -39,14 +39,15 @@ class SagaDefinitionError(SagaError, ValueError):
 class SagaFailedError(SagaExecutionError):
     """A saga run failed (#536): the one exception a failed ``Saga.run()`` raises.
 
-    The step's (or storage's) exception is ``__cause__``. ``status`` tells whether
-    the saga was rolled back (``ROLLED_BACK``) or a compensation failed too
-    (``FAILED``), which needs a person to look.
+    The step's (or storage's) exception is ``__cause__``. ``status`` tells how the
+    saga ended: rolled back (``ROLLED_BACK``); undone up to a pivot that stays done
+    (``PARTIALLY_COMMITTED``, #570); stopped after a pivot, waiting for a person
+    (``FORWARD_RECOVERY``); or with a compensation that failed too (``FAILED``).
 
     Attributes:
         saga_id: The run's id.
         saga_name: The saga's name.
-        status: ``SagaStatus.ROLLED_BACK`` or ``SagaStatus.FAILED``.
+        status: ``ROLLED_BACK``, ``PARTIALLY_COMMITTED``, ``FORWARD_RECOVERY`` or ``FAILED``.
         failed_step: The step that failed, or None (e.g. the state could not be saved).
         compensation_errors: Step name -> the exception its compensation raised.
     """

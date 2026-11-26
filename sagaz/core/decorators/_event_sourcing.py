@@ -16,6 +16,7 @@ class _EventSourcingMixin:
     """Records a run's events when its saga is event-sourced; a no-op otherwise."""
 
     saga: Saga
+    _needs_forward_recovery: str | None
 
     def _init_event_sourcing(self) -> None:
         # Set by run() for event-sourced sagas.
@@ -47,7 +48,9 @@ class _EventSourcingMixin:
         await self._recorder.record(event_type(self.saga._saga_id, **fields))
 
     async def _record_outcome(self, error: Exception) -> None:
-        if self._compensation_failed:
+        # A saga that stopped to be recovered forward is recorded as failed, and a partially
+        # committed one as rolled back: the event stream has no event of its own for them.
+        if self._compensation_failed or self._needs_forward_recovery is not None:
             await self._record(
                 SagaFailed,
                 error_message=f"{type(error).__name__}: {error}",

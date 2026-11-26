@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
-if TYPE_CHECKING:
-    from sagaz.core.decorators._execution import ExecutionEngine
+
+class _Engine(Protocol):
+    """What these methods use of the execution engine (no import of it: no cycle)."""
+
+    def _initialize_run(self, initial_context: dict[str, Any], saga_id: str | None) -> None: ...
+    def _register_compensations(self) -> None: ...
+    async def _execute_level(self, level: list) -> None: ...
+    async def _execute_compensation(self, step_id: str) -> None: ...
 
 
 class _DecoratorCompatMixin:
@@ -13,7 +19,7 @@ class _DecoratorCompatMixin:
 
     if TYPE_CHECKING:
 
-        def _engine(self, allow_rerun: bool) -> ExecutionEngine: ...
+        def _engine(self, allow_rerun: bool) -> _Engine: ...
 
     def _initialize_run(self, initial_context: dict[str, Any], saga_id: str | None) -> None:
         """Initialize saga run state."""

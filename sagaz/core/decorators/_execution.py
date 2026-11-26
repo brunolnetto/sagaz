@@ -14,6 +14,7 @@ from sagaz.core.decorators._attempts import _StepAttemptsMixin
 from sagaz.core.decorators._deadline import within
 from sagaz.core.decorators._durability import _DurabilityMixin
 from sagaz.core.decorators._event_sourcing import _EventSourcingMixin
+from sagaz.core.decorators._forward import StepSkippedError, _ForwardRecoveryMixin
 from sagaz.core.decorators._idempotency import StepKeys
 from sagaz.core.decorators._parallel import failure_strategy, grace_period, run_level
 from sagaz.core.decorators._regions import _RegionRoutingMixin
@@ -46,6 +47,7 @@ class ExecutionEngine(
     _RegionRoutingMixin,
     _EngineStepChartMixin,
     _EngineSnapshotMixin,
+    _ForwardRecoveryMixin,
     _StepAttemptsMixin,
     _DurabilityMixin,
 ):
@@ -108,7 +110,7 @@ class ExecutionEngine(
             )
             await self._snapshot("failed", self._failed_step or "")  # before compensating
             await self._chart_failed()
-            await self._compensate()
+            await self._roll_back()  # not when the saga waits to be recovered forward (#570)
             await self._chart_compensation_done()
             await self._record_outcome(e)
             failure = SagaFailedError(
@@ -203,6 +205,8 @@ class ExecutionEngine(
             return await self._adopt(step)
         try:
             await self._execute_step_body(step)
+        except StepSkippedError:  # forward recovery chose SKIP: the step failed, the saga goes on
+            self._failed_step = None
         finally:
             await self._call_hook(step.on_exit, self.saga._context, step.step_id)
 
@@ -228,7 +232,7 @@ class ExecutionEngine(
                     step.step_id,
                     step.idempotency_key,
                     self.saga._context,
-                    lambda: self._attempt_step(step),  # retries, backoff, timeouts
+                    lambda: self._recover_forward(step),  # retries, timeouts, recovery (#570)
                 )
             except BaseException as error:
                 self._ledger.finished(step.step_id, error)
@@ -330,9 +334,7 @@ class ExecutionEngine(
         if not node:
             return
 
-        # v1.3.0: Double-check taint status (in case it changed)
-        if self.saga._is_step_tainted(step_id):
-            logger.debug(f"Skipping compensation for tainted step: {step_id}")
+        if not self._compensable(step_id):  # taint may have changed since the level was built
             return
 
         saga_name = self._get_saga_name()

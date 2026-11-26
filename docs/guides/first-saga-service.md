@@ -126,7 +126,9 @@ except SagaFailedError as e:
 
 For steps that cannot be undone (a payment captured, a parcel shipped), mark the step
 `pivot=True`: once it completes, its ancestors are not compensated, and the saga only
-moves forward.
+moves forward. A saga that fails after its pivot reports `PARTIALLY_COMMITTED`, and a
+`@forward_recovery` handler can retry or skip the failed step instead: see
+[Pivots and forward recovery](pivots-and-forward-recovery.md).
 
 ### A deadline for the whole saga
 
