@@ -34,6 +34,8 @@ class TestTheRule:
         observed = START + timedelta(milliseconds=120)
         assert ended_at(START, observed, 120.0) == observed
         assert ended_at(START, observed) == observed
+        # The measured duration starts a little before the start event: it does not win.
+        assert ended_at(START, observed, 125.0) == observed
 
     def test_an_end_observed_before_the_start_uses_the_measured_duration(self):
         assert ended_at(START, START - BACK, 120.0) == START + timedelta(milliseconds=120)

@@ -146,11 +146,14 @@ def ended_at(
     *observed* is the wall-clock time of the event that ended it. Wall clocks are not
     monotonic (NTP and hypervisors step them back), and a choreographed transaction's
     events come from different services' clocks, so *observed* can be earlier than
-    *started_at*. The transaction then ends ``duration_ms`` after it started, the
-    duration its saga measured on a monotonic clock, or at ``started_at`` without one.
+    *started_at*. Only then is *observed* replaced: the transaction ends ``duration_ms``
+    after it started, the duration its saga measured on a monotonic clock, or at
+    ``started_at`` without one. An end observed at or after the start is kept as it is,
+    so the log and the event stream agree on it.
     """
-    floor = started_at + timedelta(milliseconds=max(duration_ms or 0.0, 0.0))
-    return max(observed, floor)
+    if observed >= started_at:
+        return observed
+    return started_at + timedelta(milliseconds=max(duration_ms or 0.0, 0.0))
 
 
 @dataclass(frozen=True)
