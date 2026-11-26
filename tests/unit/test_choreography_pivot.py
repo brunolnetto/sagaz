@@ -297,3 +297,78 @@ class TestLineage:
         from sagaz.integrations.schema_registry import _FIELDS
 
         assert "lineage" in [name for name, *_ in _FIELDS["choreography"]]
+
+
+class TestWarnings:
+    """What a pivot relies on is checked, not only documented."""
+
+    @pytest.fixture(autouse=True)
+    def _forget_reported_sources(self):
+        from sagaz.choreography import _pivot
+
+        _pivot._REPORTED.clear()
+        yield
+        _pivot._REPORTED.clear()
+
+    def test_an_event_with_its_lineage_is_fine(self):
+        from sagaz.choreography._pivot import lost_lineage
+
+        root = Event("a", saga_id="t-1")
+        assert not lost_lineage("x", root)  # nothing caused it
+        assert not lost_lineage("x", Event("b", source="p").caused_by(root))
+
+    def test_an_event_from_an_older_producer_is_reported_once_per_source(self, caplog):
+        from sagaz.choreography._pivot import lost_lineage
+
+        old = Event("b", saga_id="t-1", causation_id="e-0", source="legacy")
+        with caplog.at_level("WARNING", logger="sagaz.choreography"):
+            assert lost_lineage("x", old)
+            assert lost_lineage("x", Event("c", saga_id="t-2", causation_id="e-9", source="legacy"))
+        assert caplog.text.count("without the lineage of its cause") == 1
+        assert "'legacy'" in caplog.text
+
+    def test_a_lineage_that_does_not_reach_the_cause_is_reported(self):
+        from sagaz.choreography._pivot import lost_lineage
+
+        built_by_hand = Event("b", causation_id="e-2", lineage=(("e-1", "p"),))
+        assert lost_lineage("x", built_by_hand)
+
+    async def test_the_engine_counts_them(self, caplog):
+        from sagaz.choreography import _dispatch
+
+        if _dispatch.CHOREOGRAPHY_LOST_LINEAGE is None:
+            pytest.skip("prometheus_client is not installed")
+        counter = _dispatch.CHOREOGRAPHY_LOST_LINEAGE.labels("inventory", "legacy")
+        before = counter._value.get()
+        run = Run(Shop())
+        await run.engine.start()
+        old = Event("order.created", saga_id="t-9", causation_id="e-0", source="legacy")
+        with caplog.at_level("WARNING", logger="sagaz.choreography"):
+            await run.bus.publish(old)
+        await run.engine.stop()
+        assert counter._value.get() == before + 1
+        assert "inventory received 'order.created' from 'legacy'" in caplog.text
+
+    async def test_a_pivot_on_a_state_in_memory_is_warned_at_start(self, caplog, tmp_path):
+        with caplog.at_level("WARNING", logger="sagaz.choreography"):
+            run = Run(Shop())
+            await run.engine.start()
+            await run.engine.stop()
+        assert "payments has a pivot and keeps its state in memory" in caplog.text
+        assert "inventory has a pivot" not in caplog.text
+
+        caplog.clear()
+        state = SQLiteParticipantState(str(tmp_path / "state.db"))
+        with caplog.at_level("WARNING", logger="sagaz.choreography"):
+            run = Run(Shop(), state=state)
+            await run.engine.start()
+            await run.engine.stop()
+        await state.close()
+        assert "keeps its state in memory" not in caplog.text
+
+    async def test_without_a_pivot_nothing_is_warned(self, caplog):
+        with caplog.at_level("WARNING", logger="sagaz.choreography"):
+            run = Run(Shop(pivot=False))
+            await run.engine.start()
+            await run.engine.stop()
+        assert "keeps its state in memory" not in caplog.text

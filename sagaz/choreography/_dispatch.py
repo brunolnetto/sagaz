@@ -20,7 +20,7 @@ from sagaz.choreography._attempts import (
 )
 from sagaz.choreography._compensation import compensate_all
 from sagaz.choreography._observe import listener_context, notify, span, with_trace_context
-from sagaz.choreography._pivot import commit
+from sagaz.choreography._pivot import commit, lost_lineage
 from sagaz.choreography._tenancy import REFUSED, Tenancy
 from sagaz.choreography.events import COMPENSATE, COMPENSATED, PIVOTED, Event
 from sagaz.choreography.saga import ChoreographedSaga, current_cause
@@ -35,6 +35,7 @@ CHOREOGRAPHY_EVENTS: prometheus_client.Counter | None
 CHOREOGRAPHY_HANDLER_SECONDS: prometheus_client.Histogram | None
 CHOREOGRAPHY_COMPENSATIONS: prometheus_client.Counter | None
 CHOREOGRAPHY_DEADLINES: prometheus_client.Counter | None
+CHOREOGRAPHY_LOST_LINEAGE: prometheus_client.Counter | None
 
 try:
     from prometheus_client import Counter, Histogram
@@ -59,9 +60,20 @@ try:
         "Choreographed transactions compensated because their deadline expired",
         ["participant"],
     )
+    CHOREOGRAPHY_LOST_LINEAGE = Counter(
+        "sagaz_choreography_events_without_lineage_total",
+        "Events delivered with a cause and no lineage leading to it (an older producer)",
+        ["participant", "source"],
+    )
 except ImportError:  # pragma: no cover - prometheus_client is optional
     CHOREOGRAPHY_EVENTS = CHOREOGRAPHY_HANDLER_SECONDS = CHOREOGRAPHY_COMPENSATIONS = None
-    CHOREOGRAPHY_DEADLINES = None
+    CHOREOGRAPHY_DEADLINES = CHOREOGRAPHY_LOST_LINEAGE = None
+
+
+def _check_lineage(participant: str, event: Event) -> None:
+    """Count (and log, once per source) an event whose lineage was lost on the way (#571)."""
+    if lost_lineage(participant, event) and CHOREOGRAPHY_LOST_LINEAGE is not None:
+        CHOREOGRAPHY_LOST_LINEAGE.labels(participant, event.source or "").inc()
 
 
 def _count(participant: str, event_type: str, outcome: str) -> None:
@@ -130,6 +142,7 @@ class Dispatcher:
         state. For the rest, a tenant the registry refuses is not run (the participant
         asks for compensation instead), and a transaction waits for a quota slot.
         """
+        _check_lineage(saga.name, event)
         if event.event_type in _CONTROL or not saga.handles(event.event_type):
             with tenant_scope(self._tenancy.context(event.tenant_id)):
                 await self._dispatch(saga, event)

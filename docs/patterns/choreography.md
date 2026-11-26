@@ -221,7 +221,14 @@ What to know:
 - **Every service must carry the lineage.** It travels in the event envelope
   (see [What travels with an event](#what-travels-with-an-event)). An event from a
   producer older than 2.6.0, or one built by hand without `caused_by`, has none, and
-  the actions before it are not recognised as ancestors: they are undone.
+  the actions before it are not recognised as ancestors: they are undone. sagaz tells
+  you when it happens: a participant that receives an event with a cause and no lineage
+  leading to it logs a warning, once per producer, and counts it in
+  `sagaz_choreography_events_without_lineage_total`. Watch that metric while services
+  are upgraded one by one; it should stay at zero afterwards.
+- **A pivot needs a durable state.** An engine that starts with a pivot participant and
+  its state in memory logs a warning: after a restart, or in another replica, the
+  participant does not know what led to the pivot.
 
 ## Delivery guarantees
 
@@ -515,6 +522,7 @@ serves the same reports at `/api/v1/analytics/choreography*`.
 | `sagaz_choreography_events_total` | `participant`, `event_type`, `outcome` (`handled`, `failed`, `duplicate`, `after_compensation`) |
 | `sagaz_choreography_handler_seconds` | `participant`, `event_type` |
 | `sagaz_choreography_compensations_total` | `participant`, `outcome` (`undone`, `failed`, `kept` by a pivot) |
+| `sagaz_choreography_events_without_lineage_total` | `participant`, `source` (the producer). Events delivered with a cause and no lineage leading to it: a producer older than 2.6.0, see [Pivots](#pivots) |
 | `sagaz_choreography_deadlines_expired_total` | `participant` |
 
 ## Tracing and listeners

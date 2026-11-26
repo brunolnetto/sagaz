@@ -11,6 +11,7 @@ even one that handled the same event) is still undone.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Awaitable, Callable
 from typing import Any, Protocol
 
@@ -18,6 +19,8 @@ from sagaz.choreography._identity import names
 from sagaz.choreography._observe import Listeners, with_trace_context
 from sagaz.choreography.events import PIVOTED, Event
 from sagaz.choreography.state import ParticipantState
+
+logger = logging.getLogger("sagaz.choreography")
 
 
 class Participant(Protocol):
@@ -32,6 +35,47 @@ class Participant(Protocol):
     _listeners: Listeners
     _compensators: dict[str, Any]
     _undo_policies: dict[str, tuple[int | None, float | None]]
+
+
+#: Sources already reported for events without a lineage, per participant (bounded).
+_REPORTED: set[tuple[str, str | None]] = set()
+_REPORTED_LIMIT = 1_000
+
+
+def lost_lineage(participant: str, event: Event) -> bool:
+    """True if *event* has a cause and no lineage leading to it (logged once per source).
+
+    Its producer is older than 2.6.0, or built the event without ``caused_by``. The
+    actions before it cannot be recognised as a pivot's ancestors: a compensation
+    would undo them (#571).
+    """
+    if event.causation_id is None:
+        return False
+    if event.lineage and event.lineage[-1][0] == event.causation_id:
+        return False
+    key = (participant, event.source)
+    if key not in _REPORTED and len(_REPORTED) < _REPORTED_LIMIT:
+        _REPORTED.add(key)
+        logger.warning(
+            "%s received %r from %r without the lineage of its cause: its producer is "
+            "older than sagaz 2.6.0 or did not use caused_by(). If a pivot follows, the "
+            "actions before this event are undone by a compensation instead of kept",
+            participant,
+            event.event_type,
+            event.source,
+        )
+    return True
+
+
+def fragile(saga: Participant, durable: bool) -> str | None:
+    """Why *saga*'s pivots cannot be relied on as it is set up, or None."""
+    if not saga._pivots or durable:
+        return None
+    return (
+        f"{saga.name} has a pivot and keeps its state in memory: after a restart, or in "
+        "another replica, it does not know what led to the pivot, and a compensation "
+        "undoes it. Give the engine a durable state= or a saga_log="
+    )
 
 
 async def announce(saga: Participant, cause: Event | None) -> None:
