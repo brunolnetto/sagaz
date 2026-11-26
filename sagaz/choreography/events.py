@@ -28,6 +28,9 @@ HandlerT = Callable[["Event"], Awaitable[None]]
 COMPENSATE = "choreography.compensate"
 #: Published by each participant once it has run its compensations.
 COMPENSATED = "choreography.compensated"
+#: Published by a participant whose pivot handler completed: every participant then
+#: keeps what it had done in that transaction, whatever fails later (#571).
+PIVOTED = "choreography.pivoted"
 
 
 @dataclass(frozen=True)

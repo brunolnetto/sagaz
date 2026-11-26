@@ -20,7 +20,7 @@ from sagaz.choreography._deadlines import DeadlineWatcher
 from sagaz.choreography._dispatch import Dispatcher, RetryDefaults
 from sagaz.choreography._observe import DEFAULT_LISTENER_TIMEOUT, Listeners
 from sagaz.choreography._tenancy import Tenancy
-from sagaz.choreography.events import COMPENSATE, AbstractEventBus, Event, HandlerT
+from sagaz.choreography.events import COMPENSATE, PIVOTED, AbstractEventBus, Event, HandlerT
 from sagaz.choreography.relay import ChoreographyRelay
 from sagaz.choreography.saga import ChoreographedSaga
 from sagaz.choreography.state import ParticipantState, create_participant_state
@@ -252,7 +252,8 @@ class ChoreographyEngine:
         """
         # Completion events also clear the deadline of the participant that began
         # the transaction, so every participant receives them.
-        types = [*saga._handlers, COMPENSATE, *sorted(self._completion_events)]
+        # A pivot's notice too: each participant then keeps what it had done (#571).
+        types = [*saga._handlers, COMPENSATE, PIVOTED, *sorted(self._completion_events)]
         return list(dict.fromkeys(types))
 
     def _deregister(self, saga: ChoreographedSaga) -> None:

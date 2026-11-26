@@ -12,7 +12,13 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 from sagaz.choreography._observe import Listeners, notify
-from sagaz.choreography._status import COMPLETED, FAILED, RECORD_NAME, ROLLED_BACK
+from sagaz.choreography._status import (
+    COMPLETED,
+    FAILED,
+    PARTIALLY_COMMITTED,
+    RECORD_NAME,
+    ROLLED_BACK,
+)
 
 
 class TransactionStatus(Protocol):
@@ -63,7 +69,7 @@ async def announce(listeners: Listeners, announced: OrderedDict[str, None], chan
         return
     if status.status == COMPLETED:
         await notify(listeners, "on_saga_complete", RECORD_NAME, key, ctx)
-    elif status.status in (ROLLED_BACK, FAILED):
+    elif status.status in (ROLLED_BACK, PARTIALLY_COMMITTED, FAILED):
         await notify(listeners, "on_saga_failed", RECORD_NAME, key, ctx, failure_error(status))
 
 

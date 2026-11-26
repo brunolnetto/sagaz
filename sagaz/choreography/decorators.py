@@ -12,6 +12,7 @@ from typing import Any
 _HANDLER_ATTR = "_choreography_event_type"
 _POLICY_ATTR = "_choreography_retry_policy"
 _EMITS_ATTR = "_choreography_emits"
+_PIVOT_ATTR = "_choreography_pivot"
 
 #: A handler's ``(max_retries, timeout_seconds)``; ``None`` takes the engine's default.
 RetryPolicy = tuple[int | None, float | None]
@@ -23,9 +24,13 @@ def on_event(
     max_retries: int | None = None,
     timeout_seconds: float | None = None,
     emits: Iterable[str] | None = None,
+    pivot: bool = False,
 ) -> Callable:
     """
     Mark an async method as an event handler for *event_type*.
+
+    ``pivot=True`` makes it a point of no return (#571): once it completes, what the
+    participants had done in the transaction is kept, whatever fails later.
 
     The decorated method must accept ``(self, event: Event) -> None``.
 
@@ -65,6 +70,7 @@ def on_event(
         setattr(wrapper, _POLICY_ATTR, (max_retries, timeout_seconds))
         if emits is not None:
             setattr(wrapper, _EMITS_ATTR, frozenset(emits))
+        setattr(wrapper, _PIVOT_ATTR, pivot)
         return wrapper
 
     return decorator
@@ -73,6 +79,11 @@ def on_event(
 def get_event_type(method: Callable) -> str | None:
     """Return the event type associated with *method*, or *None*."""
     return getattr(method, _HANDLER_ATTR, None)
+
+
+def is_pivot(method: Callable) -> bool:
+    """True if ``@on_event(pivot=True)`` marked *method* as a point of no return."""
+    return bool(getattr(method, _PIVOT_ATTR, False))
 
 
 def get_emits(method: Callable) -> frozenset[str] | None:

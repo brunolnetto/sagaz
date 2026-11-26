@@ -14,11 +14,13 @@ from collections.abc import Awaitable, Callable, Iterable
 from contextvars import ContextVar
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
+from uuid import uuid4
 
 from sagaz.choreography._attempts import DEFAULT_RETRY_BACKOFF_BASE, attempt
 from sagaz.choreography._begin import claim_correlation_id, set_deadline
-from sagaz.choreography._compensation import run_compensation
+from sagaz.choreography._compensation import compensate_all
 from sagaz.choreography._observe import Listeners, span, with_trace_context
+from sagaz.choreography._pivot import announce
 from sagaz.choreography._tenancy import Tenancy
 from sagaz.choreography.decorators import (
     RetryPolicy,
@@ -27,6 +29,7 @@ from sagaz.choreography.decorators import (
     get_emits,
     get_event_type,
     get_retry_policy,
+    is_pivot,
 )
 from sagaz.choreography.events import Event
 from sagaz.choreography.state import InMemoryParticipantState, ParticipantState
@@ -69,8 +72,6 @@ class ChoreographedSaga:
         saga_id: str | None = None,
         name: str | None = None,
     ) -> None:
-        from uuid import uuid4
-
         self.saga_id: str = saga_id or str(uuid4())
         self.name: str = name or type(self).__name__
         if self.name.startswith(RESERVED_SAGA_PREFIX):
@@ -82,6 +83,8 @@ class ChoreographedSaga:
         self._policies: dict[str, RetryPolicy] = {}  # event_type → (max_retries, timeout)
         self._undo_policies: dict[str, RetryPolicy] = {}  # the same, for compensations
         self._emits: dict[str, frozenset[str]] = {}  # event_type → what it declared it emits
+        self._pivots: set[str] = set()  # event types whose handler is a pivot (#571)
+        self._pivoting: set[str] = set()  # pivot deliveries in hand, already announced
         # Completed actions, finished and compensated transactions, handled
         # deliveries (#448). In memory unless the engine provides a durable state.
         self._state: ParticipantState = InMemoryParticipantState(self.max_tracked_transactions)
@@ -113,6 +116,8 @@ class ChoreographedSaga:
                 self._policies[event_type] = get_retry_policy(method)
                 if (declared := get_emits(method)) is not None:
                     self._emits[event_type] = declared
+                if is_pivot(method):
+                    self._pivots.add(event_type)
                 logger.debug(
                     "%s registered handler %r for %r",
                     self.name,
@@ -135,14 +140,15 @@ class ChoreographedSaga:
         max_retries: int | None = None,
         timeout_seconds: float | None = None,
         emits: Iterable[str] | None = None,
+        pivot: bool = False,
     ) -> ChoreographedSaga:
         """Handle *event_type* with *handler*, undone by *compensation* (#560).
 
         The imperative counterpart of ``@on_event`` / ``@compensate``. Both functions
         are called as ``fn(event, participant)``, sync or async; the participant is
         how a handler emits its result (``await participant.emit(...)``). Returns
-        the participant, so calls can be chained. *max_retries*, *timeout_seconds*
-        and *emits* are those of ``@on_event``.
+        the participant, so calls can be chained. *max_retries*, *timeout_seconds*,
+        *emits* and *pivot* are those of ``@on_event``.
 
         Raises:
             SagaDefinitionError: *event_type* already has a handler, the participant
@@ -163,6 +169,8 @@ class ChoreographedSaga:
         self._policies[event_type] = (max_retries, timeout_seconds)
         if emits is not None:
             self._emits[event_type] = frozenset(emits)
+        if pivot:
+            self._pivots.add(event_type)
         if compensation is not None:
 
             async def undo(event: Event) -> object:
@@ -211,13 +219,17 @@ class ChoreographedSaga:
 
         self._events_handled.append(event)
         logger.debug("%s handling %r (saga_id=%s)", self.name, event.event_type, self.saga_id)
-        await attempt(
-            lambda: handler(event),
-            max_retries=max_retries,
-            timeout_seconds=timeout_seconds,
-            retry_backoff_base=retry_backoff_base,
-            what=f"{self.name} handling {event.event_type!r}",
-        )
+        try:
+            await attempt(
+                lambda: handler(event),
+                max_retries=max_retries,
+                timeout_seconds=timeout_seconds,
+                retry_backoff_base=retry_backoff_base,
+                what=f"{self.name} handling {event.event_type!r}",
+            )
+            await announce(self, event)  # a pivot that emitted nothing is done now
+        finally:
+            self._pivoting.discard(event.event_id)
         await self._remember(event)
 
     # ------------------------------------------------------------------
@@ -268,6 +280,7 @@ class ChoreographedSaga:
         remember = (
             cause is not None and bool(cause.saga_id) and cause.event_type in self._compensators
         )
+        await announce(self, cause)  # a pivot is done before anything follows it (#571)
         event = with_trace_context(event)  # its handlers' spans continue this trace (#563)
         await self._state.publish(self.name, event, self._publish, cause=cause, remember=remember)
         return event
@@ -306,8 +319,6 @@ class ChoreographedSaga:
         and one over its ``max_concurrent_sagas`` raises ``QuotaExceededError``, before
         anything is claimed or published.
         """
-        from uuid import uuid4
-
         from sagaz.core.tenant import (
             TenantContext,
             current_tenant_id,
@@ -354,23 +365,15 @@ class ChoreographedSaga:
         Each compensation runs ``max_retries + 1`` times at most (its own
         ``@compensate`` values take precedence, #561). Returns the event types whose
         actions were undone and those whose compensation still raised (logged, and
-        the remaining ones still run).
+        the remaining ones still run). Actions a pivot committed are left done (#571).
         """
-        undone: list[str] = []
-        failed: list[str] = []
-        done = await self._state.finish(self.name, correlation_id, compensated=True)
-        for original in reversed(done):
-            own_retries, own_timeout = self._undo_policies.get(original.event_type, (None, None))
-            ok = await run_compensation(
-                self.name,
-                self._compensators[original.event_type],
-                original,
-                self._listeners,
-                max_retries=max_retries if own_retries is None else own_retries,
-                timeout_seconds=timeout_seconds if own_timeout is None else own_timeout,
-                retry_backoff_base=retry_backoff_base,
-            )
-            (undone if ok else failed).append(original.event_type)
+        undone, failed, _kept = await compensate_all(
+            self,
+            correlation_id,
+            max_retries=max_retries,
+            timeout_seconds=timeout_seconds,
+            retry_backoff_base=retry_backoff_base,
+        )
         return undone, failed
 
     async def forget(self, correlation_id: str) -> None:

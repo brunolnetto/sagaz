@@ -128,6 +128,9 @@ class UnifiedParticipantState(ParticipantState):
         )
         return actions
 
+    async def actions(self, participant: str, correlation_id: str) -> list[Event]:
+        return await self._actions(participant, correlation_id)
+
     async def _actions(self, participant: str, correlation_id: str) -> list[Event]:
         rows = [
             a

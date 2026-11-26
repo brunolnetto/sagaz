@@ -13,3 +13,7 @@ EXECUTING, COMPLETED, COMPENSATING, ROLLED_BACK, FAILED = (
     "rolled_back",
     "failed",
 )
+#: Compensated after a pivot: what could be undone was, the rest stays done (#571).
+PARTIALLY_COMMITTED = "partially_committed"
+#: The statuses a transaction does not leave.
+ENDED = (COMPLETED, ROLLED_BACK, PARTIALLY_COMMITTED, FAILED)

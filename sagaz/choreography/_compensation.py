@@ -10,10 +10,43 @@ from typing import Any
 
 from sagaz.choreography._attempts import attempt
 from sagaz.choreography._observe import Listeners, listener_context, notify, span
+from sagaz.choreography._pivot import Participant, split
 from sagaz.choreography.decorators import call_maybe_async
 from sagaz.choreography.events import Event
 
 logger = logging.getLogger("sagaz.choreography")
+
+
+async def compensate_all(
+    saga: Participant,
+    correlation_id: str,
+    *,
+    max_retries: int,
+    timeout_seconds: float | None,
+    retry_backoff_base: float,
+) -> tuple[list[str], list[str], list[str]]:
+    """Undo, newest first, what *saga* did in *correlation_id*.
+
+    Returns the event types whose actions were undone, those whose compensation still
+    raised, and those kept because a pivot committed them (#571).
+    """
+    undone: list[str] = []
+    failed: list[str] = []
+    done = await saga._state.finish(saga.name, correlation_id, compensated=True)
+    undo, kept = split(saga, done)
+    for original in reversed(undo):
+        own_retries, own_timeout = saga._undo_policies.get(original.event_type, (None, None))
+        ok = await run_compensation(
+            saga.name,
+            saga._compensators[original.event_type],
+            original,
+            saga._listeners,
+            max_retries=max_retries if own_retries is None else own_retries,
+            timeout_seconds=timeout_seconds if own_timeout is None else own_timeout,
+            retry_backoff_base=retry_backoff_base,
+        )
+        (undone if ok else failed).append(original.event_type)
+    return undone, failed, kept
 
 
 async def run_compensation(

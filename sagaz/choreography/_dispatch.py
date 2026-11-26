@@ -18,9 +18,11 @@ from sagaz.choreography._attempts import (
     DEFAULT_RETRY_BACKOFF_BASE,
     DEFAULT_TIMEOUT,
 )
+from sagaz.choreography._compensation import compensate_all
 from sagaz.choreography._observe import listener_context, notify, span, with_trace_context
+from sagaz.choreography._pivot import commit
 from sagaz.choreography._tenancy import REFUSED, Tenancy
-from sagaz.choreography.events import COMPENSATE, COMPENSATED, Event
+from sagaz.choreography.events import COMPENSATE, COMPENSATED, PIVOTED, Event
 from sagaz.choreography.saga import ChoreographedSaga, current_cause
 from sagaz.core.tenant import tenant_scope
 
@@ -66,6 +68,9 @@ def _count(participant: str, event_type: str, outcome: str) -> None:
     if CHOREOGRAPHY_EVENTS is not None:
         CHOREOGRAPHY_EVENTS.labels(participant, event_type, outcome).inc()
 
+
+#: Never refused nor queued for a tenant: they undo, or record what is not undone.
+_CONTROL = (COMPENSATE, COMPENSATED, PIVOTED)
 
 #: Added to the time all attempts of a handler may take, for its delivery's lease.
 LEASE_MARGIN = 60.0
@@ -125,7 +130,7 @@ class Dispatcher:
         state. For the rest, a tenant the registry refuses is not run (the participant
         asks for compensation instead), and a transaction waits for a quota slot.
         """
-        if event.event_type in (COMPENSATE, COMPENSATED) or not saga.handles(event.event_type):
+        if event.event_type in _CONTROL or not saga.handles(event.event_type):
             with tenant_scope(self._tenancy.context(event.tenant_id)):
                 await self._dispatch(saga, event)
             return
@@ -159,7 +164,7 @@ class Dispatcher:
         )
 
     async def _dispatch(self, saga: ChoreographedSaga, event: Event) -> None:
-        if event.event_type == COMPENSATE:
+        if event.event_type in (COMPENSATE, PIVOTED):
             lease = self._defaults.lease(self._defaults.max_retries, self._defaults.timeout_seconds)
         else:
             lease = self._defaults.lease(*self._policy(saga, event))
@@ -171,6 +176,10 @@ class Dispatcher:
         if event.event_type == COMPENSATE:
             with span(saga.name, event, "compensate transaction"):
                 await self._compensate(saga, event)
+            await saga._state.finish_delivery(saga.name, event.event_id)
+            return
+        if event.event_type == PIVOTED:
+            await commit(saga, event)  # what this participant did so far stays done (#571)
             await saga._state.finish_delivery(saga.name, event.event_id)
             return
         if saga.handles(event.event_type) and not await self._after_compensation(saga, event):
@@ -258,7 +267,8 @@ class Dispatcher:
     async def _compensate(self, saga: ChoreographedSaga, event: Event) -> None:
         if not event.saga_id:
             return
-        undone, failed = await saga.compensate_transaction(  # in dispatch()'s tenant scope
+        undone, failed, kept = await compensate_all(  # in dispatch()'s tenant scope
+            saga,
             event.saga_id,
             max_retries=self._defaults.max_retries,
             timeout_seconds=self._defaults.timeout_seconds,
@@ -269,6 +279,8 @@ class Dispatcher:
                 CHOREOGRAPHY_COMPENSATIONS.labels(saga.name, "undone").inc(len(undone))
             if failed:
                 CHOREOGRAPHY_COMPENSATIONS.labels(saga.name, "failed").inc(len(failed))
-        data = {"participant": saga.name, "undone": undone, "failed": failed}
+            if kept:
+                CHOREOGRAPHY_COMPENSATIONS.labels(saga.name, "kept").inc(len(kept))
+        data = {"participant": saga.name, "undone": undone, "failed": failed, "kept": kept}
         report = with_trace_context(Event(COMPENSATED, data, source=saga.name).caused_by(event))
         await saga._state.publish(saga.name, report, self._publish)

@@ -25,8 +25,8 @@ Legend: ✅ supported · ⚠️ partial · ❌ missing · — does not apply to 
 | Step timeouts | ✅ `tests/unit/core/test_declarative_retries.py::test_a_timed_out_attempt_is_retried` | ✅ `tests/unit/test_choreography_retries.py::test_each_attempt_has_its_timeout` |
 | Compensation order | ✅ reverse dependency levels `tests/unit/core/test_decorators.py::TestSagaAdvanced::test_compensation_order_respected` | — each participant undoes its own actions, newest first `tests/unit/test_choreography_compensation.py::TestCompensation::test_compensation_runs_newest_first` |
 | Compensation retries | ✅ `tests/unit/core/test_orchestrated_bug_fixes.py::TestCompensationRetries::test_a_flaky_compensation_is_retried` | ✅ `tests/unit/test_choreography_retries.py::test_a_flaky_compensation_is_retried` |
-| Pivot / taint | ✅ `tests/unit/core/test_pivot.py::TestPivotSagaIntegration::test_pivot_step_taints_ancestors` | ❌ ([#571]) |
-| Forward recovery (`@forward_recovery`) | ✅ `tests/unit/core/test_forward_recovery.py::TestRetry::test_retry_runs_the_step_again_until_it_succeeds` | ❌ ([#571]) |
+| Pivot / taint | ✅ `tests/unit/core/test_pivot.py::TestPivotSagaIntegration::test_pivot_step_taints_ancestors` | ✅ `tests/unit/test_choreography_pivot.py::TestAFailureAfterThePivot::test_what_led_to_the_pivot_is_kept_and_what_followed_is_undone` |
+| Forward recovery (`@forward_recovery`) | ✅ `tests/unit/core/test_forward_recovery.py::TestRetry::test_retry_runs_the_step_again_until_it_succeeds` | ❌ ([#665]) |
 | Failure contract | ✅ raises `SagaFailedError` `tests/unit/core/test_failure_contract.py::TestSagaFailedError::test_a_rolled_back_saga` | ⚠️ outcome only through the tracker `tests/unit/test_choreography_compensation.py::TestCompensation::test_a_failing_participant_triggers_compensation_of_the_others` |
 | State persistence | ✅ start, each level, outcome `tests/unit/core/test_saga_durability.py::TestProgressAndFailures::test_progress_is_saved_after_each_level` | ✅ participant state `tests/unit/test_choreography_state.py::TestAcrossProcesses::test_a_restarted_participant_compensates_earlier_actions` |
 | A saga id runs once | ✅ `tests/unit/core/test_saga_durability.py::TestSagaIdRunsOnce::test_a_second_run_is_refused_before_any_step` | ✅ a given `correlation_id` `tests/unit/test_choreography_runs_once.py::test_a_second_begin_with_the_same_id_is_refused_before_publishing` |
@@ -169,3 +169,4 @@ when a cited test file, class or function no longer exists, and runs in CI.
 [#570]: https://github.com/brunolnetto/sagaz/issues/570
 [#571]: https://github.com/brunolnetto/sagaz/issues/571
 [#572]: https://github.com/brunolnetto/sagaz/issues/572
+[#665]: https://github.com/brunolnetto/sagaz/issues/665
