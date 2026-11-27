@@ -66,6 +66,10 @@ jobs:
       - name: Check the feature matrix's cited tests
         run: uv run python scripts/check_feature_matrix.py
 
+      - name: Check the release documents against the project's version
+        # The feature matrix, the roadmap and the release plan name one released version (#642).
+        run: uv run python scripts/check_release_docs.py
+
       - name: Check documented imports
         # Every `from sagaz... import ...` in README.md and docs/ must import (#539).
         run: uv run python scripts/check_doc_imports.py
