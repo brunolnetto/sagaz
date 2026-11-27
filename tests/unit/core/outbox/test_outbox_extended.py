@@ -693,19 +693,15 @@ class TestCompensationGraph:
 class TestDeclarativeSaga:
     @pytest.mark.asyncio
     async def test_saga_empty_run(self):
-        """Test running saga with no steps"""
+        """A saga with no steps is refused: nothing would run (#656)."""
         from sagaz.core.decorators import Saga
+        from sagaz.core.exceptions import SagaDefinitionError
 
         class EmptySaga(Saga):
             pass
 
-        saga = EmptySaga()
-        # run() returns the context dict for declarative sagas
-        result = await saga.run({})
-
-        assert isinstance(result, dict)
-        # Empty saga returns empty context
-        assert len(saga.get_steps()) == 0
+        with pytest.raises(SagaDefinitionError, match="has no steps"):
+            await EmptySaga().run({})
 
     @pytest.mark.asyncio
     async def test_saga_step_with_no_compensation(self):

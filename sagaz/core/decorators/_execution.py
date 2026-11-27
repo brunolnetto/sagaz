@@ -30,7 +30,7 @@ from sagaz.core.events import (
     StepExecuted,
     json_safe,
 )
-from sagaz.core.exceptions import SagaFailedError, SagaTimeoutError
+from sagaz.core.exceptions import SagaDefinitionError, SagaFailedError, SagaTimeoutError
 from sagaz.core.listeners._notify import DEFAULT_LISTENER_TIMEOUT, Listeners, notify
 from sagaz.core.logger import get_logger
 from sagaz.core.tenant import capped_retries, capped_timeout
@@ -84,6 +84,9 @@ class ExecutionEngine(
             Exception: If saga fails (compensations will be attempted first)
         """
         self._initialize_run(initial_context, saga_id)
+        if not self.saga._steps:  # nothing would run, and it would be stored completed (#656)
+            msg = f"{self._get_saga_name()!r} has no steps: declare one with @action or add_step()"
+            raise SagaDefinitionError(msg)
         # Unknown dependencies and cycles raise SagaDefinitionError here, before the
         # saga is stored or any step runs (#536). Dry runs can still inspect it.
         self.saga.get_execution_order()

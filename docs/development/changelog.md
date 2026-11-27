@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A step method named with a leading underscore is a step (#656).** `@action("charge") async def _charge(...)` was skipped without a word: the saga had no steps, `run()` returned at once and the saga was stored as `completed`. A method decorated with `@action`, `@step`, `@compensate` or `@forward_recovery` is now collected whatever its name, name-mangled ones (`__charge`) included. The decorators are looked up on the class, so creating a saga no longer reads its properties.
+- **A saga with no steps does not run (#656). Behaviour change.** `run()` raises `SagaDefinitionError` before anything is stored, instead of returning the context and storing a `completed` saga in which nothing ran.
 - **The release documents name the release that exists (#642).** The roadmap said the latest release was v2.2.0, the release plan v1.8.0, and the feature matrix was audited for v2.4.0. The three now say: latest v2.6.0, in development v2.6.1, next v2.7.0. The matrix records the date and the commit it was audited against, and how to refresh the audit. A new `scripts/check_release_docs.py`, run in CI, fails when one of the three names another released version than `pyproject.toml`, when the roadmap and the plan disagree on what comes next, or when the audit header has no full commit id. It checks metadata, not whether a claim is true.
 - **The alert rules' runbook links (#680)** pointed to `brunolnetto.github.io/sagaz`, which does not exist; they point to the alerting guide on Read the Docs. The alerting guide is now in the navigation.
 

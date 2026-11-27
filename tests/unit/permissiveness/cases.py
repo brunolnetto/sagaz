@@ -66,6 +66,14 @@ def quiet(**settings: Any) -> SagaConfig:
     return SagaConfig(metrics=False, logging=False, default_max_retries=0, **settings)
 
 
+def one_step() -> Saga:
+    """A valid saga: a case about ``run()`` needs one that would run."""
+
+    async def step(ctx: dict[str, Any]) -> None: ...
+
+    return Saga(name="one-step", config=quiet()).add_step("only", step)
+
+
 async def noop(ctx):
     return {}
 
@@ -122,15 +130,6 @@ def _():
 
 
 # ------------------------------------------------------------------------- saga definitions
-
-
-@case("@action on a method named _charge")
-def _():
-    class S(Saga):
-        @action("charge")
-        async def _charge(self, ctx): ...
-
-    return S(config=quiet()).run({})
 
 
 @case("a saga with no steps runs")
@@ -242,12 +241,12 @@ def _():
 
 @case('run({}, saga_id="")')
 def _():
-    return Saga(config=quiet()).run({}, saga_id="")
+    return one_step().run({}, saga_id="")
 
 
 @case("run({}, saga_id=12345)")
 def _():
-    return Saga(config=quiet()).run({}, saga_id=12345)
+    return one_step().run({}, saga_id=12345)
 
 
 @case("a step returns a list, not a dict")
