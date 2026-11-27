@@ -429,7 +429,15 @@ Example: Parallel payment processing
 2. **All-or-nothing**: `validate` only tainted when ALL pivots complete?
 3. **Independent**: Track taint per-branch (complex, increases state space)?
 
-**Proposed Approach (Pending Research):**
+**Implemented (2.6.1):** Option 1, the conservative union. A step stays done if it is a
+completed pivot or an ancestor of one; everything else that ran is undone. Because the
+outcome for parallel pivots depends on the order they complete in, a saga that has two
+pivots where neither depends on the other raises a `ParallelPivotsWarning` when its
+execution order is first computed (#679). The guide
+[Pivots and forward recovery](../../guides/pivots-and-forward-recovery.md#several-pivots)
+has the rule and the arrangements that were probed. Options 2 and 3 below were not built.
+
+**Proposed Approach (as first written):**
 
 **Option 1: Conservative Union** (Recommended for v2.1.0)
 - When ANY pivot in a parallel layer completes, ALL shared ancestors become tainted

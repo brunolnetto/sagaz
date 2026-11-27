@@ -27,9 +27,13 @@ class _DecoratorOrderingMixin:
         """
         if not self._steps:
             return []
-        from sagaz.core.decorators._validation import check_dependencies
+        from sagaz.core.decorators._validation import check_dependencies, warn_parallel_pivots
 
         check_dependencies(self._steps)
+        if getattr(self, "_pivots_checked", None) != len(self._steps):  # once per definition
+            self._pivots_checked = len(self._steps)
+            name = getattr(self, "saga_name", None) or type(self).__name__
+            warn_parallel_pivots(name, self._steps)
 
         step_map = {s.step_id: s for s in self._steps}
         in_degree = {s.step_id: len(s.depends_on) for s in self._steps}
