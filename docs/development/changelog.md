@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A step method named with a leading underscore is a step (#656).** `@action("charge") async def _charge(...)` was skipped without a word: the saga had no steps, `run()` returned at once and the saga was stored as `completed`. A method decorated with `@action`, `@step`, `@compensate` or `@forward_recovery` is now collected whatever its name, name-mangled ones (`__charge`) included. The decorators are looked up on the class, so creating a saga no longer reads its properties.
+- **A saga with no steps does not run (#656). Behaviour change.** `run()` raises `SagaDefinitionError` before anything is stored, instead of returning the context and storing a `completed` saga in which nothing ran.
 - **The alert rules' runbook links (#680)** pointed to `brunolnetto.github.io/sagaz`, which does not exist; they point to the alerting guide on Read the Docs. The alerting guide is now in the navigation.
 
 ## [2.6.0] - 2026-11-26

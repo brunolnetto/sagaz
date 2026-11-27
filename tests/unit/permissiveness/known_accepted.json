@@ -1,6 +1,5 @@
 {
   "cases": [
-    "@action on a method named _charge",
     "@action(\"\") with an empty step name",
     "@action(timeout_seconds=-1, max_retries=-2)",
     "@forward_recovery(\"chrage\") for a step that does not exist",
@@ -45,7 +44,6 @@
     "SagaConfig(tenant_registry={})",
     "TenantContext(\"acme\", quotas={...}) with a dict",
     "TenantQuotas(max_retries=True)",
-    "a saga with no steps runs",
     "a step returns a list, not a dict",
     "a step returns {\"saga_id\": ..., \"tenant_id\": ...}",
     "add_step(\"a\", \"not callable\")",

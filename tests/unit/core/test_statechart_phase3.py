@@ -9,7 +9,7 @@ from statemachine.exceptions import TransitionNotAllowed
 
 from sagaz.core.config import SagaConfig
 from sagaz.core.decorators import Saga, compensate, step
-from sagaz.core.exceptions import SagaFailedError
+from sagaz.core.exceptions import SagaDefinitionError, SagaFailedError
 from sagaz.core.execution.step_statechart import (
     build_step_statechart,
     configuration_values,
@@ -185,9 +185,10 @@ class TestDeclarative:
 
         assert On(config=config(flag=False)).use_step_statechart is True
 
-    async def test_an_empty_saga_runs_without_a_chart(self):
+    async def test_an_empty_saga_has_no_chart_and_does_not_run(self):
         saga = Saga("empty", config=config())
-        assert await saga.run({}) is not None
+        with pytest.raises(SagaDefinitionError, match="has no steps"):
+            await saga.run({})
         assert saga.state_configuration == []
 
 

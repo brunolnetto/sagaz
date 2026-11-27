@@ -4,7 +4,7 @@ Handles discovery and registration of @step, @compensate, and @forward_recovery
 decorated methods from a saga class.
 """
 
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Iterator
 from typing import TYPE_CHECKING, Any, Protocol
 
 from sagaz.core.decorators._steps import (
@@ -61,17 +61,27 @@ class DecoratorCollectionManager:
         self._attach_compensations()
         self._collect_forward_recovery_handlers()
 
+    def _decorated(self, marker: str) -> Iterator[Any]:
+        """The saga's methods that carry *marker*, bound, whatever they are named (#656).
+
+        A decorator states the intent: a step method may be private (``_charge``). The
+        marker is looked up on the class, so no property of the instance is evaluated;
+        only dunder names are skipped.
+        """
+        cls = type(self.saga)
+        for name in dir(cls):
+            if name.startswith("__") and name.endswith("__"):
+                continue
+            if hasattr(getattr(cls, name, None), marker):
+                yield getattr(self.saga, name)
+
     def _collect_step_methods(self) -> None:
         """First pass: collect all step methods.
 
         Scans the saga instance for methods decorated with @step or @action.
         """
-        for attr_name in dir(self.saga):
-            if attr_name.startswith("_"):
-                continue
-            attr = getattr(self.saga, attr_name)
-            if hasattr(attr, "_saga_step_meta"):
-                self._register_step_from_decorator(attr)
+        for attr in self._decorated("_saga_step_meta"):
+            self._register_step_from_decorator(attr)
 
     def _register_step_from_decorator(self, method: _StepMethod) -> None:
         """Register a step from a decorated method.
@@ -111,12 +121,8 @@ class DecoratorCollectionManager:
         Scans the saga instance for methods decorated with @compensate and
         attaches them to their corresponding steps.
         """
-        for attr_name in dir(self.saga):
-            if attr_name.startswith("_"):
-                continue
-            attr = getattr(self.saga, attr_name)
-            if hasattr(attr, "_saga_compensation_meta"):
-                self._attach_compensation_to_step(attr)
+        for attr in self._decorated("_saga_compensation_meta"):
+            self._attach_compensation_to_step(attr)
 
     def _attach_compensation_to_step(self, method: _CompensationMethod) -> None:
         """Attach a compensation method to its corresponding step.
@@ -152,11 +158,7 @@ class DecoratorCollectionManager:
 
         Scans the saga instance for methods decorated with @forward_recovery.
         """
-        for attr_name in dir(self.saga):
-            if attr_name.startswith("_"):
-                continue
-            attr = getattr(self.saga, attr_name)
-            if hasattr(attr, "_saga_forward_recovery_meta"):
-                meta: ForwardRecoveryMetadata = attr._saga_forward_recovery_meta
-                self.saga._forward_recovery_handlers[meta.for_step] = attr
-                logger.debug(f"Registered forward recovery handler for step: {meta.for_step}")
+        for attr in self._decorated("_saga_forward_recovery_meta"):
+            meta: ForwardRecoveryMetadata = attr._saga_forward_recovery_meta
+            self.saga._forward_recovery_handlers[meta.for_step] = attr
+            logger.debug(f"Registered forward recovery handler for step: {meta.for_step}")
