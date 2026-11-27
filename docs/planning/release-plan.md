@@ -1,7 +1,7 @@
 # Scoped Release Plan — sagaz 2026
 
-> **Last updated**: 2026-11-13
-> **Current version**: 1.8.0
+> **Last updated**: 2026-11-27
+> **Latest release**: v2.6.0 (2026-11-26) | **In development**: v2.6.1 | **Next**: v2.7.0
 > **Strategy**: Minimum-disruption, scoped releases. Each wave ships only additive/isolated features. Core-invasive changes are deferred to later waves.
 
 ---
@@ -446,6 +446,9 @@ ADR-041 unified saga log ──────────────────�
 | v2.4.0  | 9    | Developer Experience | Released 2026-11-21 |
 | v2.5.0  | 10   | Security & Typing | Released 2026-11-21 |
 | v2.6.0  | 11   | Mode Parity | Released 2026-11-26 |
+| v2.6.1  | 11b  | Distributed Correctness & Reliability | In development |
+| v2.7.0  | 12   | Choreography Protocol | Planned |
+| v3.0.0  | 13   | Removals | Planned |
 
 ---
 
