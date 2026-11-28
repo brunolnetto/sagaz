@@ -21,14 +21,14 @@ Without a handler, the saga compensates what is still reversible and ends in
 from __future__ import annotations
 
 import asyncio
+import functools
 import inspect
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Protocol
 
+from sagaz.core.decorators._steps import ForwardRecoveryMetadata
 from sagaz.core.execution._pivot_types import RecoveryAction
 from sagaz.core.logger import get_logger
-
-if TYPE_CHECKING:
-    from sagaz.core.decorators._steps import ForwardRecoveryMetadata
 
 logger = get_logger("sagaz.core.decorators")
 
@@ -56,6 +56,24 @@ class StepSkippedError(Exception):
     def __init__(self, step_id: str, error: BaseException) -> None:
         self.error = error
         super().__init__(f"step '{step_id}' skipped by its forward recovery handler: {error}")
+
+
+def recovery_handler(step: str, handler: Callable[..., Any]) -> Callable[..., Any]:
+    """*handler* as the forward recovery of *step*, for a step added with ``add_step`` (#678).
+
+    A function decorated with ``@forward_recovery`` keeps its ``max_retries`` and
+    ``timeout_seconds``; a plain ``handler(ctx, error)`` gets the defaults.
+    """
+    meta = getattr(handler, "_saga_forward_recovery_meta", None) or ForwardRecoveryMetadata(
+        for_step=step
+    )
+
+    @functools.wraps(handler)
+    def asked(ctx: dict[str, Any], error: Exception) -> object:
+        return handler(ctx, error)
+
+    setattr(asked, "_saga_forward_recovery_meta", meta)  # noqa: B010 - the engine reads it
+    return asked
 
 
 class _ForwardRecoveryMixin:

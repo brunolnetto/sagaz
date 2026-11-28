@@ -93,6 +93,66 @@ class OrderSaga(Saga):
   takes snapshots, replay it from that step once the cause is fixed
   ([saga replay](saga-replay.md)).
 
+## Without a class
+
+`add_step()` takes the same two things: `pivot=True`, and the recovery handler as
+`forward_recovery=`, a function of the context and the error.
+
+```python
+from sagaz import RecoveryAction, Saga
+
+async def recover_shipping(ctx, error):
+    ctx["carrier"] = "backup"
+    return RecoveryAction.RETRY_WITH_ALTERNATE
+
+saga = Saga(name="order")
+saga.add_step("reserve", reserve, release)
+saga.add_step("charge", charge, depends_on=["reserve"], pivot=True)
+saga.add_step("ship", ship, depends_on=["charge"], forward_recovery=recover_shipping)
+```
+
+A plain function is retried at most 3 times and may take 30 seconds. To change that,
+decorate it: `@forward_recovery("ship", max_retries=5, timeout_seconds=10)`.
+
+## Several pivots
+
+A saga may have more than one pivot. One rule covers every arrangement:
+
+> A step stays done if it is a completed pivot, or a step a completed pivot depends on,
+> directly or not. Everything else that ran is undone.
+
+| Arrangement | Fails at | Undone | Kept |
+|---|---|---|---|
+| In series: `a → P1 → b → P2 → c → d` | `d` | `c` | `a`, `P1`, `b`, `P2` |
+| In series, between the pivots: `a → P1 → b → c → P2` | `c` | `b` | `a`, `P1` |
+| Parallel branches, both pivots done, the step that joins them fails | the join | nothing | everything |
+| Parallel branches, one pivot done, the other branch fails before its own | the other branch | that branch, and the steps after `P1` | the shared root, and `P1`'s branch up to it |
+
+**Pivots in series** are always safe to reason about: everything up to the last pivot
+that completed stays.
+
+**Pivots in parallel branches** follow the same rule, but its outcome depends on timing.
+Take a saga that charges a card and reserves an account side by side, both pivots. If the
+reservation fails an instant *before* the charge completes, everything is rolled back.
+An instant *after*, the card is charged and stays charged, without the account. sagaz
+warns when it sees such a saga:
+
+```text
+ParallelPivotsWarning: saga 'payment': the pivots 'charge_card' and 'reserve_account' are in
+parallel branches. If one branch fails, which of them stays done depends on the order
+they complete in. Chain them with depends_on if they must commit together.
+```
+
+If the two must commit together, make one depend on the other. If the branches are
+independent on purpose (two devices updated side by side), silence it:
+
+```python
+import warnings
+from sagaz import ParallelPivotsWarning
+
+warnings.filterwarnings("ignore", category=ParallelPivotsWarning)
+```
+
 ## In a choreography
 
 A handler can be a pivot too: `@on_event("stock.reserved", pivot=True)`. Once it

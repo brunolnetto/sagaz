@@ -9,6 +9,7 @@ from sagaz.core.decorators._collection import DecoratorCollectionManager
 from sagaz.core.decorators._compat import _DecoratorCompatMixin
 from sagaz.core.decorators._deadline import Deadline, deadline_seconds
 from sagaz.core.decorators._execution import ExecutionEngine
+from sagaz.core.decorators._forward import recovery_handler
 from sagaz.core.decorators._ordering import _DecoratorOrderingMixin
 from sagaz.core.decorators._pivot import _DecoratorPivotMixin
 from sagaz.core.decorators._snapshots import _DecoratorSnapshotMixin
@@ -235,6 +236,8 @@ class Saga(
         description: str | None = None,
         region: str | None = None,
         idempotency_key: StepKey | None = None,
+        pivot: bool = False,
+        forward_recovery: Callable[[dict[str, Any], Exception], Any] | None = None,
     ) -> "Saga":
         """
         Add a step programmatically (imperative mode).
@@ -253,6 +256,9 @@ class Saga(
             region: Run the step and its compensation on this region's workers
                 (ADR-034). ``None`` (default) runs it locally.
             idempotency_key: As for ``@action``: the step runs once per key (#569).
+            pivot: As for ``@action``: a point of no return (#678).
+            forward_recovery: ``handler(ctx, error)`` returning a ``RecoveryAction``,
+                asked when this step fails after a completed pivot: ``@forward_recovery``.
 
         Returns:
             Self for method chaining
@@ -298,10 +304,13 @@ class Saga(
             description=description or f"Execute {name}",
             region=region,
             idempotency_key=idempotency_key,
+            pivot=pivot,
         )
 
         self._steps.append(step_def)
         self._step_registry[name] = step_def
+        if forward_recovery is not None:
+            self._forward_recovery_handlers[name] = recovery_handler(name, forward_recovery)
 
         return self  # Enable method chaining
 

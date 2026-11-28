@@ -11,6 +11,7 @@ from sagaz.core.exceptions._idempotency import (
     IdempotencyKeyRequiredError,
 )
 from sagaz.core.exceptions._saga import (
+    ParallelPivotsWarning,
     SagaAlreadyExistsError,
     SagaCompensationError,
     SagaDefinitionError,
@@ -28,6 +29,7 @@ __all__ = [
     "IdempotencyKeyMissingInPayloadError",
     "IdempotencyKeyRequiredError",
     "MissingDependencyError",
+    "ParallelPivotsWarning",
     "SagaAlreadyExistsError",
     "SagaCompensationError",
     "SagaDefinitionError",

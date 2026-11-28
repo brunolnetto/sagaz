@@ -95,6 +95,16 @@ class SagaAlreadyExistsError(SagaError):
         )
 
 
+class ParallelPivotsWarning(UserWarning):
+    """A saga has pivot steps in parallel branches (#679).
+
+    Which of them stays done when a branch fails depends on the order they complete in.
+    Chain them with ``depends_on`` if they must commit together, or silence it with
+    ``warnings.filterwarnings("ignore", category=ParallelPivotsWarning)`` when the
+    branches are independent on purpose.
+    """
+
+
 class StepInDoubtError(SagaStepError):
     """A step's idempotency key is held by a run that did not finish the step (#569).
 

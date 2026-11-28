@@ -71,6 +71,7 @@ from sagaz.core.decorators._idempotency import release_step_key
 from sagaz.core.exceptions import (
     IdempotencyKeyRequiredError,
     MissingDependencyError,
+    ParallelPivotsWarning,
     SagaAlreadyExistsError,
     SagaCompensationError,
     SagaDefinitionError,
@@ -199,6 +200,7 @@ __all__ = [
     "MissingDependencyError",
     "OutboxSagaListener",
     "ParallelFailureStrategy",
+    "ParallelPivotsWarning",
     "PivotInfo",
     # =========================================================================
     # Pivot/Irreversible Steps (v1.3.0)
